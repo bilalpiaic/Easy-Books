@@ -1,15 +1,16 @@
 from typing import Annotated, List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
+from pydantic import BaseModel
 from sqlmodel import Session, select, func
-from db import engine, get_session, create_db_and_tables
+from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
-    Account, Transaction, JournalEntry, Settings, User,
+    Account, Transaction, JournalEntry, Settings, User, Tenant,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
-from auth import SECRET_KEY, ALGORITHM
+from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
 
 app = FastAPI(title="Easy-Books API")
 
@@ -45,6 +46,55 @@ def get_current_user(session: Session = Depends(get_session), token: str = Depen
 
 SessionDep = Annotated[Session, Depends(get_session)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+class UserSignup(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    company_name: str
+
+@app.post("/api/auth/signup")
+def signup(data: UserSignup, session: SessionDep):
+    # Check if user exists
+    existing_user = session.exec(select(User).where(User.email == data.email)).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create Tenant
+    tenant = Tenant(name=data.company_name)
+    session.add(tenant)
+    session.commit()
+    session.refresh(tenant)
+    
+    # Create User
+    user = User(
+        email=data.email,
+        hashed_password=get_password_hash(data.password),
+        full_name=data.full_name,
+        tenant_id=tenant.id
+    )
+    session.add(user)
+    session.commit()
+    
+    # Auto-seed COA
+    seed_data(tenant.id)
+    
+    return {"success": True, "tenant_id": tenant.id}
+
+@app.post("/api/auth/login")
+def login(session: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()):
+    user = session.exec(select(User).where(User.email == form_data.username)).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(
+        data={"sub": user.email, "tenant_id": user.tenant_id}
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.on_event("startup")
 def on_startup():

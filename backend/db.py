@@ -12,7 +12,31 @@ engine = create_engine(sqlite_url, connect_args=connect_args)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
-    seed_data()
+    
+    # For development, ensure at least one tenant and user exist
+    with Session(engine) as session:
+        from models import Tenant, User
+        from auth import get_password_hash
+        
+        default_tenant = session.exec(select(Tenant)).first()
+        if not default_tenant:
+            default_tenant = Tenant(name="Malik Enterprises")
+            session.add(default_tenant)
+            session.commit()
+            session.refresh(default_tenant)
+            
+            # Seed data for this default tenant
+            seed_data(default_tenant.id)
+            
+            # Create a default admin user
+            admin_user = User(
+                email="admin@malik.com",
+                hashed_password=get_password_hash("admin123"),
+                full_name="System Admin",
+                tenant_id=default_tenant.id
+            )
+            session.add(admin_user)
+            session.commit()
 
 def get_session():
     with Session(engine) as session:
@@ -27,21 +51,13 @@ def get_tenant_session(tenant_id: int):
     with Session(engine) as session:
         yield session
 
-def seed_data():
+def seed_data(tenant_id: int):
     with Session(engine) as session:
-        from models import Tenant
-        # Create a default tenant if none exists
-        default_tenant = session.exec(select(Tenant)).first()
-        if not default_tenant:
-            default_tenant = Tenant(name="Default Tenant")
-            session.add(default_tenant)
-            session.commit()
-            session.refresh(default_tenant)
+        # Seed accounts for the specific tenant if empty
+        account_count = session.exec(
+            select(Account).where(Account.tenant_id == tenant_id)
+        ).first()
         
-        tenant_id = default_tenant.id
-
-        # Seed accounts if empty
-        account_count = session.exec(select(Account)).first()
         if not account_count:
             initial_accounts = [
                 Account(code="1000", name="Cash in Hand", type="Asset", tenant_id=tenant_id),
@@ -68,8 +84,10 @@ def seed_data():
             session.add_all(initial_accounts)
             session.commit()
 
-        # Seed settings if empty
-        settings_count = session.exec(select(Settings)).first()
+        # Seed settings for the specific tenant if empty
+        settings_count = session.exec(
+            select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "org_name")
+        ).first()
         if not settings_count:
-            session.add(Settings(key="org_name", value="Malik Enterprises", tenant_id=tenant_id))
+            session.add(Settings(key="org_name", value="New Company", tenant_id=tenant_id))
             session.commit()
