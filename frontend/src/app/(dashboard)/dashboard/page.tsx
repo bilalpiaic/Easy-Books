@@ -10,17 +10,22 @@ interface DashboardData {
     total_expense: number
   }
   recent: any[]
-}
+import { getAuthHeader } from "@/lib/auth"
 
+interface DashboardData {
+...
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/reports/dashboard")
+    fetch("http://localhost:8000/api/reports/dashboard", {
+      headers: getAuthHeader()
+    })
       .then(res => res.json())
       .then(setData)
       .catch(console.error)
   }, [])
+
 
   if (!data) return <div>Loading...</div>
 
