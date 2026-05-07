@@ -1,18 +1,34 @@
 import pytest
+import os
 from fastapi.testclient import TestClient
-from main import app
-from db import engine
-from sqlmodel import SQLModel, Session, select
+from sqlmodel import create_engine, Session, SQLModel, select
+from main import app, get_session
 from models import Tenant, User, Account
+
+# File-based database for testing to ensure connection persistence
+TEST_DB = "test_database.db"
+sqlite_url = f"sqlite:///{TEST_DB}"
+engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
+
+def get_session_override():
+    with Session(engine) as session:
+        yield session
 
 @pytest.fixture(name="client")
 def client_fixture():
-    # Setup: Create tables in an in-memory database
-    # Note: We need to use the same engine for main app during tests
-    # For simplicity here, we'll just use the default engine which is database.db
-    # In a real app, we'd override the get_session dependency
+    # Setup: Create tables
+    SQLModel.metadata.create_all(engine)
+    
+    # Override dependency
+    app.dependency_overrides[get_session] = get_session_override
+    
     client = TestClient(app)
     yield client
+    
+    # Teardown
+    app.dependency_overrides.clear()
+    if os.path.exists(TEST_DB):
+        os.remove(TEST_DB)
 
 def test_signup_flow(client: TestClient):
     signup_data = {

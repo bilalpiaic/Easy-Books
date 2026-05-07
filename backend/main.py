@@ -77,7 +77,7 @@ def signup(data: UserSignup, session: SessionDep):
     session.commit()
     
     # Auto-seed COA
-    seed_data(tenant.id)
+    seed_data(tenant.id, session=session)
     
     return {"success": True, "tenant_id": tenant.id}
 

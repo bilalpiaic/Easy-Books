@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
 from models import Account, Settings
 
@@ -26,7 +27,7 @@ def create_db_and_tables():
             session.refresh(default_tenant)
             
             # Seed data for this default tenant
-            seed_data(default_tenant.id)
+            seed_data(default_tenant.id, session=session)
             
             # Create a default admin user
             admin_user = User(
@@ -51,10 +52,10 @@ def get_tenant_session(tenant_id: int):
     with Session(engine) as session:
         yield session
 
-def seed_data(tenant_id: int):
-    with Session(engine) as session:
+def seed_data(tenant_id: int, session: Optional[Session] = None):
+    def run_seeding(s: Session):
         # Seed accounts for the specific tenant if empty
-        account_count = session.exec(
+        account_count = s.exec(
             select(Account).where(Account.tenant_id == tenant_id)
         ).first()
         
@@ -81,13 +82,19 @@ def seed_data(tenant_id: int):
                 Account(code="5500", name="Machine Repair & Maintenance", type="Expense", tenant_id=tenant_id),
                 Account(code="5900", name="Other Expenses", type="Expense", tenant_id=tenant_id),
             ]
-            session.add_all(initial_accounts)
-            session.commit()
+            s.add_all(initial_accounts)
+            s.commit()
 
         # Seed settings for the specific tenant if empty
-        settings_count = session.exec(
+        settings_count = s.exec(
             select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "org_name")
         ).first()
         if not settings_count:
-            session.add(Settings(key="org_name", value="New Company", tenant_id=tenant_id))
-            session.commit()
+            s.add(Settings(key="org_name", value="New Company", tenant_id=tenant_id))
+            s.commit()
+
+    if session:
+        run_seeding(session)
+    else:
+        with Session(engine) as session:
+            run_seeding(session)
