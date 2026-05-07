@@ -17,10 +17,10 @@
 - Modify: `backend/models.py`
 - Test: `backend/tests/test_models.py`
 
-- [ ] **Step 1: Update dependencies**
+- [x] **Step 1: Update dependencies**
 Add `passlib[bcrypt]`, `python-jose[cryptography]`, and `python-multipart` to `pyproject.toml`.
 
-- [ ] **Step 2: Define Tenant and User models**
+- [x] **Step 2: Define Tenant and User models**
 Modify `backend/models.py` to add `Tenant` and `User` models, and update existing models to include `tenant_id`.
 
 ```python
@@ -43,7 +43,7 @@ class Account(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 ```bash
 git add backend/pyproject.toml backend/models.py
 git commit -m "feat: add tenant and user models"
@@ -57,10 +57,10 @@ git commit -m "feat: add tenant and user models"
 - Create: `backend/auth.py`
 - Test: `backend/tests/test_auth.py`
 
-- [ ] **Step 1: Write auth utility tests**
+- [x] **Step 1: Write auth utility tests**
 Create `backend/tests/test_auth.py` to test password hashing and JWT token creation.
 
-- [ ] **Step 2: Implement auth logic**
+- [x] **Step 2: Implement auth logic**
 Create `backend/auth.py` with `get_password_hash`, `verify_password`, and `create_access_token`.
 
 ```python
@@ -82,11 +82,11 @@ def create_access_token(data: dict):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 ```
 
-- [ ] **Step 3: Run tests and verify**
+- [x] **Step 3: Run tests and verify**
 Run: `pytest backend/tests/test_auth.py`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 ```bash
 git add backend/auth.py backend/tests/test_auth.py
 git commit -m "feat: implement jwt and password hashing"
@@ -100,10 +100,10 @@ git commit -m "feat: implement jwt and password hashing"
 - Modify: `backend/db.py`
 - Modify: `backend/main.py`
 
-- [ ] **Step 1: Implement get_current_user dependency**
+- [x] **Step 1: Implement get_current_user dependency**
 In `backend/main.py`, create a dependency that extracts the `tenant_id` from the JWT token.
 
-- [ ] **Step 2: Update get_session to be tenant-aware**
+- [x] **Step 2: Update get_session to be tenant-aware**
 In `backend/db.py`, modify `get_session` or create a new `get_tenant_session` that automatically filters by `tenant_id`.
 
 ```python
@@ -114,7 +114,7 @@ def get_tenant_session(tenant_id: int):
         yield session
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 ```bash
 git add backend/db.py backend/main.py
 git commit -m "feat: add tenant-aware session logic"
@@ -128,13 +128,13 @@ git commit -m "feat: add tenant-aware session logic"
 - Modify: `backend/main.py`
 - Modify: `backend/db.py`
 
-- [ ] **Step 1: Create signup endpoint**
+- [x] **Step 1: Create signup endpoint**
 In `backend/main.py`, add `POST /api/auth/signup` that creates a Tenant, a User, and seeds the Chart of Accounts.
 
-- [ ] **Step 2: Update seeding logic**
+- [x] **Step 2: Update seeding logic**
 Update `seed_data` in `backend/db.py` to accept a `tenant_id`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 ```bash
 git add backend/main.py backend/db.py
 git commit -m "feat: implement tenant signup and auto-seeding"
@@ -149,13 +149,13 @@ git commit -m "feat: implement tenant signup and auto-seeding"
 - Create: `frontend/src/app/login/page.tsx`
 - Modify: `frontend/src/components/Sidebar.tsx`
 
-- [ ] **Step 1: Build Login Page**
+- [x] **Step 1: Build Login Page**
 Create a professional login form in `frontend/src/app/login/page.tsx` using the "Malik Enterprises" theme.
 
-- [ ] **Step 2: Dynamic Branding in Sidebar**
+- [x] **Step 2: Dynamic Branding in Sidebar**
 Modify `frontend/src/components/Sidebar.tsx` to fetch the tenant name from the auth context instead of hardcoding "Malik Ent."
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 ```bash
 git add frontend/src/app/login/page.tsx frontend/src/components/Sidebar.tsx
 git commit -m "feat: add login page and dynamic branding"
