@@ -1,0 +1,32 @@
+<h2>Multi-Tenant SaaS Strategy</h2>
+<p class="subtitle">Switching to SaaS requires a fundamental change in how we handle data and users. Which isolation strategy do you prefer?</p>
+
+<div class="options">
+  <div class="option" data-choice="shared-db" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Shared Database (Column-based)</h3>
+      <p>All tenants share the same tables. Every row has a <code>tenant_id</code>. </p>
+      <ul>
+        <li><strong>Pros:</strong> Easy to manage, low cost, simple scaling.</li>
+        <li><strong>Cons:</strong> Risk of data leakage if queries aren't scoped correctly.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="option" data-choice="schema-based" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Schema-based Isolation</h3>
+      <p>Each tenant gets their own schema/database (e.g., PostgreSQL schemas).</p>
+      <ul>
+        <li><strong>Pros:</strong> Stronger security, easier backups per tenant.</li>
+        <li><strong>Cons:</strong> More complex migrations, higher infra overhead.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Recommendation</h3>
+  <p>For a startup SaaS FMS, <strong>Option A (Shared Database)</strong> is usually the best starting point for development speed and cost-efficiency, provided we use robust row-level security or global query filters.</p>
+</div>

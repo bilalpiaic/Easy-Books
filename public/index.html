@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Malik Enterprises — Financial Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-top">
+      <div class="login-logo">M</div>
+      <div class="login-title">Malik Enterprises</div>
+      <div class="login-sub">FINANCIAL MANAGEMENT SYSTEM · FY 2025–26</div>
+    </div>
+    <div class="login-body">
+      <div class="login-field">
+        <label class="login-label">Select your role</label>
+        <div class="login-role-grid" id="roleGrid">
+          <div class="role-card selected" data-role="Owner" onclick="selectRole(this)">
+            <div class="role-card-icon">👑</div>
+            <div class="role-card-name">Owner</div>
+            <div class="role-card-perm">Full access</div>
+          </div>
+          <div class="role-card" data-role="Accountant" onclick="selectRole(this)">
+            <div class="role-card-icon">📊</div>
+            <div class="role-card-name">Accountant</div>
+            <div class="role-card-perm">Entry + reports</div>
+          </div>
+          <div class="role-card" data-role="Manager" onclick="selectRole(this)">
+            <div class="role-card-icon">👁</div>
+            <div class="role-card-name">Manager</div>
+            <div class="role-card-perm">View only</div>
+          </div>
+        </div>
+      </div>
+      <div class="login-field">
+        <label class="login-label">Your name</label>
+        <input type="text" class="login-input" id="loginName" placeholder="Enter your name" value="Malik Sahib">
+      </div>
+      <button class="login-btn" onclick="doLogin()">Enter System →</button>
+      <div class="login-hint">Financial data secured via server-side storage</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ═══ -->
+<div id="app">
+  <header class="app-header">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="header-logo">M</div>
+    <div class="header-brand">
+      <div class="header-name">Malik Enterprises</div>
+      <div class="header-tagline">FINANCIAL MANAGEMENT SYSTEM</div>
+    </div>
+    <div class="header-right">
+      <div class="header-period">Mar 2025 – Feb 2026</div>
+      <div class="header-role-badge" id="headerRole">OWNER</div>
+      <div class="header-avatar" id="headerAvatar">M</div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+    <nav class="sidebar" id="sidebar">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <span class="nav-item-icon">⬛</span> Dashboard
+      </div>
+
+      <div class="nav-section">Transactions</div>
+      <div class="nav-item" data-page="entry" onclick="navigate('entry')">
+        <span class="nav-item-icon">＋</span> New Entry
+        <span class="nav-item-badge" id="navBadge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-page="journal" onclick="navigate('journal')">
+        <span class="nav-item-icon">📋</span> General Journal
+      </div>
+      <div class="nav-item" data-page="ledger" onclick="navigate('ledger')">
+        <span class="nav-item-icon">📖</span> General Ledger
+      </div>
+
+      <div class="nav-section">Reports</div>
+      <div class="nav-item" data-page="coa" onclick="navigate('coa')">
+        <span class="nav-item-icon">🗂</span> Chart of Accounts
+      </div>
+      <div class="nav-item" data-page="trialbalance" onclick="navigate('trialbalance')">
+        <span class="nav-item-icon">⚖</span> Trial Balance
+      </div>
+      <div class="nav-item" data-page="pl" onclick="navigate('pl')">
+        <span class="nav-item-icon">≡</span> P&amp;L Statement
+      </div>
+      <div class="nav-item" data-page="balance" onclick="navigate('balance')">
+        <span class="nav-item-icon">⊟</span> Balance Sheet
+      </div>
+      <div class="nav-item" data-page="cashflow" onclick="navigate('cashflow')">
+        <span class="nav-item-icon">◎</span> Cash Flow
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-avatar" id="sidebarAvatar">M</div>
+          <div>
+            <div class="sidebar-user-name" id="sidebarName">Malik Sahib</div>
+            <div class="sidebar-user-role" id="sidebarRole">Owner</div>
+          </div>
+          <button class="logout-btn" title="Logout" onclick="logout()">⎋</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="content" id="contentArea">
+
+      <!-- ═══ DASHBOARD ═══ -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-sub">Financial overview · March 2025 – February 2026</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+            <button class="btn btn-primary btn-sm" onclick="navigate('entry')">＋ New Entry</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <div class="chart-grid">
+          <div class="chart-wrap">
+            <div class="chart-title">Monthly Revenue (PKR)</div>
+            <div class="chart-canvas"><canvas id="revChart"></canvas></div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-title">Revenue by Category</div>
+            <div class="chart-canvas"><canvas id="catChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body" style="padding-bottom:0">
+            <div class="section-label">Recent transactions</div>
+          </div>
+          <div class="table-wrap" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
+            <table>
+              <thead>
+                <tr>
+                  <th>JV No.</th><th>Date</th><th>Type</th><th>Category</th>
+                  <th>Description</th><th class="td-right">Dr (PKR)</th><th class="td-right">Cr (PKR)</th>
+                </tr>
+              </thead>
+              <tbody id="recentTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /dashboard -->
+
+      <!-- ═══ TRANSACTION ENTRY ═══ -->
+      <div class="page" id="page-entry">
+        <div class="page-header">
+          <div>
+            <div class="page-title">New Transaction Entry</div>
+            <div class="page-sub">All amounts in PKR · Double-entry format</div>
+          </div>
+          <div class="header-actions">
+            <span style="background:var(--gold-p);color:var(--gold);font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.05em" id="jvNum">JV-110</span>
+          </div>
+        </div>
+
+        <form id="txForm" novalidate>
+          <div class="form-card">
+            <div class="form-section">
+              <div class="section-label">Transaction details</div>
+              <div class="grid2" style="margin-bottom:14px">
+                <div class="field">
+                  <label class="lbl">Date <span class="req">*</span></label>
+                  <input type="date" id="txDate" required>
+                  <span class="field-error" id="err-date"></span>
+                </div>
+                <div class="field">
+                  <label class="lbl">Reference No. <span class="hint">(optional)</span></label>
+                  <input type="text" id="txRef" placeholder="INV-044, PO-12…">
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:14px">
+                <label class="lbl">Account Type <span class="req">*</span></label>
+                <div class="type-toggle">
+                  <button type="button" class="type-btn act-rev" id="btnRev" onclick="setType('Revenue')">
+                    <div class="type-icon" style="background:var(--green-p)">↑</div>
+                    <div><span class="t-main">Revenue / Receipt</span><span class="t-sub">Sales, CMT, WC income</span></div>
+                  </button>
+                  <button type="button" class="type-btn" id="btnExp" onclick="setType('Expense')">
+                    <div class="type-icon" style="background:var(--red-p)">↓</div>
+                    <div><span class="t-main">Expense / Payment</span><span class="t-sub">Materials, wages, rent</span></div>
+                  </button>
+                </div>
+              </div>
+              <div class="field">
+                <label class="lbl">Description <span class="req">*</span> <span class="hint">— who, what, how many units</span></label>
+                <textarea id="txDesc" placeholder="e.g. CMT Wamzak – 490 pcs @ PKR 87 · Batch #3"></textarea>
+                <span class="field-error" id="err-desc"></span>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <div class="section-label">Category <span class="req">*</span></div>
+              <div class="cat-chips" id="catChips">
+                <div class="cat-chip" data-c="CMT" onclick="selCat(this)">CMT Services</div>
+                <div class="cat-chip" data-c="WC" onclick="selCat(this)">WC / Working Capital</div>
+                <div class="cat-chip" data-c="Raw" onclick="selCat(this)">Raw Materials</div>
+                <div class="cat-chip" data-c="Labour" onclick="selCat(this)">Labour &amp; Wages</div>
+                <div class="cat-chip" data-c="Rent" onclick="selCat(this)">Rent &amp; Utilities</div>
+                <div class="cat-chip" data-c="Transport" onclick="selCat(this)">Transport</div>
+                <div class="cat-chip" data-c="Machine" onclick="selCat(this)">Machine Repairs</div>
+                <div class="cat-chip" data-c="T-Shirt" onclick="selCat(this)">T-Shirt Sales</div>
+                <div class="cat-chip" data-c="Scrap" onclick="selCat(this)">Scrap Sales</div>
+                <div class="cat-chip" data-c="Other" onclick="selCat(this)">Other</div>
+              </div>
+              <span class="field-error" id="err-cat"></span>
+            </div>
+
+            <div class="form-section">
+              <div class="section-label">Amounts (PKR)</div>
+              <div class="dc-pair">
+                <div class="dc-block">
+                  <div class="dc-head dr"><div class="dc-dot" style="background:var(--red)"></div>Debit (Dr)</div>
+                  <div style="position:relative">
+                    <div class="amt-pre" style="border-radius:0">PKR</div>
+                    <input type="number" class="dc-input" id="txDebit" placeholder="0" min="0" step="1" oninput="updBal()">
+                  </div>
+                </div>
+                <div class="dc-block">
+                  <div class="dc-head cr"><div class="dc-dot" style="background:var(--green)"></div>Credit (Cr)</div>
+                  <div style="position:relative">
+                    <div class="amt-pre" style="border-radius:0">PKR</div>
+                    <input type="number" class="dc-input" id="txCredit" placeholder="0" min="0" step="1" oninput="updBal()">
+                  </div>
+                </div>
+              </div>
+              <div class="balance-row">
+                <span class="bal-lbl">Balance check (Dr − Cr)</span>
+                <span class="bal-val" id="balVal">PKR 0</span>
+              </div>
+              <span class="field-error" id="err-amt"></span>
+              <div class="jv-box" style="margin-top:12px">
+                <div class="jv-box-head">
+                  Journal entry preview
+                  <span class="jv-tgl" onclick="tglJV()">▼ collapse</span>
+                </div>
+                <div id="jvBody">
+                  <div class="jv-row jv-hd"><div>Date</div><div>Narration</div><div style="text-align:right">Dr</div><div style="text-align:right">Cr</div></div>
+                  <div class="jv-row"><div class="jv-num" id="jvDate">—</div><div id="jvNarrDr" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Dr. Cash / Receivable</div><div class="jv-dr" id="jvDr">—</div><div class="jv-cr">—</div></div>
+                  <div class="jv-row"><div>—</div><div id="jvNarrCr" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink3);padding-left:12px">Cr. Sales Revenue</div><div class="jv-dr">—</div><div class="jv-cr" id="jvCr">—</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <div class="section-label">Additional information</div>
+              <div class="grid2" style="margin-bottom:14px">
+                <div class="field">
+                  <label class="lbl">Party / Customer <span class="hint">(optional)</span></label>
+                  <input type="text" id="txParty" placeholder="Adnan, Wamzak, AZ Clothing…">
+                </div>
+                <div class="field">
+                  <label class="lbl">Payment Method</label>
+                  <div class="sel-wrap">
+                    <select id="txMethod">
+                      <option value="">— select —</option>
+                      <option>Cash in Hand</option>
+                      <option>Bank Transfer</option>
+                      <option>Cheque</option>
+                      <option>Advance</option>
+                      <option>Petty Cash</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="lbl">Quantity / Units <span class="hint">(optional)</span></label>
+                  <input type="text" id="txQty" placeholder="490 pcs, 77.5 kg…" oninput="autoAmt()">
+                </div>
+                <div class="field">
+                  <label class="lbl">Rate per unit <span class="hint">(optional)</span></label>
+                  <div class="amt-wrap">
+                    <div class="amt-pre">PKR</div>
+                    <input type="number" id="txRate" placeholder="0" min="0" oninput="autoAmt()">
+                  </div>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:14px">
+                <label class="lbl">Attachment <span class="hint">(invoice, receipt, photo)</span></label>
+                <div class="attach-zone" onclick="document.getElementById('fInput').click()">
+                  <div style="font-size:20px;margin-bottom:4px;color:var(--ink3)">📎</div>
+                  <div class="attach-text"><strong>Click to attach</strong> or drag &amp; drop · PNG, JPG, PDF</div>
+                  <input type="file" id="fInput" style="display:none" accept=".png,.jpg,.jpeg,.pdf" onchange="showFile(this)">
+                </div>
+                <div id="attachName" style="font-size:12px;color:var(--green);margin-top:6px;display:none"></div>
+              </div>
+              <div class="field">
+                <label class="lbl">Internal Notes <span class="hint">(optional)</span></label>
+                <textarea id="txNotes" placeholder="Remarks, advance adjustments, pending confirmations…" style="min-height:56px"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <div class="action-left">
+              <button type="button" class="btn btn-ghost" onclick="clearTx(false)">✕ Clear</button>
+              <button type="button" class="btn btn-ghost" onclick="showToast('Draft saved locally ✓')">Save draft</button>
+            </div>
+            <div class="action-right">
+              <button type="submit" class="btn btn-primary" id="submitBtn">Post entry →</button>
+            </div>
+          </div>
+        </form>
+      </div><!-- /entry -->
+
+      <!-- ═══ GENERAL JOURNAL ═══ -->
+      <div class="page" id="page-journal">
+        <div class="page-header">
+          <div>
+            <div class="page-title">General Journal</div>
+            <div class="page-sub">All transactions in chronological order</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+          </div>
+        </div>
+        <div class="filters">
+          <input class="filter-inp" type="date" id="jouStart" onchange="renderJournal()">
+          <span style="color:var(--ink4)">to</span>
+          <input class="filter-inp" type="date" id="jouEnd" onchange="renderJournal()">
+          <input class="filter-inp" type="text" id="jouSearch" placeholder="🔍 Search…" oninput="renderJournal()" style="flex:1">
+        </div>
+        <div class="table-wrap card">
+          <table>
+            <thead>
+              <tr>
+                <th>JV No.</th><th>Date</th><th>Account Head</th><th>Description</th>
+                <th class="td-right">Debit (PKR)</th><th class="td-right">Credit (PKR)</th>
+              </tr>
+            </thead>
+            <tbody id="jouTbody"></tbody>
+          </table>
+        </div>
+      </div><!-- /journal -->
+
+      <!-- ═══ GENERAL LEDGER ═══ -->
+      <div class="page" id="page-ledger">
+        <div class="page-header">
+          <div>
+            <div class="page-title">General Ledger</div>
+            <div class="page-sub">Account-wise transaction history</div>
+          </div>
+        </div>
+        <div class="filters">
+          <div class="sel-wrap" style="flex:1">
+            <select class="filter-inp" id="ledAccount" onchange="renderLedger()">
+              <option value="">— Select Account (LOV) —</option>
+            </select>
+          </div>
+          <input class="filter-inp" type="date" id="ledStart" onchange="renderLedger()">
+          <span style="color:var(--ink4)">to</span>
+          <input class="filter-inp" type="date" id="ledEnd" onchange="renderLedger()">
+        </div>
+        <div class="table-wrap card">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>JV No.</th><th>Description</th>
+                <th class="td-right">Debit</th><th class="td-right">Credit</th><th class="td-right">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="ledTbody"></tbody>
+          </table>
+        </div>
+      </div><!-- /ledger -->
+
+      <!-- ═══ CHART OF ACCOUNTS ═══ -->
+      <div class="page" id="page-coa">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Chart of Accounts</div>
+            <div class="page-sub">Master list of all account heads</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-primary btn-sm">＋ New Account</button>
+          </div>
+        </div>
+        <div class="table-wrap card">
+          <table>
+            <thead>
+              <tr><th>Code</th><th>Account Name</th><th>Type</th><th>Status</th></tr>
+            </thead>
+            <tbody id="coaTbody"></tbody>
+          </table>
+        </div>
+      </div><!-- /coa -->
+
+      <!-- ═══ TRIAL BALANCE ═══ -->
+      <div class="page" id="page-trialbalance">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Trial Balance</div>
+            <div class="page-sub">Summary of Dr/Cr balances</div>
+          </div>
+          <div class="header-actions">
+            <input type="date" class="filter-inp" id="tbDate" onchange="renderTB()">
+          </div>
+        </div>
+        <div class="table-wrap card">
+          <table>
+            <thead>
+              <tr><th>Code</th><th>Account Name</th><th class="td-right">Debit (PKR)</th><th class="td-right">Credit (PKR)</th></tr>
+            </thead>
+            <tbody id="tbTbody"></tbody>
+            <tfoot>
+              <tr class="report-row total">
+                <td colspan="2">TOTAL</td>
+                <td class="td-right" id="tbTotalDr">0</td>
+                <td class="td-right" id="tbTotalCr">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div><!-- /trialbalance -->
+
+      <!-- ═══ P&L STATEMENT ═══ -->
+      <div class="page" id="page-pl">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Profit &amp; Loss Statement</div>
+            <div class="page-sub">For the period: March 2025 – February 2026</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+          </div>
+        </div>
+        <div id="plContent"></div>
+      </div><!-- /pl -->
+
+      <!-- ═══ BALANCE SHEET ═══ -->
+      <div class="page" id="page-balance">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Balance Sheet</div>
+            <div class="page-sub">As at: 28 February 2026</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+          </div>
+        </div>
+        <div id="bsContent"></div>
+      </div><!-- /balance -->
+
+      <!-- ═══ CASH FLOW ═══ -->
+      <div class="page" id="page-cashflow">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Cash Flow Statement</div>
+            <div class="page-sub">For the period: March 2025 – February 2026</div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+          </div>
+        </div>
+        <div id="cfContent"></div>
+      </div><!-- /cashflow -->
+
+    </div><!-- /content -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

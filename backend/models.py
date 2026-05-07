@@ -1,0 +1,88 @@
+from datetime import datetime
+from typing import List, Optional
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
+
+class Tenant(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    users: List["User"] = Relationship(back_populates="tenant")
+    accounts: List["Account"] = Relationship(back_populates="tenant")
+    transactions: List["Transaction"] = Relationship(back_populates="tenant")
+    settings: List["Settings"] = Relationship(back_populates="tenant")
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(unique=True, index=True)
+    hashed_password: str
+    full_name: Optional[str] = None
+    is_active: bool = Field(default=True)
+    tenant_id: int = Field(foreign_key="tenant.id")
+
+    tenant: Tenant = Relationship(back_populates="users")
+
+class Settings(SQLModel, table=True):
+    tenant_id: int = Field(foreign_key="tenant.id", primary_key=True)
+    key: str = Field(primary_key=True)
+    value: str
+    
+    tenant: Tenant = Relationship(back_populates="settings")
+
+class Account(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "code", name="unique_account_code_per_tenant"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str = Field(index=True)
+    name: str
+    type: str # Asset, Liability, Equity, Revenue, Expense
+
+    tenant: Tenant = Relationship(back_populates="accounts")
+    journal_entries: List["JournalEntry"] = Relationship(back_populates="account")
+
+class TransactionBase(SQLModel):
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    date: str
+    description: Optional[str] = None
+    reference: Optional[str] = None
+    party: Optional[str] = None
+    payment_method: Optional[str] = None
+    notes: Optional[str] = None
+
+class Transaction(TransactionBase, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "jv_number", name="unique_jv_number_per_tenant"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    jv_number: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    tenant: Tenant = Relationship(back_populates="transactions")
+    journal_entries: List["JournalEntry"] = Relationship(back_populates="transaction", cascade_delete=True)
+
+class JournalEntryBase(SQLModel):
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    account_id: int = Field(foreign_key="account.id")
+    debit: float = Field(default=0.0)
+    credit: float = Field(default=0.0)
+
+class JournalEntry(JournalEntryBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    transaction_id: int = Field(foreign_key="transaction.id", ondelete="CASCADE")
+
+    transaction: Transaction = Relationship(back_populates="journal_entries")
+    account: Account = Relationship(back_populates="journal_entries")
+
+# API Models
+class JournalEntryCreate(JournalEntryBase):
+    pass
+
+class TransactionCreate(TransactionBase):
+    entries: List[JournalEntryCreate]
+
+class TransactionRead(TransactionBase):
+    id: int
+    jv_number: str
+    entries: List["JournalEntryRead"]
+
+class JournalEntryRead(JournalEntryBase):
+    account_name: str
+    account_type: str
