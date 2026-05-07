@@ -18,6 +18,15 @@ def get_session():
     with Session(engine) as session:
         yield session
 
+def get_tenant_session(tenant_id: int):
+    """
+    Dependency that provides a session for a specific tenant.
+    Currently a wrapper around get_session, but can be extended
+    with automatic filtering in the future.
+    """
+    with Session(engine) as session:
+        yield session
+
 def seed_data():
     with Session(engine) as session:
         from models import Tenant

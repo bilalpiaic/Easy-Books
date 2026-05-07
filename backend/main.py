@@ -1,12 +1,15 @@
 from typing import Annotated, List, Optional
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlmodel import Session, select, func
 from db import engine, get_session, create_db_and_tables
 from models import (
-    Account, Transaction, JournalEntry, Settings,
+    Account, Transaction, JournalEntry, Settings, User,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
+from auth import SECRET_KEY, ALGORITHM
 
 app = FastAPI(title="Easy-Books API")
 
@@ -18,7 +21,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+
+def get_current_user(session: Session = Depends(get_session), token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        tenant_id: int = payload.get("tenant_id")
+        if email is None or tenant_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = session.exec(select(User).where(User.email == email)).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
 SessionDep = Annotated[Session, Depends(get_session)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 @app.on_event("startup")
 def on_startup():
@@ -26,29 +52,33 @@ def on_startup():
 
 # --- Settings API ---
 @app.get("/api/settings")
-def get_settings(session: SessionDep):
-    settings = session.exec(select(Settings)).all()
+def get_settings(session: SessionDep, user: CurrentUserDep):
+    settings = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id)).all()
     return {s.key: s.value for s in settings}
 
 @app.patch("/api/settings")
-def update_settings(session: SessionDep, org_name: str):
-    settings = session.get(Settings, "org_name")
+def update_settings(session: SessionDep, user: CurrentUserDep, org_name: str):
+    settings = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "org_name")).first()
     if settings:
         settings.value = org_name
     else:
-        settings = Settings(key="org_name", value=org_name)
+        settings = Settings(key="org_name", value=org_name, tenant_id=user.tenant_id)
     session.add(settings)
     session.commit()
     return {"success": True}
 
 # --- Accounts API ---
 @app.get("/api/accounts", response_model=List[Account])
-def get_accounts(session: SessionDep):
-    return session.exec(select(Account).order_by(Account.code)).all()
+def get_accounts(session: SessionDep, user: CurrentUserDep):
+    return session.exec(
+        select(Account)
+        .where(Account.tenant_id == user.tenant_id)
+        .order_by(Account.code)
+    ).all()
 
 # --- Transactions API ---
 @app.post("/api/transactions")
-def create_transaction(session: SessionDep, tx_data: TransactionCreate):
+def create_transaction(session: SessionDep, user: CurrentUserDep, tx_data: TransactionCreate):
     # Validation: Dr must equal Cr
     total_dr = sum(e.debit for e in tx_data.entries)
     total_cr = sum(e.credit for e in tx_data.entries)
@@ -56,14 +86,21 @@ def create_transaction(session: SessionDep, tx_data: TransactionCreate):
     if abs(total_dr - total_cr) > 0.01:
         raise HTTPException(status_code=400, detail="Transaction not balanced")
 
-    # Validate account IDs
+    # Validate account IDs and ensure they belong to the tenant
     account_ids = {e.account_id for e in tx_data.entries}
-    accounts = session.exec(select(Account).where(Account.id.in_(account_ids))).all()
+    accounts = session.exec(
+        select(Account)
+        .where(Account.id.in_(account_ids), Account.tenant_id == user.tenant_id)
+    ).all()
     if len(accounts) != len(account_ids):
-        raise HTTPException(status_code=400, detail="One or more invalid account IDs")
+        raise HTTPException(status_code=400, detail="One or more invalid or unauthorized account IDs")
 
-    # Generate JV number
-    last_tx = session.exec(select(Transaction).order_by(Transaction.id.desc())).first()
+    # Generate JV number per tenant
+    last_tx = session.exec(
+        select(Transaction)
+        .where(Transaction.tenant_id == user.tenant_id)
+        .order_by(Transaction.id.desc())
+    ).first()
     next_num = 110
     if last_tx and last_tx.jv_number.startswith("JV-"):
         try:
@@ -74,6 +111,7 @@ def create_transaction(session: SessionDep, tx_data: TransactionCreate):
 
     # Create Transaction
     db_tx = Transaction(
+        tenant_id=user.tenant_id,
         jv_number=jv_number,
         date=tx_data.date,
         description=tx_data.description,
@@ -89,6 +127,7 @@ def create_transaction(session: SessionDep, tx_data: TransactionCreate):
     # Create Journal Entries
     for e in tx_data.entries:
         db_entry = JournalEntry(
+            tenant_id=user.tenant_id,
             transaction_id=db_tx.id,
             account_id=e.account_id,
             debit=e.debit,
@@ -103,10 +142,13 @@ def create_transaction(session: SessionDep, tx_data: TransactionCreate):
 @app.get("/api/reports/journal")
 def get_journal_report(
     session: SessionDep,
+    user: CurrentUserDep,
     start: Optional[str] = None,
     end: Optional[str] = None
 ):
     query = select(Transaction, JournalEntry, Account).join(JournalEntry).join(Account)
+    query = query.where(Transaction.tenant_id == user.tenant_id)
+    
     if start and end:
         query = query.where(Transaction.date >= start, Transaction.date <= end)
     
@@ -126,7 +168,7 @@ def get_journal_report(
     ]
 
 @app.get("/api/reports/trial-balance")
-def get_trial_balance(session: SessionDep, date: Optional[str] = None):
+def get_trial_balance(session: SessionDep, user: CurrentUserDep, date: Optional[str] = None):
     # Subquery for grouped entries
     query = session.query(
         Account.code,
@@ -135,6 +177,8 @@ def get_trial_balance(session: SessionDep, date: Optional[str] = None):
         func.sum(JournalEntry.debit).label("total_debit"),
         func.sum(JournalEntry.credit).label("total_credit")
     ).join(JournalEntry).join(Transaction)
+    
+    query = query.filter(Transaction.tenant_id == user.tenant_id)
     
     if date:
         query = query.filter(Transaction.date <= date)
@@ -151,16 +195,19 @@ def get_trial_balance(session: SessionDep, date: Optional[str] = None):
             "total_debit": r.total_debit,
             "total_credit": r.total_credit
         }
-        from sqlmodel import Session, select, func, case
-        ...
-        @app.get("/api/reports/dashboard")
-        def get_dashboard_data(session: SessionDep):
-            # Summary
-            summary_query = session.query(
-                func.sum(case([(Account.type == 'Revenue', JournalEntry.credit - JournalEntry.debit)], else_=0)).label("total_revenue"),
-                func.sum(case([(Account.type == 'Expense', JournalEntry.debit - JournalEntry.credit)], else_=0)).label("total_expense")
-            ).join(JournalEntry, JournalEntry.account_id == Account.id)
-        ...
+        for r in results
+    ]
+
+@app.get("/api/reports/dashboard")
+def get_dashboard_data(session: SessionDep, user: CurrentUserDep):
+    from sqlmodel import case
+    # Summary
+    summary_query = session.query(
+        func.sum(case([(Account.type == 'Revenue', JournalEntry.credit - JournalEntry.debit)], else_=0)).label("total_revenue"),
+        func.sum(case([(Account.type == 'Expense', JournalEntry.debit - JournalEntry.credit)], else_=0)).label("total_expense")
+    ).join(JournalEntry, JournalEntry.account_id == Account.id).join(Transaction, JournalEntry.transaction_id == Transaction.id)
+    
+    summary_query = summary_query.filter(Transaction.tenant_id == user.tenant_id)
     
     summary = summary_query.one()
     
@@ -168,6 +215,7 @@ def get_trial_balance(session: SessionDep, date: Optional[str] = None):
     recent_txs = session.exec(
         select(Transaction, func.sum(JournalEntry.debit))
         .join(JournalEntry)
+        .where(Transaction.tenant_id == user.tenant_id)
         .group_by(Transaction.id)
         .order_by(Transaction.date.desc(), Transaction.id.desc())
         .limit(10)
@@ -193,6 +241,7 @@ def get_trial_balance(session: SessionDep, date: Optional[str] = None):
 @app.get("/api/reports/income-statement")
 def get_income_statement(
     session: SessionDep,
+    user: CurrentUserDep,
     start: Optional[str] = None,
     end: Optional[str] = None
 ):
@@ -202,6 +251,8 @@ def get_income_statement(
         func.sum(JournalEntry.debit).label("total_debit"),
         func.sum(JournalEntry.credit).label("total_credit")
     ).join(JournalEntry).join(Transaction).filter(Account.type.in_(['Revenue', 'Expense']))
+    
+    query = query.filter(Transaction.tenant_id == user.tenant_id)
     
     if start and end:
         query = query.filter(Transaction.date >= start, Transaction.date <= end)
@@ -219,8 +270,12 @@ def get_income_statement(
     ]
 
 @app.get("/api/transactions/{transaction_id}", response_model=TransactionRead)
-def get_transaction(transaction_id: int, session: SessionDep):
-    tx = session.get(Transaction, transaction_id)
+def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserDep):
+    tx = session.exec(
+        select(Transaction)
+        .where(Transaction.id == transaction_id, Transaction.tenant_id == user.tenant_id)
+    ).first()
+    
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
@@ -234,7 +289,6 @@ def get_transaction(transaction_id: int, session: SessionDep):
             "credit": je.credit
         })
     
-    # We need a custom return because TransactionRead has account details
     return {
         "id": tx.id,
         "jv_number": tx.jv_number,
