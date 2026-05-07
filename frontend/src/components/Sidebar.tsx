@@ -1,7 +1,8 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -15,6 +16,7 @@ import {
   LogOut
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getAuthHeader, removeAuthToken } from "@/lib/auth"
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "Overview" },
@@ -30,6 +32,24 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [orgName, setOrgName] = useState("Easy-Books")
+  
+  useEffect(() => {
+    fetch("http://localhost:8000/api/settings", {
+      headers: getAuthHeader()
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.org_name) setOrgName(data.org_name)
+    })
+    .catch(err => console.error("Failed to fetch settings", err))
+  }, [])
+
+  const handleLogout = () => {
+    removeAuthToken()
+    router.push("/login")
+  }
 
   const sections = ["Overview", "Transactions", "Reports"]
 
@@ -38,9 +58,9 @@ export default function Sidebar() {
       <div className="p-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#b8943f] rounded-lg flex items-center justify-center font-serif text-black font-bold">
-            M
+            {orgName.charAt(0)}
           </div>
-          <div className="font-serif text-lg">Malik Ent.</div>
+          <div className="font-serif text-lg truncate" title={orgName}>{orgName}</div>
         </div>
       </div>
 
@@ -72,13 +92,16 @@ export default function Sidebar() {
       <div className="p-4 border-t border-white/5">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#b8943f] flex items-center justify-center text-black font-bold text-xs">
-            M
+            U
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Malik Sahib</p>
-            <p className="text-[10px] text-white/40">Owner</p>
+            <p className="text-sm font-medium truncate">Logged User</p>
+            <p className="text-[10px] text-white/40">Admin</p>
           </div>
-          <button className="p-1.5 text-white/30 hover:text-white/70">
+          <button 
+            onClick={handleLogout}
+            className="p-1.5 text-white/30 hover:text-white/70"
+          >
             <LogOut className="w-4 h-4" />
           </button>
         </div>
