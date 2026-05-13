@@ -115,7 +115,7 @@ export default function NewEntryPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white p-8 rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 space-y-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/40 mb-2">Transaction Date</label>
               <input 

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { setAuthToken } from "@/lib/auth"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("admin@malik.com")
+  const [password, setPassword] = useState("admin123")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -101,6 +101,12 @@ export default function LoginPage() {
             <a href="#" className="text-[#b8943f] font-bold hover:underline">
               Start Free Trial
             </a>
+          </div>
+
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
+            <p className="font-bold mb-2">Demo Credentials (Pre-filled):</p>
+            <p>Email: admin@malik.com</p>
+            <p>Password: admin123</p>
           </div>
         </div>
       </div>

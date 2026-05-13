@@ -44,7 +44,7 @@ export default function TaxReports() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Total Revenue</p>
           <p className="text-2xl font-bold text-green-600 mt-2">{fmtPKR(total_revenue)}</p>

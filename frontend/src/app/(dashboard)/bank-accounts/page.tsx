@@ -23,12 +23,12 @@ export default function BankAccounts() {
 
   return (
     <div className="space-y-6 p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Bank Accounts</h1>
           <p className="text-sm text-black/50 mt-1">Monitor bank balances • Track cash positions</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={() => setHideBalance(!hideBalance)}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee]"
@@ -67,7 +67,7 @@ export default function BankAccounts() {
                   {acc.status}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Current Balance</p>
                   <p className="text-2xl font-bold text-[#b8943f] mt-2">

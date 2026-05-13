@@ -72,7 +72,7 @@ export default function Settings() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">Tax ID / EIN</label>
               <input
@@ -97,7 +97,7 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium mb-2">Fiscal Year Start</label>
               <select
@@ -131,7 +131,7 @@ export default function Settings() {
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8">
         <h2 className="text-xl font-semibold mb-6">Document Numbering</h2>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2">Invoice Prefix</label>
             <input

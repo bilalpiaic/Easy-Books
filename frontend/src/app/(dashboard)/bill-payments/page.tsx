@@ -28,12 +28,12 @@ export default function BillPayments() {
 
   return (
     <div className="space-y-6 p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Bill Payments</h1>
           <p className="text-sm text-black/50 mt-1">Record vendor payments • Track cash outflows</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+        <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
           <Plus className="w-4 h-4" />
           Pay Bill
         </button>
