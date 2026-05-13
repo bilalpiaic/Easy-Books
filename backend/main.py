@@ -250,41 +250,45 @@ def get_trial_balance(session: SessionDep, user: CurrentUserDep, date: Optional[
 
 @app.get("/api/reports/dashboard")
 def get_dashboard_data(session: SessionDep, user: CurrentUserDep):
-    from sqlmodel import case
-    # Summary
-    summary_query = session.query(
-        func.sum(case([(Account.type == 'Revenue', JournalEntry.credit - JournalEntry.debit)], else_=0)).label("total_revenue"),
-        func.sum(case([(Account.type == 'Expense', JournalEntry.debit - JournalEntry.credit)], else_=0)).label("total_expense")
-    ).join(JournalEntry, JournalEntry.account_id == Account.id).join(Transaction, JournalEntry.transaction_id == Transaction.id)
-    
-    summary_query = summary_query.filter(Transaction.tenant_id == user.tenant_id)
-    
-    summary = summary_query.one()
-    
-    # Recent Transactions
+    # Get recent transactions
     recent_txs = session.exec(
-        select(Transaction, func.sum(JournalEntry.debit))
-        .join(JournalEntry)
+        select(Transaction)
         .where(Transaction.tenant_id == user.tenant_id)
-        .group_by(Transaction.id)
         .order_by(Transaction.date.desc(), Transaction.id.desc())
         .limit(10)
     ).all()
     
+    # Calculate summary by iterating over journal entries
+    total_revenue = 0.0
+    total_expense = 0.0
+    
+    je_query = session.exec(
+        select(JournalEntry, Account)
+        .join(Account)
+        .join(Transaction)
+        .where(Transaction.tenant_id == user.tenant_id)
+    ).all()
+    
+    for entry, account in je_query:
+        if account.type == 'Revenue':
+            total_revenue += (entry.credit - entry.debit)
+        elif account.type == 'Expense':
+            total_expense += (entry.debit - entry.credit)
+    
     return {
         "summary": {
-            "total_revenue": summary.total_revenue or 0,
-            "total_expense": summary.total_expense or 0
+            "total_revenue": total_revenue,
+            "total_expense": total_expense
         },
         "recent": [
             {
                 "id": tx.id,
                 "jv_number": tx.jv_number,
                 "date": tx.date,
-                "description": tx.description,
-                "total_amount": amt
+                "description": tx.description or "",
+                "total_amount": 0
             }
-            for tx, amt in recent_txs
+            for tx in recent_txs
         ]
     }
 

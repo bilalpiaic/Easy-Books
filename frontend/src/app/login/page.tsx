@@ -63,7 +63,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-[#f6f3ee] border-none rounded-xl focus:ring-2 focus:ring-[#b8943f] outline-none"
+                className="w-full px-4 py-3 bg-white border border-[#1a1814]/10 rounded-xl focus:ring-2 focus:ring-[#b8943f] focus:border-transparent outline-none text-[#1a1814]"
                 placeholder="admin@malik.com"
                 required
               />
@@ -77,7 +77,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-[#f6f3ee] border-none rounded-xl focus:ring-2 focus:ring-[#b8943f] outline-none"
+                className="w-full px-4 py-3 bg-white border border-[#1a1814]/10 rounded-xl focus:ring-2 focus:ring-[#b8943f] focus:border-transparent outline-none text-[#1a1814]"
                 placeholder="••••••••"
                 required
               />

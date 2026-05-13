@@ -13,21 +13,47 @@ import {
   FileText, 
   PieChart, 
   TrendingUp,
-  LogOut
+  LogOut,
+  FileSignature,
+  Users,
+  ArrowDownLeft,
+  Receipt,
+  Truck,
+  ArrowUpRight,
+  Landmark,
+  CheckCheck,
+  Percent,
+  Settings
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getAuthHeader, removeAuthToken } from "@/lib/auth"
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "Overview" },
-  { label: "New Entry", href: "/entry", icon: PlusCircle, section: "Transactions" },
-  { label: "General Journal", href: "/journal", icon: ClipboardList, section: "Transactions" },
-  { label: "General Ledger", href: "/ledger", icon: BookOpen, section: "Transactions" },
-  { label: "Chart of Accounts", href: "/coa", icon: TableProperties, section: "Reports" },
-  { label: "Trial Balance", href: "/trial-balance", icon: Scale, section: "Reports" },
-  { label: "P&L Statement", href: "/pl", icon: FileText, section: "Reports" },
-  { label: "Balance Sheet", href: "/balance", icon: PieChart, section: "Reports" },
-  { label: "Cash Flow", href: "/cashflow", icon: TrendingUp, section: "Reports" },
+  
+  { label: "New Journal Entry", href: "/entry", icon: PlusCircle, section: "General Ledger" },
+  { label: "General Journal", href: "/journal", icon: ClipboardList, section: "General Ledger" },
+  { label: "General Ledger", href: "/ledger", icon: BookOpen, section: "General Ledger" },
+  { label: "Chart of Accounts", href: "/coa", icon: TableProperties, section: "General Ledger" },
+
+  { label: "Invoices", href: "/invoices", icon: FileSignature, section: "Accounts Receivable" },
+  { label: "Customers", href: "/customers", icon: Users, section: "Accounts Receivable" },
+  { label: "Payments Received", href: "/payments-received", icon: ArrowDownLeft, section: "Accounts Receivable" },
+
+  { label: "Bills", href: "/bills", icon: Receipt, section: "Accounts Payable" },
+  { label: "Vendors", href: "/vendors", icon: Truck, section: "Accounts Payable" },
+  { label: "Bill Payments", href: "/bill-payments", icon: ArrowUpRight, section: "Accounts Payable" },
+
+  { label: "Bank Accounts", href: "/bank-accounts", icon: Landmark, section: "Banking" },
+  { label: "Reconciliations", href: "/reconciliations", icon: CheckCheck, section: "Banking" },
+
+  { label: "Trial Balance", href: "/trial-balance", icon: Scale, section: "Financial Statements" },
+  { label: "Income Statement", href: "/pl", icon: TrendingUp, section: "Financial Statements" },
+  { label: "Balance Sheet", href: "/balance", icon: PieChart, section: "Financial Statements" },
+  { label: "Cash Flow", href: "/cashflow", icon: FileText, section: "Financial Statements" },
+  { label: "Tax Reports", href: "/tax", icon: Percent, section: "Financial Statements" },
+
+  { label: "Settings", href: "/settings", icon: Settings, section: "Configuration" },
 ]
 
 export default function Sidebar() {
@@ -39,11 +65,14 @@ export default function Sidebar() {
     fetch("http://localhost:8000/api/settings", {
       headers: getAuthHeader()
     })
-    .then(res => res.json())
-    .then(data => {
-      if (data.org_name) setOrgName(data.org_name)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json()
     })
-    .catch(err => console.error("Failed to fetch settings", err))
+    .then(data => {
+      if (data?.org_name) setOrgName(data.org_name)
+    })
+    .catch(err => console.error("Failed to fetch settings:", err))
   }, [])
 
   const handleLogout = () => {
@@ -51,7 +80,15 @@ export default function Sidebar() {
     router.push("/login")
   }
 
-  const sections = ["Overview", "Transactions", "Reports"]
+  const sections = [
+    "Overview", 
+    "General Ledger", 
+    "Accounts Receivable", 
+    "Accounts Payable", 
+    "Banking", 
+    "Financial Statements", 
+    "Configuration"
+  ]
 
   return (
     <div className="w-64 bg-[#1a1814] text-white flex flex-col h-screen border-r border-white/5">

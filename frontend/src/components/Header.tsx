@@ -11,11 +11,14 @@ export default function Header() {
     fetch("http://localhost:8000/api/settings", {
       headers: getAuthHeader()
     })
-    .then(res => res.json())
-    .then(data => {
-      if (data.org_name) setOrgName(data.org_name)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json()
     })
-    .catch(err => console.error("Failed to fetch settings", err))
+    .then(data => {
+      if (data?.org_name) setOrgName(data.org_name)
+    })
+    .catch(err => console.error("Failed to fetch settings:", err))
   }, [])
 
   return (

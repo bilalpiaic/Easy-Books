@@ -10,23 +10,36 @@ interface DashboardData {
     total_expense: number
   }
   recent: any[]
+}
+
 import { getAuthHeader } from "@/lib/auth"
 
-interface DashboardData {
-...
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("http://localhost:8000/api/reports/dashboard", {
       headers: getAuthHeader()
     })
-      .then(res => res.json())
-      .then(setData)
-      .catch(console.error)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then(data => {
+        console.log("Dashboard data received:", data)
+        if (!data.summary) {
+          throw new Error("Invalid response: missing summary")
+        }
+        setData(data)
+      })
+      .catch(err => {
+        console.error("Dashboard fetch error:", err)
+        setError(err.message)
+      })
   }, [])
 
-
+  if (error) return <div className="text-red-600">Error: {error}</div>
   if (!data) return <div>Loading...</div>
 
   const netProfit = data.summary.total_revenue - data.summary.total_expense

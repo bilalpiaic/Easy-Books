@@ -17,7 +17,10 @@ export const isAuthenticated = () => {
   return !!getAuthToken();
 };
 
-export const getAuthHeader = () => {
+export const getAuthHeader = (): HeadersInit => {
   const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
 };
