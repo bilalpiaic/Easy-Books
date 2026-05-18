@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Scale, Printer, Download } from "lucide-react"
-import { getAuthHeader } from "@/lib/auth"
+import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 
 interface TrialBalanceItem {
@@ -18,18 +18,9 @@ export default function TrialBalancePage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/reports/trial-balance", {
-      headers: getAuthHeader()
-    })
-      .then(res => res.json())
-      .then(data => {
-        setData(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setIsLoading(false)
-      })
+    apiFetch<TrialBalanceItem[]>("/api/reports/trial-balance")
+      .then(data => { setData(data); setIsLoading(false) })
+      .catch(() => setIsLoading(false))
   }, [])
 
   const grandTotalDebit = data.reduce((sum, item) => sum + item.total_debit, 0)
@@ -56,19 +47,19 @@ export default function TrialBalancePage() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">Account</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40 text-right">Debit</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40 text-right">Credit</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
               <tr>
-                <td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/40">Generating report...</td>
+                <td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/75">Generating report...</td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/40">No balances found.</td>
+                <td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/75">No balances found.</td>
               </tr>
             ) : (
               data.map((item) => (

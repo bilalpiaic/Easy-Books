@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { TableProperties, Plus } from "lucide-react"
-import { getAuthHeader } from "@/lib/auth"
+import { apiFetch } from "@/lib/api"
 
 interface Account {
   id: number
@@ -17,18 +17,9 @@ export default function COAPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/accounts", {
-      headers: getAuthHeader()
-    })
-      .then(res => res.json())
-      .then(data => {
-        setAccounts(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setIsLoading(false)
-      })
+    apiFetch<Account[]>("/api/accounts")
+      .then(data => { setAccounts(data); setIsLoading(false) })
+      .catch(() => setIsLoading(false))
   }, [])
 
   return (
@@ -48,20 +39,20 @@ export default function COAPage() {
         <table className="w-full text-left">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">Code</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">Account Name</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">Type</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">Actions</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Code</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account Name</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Type</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
               <tr>
-                <td colSpan={4} className="px-8 py-10 text-center text-[#1a1814]/40">Loading accounts...</td>
+                <td colSpan={4} className="px-8 py-10 text-center text-[#1a1814]/75">Loading accounts...</td>
               </tr>
             ) : accounts.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-8 py-10 text-center text-[#1a1814]/40">No accounts found.</td>
+                <td colSpan={4} className="px-8 py-10 text-center text-[#1a1814]/75">No accounts found.</td>
               </tr>
             ) : (
               accounts.map((acc) => (

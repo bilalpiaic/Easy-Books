@@ -92,9 +92,13 @@ def login(session: SessionDep, form_data: OAuth2PasswordRequestForm = Depends())
         )
     
     access_token = create_access_token(
-        data={"sub": user.email, "tenant_id": user.tenant_id}
+        data={"sub": user.email, "tenant_id": user.tenant_id, "full_name": user.full_name}
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/auth/me")
+def get_me(user: CurrentUserDep):
+    return {"email": user.email, "full_name": user.full_name}
 
 @app.on_event("startup")
 def on_startup():

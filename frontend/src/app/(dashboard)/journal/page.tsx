@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ClipboardList, Filter } from "lucide-react"
-import { getAuthHeader } from "@/lib/auth"
+import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 
 interface JournalEntry {
@@ -20,18 +20,9 @@ export default function JournalPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/reports/journal", {
-      headers: getAuthHeader()
-    })
-      .then(res => res.json())
-      .then(data => {
-        setEntries(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setIsLoading(false)
-      })
+    apiFetch<JournalEntry[]>("/api/reports/journal")
+      .then(data => { setEntries(data); setIsLoading(false) })
+      .catch(() => setIsLoading(false))
   }, [])
 
   return (
@@ -51,21 +42,21 @@ export default function JournalPage() {
         <table className="w-full text-left">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">Date</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">JV #</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">Account & Description</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40 text-right">Debit</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/40 text-right">Credit</th>
+              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
+              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">JV #</th>
+              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account & Description</th>
+              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
+              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/40">Loading journal entries...</td>
+                <td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">Loading journal entries...</td>
               </tr>
             ) : entries.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/40">No entries found.</td>
+                <td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">No entries found.</td>
               </tr>
             ) : (
               entries.map((entry, idx) => (
@@ -74,7 +65,7 @@ export default function JournalPage() {
                   <td className="px-6 py-5 font-mono text-xs font-bold text-[#b8943f]">{entry.jv_number}</td>
                   <td className="px-6 py-5">
                     <div className="font-medium text-[#1a1814]">{entry.account_name}</div>
-                    <div className="text-xs text-[#1a1814]/40">{entry.description}</div>
+                    <div className="text-xs text-[#1a1814]/75">{entry.description}</div>
                   </td>
                   <td className="px-6 py-5 text-right font-mono text-sm">
                     {entry.debit > 0 ? fmtPKR(entry.debit) : "-"}

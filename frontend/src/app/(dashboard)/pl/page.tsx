@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { TrendingUp, Printer, Download, Calendar } from "lucide-react"
-import { getAuthHeader } from "@/lib/auth"
+import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 
 interface PnLItem {
@@ -17,18 +17,9 @@ export default function PnLPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/reports/income-statement", {
-      headers: getAuthHeader()
-    })
-      .then(res => res.json())
-      .then(data => {
-        setData(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setIsLoading(false)
-      })
+    apiFetch<PnLItem[]>("/api/reports/income-statement")
+      .then(data => { setData(data); setIsLoading(false) })
+      .catch(() => setIsLoading(false))
   }, [])
 
   const revenueItems = data.filter(i => i.type === 'Revenue')
@@ -59,11 +50,11 @@ export default function PnLPage() {
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-12">
         {/* Revenue Section */}
         <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 border-b border-[#1a1814]/5 pb-2">Revenue</h3>
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Revenue</h3>
           {isLoading ? (
-            <div className="text-sm text-[#1a1814]/30 italic">Loading...</div>
+            <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
           ) : revenueItems.length === 0 ? (
-            <div className="text-sm text-[#1a1814]/30 italic">No revenue recorded.</div>
+            <div className="text-sm text-[#1a1814]/75 italic">No revenue recorded.</div>
           ) : (
             revenueItems.map(item => (
               <div key={item.name} className="flex justify-between text-sm">
@@ -80,11 +71,11 @@ export default function PnLPage() {
 
         {/* Expense Section */}
         <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 border-b border-[#1a1814]/5 pb-2">Expenses</h3>
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Expenses</h3>
           {isLoading ? (
-            <div className="text-sm text-[#1a1814]/30 italic">Loading...</div>
+            <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
           ) : expenseItems.length === 0 ? (
-            <div className="text-sm text-[#1a1814]/30 italic">No expenses recorded.</div>
+            <div className="text-sm text-[#1a1814]/75 italic">No expenses recorded.</div>
           ) : (
             expenseItems.map(item => (
               <div key={item.name} className="flex justify-between text-sm">
@@ -103,7 +94,7 @@ export default function PnLPage() {
         <section className="pt-8 border-t-2 border-[#1a1814] flex justify-between items-end">
           <div>
             <h2 className="text-2xl font-serif text-[#1a1814]">Net Income</h2>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/30">Bottom Line Performance</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75">Bottom Line Performance</p>
           </div>
           <div className={`text-3xl font-serif ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {netIncome < 0 && "("}{fmtPKR(Math.abs(netIncome))}{netIncome < 0 && ")"}

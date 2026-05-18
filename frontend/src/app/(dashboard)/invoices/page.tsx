@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Search, Download, Filter } from 'lucide-react'
-import { getAuthHeader } from '@/lib/auth'
+import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 
 interface Invoice {
@@ -30,16 +30,10 @@ export default function Invoices() {
   const fetchInvoices = async () => {
     try {
       setLoading(true)
-      // TODO: Replace with actual API endpoint once backend is ready
-      // const res = await fetch('http://localhost:8000/api/invoices', {
-      //   headers: getAuthHeader()
-      // })
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      // const data = await res.json()
-      // setInvoices(data)
+      const data = await apiFetch<Invoice[]>('/api/invoices')
+      setInvoices(data)
+    } catch {
       setInvoices([])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch invoices')
     } finally {
       setLoading(false)
     }
@@ -67,7 +61,7 @@ export default function Invoices() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Invoices</h1>
-          <p className="text-sm text-black/50 mt-1">Sales invoices to customers • Track payments</p>
+          <p className="text-sm text-black/75 mt-1">Sales invoices to customers • Track payments</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <button className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
@@ -84,26 +78,26 @@ export default function Invoices() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Total Outstanding</p>
+          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Outstanding</p>
           <p className="text-2xl font-bold text-[#b8943f] mt-2">{fmtPKR(pendingAmount)}</p>
-          <p className="text-xs text-black/40 mt-2">{filteredInvoices.filter(inv => inv.status !== 'paid').length} invoices</p>
+          <p className="text-xs text-black/75 mt-2">{filteredInvoices.filter(inv => inv.status !== 'paid').length} invoices</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Total Paid</p>
+          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Paid</p>
           <p className="text-2xl font-bold text-green-600 mt-2">{fmtPKR(paidAmount)}</p>
-          <p className="text-xs text-black/40 mt-2">{filteredInvoices.filter(inv => inv.status === 'paid').length} invoices</p>
+          <p className="text-xs text-black/75 mt-2">{filteredInvoices.filter(inv => inv.status === 'paid').length} invoices</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Total Value</p>
+          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Value</p>
           <p className="text-2xl font-bold text-[#1a1814] mt-2">{fmtPKR(totalAmount)}</p>
-          <p className="text-xs text-black/40 mt-2">{filteredInvoices.length} invoices</p>
+          <p className="text-xs text-black/75 mt-2">{filteredInvoices.length} invoices</p>
         </div>
       </div>
 
       {/* Search & Filter */}
       <div className="flex gap-3">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
+          <Search className="absolute left-3 top-3 w-4 h-4 text-black/75" />
           <input
             type="text"
             placeholder="Search by invoice # or customer..."
@@ -123,22 +117,22 @@ export default function Invoices() {
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/40">Invoice #</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/40">Customer</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/40">Issue Date</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/40">Due Date</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/40">Amount</th>
-              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/40">Status</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Invoice #</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Customer</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Issue Date</th>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Due Date</th>
+              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
+              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/75">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-black/40">Loading invoices...</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-black/75">Loading invoices...</td>
               </tr>
             ) : filteredInvoices.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-black/40">No invoices found. Create one to get started.</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-black/75">No invoices found. Create one to get started.</td>
               </tr>
             ) : (
               filteredInvoices.map((inv) => (

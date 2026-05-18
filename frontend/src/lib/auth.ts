@@ -1,26 +1,45 @@
 export const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('access_token');
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("access_token")
   }
-  return null;
-};
+  return null
+}
 
 export const setAuthToken = (token: string) => {
-  localStorage.setItem('access_token', token);
-};
+  localStorage.setItem("access_token", token)
+}
 
 export const removeAuthToken = () => {
-  localStorage.removeItem('access_token');
-};
+  localStorage.removeItem("access_token")
+}
 
 export const isAuthenticated = () => {
-  return !!getAuthToken();
-};
+  return !!getAuthToken()
+}
 
 export const getAuthHeader = (): HeadersInit => {
-  const token = getAuthToken();
+  const token = getAuthToken()
   if (token) {
-    return { Authorization: `Bearer ${token}` };
+    return { Authorization: `Bearer ${token}` }
   }
-  return {};
-};
+  return {}
+}
+
+export interface CurrentUser {
+  email: string
+  full_name: string
+}
+
+export function getCurrentUser(): CurrentUser | null {
+  const token = getAuthToken()
+  if (!token) return null
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return {
+      email: payload.sub ?? "",
+      full_name: payload.full_name ?? payload.sub ?? "User",
+    }
+  } catch {
+    return null
+  }
+}

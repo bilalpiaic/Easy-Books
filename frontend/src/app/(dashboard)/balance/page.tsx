@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { PieChart, Printer, Download, HelpCircle } from "lucide-react"
-import { getAuthHeader } from "@/lib/auth"
+import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 
 interface BalanceItem {
@@ -17,19 +17,9 @@ export default function BalanceSheetPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Reusing Trial Balance endpoint for now as it contains all balance data
-    fetch("http://localhost:8000/api/reports/trial-balance", {
-      headers: getAuthHeader()
-    })
-      .then(res => res.json())
-      .then(data => {
-        setData(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setIsLoading(false)
-      })
+    apiFetch<BalanceItem[]>("/api/reports/trial-balance")
+      .then(data => { setData(data); setIsLoading(false) })
+      .catch(() => setIsLoading(false))
   }, [])
 
   const assets = data.filter(i => i.type === 'Asset')
@@ -57,7 +47,7 @@ export default function BalanceSheetPage() {
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-12">
         {/* Assets */}
         <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 border-b border-[#1a1814]/5 pb-2">Assets</h3>
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Assets</h3>
           {assets.map(item => (
             <div key={item.name} className="flex justify-between text-sm">
               <span className="text-[#1a1814]/60">{item.name}</span>
@@ -72,7 +62,7 @@ export default function BalanceSheetPage() {
 
         {/* Liabilities */}
         <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 border-b border-[#1a1814]/5 pb-2">Liabilities</h3>
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Liabilities</h3>
           {liabilities.map(item => (
             <div key={item.name} className="flex justify-between text-sm">
               <span className="text-[#1a1814]/60">{item.name}</span>
@@ -87,7 +77,7 @@ export default function BalanceSheetPage() {
 
         {/* Equity */}
         <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 border-b border-[#1a1814]/5 pb-2">Equity</h3>
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Equity</h3>
           {equity.map(item => (
             <div key={item.name} className="flex justify-between text-sm">
               <span className="text-[#1a1814]/60">{item.name}</span>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Plus, Trash2, Save, AlertCircle } from "lucide-react"
-import { getAuthHeader } from "@/lib/auth"
+import { apiFetch } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
 interface Account {
@@ -30,10 +30,7 @@ export default function NewEntryPage() {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/accounts", {
-      headers: getAuthHeader()
-    })
-      .then(res => res.json())
+    apiFetch<Account[]>("/api/accounts")
       .then(setAccounts)
       .catch(console.error)
   }, [])
@@ -82,20 +79,11 @@ export default function NewEntryPage() {
     }
 
     try {
-      const res = await fetch("http://localhost:8000/api/transactions", {
+      await apiFetch("/api/transactions", {
         method: "POST",
-        headers: {
-          ...getAuthHeader(),
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || "Failed to save transaction")
-      }
-
       router.push("/journal")
     } catch (err: any) {
       setError(err.message)
@@ -117,7 +105,7 @@ export default function NewEntryPage() {
         <div className="bg-white p-8 rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/40 mb-2">Transaction Date</label>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Transaction Date</label>
               <input 
                 type="date" 
                 value={date}
@@ -127,7 +115,7 @@ export default function NewEntryPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/40 mb-2">Description / Memo</label>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Description / Memo</label>
               <input 
                 type="text" 
                 value={description}
@@ -143,9 +131,9 @@ export default function NewEntryPage() {
             <table className="w-full">
               <thead>
                 <tr className="text-left">
-                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Account</th>
-                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 w-32 text-right">Debit</th>
-                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 w-32 text-right">Credit</th>
+                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75">Account</th>
+                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 w-32 text-right">Debit</th>
+                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 w-32 text-right">Credit</th>
                   <th className="pb-4 w-12"></th>
                 </tr>
               </thead>
@@ -211,15 +199,15 @@ export default function NewEntryPage() {
 
           <div className="pt-6 border-t border-[#1a1814]/5 flex justify-end gap-12 text-sm font-mono">
             <div className="text-right">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 mb-1">Total Debit</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Total Debit</div>
               <div className="text-lg font-bold text-[#1a1814]">{totalDebit.toFixed(2)}</div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 mb-1">Total Credit</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Total Credit</div>
               <div className="text-lg font-bold text-[#1a1814]">{totalCredit.toFixed(2)}</div>
             </div>
             <div className="text-right border-l border-[#1a1814]/5 pl-12">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 mb-1">Difference</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Difference</div>
               <div className={`text-lg font-bold ${difference > 0.01 ? 'text-red-500' : 'text-green-600'}`}>
                 {difference.toFixed(2)}
               </div>
