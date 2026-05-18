@@ -8,6 +8,7 @@ from sqlmodel import Session, select, func
 from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
+    Customer, Vendor,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
@@ -132,6 +133,114 @@ def update_settings(session: SessionDep, user: CurrentUserDep, body: SettingsUpd
         session.add(row)
     session.commit()
     return {"success": True}
+
+# --- Customers API ---
+class CustomerCreate(BaseModel):
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    opening_balance: float = 0.0
+
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    opening_balance: Optional[float] = None
+    is_active: Optional[bool] = None
+
+@app.get("/api/customers")
+def list_customers(session: SessionDep, user: CurrentUserDep,
+                   search: str = "", skip: int = 0, limit: int = 50):
+    q = select(Customer).where(Customer.tenant_id == user.tenant_id)
+    if search:
+        q = q.where(Customer.name.ilike(f"%{search}%"))
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.offset(skip).limit(limit)).all()
+    return {"total": total, "items": items}
+
+@app.post("/api/customers", status_code=201)
+def create_customer(session: SessionDep, user: CurrentUserDep, body: CustomerCreate):
+    c = Customer(**body.model_dump(), tenant_id=user.tenant_id)
+    session.add(c)
+    session.commit()
+    session.refresh(c)
+    return c
+
+@app.put("/api/customers/{customer_id}")
+def update_customer(session: SessionDep, user: CurrentUserDep, customer_id: int, body: CustomerUpdate):
+    c = session.exec(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == user.tenant_id)).first()
+    if not c:
+        raise HTTPException(404, "Customer not found")
+    for k, v in body.model_dump(exclude_none=True).items():
+        setattr(c, k, v)
+    session.add(c)
+    session.commit()
+    session.refresh(c)
+    return c
+
+@app.delete("/api/customers/{customer_id}", status_code=204)
+def delete_customer(session: SessionDep, user: CurrentUserDep, customer_id: int):
+    c = session.exec(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == user.tenant_id)).first()
+    if not c:
+        raise HTTPException(404, "Customer not found")
+    session.delete(c)
+    session.commit()
+
+# --- Vendors API ---
+class VendorCreate(BaseModel):
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    opening_balance: float = 0.0
+
+class VendorUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    opening_balance: Optional[float] = None
+    is_active: Optional[bool] = None
+
+@app.get("/api/vendors")
+def list_vendors(session: SessionDep, user: CurrentUserDep,
+                 search: str = "", skip: int = 0, limit: int = 50):
+    q = select(Vendor).where(Vendor.tenant_id == user.tenant_id)
+    if search:
+        q = q.where(Vendor.name.ilike(f"%{search}%"))
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.offset(skip).limit(limit)).all()
+    return {"total": total, "items": items}
+
+@app.post("/api/vendors", status_code=201)
+def create_vendor(session: SessionDep, user: CurrentUserDep, body: VendorCreate):
+    v = Vendor(**body.model_dump(), tenant_id=user.tenant_id)
+    session.add(v)
+    session.commit()
+    session.refresh(v)
+    return v
+
+@app.put("/api/vendors/{vendor_id}")
+def update_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int, body: VendorUpdate):
+    v = session.exec(select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id)).first()
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+    for k, val in body.model_dump(exclude_none=True).items():
+        setattr(v, k, val)
+    session.add(v)
+    session.commit()
+    session.refresh(v)
+    return v
+
+@app.delete("/api/vendors/{vendor_id}", status_code=204)
+def delete_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int):
+    v = session.exec(select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id)).first()
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+    session.delete(v)
+    session.commit()
 
 # --- Accounts API ---
 class AccountCreate(BaseModel):
