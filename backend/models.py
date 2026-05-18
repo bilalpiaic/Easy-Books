@@ -198,6 +198,41 @@ class AuditLog(SQLModel, table=True):
     detail: Optional[str] = None  # JSON string with context
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
+class Product(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: Optional[str] = None
+    name: str
+    unit: str = Field(default="pcs")
+    product_type: str = Field(default="service")  # "stock" | "service"
+    default_rate: float = Field(default=0.0)
+    stock_qty: float = Field(default=0.0)
+    reorder_level: float = Field(default=0.0)
+    stock_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    cogs_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    is_active: bool = Field(default=True)
+
+class InvoiceLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    invoice_id: int = Field(foreign_key="invoice.id", ondelete="CASCADE")
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    description: str
+    qty: float = Field(default=1.0)
+    unit: Optional[str] = None
+    rate: float = Field(default=0.0)
+    amount: float = Field(default=0.0)  # stored = qty × rate
+
+class BillLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bill_id: int = Field(foreign_key="bill.id", ondelete="CASCADE")
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    description: str
+    qty: float = Field(default=1.0)
+    unit: Optional[str] = None
+    rate: float = Field(default=0.0)
+    amount: float = Field(default=0.0)  # stored = qty × rate
+
 # API Models
 class JournalEntryCreate(JournalEntryBase):
     pass
