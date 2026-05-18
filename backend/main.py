@@ -590,6 +590,54 @@ def create_bill_payment(session: SessionDep, user: CurrentUserDep, body: BillPay
     session.refresh(bp)
     return bp
 
+# --- AR / AP Aging ---
+from datetime import date as DateType
+
+def _aging_buckets(items: list, date_field: str, amount_field: str, name_field: str) -> dict:
+    today = DateType.today()
+    buckets = {"current": 0, "1_30": 0, "31_60": 0, "61_90": 0, "over_90": 0, "items": []}
+    for item in items:
+        if getattr(item, "status", None) == "paid":
+            continue
+        due = DateType.fromisoformat(getattr(item, date_field))
+        days_past = (today - due).days
+        amount = getattr(item, amount_field)
+        if days_past <= 0:
+            buckets["current"] += amount
+            bucket = "current"
+        elif days_past <= 30:
+            buckets["1_30"] += amount
+            bucket = "1-30"
+        elif days_past <= 60:
+            buckets["31_60"] += amount
+            bucket = "31-60"
+        elif days_past <= 90:
+            buckets["61_90"] += amount
+            bucket = "61-90"
+        else:
+            buckets["over_90"] += amount
+            bucket = "90+"
+        buckets["items"].append({
+            "id": item.id,
+            "name": getattr(item, name_field) or "—",
+            "number": getattr(item, "number", ""),
+            "due_date": getattr(item, date_field),
+            "amount": amount,
+            "days_past": max(0, days_past),
+            "bucket": bucket,
+        })
+    return buckets
+
+@app.get("/api/invoices/aging")
+def invoice_aging(session: SessionDep, user: CurrentUserDep):
+    items = session.exec(select(Invoice).where(Invoice.tenant_id == user.tenant_id)).all()
+    return _aging_buckets(items, "due_date", "total", "customer_name")
+
+@app.get("/api/bills/aging")
+def bill_aging(session: SessionDep, user: CurrentUserDep):
+    items = session.exec(select(Bill).where(Bill.tenant_id == user.tenant_id)).all()
+    return _aging_buckets(items, "due_date", "total", "vendor_name")
+
 # --- Accounts API ---
 class AccountCreate(BaseModel):
     code: str

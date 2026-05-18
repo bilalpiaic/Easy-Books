@@ -20,6 +20,9 @@ interface Bill {
 
 interface Vendor { id: number; name: string }
 interface Account { id: number; code: string; name: string; type: string }
+interface AgingBuckets {
+  current: number; "1_30": number; "31_60": number; "61_90": number; over_90: number
+}
 
 interface BillForm {
   vendor_id: string
@@ -60,6 +63,7 @@ export default function Bills() {
   const [formError, setFormError] = useState('')
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [aging, setAging] = useState<AgingBuckets | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -73,6 +77,9 @@ export default function Bills() {
 
   useEffect(() => { setPage(1) }, [search])
   useEffect(load, [page, search])
+  useEffect(() => {
+    apiFetch<AgingBuckets>('/api/bills/aging').then(setAging).catch(() => {})
+  }, [])
 
   const openModal = () => {
     Promise.all([
@@ -207,6 +214,22 @@ export default function Bills() {
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
+
+      {aging && (
+        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#ede9e2]">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-black/75">AP Aging Analysis</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-[#ede9e2]">
+            {[['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]].map(([label, val]) => (
+              <div key={String(label)} className="p-4 text-center">
+                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">{label}</p>
+                <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-orange-600' : 'text-black/40'}`}>{fmtPKR(Number(val))}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
