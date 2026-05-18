@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Sidebar from "@/components/Sidebar"
 import Header from "@/components/Header"
 import { isAuthenticated } from "@/lib/auth"
+import { SettingsProvider } from "@/context/SettingsContext"
 
 export default function DashboardLayout({
   children,
@@ -20,14 +21,16 @@ export default function DashboardLayout({
   }, [router])
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 md:pb-8 max-w-7xl mx-auto w-full">
-          {children}
-        </main>
+    <SettingsProvider>
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header />
+          <main className="flex-1 overflow-y-auto pt-20 sm:pt-4 md:pt-0 p-4 sm:p-8 max-w-7xl mx-auto w-full">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </SettingsProvider>
   )
 }

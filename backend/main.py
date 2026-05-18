@@ -110,14 +110,26 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
     settings = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id)).all()
     return {s.key: s.value for s in settings}
 
+class SettingsUpdate(BaseModel):
+    company_name: Optional[str] = None
+    tax_id: Optional[str] = None
+    fiscal_year_start: Optional[str] = None
+    currency: Optional[str] = None
+    email_notifications: Optional[str] = None
+    invoice_prefix: Optional[str] = None
+    bill_prefix: Optional[str] = None
+    financial_statement_date: Optional[str] = None
+
 @app.patch("/api/settings")
-def update_settings(session: SessionDep, user: CurrentUserDep, org_name: str):
-    settings = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "org_name")).first()
-    if settings:
-        settings.value = org_name
-    else:
-        settings = Settings(key="org_name", value=org_name, tenant_id=user.tenant_id)
-    session.add(settings)
+def update_settings(session: SessionDep, user: CurrentUserDep, body: SettingsUpdate):
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    for key, value in updates.items():
+        row = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == key)).first()
+        if row:
+            row.value = value
+        else:
+            row = Settings(key=key, value=value, tenant_id=user.tenant_id)
+        session.add(row)
     session.commit()
     return {"success": True}
 
