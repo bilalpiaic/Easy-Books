@@ -11,6 +11,7 @@ from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
     Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment, BankAccount,
     Reconciliation, ReconciliationLine, AccountingPeriod, AuditLog,
+    Product, InvoiceLine, BillLine,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 import json as _json
@@ -278,13 +279,20 @@ def _next_invoice_number(session: Session, tenant_id: int, prefix: str) -> str:
     count = session.exec(select(func.count(Invoice.id)).where(Invoice.tenant_id == tenant_id)).one()
     return f"{prefix}-{count + 1:04d}"
 
+class InvoiceLineCreate(BaseModel):
+    product_id: Optional[int] = None
+    description: str
+    qty: float = 1.0
+    unit: Optional[str] = None
+    rate: float = 0.0
+
 class InvoiceCreate(BaseModel):
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     issue_date: str
     due_date: str
     description: Optional[str] = None
-    subtotal: float
+    lines: List[InvoiceLineCreate] = []
     gst_rate: float = 17.0
     ar_account_id: Optional[int] = None
     revenue_account_id: Optional[int] = None
@@ -300,14 +308,21 @@ def list_invoices(session: SessionDep, user: CurrentUserDep,
         q = q.where(Invoice.status == status)
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(q.order_by(Invoice.issue_date.desc()).offset(skip).limit(limit)).all()
-    return {"total": total, "items": items}
+    result_items = []
+    for inv in items:
+        d = inv.model_dump()
+        d["lines"] = [l.model_dump() for l in session.exec(select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)).all()]
+        result_items.append(d)
+    return {"total": total, "items": result_items}
 
 @app.post("/api/invoices", status_code=201)
 def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreate):
     prefix_row = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix")).first()
     prefix = prefix_row.value if prefix_row else "INV"
-    gst_amount = round(body.subtotal * body.gst_rate / 100, 2)
-    total = round(body.subtotal + gst_amount, 2)
+
+    subtotal = round(sum(line.qty * line.rate for line in body.lines), 2)
+    gst_amount = round(subtotal * body.gst_rate / 100, 2)
+    total = round(subtotal + gst_amount, 2)
 
     # Resolve customer name (tenant-scoped)
     cname = body.customer_name
@@ -325,7 +340,7 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
         issue_date=body.issue_date,
         due_date=body.due_date,
         description=body.description,
-        subtotal=body.subtotal,
+        subtotal=subtotal,
         gst_rate=body.gst_rate,
         gst_amount=gst_amount,
         total=total,
@@ -335,6 +350,25 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
     )
     session.add(invoice)
     session.flush()
+
+    # Save line items and update stock for stock-type products
+    for line_data in body.lines:
+        amount = round(line_data.qty * line_data.rate, 2)
+        il = InvoiceLine(
+            invoice_id=invoice.id,
+            product_id=line_data.product_id,
+            description=line_data.description,
+            qty=line_data.qty,
+            unit=line_data.unit,
+            rate=line_data.rate,
+            amount=amount,
+        )
+        session.add(il)
+        if line_data.product_id:
+            prod = session.exec(select(Product).where(Product.id == line_data.product_id, Product.tenant_id == user.tenant_id)).first()
+            if prod and prod.product_type == "stock":
+                prod.stock_qty -= line_data.qty
+                session.add(prod)
 
     # Auto-post GL: Dr AR / Cr Revenue [/ Cr GST Payable]
     ar_acc = session.get(Account, body.ar_account_id) if body.ar_account_id else \
@@ -356,7 +390,7 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
     entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ar_acc.id, debit=total, credit=0)]
     if gst_amount > 0:
         gst_acc = _get_or_create_account(session, user.tenant_id, "2200", "GST Payable", "Liability")
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=rev_acc.id, debit=0, credit=body.subtotal))
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=rev_acc.id, debit=0, credit=subtotal))
         entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=gst_acc.id, debit=0, credit=gst_amount))
     else:
         entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=rev_acc.id, debit=0, credit=total))
@@ -369,7 +403,11 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
     log_audit(session, user, "CREATE", "invoice", invoice.id, {"number": invoice.number, "total": invoice.total})
     session.commit()
     session.refresh(invoice)
-    return invoice
+
+    lines_out = session.exec(select(InvoiceLine).where(InvoiceLine.invoice_id == invoice.id)).all()
+    result = invoice.model_dump()
+    result["lines"] = [l.model_dump() for l in lines_out]
+    return result
 
 @app.patch("/api/invoices/{invoice_id}/status")
 def update_invoice_status(session: SessionDep, user: CurrentUserDep, invoice_id: int, status: str):
@@ -388,13 +426,20 @@ def _next_bill_number(session: Session, tenant_id: int, prefix: str) -> str:
     count = session.exec(select(func.count(Bill.id)).where(Bill.tenant_id == tenant_id)).one()
     return f"{prefix}-{count + 1:04d}"
 
+class BillLineCreate(BaseModel):
+    product_id: Optional[int] = None
+    description: str
+    qty: float = 1.0
+    unit: Optional[str] = None
+    rate: float = 0.0
+
 class BillCreate(BaseModel):
     vendor_id: Optional[int] = None
     vendor_name: Optional[str] = None
     bill_date: str
     due_date: str
     description: Optional[str] = None
-    subtotal: float
+    lines: List[BillLineCreate] = []
     gst_rate: float = 17.0
     ap_account_id: Optional[int] = None
     expense_account_id: Optional[int] = None
@@ -415,8 +460,10 @@ def list_bills(session: SessionDep, user: CurrentUserDep,
 def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
     prefix_row = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "bill_prefix")).first()
     prefix = prefix_row.value if prefix_row else "BILL"
-    gst_amount = round(body.subtotal * body.gst_rate / 100, 2)
-    total = round(body.subtotal + gst_amount, 2)
+
+    subtotal = round(sum(line.qty * line.rate for line in body.lines), 2)
+    gst_amount = round(subtotal * body.gst_rate / 100, 2)
+    total = round(subtotal + gst_amount, 2)
 
     vname = body.vendor_name
     if body.vendor_id:
@@ -433,7 +480,7 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
         bill_date=body.bill_date,
         due_date=body.due_date,
         description=body.description,
-        subtotal=body.subtotal,
+        subtotal=subtotal,
         gst_rate=body.gst_rate,
         gst_amount=gst_amount,
         total=total,
@@ -443,6 +490,25 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
     )
     session.add(bill)
     session.flush()
+
+    # Save line items and update stock for stock-type products
+    for line_data in body.lines:
+        amount = round(line_data.qty * line_data.rate, 2)
+        bl = BillLine(
+            bill_id=bill.id,
+            product_id=line_data.product_id,
+            description=line_data.description,
+            qty=line_data.qty,
+            unit=line_data.unit,
+            rate=line_data.rate,
+            amount=amount,
+        )
+        session.add(bl)
+        if line_data.product_id:
+            prod = session.exec(select(Product).where(Product.id == line_data.product_id, Product.tenant_id == user.tenant_id)).first()
+            if prod and prod.product_type == "stock":
+                prod.stock_qty += line_data.qty
+                session.add(prod)
 
     # Auto-post GL: Dr Expense [+ Dr GST Receivable] / Cr Accounts Payable
     ap_acc = session.get(Account, body.ap_account_id) if body.ap_account_id else \
@@ -464,7 +530,7 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
     entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ap_acc.id, debit=0, credit=total)]
     if gst_amount > 0:
         gst_input_acc = _get_or_create_account(session, user.tenant_id, "1200", "GST Receivable (Input)", "Asset")
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=exp_acc.id, debit=body.subtotal, credit=0))
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=exp_acc.id, debit=subtotal, credit=0))
         entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=gst_input_acc.id, debit=gst_amount, credit=0))
     else:
         entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=exp_acc.id, debit=total, credit=0))
@@ -477,7 +543,11 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
     log_audit(session, user, "CREATE", "bill", bill.id, {"number": bill.number, "total": bill.total})
     session.commit()
     session.refresh(bill)
-    return bill
+
+    lines_out = session.exec(select(BillLine).where(BillLine.bill_id == bill.id)).all()
+    result = bill.model_dump()
+    result["lines"] = [l.model_dump() for l in lines_out]
+    return result
 
 @app.patch("/api/bills/{bill_id}/status")
 def update_bill_status(session: SessionDep, user: CurrentUserDep, bill_id: int, status: str):
