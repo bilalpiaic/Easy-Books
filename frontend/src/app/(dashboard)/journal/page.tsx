@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
+import Pagination from "@/components/Pagination"
 
 interface JournalEntry {
   id: number
@@ -15,25 +16,39 @@ interface JournalEntry {
   credit: number
 }
 
+interface JournalResponse {
+  total: number
+  items: JournalEntry[]
+}
+
 function defaultRange() {
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
 }
 
+const PAGE_SIZE = 50
+
 export default function JournalPage() {
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)
   const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    setIsLoading(true)
-    apiFetch<JournalEntry[]>(`/api/reports/journal?start=${start}&end=${end}`)
-      .then(data => { setEntries(data); setIsLoading(false) })
-      .catch(() => setIsLoading(false))
+    setPage(1)
   }, [start, end])
+
+  useEffect(() => {
+    setIsLoading(true)
+    const skip = (page - 1) * PAGE_SIZE
+    apiFetch<JournalResponse>(`/api/reports/journal?start=${start}&end=${end}&skip=${skip}&limit=${PAGE_SIZE}`)
+      .then(data => { setEntries(data.items); setTotal(data.total); setIsLoading(false) })
+      .catch(() => setIsLoading(false))
+  }, [start, end, page])
 
   return (
     <div className="p-8">
@@ -61,7 +76,7 @@ export default function JournalPage() {
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
-              <tr><td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">Loading journal entries...</td></tr>
+              <tr><td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">Loading...</td></tr>
             ) : entries.length === 0 ? (
               <tr><td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">No entries found for selected period.</td></tr>
             ) : (
@@ -73,17 +88,16 @@ export default function JournalPage() {
                     <div className="font-medium text-[#1a1814]">{entry.account_name}</div>
                     <div className="text-xs text-[#1a1814]/75">{entry.description}</div>
                   </td>
-                  <td className="px-6 py-5 text-right font-mono text-sm">
-                    {entry.debit > 0 ? fmtPKR(entry.debit) : "-"}
-                  </td>
-                  <td className="px-6 py-5 text-right font-mono text-sm">
-                    {entry.credit > 0 ? fmtPKR(entry.credit) : "-"}
-                  </td>
+                  <td className="px-6 py-5 text-right font-mono text-sm">{entry.debit > 0 ? fmtPKR(entry.debit) : "-"}</td>
+                  <td className="px-6 py-5 text-right font-mono text-sm">{entry.credit > 0 ? fmtPKR(entry.credit) : "-"}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
+        <div className="border-t border-[#1a1814]/5 px-4">
+          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
+        </div>
       </div>
     </div>
   )

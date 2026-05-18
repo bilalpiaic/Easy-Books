@@ -5,6 +5,7 @@ import { Search } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
+import Pagination from "@/components/Pagination"
 
 interface LedgerEntry {
   date: string
@@ -23,11 +24,18 @@ interface LedgerAccount {
   running_balance: number
 }
 
+interface LedgerResponse {
+  total: number
+  items: LedgerAccount[]
+}
+
 function defaultRange() {
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
 }
+
+const PAGE_SIZE = 20
 
 export default function LedgerPage() {
   const range = defaultRange()
@@ -35,16 +43,20 @@ export default function LedgerPage() {
   const [end, setEnd] = useState(range.end)
   const [search, setSearch] = useState("")
   const [ledgerData, setLedgerData] = useState<LedgerAccount[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => { setPage(1) }, [start, end, search])
 
   useEffect(() => {
     setIsLoading(true)
-    const params = new URLSearchParams({ start, end })
+    const params = new URLSearchParams({ start, end, skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
     if (search) params.set("search", search)
-    apiFetch<LedgerAccount[]>(`/api/reports/ledger?${params}`)
-      .then(data => { setLedgerData(data); setIsLoading(false) })
+    apiFetch<LedgerResponse>(`/api/reports/ledger?${params}`)
+      .then(data => { setLedgerData(data.items); setTotal(data.total); setIsLoading(false) })
       .catch(() => setIsLoading(false))
-  }, [start, end, search])
+  }, [start, end, search, page])
 
   return (
     <div className="p-8">
@@ -118,6 +130,10 @@ export default function LedgerPage() {
             </div>
           ))
         )}
+      </div>
+
+      <div className="mt-4">
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
       </div>
     </div>
   )

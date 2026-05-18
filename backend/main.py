@@ -122,13 +122,20 @@ def update_settings(session: SessionDep, user: CurrentUserDep, org_name: str):
     return {"success": True}
 
 # --- Accounts API ---
-@app.get("/api/accounts", response_model=List[Account])
-def get_accounts(session: SessionDep, user: CurrentUserDep):
-    return session.exec(
-        select(Account)
-        .where(Account.tenant_id == user.tenant_id)
-        .order_by(Account.code)
-    ).all()
+@app.get("/api/accounts")
+def get_accounts(
+    session: SessionDep,
+    user: CurrentUserDep,
+    search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 200,
+):
+    q = select(Account).where(Account.tenant_id == user.tenant_id)
+    if search:
+        q = q.where((Account.name.ilike(f"%{search}%")) | (Account.code.ilike(f"%{search}%")))
+    total = len(session.exec(q).all())
+    results = session.exec(q.order_by(Account.code).offset(skip).limit(limit)).all()
+    return {"total": total, "items": [r.model_dump() for r in results]}
 
 # --- Transactions API ---
 @app.post("/api/transactions")
@@ -198,28 +205,38 @@ def get_journal_report(
     session: SessionDep,
     user: CurrentUserDep,
     start: Optional[str] = None,
-    end: Optional[str] = None
+    end: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
 ):
     query = select(Transaction, JournalEntry, Account).join(JournalEntry).join(Account)
     query = query.where(Transaction.tenant_id == user.tenant_id)
-    
-    if start and end:
-        query = query.where(Transaction.date >= start, Transaction.date <= end)
-    
-    results = session.exec(query.order_by(Transaction.date.desc(), Transaction.id.desc())).all()
-    
-    return [
-        {
-            "id": tx.id,
-            "jv_number": tx.jv_number,
-            "date": tx.date,
-            "description": tx.description,
-            "account_name": acc.name,
-            "debit": je.debit,
-            "credit": je.credit
-        }
-        for tx, je, acc in results
-    ]
+
+    if start:
+        query = query.where(Transaction.date >= start)
+    if end:
+        query = query.where(Transaction.date <= end)
+
+    query = query.order_by(Transaction.date.desc(), Transaction.id.desc())
+    total_q = session.exec(query).all()
+    total = len(total_q)
+    results = total_q[skip: skip + limit]
+
+    return {
+        "total": total,
+        "items": [
+            {
+                "id": tx.id,
+                "jv_number": tx.jv_number,
+                "date": tx.date,
+                "description": tx.description,
+                "account_name": acc.name,
+                "debit": je.debit,
+                "credit": je.credit,
+            }
+            for tx, je, acc in results
+        ],
+    }
 
 @app.get("/api/reports/trial-balance")
 def get_trial_balance(
@@ -353,6 +370,8 @@ def get_ledger(
     start: Optional[str] = None,
     end: Optional[str] = None,
     search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
 ):
     query = (
         session.query(Account, Transaction, JournalEntry)
@@ -395,7 +414,9 @@ def get_ledger(
             "balance": running,
         })
 
-    return list(accounts.values())
+    all_accounts = list(accounts.values())
+    total = len(all_accounts)
+    return {"total": total, "items": all_accounts[skip: skip + limit]}
 
 @app.get("/api/reports/balance-sheet")
 def get_balance_sheet(

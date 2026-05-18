@@ -30,8 +30,8 @@ export default function NewEntryPage() {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    apiFetch<Account[]>("/api/accounts")
-      .then(setAccounts)
+    apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500")
+      .then(data => setAccounts(data.items))
       .catch(console.error)
   }, [])
 
