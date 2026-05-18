@@ -36,9 +36,18 @@ class Account(SQLModel, table=True):
     code: str = Field(index=True)
     name: str
     type: str # Asset, Liability, Equity, Revenue, Expense
+    parent_id: Optional[int] = Field(default=None, foreign_key="account.id")
 
     tenant: Tenant = Relationship(back_populates="accounts")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="account")
+
+class AccountingPeriod(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    period_start: str
+    period_end: str
+    is_locked: bool = Field(default=False)
+    name: Optional[str] = None
 
 class TransactionBase(SQLModel):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
@@ -54,6 +63,8 @@ class Transaction(TransactionBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     jv_number: str = Field(index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_reversed: bool = Field(default=False)
+    reversed_by_id: Optional[int] = Field(default=None)
 
     tenant: Tenant = Relationship(back_populates="transactions")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="transaction", cascade_delete=True)

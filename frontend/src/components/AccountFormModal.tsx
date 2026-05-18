@@ -9,20 +9,23 @@ interface Account {
   code: string
   name: string
   type: string
+  parent_id?: number | null
 }
 
 interface AccountFormModalProps {
   account?: Account | null
   onClose: () => void
   onSaved: () => void
+  allAccounts?: Account[]
 }
 
 const ACCOUNT_TYPES = ["Asset", "Liability", "Equity", "Revenue", "Expense"]
 
-export default function AccountFormModal({ account, onClose, onSaved }: AccountFormModalProps) {
+export default function AccountFormModal({ account, onClose, onSaved, allAccounts = [] }: AccountFormModalProps) {
   const [code, setCode] = useState(account?.code ?? "")
   const [name, setName] = useState(account?.name ?? "")
   const [type, setType] = useState(account?.type ?? "Asset")
+  const [parentId, setParentId] = useState<string>(account?.parent_id ? String(account.parent_id) : "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
@@ -38,13 +41,13 @@ export default function AccountFormModal({ account, onClose, onSaved }: AccountF
         await apiFetch(`/api/accounts/${account.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, name, type }),
+          body: JSON.stringify({ code, name, type, parent_id: parentId ? parseInt(parentId) : null }),
         })
       } else {
         await apiFetch("/api/accounts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, name, type }),
+          body: JSON.stringify({ code, name, type, parent_id: parentId ? parseInt(parentId) : null }),
         })
       }
       onSaved()
@@ -86,6 +89,21 @@ export default function AccountFormModal({ account, onClose, onSaved }: AccountF
               className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
             />
           </div>
+          {allAccounts.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Parent Account (optional)</label>
+              <select
+                value={parentId}
+                onChange={e => setParentId(e.target.value)}
+                className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              >
+                <option value="">— No parent (top-level) —</option>
+                {allAccounts.filter(a => a.id !== account?.id).map(a => (
+                  <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Account Type</label>
             <select

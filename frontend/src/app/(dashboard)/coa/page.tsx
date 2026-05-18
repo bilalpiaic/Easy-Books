@@ -13,6 +13,7 @@ interface Account {
   name: string
   type: string
   tenant_id: number
+  parent_id?: number | null
 }
 
 interface AccountsResponse {
@@ -109,17 +110,20 @@ export default function COAPage() {
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Code</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account Name</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Type</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Parent</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Balance</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
-              <tr><td colSpan={5} className="px-8 py-10 text-center text-[#1a1814]/75">Loading accounts...</td></tr>
+              <tr><td colSpan={6} className="px-8 py-10 text-center text-[#1a1814]/75">Loading accounts...</td></tr>
             ) : accounts.length === 0 ? (
-              <tr><td colSpan={5} className="px-8 py-10 text-center text-[#1a1814]/75">No accounts found.</td></tr>
+              <tr><td colSpan={6} className="px-8 py-10 text-center text-[#1a1814]/75">No accounts found.</td></tr>
             ) : (
-              accounts.map(acc => (
+              accounts.map(acc => {
+                const parent = acc.parent_id ? accounts.find(a => a.id === acc.parent_id) : null
+                return (
                 <tr key={acc.id} className="hover:bg-[#f6f3ee]/50 transition-colors">
                   <td className="px-8 py-5 font-mono text-sm">{acc.code}</td>
                   <td className="px-8 py-5 font-medium">{acc.name}</td>
@@ -134,6 +138,9 @@ export default function COAPage() {
                     )}>
                       {acc.type}
                     </span>
+                  </td>
+                  <td className="px-8 py-5 text-sm text-[#1a1814]/60">
+                    {parent ? <span className="font-mono">{parent.code} — {parent.name}</span> : <span className="text-[#1a1814]/30">—</span>}
                   </td>
                   <td className="px-8 py-5 text-right font-mono text-sm">
                     {balances[acc.code] !== undefined ? fmtPKR(balances[acc.code]) : "-"}
@@ -153,7 +160,8 @@ export default function COAPage() {
                     </button>
                   </td>
                 </tr>
-              ))
+                )
+              })
             )}
           </tbody>
         </table>
@@ -165,6 +173,7 @@ export default function COAPage() {
       {modalOpen && (
         <AccountFormModal
           account={editAccount}
+          allAccounts={accounts}
           onClose={() => setModalOpen(false)}
           onSaved={() => { setModalOpen(false); loadAccounts() }}
         />

@@ -1,9 +1,17 @@
 'use client'
 
-import { Save, Bell, Globe } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
+
+interface AccountingPeriod {
+  id: number
+  name: string
+  period_start: string
+  period_end: string
+  is_locked: boolean
+}
 
 export default function SettingsPage() {
   const { settings: ctxSettings, reload } = useSettings()
@@ -12,7 +20,56 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
 
+  const [periods, setPeriods] = useState<AccountingPeriod[]>([])
+  const [periodForm, setPeriodForm] = useState({ name: "", period_start: "", period_end: "" })
+  const [addingPeriod, setAddingPeriod] = useState(false)
+
   useEffect(() => { setForm(ctxSettings) }, [ctxSettings])
+
+  useEffect(() => {
+    apiFetch<AccountingPeriod[]>("/api/periods")
+      .then(setPeriods)
+      .catch(() => {})
+  }, [])
+
+  const handleAddPeriod = async () => {
+    if (!periodForm.period_start || !periodForm.period_end) return
+    try {
+      const created = await apiFetch<AccountingPeriod>("/api/periods", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(periodForm),
+      })
+      setPeriods(prev => [...prev, created])
+      setPeriodForm({ name: "", period_start: "", period_end: "" })
+      setAddingPeriod(false)
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
+
+  const handleToggleLock = async (period: AccountingPeriod) => {
+    try {
+      const updated = await apiFetch<AccountingPeriod>(`/api/periods/${period.id}/lock`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_locked: !period.is_locked }),
+      })
+      setPeriods(prev => prev.map(p => p.id === updated.id ? updated : p))
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
+
+  const handleDeletePeriod = async (period: AccountingPeriod) => {
+    if (!window.confirm(`Delete period "${period.name || period.period_start}"?`)) return
+    try {
+      await apiFetch(`/api/periods/${period.id}`, { method: "DELETE" })
+      setPeriods(prev => prev.filter(p => p.id !== period.id))
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
 
   const handleChange = (field: keyof AppSettings, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -179,6 +236,94 @@ export default function SettingsPage() {
             <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#b8943f]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#b8943f]"></div>
           </label>
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
+            <Lock className="w-5 h-5 text-[#b8943f]" />
+            Accounting Periods
+          </h2>
+          <button
+            onClick={() => setAddingPeriod(v => !v)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg text-sm font-medium hover:bg-[#a07c35] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Period
+          </button>
+        </div>
+
+        {addingPeriod && (
+          <div className="mb-6 p-4 bg-[#f6f3ee] rounded-xl grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Name (optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Q1 2026"
+                value={periodForm.name}
+                onChange={e => setPeriodForm(p => ({ ...p, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={periodForm.period_start}
+                onChange={e => setPeriodForm(p => ({ ...p, period_start: e.target.value }))}
+                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">End Date</label>
+              <input
+                type="date"
+                value={periodForm.period_end}
+                onChange={e => setPeriodForm(p => ({ ...p, period_end: e.target.value }))}
+                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+            <button
+              onClick={handleAddPeriod}
+              className="px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-bold hover:bg-[#b8943f] transition-colors"
+            >
+              Create
+            </button>
+          </div>
+        )}
+
+        {periods.length === 0 ? (
+          <p className="text-sm text-black/40 py-4">No accounting periods defined. Add one to enable period locking.</p>
+        ) : (
+          <div className="divide-y divide-[#ede9e2]">
+            {periods.map(period => (
+              <div key={period.id} className="flex items-center justify-between py-3">
+                <div>
+                  <span className="font-medium text-black">{period.name || `${period.period_start} — ${period.period_end}`}</span>
+                  {period.name && <span className="ml-2 text-sm text-black/50">{period.period_start} — {period.period_end}</span>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${period.is_locked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                    {period.is_locked ? 'Locked' : 'Open'}
+                  </span>
+                  <button
+                    onClick={() => handleToggleLock(period)}
+                    className="p-2 hover:bg-[#f6f3ee] rounded-lg transition-colors"
+                    title={period.is_locked ? "Unlock period" : "Lock period"}
+                  >
+                    {period.is_locked ? <Unlock className="w-4 h-4 text-[#b8943f]" /> : <Lock className="w-4 h-4 text-[#1a1814]/60" />}
+                  </button>
+                  <button
+                    onClick={() => handleDeletePeriod(period)}
+                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-3">

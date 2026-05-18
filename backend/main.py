@@ -9,7 +9,7 @@ from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
     Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment, BankAccount,
-    Reconciliation, ReconciliationLine,
+    Reconciliation, ReconciliationLine, AccountingPeriod,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
@@ -800,11 +800,13 @@ class AccountCreate(BaseModel):
     code: str
     name: str
     type: str
+    parent_id: Optional[int] = None
 
 class AccountUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
+    parent_id: Optional[int] = None
 
 @app.post("/api/accounts")
 def create_account(session: SessionDep, user: CurrentUserDep, data: AccountCreate):
@@ -813,7 +815,7 @@ def create_account(session: SessionDep, user: CurrentUserDep, data: AccountCreat
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"Account code {data.code} already exists")
-    account = Account(code=data.code, name=data.name, type=data.type, tenant_id=user.tenant_id)
+    account = Account(code=data.code, name=data.name, type=data.type, parent_id=data.parent_id, tenant_id=user.tenant_id)
     session.add(account)
     session.commit()
     session.refresh(account)
@@ -826,12 +828,10 @@ def update_account(account_id: int, session: SessionDep, user: CurrentUserDep, d
     ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    if data.code is not None:
-        account.code = data.code
-    if data.name is not None:
-        account.name = data.name
-    if data.type is not None:
-        account.type = data.type
+    for field in ("code", "name", "type", "parent_id"):
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(account, field, val)
     session.add(account)
     session.commit()
     session.refresh(account)
@@ -866,9 +866,58 @@ def delete_account(account_id: int, session: SessionDep, user: CurrentUserDep):
     results = session.exec(q.order_by(Account.code).offset(skip).limit(limit)).all()
     return {"total": total, "items": [r.model_dump() for r in results]}
 
+# --- Accounting Periods API ---
+class PeriodCreate(BaseModel):
+    name: Optional[str] = None
+    period_start: str
+    period_end: str
+
+@app.get("/api/periods")
+def list_periods(session: SessionDep, user: CurrentUserDep):
+    return session.exec(select(AccountingPeriod).where(AccountingPeriod.tenant_id == user.tenant_id).order_by(AccountingPeriod.period_start.desc())).all()
+
+@app.post("/api/periods", status_code=201)
+def create_period(session: SessionDep, user: CurrentUserDep, body: PeriodCreate):
+    p = AccountingPeriod(tenant_id=user.tenant_id, **body.model_dump())
+    session.add(p)
+    session.commit()
+    session.refresh(p)
+    return p
+
+@app.patch("/api/periods/{period_id}/lock")
+def toggle_period_lock(session: SessionDep, user: CurrentUserDep, period_id: int, is_locked: bool):
+    p = session.exec(select(AccountingPeriod).where(AccountingPeriod.id == period_id, AccountingPeriod.tenant_id == user.tenant_id)).first()
+    if not p:
+        raise HTTPException(404, "Period not found")
+    p.is_locked = is_locked
+    session.add(p)
+    session.commit()
+    return p
+
+@app.delete("/api/periods/{period_id}", status_code=204)
+def delete_period(session: SessionDep, user: CurrentUserDep, period_id: int):
+    p = session.exec(select(AccountingPeriod).where(AccountingPeriod.id == period_id, AccountingPeriod.tenant_id == user.tenant_id)).first()
+    if not p:
+        raise HTTPException(404, "Period not found")
+    session.delete(p)
+    session.commit()
+
+def _check_period_locked(session: Session, tenant_id: int, date_str: str):
+    periods = session.exec(select(AccountingPeriod).where(
+        AccountingPeriod.tenant_id == tenant_id,
+        AccountingPeriod.is_locked == True,
+        AccountingPeriod.period_start <= date_str,
+        AccountingPeriod.period_end >= date_str,
+    )).all()
+    if periods:
+        raise HTTPException(400, f"Date {date_str} falls in a locked accounting period: {periods[0].name or periods[0].period_start}")
+
 # --- Transactions API ---
 @app.post("/api/transactions")
 def create_transaction(session: SessionDep, user: CurrentUserDep, tx_data: TransactionCreate):
+    # Validate period not locked
+    _check_period_locked(session, user.tenant_id, tx_data.date)
+
     # Validation: Dr must equal Cr
     total_dr = sum(e.debit for e in tx_data.entries)
     total_cr = sum(e.credit for e in tx_data.entries)
@@ -956,12 +1005,14 @@ def get_journal_report(
         "items": [
             {
                 "id": tx.id,
+                "transaction_id": tx.id,
                 "jv_number": tx.jv_number,
                 "date": tx.date,
                 "description": tx.description,
                 "account_name": acc.name,
                 "debit": je.debit,
                 "credit": je.credit,
+                "is_reversed": tx.is_reversed,
             }
             for tx, je, acc in results
         ],
@@ -1371,6 +1422,44 @@ def tax_summary(session: SessionDep, user: CurrentUserDep,
             "tax_basis": "ITO 2001 — Non-salaried individual slabs (FY 2024-25)",
         },
     }
+
+@app.post("/api/transactions/{transaction_id}/reverse")
+def reverse_transaction(session: SessionDep, user: CurrentUserDep, transaction_id: int):
+    txn = session.exec(select(Transaction).where(Transaction.id == transaction_id, Transaction.tenant_id == user.tenant_id)).first()
+    if not txn:
+        raise HTTPException(404, "Transaction not found")
+    if txn.is_reversed:
+        raise HTTPException(400, "Transaction already reversed")
+
+    today = str(DateType.today())
+    _check_period_locked(session, user.tenant_id, today)
+
+    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
+    rev_txn = Transaction(
+        tenant_id=user.tenant_id,
+        jv_number=f"JV-{jv_count + 1:05d}",
+        date=today,
+        description=f"Reversal of {txn.jv_number}",
+    )
+    session.add(rev_txn)
+    session.flush()
+
+    for je in txn.journal_entries:
+        rev_je = JournalEntry(
+            tenant_id=user.tenant_id,
+            transaction_id=rev_txn.id,
+            account_id=je.account_id,
+            debit=je.credit,
+            credit=je.debit,
+        )
+        session.add(rev_je)
+
+    txn.is_reversed = True
+    txn.reversed_by_id = rev_txn.id
+    session.add(txn)
+    session.commit()
+    session.refresh(rev_txn)
+    return {"reversal_jv_number": rev_txn.jv_number, "reversal_id": rev_txn.id}
 
 @app.get("/api/transactions/{transaction_id}", response_model=TransactionRead)
 def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserDep):
