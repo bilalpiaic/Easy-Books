@@ -109,6 +109,24 @@ class Invoice(SQLModel, table=True):
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
 
+class Bill(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    vendor_id: Optional[int] = Field(default=None, foreign_key="vendor.id")
+    vendor_name: Optional[str] = None
+    bill_date: str
+    due_date: str
+    description: Optional[str] = None
+    subtotal: float = Field(default=0.0)
+    gst_rate: float = Field(default=17.0)
+    gst_amount: float = Field(default=0.0)
+    total: float = Field(default=0.0)
+    status: str = Field(default="draft")
+    ap_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+
 # API Models
 class JournalEntryCreate(JournalEntryBase):
     pass

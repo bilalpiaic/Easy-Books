@@ -8,7 +8,7 @@ from sqlmodel import Session, select, func
 from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
-    Customer, Vendor, Invoice,
+    Customer, Vendor, Invoice, Bill,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
@@ -355,6 +355,110 @@ def update_invoice_status(session: SessionDep, user: CurrentUserDep, invoice_id:
     session.commit()
     session.refresh(inv)
     return inv
+
+# --- Bills API ---
+def _next_bill_number(session: Session, tenant_id: int, prefix: str) -> str:
+    count = session.exec(select(func.count(Bill.id)).where(Bill.tenant_id == tenant_id)).one()
+    return f"{prefix}-{count + 1:04d}"
+
+class BillCreate(BaseModel):
+    vendor_id: Optional[int] = None
+    vendor_name: Optional[str] = None
+    bill_date: str
+    due_date: str
+    description: Optional[str] = None
+    subtotal: float
+    gst_rate: float = 17.0
+    ap_account_id: Optional[int] = None
+    expense_account_id: Optional[int] = None
+
+@app.get("/api/bills")
+def list_bills(session: SessionDep, user: CurrentUserDep,
+               search: str = "", skip: int = 0, limit: int = 50, status: str = ""):
+    q = select(Bill).where(Bill.tenant_id == user.tenant_id)
+    if search:
+        q = q.where((Bill.number.ilike(f"%{search}%")) | (Bill.vendor_name.ilike(f"%{search}%")))
+    if status:
+        q = q.where(Bill.status == status)
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.order_by(Bill.bill_date.desc()).offset(skip).limit(limit)).all()
+    return {"total": total, "items": items}
+
+@app.post("/api/bills", status_code=201)
+def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
+    prefix_row = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "bill_prefix")).first()
+    prefix = prefix_row.value if prefix_row else "BILL"
+    gst_amount = round(body.subtotal * body.gst_rate / 100, 2)
+    total = round(body.subtotal + gst_amount, 2)
+
+    vname = body.vendor_name
+    if body.vendor_id:
+        v = session.get(Vendor, body.vendor_id)
+        if v:
+            vname = v.name
+
+    bill = Bill(
+        tenant_id=user.tenant_id,
+        number=_next_bill_number(session, user.tenant_id, prefix),
+        vendor_id=body.vendor_id,
+        vendor_name=vname,
+        bill_date=body.bill_date,
+        due_date=body.due_date,
+        description=body.description,
+        subtotal=body.subtotal,
+        gst_rate=body.gst_rate,
+        gst_amount=gst_amount,
+        total=total,
+        status="draft",
+        ap_account_id=body.ap_account_id,
+        expense_account_id=body.expense_account_id,
+    )
+    session.add(bill)
+    session.flush()
+
+    # Auto-post GL: Dr Expense [+ Dr GST Receivable] / Cr Accounts Payable
+    ap_acc = session.get(Account, body.ap_account_id) if body.ap_account_id else \
+        _get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
+    exp_acc = session.get(Account, body.expense_account_id) if body.expense_account_id else \
+        _get_or_create_account(session, user.tenant_id, "5000", "General Expenses", "Expense")
+
+    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
+    txn = Transaction(
+        tenant_id=user.tenant_id,
+        jv_number=f"JV-{jv_count + 1:05d}",
+        date=bill.bill_date,
+        description=f"Bill {bill.number} — {vname or ''}",
+    )
+    session.add(txn)
+    session.flush()
+
+    entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ap_acc.id, debit=0, credit=total)]
+    if gst_amount > 0:
+        gst_input_acc = _get_or_create_account(session, user.tenant_id, "1200", "GST Receivable (Input)", "Asset")
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=exp_acc.id, debit=body.subtotal, credit=0))
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=gst_input_acc.id, debit=gst_amount, credit=0))
+    else:
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=exp_acc.id, debit=total, credit=0))
+
+    for e in entries:
+        session.add(e)
+
+    bill.transaction_id = txn.id
+    session.add(bill)
+    session.commit()
+    session.refresh(bill)
+    return bill
+
+@app.patch("/api/bills/{bill_id}/status")
+def update_bill_status(session: SessionDep, user: CurrentUserDep, bill_id: int, status: str):
+    b = session.exec(select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)).first()
+    if not b:
+        raise HTTPException(404, "Bill not found")
+    b.status = status
+    session.add(b)
+    session.commit()
+    session.refresh(b)
+    return b
 
 # --- Accounts API ---
 class AccountCreate(BaseModel):
