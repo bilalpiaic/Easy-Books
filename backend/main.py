@@ -1204,6 +1204,174 @@ def get_balance_sheet(
 
     return items
 
+@app.get("/api/reports/cash-flow")
+def cash_flow_statement(session: SessionDep, user: CurrentUserDep,
+                         start: str = Query(default=""), end: str = Query(default="")):
+    if not start:
+        start = f"{DateType.today().year}-01-01"
+    if not end:
+        end = str(DateType.today())
+
+    accounts = session.exec(select(Account).where(Account.tenant_id == user.tenant_id)).all()
+
+    def acct_net(acct: Account) -> float:
+        q = select(JournalEntry).join(Transaction).where(
+            JournalEntry.account_id == acct.id,
+            JournalEntry.tenant_id == user.tenant_id,
+            Transaction.date >= start,
+            Transaction.date <= end,
+        )
+        entries = session.exec(q).all()
+        if acct.type in ("Asset", "Expense"):
+            return sum(e.debit - e.credit for e in entries)
+        return sum(e.credit - e.debit for e in entries)
+
+    # Net Income
+    net_income = sum(acct_net(a) for a in accounts if a.type == "Revenue") - \
+                 sum(acct_net(a) for a in accounts if a.type == "Expense")
+
+    # Working capital changes (AR, AP, Inventory)
+    ar_change = sum(acct_net(a) for a in accounts if "receivable" in a.name.lower() or a.code == "1100")
+    ap_change = sum(acct_net(a) for a in accounts if "payable" in a.name.lower() or a.code == "2000")
+    operating_cash = net_income - ar_change + ap_change
+
+    # Investing: fixed asset movements (Asset accounts not cash/receivable/gst)
+    def is_fixed_asset(a: Account) -> bool:
+        n = a.name.lower()
+        return a.type == "Asset" and not any(x in n for x in ["cash", "bank", "receivable", "advance", "gst", "inventory"])
+    investing_items = []
+    investing_cash = 0.0
+    for a in accounts:
+        if is_fixed_asset(a):
+            mv = acct_net(a)
+            if mv != 0:
+                investing_items.append({"name": a.name, "amount": -mv})
+                investing_cash -= mv
+
+    # Financing: equity + long-term liabilities (not AP/GST payable)
+    def is_financing(a: Account) -> bool:
+        if a.type == "Equity":
+            return True
+        if a.type == "Liability":
+            n = a.name.lower()
+            return not any(x in n for x in ["payable", "gst", "advance"])
+        return False
+    financing_items = []
+    financing_cash = 0.0
+    for a in accounts:
+        if is_financing(a):
+            mv = acct_net(a)
+            if mv != 0:
+                financing_items.append({"name": a.name, "amount": mv})
+                financing_cash += mv
+
+    # Cash accounts balance at period boundaries
+    cash_accounts = [a for a in accounts if "cash" in a.name.lower() or "bank" in a.name.lower()]
+
+    def balance_at(a: Account, as_of: str) -> float:
+        q = select(JournalEntry).join(Transaction).where(
+            JournalEntry.account_id == a.id,
+            JournalEntry.tenant_id == user.tenant_id,
+            Transaction.date <= as_of,
+        )
+        entries = session.exec(q).all()
+        if a.type in ("Asset", "Expense"):
+            return sum(e.debit - e.credit for e in entries)
+        return sum(e.credit - e.debit for e in entries)
+
+    # Find day before start for beginning balance
+    try:
+        start_dt = DateType.fromisoformat(start)
+        day_before = str(start_dt - __import__("datetime").timedelta(days=1))
+    except Exception:
+        day_before = start
+
+    beginning_balance = sum(balance_at(a, day_before) for a in cash_accounts)
+    ending_balance = sum(balance_at(a, end) for a in cash_accounts)
+    net_cash_change = operating_cash + investing_cash + financing_cash
+
+    return {
+        "period": {"start": start, "end": end},
+        "net_income": net_income,
+        "operating_adjustments": {"ar_change": ar_change, "ap_change": ap_change},
+        "operating_cash": operating_cash,
+        "investing_items": investing_items,
+        "investing_cash": investing_cash,
+        "financing_items": financing_items,
+        "financing_cash": financing_cash,
+        "net_cash_change": net_cash_change,
+        "beginning_balance": beginning_balance,
+        "ending_balance": ending_balance,
+    }
+
+@app.get("/api/reports/tax-summary")
+def tax_summary(session: SessionDep, user: CurrentUserDep,
+                start: str = Query(default=""), end: str = Query(default="")):
+    if not start:
+        start = f"{DateType.today().year}-07-01"
+    if not end:
+        end = str(DateType.today())
+
+    accounts = session.exec(select(Account).where(Account.tenant_id == user.tenant_id)).all()
+
+    def period_total(acct: Account, side: str) -> float:
+        q = select(JournalEntry).join(Transaction).where(
+            JournalEntry.account_id == acct.id,
+            JournalEntry.tenant_id == user.tenant_id,
+            Transaction.date >= start,
+            Transaction.date <= end,
+        )
+        entries = session.exec(q).all()
+        return sum(getattr(e, side) for e in entries)
+
+    # GST Output = credits to GST Payable (code 2200)
+    gst_payable_accts = [a for a in accounts if a.code == "2200" or "gst payable" in a.name.lower()]
+    output_gst = sum(period_total(a, "credit") for a in gst_payable_accts)
+
+    # GST Input = debits to GST Receivable (code 1200)
+    gst_input_accts = [a for a in accounts if a.code == "1200" or "gst receivable" in a.name.lower()]
+    input_gst = sum(period_total(a, "debit") for a in gst_input_accts)
+
+    net_gst = output_gst - input_gst
+
+    # Taxable income = Revenue - Expenses
+    revenue = sum(
+        sum(period_total(a, "credit") - period_total(a, "debit") for a in [a] if True)
+        for a in accounts if a.type == "Revenue"
+    )
+    expenses = sum(
+        sum(period_total(a, "debit") - period_total(a, "credit") for a in [a] if True)
+        for a in accounts if a.type == "Expense"
+    )
+    taxable_income = revenue - expenses
+
+    # Pakistan ITO 2001 slabs (FY 2024-25, non-salaried individual / company)
+    def income_tax_ito(income: float) -> float:
+        if income <= 600000: return 0
+        if income <= 1200000: return (income - 600000) * 0.05
+        if income <= 2400000: return 30000 + (income - 1200000) * 0.15
+        if income <= 3600000: return 210000 + (income - 2400000) * 0.25
+        if income <= 6000000: return 510000 + (income - 3600000) * 0.30
+        return 1230000 + (income - 6000000) * 0.35
+
+    estimated_income_tax = income_tax_ito(max(0, taxable_income))
+
+    return {
+        "period": {"start": start, "end": end},
+        "gst": {
+            "output_gst": output_gst,
+            "input_gst": input_gst,
+            "net_gst_payable": net_gst,
+        },
+        "income_tax": {
+            "revenue": revenue,
+            "expenses": expenses,
+            "taxable_income": taxable_income,
+            "estimated_tax": estimated_income_tax,
+            "tax_basis": "ITO 2001 — Non-salaried individual slabs (FY 2024-25)",
+        },
+    }
+
 @app.get("/api/transactions/{transaction_id}", response_model=TransactionRead)
 def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserDep):
     tx = session.exec(

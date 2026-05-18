@@ -1,145 +1,125 @@
 'use client'
 
-import { Download, TrendingUp, TrendingDown } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
+import DateRangePicker from '@/components/DateRangePicker'
 
 interface CashFlowData {
+  period: { start: string; end: string }
+  net_income: number
+  operating_adjustments: { ar_change: number; ap_change: number }
   operating_cash: number
+  investing_items: { name: string; amount: number }[]
   investing_cash: number
+  financing_items: { name: string; amount: number }[]
   financing_cash: number
   net_cash_change: number
   beginning_balance: number
   ending_balance: number
 }
 
-const mockData: CashFlowData = {
-  operating_cash: 150000,
-  investing_cash: -75000,
-  financing_cash: 25000,
-  net_cash_change: 100000,
-  beginning_balance: 500000,
-  ending_balance: 600000
+function defaultRange() {
+  const to = new Date()
+  const from = new Date(to.getFullYear(), 0, 1)
+  return { start: from.toISOString().split('T')[0], end: to.toISOString().split('T')[0] }
+}
+
+function Row({ label, value, indent = false, bold = false }: { label: string; value: number; indent?: boolean; bold?: boolean }) {
+  return (
+    <div className={`flex justify-between py-2 ${bold ? 'border-t border-[#ede9e2] font-semibold' : ''}`}>
+      <span className={indent ? 'ml-6 text-sm text-black/70' : ''}>{label}</span>
+      <span className={`font-mono ${bold ? 'text-lg' : 'text-sm'} ${value < 0 ? 'text-red-600' : ''}`}>{fmtPKR(value)}</span>
+    </div>
+  )
 }
 
 export default function CashFlow() {
-  const { operating_cash, investing_cash, financing_cash, net_cash_change, beginning_balance, ending_balance } = mockData
+  const range = defaultRange()
+  const [start, setStart] = useState(range.start)
+  const [end, setEnd] = useState(range.end)
+  const [data, setData] = useState<CashFlowData | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    apiFetch<CashFlowData>(`/api/reports/cash-flow?start=${start}&end=${end}`)
+      .then(setData)
+      .catch(err => setError((err as Error).message))
+  }, [start, end])
 
   return (
     <div className="space-y-6 p-8 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Cash Flow Statement</h1>
-          <p className="text-sm text-black/50 mt-1">Sources and uses of cash • Liquidity analysis</p>
+          <p className="text-sm text-black/75 mt-1">Sources and uses of cash — Indirect Method</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
-          <Download className="w-4 h-4" />
-          Export PDF
-        </button>
+        <div className="p-3 bg-white border border-[#ede9e2] rounded-xl">
+          <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
+        </div>
       </div>
 
-      {/* Main Report */}
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
-        <div className="p-8 space-y-8">
-          {/* Title */}
+      {error && <div className="text-red-600 font-semibold">{error}</div>}
+
+      {!data ? (
+        <div className="text-center py-12 text-black/40">Loading...</div>
+      ) : (
+        <div className="bg-white rounded-xl border border-[#ede9e2] p-8 space-y-8">
           <div className="text-center pb-6 border-b border-[#ede9e2]">
-            <h2 className="text-2xl font-serif font-medium mb-1">Malik Enterprises</h2>
-            <p className="text-sm text-black/50">Statement of Cash Flows</p>
-            <p className="text-xs text-black/40 mt-3">For the Period</p>
+            <h2 className="text-xl font-serif font-medium mb-1">Statement of Cash Flows</h2>
+            <p className="text-xs text-black/60 mt-1">{data.period.start} — {data.period.end}</p>
           </div>
 
-          {/* Operating Activities */}
+          {/* Operating */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 pb-3 border-b border-[#ede9e2]">Operating Activities</h3>
-            <div className="flex justify-between items-center mb-3">
-              <span>Net Income</span>
-              <span className="font-mono font-bold">{fmtPKR(0)}</span>
-            </div>
-            <div className="flex justify-between items-center mb-3 text-sm text-black/70">
-              <span className="ml-6">+ Depreciation</span>
-              <span className="font-mono">{fmtPKR(0)}</span>
-            </div>
-            <div className="flex justify-between items-center mb-4 text-sm text-black/70">
-              <span className="ml-6">Changes in Working Capital</span>
-              <span className="font-mono">{fmtPKR(0)}</span>
-            </div>
-            <div className="flex justify-between border-t border-[#ede9e2] pt-4 font-semibold">
-              <span>Net Cash from Operations</span>
-              <span className={`font-mono text-lg ${operating_cash >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {fmtPKR(operating_cash)}
-              </span>
-            </div>
+            <h3 className="text-base font-semibold mb-3 pb-2 border-b border-[#ede9e2]">Operating Activities</h3>
+            <Row label="Net Income" value={data.net_income} />
+            <Row label="Decrease (Increase) in Accounts Receivable" value={-data.operating_adjustments.ar_change} indent />
+            <Row label="Increase (Decrease) in Accounts Payable" value={data.operating_adjustments.ap_change} indent />
+            <Row label="Net Cash from Operations" value={data.operating_cash} bold />
           </div>
 
-          {/* Investing Activities */}
+          {/* Investing */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 pb-3 border-b border-[#ede9e2]">Investing Activities</h3>
-            <div className="flex justify-between items-center mb-3 text-sm text-black/70">
-              <span>Capital Expenditures</span>
-              <span className="font-mono">{fmtPKR(0)}</span>
-            </div>
-            <div className="flex justify-between items-center mb-4 text-sm text-black/70">
-              <span>Asset Sales</span>
-              <span className="font-mono">{fmtPKR(0)}</span>
-            </div>
-            <div className="flex justify-between border-t border-[#ede9e2] pt-4 font-semibold">
-              <span>Net Cash from Investing</span>
-              <span className={`font-mono text-lg ${investing_cash >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {fmtPKR(investing_cash)}
-              </span>
-            </div>
+            <h3 className="text-base font-semibold mb-3 pb-2 border-b border-[#ede9e2]">Investing Activities</h3>
+            {data.investing_items.length === 0 ? (
+              <p className="text-sm text-black/40 mb-3">No fixed asset movements</p>
+            ) : data.investing_items.map((item, i) => (
+              <Row key={i} label={item.name} value={item.amount} indent />
+            ))}
+            <Row label="Net Cash from Investing" value={data.investing_cash} bold />
           </div>
 
-          {/* Financing Activities */}
+          {/* Financing */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 pb-3 border-b border-[#ede9e2]">Financing Activities</h3>
-            <div className="flex justify-between items-center mb-3 text-sm text-black/70">
-              <span>Loan Proceeds</span>
-              <span className="font-mono">{fmtPKR(0)}</span>
-            </div>
-            <div className="flex justify-between items-center mb-4 text-sm text-black/70">
-              <span>Debt Repayment</span>
-              <span className="font-mono">{fmtPKR(0)}</span>
-            </div>
-            <div className="flex justify-between border-t border-[#ede9e2] pt-4 font-semibold">
-              <span>Net Cash from Financing</span>
-              <span className={`font-mono text-lg ${financing_cash >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {fmtPKR(financing_cash)}
-              </span>
-            </div>
+            <h3 className="text-base font-semibold mb-3 pb-2 border-b border-[#ede9e2]">Financing Activities</h3>
+            {data.financing_items.length === 0 ? (
+              <p className="text-sm text-black/40 mb-3">No financing movements</p>
+            ) : data.financing_items.map((item, i) => (
+              <Row key={i} label={item.name} value={item.amount} indent />
+            ))}
+            <Row label="Net Cash from Financing" value={data.financing_cash} bold />
           </div>
 
-          {/* Net Change in Cash */}
-          <div className="bg-[#f6f3ee] p-6 rounded space-y-3">
-            <div className="flex justify-between items-center pb-3 border-b border-[#ede9e2]">
+          {/* Summary */}
+          <div className="bg-[#f6f3ee] p-6 rounded-xl space-y-3">
+            <div className="flex justify-between pb-3 border-b border-[#ede9e2]">
               <span className="font-semibold">Net Change in Cash</span>
-              <span className={`font-mono font-bold text-lg ${net_cash_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {net_cash_change >= 0 ? '+' : ''}{fmtPKR(net_cash_change)}
+              <span className={`font-mono font-bold text-lg ${data.net_cash_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {data.net_cash_change >= 0 ? '+' : ''}{fmtPKR(data.net_cash_change)}
               </span>
             </div>
-            <div className="flex justify-between items-center text-sm">
+            <div className="flex justify-between text-sm">
               <span>Beginning Cash Balance</span>
-              <span className="font-mono">{fmtPKR(beginning_balance)}</span>
+              <span className="font-mono">{fmtPKR(data.beginning_balance)}</span>
             </div>
-            <div className="flex justify-between items-center text-lg font-bold border-t border-[#ede9e2] pt-3">
+            <div className="flex justify-between text-lg font-bold border-t border-[#ede9e2] pt-3">
               <span>Ending Cash Balance</span>
-              <span className="font-mono text-[#b8943f]">{fmtPKR(ending_balance)}</span>
+              <span className="font-mono text-[#b8943f]">{fmtPKR(data.ending_balance)}</span>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Best Practices */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-semibold text-blue-900 mb-2">💡 Cash Flow Analysis Best Practices</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>✓ Prepare cash flow statements monthly to monitor liquidity</li>
-          <li>✓ Analyze differences between profit and cash flow</li>
-          <li>✓ Monitor operating cash flow as primary liquidity measure</li>
-          <li>✓ Plan for seasonal cash flow variations</li>
-          <li>✓ Ensure adequate working capital for operations</li>
-        </ul>
-      </div>
+      )}
     </div>
   )
 }

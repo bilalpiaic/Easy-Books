@@ -1,135 +1,138 @@
 'use client'
 
-import { Download, FileText } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
+import DateRangePicker from '@/components/DateRangePicker'
 
-interface TaxData {
-  total_revenue: number
-  business_expenses: number
-  taxable_income: number
-  tax_rate: number
-  estimated_tax: number
-  quarters: { q: number; estimated: number; paid: number }[]
+interface TaxSummary {
+  period: { start: string; end: string }
+  gst: {
+    output_gst: number
+    input_gst: number
+    net_gst_payable: number
+  }
+  income_tax: {
+    revenue: number
+    expenses: number
+    taxable_income: number
+    estimated_tax: number
+    tax_basis: string
+  }
 }
 
-const mockData: TaxData = {
-  total_revenue: 1000000,
-  business_expenses: 600000,
-  taxable_income: 400000,
-  tax_rate: 25,
-  estimated_tax: 100000,
-  quarters: [
-    { q: 1, estimated: 25000, paid: 25000 },
-    { q: 2, estimated: 25000, paid: 0 },
-    { q: 3, estimated: 25000, paid: 0 },
-    { q: 4, estimated: 25000, paid: 0 }
-  ]
+function defaultRange() {
+  const today = new Date()
+  const fyStart = today.getMonth() >= 6
+    ? new Date(today.getFullYear(), 6, 1)
+    : new Date(today.getFullYear() - 1, 6, 1)
+  return { start: fyStart.toISOString().split('T')[0], end: today.toISOString().split('T')[0] }
 }
 
 export default function TaxReports() {
-  const { total_revenue, business_expenses, taxable_income, tax_rate, estimated_tax, quarters } = mockData
+  const range = defaultRange()
+  const [start, setStart] = useState(range.start)
+  const [end, setEnd] = useState(range.end)
+  const [data, setData] = useState<TaxSummary | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    apiFetch<TaxSummary>(`/api/reports/tax-summary?start=${start}&end=${end}`)
+      .then(setData)
+      .catch(err => setError((err as Error).message))
+  }, [start, end])
 
   return (
     <div className="space-y-6 p-8 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Tax Reports</h1>
-          <p className="text-sm text-black/50 mt-1">Tax planning & estimated tax calculations</p>
+          <p className="text-sm text-black/75 mt-1">GST returns and income tax estimate — Pakistan ITO 2001</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
-          <Download className="w-4 h-4" />
-          Export PDF
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Total Revenue</p>
-          <p className="text-2xl font-bold text-green-600 mt-2">{fmtPKR(total_revenue)}</p>
-        </div>
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Business Expenses</p>
-          <p className="text-2xl font-bold text-[#b8943f] mt-2">{fmtPKR(business_expenses)}</p>
+        <div className="p-3 bg-white border border-[#ede9e2] rounded-xl">
+          <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Fiscal Period" />
         </div>
       </div>
 
-      {/* Tax Calculation */}
-      <div className="bg-white rounded-xl border border-[#ede9e2] p-8">
-        <h3 className="text-lg font-semibold mb-6">Tax Calculation</h3>
-        
-        <div className="space-y-3 mb-6">
-          <div className="flex justify-between py-2 border-b border-[#ede9e2]">
-            <span>Total Revenue</span>
-            <span className="font-mono font-bold">{fmtPKR(total_revenue)}</span>
-          </div>
-          <div className="flex justify-between py-2 border-b border-[#ede9e2]">
-            <span>Less: Business Expenses</span>
-            <span className="font-mono font-bold">({fmtPKR(business_expenses)})</span>
-          </div>
-          <div className="flex justify-between py-3 border-t-2 border-[#1a1814] font-semibold text-lg">
-            <span>Taxable Income</span>
-            <span className="font-mono text-[#b8943f]">{fmtPKR(taxable_income)}</span>
-          </div>
-        </div>
+      {error && <div className="text-red-600 font-semibold">{error}</div>}
 
-        <div className="space-y-3 bg-[#f6f3ee] p-6 rounded">
-          <div className="flex justify-between">
-            <span>Tax Rate</span>
-            <span className="font-mono font-bold">{tax_rate}%</span>
+      {!data ? (
+        <div className="text-center py-12 text-black/40">Loading...</div>
+      ) : (
+        <>
+          {/* GST Section */}
+          <div className="bg-white rounded-xl border border-[#ede9e2] p-8">
+            <h2 className="text-lg font-semibold mb-6 pb-3 border-b border-[#ede9e2]">GST Return Summary</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
+                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Output GST (Sales)</p>
+                <p className="text-xl font-bold font-mono text-red-600">{fmtPKR(data.gst.output_gst)}</p>
+              </div>
+              <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
+                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Input GST (Purchases)</p>
+                <p className="text-xl font-bold font-mono text-green-600">{fmtPKR(data.gst.input_gst)}</p>
+              </div>
+              <div className={`rounded-xl p-4 text-center ${data.gst.net_gst_payable > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Net GST Payable</p>
+                <p className={`text-xl font-bold font-mono ${data.gst.net_gst_payable > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                  {fmtPKR(data.gst.net_gst_payable)}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between py-2 border-b border-[#ede9e2]">
+                <span>Output GST (account 2200 credits)</span>
+                <span className="font-mono">{fmtPKR(data.gst.output_gst)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-[#ede9e2]">
+                <span>Less: Input GST (account 1200 debits)</span>
+                <span className="font-mono">({fmtPKR(data.gst.input_gst)})</span>
+              </div>
+              <div className="flex justify-between py-3 font-semibold text-base">
+                <span>Net GST Payable to FBR</span>
+                <span className={`font-mono ${data.gst.net_gst_payable > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {fmtPKR(data.gst.net_gst_payable)}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between pt-3 border-t border-[#ede9e2] font-semibold text-lg">
-            <span>Estimated Tax Liability</span>
-            <span className="font-mono text-red-600">{fmtPKR(estimated_tax)}</span>
+
+          {/* Income Tax Section */}
+          <div className="bg-white rounded-xl border border-[#ede9e2] p-8">
+            <h2 className="text-lg font-semibold mb-6 pb-3 border-b border-[#ede9e2]">Income Tax Estimate</h2>
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between py-2 border-b border-[#ede9e2]">
+                <span>Total Revenue</span>
+                <span className="font-mono font-bold">{fmtPKR(data.income_tax.revenue)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-[#ede9e2]">
+                <span>Less: Business Expenses</span>
+                <span className="font-mono font-bold">({fmtPKR(data.income_tax.expenses)})</span>
+              </div>
+              <div className="flex justify-between py-3 border-t-2 border-[#1a1814] font-semibold text-lg">
+                <span>Taxable Income</span>
+                <span className="font-mono text-[#b8943f]">{fmtPKR(data.income_tax.taxable_income)}</span>
+              </div>
+            </div>
+
+            <div className="bg-[#f6f3ee] rounded-xl p-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-black/60">Basis</span>
+                <span className="text-black/80">{data.income_tax.tax_basis}</span>
+              </div>
+              <div className="flex justify-between pt-3 border-t border-[#ede9e2] font-semibold text-lg">
+                <span>Estimated Income Tax</span>
+                <span className="font-mono text-red-600">{fmtPKR(data.income_tax.estimated_tax)}</span>
+              </div>
+            </div>
+
+            <div className="mt-6 text-xs text-black/40 bg-amber-50 border border-amber-100 rounded-lg p-3">
+              Tax slabs: 0–600K @ 0% | 600K–1.2M @ 5% | 1.2M–2.4M @ 15% | 2.4M–3.6M @ 25% | 3.6M–6M @ 30% | above 6M @ 35%.
+              This is an estimate only. Consult a tax advisor for filing.
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Quarterly Estimates */}
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/40">Quarter</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/40">Estimated Payment</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/40">Paid</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/40">Outstanding</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
-            {quarters.map((q) => (
-              <tr key={q.q} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-4 font-medium">Q{q.q} {new Date().getFullYear()}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmtPKR(q.estimated)}</td>
-                <td className="px-6 py-4 text-right font-mono text-green-600">{fmtPKR(q.paid)}</td>
-                <td className="px-6 py-4 text-right font-mono text-red-600">{fmtPKR(q.estimated - q.paid)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="bg-[#1a1814] text-white font-bold">
-            <tr>
-              <td className="px-6 py-4">TOTALS</td>
-              <td className="px-6 py-4 text-right font-mono">{fmtPKR(quarters.reduce((s, q) => s + q.estimated, 0))}</td>
-              <td className="px-6 py-4 text-right font-mono">{fmtPKR(quarters.reduce((s, q) => s + q.paid, 0))}</td>
-              <td className="px-6 py-4 text-right font-mono">{fmtPKR(quarters.reduce((s, q) => s + (q.estimated - q.paid), 0))}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {/* Best Practices */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-semibold text-blue-900 mb-2">💡 Tax Planning Best Practices</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>✓ Calculate and pay estimated taxes quarterly to avoid penalties</li>
-          <li>✓ Keep detailed records of all deductible business expenses</li>
-          <li>✓ Consult with a tax professional for tax planning strategies</li>
-          <li>✓ Track mileage, meals, and other easy-to-miss deductions</li>
-          <li>✓ Plan for tax liability throughout the year</li>
-          <li>✓ Maintain organized records for tax audit purposes</li>
-        </ul>
-      </div>
+        </>
+      )}
     </div>
   )
 }
