@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Scale, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR } from "@/lib/utils"
+import { fmtPKR, downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 
 interface TrialBalanceItem {
@@ -48,10 +48,14 @@ export default function TrialBalancePage() {
           <p className="text-[#1a1814]/60">Debit and credit totals per account</p>
         </div>
         <div className="flex gap-3">
-          <button className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60">
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
             <Printer className="w-5 h-5" />
           </button>
-          <button className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60">
+          <button
+            onClick={() => downloadCSV(`trial-balance-${start}-${end}.csv`, data.map(d => ({ Code: d.code, Name: d.name, Type: d.type, Debit: d.total_debit, Credit: d.total_credit })))}
+            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden"
+            title="Export CSV"
+          >
             <Download className="w-5 h-5" />
           </button>
         </div>

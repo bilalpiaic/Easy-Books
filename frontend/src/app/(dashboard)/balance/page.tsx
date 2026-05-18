@@ -44,7 +44,7 @@ export default function BalanceSheetPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
           <p className="text-[#1a1814]/60">Financial position as of {new Date(asOf).toLocaleDateString()}</p>
         </div>
-        <button className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60">
+        <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
           <Printer className="w-5 h-5" />
         </button>
       </div>

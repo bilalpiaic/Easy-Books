@@ -24,3 +24,25 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  /* Hide navigation chrome */
+  nav, aside, header, footer,
+  [data-sidebar], [data-header],
+  .print\\:hidden { display: none !important; }
+
+  /* Full-width content */
+  main, [data-main] { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+
+  /* Page setup */
+  @page { size: A4; margin: 20mm; }
+  body { background: white; color: black; font-size: 11pt; }
+
+  /* Keep table rows together */
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+
+  /* Ensure borders print */
+  table, th, td { border-color: #ccc !important; }
+  th { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

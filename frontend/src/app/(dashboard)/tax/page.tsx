@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 import DateRangePicker from '@/components/DateRangePicker'
@@ -49,8 +50,13 @@ export default function TaxReports() {
           <h1 className="text-3xl font-serif font-medium">Tax Reports</h1>
           <p className="text-sm text-black/75 mt-1">GST returns and income tax estimate — Pakistan ITO 2001</p>
         </div>
-        <div className="p-3 bg-white border border-[#ede9e2] rounded-xl">
-          <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Fiscal Period" />
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-white border border-[#ede9e2] rounded-xl">
+            <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Fiscal Period" />
+          </div>
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
+            <Printer className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
