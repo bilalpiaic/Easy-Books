@@ -151,6 +151,15 @@ class BillPayment(SQLModel, table=True):
     cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
 
+class BankAccount(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    coa_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    is_active: bool = Field(default=True)
+
 # API Models
 class JournalEntryCreate(JournalEntryBase):
     pass

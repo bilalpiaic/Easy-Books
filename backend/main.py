@@ -8,7 +8,7 @@ from sqlmodel import Session, select, func
 from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
-    Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment,
+    Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment, BankAccount,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
@@ -637,6 +637,69 @@ def invoice_aging(session: SessionDep, user: CurrentUserDep):
 def bill_aging(session: SessionDep, user: CurrentUserDep):
     items = session.exec(select(Bill).where(Bill.tenant_id == user.tenant_id)).all()
     return _aging_buckets(items, "due_date", "total", "vendor_name")
+
+# --- Bank Accounts API ---
+class BankAccountCreate(BaseModel):
+    name: str
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    coa_account_id: Optional[int] = None
+
+class BankAccountUpdate(BaseModel):
+    name: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    coa_account_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+def _bank_balance(session: Session, tenant_id: int, coa_id: int) -> float:
+    entries = session.exec(select(JournalEntry).join(Account).where(
+        Account.id == coa_id,
+        JournalEntry.tenant_id == tenant_id
+    )).all()
+    acc = session.get(Account, coa_id)
+    if not acc:
+        return 0.0
+    if acc.type in ("Asset", "Expense"):
+        return sum(e.debit - e.credit for e in entries)
+    return sum(e.credit - e.debit for e in entries)
+
+@app.get("/api/bank-accounts")
+def list_bank_accounts(session: SessionDep, user: CurrentUserDep):
+    accounts = session.exec(select(BankAccount).where(BankAccount.tenant_id == user.tenant_id)).all()
+    result = []
+    for ba in accounts:
+        balance = _bank_balance(session, user.tenant_id, ba.coa_account_id) if ba.coa_account_id else 0.0
+        result.append({**ba.model_dump(), "balance": balance})
+    return result
+
+@app.post("/api/bank-accounts", status_code=201)
+def create_bank_account(session: SessionDep, user: CurrentUserDep, body: BankAccountCreate):
+    ba = BankAccount(**body.model_dump(), tenant_id=user.tenant_id)
+    session.add(ba)
+    session.commit()
+    session.refresh(ba)
+    return ba
+
+@app.put("/api/bank-accounts/{ba_id}")
+def update_bank_account(session: SessionDep, user: CurrentUserDep, ba_id: int, body: BankAccountUpdate):
+    ba = session.exec(select(BankAccount).where(BankAccount.id == ba_id, BankAccount.tenant_id == user.tenant_id)).first()
+    if not ba:
+        raise HTTPException(404, "Bank account not found")
+    for k, v in body.model_dump(exclude_none=True).items():
+        setattr(ba, k, v)
+    session.add(ba)
+    session.commit()
+    session.refresh(ba)
+    return ba
+
+@app.delete("/api/bank-accounts/{ba_id}", status_code=204)
+def delete_bank_account(session: SessionDep, user: CurrentUserDep, ba_id: int):
+    ba = session.exec(select(BankAccount).where(BankAccount.id == ba_id, BankAccount.tenant_id == user.tenant_id)).first()
+    if not ba:
+        raise HTTPException(404, "Bank account not found")
+    session.delete(ba)
+    session.commit()
 
 # --- Accounts API ---
 class AccountCreate(BaseModel):
