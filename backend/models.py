@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import List, Optional
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
@@ -186,6 +187,16 @@ class ReconciliationLine(SQLModel, table=True):
     reconciliation_id: int = Field(foreign_key="reconciliation.id")
     journal_entry_id: int = Field(foreign_key="journalentry.id")
     is_matched: bool = Field(default=False)
+
+class AuditLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    action: str  # CREATE, UPDATE, DELETE
+    entity_type: str  # account, customer, vendor, invoice, bill, transaction, etc.
+    entity_id: Optional[int] = None
+    detail: Optional[str] = None  # JSON string with context
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 # API Models
 class JournalEntryCreate(JournalEntryBase):

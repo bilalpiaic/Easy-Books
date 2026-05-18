@@ -1,6 +1,6 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
@@ -13,6 +13,16 @@ interface AccountingPeriod {
   is_locked: boolean
 }
 
+interface AuditLogEntry {
+  id: number
+  action: string
+  entity_type: string
+  entity_id: number | null
+  detail: string | null
+  timestamp: string
+  user_name: string
+}
+
 export default function SettingsPage() {
   const { settings: ctxSettings, reload } = useSettings()
   const [form, setForm] = useState<AppSettings>(ctxSettings)
@@ -23,6 +33,8 @@ export default function SettingsPage() {
   const [periods, setPeriods] = useState<AccountingPeriod[]>([])
   const [periodForm, setPeriodForm] = useState({ name: "", period_start: "", period_end: "" })
   const [addingPeriod, setAddingPeriod] = useState(false)
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
+  const [auditFilter, setAuditFilter] = useState("")
 
   useEffect(() => { setForm(ctxSettings) }, [ctxSettings])
 
@@ -31,6 +43,13 @@ export default function SettingsPage() {
       .then(setPeriods)
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const url = auditFilter ? `/api/audit-log?entity_type=${auditFilter}&limit=100` : "/api/audit-log?limit=100"
+    apiFetch<{ total: number; items: AuditLogEntry[] }>(url)
+      .then(res => setAuditLogs(res.items))
+      .catch(() => {})
+  }, [auditFilter])
 
   const handleAddPeriod = async () => {
     if (!periodForm.period_start || !periodForm.period_end) return
@@ -322,6 +341,64 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
+            <ClipboardList className="w-5 h-5 text-[#b8943f]" />
+            Audit Log
+          </h2>
+          <select
+            value={auditFilter}
+            onChange={e => setAuditFilter(e.target.value)}
+            className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+          >
+            <option value="">All entities</option>
+            <option value="account">Accounts</option>
+            <option value="customer">Customers</option>
+            <option value="vendor">Vendors</option>
+            <option value="invoice">Invoices</option>
+            <option value="bill">Bills</option>
+            <option value="transaction">Transactions</option>
+          </select>
+        </div>
+
+        {auditLogs.length === 0 ? (
+          <p className="text-sm text-black/40 py-4">No audit log entries yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[#f6f3ee] text-left">
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Timestamp</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">User</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Action</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Entity</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Detail</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#ede9e2]">
+                {auditLogs.map(log => (
+                  <tr key={log.id} className="hover:bg-[#f6f3ee]/50">
+                    <td className="px-4 py-3 font-mono text-xs text-black/60">{new Date(log.timestamp).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-black/80">{log.user_name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        log.action === 'CREATE' ? 'bg-green-100 text-green-700' :
+                        log.action === 'DELETE' ? 'bg-red-100 text-red-700' :
+                        log.action === 'REVERSE' ? 'bg-purple-100 text-purple-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>{log.action}</span>
+                    </td>
+                    <td className="px-4 py-3 text-black/70 capitalize">{log.entity_type} {log.entity_id ? `#${log.entity_id}` : ''}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-black/50 max-w-xs truncate">{log.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

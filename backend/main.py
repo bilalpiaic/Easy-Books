@@ -9,9 +9,10 @@ from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
     Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment, BankAccount,
-    Reconciliation, ReconciliationLine, AccountingPeriod,
+    Reconciliation, ReconciliationLine, AccountingPeriod, AuditLog,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
+import json as _json
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
 
 app = FastAPI(title="Easy-Books API")
@@ -48,6 +49,17 @@ def get_current_user(session: Session = Depends(get_session), token: str = Depen
 
 SessionDep = Annotated[Session, Depends(get_session)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+def log_audit(session: Session, user: User, action: str, entity_type: str, entity_id: Optional[int] = None, detail: dict = {}):
+    entry = AuditLog(
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        detail=_json.dumps(detail) if detail else None,
+    )
+    session.add(entry)
 
 class UserSignup(BaseModel):
     email: str
@@ -165,6 +177,8 @@ def list_customers(session: SessionDep, user: CurrentUserDep,
 def create_customer(session: SessionDep, user: CurrentUserDep, body: CustomerCreate):
     c = Customer(**body.model_dump(), tenant_id=user.tenant_id)
     session.add(c)
+    session.flush()
+    log_audit(session, user, "CREATE", "customer", c.id, {"name": c.name})
     session.commit()
     session.refresh(c)
     return c
@@ -177,6 +191,7 @@ def update_customer(session: SessionDep, user: CurrentUserDep, customer_id: int,
     for k, v in body.model_dump(exclude_none=True).items():
         setattr(c, k, v)
     session.add(c)
+    log_audit(session, user, "UPDATE", "customer", c.id, {"name": c.name})
     session.commit()
     session.refresh(c)
     return c
@@ -186,6 +201,7 @@ def delete_customer(session: SessionDep, user: CurrentUserDep, customer_id: int)
     c = session.exec(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == user.tenant_id)).first()
     if not c:
         raise HTTPException(404, "Customer not found")
+    log_audit(session, user, "DELETE", "customer", c.id, {"name": c.name})
     session.delete(c)
     session.commit()
 
@@ -219,6 +235,8 @@ def list_vendors(session: SessionDep, user: CurrentUserDep,
 def create_vendor(session: SessionDep, user: CurrentUserDep, body: VendorCreate):
     v = Vendor(**body.model_dump(), tenant_id=user.tenant_id)
     session.add(v)
+    session.flush()
+    log_audit(session, user, "CREATE", "vendor", v.id, {"name": v.name})
     session.commit()
     session.refresh(v)
     return v
@@ -231,6 +249,7 @@ def update_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int, bod
     for k, val in body.model_dump(exclude_none=True).items():
         setattr(v, k, val)
     session.add(v)
+    log_audit(session, user, "UPDATE", "vendor", v.id, {"name": v.name})
     session.commit()
     session.refresh(v)
     return v
@@ -240,6 +259,7 @@ def delete_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int):
     v = session.exec(select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id)).first()
     if not v:
         raise HTTPException(404, "Vendor not found")
+    log_audit(session, user, "DELETE", "vendor", v.id, {"name": v.name})
     session.delete(v)
     session.commit()
 
@@ -342,6 +362,7 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
 
     invoice.transaction_id = txn.id
     session.add(invoice)
+    log_audit(session, user, "CREATE", "invoice", invoice.id, {"number": invoice.number, "total": invoice.total})
     session.commit()
     session.refresh(invoice)
     return invoice
@@ -353,6 +374,7 @@ def update_invoice_status(session: SessionDep, user: CurrentUserDep, invoice_id:
         raise HTTPException(404, "Invoice not found")
     inv.status = status
     session.add(inv)
+    log_audit(session, user, "UPDATE", "invoice", inv.id, {"number": inv.number, "status": status})
     session.commit()
     session.refresh(inv)
     return inv
@@ -446,6 +468,7 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
 
     bill.transaction_id = txn.id
     session.add(bill)
+    log_audit(session, user, "CREATE", "bill", bill.id, {"number": bill.number, "total": bill.total})
     session.commit()
     session.refresh(bill)
     return bill
@@ -457,6 +480,7 @@ def update_bill_status(session: SessionDep, user: CurrentUserDep, bill_id: int, 
         raise HTTPException(404, "Bill not found")
     b.status = status
     session.add(b)
+    log_audit(session, user, "UPDATE", "bill", b.id, {"number": b.number, "status": status})
     session.commit()
     session.refresh(b)
     return b
@@ -817,6 +841,8 @@ def create_account(session: SessionDep, user: CurrentUserDep, data: AccountCreat
         raise HTTPException(status_code=400, detail=f"Account code {data.code} already exists")
     account = Account(code=data.code, name=data.name, type=data.type, parent_id=data.parent_id, tenant_id=user.tenant_id)
     session.add(account)
+    session.flush()
+    log_audit(session, user, "CREATE", "account", account.id, {"code": account.code, "name": account.name})
     session.commit()
     session.refresh(account)
     return account
@@ -833,6 +859,7 @@ def update_account(account_id: int, session: SessionDep, user: CurrentUserDep, d
         if val is not None:
             setattr(account, field, val)
     session.add(account)
+    log_audit(session, user, "UPDATE", "account", account.id, {"code": account.code, "name": account.name})
     session.commit()
     session.refresh(account)
     return account
@@ -848,6 +875,7 @@ def delete_account(account_id: int, session: SessionDep, user: CurrentUserDep):
     entries = session.exec(select(JournalEntry).where(JournalEntry.account_id == account_id)).first()
     if entries:
         raise HTTPException(status_code=400, detail="Cannot delete account with existing journal entries")
+    log_audit(session, user, "DELETE", "account", account.id, {"code": account.code, "name": account.name})
     session.delete(account)
     session.commit()
     return {"success": True}
@@ -901,6 +929,37 @@ def delete_period(session: SessionDep, user: CurrentUserDep, period_id: int):
         raise HTTPException(404, "Period not found")
     session.delete(p)
     session.commit()
+
+# --- Audit Log API ---
+@app.get("/api/audit-log")
+def get_audit_log(
+    session: SessionDep,
+    user: CurrentUserDep,
+    entity_type: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+):
+    q = select(AuditLog, User).join(User, AuditLog.user_id == User.id).where(AuditLog.tenant_id == user.tenant_id)
+    if entity_type:
+        q = q.where(AuditLog.entity_type == entity_type)
+    q = q.order_by(AuditLog.timestamp.desc())
+    total = len(session.exec(q).all())
+    results = session.exec(q.offset(skip).limit(limit)).all()
+    return {
+        "total": total,
+        "items": [
+            {
+                "id": log.id,
+                "action": log.action,
+                "entity_type": log.entity_type,
+                "entity_id": log.entity_id,
+                "detail": log.detail,
+                "timestamp": log.timestamp.isoformat(),
+                "user_name": usr.full_name or usr.email,
+            }
+            for log, usr in results
+        ],
+    }
 
 def _check_period_locked(session: Session, tenant_id: int, date_str: str):
     periods = session.exec(select(AccountingPeriod).where(
@@ -973,7 +1032,8 @@ def create_transaction(session: SessionDep, user: CurrentUserDep, tx_data: Trans
             credit=e.credit
         )
         session.add(db_entry)
-    
+
+    log_audit(session, user, "CREATE", "transaction", db_tx.id, {"jv_number": db_tx.jv_number, "date": db_tx.date})
     session.commit()
     return {"id": db_tx.id, "jv_number": db_tx.jv_number}
 
@@ -1457,6 +1517,7 @@ def reverse_transaction(session: SessionDep, user: CurrentUserDep, transaction_i
     txn.is_reversed = True
     txn.reversed_by_id = rev_txn.id
     session.add(txn)
+    log_audit(session, user, "REVERSE", "transaction", txn.id, {"original_jv": txn.jv_number, "reversal_jv": rev_txn.jv_number})
     session.commit()
     session.refresh(rev_txn)
     return {"reversal_jv_number": rev_txn.jv_number, "reversal_id": rev_txn.id}
