@@ -346,6 +346,57 @@ def get_income_statement(
         for r in results
     ]
 
+@app.get("/api/reports/ledger")
+def get_ledger(
+    session: SessionDep,
+    user: CurrentUserDep,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    search: Optional[str] = None,
+):
+    query = (
+        session.query(Account, Transaction, JournalEntry)
+        .join(JournalEntry, JournalEntry.account_id == Account.id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .filter(Transaction.tenant_id == user.tenant_id)
+    )
+    if start:
+        query = query.filter(Transaction.date >= start)
+    if end:
+        query = query.filter(Transaction.date <= end)
+    if search:
+        query = query.filter(Account.name.ilike(f"%{search}%"))
+
+    rows = query.order_by(Account.code, Transaction.date, Transaction.id).all()
+
+    # Group by account, compute running balance
+    accounts: dict = {}
+    for account, tx, je in rows:
+        if account.id not in accounts:
+            accounts[account.id] = {
+                "code": account.code,
+                "name": account.name,
+                "type": account.type,
+                "entries": [],
+                "running_balance": 0.0,
+            }
+        running = accounts[account.id]["running_balance"]
+        if account.type in ("Asset", "Expense"):
+            running += je.debit - je.credit
+        else:
+            running += je.credit - je.debit
+        accounts[account.id]["running_balance"] = running
+        accounts[account.id]["entries"].append({
+            "date": tx.date,
+            "jv_number": tx.jv_number,
+            "description": tx.description or "",
+            "debit": je.debit,
+            "credit": je.credit,
+            "balance": running,
+        })
+
+    return list(accounts.values())
+
 @app.get("/api/reports/balance-sheet")
 def get_balance_sheet(
     session: SessionDep,
