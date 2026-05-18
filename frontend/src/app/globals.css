@@ -1,48 +1,82 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --brand-dark: #1a1814;
+  --brand-gold: #b8943f;
+  --brand-gold-light: #ffd966;
+  --brand-cream: #f6f3ee;
+  --brand-border: #ede9e2;
+  --background: #f4f1eb;
+  --foreground: #1a1814;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c8bfa8; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #b8943f; }
+
+/* ── Mobile table scroll ── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table { min-width: 600px; }
+
+/* ── Bottom nav safe area ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ── Skeleton shimmer ── */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #ede9e2 25%, #f6f3ee 50%, #ede9e2 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* ── Fade-in ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.25s ease both; }
+
+/* ── Card hover lift ── */
+.card-lift {
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.card-lift:hover {
+  box-shadow: 0 8px 32px rgba(26,24,20,0.10);
+  transform: translateY(-1px);
+}
+
+/* ── Hide scrollbar (icon nav) ── */
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ── Print styles ── */
 @media print {
-  /* Hide navigation chrome */
   nav, aside, header, footer,
   [data-sidebar], [data-header],
-  .print\\:hidden { display: none !important; }
-
-  /* Full-width content */
+  .print\:hidden { display: none !important; }
   main, [data-main] { margin: 0 !important; padding: 0 !important; width: 100% !important; }
-
-  /* Page setup */
   @page { size: A4; margin: 20mm; }
   body { background: white; color: black; font-size: 11pt; }
-
-  /* Keep table rows together */
   tr { page-break-inside: avoid; }
   thead { display: table-header-group; }
-
-  /* Ensure borders print */
   table, th, td { border-color: #ccc !important; }
   th { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

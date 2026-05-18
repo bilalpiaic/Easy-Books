@@ -136,7 +136,8 @@ export default function Customers() {
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Name</th>
@@ -171,6 +172,7 @@ export default function Customers() {
             ))}
           </tbody>
         </table>
+        </div>
         <div className="border-t border-[#ede9e2] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>

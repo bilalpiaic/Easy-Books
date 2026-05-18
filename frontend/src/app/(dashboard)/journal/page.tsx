@@ -92,7 +92,8 @@ export default function JournalPage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left min-w-[640px]">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
               <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
@@ -148,6 +149,7 @@ export default function JournalPage() {
             }
           </tbody>
         </table>
+        </div>
         <div className="border-t border-[#1a1814]/5 px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>

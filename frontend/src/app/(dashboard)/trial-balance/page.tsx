@@ -66,7 +66,8 @@ export default function TrialBalancePage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[480px]">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account</th>
@@ -106,6 +107,7 @@ export default function TrialBalancePage() {
             </tfoot>
           )}
         </table>
+        </div>
       </div>
 
       {!isLoading && Math.abs(grandTotalDebit - grandTotalCredit) > 0.01 && (

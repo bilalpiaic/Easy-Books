@@ -1306,11 +1306,52 @@ def get_dashboard_data(
         elif account.type == "Expense":
             total_expense += entry.debit - entry.credit
     
+    ar_outstanding = session.exec(
+        select(func.sum(Invoice.total)).where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.status.in_(["draft", "sent", "overdue"])
+        )
+    ).one() or 0.0
+
+    ap_outstanding = session.exec(
+        select(func.sum(Bill.total)).where(
+            Bill.tenant_id == user.tenant_id,
+            Bill.status.in_(["draft", "received", "overdue"])
+        )
+    ).one() or 0.0
+
+    overdue_invoices = session.exec(
+        select(func.count(Invoice.id)).where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.status == "overdue"
+        )
+    ).one() or 0
+
+    unpaid_bills = session.exec(
+        select(func.count(Bill.id)).where(
+            Bill.tenant_id == user.tenant_id,
+            Bill.status.in_(["draft", "received", "overdue"])
+        )
+    ).one() or 0
+
+    low_stock = session.exec(
+        select(func.count(Product.id)).where(
+            Product.tenant_id == user.tenant_id,
+            Product.product_type == "stock",
+            Product.stock_qty <= Product.reorder_level,
+        )
+    ).one() or 0
+
     return {
         "summary": {
             "total_revenue": total_revenue,
             "total_expense": total_expense,
             "transaction_count": transaction_count,
+            "ar_outstanding": ar_outstanding,
+            "ap_outstanding": ap_outstanding,
+            "overdue_invoices": overdue_invoices,
+            "unpaid_bills": unpaid_bills,
+            "low_stock_items": low_stock,
         },
         "recent": [
             {

@@ -204,7 +204,8 @@ export default function Products() {
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
@@ -249,6 +250,7 @@ export default function Products() {
             ))}
           </tbody>
         </table>
+        </div>
         <div className="border-t border-[#ede9e2] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
@@ -320,7 +322,7 @@ export default function Products() {
                     <div key={key}>
                       <label className="block text-xs text-[#1a1814]/60 mb-1">{label}</label>
                       <select
-                        value={(form as Record<string, string>)[key]}
+                        value={(form as unknown as Record<string, string>)[key]}
                         onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
                         className="w-full px-4 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
                       >

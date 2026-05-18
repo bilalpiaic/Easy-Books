@@ -110,7 +110,8 @@ export default function LedgerPage() {
                   </span>
                 </div>
               </div>
-              <table className="w-full text-left">
+              <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[600px]">
                 <thead>
                   <tr className="border-b border-[#1a1814]/5">
                     <th className="px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
@@ -136,6 +137,7 @@ export default function LedgerPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ))
         )}
