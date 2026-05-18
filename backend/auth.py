@@ -1,10 +1,15 @@
+import os
+import warnings
 import bcrypt
 from jose import jwt
 from datetime import datetime, timedelta
 from typing import Optional
 
-# JWT Configuration (In production, use environment variables)
-SECRET_KEY = "super-secret-key-change-in-prod"
+_DEFAULT_SECRET = "super-secret-key-change-in-prod"
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", _DEFAULT_SECRET)
+if SECRET_KEY == _DEFAULT_SECRET:
+    warnings.warn("JWT_SECRET_KEY is not set — using insecure default. Set this env var before deploying.")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours for prototype
 

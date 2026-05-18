@@ -13,31 +13,33 @@ engine = create_engine(sqlite_url, connect_args=connect_args)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
-    
-    # For development, ensure at least one tenant and user exist
+
+    admin_email = os.environ.get("SEED_ADMIN_EMAIL")
+    admin_password = os.environ.get("SEED_ADMIN_PASSWORD")
+    company_name = os.environ.get("SEED_COMPANY_NAME", "My Company")
+
     with Session(engine) as session:
         from models import Tenant, User
         from auth import get_password_hash
-        
+
         default_tenant = session.exec(select(Tenant)).first()
         if not default_tenant:
-            default_tenant = Tenant(name="Malik Enterprises")
+            default_tenant = Tenant(name=company_name)
             session.add(default_tenant)
             session.commit()
             session.refresh(default_tenant)
-            
-            # Seed data for this default tenant
+
             seed_data(default_tenant.id, session=session)
-            
-            # Create a default admin user
-            admin_user = User(
-                email="admin@malik.com",
-                hashed_password=get_password_hash("admin123"),
-                full_name="System Admin",
-                tenant_id=default_tenant.id
-            )
-            session.add(admin_user)
-            session.commit()
+
+            if admin_email and admin_password:
+                admin_user = User(
+                    email=admin_email,
+                    hashed_password=get_password_hash(admin_password),
+                    full_name="System Admin",
+                    tenant_id=default_tenant.id,
+                )
+                session.add(admin_user)
+                session.commit()
 
 def get_session():
     with Session(engine) as session:
@@ -80,6 +82,8 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                 Account(code="5300", name="Rent & Utilities", type="Expense", tenant_id=tenant_id),
                 Account(code="5400", name="Transport & Delivery", type="Expense", tenant_id=tenant_id),
                 Account(code="5500", name="Machine Repair & Maintenance", type="Expense", tenant_id=tenant_id),
+                Account(code="1201", name="Finished Goods Inventory", type="Asset", tenant_id=tenant_id),
+                Account(code="5010", name="Cost of Goods Sold", type="Expense", tenant_id=tenant_id),
                 Account(code="5900", name="Other Expenses", type="Expense", tenant_id=tenant_id),
             ]
             s.add_all(initial_accounts)
@@ -87,10 +91,11 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
 
         # Seed settings for the specific tenant if empty
         settings_count = s.exec(
-            select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "org_name")
+            select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "company_name")
         ).first()
         if not settings_count:
-            s.add(Settings(key="org_name", value="New Company", tenant_id=tenant_id))
+            company = os.environ.get("SEED_COMPANY_NAME", "My Company")
+            s.add(Settings(key="company_name", value=company, tenant_id=tenant_id))
             s.commit()
 
     if session:

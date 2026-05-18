@@ -1,3 +1,4 @@
+import os
 from typing import Annotated, List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,9 +18,10 @@ from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, crea
 
 app = FastAPI(title="Easy-Books API")
 
+_allowed_origins = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -307,12 +309,13 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
     gst_amount = round(body.subtotal * body.gst_rate / 100, 2)
     total = round(body.subtotal + gst_amount, 2)
 
-    # Resolve customer name
+    # Resolve customer name (tenant-scoped)
     cname = body.customer_name
     if body.customer_id:
-        c = session.get(Customer, body.customer_id)
-        if c:
-            cname = c.name
+        c = session.exec(select(Customer).where(Customer.id == body.customer_id, Customer.tenant_id == user.tenant_id)).first()
+        if not c:
+            raise HTTPException(404, "Customer not found")
+        cname = c.name
 
     invoice = Invoice(
         tenant_id=user.tenant_id,
@@ -339,15 +342,16 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
     rev_acc = session.get(Account, body.revenue_account_id) if body.revenue_account_id else \
         _get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
 
-    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
     txn = Transaction(
         tenant_id=user.tenant_id,
-        jv_number=f"JV-{jv_count + 1:05d}",
+        jv_number="__TMP__",
         date=invoice.issue_date,
         description=f"Invoice {invoice.number} — {cname or ''}",
     )
     session.add(txn)
     session.flush()
+    txn.jv_number = f"JV-{txn.id:05d}"
+    session.add(txn)
 
     entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ar_acc.id, debit=total, credit=0)]
     if gst_amount > 0:
@@ -416,9 +420,10 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
 
     vname = body.vendor_name
     if body.vendor_id:
-        v = session.get(Vendor, body.vendor_id)
-        if v:
-            vname = v.name
+        v = session.exec(select(Vendor).where(Vendor.id == body.vendor_id, Vendor.tenant_id == user.tenant_id)).first()
+        if not v:
+            raise HTTPException(404, "Vendor not found")
+        vname = v.name
 
     bill = Bill(
         tenant_id=user.tenant_id,
@@ -445,15 +450,16 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
     exp_acc = session.get(Account, body.expense_account_id) if body.expense_account_id else \
         _get_or_create_account(session, user.tenant_id, "5000", "General Expenses", "Expense")
 
-    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
     txn = Transaction(
         tenant_id=user.tenant_id,
-        jv_number=f"JV-{jv_count + 1:05d}",
+        jv_number="__TMP__",
         date=bill.bill_date,
         description=f"Bill {bill.number} — {vname or ''}",
     )
     session.add(txn)
     session.flush()
+    txn.jv_number = f"JV-{txn.id:05d}"
+    session.add(txn)
 
     entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ap_acc.id, debit=0, credit=total)]
     if gst_amount > 0:
@@ -518,15 +524,16 @@ def create_payment_received(session: SessionDep, user: CurrentUserDep, body: Pay
         _get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
     ar_acc = _get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
 
-    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
     txn = Transaction(
         tenant_id=user.tenant_id,
-        jv_number=f"JV-{jv_count + 1:05d}",
+        jv_number="__TMP__",
         date=body.payment_date,
         description=f"Payment received — {cname or ''} {body.reference or ''}".strip(),
     )
     session.add(txn)
     session.flush()
+    txn.jv_number = f"JV-{txn.id:05d}"
+    session.add(txn)
 
     for e in [
         JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=cash_acc.id, debit=body.amount, credit=0),
@@ -583,15 +590,16 @@ def create_bill_payment(session: SessionDep, user: CurrentUserDep, body: BillPay
         _get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
     ap_acc = _get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
 
-    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
     txn = Transaction(
         tenant_id=user.tenant_id,
-        jv_number=f"JV-{jv_count + 1:05d}",
+        jv_number="__TMP__",
         date=body.payment_date,
         description=f"Bill payment — {vname or ''} {body.reference or ''}".strip(),
     )
     session.add(txn)
     session.flush()
+    txn.jv_number = f"JV-{txn.id:05d}"
+    session.add(txn)
 
     for e in [
         JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ap_acc.id, debit=body.amount, credit=0),
@@ -881,6 +889,7 @@ def delete_account(account_id: int, session: SessionDep, user: CurrentUserDep):
     return {"success": True}
 
 @app.get("/api/accounts")
+def list_accounts(
     session: SessionDep,
     user: CurrentUserDep,
     search: Optional[str] = None,
@@ -993,31 +1002,20 @@ def create_transaction(session: SessionDep, user: CurrentUserDep, tx_data: Trans
     if len(accounts) != len(account_ids):
         raise HTTPException(status_code=400, detail="One or more invalid or unauthorized account IDs")
 
-    # Generate JV number per tenant
-    last_tx = session.exec(
-        select(Transaction)
-        .where(Transaction.tenant_id == user.tenant_id)
-        .order_by(Transaction.id.desc())
-    ).first()
-    next_num = 110
-    if last_tx and last_tx.jv_number.startswith("JV-"):
-        try:
-            next_num = int(last_tx.jv_number.split("-")[1]) + 1
-        except (ValueError, IndexError):
-            pass
-    jv_number = f"JV-{next_num}"
-
-    # Create Transaction
+    # Create Transaction — JV number assigned after flush to avoid race condition
     db_tx = Transaction(
         tenant_id=user.tenant_id,
-        jv_number=jv_number,
+        jv_number="__TMP__",
         date=tx_data.date,
         description=tx_data.description,
         reference=tx_data.reference,
         party=tx_data.party,
         payment_method=tx_data.payment_method,
-        notes=tx_data.notes
+        notes=tx_data.notes,
     )
+    session.add(db_tx)
+    session.flush()
+    db_tx.jv_number = f"JV-{db_tx.id:05d}"
     session.add(db_tx)
     session.commit()
     session.refresh(db_tx)
@@ -1494,15 +1492,16 @@ def reverse_transaction(session: SessionDep, user: CurrentUserDep, transaction_i
     today = str(DateType.today())
     _check_period_locked(session, user.tenant_id, today)
 
-    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
     rev_txn = Transaction(
         tenant_id=user.tenant_id,
-        jv_number=f"JV-{jv_count + 1:05d}",
+        jv_number="__TMP__",
         date=today,
         description=f"Reversal of {txn.jv_number}",
     )
     session.add(rev_txn)
     session.flush()
+    rev_txn.jv_number = f"JV-{rev_txn.id:05d}"
+    session.add(rev_txn)
 
     for je in txn.journal_entries:
         rev_je = JournalEntry(

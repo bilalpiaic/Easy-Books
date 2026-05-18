@@ -14,7 +14,7 @@ export default function Header() {
 
     apiFetch<Record<string, string>>("/api/settings")
       .then((data) => {
-        if (data?.org_name) setOrgName(data.org_name)
+        if (data?.company_name) setOrgName(data.company_name)
       })
       .catch(() => {})
   }, [])
