@@ -122,8 +122,63 @@ def update_settings(session: SessionDep, user: CurrentUserDep, org_name: str):
     return {"success": True}
 
 # --- Accounts API ---
+class AccountCreate(BaseModel):
+    code: str
+    name: str
+    type: str
+
+class AccountUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+
+@app.post("/api/accounts")
+def create_account(session: SessionDep, user: CurrentUserDep, data: AccountCreate):
+    existing = session.exec(
+        select(Account).where(Account.tenant_id == user.tenant_id, Account.code == data.code)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Account code {data.code} already exists")
+    account = Account(code=data.code, name=data.name, type=data.type, tenant_id=user.tenant_id)
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    return account
+
+@app.put("/api/accounts/{account_id}")
+def update_account(account_id: int, session: SessionDep, user: CurrentUserDep, data: AccountUpdate):
+    account = session.exec(
+        select(Account).where(Account.id == account_id, Account.tenant_id == user.tenant_id)
+    ).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if data.code is not None:
+        account.code = data.code
+    if data.name is not None:
+        account.name = data.name
+    if data.type is not None:
+        account.type = data.type
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    return account
+
+@app.delete("/api/accounts/{account_id}")
+def delete_account(account_id: int, session: SessionDep, user: CurrentUserDep):
+    account = session.exec(
+        select(Account).where(Account.id == account_id, Account.tenant_id == user.tenant_id)
+    ).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    # Block deletion if the account has journal entries
+    entries = session.exec(select(JournalEntry).where(JournalEntry.account_id == account_id)).first()
+    if entries:
+        raise HTTPException(status_code=400, detail="Cannot delete account with existing journal entries")
+    session.delete(account)
+    session.commit()
+    return {"success": True}
+
 @app.get("/api/accounts")
-def get_accounts(
     session: SessionDep,
     user: CurrentUserDep,
     search: Optional[str] = None,

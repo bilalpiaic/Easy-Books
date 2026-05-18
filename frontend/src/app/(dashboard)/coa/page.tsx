@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, Trash2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { cn } from "@/lib/utils"
+import { cn, fmtPKR } from "@/lib/utils"
 import Pagination from "@/components/Pagination"
+import AccountFormModal from "@/components/AccountFormModal"
 
 interface Account {
   id: number
@@ -19,6 +20,13 @@ interface AccountsResponse {
   items: Account[]
 }
 
+interface TBItem {
+  code: string
+  total_debit: number
+  total_credit: number
+  type: string
+}
+
 const PAGE_SIZE = 50
 
 export default function COAPage() {
@@ -27,17 +35,45 @@ export default function COAPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [balances, setBalances] = useState<Record<string, number>>({})
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editAccount, setEditAccount] = useState<Account | null>(null)
 
   useEffect(() => { setPage(1) }, [search])
 
-  useEffect(() => {
+  const loadAccounts = () => {
     setIsLoading(true)
     const params = new URLSearchParams({ skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
     if (search) params.set("search", search)
-    apiFetch<AccountsResponse>(`/api/accounts?${params}`)
-      .then(data => { setAccounts(data.items); setTotal(data.total); setIsLoading(false) })
-      .catch(() => setIsLoading(false))
-  }, [page, search])
+    Promise.all([
+      apiFetch<AccountsResponse>(`/api/accounts?${params}`),
+      apiFetch<TBItem[]>("/api/reports/trial-balance"),
+    ]).then(([accs, tb]) => {
+      setAccounts(accs.items)
+      setTotal(accs.total)
+      const bals: Record<string, number> = {}
+      for (const item of tb) {
+        const net = item.type === "Asset" || item.type === "Expense"
+          ? item.total_debit - item.total_credit
+          : item.total_credit - item.total_debit
+        bals[item.code] = net
+      }
+      setBalances(bals)
+      setIsLoading(false)
+    }).catch(() => setIsLoading(false))
+  }
+
+  useEffect(loadAccounts, [page, search])
+
+  const handleDelete = async (acc: Account) => {
+    if (!window.confirm(`Delete account "${acc.name}"? This cannot be undone.`)) return
+    try {
+      await apiFetch(`/api/accounts/${acc.id}`, { method: "DELETE" })
+      loadAccounts()
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
 
   return (
     <div className="p-8">
@@ -46,7 +82,10 @@ export default function COAPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Chart of Accounts</h1>
           <p className="text-[#1a1814]/60">Manage your organisation's ledger accounts</p>
         </div>
-        <button className="bg-[#b8943f] text-black font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#a38338] transition-colors">
+        <button
+          onClick={() => { setEditAccount(null); setModalOpen(true) }}
+          className="bg-[#b8943f] text-black font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#a38338] transition-colors"
+        >
           <Plus className="w-5 h-5" />
           Add Account
         </button>
@@ -59,7 +98,7 @@ export default function COAPage() {
           placeholder="Search by name or code..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-white border border-[#1a1814]/10 rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] focus:border-transparent"
+          className="w-full pl-12 pr-4 py-3 bg-white border border-[#1a1814]/10 rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
         />
       </div>
 
@@ -70,14 +109,15 @@ export default function COAPage() {
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Code</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account Name</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Type</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Balance</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
-              <tr><td colSpan={4} className="px-8 py-10 text-center text-[#1a1814]/75">Loading accounts...</td></tr>
+              <tr><td colSpan={5} className="px-8 py-10 text-center text-[#1a1814]/75">Loading accounts...</td></tr>
             ) : accounts.length === 0 ? (
-              <tr><td colSpan={4} className="px-8 py-10 text-center text-[#1a1814]/75">No accounts found.</td></tr>
+              <tr><td colSpan={5} className="px-8 py-10 text-center text-[#1a1814]/75">No accounts found.</td></tr>
             ) : (
               accounts.map(acc => (
                 <tr key={acc.id} className="hover:bg-[#f6f3ee]/50 transition-colors">
@@ -95,8 +135,22 @@ export default function COAPage() {
                       {acc.type}
                     </span>
                   </td>
-                  <td className="px-8 py-5">
-                    <button className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
+                  <td className="px-8 py-5 text-right font-mono text-sm">
+                    {balances[acc.code] !== undefined ? fmtPKR(balances[acc.code]) : "-"}
+                  </td>
+                  <td className="px-8 py-5 flex items-center gap-3">
+                    <button
+                      onClick={() => { setEditAccount(acc); setModalOpen(true) }}
+                      className="text-[#b8943f] text-sm font-bold hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(acc)}
+                      className="text-red-400 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))
@@ -107,6 +161,14 @@ export default function COAPage() {
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
+
+      {modalOpen && (
+        <AccountFormModal
+          account={editAccount}
+          onClose={() => setModalOpen(false)}
+          onSaved={() => { setModalOpen(false); loadAccounts() }}
+        />
+      )}
     </div>
   )
 }
