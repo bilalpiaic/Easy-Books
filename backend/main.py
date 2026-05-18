@@ -327,6 +327,53 @@ def get_income_statement(
         for r in results
     ]
 
+@app.get("/api/reports/balance-sheet")
+def get_balance_sheet(session: SessionDep, user: CurrentUserDep, date: Optional[str] = None):
+    query = session.query(
+        Account.code,
+        Account.name,
+        Account.type,
+        func.sum(JournalEntry.debit).label("total_debit"),
+        func.sum(JournalEntry.credit).label("total_credit")
+    ).join(JournalEntry).join(Transaction)
+
+    query = query.filter(Transaction.tenant_id == user.tenant_id)
+
+    if date:
+        query = query.filter(Transaction.date <= date)
+
+    results = query.group_by(Account.id).order_by(Account.code).all()
+
+    items = []
+    net_income = 0.0
+    for r in results:
+        debit = r.total_debit or 0
+        credit = r.total_credit or 0
+        if r.type in ("Asset",):
+            balance = debit - credit
+        elif r.type in ("Liability", "Equity"):
+            balance = credit - debit
+        elif r.type == "Revenue":
+            net_income += credit - debit
+            continue
+        elif r.type == "Expense":
+            net_income -= debit - credit
+            continue
+        else:
+            balance = debit - credit
+        items.append({"code": r.code, "name": r.name, "type": r.type, "balance": balance})
+
+    # Inject current-period retained earnings into Equity
+    if net_income != 0:
+        items.append({
+            "code": "RE-CUR",
+            "name": "Retained Earnings (Current Period)",
+            "type": "Equity",
+            "balance": net_income,
+        })
+
+    return items
+
 @app.get("/api/transactions/{transaction_id}", response_model=TransactionRead)
 def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserDep):
     tx = session.exec(
