@@ -83,7 +83,16 @@ export default function LedgerPage() {
 
       <div className="space-y-8">
         {isLoading ? (
-          <div className="text-center py-20 text-[#1a1814]/75">Loading ledger...</div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-3xl border border-[#1a1814]/5 overflow-hidden animate-pulse">
+                <div className="bg-[#f6f3ee] px-8 py-4 h-14" />
+                <div className="p-6 space-y-3">
+                  {[1,2,3].map(j => <div key={j} className="h-4 bg-[#f0ece4] rounded" />)}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : ledgerData.length === 0 ? (
           <div className="text-center py-20 text-[#1a1814]/75">No transactions for selected period.</div>
         ) : (

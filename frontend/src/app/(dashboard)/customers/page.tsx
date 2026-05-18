@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { Plus, Search, Trash2, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR } from '@/lib/utils'
+import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
+import SkeletonRow from '@/components/SkeletonRow'
 
 interface Customer {
   id: number
@@ -97,10 +98,19 @@ export default function Customers() {
           <h1 className="text-3xl font-serif font-medium">Customers</h1>
           <p className="text-sm text-black/75 mt-1">Manage customers and track credit accounts</p>
         </div>
-        <button onClick={openAdd} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
-          <Plus className="w-4 h-4" />
-          Add Customer
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => downloadCSV('customers.csv', customers.map(c => ({ Name: c.name, Email: c.email, Phone: c.phone, Address: c.address, Balance: c.opening_balance })))}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
+          <button onClick={openAdd} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+            <Plus className="w-4 h-4" />
+            Add Customer
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -139,7 +149,7 @@ export default function Customers() {
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {isLoading ? (
-              <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">Loading...</td></tr>
+              <SkeletonRow cols={6} />
             ) : customers.length === 0 ? (
               <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No customers found.</td></tr>
             ) : customers.map(c => (

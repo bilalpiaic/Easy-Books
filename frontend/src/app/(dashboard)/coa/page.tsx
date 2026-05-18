@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { cn, fmtPKR } from "@/lib/utils"
 import Pagination from "@/components/Pagination"
 import AccountFormModal from "@/components/AccountFormModal"
+import SkeletonRow from "@/components/SkeletonRow"
 
 interface Account {
   id: number
@@ -117,7 +118,7 @@ export default function COAPage() {
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
-              <tr><td colSpan={6} className="px-8 py-10 text-center text-[#1a1814]/75">Loading accounts...</td></tr>
+              <SkeletonRow cols={6} />
             ) : accounts.length === 0 ? (
               <tr><td colSpan={6} className="px-8 py-10 text-center text-[#1a1814]/75">No accounts found.</td></tr>
             ) : (

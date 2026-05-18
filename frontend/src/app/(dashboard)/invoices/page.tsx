@@ -5,6 +5,7 @@ import { Plus, Search, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
+import SkeletonRow from '@/components/SkeletonRow'
 
 interface Invoice {
   id: number
@@ -201,7 +202,7 @@ export default function Invoices() {
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {loading ? (
-              <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">Loading...</td></tr>
+              <SkeletonRow cols={7} />
             ) : invoices.length === 0 ? (
               <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">No invoices found.</td></tr>
             ) : invoices.map(inv => (
