@@ -127,6 +127,30 @@ class Bill(SQLModel, table=True):
     expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
 
+class PaymentReceived(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
+    customer_name: Optional[str] = None
+    payment_date: str
+    amount: float
+    method: str = Field(default="cash")
+    reference: Optional[str] = None
+    cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+
+class BillPayment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    vendor_name: Optional[str] = None
+    payment_date: str
+    amount: float
+    method: str = Field(default="cash")
+    reference: Optional[str] = None
+    cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+
 # API Models
 class JournalEntryCreate(JournalEntryBase):
     pass

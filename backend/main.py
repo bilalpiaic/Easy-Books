@@ -8,7 +8,7 @@ from sqlmodel import Session, select, func
 from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
-    Customer, Vendor, Invoice, Bill,
+    Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
@@ -459,6 +459,136 @@ def update_bill_status(session: SessionDep, user: CurrentUserDep, bill_id: int, 
     session.commit()
     session.refresh(b)
     return b
+
+# --- Payments Received API ---
+class PaymentReceivedCreate(BaseModel):
+    invoice_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    payment_date: str
+    amount: float
+    method: str = "cash"
+    reference: Optional[str] = None
+    cash_account_id: Optional[int] = None
+
+@app.get("/api/payments-received")
+def list_payments_received(session: SessionDep, user: CurrentUserDep, skip: int = 0, limit: int = 50):
+    q = select(PaymentReceived).where(PaymentReceived.tenant_id == user.tenant_id)
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.order_by(PaymentReceived.payment_date.desc()).offset(skip).limit(limit)).all()
+    return {"total": total, "items": items}
+
+@app.post("/api/payments-received", status_code=201)
+def create_payment_received(session: SessionDep, user: CurrentUserDep, body: PaymentReceivedCreate):
+    cname = body.customer_name
+    if body.invoice_id:
+        inv = session.get(Invoice, body.invoice_id)
+        if inv and inv.tenant_id == user.tenant_id:
+            if not cname:
+                cname = inv.customer_name
+            inv.status = "paid"
+            session.add(inv)
+
+    # GL: Dr Cash/Bank / Cr AR
+    cash_acc = session.get(Account, body.cash_account_id) if body.cash_account_id else \
+        _get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
+    ar_acc = _get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
+
+    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
+    txn = Transaction(
+        tenant_id=user.tenant_id,
+        jv_number=f"JV-{jv_count + 1:05d}",
+        date=body.payment_date,
+        description=f"Payment received — {cname or ''} {body.reference or ''}".strip(),
+    )
+    session.add(txn)
+    session.flush()
+
+    for e in [
+        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=cash_acc.id, debit=body.amount, credit=0),
+        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ar_acc.id, debit=0, credit=body.amount),
+    ]:
+        session.add(e)
+
+    pmt = PaymentReceived(
+        tenant_id=user.tenant_id,
+        invoice_id=body.invoice_id,
+        customer_name=cname,
+        payment_date=body.payment_date,
+        amount=body.amount,
+        method=body.method,
+        reference=body.reference,
+        cash_account_id=cash_acc.id,
+        transaction_id=txn.id,
+    )
+    session.add(pmt)
+    session.commit()
+    session.refresh(pmt)
+    return pmt
+
+# --- Bill Payments API ---
+class BillPaymentCreate(BaseModel):
+    bill_id: Optional[int] = None
+    vendor_name: Optional[str] = None
+    payment_date: str
+    amount: float
+    method: str = "cash"
+    reference: Optional[str] = None
+    cash_account_id: Optional[int] = None
+
+@app.get("/api/bill-payments")
+def list_bill_payments(session: SessionDep, user: CurrentUserDep, skip: int = 0, limit: int = 50):
+    q = select(BillPayment).where(BillPayment.tenant_id == user.tenant_id)
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.order_by(BillPayment.payment_date.desc()).offset(skip).limit(limit)).all()
+    return {"total": total, "items": items}
+
+@app.post("/api/bill-payments", status_code=201)
+def create_bill_payment(session: SessionDep, user: CurrentUserDep, body: BillPaymentCreate):
+    vname = body.vendor_name
+    if body.bill_id:
+        b = session.get(Bill, body.bill_id)
+        if b and b.tenant_id == user.tenant_id:
+            if not vname:
+                vname = b.vendor_name
+            b.status = "paid"
+            session.add(b)
+
+    # GL: Dr AP / Cr Cash/Bank
+    cash_acc = session.get(Account, body.cash_account_id) if body.cash_account_id else \
+        _get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
+    ap_acc = _get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
+
+    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
+    txn = Transaction(
+        tenant_id=user.tenant_id,
+        jv_number=f"JV-{jv_count + 1:05d}",
+        date=body.payment_date,
+        description=f"Bill payment — {vname or ''} {body.reference or ''}".strip(),
+    )
+    session.add(txn)
+    session.flush()
+
+    for e in [
+        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ap_acc.id, debit=body.amount, credit=0),
+        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=cash_acc.id, debit=0, credit=body.amount),
+    ]:
+        session.add(e)
+
+    bp = BillPayment(
+        tenant_id=user.tenant_id,
+        bill_id=body.bill_id,
+        vendor_name=vname,
+        payment_date=body.payment_date,
+        amount=body.amount,
+        method=body.method,
+        reference=body.reference,
+        cash_account_id=cash_acc.id,
+        transaction_id=txn.id,
+    )
+    session.add(bp)
+    session.commit()
+    session.refresh(bp)
+    return bp
 
 # --- Accounts API ---
 class AccountCreate(BaseModel):
