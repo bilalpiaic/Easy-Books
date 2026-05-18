@@ -160,6 +160,22 @@ class BankAccount(SQLModel, table=True):
     coa_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     is_active: bool = Field(default=True)
 
+class Reconciliation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    bank_account_id: int = Field(foreign_key="bankaccount.id")
+    period_start: str
+    period_end: str
+    statement_balance: float = Field(default=0.0)
+    status: str = Field(default="open")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ReconciliationLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    reconciliation_id: int = Field(foreign_key="reconciliation.id")
+    journal_entry_id: int = Field(foreign_key="journalentry.id")
+    is_matched: bool = Field(default=False)
+
 # API Models
 class JournalEntryCreate(JournalEntryBase):
     pass

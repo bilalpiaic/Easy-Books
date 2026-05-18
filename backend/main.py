@@ -9,6 +9,7 @@ from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
     Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment, BankAccount,
+    Reconciliation, ReconciliationLine,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
@@ -700,6 +701,99 @@ def delete_bank_account(session: SessionDep, user: CurrentUserDep, ba_id: int):
         raise HTTPException(404, "Bank account not found")
     session.delete(ba)
     session.commit()
+
+# --- Reconciliations API ---
+class ReconciliationCreate(BaseModel):
+    bank_account_id: int
+    period_start: str
+    period_end: str
+    statement_balance: float
+
+@app.get("/api/reconciliations")
+def list_reconciliations(session: SessionDep, user: CurrentUserDep):
+    recs = session.exec(select(Reconciliation).where(Reconciliation.tenant_id == user.tenant_id).order_by(Reconciliation.period_end.desc())).all()
+    result = []
+    for r in recs:
+        ba = session.get(BankAccount, r.bank_account_id)
+        result.append({**r.model_dump(), "bank_account_name": ba.name if ba else "—"})
+    return result
+
+@app.post("/api/reconciliations", status_code=201)
+def create_reconciliation(session: SessionDep, user: CurrentUserDep, body: ReconciliationCreate):
+    ba = session.get(BankAccount, body.bank_account_id)
+    if not ba or ba.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Bank account not found")
+    rec = Reconciliation(
+        tenant_id=user.tenant_id,
+        bank_account_id=body.bank_account_id,
+        period_start=body.period_start,
+        period_end=body.period_end,
+        statement_balance=body.statement_balance,
+    )
+    session.add(rec)
+    session.flush()
+
+    # Create reconciliation lines for all unmatched GL entries in this period for the linked CoA account
+    if ba.coa_account_id:
+        entries = session.exec(
+            select(JournalEntry).join(Transaction).where(
+                JournalEntry.account_id == ba.coa_account_id,
+                JournalEntry.tenant_id == user.tenant_id,
+                Transaction.date >= body.period_start,
+                Transaction.date <= body.period_end,
+            )
+        ).all()
+        for e in entries:
+            line = ReconciliationLine(reconciliation_id=rec.id, journal_entry_id=e.id, is_matched=False)
+            session.add(line)
+
+    session.commit()
+    session.refresh(rec)
+    return rec
+
+@app.get("/api/reconciliations/{rec_id}")
+def get_reconciliation(session: SessionDep, user: CurrentUserDep, rec_id: int):
+    rec = session.exec(select(Reconciliation).where(Reconciliation.id == rec_id, Reconciliation.tenant_id == user.tenant_id)).first()
+    if not rec:
+        raise HTTPException(404, "Not found")
+    lines = session.exec(select(ReconciliationLine).where(ReconciliationLine.reconciliation_id == rec_id)).all()
+    line_details = []
+    for ln in lines:
+        je = session.get(JournalEntry, ln.journal_entry_id)
+        txn = session.get(Transaction, je.transaction_id) if je else None
+        line_details.append({
+            "id": ln.id,
+            "journal_entry_id": ln.journal_entry_id,
+            "is_matched": ln.is_matched,
+            "debit": je.debit if je else 0,
+            "credit": je.credit if je else 0,
+            "date": txn.date if txn else "",
+            "description": txn.description if txn else "",
+        })
+    return {**rec.model_dump(), "lines": line_details}
+
+@app.patch("/api/reconciliations/{rec_id}/lines/{line_id}")
+def toggle_reconciliation_line(session: SessionDep, user: CurrentUserDep, rec_id: int, line_id: int, is_matched: bool):
+    rec = session.exec(select(Reconciliation).where(Reconciliation.id == rec_id, Reconciliation.tenant_id == user.tenant_id)).first()
+    if not rec:
+        raise HTTPException(404, "Not found")
+    ln = session.exec(select(ReconciliationLine).where(ReconciliationLine.id == line_id, ReconciliationLine.reconciliation_id == rec_id)).first()
+    if not ln:
+        raise HTTPException(404, "Line not found")
+    ln.is_matched = is_matched
+    session.add(ln)
+    session.commit()
+    return {"success": True}
+
+@app.post("/api/reconciliations/{rec_id}/close")
+def close_reconciliation(session: SessionDep, user: CurrentUserDep, rec_id: int):
+    rec = session.exec(select(Reconciliation).where(Reconciliation.id == rec_id, Reconciliation.tenant_id == user.tenant_id)).first()
+    if not rec:
+        raise HTTPException(404, "Not found")
+    rec.status = "closed"
+    session.add(rec)
+    session.commit()
+    return {"success": True}
 
 # --- Accounts API ---
 class AccountCreate(BaseModel):

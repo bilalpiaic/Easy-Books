@@ -1,95 +1,271 @@
 'use client'
 
-import { Plus, CheckCircle } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Plus, CheckCircle, XCircle } from 'lucide-react'
+import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 
 interface Reconciliation {
   id: number
-  account_name: string
-  reconciliation_date: string
-  bank_balance: number
-  book_balance: number
-  difference: number
-  status: 'complete' | 'in_progress'
+  bank_account_id: number
+  bank_account_name: string
+  period_start: string
+  period_end: string
+  statement_balance: number
+  status: string
 }
 
-const mockReconciliations: Reconciliation[] = []
+interface RecLine {
+  id: number
+  journal_entry_id: number
+  is_matched: boolean
+  debit: number
+  credit: number
+  date: string
+  description: string
+}
+
+interface RecDetail extends Reconciliation { lines: RecLine[] }
+interface BankAccount { id: number; name: string }
+interface NewRecForm { bank_account_id: string; period_start: string; period_end: string; statement_balance: string }
+
+const emptyForm: NewRecForm = {
+  bank_account_id: '',
+  period_start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+  period_end: new Date().toISOString().split('T')[0],
+  statement_balance: '',
+}
 
 export default function Reconciliations() {
-  const completeCount = mockReconciliations.filter(r => r.status === 'complete').length
-  const inProgressCount = mockReconciliations.filter(r => r.status === 'in_progress').length
+  const [recs, setRecs] = useState<Reconciliation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [form, setForm] = useState<NewRecForm>(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [detail, setDetail] = useState<RecDetail | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    apiFetch<Reconciliation[]>('/api/reconciliations')
+      .then(setRecs)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
+
+  const openNew = () => {
+    apiFetch<BankAccount[]>('/api/bank-accounts').then(setBankAccounts).catch(() => {})
+    setForm(emptyForm); setFormError(''); setModalOpen(true)
+  }
+
+  const handleCreate = async () => {
+    if (!form.bank_account_id || !form.statement_balance) { setFormError('Bank account and statement balance are required'); return }
+    setSaving(true); setFormError('')
+    try {
+      await apiFetch('/api/reconciliations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bank_account_id: parseInt(form.bank_account_id),
+          period_start: form.period_start,
+          period_end: form.period_end,
+          statement_balance: parseFloat(form.statement_balance),
+        }),
+      })
+      setModalOpen(false); load()
+    } catch (err) {
+      setFormError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const openDetail = (rec: Reconciliation) => {
+    apiFetch<RecDetail>(`/api/reconciliations/${rec.id}`).then(setDetail).catch(() => {})
+  }
+
+  const toggleLine = async (recId: number, lineId: number, val: boolean) => {
+    await apiFetch(`/api/reconciliations/${recId}/lines/${lineId}?is_matched=${val}`, { method: 'PATCH' }).catch(() => {})
+    apiFetch<RecDetail>(`/api/reconciliations/${recId}`).then(setDetail).catch(() => {})
+  }
+
+  const closeRec = async (recId: number) => {
+    await apiFetch(`/api/reconciliations/${recId}/close`, { method: 'POST' }).catch(() => {})
+    setDetail(null); load()
+  }
+
+  const matchedBalance = detail ? detail.lines.filter(l => l.is_matched).reduce((s, l) => s + l.debit - l.credit, 0) : 0
+  const difference = detail ? detail.statement_balance - matchedBalance : 0
 
   return (
     <div className="space-y-6 p-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Reconciliations</h1>
-          <p className="text-sm text-black/50 mt-1">Bank reconciliation • Verify cash balance</p>
+          <p className="text-sm text-black/75 mt-1">Bank reconciliation and cash verification</p>
         </div>
-        <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
           <Plus className="w-4 h-4" />
           New Reconciliation
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Completed</p>
-          <p className="text-3xl font-bold text-green-600 mt-2">{completeCount}</p>
+          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Completed</p>
+          <p className="text-3xl font-bold text-green-600 mt-2">{recs.filter(r => r.status === 'closed').length}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/50 uppercase tracking-widest font-bold">In Progress</p>
-          <p className="text-3xl font-bold text-blue-600 mt-2">{inProgressCount}</p>
+          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Open</p>
+          <p className="text-3xl font-bold text-blue-600 mt-2">{recs.filter(r => r.status === 'open').length}</p>
         </div>
       </div>
 
-      <div className="space-y-4">
-        {mockReconciliations.length === 0 ? (
-          <div className="text-center py-12 text-black/40">No reconciliations recorded. Start one to ensure accuracy.</div>
-        ) : (
-          mockReconciliations.map((rec) => (
-            <div key={rec.id} className="bg-white rounded-lg border border-[#ede9e2] p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold">{rec.account_name}</h3>
-                  <p className="text-xs text-black/50 mt-1">{rec.reconciliation_date}</p>
-                </div>
-                {rec.status === 'complete' && (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+      <div className="space-y-3">
+        {loading ? (
+          <div className="text-center py-12 text-black/40">Loading...</div>
+        ) : recs.length === 0 ? (
+          <div className="text-center py-12 text-black/40">No reconciliations yet. Create one to verify your cash balance.</div>
+        ) : recs.map(rec => (
+          <div key={rec.id} className="bg-white rounded-lg border border-[#ede9e2] p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-semibold">{rec.bank_account_name}</h3>
+                <p className="text-xs text-black/60 mt-1">{rec.period_start} — {rec.period_end}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${rec.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {rec.status}
+                </span>
+                {rec.status === 'open' && (
+                  <button onClick={() => openDetail(rec)} className="text-[#b8943f] font-bold text-sm hover:underline">Open</button>
                 )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-                <div>
-                  <p className="text-black/50 uppercase tracking-widest text-[10px] font-bold">Bank Balance</p>
-                  <p className="font-mono font-bold mt-2">{fmtPKR(rec.bank_balance)}</p>
-                </div>
-                <div>
-                  <p className="text-black/50 uppercase tracking-widest text-[10px] font-bold">Book Balance</p>
-                  <p className="font-mono font-bold mt-2">{fmtPKR(rec.book_balance)}</p>
-                </div>
-                <div>
-                  <p className="text-black/50 uppercase tracking-widest text-[10px] font-bold">Difference</p>
-                  <p className={`font-mono font-bold mt-2 ${Math.abs(rec.difference) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
-                    {fmtPKR(rec.difference)}
-                  </p>
-                </div>
-              </div>
             </div>
-          ))
-        )}
+            <div className="mt-3 text-sm text-black/60">
+              Statement balance: <span className="font-mono font-bold text-black">{fmtPKR(rec.statement_balance)}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-semibold text-blue-900 mb-2">💡 Reconciliation Best Practices</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>✓ Reconcile bank accounts monthly as statements arrive</li>
-          <li>✓ Match deposits and withdrawals to accounting records</li>
-          <li>✓ Identify and investigate differences immediately</li>
-          <li>✓ Record reconciling items (NSF checks, bank charges, etc.)</li>
-          <li>✓ Document and approve all reconciliations</li>
-        </ul>
-      </div>
+      {/* New Reconciliation Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
+            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">New Reconciliation</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Bank Account</label>
+                <select value={form.bank_account_id} onChange={e => setForm(p => ({ ...p, bank_account_id: e.target.value }))}
+                  className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]">
+                  <option value="">— Select —</option>
+                  {bankAccounts.map(ba => <option key={ba.id} value={ba.id}>{ba.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Period Start</label>
+                  <input type="date" value={form.period_start} onChange={e => setForm(p => ({ ...p, period_start: e.target.value }))}
+                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Period End</label>
+                  <input type="date" value={form.period_end} onChange={e => setForm(p => ({ ...p, period_end: e.target.value }))}
+                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Bank Statement Balance</label>
+                <input type="number" step="0.01" value={form.statement_balance} onChange={e => setForm(p => ({ ...p, statement_balance: e.target.value }))}
+                  placeholder="Ending balance on bank statement"
+                  className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+              </div>
+              {formError && <p className="text-red-600 text-sm">{formError}</p>}
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+                <button onClick={handleCreate} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                  {saving ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reconciliation Detail */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDetail(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-8 overflow-y-auto max-h-[90vh]">
+            <h2 className="text-2xl font-serif text-[#1a1814] mb-2">Reconcile: {detail.bank_account_name}</h2>
+            <p className="text-sm text-black/60 mb-6">{detail.period_start} — {detail.period_end}</p>
+
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
+                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Statement</p>
+                <p className="text-lg font-bold font-mono">{fmtPKR(detail.statement_balance)}</p>
+              </div>
+              <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
+                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Matched GL</p>
+                <p className="text-lg font-bold font-mono">{fmtPKR(matchedBalance)}</p>
+              </div>
+              <div className={`rounded-xl p-4 text-center ${Math.abs(difference) < 0.01 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Difference</p>
+                <p className={`text-lg font-bold font-mono ${Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>{fmtPKR(difference)}</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto mb-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#f6f3ee]">
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-black/60">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-black/60">Description</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-black/60">Debit</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-black/60">Credit</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-widest text-black/60">Clear</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#ede9e2]">
+                  {detail.lines.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-6 text-center text-black/40">No GL entries for this period/account.</td></tr>
+                  ) : detail.lines.map(ln => (
+                    <tr key={ln.id} className={ln.is_matched ? 'bg-green-50/60' : ''}>
+                      <td className="px-4 py-3 text-black/60">{ln.date}</td>
+                      <td className="px-4 py-3 max-w-xs truncate">{ln.description}</td>
+                      <td className="px-4 py-3 text-right font-mono">{ln.debit > 0 ? fmtPKR(ln.debit) : '—'}</td>
+                      <td className="px-4 py-3 text-right font-mono">{ln.credit > 0 ? fmtPKR(ln.credit) : '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <button onClick={() => toggleLine(detail.id, ln.id, !ln.is_matched)}>
+                          {ln.is_matched
+                            ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" />
+                            : <XCircle className="w-5 h-5 text-black/20 mx-auto hover:text-[#b8943f]" />}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDetail(null)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Close</button>
+              <button
+                onClick={() => closeRec(detail.id)}
+                disabled={Math.abs(difference) >= 0.01}
+                className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-40"
+              >
+                Close Reconciliation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
