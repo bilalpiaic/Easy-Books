@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Printer, HelpCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
+import DateRangePicker from "@/components/DateRangePicker"
 
 interface BalanceItem {
   code: string
@@ -12,15 +13,19 @@ interface BalanceItem {
   balance: number
 }
 
+function today() { return new Date().toISOString().split("T")[0] }
+
 export default function BalanceSheetPage() {
   const [data, setData] = useState<BalanceItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [asOf, setAsOf] = useState(today())
 
   useEffect(() => {
-    apiFetch<BalanceItem[]>("/api/reports/balance-sheet")
+    setIsLoading(true)
+    apiFetch<BalanceItem[]>(`/api/reports/balance-sheet?end=${asOf}`)
       .then(data => { setData(data); setIsLoading(false) })
       .catch(() => setIsLoading(false))
-  }, [])
+  }, [asOf])
 
   const assets = data.filter(i => i.type === "Asset")
   const liabilities = data.filter(i => i.type === "Liability")
@@ -37,11 +42,21 @@ export default function BalanceSheetPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
-          <p className="text-[#1a1814]/60">Financial position as of {new Date().toLocaleDateString()}</p>
+          <p className="text-[#1a1814]/60">Financial position as of {new Date(asOf).toLocaleDateString()}</p>
         </div>
         <button className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60">
           <Printer className="w-5 h-5" />
         </button>
+      </div>
+
+      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-bold uppercase tracking-widest text-black/50">As of</span>
+        <input
+          type="date"
+          value={asOf}
+          onChange={(e) => setAsOf(e.target.value)}
+          className="px-3 py-1.5 text-sm border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+        />
       </div>
 
       {isLoading ? (

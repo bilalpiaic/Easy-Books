@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ClipboardList, Filter } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
+import DateRangePicker from "@/components/DateRangePicker"
 
 interface JournalEntry {
   id: number
@@ -15,27 +15,37 @@ interface JournalEntry {
   credit: number
 }
 
+function defaultRange() {
+  const to = new Date()
+  const from = new Date(to.getFullYear(), 0, 1)
+  return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
+}
+
 export default function JournalPage() {
+  const range = defaultRange()
+  const [start, setStart] = useState(range.start)
+  const [end, setEnd] = useState(range.end)
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    apiFetch<JournalEntry[]>("/api/reports/journal")
+    setIsLoading(true)
+    apiFetch<JournalEntry[]>(`/api/reports/journal?start=${start}&end=${end}`)
       .then(data => { setEntries(data); setIsLoading(false) })
       .catch(() => setIsLoading(false))
-  }, [])
+  }, [start, end])
 
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">General Journal</h1>
           <p className="text-[#1a1814]/60">Chronological record of all financial transactions</p>
         </div>
-        <button className="bg-white border border-[#1a1814]/10 text-[#1a1814] font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#f6f3ee] transition-colors">
-          <Filter className="w-5 h-5" />
-          Filter
-        </button>
+      </div>
+
+      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl">
+        <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
       </div>
 
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
@@ -44,20 +54,16 @@ export default function JournalPage() {
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
               <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
               <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">JV #</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account & Description</th>
+              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account &amp; Description</th>
               <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
               <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">Loading journal entries...</td>
-              </tr>
+              <tr><td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">Loading journal entries...</td></tr>
             ) : entries.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">No entries found.</td>
-              </tr>
+              <tr><td colSpan={5} className="px-6 py-10 text-center text-[#1a1814]/75">No entries found for selected period.</td></tr>
             ) : (
               entries.map((entry, idx) => (
                 <tr key={idx} className="hover:bg-[#f6f3ee]/50 transition-colors">

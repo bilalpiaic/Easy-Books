@@ -222,8 +222,13 @@ def get_journal_report(
     ]
 
 @app.get("/api/reports/trial-balance")
-def get_trial_balance(session: SessionDep, user: CurrentUserDep, date: Optional[str] = None):
-    # Subquery for grouped entries
+def get_trial_balance(
+    session: SessionDep,
+    user: CurrentUserDep,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    date: Optional[str] = None,
+):
     query = session.query(
         Account.code,
         Account.name,
@@ -231,58 +236,73 @@ def get_trial_balance(session: SessionDep, user: CurrentUserDep, date: Optional[
         func.sum(JournalEntry.debit).label("total_debit"),
         func.sum(JournalEntry.credit).label("total_credit")
     ).join(JournalEntry).join(Transaction)
-    
+
     query = query.filter(Transaction.tenant_id == user.tenant_id)
-    
-    if date:
+
+    if start:
+        query = query.filter(Transaction.date >= start)
+    if end:
+        query = query.filter(Transaction.date <= end)
+    elif date:
         query = query.filter(Transaction.date <= date)
-    
+
     results = query.group_by(Account.id).having(
         (func.sum(JournalEntry.debit) > 0) | (func.sum(JournalEntry.credit) > 0)
     ).order_by(Account.code).all()
-    
+
     return [
         {
             "code": r.code,
             "name": r.name,
             "type": r.type,
             "total_debit": r.total_debit,
-            "total_credit": r.total_credit
+            "total_credit": r.total_credit,
         }
         for r in results
     ]
 
 @app.get("/api/reports/dashboard")
-def get_dashboard_data(session: SessionDep, user: CurrentUserDep):
-    # Get recent transactions
+def get_dashboard_data(
+    session: SessionDep,
+    user: CurrentUserDep,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+):
+    tx_base = select(Transaction).where(Transaction.tenant_id == user.tenant_id)
+    if start:
+        tx_base = tx_base.where(Transaction.date >= start)
+    if end:
+        tx_base = tx_base.where(Transaction.date <= end)
+
     recent_txs = session.exec(
-        select(Transaction)
-        .where(Transaction.tenant_id == user.tenant_id)
-        .order_by(Transaction.date.desc(), Transaction.id.desc())
-        .limit(10)
+        tx_base.order_by(Transaction.date.desc(), Transaction.id.desc()).limit(10)
     ).all()
-    
-    # Calculate summary by iterating over journal entries
+
+    transaction_count = session.exec(
+        select(func.count()).select_from(tx_base.subquery())
+    ).one()
+
+    je_q = select(JournalEntry, Account).join(Account).join(Transaction).where(
+        Transaction.tenant_id == user.tenant_id
+    )
+    if start:
+        je_q = je_q.where(Transaction.date >= start)
+    if end:
+        je_q = je_q.where(Transaction.date <= end)
+
     total_revenue = 0.0
     total_expense = 0.0
-    
-    je_query = session.exec(
-        select(JournalEntry, Account)
-        .join(Account)
-        .join(Transaction)
-        .where(Transaction.tenant_id == user.tenant_id)
-    ).all()
-    
-    for entry, account in je_query:
-        if account.type == 'Revenue':
-            total_revenue += (entry.credit - entry.debit)
-        elif account.type == 'Expense':
-            total_expense += (entry.debit - entry.credit)
+    for entry, account in session.exec(je_q).all():
+        if account.type == "Revenue":
+            total_revenue += entry.credit - entry.debit
+        elif account.type == "Expense":
+            total_expense += entry.debit - entry.credit
     
     return {
         "summary": {
             "total_revenue": total_revenue,
-            "total_expense": total_expense
+            "total_expense": total_expense,
+            "transaction_count": transaction_count,
         },
         "recent": [
             {
@@ -290,10 +310,9 @@ def get_dashboard_data(session: SessionDep, user: CurrentUserDep):
                 "jv_number": tx.jv_number,
                 "date": tx.date,
                 "description": tx.description or "",
-                "total_amount": 0
             }
             for tx in recent_txs
-        ]
+        ],
     }
 
 @app.get("/api/reports/income-statement")
@@ -328,7 +347,13 @@ def get_income_statement(
     ]
 
 @app.get("/api/reports/balance-sheet")
-def get_balance_sheet(session: SessionDep, user: CurrentUserDep, date: Optional[str] = None):
+def get_balance_sheet(
+    session: SessionDep,
+    user: CurrentUserDep,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    date: Optional[str] = None,
+):
     query = session.query(
         Account.code,
         Account.name,
@@ -339,7 +364,11 @@ def get_balance_sheet(session: SessionDep, user: CurrentUserDep, date: Optional[
 
     query = query.filter(Transaction.tenant_id == user.tenant_id)
 
-    if date:
+    if start:
+        query = query.filter(Transaction.date >= start)
+    if end:
+        query = query.filter(Transaction.date <= end)
+    elif date:
         query = query.filter(Transaction.date <= date)
 
     results = query.group_by(Account.id).order_by(Account.code).all()
