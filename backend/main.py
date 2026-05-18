@@ -266,6 +266,89 @@ def delete_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int):
     session.delete(v)
     session.commit()
 
+# --- Products API ---
+class ProductCreate(BaseModel):
+    code: Optional[str] = None
+    name: str
+    unit: str = "pcs"
+    product_type: str = "service"
+    default_rate: float = 0.0
+    reorder_level: float = 0.0
+    stock_account_id: Optional[int] = None
+    revenue_account_id: Optional[int] = None
+    cogs_account_id: Optional[int] = None
+
+@app.get("/api/products")
+def list_products(
+    session: SessionDep,
+    user: CurrentUserDep,
+    search: str = "",
+    product_type: str = "",
+    skip: int = 0,
+    limit: int = 100,
+):
+    q = select(Product).where(Product.tenant_id == user.tenant_id)
+    if search:
+        q = q.where((Product.name.ilike(f"%{search}%")) | (Product.code.ilike(f"%{search}%")))
+    if product_type:
+        q = q.where(Product.product_type == product_type)
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.order_by(Product.name).offset(skip).limit(limit)).all()
+    return {"total": total, "items": items}
+
+@app.get("/api/products/stock-summary")
+def products_stock_summary(session: SessionDep, user: CurrentUserDep):
+    items = session.exec(select(Product).where(Product.tenant_id == user.tenant_id, Product.product_type == "stock")).all()
+    return [
+        {
+            "id": p.id,
+            "code": p.code,
+            "name": p.name,
+            "unit": p.unit,
+            "stock_qty": p.stock_qty,
+            "reorder_level": p.reorder_level,
+            "default_rate": p.default_rate,
+            "value": round(p.stock_qty * p.default_rate, 2),
+            "low_stock": p.stock_qty <= p.reorder_level,
+        }
+        for p in items
+    ]
+
+@app.post("/api/products", status_code=201)
+def create_product(session: SessionDep, user: CurrentUserDep, body: ProductCreate):
+    p = Product(tenant_id=user.tenant_id, **body.model_dump())
+    session.add(p)
+    log_audit(session, user, "CREATE", "product", None, {"name": body.name})
+    session.commit()
+    session.refresh(p)
+    return p
+
+@app.put("/api/products/{product_id}")
+def update_product(session: SessionDep, user: CurrentUserDep, product_id: int, body: ProductCreate):
+    p = session.exec(select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)).first()
+    if not p:
+        raise HTTPException(404, "Product not found")
+    for k, v in body.model_dump().items():
+        setattr(p, k, v)
+    session.add(p)
+    log_audit(session, user, "UPDATE", "product", p.id, {"name": p.name})
+    session.commit()
+    session.refresh(p)
+    return p
+
+@app.delete("/api/products/{product_id}", status_code=204)
+def delete_product(session: SessionDep, user: CurrentUserDep, product_id: int):
+    p = session.exec(select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)).first()
+    if not p:
+        raise HTTPException(404, "Product not found")
+    used_in_invoice = session.exec(select(InvoiceLine).where(InvoiceLine.product_id == product_id)).first()
+    used_in_bill = session.exec(select(BillLine).where(BillLine.product_id == product_id)).first()
+    if used_in_invoice or used_in_bill:
+        raise HTTPException(400, "Cannot delete product used in invoice or bill lines")
+    log_audit(session, user, "DELETE", "product", p.id, {"name": p.name})
+    session.delete(p)
+    session.commit()
+
 # --- Invoices API ---
 def _get_or_create_account(session: Session, tenant_id: int, code: str, name: str, acct_type: str) -> Account:
     acc = session.exec(select(Account).where(Account.tenant_id == tenant_id, Account.code == code)).first()

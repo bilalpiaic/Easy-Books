@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  Package,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -48,6 +49,7 @@ const navItems = [
   { label: "Bills", href: "/bills", icon: Receipt, section: "Accounts Payable" },
   { label: "Vendors", href: "/vendors", icon: Truck, section: "Accounts Payable" },
   { label: "Bill Payments", href: "/bill-payments", icon: ArrowUpRight, section: "Accounts Payable" },
+  { label: "Products", href: "/products", icon: Package, section: "Accounts Payable" },
 
   { label: "Bank Accounts", href: "/bank-accounts", icon: Landmark, section: "Banking" },
   { label: "Reconciliations", href: "/reconciliations", icon: CheckCheck, section: "Banking" },
@@ -89,7 +91,7 @@ export default function Sidebar() {
 
     apiFetch<Record<string, string>>("/api/settings")
       .then((data) => {
-        if (data?.org_name) setOrgName(data.org_name)
+        if (data?.company_name) setOrgName(data.company_name)
       })
       .catch(() => {})
   }, [])

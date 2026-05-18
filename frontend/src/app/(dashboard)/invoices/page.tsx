@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
+import LineItemsTable, { LineItem } from '@/components/LineItemsTable'
 
 interface Invoice {
   id: number
@@ -26,6 +27,7 @@ interface AgingBuckets {
 
 interface Customer { id: number; name: string }
 interface Account { id: number; code: string; name: string; type: string }
+interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string }
 
 interface InvoiceForm {
   customer_id: string
@@ -33,7 +35,6 @@ interface InvoiceForm {
   issue_date: string
   due_date: string
   description: string
-  subtotal: string
   gst_rate: string
   ar_account_id: string
   revenue_account_id: string
@@ -41,7 +42,7 @@ interface InvoiceForm {
 
 const emptyForm: InvoiceForm = {
   customer_id: '', customer_name: '', issue_date: new Date().toISOString().split('T')[0],
-  due_date: '', description: '', subtotal: '', gst_rate: '17',
+  due_date: '', description: '', gst_rate: '17',
   ar_account_id: '', revenue_account_id: '',
 }
 
@@ -63,10 +64,12 @@ export default function Invoices() {
   const [aging, setAging] = useState<AgingBuckets | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<InvoiceForm>(emptyForm)
+  const [lines, setLines] = useState<LineItem[]>([])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [products, setProducts] = useState<Product[]>([])
 
   const load = () => {
     setLoading(true)
@@ -88,20 +91,25 @@ export default function Invoices() {
     Promise.all([
       apiFetch<{ total: number; items: Customer[] }>('/api/customers?limit=200'),
       apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500'),
-    ]).then(([c, a]) => {
+      apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
+    ]).then(([c, a, p]) => {
       setCustomers(c.items)
       setAccounts(a.items)
+      setProducts(p.items)
     }).catch(() => {})
     setForm(emptyForm)
+    setLines([])
     setFormError('')
     setModalOpen(true)
   }
 
-  const gstAmount = Math.round((parseFloat(form.subtotal) || 0) * (parseFloat(form.gst_rate) || 0) / 100)
-  const totalAmount = (parseFloat(form.subtotal) || 0) + gstAmount
+  const subtotal = lines.reduce((s, l) => s + l.amount, 0)
+  const gstAmount = Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
+  const totalAmount = Math.round((subtotal + gstAmount) * 100) / 100
 
   const handleSave = async () => {
-    if (!form.subtotal || parseFloat(form.subtotal) <= 0) { setFormError('Subtotal must be > 0'); return }
+    if (lines.length === 0) { setFormError('Add at least one line item'); return }
+    if (lines.some(l => !l.description.trim())) { setFormError('All lines must have a description'); return }
     if (!form.issue_date || !form.due_date) { setFormError('Both dates are required'); return }
     setSaving(true); setFormError('')
     try {
@@ -114,7 +122,13 @@ export default function Invoices() {
           issue_date: form.issue_date,
           due_date: form.due_date,
           description: form.description || null,
-          subtotal: parseFloat(form.subtotal),
+          lines: lines.map(l => ({
+            product_id: l.product_id ?? null,
+            description: l.description,
+            qty: l.qty,
+            unit: l.unit ?? null,
+            rate: l.rate,
+          })),
           gst_rate: parseFloat(form.gst_rate) || 0,
           ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
           revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
@@ -254,7 +268,7 @@ export default function Invoices() {
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 overflow-y-auto max-h-[90vh]">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
             <h2 className="text-2xl font-serif text-[#1a1814] mb-6">New Invoice</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -292,23 +306,35 @@ export default function Invoices() {
                   placeholder="e.g. Consulting services — May 2026"
                   className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Subtotal (pre-tax)</label>
-                  <input type="number" step="0.01" value={form.subtotal} onChange={e => setForm(p => ({ ...p, subtotal: e.target.value }))}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
+                <LineItemsTable lines={lines} onChange={setLines} products={products} />
+              </div>
+
+              <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-black/60">Subtotal</span>
+                  <span className="font-mono">{fmtPKR(subtotal)}</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">GST Rate (%)</label>
-                  <input type="number" step="0.01" value={form.gst_rate} onChange={e => setForm(p => ({ ...p, gst_rate: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-black/60">GST</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="0" max="100" step="0.5"
+                      value={form.gst_rate}
+                      onChange={e => setForm(p => ({ ...p, gst_rate: e.target.value }))}
+                      className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
+                    />
+                    <span className="text-black/60 text-xs">%</span>
+                    <span className="font-mono">{fmtPKR(gstAmount)}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
+                  <span>Total</span>
+                  <span className="font-mono text-[#1a1814]">{fmtPKR(totalAmount)}</span>
                 </div>
               </div>
-              <div className="bg-[#f6f3ee] rounded-xl p-4 text-sm font-mono flex justify-between">
-                <span>GST: {fmtPKR(gstAmount)}</span>
-                <span className="font-bold">Total: {fmtPKR(totalAmount)}</span>
-              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">AR Account</label>
@@ -327,6 +353,7 @@ export default function Invoices() {
                   </select>
                 </div>
               </div>
+
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
               <p className="text-xs text-black/50">GL posting: Dr Accounts Receivable / Cr Revenue / Cr GST Payable</p>
               <div className="flex justify-end gap-3 pt-2">

@@ -1,0 +1,193 @@
+"use client"
+
+import { Trash2, Plus } from "lucide-react"
+import { fmtPKR } from "@/lib/utils"
+
+export interface LineItem {
+  product_id?: number | null
+  description: string
+  qty: number
+  unit?: string
+  rate: number
+  amount: number
+}
+
+interface Product {
+  id: number
+  name: string
+  code?: string | null
+  unit: string
+  default_rate: number
+  product_type: string
+}
+
+interface Props {
+  lines: LineItem[]
+  onChange: (lines: LineItem[]) => void
+  products?: Product[]
+  readOnly?: boolean
+}
+
+const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
+
+function emptyLine(): LineItem {
+  return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0 }
+}
+
+export default function LineItemsTable({ lines, onChange, products = [], readOnly = false }: Props) {
+  const update = (idx: number, patch: Partial<LineItem>) => {
+    const updated = lines.map((l, i) => {
+      if (i !== idx) return l
+      const merged = { ...l, ...patch }
+      merged.amount = Math.round(merged.qty * merged.rate * 100) / 100
+      return merged
+    })
+    onChange(updated)
+  }
+
+  const remove = (idx: number) => onChange(lines.filter((_, i) => i !== idx))
+  const add = () => onChange([...lines, emptyLine()])
+
+  const onProductSelect = (idx: number, productId: string) => {
+    if (!productId) {
+      update(idx, { product_id: null })
+      return
+    }
+    const prod = products.find(p => p.id === Number(productId))
+    if (!prod) return
+    const amount = Math.round(lines[idx].qty * prod.default_rate * 100) / 100
+    onChange(lines.map((l, i) =>
+      i === idx
+        ? { ...l, product_id: prod.id, description: prod.name, unit: prod.unit, rate: prod.default_rate, amount }
+        : l
+    ))
+  }
+
+  const subtotal = lines.reduce((s, l) => s + l.amount, 0)
+
+  return (
+    <div className="border border-[#ede9e2] rounded-xl overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-[#f6f3ee]">
+          <tr>
+            {products.length > 0 && (
+              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Product</th>
+            )}
+            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Description</th>
+            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Qty</th>
+            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Unit</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Rate</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Amount</th>
+            {!readOnly && <th className="w-8" />}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#ede9e2]">
+          {lines.map((line, idx) => (
+            <tr key={idx} className="hover:bg-[#f6f3ee]/30">
+              {products.length > 0 && (
+                <td className="px-3 py-2">
+                  {readOnly ? (
+                    <span className="text-xs text-black/60">{products.find(p => p.id === line.product_id)?.name ?? "—"}</span>
+                  ) : (
+                    <select
+                      value={line.product_id ?? ""}
+                      onChange={e => onProductSelect(idx, e.target.value)}
+                      className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5"
+                    >
+                      <option value="">— none —</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>{p.code ? `${p.code} — ` : ""}{p.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </td>
+              )}
+              <td className="px-3 py-2">
+                {readOnly ? (
+                  <span>{line.description}</span>
+                ) : (
+                  <input
+                    value={line.description}
+                    onChange={e => update(idx, { description: e.target.value })}
+                    placeholder="Description"
+                    className="w-full bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 text-sm"
+                  />
+                )}
+              </td>
+              <td className="px-3 py-2">
+                {readOnly ? (
+                  <span className="block text-center font-mono">{line.qty}</span>
+                ) : (
+                  <input
+                    type="number" min="0" step="0.001"
+                    value={line.qty}
+                    onChange={e => update(idx, { qty: parseFloat(e.target.value) || 0 })}
+                    className="w-full text-center bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
+                  />
+                )}
+              </td>
+              <td className="px-3 py-2">
+                {readOnly ? (
+                  <span className="block text-center text-xs text-black/60">{line.unit ?? "—"}</span>
+                ) : (
+                  <select
+                    value={line.unit ?? "pcs"}
+                    onChange={e => update(idx, { unit: e.target.value })}
+                    className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5"
+                  >
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                )}
+              </td>
+              <td className="px-3 py-2">
+                {readOnly ? (
+                  <span className="block text-right font-mono">{fmtPKR(line.rate)}</span>
+                ) : (
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={line.rate}
+                    onChange={e => update(idx, { rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
+                  />
+                )}
+              </td>
+              <td className="px-3 py-2 text-right font-mono text-sm font-semibold">{fmtPKR(line.amount)}</td>
+              {!readOnly && (
+                <td className="px-2 py-2">
+                  <button onClick={() => remove(idx)} className="text-red-400 hover:text-red-600">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+          {lines.length === 0 && (
+            <tr>
+              <td colSpan={products.length > 0 ? 7 : 6} className="px-4 py-4 text-center text-xs text-black/40">
+                No line items. {!readOnly && "Click Add Row to begin."}
+              </td>
+            </tr>
+          )}
+        </tbody>
+        <tfoot className="bg-[#f6f3ee] border-t border-[#ede9e2]">
+          <tr>
+            <td colSpan={products.length > 0 ? (readOnly ? 4 : 5) : (readOnly ? 3 : 4)} className="px-3 py-2">
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={add}
+                  className="flex items-center gap-1 text-xs text-[#b8943f] font-bold hover:underline"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Row
+                </button>
+              )}
+            </td>
+            <td className="px-3 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/60">Subtotal</td>
+            <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(subtotal)}</td>
+            {!readOnly && <td />}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
+}
