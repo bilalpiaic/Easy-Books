@@ -8,7 +8,7 @@ from sqlmodel import Session, select, func
 from db import engine, get_session, create_db_and_tables, seed_data
 from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
-    Customer, Vendor,
+    Customer, Vendor, Invoice,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
@@ -241,6 +241,120 @@ def delete_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int):
         raise HTTPException(404, "Vendor not found")
     session.delete(v)
     session.commit()
+
+# --- Invoices API ---
+def _get_or_create_account(session: Session, tenant_id: int, code: str, name: str, acct_type: str) -> Account:
+    acc = session.exec(select(Account).where(Account.tenant_id == tenant_id, Account.code == code)).first()
+    if not acc:
+        acc = Account(code=code, name=name, type=acct_type, tenant_id=tenant_id)
+        session.add(acc)
+        session.flush()
+    return acc
+
+def _next_invoice_number(session: Session, tenant_id: int, prefix: str) -> str:
+    count = session.exec(select(func.count(Invoice.id)).where(Invoice.tenant_id == tenant_id)).one()
+    return f"{prefix}-{count + 1:04d}"
+
+class InvoiceCreate(BaseModel):
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    issue_date: str
+    due_date: str
+    description: Optional[str] = None
+    subtotal: float
+    gst_rate: float = 17.0
+    ar_account_id: Optional[int] = None
+    revenue_account_id: Optional[int] = None
+
+@app.get("/api/invoices")
+def list_invoices(session: SessionDep, user: CurrentUserDep,
+                  search: str = "", skip: int = 0, limit: int = 50,
+                  status: str = ""):
+    q = select(Invoice).where(Invoice.tenant_id == user.tenant_id)
+    if search:
+        q = q.where((Invoice.number.ilike(f"%{search}%")) | (Invoice.customer_name.ilike(f"%{search}%")))
+    if status:
+        q = q.where(Invoice.status == status)
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.order_by(Invoice.issue_date.desc()).offset(skip).limit(limit)).all()
+    return {"total": total, "items": items}
+
+@app.post("/api/invoices", status_code=201)
+def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreate):
+    prefix_row = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix")).first()
+    prefix = prefix_row.value if prefix_row else "INV"
+    gst_amount = round(body.subtotal * body.gst_rate / 100, 2)
+    total = round(body.subtotal + gst_amount, 2)
+
+    # Resolve customer name
+    cname = body.customer_name
+    if body.customer_id:
+        c = session.get(Customer, body.customer_id)
+        if c:
+            cname = c.name
+
+    invoice = Invoice(
+        tenant_id=user.tenant_id,
+        number=_next_invoice_number(session, user.tenant_id, prefix),
+        customer_id=body.customer_id,
+        customer_name=cname,
+        issue_date=body.issue_date,
+        due_date=body.due_date,
+        description=body.description,
+        subtotal=body.subtotal,
+        gst_rate=body.gst_rate,
+        gst_amount=gst_amount,
+        total=total,
+        status="draft",
+        ar_account_id=body.ar_account_id,
+        revenue_account_id=body.revenue_account_id,
+    )
+    session.add(invoice)
+    session.flush()
+
+    # Auto-post GL: Dr AR / Cr Revenue [/ Cr GST Payable]
+    ar_acc = session.get(Account, body.ar_account_id) if body.ar_account_id else \
+        _get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
+    rev_acc = session.get(Account, body.revenue_account_id) if body.revenue_account_id else \
+        _get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
+
+    jv_count = session.exec(select(func.count(Transaction.id)).where(Transaction.tenant_id == user.tenant_id)).one()
+    txn = Transaction(
+        tenant_id=user.tenant_id,
+        jv_number=f"JV-{jv_count + 1:05d}",
+        date=invoice.issue_date,
+        description=f"Invoice {invoice.number} — {cname or ''}",
+    )
+    session.add(txn)
+    session.flush()
+
+    entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ar_acc.id, debit=total, credit=0)]
+    if gst_amount > 0:
+        gst_acc = _get_or_create_account(session, user.tenant_id, "2200", "GST Payable", "Liability")
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=rev_acc.id, debit=0, credit=body.subtotal))
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=gst_acc.id, debit=0, credit=gst_amount))
+    else:
+        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=rev_acc.id, debit=0, credit=total))
+
+    for e in entries:
+        session.add(e)
+
+    invoice.transaction_id = txn.id
+    session.add(invoice)
+    session.commit()
+    session.refresh(invoice)
+    return invoice
+
+@app.patch("/api/invoices/{invoice_id}/status")
+def update_invoice_status(session: SessionDep, user: CurrentUserDep, invoice_id: int, status: str):
+    inv = session.exec(select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    inv.status = status
+    session.add(inv)
+    session.commit()
+    session.refresh(inv)
+    return inv
 
 # --- Accounts API ---
 class AccountCreate(BaseModel):

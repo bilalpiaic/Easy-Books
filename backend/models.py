@@ -91,6 +91,24 @@ class Vendor(SQLModel, table=True):
     opening_balance: float = Field(default=0.0)
     is_active: bool = Field(default=True)
 
+class Invoice(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    customer_name: Optional[str] = None
+    issue_date: str
+    due_date: str
+    description: Optional[str] = None
+    subtotal: float = Field(default=0.0)
+    gst_rate: float = Field(default=17.0)
+    gst_amount: float = Field(default=0.0)
+    total: float = Field(default=0.0)
+    status: str = Field(default="draft")
+    ar_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+
 # API Models
 class JournalEntryCreate(JournalEntryBase):
     pass
