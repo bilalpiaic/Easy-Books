@@ -103,6 +103,8 @@ Easy-Books/
 │   ├── db.py               ← engine, seed data, default CoA
 │   └── database.db         ← SQLite (git-ignored)
 └── frontend/src/
+    ├── app/login/          ← public login page
+    ├── app/signup/         ← public signup page (tenant onboarding)
     ├── app/(dashboard)/    ← 23 pages (auth-gated)
     ├── components/         ← Sidebar, Header, modals, charts
     └── lib/                ← apiFetch, auth, utils
@@ -602,11 +604,39 @@ For onboarding existing books or bulk-creating records:
 ### 9.1 Auth & Settings
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/auth/signup` | Create tenant + admin user |
-| POST | `/api/auth/login` | Issue JWT |
+| POST | `/api/auth/signup` | Create tenant + user + auto-seed default CoA. Body: `{email, password, full_name, company_name}`. Frontend entry: `/signup`. |
+| POST | `/api/auth/login` | OAuth2 password flow → JWT. Frontend entry: `/login`. |
 | GET | `/api/auth/me` | Current user details |
 | GET | `/api/settings` | Read company settings |
 | PATCH | `/api/settings` | Update settings (company name, fiscal year, currency, prefixes) |
+
+#### Auth Flow (frontend)
+
+```
+NEW USER                                  RETURNING USER
+────────                                  ──────────────
+/signup                                   /login
+  │ POST /api/auth/signup                   │ POST /api/auth/login (form-encoded)
+  │   { email, password,                    │   { username=email, password }
+  │     full_name, company_name }           │
+  ▼                                         ▼
+Backend creates:                          JWT returned
+  • Tenant row                            stored in localStorage
+  • User row (hashed pw)                    │
+  • seed_data(tenant_id)                    ▼
+    → 14 default CoA accounts            redirect /dashboard
+  │
+  ▼ auto-login: POST /api/auth/login
+JWT stored in localStorage
+  │
+  ▼
+redirect /dashboard
+
+Alternative: ENV-seeded admin
+  Set SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD before first start.
+  On create_db_and_tables() the admin User is attached to the
+  first Tenant (or created with SEED_COMPANY_NAME) — no signup needed.
+```
 
 ### 9.2 Master Data
 | Method | Path | Purpose |

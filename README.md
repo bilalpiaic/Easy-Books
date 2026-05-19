@@ -8,8 +8,10 @@
 
 - **Double-Entry Bookkeeping**: Ensures financial integrity with strict debit/credit balance validation.
 - **Modern Dashboard**: Real-time overview of financial health with elegant data visualization.
-- **Comprehensive Reporting**: Generate Trial Balances, Income Statements, and Balance Sheets.
-- **SaaS Ready**: Currently transitioning to a multi-tenant architecture for scalable business management.
+- **Comprehensive Reporting**: Generate Trial Balances, Income Statements, Balance Sheets, Cash Flow, and Tax Summaries.
+- **Multi-Tenant SaaS**: Self-service signup creates an isolated tenant with auto-seeded Chart of Accounts.
+- **JWT Auth**: Email/password login with tenant-scoped JWT bearer tokens.
+- **CSV Bulk Import**: Onboard existing books for transactions, accounts, customers, vendors, and products.
 - **Dual Stack Architecture**: Modern (FastAPI/Next.js) and Legacy (Node.js/Static HTML) implementations.
 
 ## 🚀 Getting Started
@@ -24,8 +26,8 @@
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/bilalpiaic/ebfms.git
-   cd ebfms
+   git clone https://github.com/bilalpiaic/Easy-Books.git
+   cd Easy-Books
    ```
 
 2. **Setup Modern Backend (FastAPI):**
@@ -34,15 +36,25 @@
    python -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
-   python main.py
+   cp .env.example .env       # then edit secrets — see Authentication below
+   python main.py             # runs uvicorn on :8000
    ```
 
 3. **Setup Modern Frontend (Next.js):**
    ```bash
    cd ../frontend
    npm install
-   npm run dev
+   npm run dev                # serves on :3000
    ```
+
+### 🔐 Authentication
+
+Two ways to get an account:
+
+- **Self-service signup (recommended):** open `http://localhost:3000/signup`, fill in name, company, email, password — a new tenant is created with a default Chart of Accounts, then you're logged in automatically.
+- **Seeded admin (optional):** set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `backend/.env` before first start; the admin user is created on the first tenant during `create_db_and_tables()`.
+
+Tokens are JWT bearer tokens with `{sub, tenant_id, full_name}` and stored in `localStorage`. CORS is locked to `FRONTEND_ORIGIN` (default `http://localhost:3000`).
 
 ## 🏗️ Architecture
 
@@ -70,5 +82,10 @@ Easy-Books uses the **Malik Enterprises** brand palette:
 
 ---
 
+## 📚 Further Reading
+
+- [`WORKFLOW.md`](./WORKFLOW.md) — full accounting workflow, GL posting rules, report-linking matrix, and API catalog.
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md) — Vercel deployment for backend + frontend, environment variables, seed admin setup.
+
 > [!NOTE]
-> This project is currently in active transition to a SaaS foundation. Some reporting modules are still under development in the modern stack.
+> Branch `saas-transition-foundation` carries the active SaaS work (multi-tenant auth, signup, dashboard charts, CSV import). Roadmap items (hierarchical CoA, multi-currency, recurring docs, PDF/email) are tracked in `WORKFLOW.md §13`.
