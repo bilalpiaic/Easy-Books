@@ -1367,6 +1367,82 @@ def get_dashboard_data(
         ],
     }
 
+@app.get("/api/reports/dashboard/charts")
+def get_dashboard_charts(
+    session: SessionDep,
+    user: CurrentUserDep,
+    months: int = 12,
+):
+    from datetime import date, timedelta
+    today = date.today()
+    # Build last N months list
+    result_months = []
+    for i in range(months - 1, -1, -1):
+        d = date(today.year, today.month, 1)
+        # go back i months
+        m = d.month - i
+        y = d.year
+        while m <= 0:
+            m += 12; y -= 1
+        result_months.append((y, m))
+
+    monthly = []
+    for y, m in result_months:
+        start = f"{y:04d}-{m:02d}-01"
+        if m == 12:
+            end = f"{y+1:04d}-01-01"
+        else:
+            end = f"{y:04d}-{m+1:02d}-01"
+        label = f"{y}-{m:02d}"
+
+        je_q = session.exec(
+            select(JournalEntry, Account).join(Account).join(Transaction).where(
+                Transaction.tenant_id == user.tenant_id,
+                Transaction.date >= start,
+                Transaction.date < end,
+            )
+        ).all()
+        rev = sum(e.credit - e.debit for e, a in je_q if a.type == "Revenue")
+        exp = sum(e.debit - e.credit for e, a in je_q if a.type == "Expense")
+        monthly.append({"month": label, "revenue": round(rev, 2), "expenses": round(exp, 2), "profit": round(rev - exp, 2)})
+
+    # Expense breakdown by account (top 8)
+    exp_q = session.exec(
+        select(Account.name, func.sum(JournalEntry.debit - JournalEntry.credit).label("total"))
+        .join(JournalEntry, Account.id == JournalEntry.account_id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Account.type == "Expense",
+            Transaction.date >= f"{today.year:04d}-01-01",
+        )
+        .group_by(Account.id)
+        .order_by(func.sum(JournalEntry.debit - JournalEntry.credit).desc())
+        .limit(8)
+    ).all()
+    expense_breakdown = [
+        {"account": name, "amount": round(float(total or 0), 2)}
+        for name, total in exp_q if (total or 0) > 0
+    ]
+
+    # Top 5 customers by invoice total
+    top_customers = session.exec(
+        select(Customer.name, func.sum(Invoice.total).label("total"))
+        .join(Invoice, Invoice.customer_id == Customer.id)
+        .where(Customer.tenant_id == user.tenant_id)
+        .group_by(Customer.id)
+        .order_by(func.sum(Invoice.total).desc())
+        .limit(5)
+    ).all()
+    top_cust = [{"name": n, "total": round(float(t or 0), 2)} for n, t in top_customers]
+
+    return {
+        "monthly": monthly,
+        "expense_breakdown": expense_breakdown,
+        "top_customers": top_cust,
+    }
+
+
 @app.get("/api/reports/income-statement")
 def get_income_statement(
     session: SessionDep,

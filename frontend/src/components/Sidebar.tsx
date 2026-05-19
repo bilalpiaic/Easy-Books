@@ -7,7 +7,7 @@ import {
   LayoutDashboard, PlusCircle, ClipboardList, BookOpen, TableProperties,
   Scale, FileText, PieChart, TrendingUp, LogOut, FileSignature, Users,
   ArrowDownLeft, Receipt, Truck, ArrowUpRight, Landmark, CheckCheck,
-  Percent, Settings, X, Package, ChevronRight,
+  Percent, Settings, X, Package, ChevronRight, GitBranch, HelpCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -34,7 +34,9 @@ const NAV = [
   { label: "Balance Sheet",    href: "/balance",           icon: PieChart,         section: "Reports" },
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
-  { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
+  { label: "Workflow",          href: "/workflow",          icon: GitBranch,        section: "System" },
+  { label: "User Guide",        href: "/guide",             icon: HelpCircle,       section: "System" },
+  { label: "Settings",          href: "/settings",          icon: Settings,         section: "System" },
 ]
 
 const SECTIONS = ["Overview","Ledger","Receivable","Payable","Banking","Reports","System"]

@@ -40,7 +40,7 @@ export default function PnLPage() {
   const netIncome = totalRevenue - totalExpense
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Income Statement</h1>

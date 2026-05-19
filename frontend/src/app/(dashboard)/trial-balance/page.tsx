@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Scale, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR, downloadCSV } from "@/lib/utils"
@@ -41,7 +42,7 @@ export default function TrialBalancePage() {
   const grandTotalCredit = data.reduce((sum, item) => sum + item.total_credit, 0)
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Trial Balance</h1>
@@ -85,7 +86,10 @@ export default function TrialBalancePage() {
                 <tr key={item.code} className="hover:bg-[#f6f3ee]/30 transition-colors">
                   <td className="px-8 py-4">
                     <span className="font-mono text-xs text-[#b8943f] mr-3">{item.code}</span>
-                    <span className="font-medium text-[#1a1814]">{item.name}</span>
+                    <Link href={`/ledger?account=${encodeURIComponent(item.name)}`}
+                      className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors">
+                      {item.name}
+                    </Link>
                   </td>
                   <td className="px-8 py-4 text-right font-mono text-sm">
                     {item.total_debit > 0 ? fmtPKR(item.total_debit) : "-"}

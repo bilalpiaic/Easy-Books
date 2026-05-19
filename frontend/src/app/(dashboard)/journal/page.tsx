@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { RotateCcw, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR, downloadCSV } from "@/lib/utils"
@@ -73,7 +74,7 @@ export default function JournalPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">General Journal</h1>
@@ -128,7 +129,10 @@ export default function JournalPage() {
                         )}
                       </td>
                       <td className="px-6 py-5">
-                        <div className="font-medium text-[#1a1814]">{entry.account_name}</div>
+                        <Link href={`/ledger?account=${encodeURIComponent(entry.account_name)}`}
+                          className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors">
+                          {entry.account_name}
+                        </Link>
                         <div className="text-xs text-[#1a1814]/75">{entry.description}</div>
                       </td>
                       <td className="px-6 py-5 text-right font-mono text-sm">{entry.debit > 0 ? fmtPKR(entry.debit) : "-"}</td>

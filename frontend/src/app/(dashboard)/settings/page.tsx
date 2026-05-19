@@ -114,7 +114,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 p-8 max-w-4xl">
+    <div className="space-y-6 p-4 sm:p-6 max-w-4xl">
       <div>
         <h1 className="text-3xl font-serif font-medium text-black">Settings</h1>
         <p className="text-sm text-black/70 mt-1">Configure business and accounting settings</p>

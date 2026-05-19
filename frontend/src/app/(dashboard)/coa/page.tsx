@@ -79,7 +79,7 @@ export default function COAPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Chart of Accounts</h1>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Plus, Search } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
@@ -103,7 +104,7 @@ export default function BillPayments() {
   const cashAccounts = accounts.filter(a => a.type === 'Asset')
 
   return (
-    <div className="space-y-6 p-8">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Bill Payments</h1>
@@ -147,8 +148,16 @@ export default function BillPayments() {
             ) : filtered.map(p => (
               <tr key={p.id} className="hover:bg-[#f6f3ee]/50">
                 <td className="px-6 py-4 text-black/70">{p.payment_date}</td>
-                <td className="px-6 py-4 font-medium">{p.vendor_name ?? '—'}</td>
-                <td className="px-6 py-4 font-mono text-sm text-black/60">{p.reference ?? '—'}</td>
+                <td className="px-6 py-4 font-medium">
+                  {p.vendor_name
+                    ? <Link href="/vendors" className="hover:text-[#b8943f] hover:underline underline-offset-2">{p.vendor_name}</Link>
+                    : '—'}
+                </td>
+                <td className="px-6 py-4 font-mono text-sm text-black/60">
+                  {p.reference
+                    ? <Link href="/bills" className="hover:text-[#b8943f] hover:underline underline-offset-2">{p.reference}</Link>
+                    : '—'}
+                </td>
                 <td className="px-6 py-4 capitalize text-black/70">{p.method.replace('_', ' ')}</td>
                 <td className="px-6 py-4 text-right font-mono font-bold text-red-700">{fmtPKR(p.amount)}</td>
               </tr>

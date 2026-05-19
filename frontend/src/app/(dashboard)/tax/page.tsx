@@ -44,7 +44,7 @@ export default function TaxReports() {
   }, [start, end])
 
   return (
-    <div className="space-y-6 p-8 max-w-4xl">
+    <div className="space-y-6 p-4 sm:p-6 max-w-4xl">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Tax Reports</h1>

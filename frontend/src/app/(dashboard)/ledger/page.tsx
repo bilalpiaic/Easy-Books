@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { Search } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
@@ -37,11 +38,12 @@ function defaultRange() {
 
 const PAGE_SIZE = 20
 
-export default function LedgerPage() {
+function LedgerPageInner() {
+  const searchParams = useSearchParams()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(searchParams.get("account") ?? "")
   const [ledgerData, setLedgerData] = useState<LedgerAccount[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -59,7 +61,7 @@ export default function LedgerPage() {
   }, [start, end, search, page])
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">General Ledger</h1>
@@ -147,5 +149,13 @@ export default function LedgerPage() {
         <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
       </div>
     </div>
+  )
+}
+
+export default function LedgerPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center text-[#1a1814]/60">Loading...</div>}>
+      <LedgerPageInner />
+    </Suspense>
   )
 }

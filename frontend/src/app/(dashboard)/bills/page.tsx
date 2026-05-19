@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Plus, Search, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
@@ -149,7 +150,7 @@ export default function Bills() {
   const expenseAccounts = accounts.filter(a => a.type === 'Expense')
 
   return (
-    <div className="space-y-6 p-8">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium">Bills</h1>
@@ -214,7 +215,11 @@ export default function Bills() {
             ) : bills.map(b => (
               <tr key={b.id} className="hover:bg-[#f6f3ee]/50">
                 <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">{b.number}</td>
-                <td className="px-6 py-4">{b.vendor_name ?? '—'}</td>
+                <td className="px-6 py-4">
+                  {b.vendor_name
+                    ? <Link href="/vendors" className="hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors">{b.vendor_name}</Link>
+                    : '—'}
+                </td>
                 <td className="px-6 py-4 text-black/70">{b.bill_date}</td>
                 <td className="px-6 py-4 text-black/70">{b.due_date}</td>
                 <td className="px-6 py-4 text-right font-mono">{fmtPKR(b.total)}</td>

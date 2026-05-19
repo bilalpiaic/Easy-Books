@@ -38,7 +38,7 @@ export default function BalanceSheetPage() {
   const isBalanced = Math.abs(totalAssets - totalLE) <= 0.01
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
