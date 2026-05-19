@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { setAuthToken } from "@/lib/auth"
 import { apiBase } from "@/lib/api"
 
@@ -99,9 +100,9 @@ export default function LoginPage() {
 
           <div className="mt-8 text-center text-sm text-[#1a1814]/40">
             Don't have an account?{" "}
-            <a href="#" className="text-[#b8943f] font-bold hover:underline">
+            <Link href="/signup" className="text-[#b8943f] font-bold hover:underline">
               Start Free Trial
-            </a>
+            </Link>
           </div>
 
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
