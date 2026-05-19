@@ -7,6 +7,7 @@ import { fmtPKR, downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
+import CsvImportButton from "@/components/CsvImportButton"
 
 interface JournalEntry {
   id: number
@@ -78,13 +79,16 @@ export default function JournalPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">General Journal</h1>
           <p className="text-[#1a1814]/60">Chronological record of all financial transactions</p>
         </div>
-        <button
-          onClick={() => downloadCSV(`journal-${start}-${end}.csv`, entries.map(e => ({ Date: e.date, JV: e.jv_number, Account: e.account_name, Description: e.description, Debit: e.debit, Credit: e.credit })))}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
-        >
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2 print:hidden">
+          <CsvImportButton entity="transactions" onSuccess={loadEntries} />
+          <button
+            onClick={() => downloadCSV(`journal-${start}-${end}.csv`, entries.map(e => ({ Date: e.date, JV: e.jv_number, Account: e.account_name, Description: e.description, Debit: e.debit, Credit: e.credit })))}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl">

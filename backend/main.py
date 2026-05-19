@@ -1,8 +1,11 @@
 import os
+import csv
+import io
 from typing import Annotated, List, Optional
-from fastapi import FastAPI, Depends, HTTPException, Query, status
+from fastapi import FastAPI, Depends, HTTPException, Query, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import StreamingResponse
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
@@ -1746,6 +1749,299 @@ def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserD
         "notes": tx.notes,
         "entries": entries
     }
+
+# ── CSV Import helpers ────────────────────────────────────────────────────────
+
+SAMPLE_CSVS: dict[str, list[list[str]]] = {
+    "transactions": [
+        ["date", "description", "account_code", "debit", "credit"],
+        ["2025-01-01", "Cash sale", "1000", "5000", "0"],
+        ["2025-01-01", "Cash sale", "4000", "0", "5000"],
+        ["2025-01-02", "Office supplies", "5100", "1500", "0"],
+        ["2025-01-02", "Office supplies", "1000", "0", "1500"],
+    ],
+    "accounts": [
+        ["code", "name", "type"],
+        ["1050", "Petty Cash", "Asset"],
+        ["2200", "Accrued Liabilities", "Liability"],
+        ["5200", "Depreciation Expense", "Expense"],
+    ],
+    "customers": [
+        ["name", "email", "phone", "address", "opening_balance"],
+        ["Ahmed Traders", "ahmed@example.com", "0300-1234567", "Karachi", "0"],
+        ["Bilal Enterprises", "bilal@example.com", "0321-9876543", "Lahore", "50000"],
+    ],
+    "vendors": [
+        ["name", "email", "phone", "address", "opening_balance"],
+        ["Ali Suppliers", "ali@supplier.com", "0311-1111111", "Islamabad", "0"],
+        ["Khan & Sons", "khan@supplier.com", "0333-2222222", "Faisalabad", "25000"],
+    ],
+    "products": [
+        ["code", "name", "unit", "product_type", "default_rate", "reorder_level"],
+        ["PRD-001", "Widget A", "pcs", "stock", "1500", "50"],
+        ["PRD-002", "Consulting Hour", "hrs", "service", "5000", "0"],
+        ["PRD-003", "Raw Cotton", "kg", "stock", "350", "200"],
+    ],
+}
+
+
+def _parse_csv(content: bytes) -> list[dict[str, str]]:
+    text = content.decode("utf-8-sig").strip()
+    reader = csv.DictReader(io.StringIO(text))
+    return [row for row in reader]
+
+
+def _csv_response(entity: str) -> StreamingResponse:
+    rows = SAMPLE_CSVS.get(entity)
+    if not rows:
+        raise HTTPException(404, "No sample for this entity")
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerows(rows)
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="sample_{entity}.csv"'},
+    )
+
+
+@app.get("/api/import/{entity}/sample")
+def download_sample(entity: str, _user: CurrentUserDep):
+    return _csv_response(entity)
+
+
+# ── Import: Chart of Accounts ─────────────────────────────────────────────────
+
+@app.post("/api/import/accounts")
+async def import_accounts(
+    file: UploadFile,
+    session: SessionDep,
+    user: CurrentUserDep,
+):
+    VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
+    rows = _parse_csv(await file.read())
+    imported, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        code = (row.get("code") or "").strip()
+        name = (row.get("name") or "").strip()
+        atype = (row.get("type") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        if atype not in VALID_TYPES:
+            errors.append({"row": i, "message": f"type must be one of {sorted(VALID_TYPES)}"}); continue
+        if code:
+            existing = session.exec(select(Account).where(Account.code == code, Account.tenant_id == user.tenant_id)).first()
+            if existing:
+                errors.append({"row": i, "message": f"account code '{code}' already exists"}); continue
+        session.add(Account(tenant_id=user.tenant_id, code=code or None, name=name, type=atype))
+        imported += 1
+    session.commit()
+    log_audit(session, user, "import", "Account", detail={"imported": imported, "errors": len(errors)})
+    session.commit()
+    return {"imported": imported, "errors": errors}
+
+
+# ── Import: Customers ─────────────────────────────────────────────────────────
+
+@app.post("/api/import/customers")
+async def import_customers(
+    file: UploadFile,
+    session: SessionDep,
+    user: CurrentUserDep,
+):
+    rows = _parse_csv(await file.read())
+    imported, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        name = (row.get("name") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        try:
+            ob = float(row.get("opening_balance") or "0")
+        except ValueError:
+            errors.append({"row": i, "message": "opening_balance must be a number"}); continue
+        session.add(Customer(
+            tenant_id=user.tenant_id,
+            name=name,
+            email=(row.get("email") or "").strip() or None,
+            phone=(row.get("phone") or "").strip() or None,
+            address=(row.get("address") or "").strip() or None,
+            opening_balance=ob,
+            is_active=True,
+        ))
+        imported += 1
+    session.commit()
+    log_audit(session, user, "import", "Customer", detail={"imported": imported, "errors": len(errors)})
+    session.commit()
+    return {"imported": imported, "errors": errors}
+
+
+# ── Import: Vendors ───────────────────────────────────────────────────────────
+
+@app.post("/api/import/vendors")
+async def import_vendors(
+    file: UploadFile,
+    session: SessionDep,
+    user: CurrentUserDep,
+):
+    rows = _parse_csv(await file.read())
+    imported, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        name = (row.get("name") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        try:
+            ob = float(row.get("opening_balance") or "0")
+        except ValueError:
+            errors.append({"row": i, "message": "opening_balance must be a number"}); continue
+        session.add(Vendor(
+            tenant_id=user.tenant_id,
+            name=name,
+            email=(row.get("email") or "").strip() or None,
+            phone=(row.get("phone") or "").strip() or None,
+            address=(row.get("address") or "").strip() or None,
+            opening_balance=ob,
+            is_active=True,
+        ))
+        imported += 1
+    session.commit()
+    log_audit(session, user, "import", "Vendor", detail={"imported": imported, "errors": len(errors)})
+    session.commit()
+    return {"imported": imported, "errors": errors}
+
+
+# ── Import: Products ──────────────────────────────────────────────────────────
+
+@app.post("/api/import/products")
+async def import_products(
+    file: UploadFile,
+    session: SessionDep,
+    user: CurrentUserDep,
+):
+    VALID_TYPES = {"stock", "service"}
+    VALID_UNITS = {"pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"}
+    rows = _parse_csv(await file.read())
+    imported, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        name = (row.get("name") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        ptype = (row.get("product_type") or "service").strip().lower()
+        if ptype not in VALID_TYPES:
+            errors.append({"row": i, "message": f"product_type must be 'stock' or 'service'"}); continue
+        unit = (row.get("unit") or "pcs").strip().lower()
+        if unit not in VALID_UNITS:
+            unit = "pcs"
+        try:
+            rate = float(row.get("default_rate") or "0")
+            reorder = float(row.get("reorder_level") or "0")
+        except ValueError:
+            errors.append({"row": i, "message": "default_rate and reorder_level must be numbers"}); continue
+        session.add(Product(
+            tenant_id=user.tenant_id,
+            code=(row.get("code") or "").strip() or None,
+            name=name,
+            unit=unit,
+            product_type=ptype,
+            default_rate=rate,
+            reorder_level=reorder,
+            stock_qty=0.0,
+            is_active=True,
+        ))
+        imported += 1
+    session.commit()
+    log_audit(session, user, "import", "Product", detail={"imported": imported, "errors": len(errors)})
+    session.commit()
+    return {"imported": imported, "errors": errors}
+
+
+# ── Import: Journal Transactions ──────────────────────────────────────────────
+# CSV rows are grouped by date+description into one Transaction.
+# Each row = one JournalEntry line. Dr = Cr must balance per group.
+
+@app.post("/api/import/transactions")
+async def import_transactions(
+    file: UploadFile,
+    session: SessionDep,
+    user: CurrentUserDep,
+):
+    rows = _parse_csv(await file.read())
+    errors: list[dict] = []
+    imported = 0
+
+    # Group rows into transactions by (date, description)
+    groups: dict[tuple, list[dict]] = {}
+    for i, row in enumerate(rows, start=2):
+        date = (row.get("date") or "").strip()
+        desc = (row.get("description") or "").strip()
+        if not date or not desc:
+            errors.append({"row": i, "message": "date and description are required"}); continue
+        key = (date, desc, i // 1000)  # crude grouping: same date+desc adjacent rows
+        # Use date+description as group key; collect sequential rows with same key
+        gkey = (date, desc)
+        groups.setdefault(gkey, []).append((i, row))
+
+    for (date, desc), group_rows in groups.items():
+        lines = []
+        group_errors = []
+        total_dr, total_cr = 0.0, 0.0
+        for i, row in group_rows:
+            acct_code = (row.get("account_code") or "").strip()
+            if not acct_code:
+                group_errors.append({"row": i, "message": "account_code is required"}); continue
+            acct = session.exec(select(Account).where(
+                Account.tenant_id == user.tenant_id,
+                Account.code == acct_code,
+            )).first()
+            if not acct:
+                group_errors.append({"row": i, "message": f"account code '{acct_code}' not found"}); continue
+            try:
+                dr = float(row.get("debit") or "0")
+                cr = float(row.get("credit") or "0")
+            except ValueError:
+                group_errors.append({"row": i, "message": "debit and credit must be numbers"}); continue
+            if dr < 0 or cr < 0:
+                group_errors.append({"row": i, "message": "debit/credit cannot be negative"}); continue
+            total_dr += dr
+            total_cr += cr
+            lines.append((acct, dr, cr))
+
+        if group_errors:
+            errors.extend(group_errors); continue
+        if not lines:
+            continue
+        if abs(total_dr - total_cr) > 0.01:
+            errors.append({
+                "row": group_rows[0][0],
+                "message": f"Transaction '{desc}' on {date} does not balance (Dr {total_dr:.2f} ≠ Cr {total_cr:.2f})"
+            }); continue
+
+        txn = Transaction(
+            tenant_id=user.tenant_id,
+            jv_number="__TMP__",
+            date=date,
+            description=desc,
+            created_by=user.id,
+        )
+        session.add(txn)
+        session.flush()
+        txn.jv_number = f"JV-{txn.id:05d}"
+        session.add(txn)
+        for acct, dr, cr in lines:
+            session.add(JournalEntry(
+                transaction_id=txn.id,
+                account_id=acct.id,
+                debit=dr,
+                credit=cr,
+                tenant_id=user.tenant_id,
+            ))
+        imported += 1
+
+    session.commit()
+    log_audit(session, user, "import", "Transaction", detail={"imported": imported, "errors": len(errors)})
+    session.commit()
+    return {"imported": imported, "errors": errors}
+
 
 if __name__ == "__main__":
     import uvicorn

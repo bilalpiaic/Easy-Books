@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
+import CsvImportButton from '@/components/CsvImportButton'
 
 interface Product {
   id: number
@@ -159,7 +160,8 @@ export default function Products() {
           </h1>
           <p className="text-sm text-black/75 mt-1">Manage product catalog and track inventory</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <CsvImportButton entity="products" onSuccess={load} />
           <button
             onClick={() => downloadCSV('products.csv', products.map(p => ({
               Code: p.code, Name: p.name, Type: p.product_type, Unit: p.unit,

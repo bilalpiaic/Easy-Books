@@ -7,6 +7,7 @@ import { cn, fmtPKR } from "@/lib/utils"
 import Pagination from "@/components/Pagination"
 import AccountFormModal from "@/components/AccountFormModal"
 import SkeletonRow from "@/components/SkeletonRow"
+import CsvImportButton from "@/components/CsvImportButton"
 
 interface Account {
   id: number
@@ -79,18 +80,21 @@ export default function COAPage() {
 
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Chart of Accounts</h1>
           <p className="text-[#1a1814]/60">Manage your organisation's ledger accounts</p>
         </div>
-        <button
-          onClick={() => { setEditAccount(null); setModalOpen(true) }}
-          className="bg-[#b8943f] text-black font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#a38338] transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Account
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <CsvImportButton entity="accounts" onSuccess={loadAccounts} />
+          <button
+            onClick={() => { setEditAccount(null); setModalOpen(true) }}
+            className="bg-[#b8943f] text-black font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#a38338] transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Account
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 relative">
