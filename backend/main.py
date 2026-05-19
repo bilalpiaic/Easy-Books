@@ -1,6 +1,7 @@
 import os
 import csv
 import io
+from decimal import Decimal
 from typing import Annotated, List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,11 +15,14 @@ from models import (
     Account, Transaction, JournalEntry, Settings, User, Tenant,
     Customer, Vendor, Invoice, Bill, PaymentReceived, BillPayment, BankAccount,
     Reconciliation, ReconciliationLine, AccountingPeriod, AuditLog,
-    Product, InvoiceLine, BillLine,
+    Product, InvoiceLine, BillLine, InventoryLayer,
     TransactionCreate, TransactionRead, JournalEntryRead
 )
 import json as _json
 from auth import SECRET_KEY, ALGORITHM, get_password_hash, verify_password, create_access_token
+from services.money import D, ZERO, money, sum_money
+from services.posting import EntryInput, post_transaction
+from services.inventory import record_purchase, consume_stock
 
 app = FastAPI(title="Easy-Books API")
 
@@ -159,14 +163,14 @@ class CustomerCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    opening_balance: float = 0.0
+    opening_balance: Decimal = Decimal("0")
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    opening_balance: Optional[float] = None
+    opening_balance: Optional[Decimal] = None
     is_active: Optional[bool] = None
 
 @app.get("/api/customers")
@@ -217,14 +221,14 @@ class VendorCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    opening_balance: float = 0.0
+    opening_balance: Decimal = Decimal("0")
 
 class VendorUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    opening_balance: Optional[float] = None
+    opening_balance: Optional[Decimal] = None
     is_active: Optional[bool] = None
 
 @app.get("/api/vendors")
@@ -275,8 +279,8 @@ class ProductCreate(BaseModel):
     name: str
     unit: str = "pcs"
     product_type: str = "service"
-    default_rate: float = 0.0
-    reorder_level: float = 0.0
+    default_rate: Decimal = Decimal("0")
+    reorder_level: Decimal = Decimal("0")
     stock_account_id: Optional[int] = None
     revenue_account_id: Optional[int] = None
     cogs_account_id: Optional[int] = None
@@ -368,9 +372,9 @@ def _next_invoice_number(session: Session, tenant_id: int, prefix: str) -> str:
 class InvoiceLineCreate(BaseModel):
     product_id: Optional[int] = None
     description: str
-    qty: float = 1.0
+    qty: Decimal = Decimal("1")
     unit: Optional[str] = None
-    rate: float = 0.0
+    rate: Decimal = Decimal("0")
 
 class InvoiceCreate(BaseModel):
     customer_id: Optional[int] = None
@@ -379,7 +383,7 @@ class InvoiceCreate(BaseModel):
     due_date: str
     description: Optional[str] = None
     lines: List[InvoiceLineCreate] = []
-    gst_rate: float = 17.0
+    gst_rate: Decimal = Decimal("17")
     ar_account_id: Optional[int] = None
     revenue_account_id: Optional[int] = None
 
@@ -406,11 +410,10 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
     prefix_row = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix")).first()
     prefix = prefix_row.value if prefix_row else "INV"
 
-    subtotal = round(sum(line.qty * line.rate for line in body.lines), 2)
-    gst_amount = round(subtotal * body.gst_rate / 100, 2)
-    total = round(subtotal + gst_amount, 2)
+    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
+    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    total = money(subtotal + gst_amount)
 
-    # Resolve customer name (tenant-scoped)
     cname = body.customer_name
     if body.customer_id:
         c = session.exec(select(Customer).where(Customer.id == body.customer_id, Customer.tenant_id == user.tenant_id)).first()
@@ -427,7 +430,7 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
         due_date=body.due_date,
         description=body.description,
         subtotal=subtotal,
-        gst_rate=body.gst_rate,
+        gst_rate=D(body.gst_rate),
         gst_amount=gst_amount,
         total=total,
         status="draft",
@@ -437,56 +440,76 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
     session.add(invoice)
     session.flush()
 
-    # Save line items and update stock for stock-type products
+    # Persist line items; for stock-type lines, relieve inventory at WAvg cost
+    # and accumulate total COGS so we can post Dr COGS / Cr Inventory once.
+    total_cogs = ZERO
     for line_data in body.lines:
-        amount = round(line_data.qty * line_data.rate, 2)
+        amount = money(D(line_data.qty) * D(line_data.rate))
         il = InvoiceLine(
             invoice_id=invoice.id,
             product_id=line_data.product_id,
             description=line_data.description,
-            qty=line_data.qty,
+            qty=D(line_data.qty),
             unit=line_data.unit,
-            rate=line_data.rate,
+            rate=D(line_data.rate),
             amount=amount,
         )
         session.add(il)
         if line_data.product_id:
             prod = session.exec(select(Product).where(Product.id == line_data.product_id, Product.tenant_id == user.tenant_id)).first()
             if prod and prod.product_type == "stock":
-                prod.stock_qty -= line_data.qty
-                session.add(prod)
+                total_cogs += consume_stock(
+                    session,
+                    tenant_id=user.tenant_id,
+                    product_id=prod.id,
+                    qty=D(line_data.qty),
+                )
 
-    # Auto-post GL: Dr AR / Cr Revenue [/ Cr GST Payable]
+    # Resolve GL accounts (tenant-scoped).
     ar_acc = session.get(Account, body.ar_account_id) if body.ar_account_id else \
         _get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
     rev_acc = session.get(Account, body.revenue_account_id) if body.revenue_account_id else \
         _get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
 
-    txn = Transaction(
-        tenant_id=user.tenant_id,
-        jv_number="__TMP__",
+    # Build revenue-side entries.
+    entries = [EntryInput(account_id=ar_acc.id, debit=total)]
+    if gst_amount > 0:
+        gst_acc = _get_or_create_account(session, user.tenant_id, "2200", "GST Payable (Output)", "Liability")
+        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal))
+        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_amount))
+    else:
+        entries.append(EntryInput(account_id=rev_acc.id, credit=total))
+
+    txn = post_transaction(
+        session, user,
         date=invoice.issue_date,
         description=f"Invoice {invoice.number} — {cname or ''}",
+        entries=entries,
+        audit_entity_type="invoice",
+        audit_detail={"invoice_number": invoice.number, "total": str(total)},
     )
-    session.add(txn)
-    session.flush()
-    txn.jv_number = f"JV-{txn.id:05d}"
-    session.add(txn)
-
-    entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ar_acc.id, debit=total, credit=0)]
-    if gst_amount > 0:
-        gst_acc = _get_or_create_account(session, user.tenant_id, "2200", "GST Payable", "Liability")
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=rev_acc.id, debit=0, credit=subtotal))
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=gst_acc.id, debit=0, credit=gst_amount))
-    else:
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=rev_acc.id, debit=0, credit=total))
-
-    for e in entries:
-        session.add(e)
-
     invoice.transaction_id = txn.id
     session.add(invoice)
-    log_audit(session, user, "CREATE", "invoice", invoice.id, {"number": invoice.number, "total": invoice.total})
+
+    # COGS posting (a separate JV so the sale and the cost-relief stay
+    # individually inspectable, and so reversing one doesn't auto-reverse
+    # the other inappropriately).
+    if total_cogs > 0:
+        cogs_acc = _get_or_create_account(session, user.tenant_id, "5010", "Cost of Goods Sold", "Expense")
+        inv_acc = _get_or_create_account(session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset")
+        post_transaction(
+            session, user,
+            date=invoice.issue_date,
+            description=f"COGS for {invoice.number}",
+            entries=[
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs),
+            ],
+            audit_entity_type="invoice",
+            audit_detail={"invoice_number": invoice.number, "cogs": str(total_cogs)},
+        )
+
+    log_audit(session, user, "CREATE", "invoice", invoice.id, {"number": invoice.number, "total": str(total)})
     session.commit()
     session.refresh(invoice)
 
@@ -515,9 +538,9 @@ def _next_bill_number(session: Session, tenant_id: int, prefix: str) -> str:
 class BillLineCreate(BaseModel):
     product_id: Optional[int] = None
     description: str
-    qty: float = 1.0
+    qty: Decimal = Decimal("1")
     unit: Optional[str] = None
-    rate: float = 0.0
+    rate: Decimal = Decimal("0")
 
 class BillCreate(BaseModel):
     vendor_id: Optional[int] = None
@@ -526,7 +549,7 @@ class BillCreate(BaseModel):
     due_date: str
     description: Optional[str] = None
     lines: List[BillLineCreate] = []
-    gst_rate: float = 17.0
+    gst_rate: Decimal = Decimal("17")
     ap_account_id: Optional[int] = None
     expense_account_id: Optional[int] = None
 
@@ -547,9 +570,9 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
     prefix_row = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "bill_prefix")).first()
     prefix = prefix_row.value if prefix_row else "BILL"
 
-    subtotal = round(sum(line.qty * line.rate for line in body.lines), 2)
-    gst_amount = round(subtotal * body.gst_rate / 100, 2)
-    total = round(subtotal + gst_amount, 2)
+    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
+    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    total = money(subtotal + gst_amount)
 
     vname = body.vendor_name
     if body.vendor_id:
@@ -567,7 +590,7 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
         due_date=body.due_date,
         description=body.description,
         subtotal=subtotal,
-        gst_rate=body.gst_rate,
+        gst_rate=D(body.gst_rate),
         gst_amount=gst_amount,
         total=total,
         status="draft",
@@ -577,56 +600,65 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
     session.add(bill)
     session.flush()
 
-    # Save line items and update stock for stock-type products
+    # Persist line items; for stock-type products, append to the WAvg cost layer.
+    total_stock_value = ZERO
     for line_data in body.lines:
-        amount = round(line_data.qty * line_data.rate, 2)
+        line_qty = D(line_data.qty)
+        line_rate = D(line_data.rate)
+        amount = money(line_qty * line_rate)
         bl = BillLine(
             bill_id=bill.id,
             product_id=line_data.product_id,
             description=line_data.description,
-            qty=line_data.qty,
+            qty=line_qty,
             unit=line_data.unit,
-            rate=line_data.rate,
+            rate=line_rate,
             amount=amount,
         )
         session.add(bl)
         if line_data.product_id:
             prod = session.exec(select(Product).where(Product.id == line_data.product_id, Product.tenant_id == user.tenant_id)).first()
             if prod and prod.product_type == "stock":
-                prod.stock_qty += line_data.qty
-                session.add(prod)
+                record_purchase(
+                    session,
+                    tenant_id=user.tenant_id,
+                    product_id=prod.id,
+                    qty=line_qty,
+                    unit_cost=line_rate,
+                    source_doc=bill.number,
+                )
+                total_stock_value += amount
 
-    # Auto-post GL: Dr Expense [+ Dr GST Receivable] / Cr Accounts Payable
+    # Resolve GL accounts.
     ap_acc = session.get(Account, body.ap_account_id) if body.ap_account_id else \
         _get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
-    exp_acc = session.get(Account, body.expense_account_id) if body.expense_account_id else \
-        _get_or_create_account(session, user.tenant_id, "5000", "General Expenses", "Expense")
+    # When the bill has stock lines, debit Inventory for the stock portion and
+    # only the non-stock remainder hits the expense account.
+    non_stock_subtotal = subtotal - total_stock_value
+    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total)]
+    if total_stock_value > 0:
+        inv_acc = _get_or_create_account(session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset")
+        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_value))
+    if non_stock_subtotal > 0:
+        exp_acc = session.get(Account, body.expense_account_id) if body.expense_account_id else \
+            _get_or_create_account(session, user.tenant_id, "5000", "General Expenses", "Expense")
+        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_subtotal))
+    if gst_amount > 0:
+        gst_input_acc = _get_or_create_account(session, user.tenant_id, "1250", "GST Receivable (Input)", "Asset")
+        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_amount))
 
-    txn = Transaction(
-        tenant_id=user.tenant_id,
-        jv_number="__TMP__",
+    txn = post_transaction(
+        session, user,
         date=bill.bill_date,
         description=f"Bill {bill.number} — {vname or ''}",
+        entries=entries,
+        audit_entity_type="bill",
+        audit_detail={"bill_number": bill.number, "total": str(total)},
     )
-    session.add(txn)
-    session.flush()
-    txn.jv_number = f"JV-{txn.id:05d}"
-    session.add(txn)
-
-    entries = [JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ap_acc.id, debit=0, credit=total)]
-    if gst_amount > 0:
-        gst_input_acc = _get_or_create_account(session, user.tenant_id, "1200", "GST Receivable (Input)", "Asset")
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=exp_acc.id, debit=subtotal, credit=0))
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=gst_input_acc.id, debit=gst_amount, credit=0))
-    else:
-        entries.append(JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=exp_acc.id, debit=total, credit=0))
-
-    for e in entries:
-        session.add(e)
-
     bill.transaction_id = txn.id
     session.add(bill)
-    log_audit(session, user, "CREATE", "bill", bill.id, {"number": bill.number, "total": bill.total})
+
+    log_audit(session, user, "CREATE", "bill", bill.id, {"number": bill.number, "total": str(total)})
     session.commit()
     session.refresh(bill)
 
@@ -652,7 +684,7 @@ class PaymentReceivedCreate(BaseModel):
     invoice_id: Optional[int] = None
     customer_name: Optional[str] = None
     payment_date: str
-    amount: float
+    amount: Decimal
     method: str = "cash"
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
@@ -666,6 +698,7 @@ def list_payments_received(session: SessionDep, user: CurrentUserDep, skip: int 
 
 @app.post("/api/payments-received", status_code=201)
 def create_payment_received(session: SessionDep, user: CurrentUserDep, body: PaymentReceivedCreate):
+    amount = money(body.amount)
     cname = body.customer_name
     if body.invoice_id:
         inv = session.get(Invoice, body.invoice_id)
@@ -675,34 +708,30 @@ def create_payment_received(session: SessionDep, user: CurrentUserDep, body: Pay
             inv.status = "paid"
             session.add(inv)
 
-    # GL: Dr Cash/Bank / Cr AR
     cash_acc = session.get(Account, body.cash_account_id) if body.cash_account_id else \
         _get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
     ar_acc = _get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
 
-    txn = Transaction(
-        tenant_id=user.tenant_id,
-        jv_number="__TMP__",
+    txn = post_transaction(
+        session, user,
         date=body.payment_date,
         description=f"Payment received — {cname or ''} {body.reference or ''}".strip(),
+        entries=[
+            EntryInput(account_id=cash_acc.id, debit=amount),
+            EntryInput(account_id=ar_acc.id, credit=amount),
+        ],
+        reference=body.reference,
+        payment_method=body.method,
+        audit_entity_type="payment_received",
+        audit_detail={"amount": str(amount), "invoice_id": body.invoice_id},
     )
-    session.add(txn)
-    session.flush()
-    txn.jv_number = f"JV-{txn.id:05d}"
-    session.add(txn)
-
-    for e in [
-        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=cash_acc.id, debit=body.amount, credit=0),
-        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ar_acc.id, debit=0, credit=body.amount),
-    ]:
-        session.add(e)
 
     pmt = PaymentReceived(
         tenant_id=user.tenant_id,
         invoice_id=body.invoice_id,
         customer_name=cname,
         payment_date=body.payment_date,
-        amount=body.amount,
+        amount=amount,
         method=body.method,
         reference=body.reference,
         cash_account_id=cash_acc.id,
@@ -718,7 +747,7 @@ class BillPaymentCreate(BaseModel):
     bill_id: Optional[int] = None
     vendor_name: Optional[str] = None
     payment_date: str
-    amount: float
+    amount: Decimal
     method: str = "cash"
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
@@ -732,6 +761,7 @@ def list_bill_payments(session: SessionDep, user: CurrentUserDep, skip: int = 0,
 
 @app.post("/api/bill-payments", status_code=201)
 def create_bill_payment(session: SessionDep, user: CurrentUserDep, body: BillPaymentCreate):
+    amount = money(body.amount)
     vname = body.vendor_name
     if body.bill_id:
         b = session.get(Bill, body.bill_id)
@@ -741,34 +771,30 @@ def create_bill_payment(session: SessionDep, user: CurrentUserDep, body: BillPay
             b.status = "paid"
             session.add(b)
 
-    # GL: Dr AP / Cr Cash/Bank
     cash_acc = session.get(Account, body.cash_account_id) if body.cash_account_id else \
         _get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
     ap_acc = _get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
 
-    txn = Transaction(
-        tenant_id=user.tenant_id,
-        jv_number="__TMP__",
+    txn = post_transaction(
+        session, user,
         date=body.payment_date,
         description=f"Bill payment — {vname or ''} {body.reference or ''}".strip(),
+        entries=[
+            EntryInput(account_id=ap_acc.id, debit=amount),
+            EntryInput(account_id=cash_acc.id, credit=amount),
+        ],
+        reference=body.reference,
+        payment_method=body.method,
+        audit_entity_type="bill_payment",
+        audit_detail={"amount": str(amount), "bill_id": body.bill_id},
     )
-    session.add(txn)
-    session.flush()
-    txn.jv_number = f"JV-{txn.id:05d}"
-    session.add(txn)
-
-    for e in [
-        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=ap_acc.id, debit=body.amount, credit=0),
-        JournalEntry(tenant_id=user.tenant_id, transaction_id=txn.id, account_id=cash_acc.id, debit=0, credit=body.amount),
-    ]:
-        session.add(e)
 
     bp = BillPayment(
         tenant_id=user.tenant_id,
         bill_id=body.bill_id,
         vendor_name=vname,
         payment_date=body.payment_date,
-        amount=body.amount,
+        amount=amount,
         method=body.method,
         reference=body.reference,
         cash_account_id=cash_acc.id,
@@ -895,7 +921,7 @@ class ReconciliationCreate(BaseModel):
     bank_account_id: int
     period_start: str
     period_end: str
-    statement_balance: float
+    statement_balance: Decimal
 
 @app.get("/api/reconciliations")
 def list_reconciliations(session: SessionDep, user: CurrentUserDep):
@@ -1126,70 +1152,25 @@ def get_audit_log(
         ],
     }
 
-def _check_period_locked(session: Session, tenant_id: int, date_str: str):
-    periods = session.exec(select(AccountingPeriod).where(
-        AccountingPeriod.tenant_id == tenant_id,
-        AccountingPeriod.is_locked == True,
-        AccountingPeriod.period_start <= date_str,
-        AccountingPeriod.period_end >= date_str,
-    )).all()
-    if periods:
-        raise HTTPException(400, f"Date {date_str} falls in a locked accounting period: {periods[0].name or periods[0].period_start}")
-
 # --- Transactions API ---
 @app.post("/api/transactions")
 def create_transaction(session: SessionDep, user: CurrentUserDep, tx_data: TransactionCreate):
-    # Validate period not locked
-    _check_period_locked(session, user.tenant_id, tx_data.date)
-
-    # Validation: Dr must equal Cr
-    total_dr = sum(e.debit for e in tx_data.entries)
-    total_cr = sum(e.credit for e in tx_data.entries)
-    
-    if abs(total_dr - total_cr) > 0.01:
-        raise HTTPException(status_code=400, detail="Transaction not balanced")
-
-    # Validate account IDs and ensure they belong to the tenant
-    account_ids = {e.account_id for e in tx_data.entries}
-    accounts = session.exec(
-        select(Account)
-        .where(Account.id.in_(account_ids), Account.tenant_id == user.tenant_id)
-    ).all()
-    if len(accounts) != len(account_ids):
-        raise HTTPException(status_code=400, detail="One or more invalid or unauthorized account IDs")
-
-    # Create Transaction — JV number assigned after flush to avoid race condition
-    db_tx = Transaction(
-        tenant_id=user.tenant_id,
-        jv_number="__TMP__",
+    txn = post_transaction(
+        session, user,
         date=tx_data.date,
-        description=tx_data.description,
+        description=tx_data.description or "",
+        entries=[
+            EntryInput(account_id=e.account_id, debit=D(e.debit), credit=D(e.credit))
+            for e in tx_data.entries
+        ],
         reference=tx_data.reference,
         party=tx_data.party,
         payment_method=tx_data.payment_method,
         notes=tx_data.notes,
+        audit_entity_type="transaction",
     )
-    session.add(db_tx)
-    session.flush()
-    db_tx.jv_number = f"JV-{db_tx.id:05d}"
-    session.add(db_tx)
     session.commit()
-    session.refresh(db_tx)
-
-    # Create Journal Entries
-    for e in tx_data.entries:
-        db_entry = JournalEntry(
-            tenant_id=user.tenant_id,
-            transaction_id=db_tx.id,
-            account_id=e.account_id,
-            debit=e.debit,
-            credit=e.credit
-        )
-        session.add(db_entry)
-
-    log_audit(session, user, "CREATE", "transaction", db_tx.id, {"jv_number": db_tx.jv_number, "date": db_tx.date})
-    session.commit()
-    return {"id": db_tx.id, "jv_number": db_tx.jv_number}
+    return {"id": txn.id, "jv_number": txn.jv_number}
 
 # --- Reports API ---
 @app.get("/api/reports/journal")
@@ -1201,8 +1182,12 @@ def get_journal_report(
     skip: int = 0,
     limit: int = 100,
 ):
-    query = select(Transaction, JournalEntry, Account).join(JournalEntry).join(Account)
-    query = query.where(Transaction.tenant_id == user.tenant_id)
+    query = (
+        select(Transaction, JournalEntry, Account)
+        .join(JournalEntry, JournalEntry.transaction_id == Transaction.id)
+        .join(Account, JournalEntry.account_id == Account.id)
+        .where(Transaction.tenant_id == user.tenant_id)
+    )
 
     if start:
         query = query.where(Transaction.date >= start)
@@ -1756,36 +1741,28 @@ def tax_summary(session: SessionDep, user: CurrentUserDep,
 
 @app.post("/api/transactions/{transaction_id}/reverse")
 def reverse_transaction(session: SessionDep, user: CurrentUserDep, transaction_id: int):
-    txn = session.exec(select(Transaction).where(Transaction.id == transaction_id, Transaction.tenant_id == user.tenant_id)).first()
+    txn = session.exec(
+        select(Transaction).where(
+            Transaction.id == transaction_id, Transaction.tenant_id == user.tenant_id
+        )
+    ).first()
     if not txn:
         raise HTTPException(404, "Transaction not found")
     if txn.is_reversed:
         raise HTTPException(400, "Transaction already reversed")
 
     today = str(DateType.today())
-    _check_period_locked(session, user.tenant_id, today)
-
-    rev_txn = Transaction(
-        tenant_id=user.tenant_id,
-        jv_number="__TMP__",
+    rev_txn = post_transaction(
+        session, user,
         date=today,
         description=f"Reversal of {txn.jv_number}",
+        entries=[
+            EntryInput(account_id=je.account_id, debit=D(je.credit), credit=D(je.debit))
+            for je in txn.journal_entries
+        ],
+        audit_entity_type="transaction",
+        audit_detail={"original_jv": txn.jv_number},
     )
-    session.add(rev_txn)
-    session.flush()
-    rev_txn.jv_number = f"JV-{rev_txn.id:05d}"
-    session.add(rev_txn)
-
-    for je in txn.journal_entries:
-        rev_je = JournalEntry(
-            tenant_id=user.tenant_id,
-            transaction_id=rev_txn.id,
-            account_id=je.account_id,
-            debit=je.credit,
-            credit=je.debit,
-        )
-        session.add(rev_je)
-
     txn.is_reversed = True
     txn.reversed_by_id = rev_txn.id
     session.add(txn)
@@ -2058,9 +2035,8 @@ async def import_transactions(
         groups.setdefault(gkey, []).append((i, row))
 
     for (date, desc), group_rows in groups.items():
-        lines = []
+        entries: list[EntryInput] = []
         group_errors = []
-        total_dr, total_cr = 0.0, 0.0
         for i, row in group_rows:
             acct_code = (row.get("account_code") or "").strip()
             if not acct_code:
@@ -2072,46 +2048,30 @@ async def import_transactions(
             if not acct:
                 group_errors.append({"row": i, "message": f"account code '{acct_code}' not found"}); continue
             try:
-                dr = float(row.get("debit") or "0")
-                cr = float(row.get("credit") or "0")
-            except ValueError:
+                dr = D(row.get("debit") or "0")
+                cr = D(row.get("credit") or "0")
+            except Exception:
                 group_errors.append({"row": i, "message": "debit and credit must be numbers"}); continue
-            if dr < 0 or cr < 0:
-                group_errors.append({"row": i, "message": "debit/credit cannot be negative"}); continue
-            total_dr += dr
-            total_cr += cr
-            lines.append((acct, dr, cr))
+            if dr == 0 and cr == 0:
+                continue  # blank rows are skipped, not errors
+            entries.append(EntryInput(account_id=acct.id, debit=dr, credit=cr))
 
         if group_errors:
             errors.extend(group_errors); continue
-        if not lines:
+        if not entries:
             continue
-        if abs(total_dr - total_cr) > 0.01:
-            errors.append({
-                "row": group_rows[0][0],
-                "message": f"Transaction '{desc}' on {date} does not balance (Dr {total_dr:.2f} ≠ Cr {total_cr:.2f})"
-            }); continue
 
-        txn = Transaction(
-            tenant_id=user.tenant_id,
-            jv_number="__TMP__",
-            date=date,
-            description=desc,
-            created_by=user.id,
-        )
-        session.add(txn)
-        session.flush()
-        txn.jv_number = f"JV-{txn.id:05d}"
-        session.add(txn)
-        for acct, dr, cr in lines:
-            session.add(JournalEntry(
-                transaction_id=txn.id,
-                account_id=acct.id,
-                debit=dr,
-                credit=cr,
-                tenant_id=user.tenant_id,
-            ))
-        imported += 1
+        try:
+            post_transaction(
+                session, user,
+                date=date,
+                description=desc,
+                entries=entries,
+                audit_entity_type="transaction_import",
+            )
+            imported += 1
+        except HTTPException as ex:
+            errors.append({"row": group_rows[0][0], "message": ex.detail})
 
     session.commit()
     log_audit(session, user, "import", "Transaction", detail={"imported": imported, "errors": len(errors)})

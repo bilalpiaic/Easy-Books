@@ -21,6 +21,25 @@ if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
   exit 1
 fi
 
+# Pre-flight: make sure the ports we want are free. Without this, uvicorn or
+# next-dev would fail seconds after the script claims it started everything,
+# which is confusing. We report the holder PID + command so it's easy to act on.
+check_port() {
+  local port="$1" label="$2" holder
+  holder="$(ss -tlnp "sport = :$port" 2>/dev/null | awk 'NR>1' | head -n1)"
+  if [[ -n "$holder" ]]; then
+    echo "error: port $port (for $label) is already in use:" >&2
+    echo "  $holder" >&2
+    echo "free it with: fuser -k ${port}/tcp   (or kill the PID listed above)" >&2
+    return 1
+  fi
+}
+
+PORT_CONFLICT=0
+check_port 8000 backend  || PORT_CONFLICT=1
+check_port 3000 frontend || PORT_CONFLICT=1
+[[ $PORT_CONFLICT -eq 1 ]] && exit 1
+
 # Prefix each line of a stream with a colored tag so the two log streams
 # are easy to tell apart in the combined output.
 prefix() {
