@@ -24,8 +24,8 @@
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/bilalpiaic/ebfms.git
-   cd ebfms
+   git clone https://github.com/bilalpiaic/Easy-Books.git
+   cd Easy-Books
    ```
 
 2. **Setup Modern Backend (FastAPI):**
