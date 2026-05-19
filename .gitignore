@@ -15,6 +15,17 @@ frontend/.next/
 frontend/out/
 frontend/.env.local
 
+# Vercel
+.vercel/
+backend/.vercel/
+frontend/.vercel/
+
+# Env
+.env
+backend/.env
+frontend/.env
+frontend/.env.local
+
 # Misc
 .DS_Store
 *.log

@@ -1,0 +1,16 @@
+node_modules/
+.next/
+backend/venv/
+backend/__pycache__/
+backend/database.db
+backend/database.db.bak
+backend/tests/
+get-pip.py
+verify_app.py
+check_login_ui.py
+db.js
+server.js
+package-lock.json
+package.json
+public/
+docs/

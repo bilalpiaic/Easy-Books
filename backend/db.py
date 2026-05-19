@@ -3,13 +3,20 @@ from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
 from models import Account, Settings
 
-# Use absolute path for the database file to ensure consistency
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sqlite_file_name = os.path.join(BASE_DIR, "database.db")
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, connect_args=connect_args)
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    if "sslmode" not in DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+        sep = "&" if "?" in DATABASE_URL else "?"
+        DATABASE_URL = f"{DATABASE_URL}{sep}sslmode=require"
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    sqlite_file_name = os.path.join(BASE_DIR, "database.db")
+    sqlite_url = f"sqlite:///{sqlite_file_name}"
+    engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -40,27 +47,32 @@ def create_db_and_tables():
                 )
                 session.add(admin_user)
                 session.commit()
+        elif admin_email and admin_password:
+            existing = session.exec(select(User).where(User.email == admin_email)).first()
+            if not existing:
+                admin_user = User(
+                    email=admin_email,
+                    hashed_password=get_password_hash(admin_password),
+                    full_name="System Admin",
+                    tenant_id=default_tenant.id,
+                )
+                session.add(admin_user)
+                session.commit()
 
 def get_session():
     with Session(engine) as session:
         yield session
 
 def get_tenant_session(tenant_id: int):
-    """
-    Dependency that provides a session for a specific tenant.
-    Currently a wrapper around get_session, but can be extended
-    with automatic filtering in the future.
-    """
     with Session(engine) as session:
         yield session
 
 def seed_data(tenant_id: int, session: Optional[Session] = None):
     def run_seeding(s: Session):
-        # Seed accounts for the specific tenant if empty
         account_count = s.exec(
             select(Account).where(Account.tenant_id == tenant_id)
         ).first()
-        
+
         if not account_count:
             initial_accounts = [
                 Account(code="1000", name="Cash in Hand", type="Asset", tenant_id=tenant_id),
@@ -89,7 +101,6 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             s.add_all(initial_accounts)
             s.commit()
 
-        # Seed settings for the specific tenant if empty
         settings_count = s.exec(
             select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "company_name")
         ).first()
