@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+database.db
+database.db.bak
+tests/
+.env
+.env.local
+pyproject.toml
+uv.lock
