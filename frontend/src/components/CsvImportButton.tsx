@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Upload, Download, X, CheckCircle, AlertTriangle, FileText, Loader2 } from "lucide-react"
-import { apiFetch } from "@/lib/api"
+import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthToken } from "@/lib/auth"
 
 export type ImportEntity = "transactions" | "accounts" | "customers" | "vendors" | "products"
@@ -88,7 +88,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
   const downloadSample = async () => {
     const token = getAuthToken()
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/import/${entity}/sample`,
+      `${apiBase}/api/import/${entity}/sample`,
       { headers: { Authorization: `Bearer ${token}` } }
     )
     const blob = await res.blob()
@@ -119,7 +119,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
       form.append("file", file)
       const token = getAuthToken()
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/import/${entity}`,
+        `${apiBase}/api/import/${entity}`,
         { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
       )
       const data: ImportResult = await res.json()

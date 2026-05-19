@@ -8,10 +8,16 @@ from typing import Optional
 _DEFAULT_SECRET = "super-secret-key-change-in-prod"
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY", _DEFAULT_SECRET)
 if SECRET_KEY == _DEFAULT_SECRET:
+    _environment = os.environ.get("ENVIRONMENT", "development").lower()
+    if _environment == "production":
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be set to a secure random value in production. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
     warnings.warn("JWT_SECRET_KEY is not set — using insecure default. Set this env var before deploying.")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours for prototype
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 60 minutes
 
 def get_password_hash(password: str) -> str:
     pwd_bytes = password.encode('utf-8')

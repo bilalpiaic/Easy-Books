@@ -13,6 +13,12 @@ if DATABASE_URL:
         DATABASE_URL = f"{DATABASE_URL}{sep}sslmode=require"
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 else:
+    _environment = os.environ.get("ENVIRONMENT", "development").lower()
+    if _environment == "production":
+        raise RuntimeError(
+            "DATABASE_URL environment variable must be set in production. "
+            "SQLite fallback is not supported for serverless deployments."
+        )
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     sqlite_file_name = os.path.join(BASE_DIR, "database.db")
     sqlite_url = f"sqlite:///{sqlite_file_name}"
