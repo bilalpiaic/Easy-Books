@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw } from "lucide-react"
 
 // ── Primitive building blocks ────────────────────────────────────────────────
 
@@ -434,6 +434,175 @@ function InventoryFlow() {
   )
 }
 
+function PaymentAllocationFlow() {
+  return (
+    <div className="space-y-4 min-w-[560px]">
+      <HFlow>
+        <StepBox title="One Payment" gl="amount = 1000" impact="cash received" accent="green" />
+        <Arrow />
+        <StepBox title="Allocations[]" impact="Split across invoices" accent="blue" />
+        <Arrow />
+        <div className="flex flex-col gap-2">
+          <StepBox title="Invoice A" impact="300 of 800 → partial" accent="orange" small />
+          <StepBox title="Invoice B" impact="500 of 500 → paid"    accent="teal"   small />
+          <StepBox title="Invoice C" impact="200 of 1000 → partial" accent="orange" small />
+        </div>
+      </HFlow>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+        <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b8943f] mb-2">GL — single JV for the payment</p>
+          <div className="space-y-1 font-mono text-xs text-[#1a1814]">
+            <div className="flex justify-between">
+              <span className="text-[#7a5c1e]">Dr Cash / Bank</span>
+              <span className="text-[#1a1814]/60">+1,000</span>
+            </div>
+            <div className="flex justify-between pl-4">
+              <span className="text-green-700">Cr Accounts Receivable</span>
+              <span className="text-[#1a1814]/60">−1,000</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700 mb-2">Derived status (per invoice)</p>
+          <p className="text-xs text-blue-800 leading-relaxed">
+            <span className="font-mono">allocated / total</span> {`<`} 1 → <strong>partial</strong>
+            <br/>
+            <span className="font-mono">allocated / total</span> ≥ 1 → <strong>paid</strong>
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-xs text-amber-800">
+        <span className="font-bold">Constraint:</span> sum(allocations) ≤ payment.amount.
+        The dashboard and aging report use <strong>outstanding</strong> = total − sum(allocations) for each invoice.
+      </div>
+    </div>
+  )
+}
+
+function CurrencyFlow() {
+  return (
+    <div className="space-y-4 min-w-[560px]">
+      <HFlow>
+        <StepBox title="Tenant base = USD" impact="reporting currency" accent="blue" />
+        <Arrow />
+        <StepBox title="Invoice in EUR" gl="subtotal = 1,000 EUR" impact="document currency stays EUR" accent="purple" />
+        <Arrow />
+        <StepBox title="FX lookup" gl="EUR → USD or 1/(USD → EUR)" impact="rate snapshot at issue date" accent="gold" />
+        <Arrow />
+        <StepBox title="JV posts in USD" gl="Dr AR 1,100 / Cr Rev 1,100" impact="reports stay consistent" accent="green" />
+      </HFlow>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+        <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-purple-700 mb-2">Document fields</p>
+          <div className="font-mono text-[11px] text-purple-800 space-y-0.5">
+            <p>currency      = "EUR"</p>
+            <p>exchange_rate = 1.10</p>
+            <p>subtotal      = 1,000 (EUR)</p>
+            <p>total         = 1,000 (EUR)</p>
+          </div>
+        </div>
+        <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b8943f] mb-2">GL (in base USD)</p>
+          <div className="space-y-1 font-mono text-xs">
+            <div className="flex justify-between text-[#7a5c1e]">
+              <span>Dr Accounts Receivable</span><span>+1,100.00</span>
+            </div>
+            <div className="flex justify-between pl-4 text-green-700">
+              <span>Cr Revenue</span><span>−1,100.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-800">
+        <span className="font-bold">Inverse fallback:</span> if only USD→EUR=0.91 is in the catalog,
+        EUR→USD resolves automatically as 1/0.91 ≈ 1.10. You don&apos;t have to enter both directions.
+      </div>
+    </div>
+  )
+}
+
+function PeriodCloseFlow() {
+  return (
+    <div className="space-y-4 min-w-[560px]">
+      <HFlow>
+        <StepBox title="Period open" impact="JVs post freely" accent="blue" />
+        <Arrow />
+        <StepBox title="POST /periods/{id}/close" impact="admin role required" accent="gold" />
+        <Arrow />
+        <StepBox title="Closing JV posts" gl="Rev → Retained Earnings · Exp → Retained Earnings" accent="purple" />
+        <Arrow />
+        <StepBox title="Period locked" impact="materialised balances cached" accent="teal" />
+      </HFlow>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+        <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-purple-700 mb-2">Closing JV (example)</p>
+          <div className="space-y-1 font-mono text-xs text-purple-800">
+            <div className="flex justify-between"><span>Dr Sales Revenue</span><span>10,000</span></div>
+            <div className="flex justify-between pl-4"><span>Cr Cost of Goods Sold</span><span>4,000</span></div>
+            <div className="flex justify-between pl-4"><span>Cr General Expenses</span><span>1,000</span></div>
+            <div className="flex justify-between pl-4"><span>Cr Retained Earnings</span><span>5,000</span></div>
+          </div>
+        </div>
+        <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-teal-700 mb-2">AccountBalance rows</p>
+          <p className="text-xs text-teal-800 leading-relaxed">
+            One row per account that posted in the period. Future trial-balance reads against
+            this period read from the cache — O(accounts), not O(JEs).
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-xs text-amber-800">
+        <span className="font-bold">Reopen:</span> POST /periods/{`{id}`}/reopen drops the cache and unlocks.
+        The closing JV stays unless you reverse it separately.
+      </div>
+    </div>
+  )
+}
+
+function ReversalFlow() {
+  return (
+    <div className="space-y-4 min-w-[560px]">
+      <HFlow>
+        <StepBox title="POST /transactions/{id}/reverse" impact="mirror JV created" accent="orange" />
+        <Arrow />
+        <StepBox title="Detect source doc" impact="Invoice · Bill · Payment · BillPayment" accent="blue" />
+        <Arrow />
+        <StepBox title="Unwind derived state" impact="see breakdown" accent="purple" />
+        <Arrow />
+        <StepBox title="Original linked" gl="is_reversed = true · reversed_by_id" accent="teal" />
+      </HFlow>
+
+      <div className="rounded-xl overflow-hidden border border-[#ede9e2] mt-2">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">If source is…</th>
+              <th className="px-4 py-2.5 text-left">…the reverse handler also</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2] text-[11px]">
+            <tr><td className="px-4 py-2 font-mono">PaymentReceived</td><td className="px-4 py-2 text-[#1a1814]/75">deletes its PaymentAllocations · recomputes each invoice&apos;s status</td></tr>
+            <tr><td className="px-4 py-2 font-mono">BillPayment</td><td className="px-4 py-2 text-[#1a1814]/75">same on the AP side</td></tr>
+            <tr><td className="px-4 py-2 font-mono">Invoice</td><td className="px-4 py-2 text-[#1a1814]/75">restores stock via reverse_consumption · auto-reverses the COGS sub-JV · sets invoice.status=&quot;void&quot;</td></tr>
+            <tr><td className="px-4 py-2 font-mono">Bill</td><td className="px-4 py-2 text-[#1a1814]/75">drops the InventoryLayer · recomputes avg_cost · sets bill.status=&quot;void&quot;</td></tr>
+            <tr><td className="px-4 py-2 font-mono">manual JV</td><td className="px-4 py-2 text-[#1a1814]/75">just mirrors the entries — no derived state</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-xs text-amber-800">
+        <span className="font-bold">No deletes:</span> the original is never removed. Double-reversal is rejected with 400.
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function WorkflowPage() {
@@ -514,10 +683,50 @@ export default function WorkflowPage() {
       <SectionCard
         icon={Package}
         title="Inventory Flow"
-        subtitle="Stock product qty tracking"
+        subtitle="Weighted-average cost (IAS 2)"
         iconColor="text-teal-600"
       >
         <InventoryFlow />
+      </SectionCard>
+
+      {/* 6 — Payment Allocations */}
+      <SectionCard
+        icon={CheckCircle}
+        title="Payment Allocations"
+        subtitle="One payment, many invoices, partial OK"
+        iconColor="text-green-600"
+      >
+        <PaymentAllocationFlow />
+      </SectionCard>
+
+      {/* 7 — Multi-Currency */}
+      <SectionCard
+        icon={Globe}
+        title="Multi-Currency Invoicing"
+        subtitle="Document in EUR, GL in base currency"
+        iconColor="text-blue-600"
+      >
+        <CurrencyFlow />
+      </SectionCard>
+
+      {/* 8 — Period Close */}
+      <SectionCard
+        icon={Calendar}
+        title="Period-End Close"
+        subtitle="Closing JV + materialised balances"
+        iconColor="text-purple-600"
+      >
+        <PeriodCloseFlow />
+      </SectionCard>
+
+      {/* 9 — Reversal */}
+      <SectionCard
+        icon={RotateCcw}
+        title="Reversal Mechanics"
+        subtitle="Mirror JV + unwind of derived state"
+        iconColor="text-orange-600"
+      >
+        <ReversalFlow />
       </SectionCard>
 
       {/* Footer note */}
