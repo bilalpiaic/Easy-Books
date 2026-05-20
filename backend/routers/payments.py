@@ -1,13 +1,21 @@
-"""Customer payments received + vendor bill payments."""
-from decimal import Decimal
-from typing import Optional
+"""Customer payments received + vendor bill payments.
 
-from fastapi import APIRouter
+Payments support multi-invoice allocation: a single PaymentReceived can settle
+several invoices via PaymentAllocation rows. The invoice's status flips to
+'paid' only when the cumulative allocated amount meets or exceeds its total
+(otherwise → 'partial'). Same logic applies to BillPayment ↔ Bill.
+"""
+from decimal import Decimal
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Account, Bill, BillPayment, Invoice, PaymentReceived
-from services.money import money
+from models import (
+    Account, Bill, BillPayment, Invoice, PaymentAllocation, PaymentReceived,
+)
+from services.money import D, money
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account
@@ -18,14 +26,50 @@ router = APIRouter(tags=["payments"])
 # ── Customer payments ────────────────────────────────────────────────────────
 
 
-class PaymentReceivedCreate(BaseModel):
+class AllocationLine(BaseModel):
     invoice_id: Optional[int] = None
+    bill_id: Optional[int] = None
+    amount: Decimal
+
+
+class PaymentReceivedCreate(BaseModel):
+    invoice_id: Optional[int] = None  # legacy single-invoice shortcut
     customer_name: Optional[str] = None
     payment_date: str
     amount: Decimal
     method: str = "cash"
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
+    allocations: List[AllocationLine] = []
+
+
+def _refresh_invoice_status(session, inv: Invoice) -> None:
+    """Re-derive invoice.status from sum(allocations) against invoice.total."""
+    total_allocated = session.exec(
+        select(func.coalesce(func.sum(PaymentAllocation.amount), 0)).where(
+            PaymentAllocation.invoice_id == inv.id
+        )
+    ).one()
+    allocated = D(total_allocated)
+    if allocated >= D(inv.total):
+        inv.status = "paid"
+    elif allocated > 0:
+        inv.status = "partial"
+    session.add(inv)
+
+
+def _refresh_bill_status(session, bill: Bill) -> None:
+    total_allocated = session.exec(
+        select(func.coalesce(func.sum(PaymentAllocation.amount), 0)).where(
+            PaymentAllocation.bill_id == bill.id
+        )
+    ).one()
+    allocated = D(total_allocated)
+    if allocated >= D(bill.total):
+        bill.status = "paid"
+    elif allocated > 0:
+        bill.status = "partial"
+    session.add(bill)
 
 
 @router.get("/api/payments-received")
@@ -46,13 +90,23 @@ def create_payment_received(
 ):
     amount = money(body.amount)
     cname = body.customer_name
-    if body.invoice_id:
-        inv = session.get(Invoice, body.invoice_id)
+
+    # Resolve allocations: either explicit body.allocations or the legacy
+    # single-invoice shortcut (invoice_id + amount).
+    allocations: List[AllocationLine] = list(body.allocations)
+    if body.invoice_id and not allocations:
+        allocations = [AllocationLine(invoice_id=body.invoice_id, amount=body.amount)]
+    if allocations:
+        total_alloc = sum((D(a.amount) for a in allocations), start=D(0))
+        if total_alloc > D(body.amount):
+            raise HTTPException(
+                400, "Allocations exceed payment amount"
+            )
+    # Customer name fallback from first allocated invoice
+    if allocations and not cname:
+        inv = session.get(Invoice, allocations[0].invoice_id) if allocations[0].invoice_id else None
         if inv and inv.tenant_id == user.tenant_id:
-            if not cname:
-                cname = inv.customer_name
-            inv.status = "paid"
-            session.add(inv)
+            cname = inv.customer_name
 
     cash_acc = (
         session.get(Account, body.cash_account_id)
@@ -89,6 +143,26 @@ def create_payment_received(
         transaction_id=txn.id,
     )
     session.add(pmt)
+    session.flush()
+
+    # Persist allocations and refresh each invoice's derived status
+    for a in allocations:
+        if not a.invoice_id:
+            continue
+        inv = session.get(Invoice, a.invoice_id)
+        if not inv or inv.tenant_id != user.tenant_id:
+            raise HTTPException(400, f"Invoice {a.invoice_id} not found for tenant")
+        session.add(
+            PaymentAllocation(
+                tenant_id=user.tenant_id,
+                payment_received_id=pmt.id,
+                invoice_id=inv.id,
+                amount=money(a.amount),
+            )
+        )
+        session.flush()
+        _refresh_invoice_status(session, inv)
+
     session.commit()
     session.refresh(pmt)
     return pmt
@@ -98,13 +172,14 @@ def create_payment_received(
 
 
 class BillPaymentCreate(BaseModel):
-    bill_id: Optional[int] = None
+    bill_id: Optional[int] = None  # legacy single-bill shortcut
     vendor_name: Optional[str] = None
     payment_date: str
     amount: Decimal
     method: str = "cash"
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
+    allocations: List[AllocationLine] = []
 
 
 @router.get("/api/bill-payments")
@@ -125,13 +200,18 @@ def create_bill_payment(
 ):
     amount = money(body.amount)
     vname = body.vendor_name
-    if body.bill_id:
-        b = session.get(Bill, body.bill_id)
-        if b and b.tenant_id == user.tenant_id:
-            if not vname:
-                vname = b.vendor_name
-            b.status = "paid"
-            session.add(b)
+
+    allocations: List[AllocationLine] = list(body.allocations)
+    if body.bill_id and not allocations:
+        allocations = [AllocationLine(bill_id=body.bill_id, amount=body.amount)]
+    if allocations:
+        total_alloc = sum((D(a.amount) for a in allocations), start=D(0))
+        if total_alloc > D(body.amount):
+            raise HTTPException(400, "Allocations exceed payment amount")
+    if allocations and not vname:
+        b0 = session.get(Bill, allocations[0].bill_id) if allocations[0].bill_id else None
+        if b0 and b0.tenant_id == user.tenant_id:
+            vname = b0.vendor_name
 
     cash_acc = (
         session.get(Account, body.cash_account_id)
@@ -168,6 +248,25 @@ def create_bill_payment(
         transaction_id=txn.id,
     )
     session.add(bp)
+    session.flush()
+
+    for a in allocations:
+        if not a.bill_id:
+            continue
+        bill = session.get(Bill, a.bill_id)
+        if not bill or bill.tenant_id != user.tenant_id:
+            raise HTTPException(400, f"Bill {a.bill_id} not found for tenant")
+        session.add(
+            PaymentAllocation(
+                tenant_id=user.tenant_id,
+                bill_payment_id=bp.id,
+                bill_id=bill.id,
+                amount=money(a.amount),
+            )
+        )
+        session.flush()
+        _refresh_bill_status(session, bill)
+
     session.commit()
     session.refresh(bp)
     return bp

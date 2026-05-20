@@ -312,6 +312,69 @@ class BillLine(SQLModel, table=True):
     amount: Money = money_col()  # stored = qty × rate
 
 
+class TaxCode(SQLModel, table=True):
+    """Per-tenant tax catalog. Output = sales tax (liability), Input = purchase
+    tax (receivable). gl_account_id is the GL account the tax leg posts to.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="unique_tax_code_per_tenant"),
+        CheckConstraint("type IN ('output','input')", name="ck_tax_code_type"),
+        CheckConstraint("rate >= 0", name="ck_tax_code_rate_nonneg"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str = Field(index=True)        # e.g. "GST17", "ZERO"
+    name: str                            # e.g. "Standard GST 17%"
+    rate: Money = money_col()            # percent, e.g. 17
+    type: str                            # output | input
+    gl_account_id: int = Field(foreign_key="account.id")
+    is_active: bool = Field(default=True)
+
+
+class PaymentAllocation(SQLModel, table=True):
+    """Allocates a payment (received or paid) against an invoice/bill.
+
+    Lets a single payment settle multiple invoices and supports partial
+    allocations. invoice_id XOR bill_id must be set.
+    """
+    __table_args__ = (
+        CheckConstraint(
+            "(invoice_id IS NOT NULL) <> (bill_id IS NOT NULL)",
+            name="ck_alloc_one_target",
+        ),
+        CheckConstraint("amount > 0", name="ck_alloc_amount_pos"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    payment_received_id: Optional[int] = Field(default=None, foreign_key="paymentreceived.id")
+    bill_payment_id: Optional[int] = Field(default=None, foreign_key="billpayment.id")
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
+    bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    amount: Money = money_col()
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RecurringTemplate(SQLModel, table=True):
+    """Recurring journal-entry template. The /scheduler endpoint reads due
+    rows and posts a Transaction copy per schedule firing."""
+    __table_args__ = (
+        CheckConstraint(
+            "frequency IN ('daily','weekly','monthly','quarterly','yearly')",
+            name="ck_recurring_frequency",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    description: Optional[str] = None
+    frequency: str                       # daily | weekly | monthly | quarterly | yearly
+    next_run: str                        # ISO date
+    last_run: Optional[str] = None
+    is_active: bool = Field(default=True)
+    # JSON-serialised list[{account_id, debit, credit}]
+    entries_json: str
+
+
 # --- API DTOs (used by routers for request bodies & responses) ---
 
 class JournalEntryCreate(JournalEntryBase):

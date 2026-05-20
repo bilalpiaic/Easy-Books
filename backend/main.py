@@ -18,8 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from db import create_db_and_tables
 from routers import (
     accounts, aging, audit, auth, bank_accounts, bills, customers, imports,
-    invoices, payments, periods, products, reconciliations, reports, settings,
-    transactions, vendors,
+    invoices, payments, periods, products, reconciliations, recurring, reports,
+    settings, tax_codes, transactions, vendors,
 )
 
 
@@ -65,6 +65,8 @@ app.include_router(audit.router)
 app.include_router(transactions.router)
 app.include_router(reports.router)
 app.include_router(imports.router)
+app.include_router(tax_codes.router)
+app.include_router(recurring.router)
 
 
 if __name__ == "__main__":
