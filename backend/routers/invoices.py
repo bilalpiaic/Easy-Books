@@ -13,7 +13,7 @@ from services.inventory import consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number
 
 router = APIRouter(tags=["invoices"])
 
@@ -44,10 +44,8 @@ class InvoiceCreate(BaseModel):
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str) -> str:
-    count = session.exec(
-        select(func.count(Invoice.id)).where(Invoice.tenant_id == tenant_id)
-    ).one()
-    return f"{prefix}-{count + 1:04d}"
+    """Atomic per-tenant invoice number via SequenceCounter."""
+    return next_number(session, tenant_id, "invoice", prefix)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────

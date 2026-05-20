@@ -359,6 +359,25 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class SequenceCounter(SQLModel, table=True):
+    """Per-tenant atomic counter for document numbers.
+
+    Used in place of `SELECT COUNT(*) + 1` for invoice/bill/jv numbering,
+    which had a race window: two simultaneous POSTs could read the same
+    count and mint the same number, then collide on the UNIQUE constraint.
+
+    Reading the row with FOR UPDATE serialises increments on Postgres.
+    SQLite is single-writer anyway so the lock is a no-op there.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="unique_seq_per_tenant_name"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str = Field(index=True)
+    next_value: int = Field(default=1)
+
+
 class AccountBalance(SQLModel, table=True):
     """Materialised per-account balance for a closed accounting period.
 

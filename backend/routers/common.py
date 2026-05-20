@@ -23,7 +23,7 @@ from sqlmodel import Session, select
 
 from auth import ALGORITHM, SECRET_KEY
 from db import get_session
-from models import Account, AuditLog, User
+from models import Account, AuditLog, SequenceCounter, User
 
 
 # auto_error=False so a missing Authorization header falls through to the
@@ -124,6 +124,38 @@ def log_audit(
             detail=_json.dumps(detail) if detail else None,
         )
     )
+
+
+def next_number(
+    session: Session, tenant_id: int, name: str, prefix: str, *, width: int = 4
+) -> str:
+    """Atomic per-tenant document numbering.
+
+    Reads (or creates) the SequenceCounter row with `SELECT … FOR UPDATE`
+    so concurrent callers serialise on the same row. Returns a formatted
+    string like 'INV-0007' and advances the counter.
+
+    Caller is responsible for commit; the increment is part of the same
+    transaction as the document being numbered, so a rollback releases the
+    consumed value.
+    """
+    row = session.exec(
+        select(SequenceCounter)
+        .where(
+            SequenceCounter.tenant_id == tenant_id,
+            SequenceCounter.name == name,
+        )
+        .with_for_update()
+    ).first()
+    if row is None:
+        row = SequenceCounter(tenant_id=tenant_id, name=name, next_value=1)
+        session.add(row)
+        session.flush()
+    value = row.next_value
+    row.next_value = value + 1
+    session.add(row)
+    session.flush()
+    return f"{prefix}-{value:0{width}d}"
 
 
 def get_or_create_account(

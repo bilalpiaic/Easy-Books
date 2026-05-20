@@ -205,10 +205,13 @@ def auto_match(session: SessionDep, user: WriteUserDep, import_id: int):
             .having(func.sum(JournalEntry.debit) == amount)
         ).all()
 
-        # Skip lines already matched to another line of this import
+        # Skip JVs already claimed by another line *in this import*. Other
+        # imports run independently — a JV consumed there shouldn't suppress
+        # the same match here.
         already = session.exec(
             select(StatementLine.matched_transaction_id).where(
                 StatementLine.tenant_id == user.tenant_id,
+                StatementLine.import_id == imp.id,
                 StatementLine.is_matched == True,  # noqa: E712
             )
         ).all()

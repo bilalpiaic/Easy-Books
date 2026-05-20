@@ -12,7 +12,7 @@ from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number
 
 router = APIRouter(tags=["bills"])
 
@@ -40,8 +40,8 @@ class BillCreate(BaseModel):
 
 
 def _next_bill_number(session: Session, tenant_id: int, prefix: str) -> str:
-    count = session.exec(select(func.count(Bill.id)).where(Bill.tenant_id == tenant_id)).one()
-    return f"{prefix}-{count + 1:04d}"
+    """Atomic per-tenant bill number via SequenceCounter."""
+    return next_number(session, tenant_id, "bill", prefix)
 
 
 @router.get("/api/bills")

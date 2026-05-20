@@ -20,8 +20,13 @@ def rate_to_base(
 ) -> Decimal:
     """Return the rate that converts `from_currency` → tenant base currency.
 
-    Identity (1) when from == base. Falls back to the most recent rate at or
-    before `on_date`. Raises LookupError if no rate is available.
+    Resolution order:
+      1. Identity (1) when from == base.
+      2. Direct row `from_currency → base` at or before `on_date`.
+      3. Inverse row `base → from_currency` at or before `on_date`; the
+         direct rate is 1 / inverse_rate. Saves having to enter both
+         directions in the catalog.
+    Raises LookupError if neither direction is available.
     """
     tenant = session.get(Tenant, tenant_id)
     if tenant is None:
@@ -29,7 +34,8 @@ def rate_to_base(
     base = tenant.base_currency
     if from_currency == base:
         return ONE
-    row = session.exec(
+
+    direct = session.exec(
         select(ExchangeRate)
         .where(
             ExchangeRate.tenant_id == tenant_id,
@@ -40,8 +46,23 @@ def rate_to_base(
         .order_by(ExchangeRate.date.desc())
         .limit(1)
     ).first()
-    if row is None:
-        raise LookupError(
-            f"No exchange rate for {from_currency}→{base} on or before {on_date}"
+    if direct is not None:
+        return D(direct.rate)
+
+    inverse = session.exec(
+        select(ExchangeRate)
+        .where(
+            ExchangeRate.tenant_id == tenant_id,
+            ExchangeRate.from_currency == base,
+            ExchangeRate.to_currency == from_currency,
+            ExchangeRate.date <= on_date,
         )
-    return D(row.rate)
+        .order_by(ExchangeRate.date.desc())
+        .limit(1)
+    ).first()
+    if inverse is not None and D(inverse.rate) > 0:
+        return ONE / D(inverse.rate)
+
+    raise LookupError(
+        f"No exchange rate for {from_currency}↔{base} on or before {on_date}"
+    )

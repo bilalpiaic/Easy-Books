@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from models import Account, Settings
+from models import Account, SequenceCounter, Settings
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -121,6 +121,20 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             company = os.environ.get("SEED_COMPANY_NAME", "My Company")
             s.add(Settings(key="company_name", value=company, tenant_id=tenant_id))
             s.commit()
+
+        # Seed document-number counters so the at-runtime path never has to
+        # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
+        # without racing on the unique constraint.
+        for name in ("invoice", "bill"):
+            existing = s.exec(
+                select(SequenceCounter).where(
+                    SequenceCounter.tenant_id == tenant_id,
+                    SequenceCounter.name == name,
+                )
+            ).first()
+            if not existing:
+                s.add(SequenceCounter(tenant_id=tenant_id, name=name, next_value=1))
+        s.commit()
 
     if session:
         run_seeding(session)
