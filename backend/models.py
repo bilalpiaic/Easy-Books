@@ -359,6 +359,48 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class BankStatementImport(SQLModel, table=True):
+    """One row per CSV upload. file_hash de-dupes uploads of the same file
+    across re-tries / accidental re-uploads.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "bank_account_id", "file_hash",
+            name="unique_bank_import_file_per_account",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    bank_account_id: int = Field(foreign_key="bankaccount.id")
+    file_name: str
+    file_hash: str = Field(index=True)
+    line_count: int = Field(default=0)
+    matched_count: int = Field(default=0)
+    status: str = Field(default="parsed")   # parsed | matched | reconciled
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class StatementLine(SQLModel, table=True):
+    """One row per line in an uploaded bank statement. debit/credit are the
+    bank's perspective: a customer payment received hits the credit column
+    (money INTO the account). When matched to a Transaction, is_matched
+    flips and matched_transaction_id points at the JV.
+    """
+    __table_args__ = (
+        CheckConstraint("debit >= 0 AND credit >= 0", name="ck_stmt_line_nonneg"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    import_id: int = Field(foreign_key="bankstatementimport.id", ondelete="CASCADE", index=True)
+    date: str
+    description: str
+    debit: Money = money_col()
+    credit: Money = money_col()
+    balance: Money = money_col()
+    matched_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    is_matched: bool = Field(default=False)
+
+
 class ExchangeRate(SQLModel, table=True):
     """Per-tenant FX rates. rate = how many `to_currency` units one
     `from_currency` unit buys at `date`. Lookups fall back to nearest prior
