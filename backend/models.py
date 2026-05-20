@@ -354,6 +354,26 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class IdempotencyKey(SQLModel, table=True):
+    """Caches the response of a POST so clients can safely retry.
+
+    The (tenant_id, key) pair is unique. On a replay, the stored response is
+    returned verbatim with the original status code so the caller sees the
+    same result without re-running the side effect.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "key", name="unique_idemp_key_per_tenant"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    key: str = Field(index=True)
+    method: str
+    path: str
+    status_code: int
+    response_body: str          # JSON-serialised response
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class RecurringTemplate(SQLModel, table=True):
     """Recurring journal-entry template. The /scheduler endpoint reads due
     rows and posts a Transaction copy per schedule firing."""
