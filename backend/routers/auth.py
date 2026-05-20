@@ -3,16 +3,21 @@
 Login issues a JWT and also sets it as an HttpOnly cookie so SPA frontends
 can stop storing tokens in localStorage. The cookie reader and the
 Authorization header reader coexist (see routers/common.py).
+
+Login throttling lives in the database (LoginAttempt table) so the counter
+is shared across uvicorn workers. The accompanying CSRF cookie is set on
+successful login; cookie-authenticated mutations are checked against it by
+services.csrf middleware.
 """
 import os
-import time
-from collections import defaultdict, deque
-from datetime import timedelta
+import secrets
+from collections import deque
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
-from sqlmodel import select
+from sqlmodel import Session, func, select
 
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -21,16 +26,18 @@ from auth import (
     verify_password,
 )
 from db import seed_data
-from models import Tenant, User
+from models import LoginAttempt, Tenant, User
 
 from .common import CurrentUserDep, SessionDep
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 ACCESS_COOKIE_NAME = "eb_access"
+CSRF_COOKIE_NAME = "eb_csrf"
 _LOGIN_ATTEMPT_WINDOW_SEC = 60
 _LOGIN_ATTEMPT_MAX = 10
-_login_attempts: dict[str, deque[float]] = defaultdict(deque)
+# Kept as an alias for tests that still clear the legacy in-memory dict.
+_login_attempts: dict[str, deque] = {}
 
 
 def _cookie_secure() -> bool:
@@ -49,21 +56,50 @@ def _set_access_cookie(response: Response, token: str) -> None:
     )
 
 
-def _throttle(request: Request) -> None:
-    """Sliding-window per-IP throttle on /login. In-memory; sufficient for
-    single-process dev and small deployments. Swap for Redis when scaling out.
+def _set_csrf_cookie(response: Response, token: str) -> None:
+    """Non-HttpOnly so the SPA can read it and echo in X-CSRF-Token."""
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=False,
+        secure=_cookie_secure(),
+        samesite="lax",
+        path="/",
+    )
+
+
+def _throttle(session: Session, request: Request) -> None:
+    """Sliding-window per-IP throttle backed by LoginAttempt rows.
+
+    Counts attempts in the last window. Prunes older rows in the same call
+    so the table stays bounded without a cron job. Shared across workers
+    because state is in the DB, not a process-local dict.
     """
     ip = request.client.host if request.client else "unknown"
-    now = time.monotonic()
-    window = _login_attempts[ip]
-    while window and now - window[0] > _LOGIN_ATTEMPT_WINDOW_SEC:
-        window.popleft()
-    if len(window) >= _LOGIN_ATTEMPT_MAX:
+    cutoff = datetime.utcnow() - timedelta(seconds=_LOGIN_ATTEMPT_WINDOW_SEC)
+    # Prune
+    old = session.exec(
+        select(LoginAttempt).where(LoginAttempt.attempted_at < cutoff)
+    ).all()
+    for row in old:
+        session.delete(row)
+    if old:
+        session.flush()
+    # Count
+    count = session.exec(
+        select(func.count(LoginAttempt.id)).where(
+            LoginAttempt.ip == ip,
+            LoginAttempt.attempted_at >= cutoff,
+        )
+    ).one()
+    if count >= _LOGIN_ATTEMPT_MAX:
         raise HTTPException(
             status_code=429,
             detail="Too many login attempts. Wait a minute and try again.",
         )
-    window.append(now)
+    session.add(LoginAttempt(ip=ip))
+    session.flush()
 
 
 class UserSignup(BaseModel):
@@ -106,7 +142,11 @@ def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
-    _throttle(request)
+    _throttle(session, request)
+    # Commit the throttle row even if credentials fail, so brute-force
+    # attempts count toward the limit.
+    session.commit()
+
     user = session.exec(select(User).where(User.email == form_data.username)).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -124,12 +164,15 @@ def login(
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     _set_access_cookie(response, token)
-    return {"access_token": token, "token_type": "bearer", "role": user.role}
+    csrf = secrets.token_urlsafe(32)
+    _set_csrf_cookie(response, csrf)
+    return {"access_token": token, "token_type": "bearer", "role": user.role, "csrf_token": csrf}
 
 
 @router.post("/logout")
 def logout(response: Response):
     response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
+    response.delete_cookie(CSRF_COOKIE_NAME, path="/")
     return {"success": True}
 
 

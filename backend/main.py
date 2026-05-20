@@ -22,6 +22,7 @@ from routers import (
     reconciliations, recurring, reports, settings, tax_codes, transactions,
     vendors,
 )
+from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 
 
@@ -39,9 +40,12 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Easy-Books API", lifespan=lifespan)
 
-# Middleware: idempotency BEFORE CORS so the cached response also gets CORS
-# headers on replay.
+# Middleware ordering: CSRF runs first (outermost), then idempotency, then
+# CORS. Starlette wraps in reverse-add order, so add_middleware last → runs
+# first on the request path. We want CSRF to reject before the idempotency
+# cache is consulted.
 app.add_middleware(IdempotencyMiddleware)
+app.add_middleware(CsrfMiddleware)
 
 _allowed_origins = [o.strip() for o in os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").split(",")]
 app.add_middleware(

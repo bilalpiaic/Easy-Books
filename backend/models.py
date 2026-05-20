@@ -359,6 +359,19 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class LoginAttempt(SQLModel, table=True):
+    """One row per /login attempt. Used by the per-IP throttle so the count
+    is shared across uvicorn workers and survives restarts (vs. an in-process
+    dict which only sees its own worker's traffic).
+
+    Old rows past the rolling window are pruned in the same call that reads
+    them — no cron job needed.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ip: str = Field(index=True)
+    attempted_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
 class SequenceCounter(SQLModel, table=True):
     """Per-tenant atomic counter for document numbers.
 
