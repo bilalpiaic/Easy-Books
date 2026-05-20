@@ -1,0 +1,242 @@
+"""Invoice CRUD + auto-posting + aging."""
+from datetime import date as DateType
+from decimal import Decimal
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from sqlmodel import Session, func, select
+
+from models import Account, Customer, Invoice, InvoiceLine, Product, Settings
+from services.inventory import consume_stock
+from services.money import D, ZERO, money, sum_money
+from services.posting import EntryInput, post_transaction
+
+from .common import CurrentUserDep, SessionDep, get_or_create_account, log_audit
+
+router = APIRouter(tags=["invoices"])
+
+
+# ── DTOs ──────────────────────────────────────────────────────────────────────
+
+
+class InvoiceLineCreate(BaseModel):
+    product_id: Optional[int] = None
+    description: str
+    qty: Decimal = Decimal("1")
+    unit: Optional[str] = None
+    rate: Decimal = Decimal("0")
+
+
+class InvoiceCreate(BaseModel):
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    issue_date: str
+    due_date: str
+    description: Optional[str] = None
+    lines: List[InvoiceLineCreate] = []
+    gst_rate: Decimal = Decimal("17")
+    ar_account_id: Optional[int] = None
+    revenue_account_id: Optional[int] = None
+
+
+def _next_invoice_number(session: Session, tenant_id: int, prefix: str) -> str:
+    count = session.exec(
+        select(func.count(Invoice.id)).where(Invoice.tenant_id == tenant_id)
+    ).one()
+    return f"{prefix}-{count + 1:04d}"
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
+
+@router.get("/api/invoices")
+def list_invoices(
+    session: SessionDep, user: CurrentUserDep,
+    search: str = "", skip: int = 0, limit: int = 50, status: str = "",
+):
+    q = select(Invoice).where(Invoice.tenant_id == user.tenant_id)
+    if search:
+        q = q.where(
+            (Invoice.number.ilike(f"%{search}%"))
+            | (Invoice.customer_name.ilike(f"%{search}%"))
+        )
+    if status:
+        q = q.where(Invoice.status == status)
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(q.order_by(Invoice.issue_date.desc()).offset(skip).limit(limit)).all()
+    result_items = []
+    for inv in items:
+        d = inv.model_dump()
+        d["lines"] = [
+            l.model_dump()
+            for l in session.exec(
+                select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)
+            ).all()
+        ]
+        result_items.append(d)
+    return {"total": total, "items": result_items}
+
+
+@router.post("/api/invoices", status_code=201)
+def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreate):
+    prefix_row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix"
+        )
+    ).first()
+    prefix = prefix_row.value if prefix_row else "INV"
+
+    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
+    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    total = money(subtotal + gst_amount)
+
+    cname = body.customer_name
+    if body.customer_id:
+        c = session.exec(
+            select(Customer).where(
+                Customer.id == body.customer_id, Customer.tenant_id == user.tenant_id
+            )
+        ).first()
+        if not c:
+            raise HTTPException(404, "Customer not found")
+        cname = c.name
+
+    invoice = Invoice(
+        tenant_id=user.tenant_id,
+        number=_next_invoice_number(session, user.tenant_id, prefix),
+        customer_id=body.customer_id,
+        customer_name=cname,
+        issue_date=body.issue_date,
+        due_date=body.due_date,
+        description=body.description,
+        subtotal=subtotal,
+        gst_rate=D(body.gst_rate),
+        gst_amount=gst_amount,
+        total=total,
+        status="draft",
+        ar_account_id=body.ar_account_id,
+        revenue_account_id=body.revenue_account_id,
+    )
+    session.add(invoice)
+    session.flush()
+
+    # Persist line items; for stock lines, relieve inventory at WAvg cost and
+    # accumulate total COGS so we can post one Dr COGS / Cr Inventory JV.
+    total_cogs = ZERO
+    for line_data in body.lines:
+        amount = money(D(line_data.qty) * D(line_data.rate))
+        session.add(
+            InvoiceLine(
+                invoice_id=invoice.id,
+                product_id=line_data.product_id,
+                description=line_data.description,
+                qty=D(line_data.qty),
+                unit=line_data.unit,
+                rate=D(line_data.rate),
+                amount=amount,
+            )
+        )
+        if line_data.product_id:
+            prod = session.exec(
+                select(Product).where(
+                    Product.id == line_data.product_id,
+                    Product.tenant_id == user.tenant_id,
+                )
+            ).first()
+            if prod and prod.product_type == "stock":
+                total_cogs += consume_stock(
+                    session,
+                    tenant_id=user.tenant_id,
+                    product_id=prod.id,
+                    qty=D(line_data.qty),
+                )
+
+    ar_acc = (
+        session.get(Account, body.ar_account_id)
+        if body.ar_account_id
+        else get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
+    )
+    rev_acc = (
+        session.get(Account, body.revenue_account_id)
+        if body.revenue_account_id
+        else get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
+    )
+
+    entries = [EntryInput(account_id=ar_acc.id, debit=total)]
+    if gst_amount > 0:
+        gst_acc = get_or_create_account(
+            session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
+        )
+        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal))
+        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_amount))
+    else:
+        entries.append(EntryInput(account_id=rev_acc.id, credit=total))
+
+    txn = post_transaction(
+        session, user,
+        date=invoice.issue_date,
+        description=f"Invoice {invoice.number} — {cname or ''}",
+        entries=entries,
+        audit_entity_type="invoice",
+        audit_detail={"invoice_number": invoice.number, "total": str(total)},
+    )
+    invoice.transaction_id = txn.id
+    session.add(invoice)
+
+    # Separate JV for COGS so the sale and cost-relief are individually
+    # inspectable and a reversal of one doesn't unintentionally undo the other.
+    if total_cogs > 0:
+        cogs_acc = get_or_create_account(
+            session, user.tenant_id, "5010", "Cost of Goods Sold", "Expense"
+        )
+        inv_acc = get_or_create_account(
+            session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
+        )
+        post_transaction(
+            session, user,
+            date=invoice.issue_date,
+            description=f"COGS for {invoice.number}",
+            entries=[
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs),
+            ],
+            audit_entity_type="invoice",
+            audit_detail={"invoice_number": invoice.number, "cogs": str(total_cogs)},
+        )
+
+    log_audit(
+        session, user, "CREATE", "invoice", invoice.id,
+        {"number": invoice.number, "total": str(total)},
+    )
+    session.commit()
+    session.refresh(invoice)
+
+    lines_out = session.exec(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == invoice.id)
+    ).all()
+    result = invoice.model_dump()
+    result["lines"] = [l.model_dump() for l in lines_out]
+    return result
+
+
+@router.patch("/api/invoices/{invoice_id}/status")
+def update_invoice_status(
+    session: SessionDep, user: CurrentUserDep, invoice_id: int, status: str
+):
+    inv = session.exec(
+        select(Invoice).where(
+            Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    inv.status = status
+    session.add(inv)
+    log_audit(
+        session, user, "UPDATE", "invoice", inv.id,
+        {"number": inv.number, "status": status},
+    )
+    session.commit()
+    session.refresh(inv)
+    return inv

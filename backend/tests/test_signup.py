@@ -2,7 +2,8 @@ import pytest
 import os
 from fastapi.testclient import TestClient
 from sqlmodel import create_engine, Session, SQLModel, select
-from main import app, get_session
+from main import app
+from db import get_session
 from models import Tenant, User, Account
 
 # File-based database for testing to ensure connection persistence

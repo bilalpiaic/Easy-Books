@@ -41,6 +41,11 @@ def record_purchase(
     """
     Record a stock receipt: append a cost layer + update product avg_cost and stock_qty.
     Only effective for product_type == "stock"; services are no-ops.
+
+    The Product row is selected with FOR UPDATE so two concurrent receipts of
+    the same product can't both read the same avg_cost and clobber each
+    other's update. SQLite ignores row-level locks (single-writer anyway);
+    Postgres honours them.
     """
     qty = D(qty)
     unit_cost = D(unit_cost)
@@ -48,7 +53,9 @@ def record_purchase(
         return
 
     prod = session.exec(
-        select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
+        select(Product)
+        .where(Product.id == product_id, Product.tenant_id == tenant_id)
+        .with_for_update()
     ).first()
     if not prod or prod.product_type != "stock":
         return
@@ -92,8 +99,12 @@ def consume_stock(
     if qty <= 0:
         return ZERO
 
+    # FOR UPDATE: prevent two concurrent sales from each reading the same
+    # stock_qty and both decrementing — would cause oversell on Postgres.
     prod = session.exec(
-        select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
+        select(Product)
+        .where(Product.id == product_id, Product.tenant_id == tenant_id)
+        .with_for_update()
     ).first()
     if not prod or prod.product_type != "stock":
         return ZERO
