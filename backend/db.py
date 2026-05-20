@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from models import Account, SequenceCounter, Settings
+from models import Account, SequenceCounter, Settings, StockLocation
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -192,7 +192,7 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
         # Seed document-number counters so the at-runtime path never has to
         # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
         # without racing on the unique constraint.
-        for name in ("invoice", "bill"):
+        for name in ("invoice", "bill", "grn", "po"):
             existing = s.exec(
                 select(SequenceCounter).where(
                     SequenceCounter.tenant_id == tenant_id,
@@ -201,6 +201,38 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             ).first()
             if not existing:
                 s.add(SequenceCounter(tenant_id=tenant_id, name=name, next_value=1))
+
+        # Seed default StockLocations. Every tenant gets a "Main Store" so
+        # legacy invoice/bill flows can attach receipts to it without forcing
+        # the user to set up locations first.
+        main_store = s.exec(
+            select(StockLocation).where(
+                StockLocation.tenant_id == tenant_id,
+                StockLocation.code == "MAIN",
+            )
+        ).first()
+        if not main_store:
+            s.add(StockLocation(
+                tenant_id=tenant_id, code="MAIN", name="Main Store", type="own",
+            ))
+        # Manufacturing tenants additionally get a customer godown and a WIP
+        # bucket out of the box so they can record GRNs and production orders
+        # immediately after signup.
+        if model == "manufacturing":
+            for code, name, ltype in (
+                ("GODOWN", "Customer Goods Godown", "customer_custodial"),
+                ("WIP",    "Work-in-Progress Floor", "wip"),
+            ):
+                exists = s.exec(
+                    select(StockLocation).where(
+                        StockLocation.tenant_id == tenant_id,
+                        StockLocation.code == code,
+                    )
+                ).first()
+                if not exists:
+                    s.add(StockLocation(
+                        tenant_id=tenant_id, code=code, name=name, type=ltype,
+                    ))
         s.commit()
 
     if session:

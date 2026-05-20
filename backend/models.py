@@ -298,16 +298,84 @@ class Product(SQLModel, table=True):
     is_active: bool = Field(default=True)
 
 
+class StockLocation(SQLModel, table=True):
+    """A physical or logical place where inventory lives.
+
+    Types:
+      own                — manufacturer-owned stock (raw mat, FG, WIP staging)
+      customer_custodial — godown holding goods we received from a customer
+                           for processing; goods are NOT our asset
+      wip                — work-in-progress holding bucket during production
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="unique_stock_location_code"),
+        CheckConstraint(
+            "type IN ('own','customer_custodial','wip')",
+            name="ck_stock_location_type",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str = Field(index=True)              # e.g. RM-1, GODOWN-A
+    name: str                                  # human label
+    type: str                                  # own | customer_custodial | wip
+    is_active: bool = Field(default=True)
+
+
 class InventoryLayer(SQLModel, table=True):
-    """One row per stock receipt. Used for audit trail of cost layers."""
+    """One row per stock receipt (or movement that creates a fresh lot).
+
+    Layers are now scoped to (product, location) — the same product can have
+    separate layers in different stores, and goods in the customer godown
+    are owned by the customer (owner_customer_id set).
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     product_id: int = Field(foreign_key="product.id", index=True)
+    location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id", index=True)
+    owner_customer_id: Optional[int] = Field(
+        default=None, foreign_key="customer.id", index=True
+    )  # set for customer-custodial layers; null for own-stock
+    lot_no: Optional[str] = Field(default=None, index=True)
     qty_received: Money = money_col()
     qty_remaining: Money = money_col()
     unit_cost: Money = money_col()
-    source_doc: Optional[str] = None  # e.g. "BILL-0042"
+    source_doc: Optional[str] = None  # e.g. "BILL-0042", "GRN-0007"
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class StockMovement(SQLModel, table=True):
+    """Event log: every qty change writes one row.
+
+    InventoryLayer state can be reconstructed from these. Movements flagged
+    `posted_to_gl=false` are pure-custodial (customer goods in/out of godown
+    during processing) — no JE is written for those.
+    """
+    __table_args__ = (
+        CheckConstraint(
+            "direction IN ('RECEIPT','CUSTODIAL_RECEIPT','ISSUE','CUSTODIAL_ISSUE',"
+            "'COMPLETION','CUSTODIAL_COMPLETION','DELIVERY','SHIPMENT','ADJUSTMENT')",
+            name="ck_stock_movement_direction",
+        ),
+        CheckConstraint("qty > 0", name="ck_stock_movement_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    direction: str                              # see CHECK
+    qty: Money = money_col()
+    from_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    to_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    lot_no: Optional[str] = Field(default=None, index=True)
+    owner_customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    unit_cost: Money = money_col(default=Decimal("0"))
+    total_cost: Money = money_col(default=Decimal("0"))
+    source_doc_type: Optional[str] = None       # 'bill', 'invoice', 'grn', 'production_order', 'manual', 'adjustment'
+    source_doc_id: Optional[int] = None
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    posted_to_gl: bool = Field(default=False)
+    notes: Optional[str] = None
 
 
 class InvoiceLine(SQLModel, table=True):

@@ -21,12 +21,75 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from models import InventoryLayer, Product
+from models import InventoryLayer, Product, StockLocation, StockMovement
 from services.money import D, ZERO, money
 
 
 class InventoryError(Exception):
     """Raised when stock would go negative or product is misconfigured."""
+
+
+def _default_own_location(session: Session, tenant_id: int) -> Optional[int]:
+    """Returns the first 'own'-type StockLocation id for the tenant, or None
+    if multi-location isn't initialised yet. Existing call sites that don't
+    specify a location use this so behaviour is backwards-compatible."""
+    loc = session.exec(
+        select(StockLocation).where(
+            StockLocation.tenant_id == tenant_id,
+            StockLocation.type == "own",
+            StockLocation.is_active == True,  # noqa: E712
+        ).order_by(StockLocation.id)
+    ).first()
+    return loc.id if loc else None
+
+
+def record_movement(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    direction: str,
+    qty: Decimal,
+    from_location_id: Optional[int] = None,
+    to_location_id: Optional[int] = None,
+    lot_no: Optional[str] = None,
+    owner_customer_id: Optional[int] = None,
+    unit_cost: Decimal = ZERO,
+    source_doc_type: Optional[str] = None,
+    source_doc_id: Optional[int] = None,
+    transaction_id: Optional[int] = None,
+    posted_to_gl: bool = False,
+    notes: Optional[str] = None,
+) -> StockMovement:
+    """Append a row to the stock movement log. Returns the persisted row.
+
+    Pure event-sourcing helper — does NOT touch InventoryLayer / Product
+    state. Callers that need to mutate layers should use record_purchase /
+    consume_stock which call this helper as part of their work.
+    """
+    qty = D(qty)
+    if qty <= 0:
+        raise InventoryError(f"qty must be > 0; got {qty}")
+    mv = StockMovement(
+        tenant_id=tenant_id,
+        product_id=product_id,
+        direction=direction,
+        qty=qty,
+        from_location_id=from_location_id,
+        to_location_id=to_location_id,
+        lot_no=lot_no,
+        owner_customer_id=owner_customer_id,
+        unit_cost=money(unit_cost),
+        total_cost=money(qty * D(unit_cost)),
+        source_doc_type=source_doc_type,
+        source_doc_id=source_doc_id,
+        transaction_id=transaction_id,
+        posted_to_gl=posted_to_gl,
+        notes=notes,
+    )
+    session.add(mv)
+    session.flush()
+    return mv
 
 
 def record_purchase(
@@ -37,6 +100,8 @@ def record_purchase(
     qty: Decimal,
     unit_cost: Decimal,
     source_doc: Optional[str] = None,
+    location_id: Optional[int] = None,
+    lot_no: Optional[str] = None,
 ) -> None:
     """
     Record a stock receipt: append a cost layer + update product avg_cost and stock_qty.
@@ -70,15 +135,33 @@ def record_purchase(
     prod.stock_qty = new_qty
     session.add(prod)
 
+    # Resolve location: explicit > tenant's default 'own' location > none
+    loc_id = location_id or _default_own_location(session, tenant_id)
     session.add(
         InventoryLayer(
             tenant_id=tenant_id,
             product_id=product_id,
+            location_id=loc_id,
+            lot_no=lot_no,
             qty_received=qty,
             qty_remaining=qty,
             unit_cost=unit_cost,
             source_doc=source_doc,
         )
+    )
+    # Event log
+    record_movement(
+        session,
+        tenant_id=tenant_id,
+        product_id=product_id,
+        direction="RECEIPT",
+        qty=qty,
+        to_location_id=loc_id,
+        lot_no=lot_no,
+        unit_cost=unit_cost,
+        source_doc_type="bill",
+        notes=source_doc,
+        posted_to_gl=True,
     )
 
 
@@ -127,6 +210,8 @@ def consume_stock(
         )
         .order_by(InventoryLayer.id.asc())
     ).all()
+    consumed_from_location_id: Optional[int] = None
+    consumed_lot_no: Optional[str] = None
     for layer in layers:
         if remaining <= 0:
             break
@@ -134,6 +219,25 @@ def consume_stock(
         layer.qty_remaining = D(layer.qty_remaining) - take
         remaining -= take
         session.add(layer)
+        # Track the first layer touched so the movement row carries
+        # provenance (which lot/location got drained).
+        if consumed_from_location_id is None:
+            consumed_from_location_id = layer.location_id
+            consumed_lot_no = layer.lot_no
+
+    if qty > 0:
+        record_movement(
+            session,
+            tenant_id=tenant_id,
+            product_id=product_id,
+            direction="SHIPMENT",
+            qty=qty,
+            from_location_id=consumed_from_location_id or _default_own_location(session, tenant_id),
+            lot_no=consumed_lot_no,
+            unit_cost=avg_cost,
+            source_doc_type="invoice",
+            posted_to_gl=True,
+        )
 
     return cogs
 
