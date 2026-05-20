@@ -27,9 +27,20 @@ def money_col(default: Decimal = ZERO, **kw):
 
 
 class Tenant(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint(
+            "business_model IN ('simple','services','trader','manufacturing')",
+            name="ck_tenant_business_model",
+        ),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     base_currency: str = Field(default="USD")  # ISO 4217; reporting currency
+    business_model: str = Field(default="simple", index=True)
+    # JSON-serialised list of enabled module names. Derived from business_model
+    # at signup but persisted so it can be edited later (e.g. a 'simple' tenant
+    # can enable the 'inventory' module without becoming a 'trader').
+    enabled_modules: str = Field(default="[]")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     users: List["User"] = Relationship(back_populates="tenant")
@@ -78,6 +89,10 @@ class Account(SQLModel, table=True):
     name: str
     type: str  # Asset | Liability | Equity | Revenue | Expense (CHECK enforced)
     parent_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    # Memorandum accounts (e.g. 1210 Customer Goods on Hand, 2150 Customer
+    # Goods Liability) are excluded from formal A=L+E totals on the balance
+    # sheet and shown in a separate "Memorandum / Custodial" section.
+    is_memo: bool = Field(default=False)
 
     tenant: Tenant = Relationship(back_populates="accounts")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="account")

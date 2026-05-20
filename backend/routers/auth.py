@@ -9,10 +9,12 @@ is shared across uvicorn workers. The accompanying CSRF cookie is set on
 successful login; cookie-authenticated mutations are checked against it by
 services.csrf middleware.
 """
+import json as _json
 import os
 import secrets
 from collections import deque
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
@@ -25,7 +27,7 @@ from auth import (
     get_password_hash,
     verify_password,
 )
-from db import seed_data
+from db import MODULES_BY_MODEL, seed_data
 from models import LoginAttempt, Tenant, User
 
 from .common import CurrentUserDep, SessionDep
@@ -102,11 +104,15 @@ def _throttle(session: Session, request: Request) -> None:
     session.flush()
 
 
+_VALID_MODELS = {"simple", "services", "trader", "manufacturing"}
+
+
 class UserSignup(BaseModel):
     email: str
     password: str = Field(min_length=8)
     full_name: str
     company_name: str
+    business_model: Optional[str] = "simple"
 
 
 @router.post("/signup")
@@ -115,7 +121,18 @@ def signup(data: UserSignup, session: SessionDep, response: Response):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    tenant = Tenant(name=data.company_name)
+    model = (data.business_model or "simple").lower()
+    if model not in _VALID_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"business_model must be one of {sorted(_VALID_MODELS)}",
+        )
+
+    tenant = Tenant(
+        name=data.company_name,
+        business_model=model,
+        enabled_modules=_json.dumps(MODULES_BY_MODEL.get(model, [])),
+    )
     session.add(tenant)
     session.commit()
     session.refresh(tenant)
@@ -177,5 +194,21 @@ def logout(response: Response):
 
 
 @router.get("/me")
-def get_me(user: CurrentUserDep):
-    return {"email": user.email, "full_name": user.full_name, "role": user.role}
+def get_me(session: SessionDep, user: CurrentUserDep):
+    tenant = session.get(Tenant, user.tenant_id)
+    try:
+        enabled = _json.loads(tenant.enabled_modules) if tenant else []
+    except (TypeError, ValueError):
+        enabled = []
+    return {
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "tenant": {
+            "id": tenant.id if tenant else user.tenant_id,
+            "name": tenant.name if tenant else "",
+            "business_model": tenant.business_model if tenant else "simple",
+            "enabled_modules": enabled,
+            "base_currency": tenant.base_currency if tenant else "USD",
+        },
+    }
