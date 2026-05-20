@@ -13,7 +13,8 @@ from fastapi import APIRouter, Query
 from sqlmodel import func, select
 
 from models import (
-    Account, Bill, Customer, Invoice, JournalEntry, Product, Transaction,
+    Account, Bill, Customer, Invoice, JournalEntry, PaymentAllocation, Product,
+    Transaction,
 )
 from services.money import D, ZERO, money
 
@@ -72,7 +73,7 @@ def get_trial_balance(
     date: Optional[str] = None,
 ):
     q = (
-        session.query(
+        select(
             Account.code,
             Account.name,
             Account.type,
@@ -81,21 +82,20 @@ def get_trial_balance(
         )
         .join(JournalEntry, JournalEntry.account_id == Account.id)
         .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-        .filter(Transaction.tenant_id == user.tenant_id)
+        .where(Transaction.tenant_id == user.tenant_id)
     )
     if start:
-        q = q.filter(Transaction.date >= start)
+        q = q.where(Transaction.date >= start)
     if end:
-        q = q.filter(Transaction.date <= end)
+        q = q.where(Transaction.date <= end)
     elif date:
-        q = q.filter(Transaction.date <= date)
+        q = q.where(Transaction.date <= date)
 
-    rows = (
+    rows = session.exec(
         q.group_by(Account.id)
         .having((func.sum(JournalEntry.debit) > 0) | (func.sum(JournalEntry.credit) > 0))
         .order_by(Account.code)
-        .all()
-    )
+    ).all()
     return [
         {
             "code": r.code,
@@ -148,16 +148,48 @@ def get_dashboard_data(
         elif account.type == "Expense":
             total_expense += D(entry.debit) - D(entry.credit)
 
+    # Outstanding = gross total MINUS sum(PaymentAllocation.amount) per doc,
+    # then sum across docs that aren't fully paid. Includes 'partial' so a
+    # partially-paid invoice still contributes its remaining balance.
+    open_statuses_ar = ["draft", "sent", "overdue", "partial"]
+    open_statuses_ap = ["draft", "received", "overdue", "partial"]
+
     ar_outstanding = session.exec(
-        select(func.sum(Invoice.total)).where(
+        select(
+            func.coalesce(
+                func.sum(
+                    Invoice.total
+                    - func.coalesce(
+                        select(func.sum(PaymentAllocation.amount))
+                        .where(PaymentAllocation.invoice_id == Invoice.id)
+                        .correlate(Invoice).scalar_subquery(),
+                        0,
+                    )
+                ),
+                0,
+            )
+        ).where(
             Invoice.tenant_id == user.tenant_id,
-            Invoice.status.in_(["draft", "sent", "overdue"]),
+            Invoice.status.in_(open_statuses_ar),
         )
     ).one() or ZERO
     ap_outstanding = session.exec(
-        select(func.sum(Bill.total)).where(
+        select(
+            func.coalesce(
+                func.sum(
+                    Bill.total
+                    - func.coalesce(
+                        select(func.sum(PaymentAllocation.amount))
+                        .where(PaymentAllocation.bill_id == Bill.id)
+                        .correlate(Bill).scalar_subquery(),
+                        0,
+                    )
+                ),
+                0,
+            )
+        ).where(
             Bill.tenant_id == user.tenant_id,
-            Bill.status.in_(["draft", "received", "overdue"]),
+            Bill.status.in_(open_statuses_ap),
         )
     ).one() or ZERO
     overdue_invoices = session.exec(
@@ -168,7 +200,7 @@ def get_dashboard_data(
     unpaid_bills = session.exec(
         select(func.count(Bill.id)).where(
             Bill.tenant_id == user.tenant_id,
-            Bill.status.in_(["draft", "received", "overdue"]),
+            Bill.status.in_(open_statuses_ap),
         )
     ).one() or 0
     low_stock = session.exec(

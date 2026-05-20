@@ -136,3 +136,89 @@ def consume_stock(
         session.add(layer)
 
     return cogs
+
+
+def reverse_purchase(
+    session: Session,
+    *,
+    tenant_id: int,
+    source_doc: str,
+) -> None:
+    """Undo a stock receipt previously created by `record_purchase`.
+
+    Subtracts the layer's remaining qty from `Product.stock_qty` and drops
+    the layer entirely. Recomputes `Product.avg_cost` as the weighted
+    average of whatever layers remain.
+
+    Caller invariants:
+      - source_doc uniquely identifies the receipt (bill.number).
+      - If some of the layer has already been consumed (FIFO depleted),
+        only the unsold remainder is removed — the consumed portion
+        already affected COGS and stays in history.
+    """
+    layers = session.exec(
+        select(InventoryLayer).where(
+            InventoryLayer.tenant_id == tenant_id,
+            InventoryLayer.source_doc == source_doc,
+        )
+    ).all()
+    if not layers:
+        return
+
+    for layer in layers:
+        prod = session.exec(
+            select(Product)
+            .where(Product.id == layer.product_id, Product.tenant_id == tenant_id)
+            .with_for_update()
+        ).first()
+        if not prod:
+            continue
+        prod.stock_qty = D(prod.stock_qty) - D(layer.qty_remaining)
+        session.add(prod)
+        session.delete(layer)
+        session.flush()
+
+        # Recompute avg_cost from remaining layers for this product
+        remaining = session.exec(
+            select(InventoryLayer).where(
+                InventoryLayer.tenant_id == tenant_id,
+                InventoryLayer.product_id == prod.id,
+                InventoryLayer.qty_remaining > 0,
+            )
+        ).all()
+        total_qty = sum((D(l.qty_remaining) for l in remaining), start=ZERO)
+        if total_qty > 0:
+            weighted = sum(
+                (D(l.qty_remaining) * D(l.unit_cost) for l in remaining), start=ZERO
+            )
+            prod.avg_cost = money(weighted / total_qty)
+        else:
+            prod.avg_cost = ZERO
+        session.add(prod)
+
+
+def reverse_consumption(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    qty: Decimal,
+    cogs_total: Decimal,
+) -> None:
+    """Undo a `consume_stock` call by restoring stock at the COGS unit cost.
+
+    Equivalent to recording a new purchase at unit_cost = cogs_total / qty,
+    tagged so it doesn't collide with real purchases.
+    """
+    qty = D(qty)
+    if qty <= 0:
+        return
+    unit_cost = D(cogs_total) / qty
+    record_purchase(
+        session,
+        tenant_id=tenant_id,
+        product_id=product_id,
+        qty=qty,
+        unit_cost=unit_cost,
+        source_doc="REVERSAL",
+    )

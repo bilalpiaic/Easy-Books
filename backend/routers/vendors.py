@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Vendor
+from models import Bill, BillPayment, Vendor
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
@@ -74,11 +74,27 @@ def update_vendor(
 
 @router.delete("/{vendor_id}", status_code=204)
 def delete_vendor(session: SessionDep, user: WriteUserDep, vendor_id: int):
+    """Hard-delete only when no document references the vendor. Otherwise
+    set is_active=False via PUT to preserve the audit trail.
+    """
     v = session.exec(
         select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id)
     ).first()
     if not v:
         raise HTTPException(404, "Vendor not found")
+    if session.exec(select(Bill).where(Bill.vendor_id == vendor_id)).first():
+        raise HTTPException(
+            400, "Cannot delete vendor with bills — deactivate (set is_active=False) instead",
+        )
+    bp = session.exec(
+        select(BillPayment)
+        .join(Bill, Bill.id == BillPayment.bill_id)
+        .where(Bill.vendor_id == vendor_id)
+    ).first()
+    if bp:
+        raise HTTPException(
+            400, "Cannot delete vendor with payment history — deactivate instead",
+        )
     log_audit(session, user, "DELETE", "vendor", v.id, {"name": v.name})
     session.delete(v)
     session.commit()
