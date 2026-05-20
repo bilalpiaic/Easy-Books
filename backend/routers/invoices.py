@@ -7,9 +7,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from models import Account, Customer, Invoice, InvoiceLine, Product, Settings
+from models import Account, Customer, Invoice, InvoiceLine, Product, Settings, Tenant
+from services.fx import rate_to_base
 from services.inventory import consume_stock
-from services.money import D, ZERO, money, sum_money
+from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
@@ -38,6 +39,8 @@ class InvoiceCreate(BaseModel):
     gst_rate: Decimal = Decimal("17")
     ar_account_id: Optional[int] = None
     revenue_account_id: Optional[int] = None
+    currency: Optional[str] = None       # defaults to tenant base
+    exchange_rate: Optional[Decimal] = None  # override; else resolved from ExchangeRate
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str) -> str:
@@ -91,6 +94,22 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
+    # FX resolution: doc currency defaults to tenant base. Rate defaults to
+    # 1.0 when doc==base, otherwise to the latest known rate on/before
+    # issue_date. Caller can override with an explicit exchange_rate.
+    tenant = session.get(Tenant, user.tenant_id)
+    base_currency = tenant.base_currency if tenant else "USD"
+    doc_currency = body.currency or base_currency
+    if body.exchange_rate is not None:
+        fx_rate = D(body.exchange_rate)
+    elif doc_currency == base_currency:
+        fx_rate = ONE
+    else:
+        try:
+            fx_rate = rate_to_base(session, user.tenant_id, doc_currency, body.issue_date)
+        except LookupError as e:
+            raise HTTPException(400, str(e))
+
     cname = body.customer_name
     if body.customer_id:
         c = session.exec(
@@ -114,6 +133,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         gst_rate=D(body.gst_rate),
         gst_amount=gst_amount,
         total=total,
+        currency=doc_currency,
+        exchange_rate=fx_rate,
         status="draft",
         ar_account_id=body.ar_account_id,
         revenue_account_id=body.revenue_account_id,
@@ -163,15 +184,20 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         else get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
     )
 
-    entries = [EntryInput(account_id=ar_acc.id, debit=total)]
+    # Convert document amounts → base currency for GL posting.
+    total_base = money(total * fx_rate)
+    subtotal_base = money(subtotal * fx_rate)
+    gst_base = money(gst_amount * fx_rate)
+
+    entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
     if gst_amount > 0:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal))
-        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_amount))
+        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal_base))
+        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base))
     else:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=total))
+        entries.append(EntryInput(account_id=rev_acc.id, credit=total_base))
 
     txn = post_transaction(
         session, user,

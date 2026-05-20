@@ -29,6 +29,7 @@ def money_col(default: Decimal = ZERO, **kw):
 class Tenant(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
+    base_currency: str = Field(default="USD")  # ISO 4217; reporting currency
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     users: List["User"] = Relationship(back_populates="tenant")
@@ -167,10 +168,12 @@ class Invoice(SQLModel, table=True):
     issue_date: str
     due_date: str
     description: Optional[str] = None
-    subtotal: Money = money_col()
+    subtotal: Money = money_col()              # in document currency
     gst_rate: Money = money_col(default=Decimal("17"))
-    gst_amount: Money = money_col()
-    total: Money = money_col()
+    gst_amount: Money = money_col()            # in document currency
+    total: Money = money_col()                 # in document currency
+    currency: str = Field(default="USD")       # document currency; defaults to tenant base
+    exchange_rate: Money = money_col(default=Decimal("1"))  # doc → base; snapshot at issue
     status: str = Field(default="draft")
     ar_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
@@ -186,10 +189,12 @@ class Bill(SQLModel, table=True):
     bill_date: str
     due_date: str
     description: Optional[str] = None
-    subtotal: Money = money_col()
+    subtotal: Money = money_col()              # in document currency
     gst_rate: Money = money_col(default=Decimal("17"))
-    gst_amount: Money = money_col()
-    total: Money = money_col()
+    gst_amount: Money = money_col()            # in document currency
+    total: Money = money_col()                 # in document currency
+    currency: str = Field(default="USD")
+    exchange_rate: Money = money_col(default=Decimal("1"))
     status: str = Field(default="draft")
     ap_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
@@ -352,6 +357,26 @@ class PaymentAllocation(SQLModel, table=True):
     bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
     amount: Money = money_col()
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ExchangeRate(SQLModel, table=True):
+    """Per-tenant FX rates. rate = how many `to_currency` units one
+    `from_currency` unit buys at `date`. Lookups fall back to nearest prior
+    date if the exact date is absent.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "date", "from_currency", "to_currency",
+            name="unique_rate_per_pair_per_day",
+        ),
+        CheckConstraint("rate > 0", name="ck_rate_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    date: str = Field(index=True)
+    from_currency: str
+    to_currency: str
+    rate: Money = money_col(default=Decimal("1"))
 
 
 class IdempotencyKey(SQLModel, table=True):

@@ -6,9 +6,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from models import Account, Bill, BillLine, Product, Settings, Vendor
+from models import Account, Bill, BillLine, Product, Settings, Tenant, Vendor
+from services.fx import rate_to_base
 from services.inventory import record_purchase
-from services.money import D, ZERO, money, sum_money
+from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
@@ -34,6 +35,8 @@ class BillCreate(BaseModel):
     gst_rate: Decimal = Decimal("17")
     ap_account_id: Optional[int] = None
     expense_account_id: Optional[int] = None
+    currency: Optional[str] = None
+    exchange_rate: Optional[Decimal] = None
 
 
 def _next_bill_number(session: Session, tenant_id: int, prefix: str) -> str:
@@ -69,6 +72,19 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
+    tenant = session.get(Tenant, user.tenant_id)
+    base_currency = tenant.base_currency if tenant else "USD"
+    doc_currency = body.currency or base_currency
+    if body.exchange_rate is not None:
+        fx_rate = D(body.exchange_rate)
+    elif doc_currency == base_currency:
+        fx_rate = ONE
+    else:
+        try:
+            fx_rate = rate_to_base(session, user.tenant_id, doc_currency, body.bill_date)
+        except LookupError as e:
+            raise HTTPException(400, str(e))
+
     vname = body.vendor_name
     if body.vendor_id:
         v = session.exec(
@@ -90,6 +106,8 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         gst_rate=D(body.gst_rate),
         gst_amount=gst_amount,
         total=total,
+        currency=doc_currency,
+        exchange_rate=fx_rate,
         status="draft",
         ap_account_id=body.ap_account_id,
         expense_account_id=body.expense_account_id,
@@ -136,14 +154,19 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         if body.ap_account_id
         else get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
     )
-    non_stock_subtotal = subtotal - total_stock_value
-    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total)]
+    # Convert document amounts → base currency for GL posting.
+    total_base = money(total * fx_rate)
+    total_stock_base = money(total_stock_value * fx_rate)
+    gst_base = money(gst_amount * fx_rate)
+    non_stock_base = money((subtotal - total_stock_value) * fx_rate)
+
+    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base)]
     if total_stock_value > 0:
         inv_acc = get_or_create_account(
             session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
         )
-        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_value))
-    if non_stock_subtotal > 0:
+        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_base))
+    if non_stock_base > 0:
         exp_acc = (
             session.get(Account, body.expense_account_id)
             if body.expense_account_id
@@ -151,12 +174,12 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
                 session, user.tenant_id, "5000", "General Expenses", "Expense"
             )
         )
-        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_subtotal))
+        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base))
     if gst_amount > 0:
         gst_input_acc = get_or_create_account(
             session, user.tenant_id, "1250", "GST Receivable (Input)", "Asset"
         )
-        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_amount))
+        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_base))
 
     txn = post_transaction(
         session, user,

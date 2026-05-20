@@ -20,6 +20,7 @@ getcontext().prec = 28
 
 CENTS = Decimal("0.01")
 ZERO = Decimal("0")
+ONE = Decimal("1")
 
 Numeric = Union[int, float, str, Decimal, None]
 
