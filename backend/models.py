@@ -359,6 +359,28 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class AccountBalance(SQLModel, table=True):
+    """Materialised per-account balance for a closed accounting period.
+
+    Written once when /api/periods/{id}/close runs. Trial balance and
+    similar reports read from here for any date range that falls inside a
+    closed period and fall back to live aggregation across JournalEntry
+    for the open period (which still moves).
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "period_id", "account_id",
+            name="unique_balance_per_period_account",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    period_id: int = Field(foreign_key="accountingperiod.id", index=True)
+    account_id: int = Field(foreign_key="account.id")
+    debit_total: Money = money_col()
+    credit_total: Money = money_col()
+
+
 class BankStatementImport(SQLModel, table=True):
     """One row per CSV upload. file_hash de-dupes uploads of the same file
     across re-tries / accidental re-uploads.

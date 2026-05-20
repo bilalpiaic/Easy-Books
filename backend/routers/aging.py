@@ -1,15 +1,19 @@
 """AR / AP aging buckets.
 
-Shared between Invoices and Bills since both follow the same 0-30/31-60/61-90/90+
-classification. The bucketing logic lives here rather than in either router.
+Aging is computed against the *outstanding* balance (total minus any
+PaymentAllocation rows), not the gross document total. A partially-paid
+invoice ages on the remaining amount only — without this, a $1000 invoice
+partly paid down to $200 would still show $1000 outstanding in the 30-day
+bucket, which is wrong.
 """
 from datetime import date as DateType
 from decimal import Decimal
+from typing import Iterable
 
 from fastapi import APIRouter
-from sqlmodel import select
+from sqlmodel import func, select
 
-from models import Bill, Invoice
+from models import Bill, Invoice, PaymentAllocation
 from services.money import D, ZERO
 
 from .common import CurrentUserDep, SessionDep
@@ -17,49 +21,93 @@ from .common import CurrentUserDep, SessionDep
 router = APIRouter(tags=["aging"])
 
 
-def _aging_buckets(items: list, date_field: str, amount_field: str, name_field: str) -> dict:
-    today = DateType.today()
-    buckets = {
-        "current": ZERO, "1_30": ZERO, "31_60": ZERO, "61_90": ZERO, "over_90": ZERO,
-        "items": [],
+def _bucket_for(days_past: int) -> tuple[str, str]:
+    if days_past <= 0:
+        return "current", "current"
+    if days_past <= 30:
+        return "1_30", "1-30"
+    if days_past <= 60:
+        return "31_60", "31-60"
+    if days_past <= 90:
+        return "61_90", "61-90"
+    return "over_90", "90+"
+
+
+def _empty_buckets() -> dict:
+    return {
+        "current": ZERO, "1_30": ZERO, "31_60": ZERO,
+        "61_90": ZERO, "over_90": ZERO, "items": [],
     }
-    for item in items:
-        if getattr(item, "status", None) == "paid":
-            continue
-        due = DateType.fromisoformat(getattr(item, date_field))
-        days_past = (today - due).days
-        amount = D(getattr(item, amount_field))
-        if days_past <= 0:
-            buckets["current"] += amount; bucket = "current"
-        elif days_past <= 30:
-            buckets["1_30"] += amount; bucket = "1-30"
-        elif days_past <= 60:
-            buckets["31_60"] += amount; bucket = "31-60"
-        elif days_past <= 90:
-            buckets["61_90"] += amount; bucket = "61-90"
-        else:
-            buckets["over_90"] += amount; bucket = "90+"
-        buckets["items"].append({
-            "id": item.id,
-            "name": getattr(item, name_field) or "—",
-            "number": getattr(item, "number", ""),
-            "due_date": getattr(item, date_field),
-            "amount": amount,
-            "days_past": max(0, days_past),
-            "bucket": bucket,
-        })
-    return buckets
 
 
 @router.get("/api/invoices/aging")
 def invoice_aging(session: SessionDep, user: CurrentUserDep):
-    items = session.exec(
-        select(Invoice).where(Invoice.tenant_id == user.tenant_id)
+    today = DateType.today()
+    # Single query: gross total minus sum(allocations) per invoice.
+    rows = session.exec(
+        select(
+            Invoice.id, Invoice.number, Invoice.customer_name,
+            Invoice.due_date, Invoice.total, Invoice.status,
+            func.coalesce(
+                select(func.sum(PaymentAllocation.amount))
+                .where(PaymentAllocation.invoice_id == Invoice.id)
+                .correlate(Invoice).scalar_subquery(),
+                0,
+            ).label("allocated"),
+        ).where(Invoice.tenant_id == user.tenant_id)
     ).all()
-    return _aging_buckets(items, "due_date", "total", "customer_name")
+    buckets = _empty_buckets()
+    for r in rows:
+        outstanding = D(r.total) - D(r.allocated)
+        if outstanding <= 0:
+            continue  # fully paid (or over-paid)
+        due = DateType.fromisoformat(r.due_date)
+        days_past = (today - due).days
+        key, label = _bucket_for(days_past)
+        buckets[key] += outstanding
+        buckets["items"].append({
+            "id": r.id,
+            "name": r.customer_name or "—",
+            "number": r.number,
+            "due_date": r.due_date,
+            "amount": outstanding,
+            "days_past": max(0, days_past),
+            "bucket": label,
+        })
+    return buckets
 
 
 @router.get("/api/bills/aging")
 def bill_aging(session: SessionDep, user: CurrentUserDep):
-    items = session.exec(select(Bill).where(Bill.tenant_id == user.tenant_id)).all()
-    return _aging_buckets(items, "due_date", "total", "vendor_name")
+    today = DateType.today()
+    rows = session.exec(
+        select(
+            Bill.id, Bill.number, Bill.vendor_name,
+            Bill.due_date, Bill.total, Bill.status,
+            func.coalesce(
+                select(func.sum(PaymentAllocation.amount))
+                .where(PaymentAllocation.bill_id == Bill.id)
+                .correlate(Bill).scalar_subquery(),
+                0,
+            ).label("allocated"),
+        ).where(Bill.tenant_id == user.tenant_id)
+    ).all()
+    buckets = _empty_buckets()
+    for r in rows:
+        outstanding = D(r.total) - D(r.allocated)
+        if outstanding <= 0:
+            continue
+        due = DateType.fromisoformat(r.due_date)
+        days_past = (today - due).days
+        key, label = _bucket_for(days_past)
+        buckets[key] += outstanding
+        buckets["items"].append({
+            "id": r.id,
+            "name": r.vendor_name or "—",
+            "number": r.number,
+            "due_date": r.due_date,
+            "amount": outstanding,
+            "days_past": max(0, days_past),
+            "bucket": label,
+        })
+    return buckets

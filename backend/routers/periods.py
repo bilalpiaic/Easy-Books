@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Account, AccountingPeriod, JournalEntry, Transaction
+from models import AccountBalance, Account, AccountingPeriod, JournalEntry, Transaction
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
@@ -153,7 +153,74 @@ def close_period(session: SessionDep, user: WriteUserDep, period_id: int):
 
     p.is_locked = True
     session.add(p)
+
+    # Materialise per-account balances for fast trial-balance reads against
+    # this closed period. Re-run includes the closing JV we just posted so
+    # the rollover is reflected. Skip rows where both totals are zero.
+    snapshot = session.exec(
+        select(
+            Account.id.label("account_id"),
+            func.coalesce(func.sum(JournalEntry.debit), 0).label("dr"),
+            func.coalesce(func.sum(JournalEntry.credit), 0).label("cr"),
+        )
+        .join(JournalEntry, JournalEntry.account_id == Account.id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Transaction.date >= p.period_start,
+            Transaction.date <= p.period_end,
+        )
+        .group_by(Account.id)
+    ).all()
+    for row in snapshot:
+        if D(row.dr) == 0 and D(row.cr) == 0:
+            continue
+        session.add(
+            AccountBalance(
+                tenant_id=user.tenant_id,
+                period_id=p.id,
+                account_id=row.account_id,
+                debit_total=money(row.dr),
+                credit_total=money(row.cr),
+            )
+        )
+
     log_audit(session, user, "CLOSE", "period", p.id, {"net_income": str(net)})
     session.commit()
     session.refresh(p)
     return {"period": p, "net_income": str(net), "entries_posted": len(entries)}
+
+
+@router.post("/{period_id}/reopen")
+def reopen_period(session: SessionDep, user: WriteUserDep, period_id: int):
+    """Reopen a closed period. Removes the materialised balance rows so
+    trial-balance reads fall back to live aggregation again.
+
+    Note: this does NOT un-post the closing JV. Reverse that JV manually if
+    you also need to undo the retained-earnings rollover.
+    """
+    p = session.exec(
+        select(AccountingPeriod).where(
+            AccountingPeriod.id == period_id,
+            AccountingPeriod.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not p:
+        raise HTTPException(404, "Period not found")
+    if not p.is_locked:
+        raise HTTPException(400, "Period is already open")
+    # Invalidate materialised balances for this period
+    rows = session.exec(
+        select(AccountBalance).where(
+            AccountBalance.tenant_id == user.tenant_id,
+            AccountBalance.period_id == p.id,
+        )
+    ).all()
+    for r in rows:
+        session.delete(r)
+    p.is_locked = False
+    session.add(p)
+    log_audit(session, user, "REOPEN", "period", p.id, {})
+    session.commit()
+    session.refresh(p)
+    return p
