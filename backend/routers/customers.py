@@ -8,7 +8,7 @@ from sqlmodel import func, select
 
 from models import Customer
 
-from .common import CurrentUserDep, SessionDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 
@@ -44,7 +44,7 @@ def list_customers(
 
 
 @router.post("", status_code=201)
-def create_customer(session: SessionDep, user: CurrentUserDep, body: CustomerCreate):
+def create_customer(session: SessionDep, user: WriteUserDep, body: CustomerCreate):
     c = Customer(**body.model_dump(), tenant_id=user.tenant_id)
     session.add(c)
     session.flush()
@@ -56,7 +56,7 @@ def create_customer(session: SessionDep, user: CurrentUserDep, body: CustomerCre
 
 @router.put("/{customer_id}")
 def update_customer(
-    session: SessionDep, user: CurrentUserDep, customer_id: int, body: CustomerUpdate
+    session: SessionDep, user: WriteUserDep, customer_id: int, body: CustomerUpdate
 ):
     c = session.exec(
         select(Customer).where(Customer.id == customer_id, Customer.tenant_id == user.tenant_id)
@@ -73,7 +73,7 @@ def update_customer(
 
 
 @router.delete("/{customer_id}", status_code=204)
-def delete_customer(session: SessionDep, user: CurrentUserDep, customer_id: int):
+def delete_customer(session: SessionDep, user: WriteUserDep, customer_id: int):
     c = session.exec(
         select(Customer).where(Customer.id == customer_id, Customer.tenant_id == user.tenant_id)
     ).first()

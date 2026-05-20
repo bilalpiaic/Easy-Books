@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from models import Account, BankAccount, JournalEntry
 from services.money import D, ZERO
 
-from .common import CurrentUserDep, SessionDep
+from .common import CurrentUserDep, SessionDep, WriteUserDep
 
 router = APIRouter(prefix="/api/bank-accounts", tags=["bank-accounts"])
 
@@ -61,7 +61,7 @@ def list_bank_accounts(session: SessionDep, user: CurrentUserDep):
 
 @router.post("", status_code=201)
 def create_bank_account(
-    session: SessionDep, user: CurrentUserDep, body: BankAccountCreate
+    session: SessionDep, user: WriteUserDep, body: BankAccountCreate
 ):
     ba = BankAccount(**body.model_dump(), tenant_id=user.tenant_id)
     session.add(ba)
@@ -72,7 +72,7 @@ def create_bank_account(
 
 @router.put("/{ba_id}")
 def update_bank_account(
-    session: SessionDep, user: CurrentUserDep, ba_id: int, body: BankAccountUpdate
+    session: SessionDep, user: WriteUserDep, ba_id: int, body: BankAccountUpdate
 ):
     ba = session.exec(
         select(BankAccount).where(
@@ -90,7 +90,7 @@ def update_bank_account(
 
 
 @router.delete("/{ba_id}", status_code=204)
-def delete_bank_account(session: SessionDep, user: CurrentUserDep, ba_id: int):
+def delete_bank_account(session: SessionDep, user: WriteUserDep, ba_id: int):
     ba = session.exec(
         select(BankAccount).where(
             BankAccount.id == ba_id, BankAccount.tenant_id == user.tenant_id

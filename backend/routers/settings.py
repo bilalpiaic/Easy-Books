@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from models import Settings
 
-from .common import CurrentUserDep, SessionDep
+from .common import CurrentUserDep, SessionDep, WriteUserDep
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -30,7 +30,7 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
 
 
 @router.patch("")
-def update_settings(session: SessionDep, user: CurrentUserDep, body: SettingsUpdate):
+def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdate):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
     for key, value in updates.items():
         row = session.exec(

@@ -9,7 +9,7 @@ from sqlmodel import func, select
 from models import BillLine, InvoiceLine, Product
 from services.money import D, money
 
-from .common import CurrentUserDep, SessionDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
@@ -71,7 +71,7 @@ def products_stock_summary(session: SessionDep, user: CurrentUserDep):
 
 
 @router.post("", status_code=201)
-def create_product(session: SessionDep, user: CurrentUserDep, body: ProductCreate):
+def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate):
     p = Product(tenant_id=user.tenant_id, **body.model_dump())
     session.add(p)
     log_audit(session, user, "CREATE", "product", None, {"name": body.name})
@@ -82,7 +82,7 @@ def create_product(session: SessionDep, user: CurrentUserDep, body: ProductCreat
 
 @router.put("/{product_id}")
 def update_product(
-    session: SessionDep, user: CurrentUserDep, product_id: int, body: ProductCreate
+    session: SessionDep, user: WriteUserDep, product_id: int, body: ProductCreate
 ):
     p = session.exec(
         select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)
@@ -99,7 +99,7 @@ def update_product(
 
 
 @router.delete("/{product_id}", status_code=204)
-def delete_product(session: SessionDep, user: CurrentUserDep, product_id: int):
+def delete_product(session: SessionDep, user: WriteUserDep, product_id: int):
     p = session.exec(
         select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)
     ).first()

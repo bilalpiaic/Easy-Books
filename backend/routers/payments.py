@@ -10,7 +10,7 @@ from models import Account, Bill, BillPayment, Invoice, PaymentReceived
 from services.money import money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, get_or_create_account
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account
 
 router = APIRouter(tags=["payments"])
 
@@ -42,7 +42,7 @@ def list_payments_received(
 
 @router.post("/api/payments-received", status_code=201)
 def create_payment_received(
-    session: SessionDep, user: CurrentUserDep, body: PaymentReceivedCreate
+    session: SessionDep, user: WriteUserDep, body: PaymentReceivedCreate
 ):
     amount = money(body.amount)
     cname = body.customer_name
@@ -121,7 +121,7 @@ def list_bill_payments(
 
 @router.post("/api/bill-payments", status_code=201)
 def create_bill_payment(
-    session: SessionDep, user: CurrentUserDep, body: BillPaymentCreate
+    session: SessionDep, user: WriteUserDep, body: BillPaymentCreate
 ):
     amount = money(body.amount)
     vname = body.vendor_name

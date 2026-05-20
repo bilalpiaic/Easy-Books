@@ -12,7 +12,7 @@ from services.inventory import consume_stock
 from services.money import D, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, get_or_create_account, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
 
 router = APIRouter(tags=["invoices"])
 
@@ -79,7 +79,7 @@ def list_invoices(
 
 
 @router.post("/api/invoices", status_code=201)
-def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreate):
+def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate):
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix"
@@ -222,7 +222,7 @@ def create_invoice(session: SessionDep, user: CurrentUserDep, body: InvoiceCreat
 
 @router.patch("/api/invoices/{invoice_id}/status")
 def update_invoice_status(
-    session: SessionDep, user: CurrentUserDep, invoice_id: int, status: str
+    session: SessionDep, user: WriteUserDep, invoice_id: int, status: str
 ):
     inv = session.exec(
         select(Invoice).where(

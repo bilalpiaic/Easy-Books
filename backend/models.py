@@ -38,11 +38,18 @@ class Tenant(SQLModel, table=True):
 
 
 class User(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('owner','admin','accountant','viewer')",
+            name="ck_user_role",
+        ),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
     hashed_password: str
     full_name: Optional[str] = None
     is_active: bool = Field(default=True)
+    role: str = Field(default="viewer", index=True)
     tenant_id: int = Field(foreign_key="tenant.id")
 
     tenant: Tenant = Relationship(back_populates="users")

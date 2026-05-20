@@ -16,7 +16,7 @@ would otherwise force everything back into one mega-file.
 import json as _json
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlmodel import Session, select
@@ -26,18 +26,30 @@ from db import get_session
 from models import Account, AuditLog, User
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+# auto_error=False so a missing Authorization header falls through to the
+# cookie reader rather than raising 401 outright.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
+
+ACCESS_COOKIE_NAME = "eb_access"
 
 
 def get_current_user(
+    request: Request,
     session: Session = Depends(get_session),
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
 ) -> User:
+    """Resolve the authenticated user from either the Authorization: Bearer
+    header (SDK / curl clients) or the HttpOnly access cookie (SPA clients).
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if not token:
+        token = request.cookies.get(ACCESS_COOKIE_NAME)
+    if not token:
+        raise credentials_exception
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -55,6 +67,42 @@ def get_current_user(
 
 SessionDep = Annotated[Session, Depends(get_session)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+
+# ── RBAC ─────────────────────────────────────────────────────────────────────
+# Higher index = more privilege. require_min_role picks the floor.
+_ROLE_ORDER = ("viewer", "accountant", "admin", "owner")
+
+
+def _rank(role: str) -> int:
+    try:
+        return _ROLE_ORDER.index(role)
+    except ValueError:
+        return -1
+
+
+def require_min_role(min_role: str):
+    """Dependency factory: returns the current user iff their role rank is
+    at least `min_role`. Raises 403 otherwise. Use as a Depends() override of
+    CurrentUserDep on endpoints that mutate financial data.
+    """
+    floor = _rank(min_role)
+
+    def _dep(user: User = Depends(get_current_user)) -> User:
+        if _rank(user.role) < floor:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{user.role}' lacks permission (need '{min_role}+')",
+            )
+        return user
+
+    return _dep
+
+
+# Convenience deps — most write endpoints want accountant+, admin endpoints
+# want admin+.
+WriteUserDep = Annotated[User, Depends(require_min_role("accountant"))]
+AdminUserDep = Annotated[User, Depends(require_min_role("admin"))]
 
 
 def log_audit(

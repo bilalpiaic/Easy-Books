@@ -9,7 +9,7 @@ from models import (
     BankAccount, JournalEntry, Reconciliation, ReconciliationLine, Transaction,
 )
 
-from .common import CurrentUserDep, SessionDep
+from .common import CurrentUserDep, SessionDep, WriteUserDep
 
 router = APIRouter(prefix="/api/reconciliations", tags=["reconciliations"])
 
@@ -37,7 +37,7 @@ def list_reconciliations(session: SessionDep, user: CurrentUserDep):
 
 @router.post("", status_code=201)
 def create_reconciliation(
-    session: SessionDep, user: CurrentUserDep, body: ReconciliationCreate
+    session: SessionDep, user: WriteUserDep, body: ReconciliationCreate
 ):
     ba = session.get(BankAccount, body.bank_account_id)
     if not ba or ba.tenant_id != user.tenant_id:
@@ -105,7 +105,7 @@ def get_reconciliation(session: SessionDep, user: CurrentUserDep, rec_id: int):
 
 @router.patch("/{rec_id}/lines/{line_id}")
 def toggle_reconciliation_line(
-    session: SessionDep, user: CurrentUserDep,
+    session: SessionDep, user: WriteUserDep,
     rec_id: int, line_id: int, is_matched: bool,
 ):
     rec = session.exec(
@@ -130,7 +130,7 @@ def toggle_reconciliation_line(
 
 
 @router.post("/{rec_id}/close")
-def close_reconciliation(session: SessionDep, user: CurrentUserDep, rec_id: int):
+def close_reconciliation(session: SessionDep, user: WriteUserDep, rec_id: int):
     rec = session.exec(
         select(Reconciliation).where(
             Reconciliation.id == rec_id, Reconciliation.tenant_id == user.tenant_id

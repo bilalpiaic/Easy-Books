@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from models import AccountingPeriod
 
-from .common import CurrentUserDep, SessionDep
+from .common import CurrentUserDep, SessionDep, WriteUserDep
 
 router = APIRouter(prefix="/api/periods", tags=["periods"])
 
@@ -28,7 +28,7 @@ def list_periods(session: SessionDep, user: CurrentUserDep):
 
 
 @router.post("", status_code=201)
-def create_period(session: SessionDep, user: CurrentUserDep, body: PeriodCreate):
+def create_period(session: SessionDep, user: WriteUserDep, body: PeriodCreate):
     p = AccountingPeriod(tenant_id=user.tenant_id, **body.model_dump())
     session.add(p)
     session.commit()
@@ -38,7 +38,7 @@ def create_period(session: SessionDep, user: CurrentUserDep, body: PeriodCreate)
 
 @router.patch("/{period_id}/lock")
 def toggle_period_lock(
-    session: SessionDep, user: CurrentUserDep, period_id: int, is_locked: bool
+    session: SessionDep, user: WriteUserDep, period_id: int, is_locked: bool
 ):
     p = session.exec(
         select(AccountingPeriod).where(
@@ -55,7 +55,7 @@ def toggle_period_lock(
 
 
 @router.delete("/{period_id}", status_code=204)
-def delete_period(session: SessionDep, user: CurrentUserDep, period_id: int):
+def delete_period(session: SessionDep, user: WriteUserDep, period_id: int):
     p = session.exec(
         select(AccountingPeriod).where(
             AccountingPeriod.id == period_id,

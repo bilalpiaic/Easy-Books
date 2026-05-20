@@ -8,7 +8,7 @@ from sqlmodel import func, select
 
 from models import Vendor
 
-from .common import CurrentUserDep, SessionDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/vendors", tags=["vendors"])
 
@@ -44,7 +44,7 @@ def list_vendors(
 
 
 @router.post("", status_code=201)
-def create_vendor(session: SessionDep, user: CurrentUserDep, body: VendorCreate):
+def create_vendor(session: SessionDep, user: WriteUserDep, body: VendorCreate):
     v = Vendor(**body.model_dump(), tenant_id=user.tenant_id)
     session.add(v)
     session.flush()
@@ -56,7 +56,7 @@ def create_vendor(session: SessionDep, user: CurrentUserDep, body: VendorCreate)
 
 @router.put("/{vendor_id}")
 def update_vendor(
-    session: SessionDep, user: CurrentUserDep, vendor_id: int, body: VendorUpdate
+    session: SessionDep, user: WriteUserDep, vendor_id: int, body: VendorUpdate
 ):
     v = session.exec(
         select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id)
@@ -73,7 +73,7 @@ def update_vendor(
 
 
 @router.delete("/{vendor_id}", status_code=204)
-def delete_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int):
+def delete_vendor(session: SessionDep, user: WriteUserDep, vendor_id: int):
     v = session.exec(
         select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id)
     ).first()

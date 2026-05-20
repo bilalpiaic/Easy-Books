@@ -10,7 +10,7 @@ from models import Account, Customer, Product, Vendor
 from services.money import D
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/import", tags=["import"])
 
@@ -78,7 +78,7 @@ def download_sample(entity: str, _user: CurrentUserDep):
 
 @router.post("/accounts")
 async def import_accounts(
-    file: UploadFile, session: SessionDep, user: CurrentUserDep,
+    file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
     VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
     rows = _parse_csv(await file.read())
@@ -111,7 +111,7 @@ async def import_accounts(
 
 @router.post("/customers")
 async def import_customers(
-    file: UploadFile, session: SessionDep, user: CurrentUserDep,
+    file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
     rows = _parse_csv(await file.read())
     imported, errors = 0, []
@@ -141,7 +141,7 @@ async def import_customers(
 
 @router.post("/vendors")
 async def import_vendors(
-    file: UploadFile, session: SessionDep, user: CurrentUserDep,
+    file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
     rows = _parse_csv(await file.read())
     imported, errors = 0, []
@@ -171,7 +171,7 @@ async def import_vendors(
 
 @router.post("/products")
 async def import_products(
-    file: UploadFile, session: SessionDep, user: CurrentUserDep,
+    file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
     VALID_TYPES = {"stock", "service"}
     VALID_UNITS = {"pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"}
@@ -211,7 +211,7 @@ async def import_products(
 
 @router.post("/transactions")
 async def import_transactions(
-    file: UploadFile, session: SessionDep, user: CurrentUserDep,
+    file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
     rows = _parse_csv(await file.read())
     errors: list[dict] = []

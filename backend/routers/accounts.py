@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from models import Account, JournalEntry
 
-from .common import CurrentUserDep, SessionDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -27,7 +27,7 @@ class AccountUpdate(BaseModel):
 
 
 @router.post("")
-def create_account(session: SessionDep, user: CurrentUserDep, data: AccountCreate):
+def create_account(session: SessionDep, user: WriteUserDep, data: AccountCreate):
     existing = session.exec(
         select(Account).where(
             Account.tenant_id == user.tenant_id, Account.code == data.code
@@ -52,7 +52,7 @@ def create_account(session: SessionDep, user: CurrentUserDep, data: AccountCreat
 
 @router.put("/{account_id}")
 def update_account(
-    account_id: int, session: SessionDep, user: CurrentUserDep, data: AccountUpdate
+    account_id: int, session: SessionDep, user: WriteUserDep, data: AccountUpdate
 ):
     account = session.exec(
         select(Account).where(
@@ -76,7 +76,7 @@ def update_account(
 
 
 @router.delete("/{account_id}")
-def delete_account(account_id: int, session: SessionDep, user: CurrentUserDep):
+def delete_account(account_id: int, session: SessionDep, user: WriteUserDep):
     account = session.exec(
         select(Account).where(
             Account.id == account_id, Account.tenant_id == user.tenant_id

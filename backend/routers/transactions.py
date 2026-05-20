@@ -8,14 +8,14 @@ from models import Transaction, TransactionCreate, TransactionRead
 from services.money import D
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
 @router.post("")
 def create_transaction(
-    session: SessionDep, user: CurrentUserDep, tx_data: TransactionCreate
+    session: SessionDep, user: WriteUserDep, tx_data: TransactionCreate
 ):
     txn = post_transaction(
         session, user,
@@ -37,7 +37,7 @@ def create_transaction(
 
 @router.post("/{transaction_id}/reverse")
 def reverse_transaction(
-    session: SessionDep, user: CurrentUserDep, transaction_id: int
+    session: SessionDep, user: WriteUserDep, transaction_id: int
 ):
     txn = session.exec(
         select(Transaction).where(

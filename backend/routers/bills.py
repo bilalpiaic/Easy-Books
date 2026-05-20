@@ -11,7 +11,7 @@ from services.inventory import record_purchase
 from services.money import D, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, get_or_create_account, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
 
 router = APIRouter(tags=["bills"])
 
@@ -57,7 +57,7 @@ def list_bills(
 
 
 @router.post("/api/bills", status_code=201)
-def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
+def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "bill_prefix"
@@ -183,7 +183,7 @@ def create_bill(session: SessionDep, user: CurrentUserDep, body: BillCreate):
 
 @router.patch("/api/bills/{bill_id}/status")
 def update_bill_status(
-    session: SessionDep, user: CurrentUserDep, bill_id: int, status: str
+    session: SessionDep, user: WriteUserDep, bill_id: int, status: str
 ):
     b = session.exec(
         select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)
