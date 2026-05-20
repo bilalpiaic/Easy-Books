@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from models import Account, Settings
+from models import Account, SequenceCounter, Settings
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -80,28 +80,35 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
         ).first()
 
         if not account_count:
+            # Default chart of accounts (codes are non-overlapping ranges per
+            # type, matching the rest of the codebase's auto-resolution logic).
             initial_accounts = [
+                # 1xxx — Assets
                 Account(code="1000", name="Cash in Hand", type="Asset", tenant_id=tenant_id),
+                Account(code="1010", name="Bank", type="Asset", tenant_id=tenant_id),
                 Account(code="1100", name="Accounts Receivable", type="Asset", tenant_id=tenant_id),
-                Account(code="1200", name="Raw Material Inventory", type="Asset", tenant_id=tenant_id),
+                Account(code="1200", name="Inventory (Raw Material)", type="Asset", tenant_id=tenant_id),
+                Account(code="1201", name="Finished Goods Inventory", type="Asset", tenant_id=tenant_id),
+                Account(code="1250", name="GST Receivable (Input)", type="Asset", tenant_id=tenant_id),
                 Account(code="1300", name="Work-in-Progress", type="Asset", tenant_id=tenant_id),
+                # 2xxx — Liabilities
                 Account(code="2000", name="Accounts Payable", type="Liability", tenant_id=tenant_id),
                 Account(code="2100", name="Advances Received", type="Liability", tenant_id=tenant_id),
+                Account(code="2200", name="GST Payable (Output)", type="Liability", tenant_id=tenant_id),
+                # 3xxx — Equity
                 Account(code="3000", name="Owner Capital", type="Equity", tenant_id=tenant_id),
+                Account(code="3010", name="Drawings", type="Equity", tenant_id=tenant_id),
                 Account(code="3100", name="Retained Earnings", type="Equity", tenant_id=tenant_id),
-                Account(code="4000", name="CMT Services Income", type="Revenue", tenant_id=tenant_id),
-                Account(code="4100", name="T-Shirt Sales", type="Revenue", tenant_id=tenant_id),
-                Account(code="4200", name="Scrap Sales", type="Revenue", tenant_id=tenant_id),
-                Account(code="4300", name="WC Orders Income", type="Revenue", tenant_id=tenant_id),
+                # 4xxx — Revenue
+                Account(code="4000", name="Sales Revenue", type="Revenue", tenant_id=tenant_id),
                 Account(code="4900", name="Other Income", type="Revenue", tenant_id=tenant_id),
-                Account(code="5000", name="Raw Material Expense", type="Expense", tenant_id=tenant_id),
+                # 5xxx — Expenses
+                Account(code="5000", name="General Expenses", type="Expense", tenant_id=tenant_id),
+                Account(code="5010", name="Cost of Goods Sold", type="Expense", tenant_id=tenant_id),
+                Account(code="5050", name="Depreciation Expense", type="Expense", tenant_id=tenant_id),
                 Account(code="5100", name="Labour & Wages", type="Expense", tenant_id=tenant_id),
-                Account(code="5200", name="CMT Processing Expense", type="Expense", tenant_id=tenant_id),
                 Account(code="5300", name="Rent & Utilities", type="Expense", tenant_id=tenant_id),
                 Account(code="5400", name="Transport & Delivery", type="Expense", tenant_id=tenant_id),
-                Account(code="5500", name="Machine Repair & Maintenance", type="Expense", tenant_id=tenant_id),
-                Account(code="1201", name="Finished Goods Inventory", type="Asset", tenant_id=tenant_id),
-                Account(code="5010", name="Cost of Goods Sold", type="Expense", tenant_id=tenant_id),
                 Account(code="5900", name="Other Expenses", type="Expense", tenant_id=tenant_id),
             ]
             s.add_all(initial_accounts)
@@ -114,6 +121,20 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             company = os.environ.get("SEED_COMPANY_NAME", "My Company")
             s.add(Settings(key="company_name", value=company, tenant_id=tenant_id))
             s.commit()
+
+        # Seed document-number counters so the at-runtime path never has to
+        # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
+        # without racing on the unique constraint.
+        for name in ("invoice", "bill"):
+            existing = s.exec(
+                select(SequenceCounter).where(
+                    SequenceCounter.tenant_id == tenant_id,
+                    SequenceCounter.name == name,
+                )
+            ).first()
+            if not existing:
+                s.add(SequenceCounter(tenant_id=tenant_id, name=name, next_value=1))
+        s.commit()
 
     if session:
         run_seeding(session)
