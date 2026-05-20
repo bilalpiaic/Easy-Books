@@ -235,9 +235,10 @@ class BillLine(SQLModel, table=True):
 
 # API Models
 class JournalEntryCreate(JournalEntryBase):
-    pass
+    tenant_id: Optional[int] = None  # set by server from JWT
 
 class TransactionCreate(TransactionBase):
+    tenant_id: Optional[int] = None  # set by server from JWT
     entries: List[JournalEntryCreate]
 
 class TransactionRead(TransactionBase):
