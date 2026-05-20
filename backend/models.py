@@ -308,10 +308,11 @@ class BillLine(SQLModel, table=True):
 # --- API DTOs (used by routers for request bodies & responses) ---
 
 class JournalEntryCreate(JournalEntryBase):
-    pass
+    tenant_id: Optional[int] = None  # set by server from JWT
 
 
 class TransactionCreate(TransactionBase):
+    tenant_id: Optional[int] = None  # set by server from JWT
     entries: List[JournalEntryCreate]
 
 

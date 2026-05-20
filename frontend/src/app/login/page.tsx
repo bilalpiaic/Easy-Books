@@ -7,8 +7,8 @@ import { setAuthToken } from "@/lib/auth"
 import { apiBase } from "@/lib/api"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@malik.com")
-  const [password, setPassword] = useState("admin123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -66,7 +66,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-white border border-[#1a1814]/10 rounded-xl focus:ring-2 focus:ring-[#b8943f] focus:border-transparent outline-none text-[#1a1814]"
-                placeholder="admin@malik.com"
+                placeholder="you@example.com"
                 required
               />
             </div>
@@ -105,11 +105,6 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
-            <p className="font-bold mb-2">Demo Credentials (Pre-filled):</p>
-            <p>Email: admin@malik.com</p>
-            <p>Password: admin123</p>
-          </div>
         </div>
       </div>
     </div>
