@@ -6,6 +6,7 @@ import {
   ChevronRight, BookOpen, LogIn, BarChart3, FileSignature,
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
+  Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -18,12 +19,20 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: "getting-started",  label: "Getting Started",        icon: LogIn,          shortLabel: "Start"    },
+  { id: "getting-started",  label: "Getting Started",        icon: LogIn,           shortLabel: "Start"    },
   { id: "coa",              label: "Chart of Accounts",      icon: BarChart3,       shortLabel: "COA"      },
   { id: "invoicing",        label: "Invoicing",              icon: FileSignature,   shortLabel: "Invoices" },
   { id: "billing",          label: "Billing",                icon: Receipt,         shortLabel: "Bills"    },
   { id: "products",         label: "Products & Inventory",   icon: Package,         shortLabel: "Products" },
+  { id: "payments",         label: "Payments & Allocations", icon: CheckCircle,     shortLabel: "Pay"      },
   { id: "journal",          label: "Journal Entries",        icon: PenLine,         shortLabel: "Journal"  },
+  { id: "tax-codes",        label: "Tax Codes",              icon: Percent,         shortLabel: "Tax"      },
+  { id: "currency",         label: "Multi-Currency",         icon: Globe,           shortLabel: "FX"       },
+  { id: "recurring",        label: "Recurring Entries",      icon: Repeat,          shortLabel: "Recur"    },
+  { id: "bank-imports",     label: "Bank Imports",           icon: Landmark,        shortLabel: "Bank"     },
+  { id: "period-close",     label: "Period Close",           icon: Calendar,        shortLabel: "Close"    },
+  { id: "roles",            label: "Roles & Access",         icon: Users,           shortLabel: "Roles"    },
+  { id: "security",         label: "Security & CSRF",        icon: Shield,          shortLabel: "Sec"      },
   { id: "reports",          label: "Financial Reports",      icon: TrendingUp,      shortLabel: "Reports"  },
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
 ]
@@ -479,6 +488,369 @@ function ReportsPanel() {
   )
 }
 
+function PaymentsPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        A single payment can settle multiple invoices (or bills) with partial amounts.
+        The invoice <code className="font-mono text-[11px]">status</code> is derived from the
+        total allocated against it — <strong>partial</strong> when some is paid,{" "}
+        <strong>paid</strong> when fully covered. The dashboard and aging report both use
+        the <em>outstanding</em> balance, never the gross.
+      </p>
+
+      <SectionHeading>Receive a Payment Against One Invoice</SectionHeading>
+      <StepList steps={[
+        "Go to Payments Received and click New Payment.",
+        "Set payment date, amount, and method (cash, bank, cheque, etc.).",
+        "Choose the invoice in Allocations and set the allocated amount.",
+        "Save — Cash/Bank is debited, AR is credited, the allocation row is written, and the invoice status flips to paid or partial.",
+      ]} />
+
+      <SectionHeading>Split One Payment Across Multiple Invoices</SectionHeading>
+      <StepList steps={[
+        "Enter the gross payment amount at the top.",
+        "Add one allocation row per invoice — choose the invoice, set its share of the amount.",
+        "Sum of allocations cannot exceed the payment amount (server enforces 400 otherwise).",
+        "Each invoice's status is recomputed independently after the save.",
+      ]} />
+
+      <SectionHeading>What the GL Looks Like</SectionHeading>
+      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 leading-relaxed mt-2">
+        Dr  1000 Cash in Hand       400.00<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;Cr  1100 Accounts Receivable        400.00<br/>
+        <span className="text-[#7a5c1e]">+ PaymentAllocation {`{`}invoice_id=INV-0042, amount=400.00{`}`}</span><br/>
+        <span className="text-[#7a5c1e]">+ Invoice.status = "partial"  (400 paid of 1000 total)</span>
+      </div>
+
+      <TipCallout>
+        <strong>Reversal:</strong> reversing the payment&apos;s JV (Transactions → Reverse)
+        deletes the allocations and recomputes each invoice&apos;s status — no orphaned state.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Allocating more than the payment amount — the API will reject with 400.</p>
+        <p>Forgetting to set an allocation — the payment posts but no invoice marks as paid.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function TaxCodesPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Tax codes decouple the rate from the document. Instead of hard-coding 17% on every
+        invoice, you maintain a per-tenant catalog. When a tenant&apos;s standard rate changes,
+        you edit the catalog; historical documents keep the rate they were issued with.
+      </p>
+
+      <SectionHeading>Creating a Tax Code</SectionHeading>
+      <StepList steps={[
+        "Go to Settings → Tax Codes.",
+        "Enter a short code (e.g. GST17), a name (Standard GST 17%), and the rate (17).",
+        "Choose type: output (sales tax — a liability) or input (purchase tax — receivable).",
+        "Select the GL account where the tax leg posts (typically 2200 for output, 1250 for input).",
+      ]} />
+
+      <SectionHeading>Constraints</SectionHeading>
+      <StepList steps={[
+        "Code is unique per tenant — you cannot have two GST17 codes.",
+        "Rate must be ≥ 0 (CHECK enforced at the database).",
+        "Type must be either output or input — no other values accepted.",
+      ]} />
+
+      <MistakeCallout>
+        <p>Using the same GL account for output and input GST — the tax summary will not net correctly.</p>
+        <p>Editing a tax code rate retroactively expecting old invoices to change — they keep their snapshot.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function CurrencyPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Every tenant has a <strong>base currency</strong> — that&apos;s what your reports are in.
+        Individual invoices and bills can be issued in a different currency; the system snapshots
+        the exchange rate at issue time and posts the GL in base currency. Document totals on
+        the invoice itself stay in the document currency.
+      </p>
+
+      <SectionHeading>Setting the Base Currency</SectionHeading>
+      <StepList steps={[
+        "Go to Settings → Company.",
+        "Set base_currency to your reporting currency (e.g. USD, PKR, EUR).",
+        "This is what the trial balance, P&L, balance sheet, and dashboard will show.",
+      ]} />
+
+      <SectionHeading>Maintaining Exchange Rates</SectionHeading>
+      <StepList steps={[
+        "Go to Settings → Exchange Rates.",
+        "Add a rate entry: date, from_currency, to_currency, rate.",
+        "You only need to enter rates when they CHANGE — lookups walk back to the most recent prior date.",
+        "Lookups also resolve the inverse automatically: if you enter USD→EUR=0.91 and post an EUR invoice, the system uses 1/0.91 = ~1.10 to convert to USD.",
+      ]} />
+
+      <SectionHeading>Posting a Foreign-Currency Invoice</SectionHeading>
+      <StepList steps={[
+        "Create an invoice as usual.",
+        "Set currency to the document currency (e.g. EUR).",
+        "Leave exchange_rate blank to let the server resolve from the catalog, OR set it explicitly to override.",
+        "The invoice document shows EUR amounts; the GL posts USD (or whatever your base is).",
+      ]} />
+
+      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 leading-relaxed mt-3">
+        EUR invoice: subtotal=1000, exchange_rate=1.10, total=1000 (EUR)<br/>
+        GL post (in base USD):<br/>
+        Dr  1100 AR        1,100.00<br/>
+        &nbsp;&nbsp;Cr  4000 Revenue   1,100.00
+      </div>
+
+      <MistakeCallout>
+        <p>Forgetting to enter an exchange rate for a new currency — the invoice will return 400 with a clear message.</p>
+        <p>Setting tenant base currency to a foreign code halfway through the year — your historical reports will look strange because old JVs posted in the old base.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function RecurringPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Recurring templates capture a journal-entry skeleton and a schedule. The{" "}
+        <code className="font-mono text-[11px]">run-due</code> worker endpoint materialises
+        a Transaction for every template whose next-run date has arrived and advances the
+        schedule.
+      </p>
+
+      <SectionHeading>Creating a Template</SectionHeading>
+      <StepList steps={[
+        "Go to Recurring → New Template.",
+        "Name it (e.g. Monthly office rent).",
+        "Choose frequency: daily, weekly, monthly, quarterly, or yearly.",
+        "Set next_run — the first date it should fire (ISO yyyy-mm-dd).",
+        "Add the journal entries that will post each cycle — both sides must balance.",
+      ]} />
+
+      <SectionHeading>Running Due Templates</SectionHeading>
+      <StepList steps={[
+        "Open Recurring → Run Due (or POST /api/recurring/run-due).",
+        "Every template whose next_run is on or before today posts a Transaction with today’s date in the JV description.",
+        "After firing, last_run = previous next_run, and next_run advances by the frequency.",
+        "Running twice on the same day is idempotent — the second call finds no due templates.",
+      ]} />
+
+      <TipCallout>
+        <strong>Day-of-month clamping:</strong> a monthly template scheduled for the 31st
+        falls back to the last day of the target month (Feb 28/29). No template ever
+        skips a month because its day-of-month doesn&apos;t exist.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Forgetting to set is_active=true on production templates — they will never fire.</p>
+        <p>Editing a template after it has fired — past JVs keep the old amounts; only future cycles use the new ones.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function BankImportsPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Bank statement import lets you reconcile your books against the bank&apos;s record.
+        Upload a CSV from your bank, the system parses each line and tries to match it to
+        an existing journal entry. Anything that doesn&apos;t auto-match is left for manual review.
+      </p>
+
+      <SectionHeading>CSV Format</SectionHeading>
+      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 leading-relaxed mt-2">
+        date,description,debit,credit,balance<br/>
+        2026-05-02,Customer payment Alice,0,500,1500<br/>
+        2026-05-03,Stripe payout,0,1000,2500<br/>
+        2026-05-04,Office rent,200,0,2300
+      </div>
+      <p className="text-xs text-[#1a1814]/55 mt-2 leading-relaxed">
+        <strong>debit</strong> = money leaving the account (e.g. paying a vendor).{" "}
+        <strong>credit</strong> = money arriving (e.g. customer payment). Either column can be blank.
+      </p>
+
+      <SectionHeading>Importing</SectionHeading>
+      <StepList steps={[
+        "Go to Banking → Imports → New Import.",
+        "Choose the bank account this statement belongs to.",
+        "Upload the CSV. Server computes a SHA-256 hash — re-uploading the exact same file returns 409 to prevent duplicate lines.",
+        "After upload, each line becomes a StatementLine row, unmatched.",
+      ]} />
+
+      <SectionHeading>Auto-Match</SectionHeading>
+      <StepList steps={[
+        "Click Auto-Match on the import page.",
+        "For each unmatched line, the system finds Transactions whose JV total equals the line amount within a ±3-day window.",
+        "If exactly one candidate matches, the line is linked. Multiple candidates leave the line unmatched for review.",
+        "Lines auto-matched in OTHER imports don't prevent matching here (each import is scored independently).",
+      ]} />
+
+      <MistakeCallout>
+        <p>Uploading a non-UTF-8 CSV — the server returns 400. Save as UTF-8 in Excel or Sheets.</p>
+        <p>Expecting auto-match to handle bank fees or multi-line splits — set those manually via the line PATCH endpoint.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function PeriodClosePanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Closing a period freezes the books for that range and rolls Revenue/Expense balances
+        into Retained Earnings. The system also materialises per-account balances into
+        <code className="font-mono text-[11px]">AccountBalance</code> rows so trial-balance
+        reads against the closed period are O(accounts) instead of O(journal_entries).
+      </p>
+
+      <SectionHeading>Lifecycle</SectionHeading>
+      <StepList steps={[
+        "Create the period — Periods → New, set start and end dates.",
+        "Operate normally during the period.",
+        "When ready to close, POST /api/periods/{id}/close (admin role required).",
+        "Server posts the closing JV: Dr Revenue / Cr Expense / Cr-or-Dr Retained Earnings for the net income.",
+        "Period.is_locked flips to true — no JV can post into this range any more.",
+        "AccountBalance rows are written for every account that posted in the period.",
+      ]} />
+
+      <SectionHeading>Reopening</SectionHeading>
+      <StepList steps={[
+        "POST /api/periods/{id}/reopen unlocks the period and deletes its AccountBalance rows.",
+        "Future reads aggregate live again.",
+        "The closing JV stays in place — if you also need to undo the retained-earnings rollover, reverse that JV separately.",
+      ]} />
+
+      <TipCallout>
+        <strong>What if I backdate a JV into a closed period?</strong> The central posting
+        service refuses with 400 — the date check happens before any DB writes.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Closing a period before all month-end adjustments are posted — you&apos;d have to reopen to fix it.</p>
+        <p>Reversing the closing JV manually before reopening — the period is still locked, so the reversal will 400.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function RolesPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Easy-Books uses role-based access control. Every user has one of four roles. The first
+        user of a tenant is automatically the <strong>owner</strong>; the owner can invite or
+        promote other users.
+      </p>
+
+      <SectionHeading>Role Matrix</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Role</th>
+              <th className="px-4 py-2.5 text-left">Read reports</th>
+              <th className="px-4 py-2.5 text-left">Post JVs / docs</th>
+              <th className="px-4 py-2.5 text-left">Close period</th>
+              <th className="px-4 py-2.5 text-left">Delete accounts</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["viewer",     "✔", "—", "—", "—"],
+              ["accountant", "✔", "✔", "—", "—"],
+              ["admin",      "✔", "✔", "✔", "✔"],
+              ["owner",      "✔", "✔", "✔", "✔"],
+            ].map(([role, r, w, c, d]) => (
+              <tr key={role} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-semibold text-[#1a1814] font-mono">{role}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{r}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{w}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{c}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Behaviour</SectionHeading>
+      <StepList steps={[
+        "A viewer trying to POST/PUT/PATCH/DELETE anything → 403 with a clear message.",
+        "Accountants can do day-to-day work — invoices, bills, payments, manual JVs — but cannot close periods or delete accounts.",
+        "Period close, account delete, and other admin operations require admin or owner.",
+        "Roles are stored in the JWT, so role changes take effect on next login.",
+      ]} />
+
+      <MistakeCallout>
+        <p>Promoting too many users to admin — you lose the audit-of-actions benefit of restricted access.</p>
+        <p>Demoting yourself to viewer — you&apos;ll need another admin/owner to put you back.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function SecurityPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Easy-Books layers several protections so the wrong request can&apos;t do damage. Most are
+        invisible if you use the app normally; this panel explains them so integrators know what
+        to expect.
+      </p>
+
+      <SectionHeading>Authentication</SectionHeading>
+      <StepList steps={[
+        "Login (OAuth2 password form) returns a JWT bearer token AND sets an HttpOnly access cookie.",
+        "Browser SPA uses the cookie automatically (credentials: 'include').",
+        "SDKs / mobile / curl can use the bearer token directly via the Authorization header.",
+        "Both paths coexist — backend tries Bearer first, then cookie.",
+      ]} />
+
+      <SectionHeading>CSRF Protection</SectionHeading>
+      <StepList steps={[
+        "When you log in, a second non-HttpOnly cookie eb_csrf is set (and the same value is returned in the login response).",
+        "Any mutating POST/PUT/PATCH/DELETE authenticated by cookie MUST echo eb_csrf as the X-CSRF-Token header.",
+        "Missing or mismatched header → 403.",
+        "Bearer-header callers are exempt — the auth header itself proves intent.",
+      ]} />
+
+      <SectionHeading>Login Throttle</SectionHeading>
+      <StepList steps={[
+        "10 attempts per IP per 60-second rolling window.",
+        "11th attempt → 429 (Too Many Requests).",
+        "State lives in the database, so multiple uvicorn workers share the same counter.",
+      ]} />
+
+      <SectionHeading>Idempotency Keys</SectionHeading>
+      <StepList steps={[
+        "Send any mutating request with an Idempotency-Key header.",
+        "If the same key has been seen for this tenant before, the cached response body is returned with Idempotency-Replay: true.",
+        "Use this on flaky networks to make POSTs safely retryable.",
+      ]} />
+
+      <TipCallout>
+        <strong>Why two cookies?</strong> The HttpOnly access cookie keeps the JWT out of
+        JavaScript&apos;s reach. The non-HttpOnly CSRF cookie is readable by JavaScript so the SPA
+        can echo it back as a header — a header an attacker on another origin cannot set.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Forgetting credentials: 'include' on browser fetches — the access cookie won&apos;t be sent and you&apos;ll get 401.</p>
+        <p>Sending the CSRF token in the body instead of the X-CSRF-Token header — the middleware only reads the header.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
 function CsvImportPanel() {
   return (
     <div>
@@ -558,7 +930,15 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "invoicing":       <InvoicingPanel />,
   "billing":         <BillingPanel />,
   "products":        <ProductsPanel />,
+  "payments":        <PaymentsPanel />,
   "journal":         <JournalPanel />,
+  "tax-codes":       <TaxCodesPanel />,
+  "currency":        <CurrencyPanel />,
+  "recurring":       <RecurringPanel />,
+  "bank-imports":    <BankImportsPanel />,
+  "period-close":    <PeriodClosePanel />,
+  "roles":           <RolesPanel />,
+  "security":        <SecurityPanel />,
   "reports":         <ReportsPanel />,
   "csv":             <CsvImportPanel />,
 }
