@@ -42,13 +42,13 @@ app = FastAPI(title="Easy-Books API", lifespan=lifespan)
 # headers on replay.
 app.add_middleware(IdempotencyMiddleware)
 
-_allowed_origins = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").split(",")
+_allowed_origins = [o.strip() for o in os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").split(",")]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 # Routers are listed roughly in the order the UI exercises them so the

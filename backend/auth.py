@@ -16,7 +16,8 @@ if SECRET_KEY == _DEFAULT_SECRET:
         # tokens with the public default key. Dev/test keep the warning.
         raise SystemExit(
             "FATAL: JWT_SECRET_KEY is unset (or set to the default) while APP_ENV=production. "
-            "Set a strong random secret in the environment before starting."
+            "Set a strong random secret in the environment before starting. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
         )
     warnings.warn(
         "JWT_SECRET_KEY is not set — using insecure default. Set this env var before deploying."
