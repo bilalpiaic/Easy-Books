@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Tags } from "lucide-react"
+import { Tags, Printer } from "lucide-react"
+import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
@@ -28,12 +29,23 @@ export default function RatePlansPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex items-center gap-3">
-        <Tags className="w-7 h-7 text-[#b8943f]" />
-        <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Rate Plans</h1>
-          <p className="text-sm text-[#1a1814]/60">How you charge customers for your value-addition work.</p>
+      <PrintHeader title="Rate Plans" orientation="landscape" />
+      <header className="flex items-center justify-between gap-3 print:hidden">
+        <div className="flex items-center gap-3">
+          <Tags className="w-7 h-7 text-[#b8943f]" />
+          <div>
+            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Rate Plans</h1>
+            <p className="text-sm text-[#1a1814]/60">How you charge customers for your value-addition work.</p>
+          </div>
         </div>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          title="Print"
+        >
+          <Printer className="w-4 h-4" />
+          Print
+        </button>
       </header>
 
       <HelpCallout title="Anatomy of a rate plan" tone="tip">

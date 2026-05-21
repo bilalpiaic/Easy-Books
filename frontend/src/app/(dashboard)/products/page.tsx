@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Search, Trash2, Download, Package } from 'lucide-react'
+import { Plus, Search, Trash2, Download, Package, Printer } from 'lucide-react'
+import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -152,8 +153,9 @@ export default function Products() {
   const expenseAccounts = accounts.filter(a => a.type === 'Expense')
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6">
+      <PrintHeader title="Products" orientation="landscape" />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif font-medium flex items-center gap-2">
             <Package className="w-7 h-7 text-[#b8943f]" /> Products
@@ -170,6 +172,13 @@ export default function Products() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
             <Download className="w-4 h-4" /> Export
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            title="Print"
+          >
+            <Printer className="w-4 h-4" /> Print
           </button>
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" /> Add Product
