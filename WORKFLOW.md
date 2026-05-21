@@ -11,13 +11,14 @@
 1. [Snapshot](#1-snapshot)
 2. [Architecture](#2-architecture)
 3. [Data Model](#3-data-model)
-4. [The Six Accounting Cycles](#4-the-six-accounting-cycles)
+4. [The Accounting Cycles](#4-the-accounting-cycles)
    - 4.1 [Sales / Receivables](#41-sales--receivables)
    - 4.2 [Purchase / Payables](#42-purchase--payables)
    - 4.3 [Inventory (Weighted-Average)](#43-inventory-weighted-average)
    - 4.4 [Banking & Reconciliation](#44-banking--reconciliation)
    - 4.5 [Manual Journal Entries](#45-manual-journal-entries)
    - 4.6 [Period-End Close](#46-period-end-close)
+   - 4.7 [Manufacturing (V2)](#47-manufacturing-v2)
 5. [Cross-Cutting Features](#5-cross-cutting-features)
    - 5.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 5.2 [Tax Codes](#52-tax-codes)
@@ -194,13 +195,34 @@ frontend/src/app/(dashboard)/
 
   IdempotencyKey (tenant + key unique; cached response body)
   LoginAttempt (ip, attempted_at; sliding window throttle)
+
+  ── Manufacturing (V2) ──────────────────────────────────────────────
+  StockLocation (own | customer_custodial | wip)
+        ▲                ▲
+        │                │
+  InventoryLayer ──── StockMovement   (event log; reconstructs layers)
+   (per product +
+    location, with
+    owner_customer_id
+    + lot_no)
+
+  BomHeader ─── BomLine (own_stock | customer_supplied; versioned)
+  RatePlan ─── CustomerRatePlan (many-to-many, only one active per cust)
+
+  GoodsReceiptNote ─── GRNLine          (custodial intake; optional memo JE)
+  ProductionOrder (state machine: draft→started→completed→delivered→billed)
+        │                                                    │
+        ▼                                                    ▼
+   (links bom_id, customer_id,                          (invoice_id once
+    rate_plan_id, output_qty,                            billed — back-
+    own_material_cost, output_unit_cost)                 reference to Invoice)
 ```
 
 **Read it as:** every business is a `Tenant`. Every operational document (invoice, bill, payment, manual JV) ultimately writes a `Transaction` (the JV header) with 2+ `JournalEntry` rows. Reports aggregate `JournalEntry` directly.
 
 ---
 
-## 4. THE SIX ACCOUNTING CYCLES
+## 4. THE ACCOUNTING CYCLES
 
 ### 4.1 SALES / RECEIVABLES
 
@@ -445,6 +467,78 @@ Used for adjustments, opening balances, depreciation, accruals, prepayments, cor
 **Why two pieces (closing JV + balance materialisation)?**
 - The closing JV zeroes income-statement accounts into Retained Earnings, so next period starts clean.
 - The materialised `AccountBalance` makes future trial-balance reads against this period O(accounts) instead of O(journal entries) — useful as the GL grows.
+
+---
+
+### 4.7 MANUFACTURING (V2)
+
+Applies only to tenants where `Tenant.business_model == 'manufacturing'`. The signup flow seeds three stock locations (`MAIN` own, `GODOWN` customer_custodial, `WIP` work-in-progress) and an extended CoA that includes the memo pair `1210 Customer Goods on Hand` / `2150 Customer Goods Liability`.
+
+The cycle is built around **value-addition on customer-supplied goods** — the customer brings raw material, you add labour + (possibly) your own consumables, you bill them per output unit.
+
+```
+  SETUP                       INTAKE                    PRODUCTION                   BILLING
+   │                            │                          │                            │
+   │ POST /api/products         │ POST /api/grn            │ POST /api/production-     │ Invoice
+   │ POST /api/bom              │   (customer goods        │   orders                  │ generated
+   │   (recipe with own_stock   │    → GODOWN, memo)       │                           │ at completion
+   │    + customer_supplied)    │                          │ Each transition is a     │ of /bill stage
+   │ POST /api/rate-plans       │ Optional declared_value  │ separate JV:             │
+   │ POST /api/rate-plans/      │   triggers memo JE       │                           │
+   │   assign (cust ↔ plan)     │   Dr 1210 / Cr 2150     │ start ─→ Dr WIP /         │
+   │                            │                          │           Cr RawMaterial │
+   │                            │                          │ complete → Dr FG / Cr WIP│
+   │                            │                          │ deliver → Dr COGS / Cr FG│
+   │                            │                          │           Dr 2150/Cr 1210│
+   │                            │                          │           (memo release)  │
+   │                            │                          │ bill ────→ Dr AR /       │
+   │                            │                          │           Cr 4010 Service│
+   ▼                            ▼                          ▼                            ▼
+   Catalogues ready          Goods in custody          PO walks the state machine     Cash collectible
+                                                       draft → started → completed
+                                                       → delivered → billed
+```
+
+**State machine:**
+
+| State | Posted on entry | Movement type | Notes |
+|---|---|---|---|
+| `draft` | — | — | Only metadata; cancellable |
+| `started` | `Dr 1201 WIP / Cr 1200 Raw Material` for own_stock components | `ISSUE` (own) + `CUSTODIAL_ISSUE` (customer) | Snapshots `own_material_cost` |
+| `completed` | `Dr 1202 Finished Goods / Cr 1201 WIP` at absorbed cost | `COMPLETION` | Sets `output_unit_cost = own_material_cost / output_qty` |
+| `delivered` | `Dr 5010 COGS / Cr 1202 Finished Goods` + memo release `Dr 2150 / Cr 1210` for fully drained GRNs | `DELIVERY` | |
+| `billed` | `Dr 1100 AR / Cr 4010 Service Revenue (Value-Add)` via RatePlan formula | — | Creates Invoice row and links via `ProductionOrder.invoice_id` |
+| `cancelled` | — | — | Only legal from `draft`; later states require manual JV reversal |
+
+**Rate plan formula (used at the `bill` stage):**
+
+```
+base       = per_unit_rate × output_qty
+if includes_materials_at_cost:
+    base  += own_material_cost                  (your consumables, at WAvg)
+overhead   = base × overhead_pct / 100
+subtotal   = base + overhead
+margin     = subtotal × margin_pct / 100
+total      = subtotal + margin                   (excl. GST)
+```
+
+The invoice is built with itemised lines (value-add, materials passthrough, overhead, margin) so the customer can see exactly what they're paying for.
+
+**Custodial vs own — invariant:** customer-supplied material **never** touches your asset accounts. It lives only in
+1. The custodial inventory layers (`InventoryLayer.owner_customer_id = customer.id`, `unit_cost = 0`)
+2. The memo pair `1210/2150` (with `Account.is_memo = True` so it's excluded from formal A=L+E totals on the balance sheet)
+3. The stock movement log with `posted_to_gl = false`
+
+Memo balance is released only when **all** layers of a given GRN are fully drained — partial usage keeps the memo intact (the customer's stake is still in your custody, just embedded in your WIP/FG).
+
+**Manufacturing reports (V2.5):**
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/manufacturing/dashboard` | `{ pipeline: {by state→count}, totals: {wip_cost, finished_goods_cost, custodial_qty} }` |
+| `GET /api/manufacturing/wip-aging` | Open POs (state=`started`) bucketed `0-7d / 8-14d / 15-30d / 30d+` |
+| `GET /api/manufacturing/production-summary` | POs grouped by state with count + output_qty + cost; optional `start`, `end` filters |
+| `GET /api/manufacturing/customer-custody` | Per-(customer, product) qty on hand + unreleased declared value |
 
 ---
 
@@ -889,12 +983,16 @@ Auto-seeded on signup. 22 accounts across the five standard types:
 | `0007_account_balance` | P7 | `AccountBalance` (materialised on period close) |
 | `0008_sequence_counter` | Commit B | `SequenceCounter` for atomic doc numbering; backfills existing tenants at `max(existing)+1` |
 | `0009_login_attempts` | Commit C | `LoginAttempt` for DB-backed throttle |
+| `0010_business_model` | V2.1 | `Tenant.business_model` + `Tenant.enabled_modules` + `Account.is_memo` |
+| `0011_stock_locations` | V2.2 | `StockLocation` + `StockMovement` + `InventoryLayer.location_id`/`owner_customer_id`/`lot_no`; backfills `MAIN` per tenant and `GODOWN`/`WIP` for manufacturing |
+| `0012_bom_rate_plans` | V2.3 | `BomHeader`, `BomLine`, `RatePlan`, `CustomerRatePlan` |
+| `0013_grn_production_order` | V2.4 | `GoodsReceiptNote`, `GRNLine`, `ProductionOrder` (with state-machine CHECK) |
 
 All migrations are idempotent (check inspector before `create_table` / `add_column`), so they can safely be re-run on a fresh-baseline DB.
 
 ---
 
-> **Last updated:** 2026-05-20
+> **Last updated:** 2026-05-21
 > **Branch:** `saas-transition-foundation`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

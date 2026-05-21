@@ -42,6 +42,24 @@ Stack: FastAPI + SQLModel + Alembic (backend) · Next.js 16 + React 19 + Tailwin
 ### Reports (all live from the GL)
 Trial balance · General ledger (running balance per account) · Income statement · Balance sheet · Cash flow (indirect method) · Tax summary (GST output/input + income-tax slab estimate) · AR/AP aging (uses **outstanding** balance, net of partial payments) · Dashboard KPIs + charts.
 
+### Manufacturing track (V2)
+
+For tenants with `business_model = manufacturing`, Easy-Books adds a complete value-addition workflow on top of the core ledger:
+
+- **Business-model selection at signup** — `simple | services | trader | manufacturing`. Each variant gets a tailored Chart of Accounts (the manufacturing CoA includes raw-material, WIP, FG, the custodial memo pair `1210/2150`, direct labour, overhead) and a different set of enabled UI modules.
+- **Multi-location inventory** — `StockLocation(code, type)` with `own | customer_custodial | wip` types. Manufacturing tenants seed `MAIN`, `GODOWN`, `WIP` out of the box. Layers are keyed by `(product, location)` so the same product can live in multiple stores at different costs.
+- **Lot tracking + stock-movement event log** — every receipt/issue/consumption writes a `StockMovement` row (`RECEIPT | CUSTODIAL_RECEIPT | ISSUE | CUSTODIAL_ISSUE | COMPLETION | DELIVERY | SHIPMENT | ADJUSTMENT`). The log is the source of truth; `InventoryLayer` is a materialised projection.
+- **Bills of Material** — versioned recipes (`BomHeader` + `BomLine`). Each line tags its source as `own_stock` (consumes from your inventory at WAvg cost — hits WIP) or `customer_supplied` (consumes from a customer godown — memo-only, never your asset). Posting a new version auto-deactivates the prior one; historical PO references stay reconstructable.
+- **Rate plans** — versioned value-addition pricing (`RatePlan + CustomerRatePlan`). Formula: `per_unit_rate × qty + (materials_passthrough? own_material_cost) + overhead% + margin%`. A customer can be assigned multiple plans; reassignment auto-deactivates the previous active one.
+- **Goods Receipt Note** — `POST /api/grn` receives customer-supplied material into a godown. Custodial — never your asset. Optional `declared_value` triggers a memo JE (`Dr 1210 / Cr 2150`); custody is automatically released on delivery.
+- **Production Order lifecycle** — `draft → started → completed → delivered → billed` (or `cancelled` from draft). Each transition posts the right journal entries:
+  - **start** — `Dr WIP / Cr Raw Material` (own_stock); `CUSTODIAL_ISSUE` movement only for customer_supplied lines (no GL).
+  - **complete** — `Dr Finished Goods / Cr WIP` at absorbed cost; output capitalised as a fresh InventoryLayer at the computed unit cost.
+  - **deliver** — `Dr COGS / Cr Finished Goods`; releases custodial memo balance (`Dr 2150 / Cr 1210`) for any GRNs whose layers are fully drained.
+  - **bill** — generates an Invoice via the assigned RatePlan (`Dr AR / Cr 4010 Service Revenue`).
+- **Manufacturing reports** — `/api/manufacturing/dashboard` (pipeline counts + WIP/FG/custodial totals), `/wip-aging` (open POs bucketed by days since start), `/production-summary` (state-grouped totals), `/customer-custody` (who has what on hand).
+- **Adaptive UI** — the sidebar reads `business_model` from `/api/auth/me` and only surfaces the Manufacturing section (Production Floor, BoMs, Rate Plans, GRN, Production Orders) when applicable. Every manufacturing page ships with an inline `HelpCallout` + `EmptyStateGuide` so a first-time user always knows what the page does, why, and the next concrete step.
+
 ---
 
 ## Getting started
@@ -102,14 +120,20 @@ backend/
 ├── models.py                ← SQLModel tables
 ├── auth.py                  ← JWT + bcrypt
 ├── db.py                    ← engine, seed_data, default CoA
-├── alembic/versions/        ← 0001 → 0009 (idempotent migrations)
-├── routers/                 ← 21 domain routers
+├── alembic/versions/        ← 0001 → 0013 (idempotent migrations)
+├── routers/                 ← 26 domain routers
 │   ├── common.py            ← shared deps (SessionDep, CurrentUserDep, WriteUserDep, …)
-│   ├── auth.py              ← signup, login, logout, /me
+│   ├── auth.py              ← signup (with business_model), login, logout, /me
 │   ├── invoices.py · bills.py · payments.py
 │   ├── tax_codes.py · exchange_rates.py · recurring.py
 │   ├── bank_accounts.py · bank_imports.py · reconciliations.py
 │   ├── periods.py · transactions.py · reports.py
+│   ├── stock_locations.py   ← (V2.2) locations + movements + custody
+│   ├── bom.py               ← (V2.3) Bills of Material catalogue
+│   ├── rate_plans.py        ← (V2.3) RatePlan + customer assignment
+│   ├── grn.py               ← (V2.4) Goods Receipt Note + memo JE
+│   ├── production_orders.py ← (V2.4) PO lifecycle (start/complete/deliver/bill)
+│   ├── manufacturing_reports.py ← (V2.5) dashboard + wip-aging + custody
 │   └── …
 ├── services/                ← pure-logic modules (no FastAPI)
 │   ├── posting.py           ← THE central GL writer
@@ -118,24 +142,34 @@ backend/
 │   ├── money.py             ← Decimal helpers, ROUND_HALF_EVEN
 │   ├── csrf.py              ← double-submit CSRF middleware
 │   └── idempotency.py       ← response-cache middleware
-└── tests/                   ← 63 tests (pytest)
+└── tests/                   ← 122 tests (pytest)
 
 frontend/src/
-├── app/login/ · app/signup/
-├── app/(dashboard)/         ← auth-gated, 23 pages
-│   ├── dashboard/           ← KPIs + charts
+├── app/login/ · app/signup/  ← signup is a 2-step wizard with business-model picker
+├── app/(dashboard)/          ← auth-gated, 28 pages
+│   ├── dashboard/            ← KPIs + charts
 │   ├── invoices/ · bills/ · payments-received/ · bill-payments/
 │   ├── customers/ · vendors/ · products/
-│   ├── entry/               ← manual JV
-│   ├── journal/ · ledger/   ← read-only GL views
+│   ├── entry/                ← manual JV
+│   ├── journal/ · ledger/    ← read-only GL views
 │   ├── trial-balance/ · pl/ · balance/ · cashflow/ · tax/
-│   ├── coa/                 ← Chart of Accounts editor
+│   ├── coa/                  ← Chart of Accounts editor
 │   ├── bank-accounts/ · reconciliations/
-│   ├── workflow/            ← visual flowcharts
-│   ├── guide/               ← user guide (multi-tab)
+│   ├── manufacturing/        ← V2: shows only when business_model='manufacturing'
+│   │   ├── page.tsx          ← Production Floor dashboard
+│   │   ├── boms/             ← Bills of Material
+│   │   ├── rate-plans/       ← Rate Plan catalogue
+│   │   ├── grn/              ← Goods Receipt Note
+│   │   └── production-orders/← PO lifecycle (one-click advance)
+│   ├── workflow/             ← visual flowcharts
+│   ├── guide/                ← user guide (multi-tab)
 │   └── settings/
-├── components/              ← Sidebar, Header, modals, charts, CsvImportButton
-└── lib/                     ← apiFetch, auth, utils
+├── components/
+│   ├── Sidebar.tsx           ← adaptive — Manufacturing section gated on tenant
+│   ├── BusinessModelPicker.tsx ← used by signup wizard
+│   ├── guidance/             ← HelpCallout, FieldHint, EmptyStateGuide
+│   └── …                     ← Header, modals, charts, CsvImportButton
+└── lib/                      ← apiFetch, auth, utils
 ```
 
 ---
@@ -162,6 +196,7 @@ cd frontend && npx tsc --noEmit
 
 This branch (`saas-transition-foundation`) carries the active SaaS work. Shipped to date:
 
+**Core platform (P-track)**
 - **P0** — Decimal money, central posting service, COGS, period-lock
 - **P1** — Router split (21 routers), atomic numbering, Alembic baseline
 - **P2** — RBAC, HttpOnly cookie auth, password min-length, secret hardening
@@ -174,10 +209,21 @@ This branch (`saas-transition-foundation`) carries the active SaaS work. Shipped
 - **B** — FX inverse fallback, scoped auto-match, atomic numbering via `SequenceCounter`
 - **C** — CSRF middleware, DB-backed login throttle
 
+**Manufacturing track (V-track)**
+- **V2.1** — Business-model selection at signup, per-model Chart of Accounts, `Account.is_memo` for custodial pairs, guidance scaffolding (`HelpCallout`, `FieldHint`, `EmptyStateGuide`)
+- **V2.2** — `StockLocation` (own / customer_custodial / wip) + `StockMovement` event log + lot tracking on `InventoryLayer`
+- **V2.3** — `BomHeader`/`BomLine` versioned recipes + `RatePlan` value-addition pricing + `CustomerRatePlan` assignment
+- **V2.4** — `GoodsReceiptNote` custodial flow + `ProductionOrder` state machine (start/complete/deliver/bill) with full GL postings
+- **V2.5** — Manufacturing reports (dashboard, wip-aging, production-summary, customer-custody) + adaptive sidebar + per-page in-app guidance
+
+**Test coverage:** 122 backend tests; full lifecycle end-to-end smoke verified.
+
 Not yet shipped (worth considering):
 - FX revaluation at period end (unrealised gain/loss on open AR/AP)
 - Multi-currency on payments
 - Daily overdue sweep (`Invoice.status = 'overdue'` is unwritten)
+- Production-order reversal helper (currently requires manual JE reversal)
+- Overhead/labour absorption at PO start (currently only own_stock material flows through WIP)
 - Frontend currency selector + role display + allocations UI + CSRF token wiring
 - Email send, PDF generation, payment-link integration
 - E2E tests (Playwright)
@@ -186,7 +232,8 @@ Not yet shipped (worth considering):
 
 ## Further reading
 
-- [`WORKFLOW.md`](./WORKFLOW.md) — full accounting workflows, GL Dr/Cr maps, report-linking matrix, API catalog, RBAC matrix, multi-currency mechanics, idempotency/CSRF semantics, period-close mechanics.
+- [`BLUEPRINT.md`](./BLUEPRINT.md) — complete project blueprint: every model, every endpoint, every flow, every decision.
+- [`WORKFLOW.md`](./WORKFLOW.md) — full accounting workflows, GL Dr/Cr maps, report-linking matrix, API catalog, RBAC matrix, multi-currency mechanics, manufacturing cycle, idempotency/CSRF semantics, period-close mechanics.
 - [`DEPLOYMENT.md`](./DEPLOYMENT.md) — Vercel deployment for backend + frontend.
 - In-app **User Guide** (`/guide`) — interactive tabbed walkthrough for every feature.
 - In-app **Workflow** (`/workflow`) — visual flowcharts for each accounting cycle.

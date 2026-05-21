@@ -7,6 +7,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
+  Factory,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ const TABS: Tab[] = [
   { id: "security",         label: "Security & CSRF",        icon: Shield,          shortLabel: "Sec"      },
   { id: "reports",          label: "Financial Reports",      icon: TrendingUp,      shortLabel: "Reports"  },
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
+  { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg"      },
 ]
 
 // ── Callout components ────────────────────────────────────────────────────────
@@ -922,6 +924,92 @@ function CsvImportPanel() {
   )
 }
 
+function ManufacturingPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        The manufacturing track is enabled when you pick <CodeBadge>manufacturing</CodeBadge> as
+        your business model at signup. It adds custodial intake of customer-supplied material,
+        Bills of Material, value-addition rate plans, and a full production-order lifecycle —
+        all wired to the same double-entry GL.
+      </p>
+
+      <SectionHeading>The 5-step lifecycle</SectionHeading>
+      <StepList steps={[
+        "GRN (Goods Receipt) — record customer-supplied material into the GODOWN. Optional declared_value posts a memo JE (Dr 1210 / Cr 2150).",
+        "Bills of Material — define the recipe per output product. Each component is own_stock (your raw material) or customer_supplied (consumed from a GODOWN lot).",
+        "Rate Plan — set your per-unit value-add charge with optional materials passthrough, overhead %, and margin %. Assign one active plan per customer.",
+        "Production Order — created in DRAFT. POST /api/production-orders with bom_id, customer_id, output_qty. Auto-resolves the customer's active rate plan.",
+        "Walk it through: start → complete → deliver → bill. Each transition is its own JV — easy to audit and reverse independently.",
+      ]} />
+
+      <SectionHeading>Journal entries by stage</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Stage</th>
+              <th className="px-4 py-2.5 text-left">Debit</th>
+              <th className="px-4 py-2.5 text-left">Credit</th>
+              <th className="px-4 py-2.5 text-left">Movement</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["GRN (with declared value)", "1210 Customer Goods on Hand", "2150 Customer Goods Liab.", "CUSTODIAL_RECEIPT"],
+              ["start (own_stock)",         "1201 WIP",                    "1200 Raw Material",         "ISSUE"],
+              ["start (customer_supplied)", "—",                           "—",                         "CUSTODIAL_ISSUE"],
+              ["complete",                  "1202 Finished Goods",         "1201 WIP",                  "COMPLETION"],
+              ["deliver (FG)",              "5010 COGS",                   "1202 Finished Goods",       "DELIVERY"],
+              ["deliver (memo release)",    "2150 Customer Goods Liab.",   "1210 Customer Goods on Hand","—"],
+              ["bill",                      "1100 AR",                     "4010 Service Revenue",      "—"],
+            ].map(([stage, dr, cr, mv]) => (
+              <tr key={stage} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{stage}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{dr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{cr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]">{mv}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Rate plan formula</SectionHeading>
+      <pre className="mt-2 bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 text-[11px] leading-relaxed text-[#1a1814]/80 overflow-x-auto">
+{`base       = per_unit_rate × output_qty
+if includes_materials_at_cost:
+  base    += own_material_cost           (your consumables, at WAvg)
+overhead   = base × overhead_pct / 100
+subtotal   = base + overhead
+margin     = subtotal × margin_pct / 100
+total      = subtotal + margin            (excl. GST)`}
+      </pre>
+
+      <TipCallout>
+        <b>Customer goods never touch your asset accounts.</b> They live in a custodial
+        InventoryLayer (owner_customer_id set, unit_cost=0) and — if you supplied a declared
+        value — in the memo pair 1210/2150 (excluded from formal A=L+E totals). Memo balance
+        releases only when <i>every</i> layer of a GRN has been drained.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Skipping stages — every transition has a required predecessor (e.g. you can&apos;t bill until delivered). Use the one-click button on the Production Orders page.</p>
+        <p>Editing a BoM in-place — that breaks reconstructability. Post a <i>new version</i> instead (the prior version auto-deactivates).</p>
+        <p>Reassigning a rate plan to a customer expecting both to stay active — the old assignment auto-deactivates. History is preserved at <CodeBadge>/api/rate-plans/customer/&#123;id&#125;</CodeBadge>.</p>
+      </MistakeCallout>
+
+      <SectionHeading>Manufacturing reports</SectionHeading>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+        <li><b>Dashboard</b> — pipeline counts by state, total WIP/FG cost, custodial qty on hand.</li>
+        <li><b>WIP aging</b> — open POs (state=started) bucketed by days since start.</li>
+        <li><b>Production summary</b> — POs grouped by state with output_qty and cost totals.</li>
+        <li><b>Customer custody</b> — per-(customer, product) on-hand qty + unreleased declared value.</li>
+      </ul>
+    </div>
+  )
+}
+
 // ── Panel map ─────────────────────────────────────────────────────────────────
 
 const PANEL_MAP: Record<string, React.ReactNode> = {
@@ -941,6 +1029,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "security":        <SecurityPanel />,
   "reports":         <ReportsPanel />,
   "csv":             <CsvImportPanel />,
+  "manufacturing":   <ManufacturingPanel />,
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

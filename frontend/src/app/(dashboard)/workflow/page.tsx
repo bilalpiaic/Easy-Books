@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory } from "lucide-react"
 
 // ── Primitive building blocks ────────────────────────────────────────────────
 
@@ -603,6 +603,62 @@ function ReversalFlow() {
   )
 }
 
+function ProductionOrderFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed">
+        Manufacturing tenants only. Each transition posts its own JV — easy to audit, easy to
+        reverse one stage without disturbing the others. Customer-supplied components never
+        touch your asset accounts; they live in memo accounts 1210 / 2150.
+      </p>
+
+      <VFlow>
+        <StepBox
+          title="GRN — Goods Receipt"
+          accent="teal"
+          impact="Customer drops off raw material at GODOWN. Optional declared_value posts memo JE."
+          gl="Dr 1210 / Cr 2150  (memo)"
+        />
+        <StepBox
+          title="Create Production Order"
+          accent="gold"
+          impact="State = DRAFT. References BoM + customer + rate plan + output_qty."
+        />
+        <StepBox
+          title="START → consume components"
+          accent="orange"
+          impact="own_stock → WIP; customer_supplied → CUSTODIAL_ISSUE (no GL)."
+          gl="Dr 1201 WIP / Cr 1200 Raw Material"
+        />
+        <StepBox
+          title="COMPLETE → capitalise output"
+          accent="blue"
+          impact="WIP cost transfers to Finished Goods inventory at unit cost."
+          gl="Dr 1202 FG / Cr 1201 WIP"
+        />
+        <StepBox
+          title="DELIVER → ship to customer"
+          accent="purple"
+          impact="FG out at cost. Custodial memo balance released for fully-drained GRNs."
+          gl="Dr 5010 COGS / Cr 1202 FG  +  Dr 2150 / Cr 1210"
+        />
+        <StepBox
+          title="BILL → invoice via rate plan"
+          accent="green"
+          impact="per_unit_rate × qty + materials + overhead% + margin%. Creates Invoice row."
+          gl="Dr 1100 AR / Cr 4010 Service Revenue (Value-Add)"
+        />
+      </VFlow>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">
+        <span className="font-bold">Rate plan formula:</span> total = ((per_unit × qty + materials)
+        × (1 + overhead%/100)) × (1 + margin%/100). Each component renders as its own line on the
+        invoice so the customer sees exactly what they&apos;re paying for.
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function WorkflowPage() {
@@ -727,6 +783,16 @@ export default function WorkflowPage() {
         iconColor="text-orange-600"
       >
         <ReversalFlow />
+      </SectionCard>
+
+      {/* 10 — Production Order Lifecycle (V2) */}
+      <SectionCard
+        icon={Factory}
+        title="Production Order Lifecycle (V2)"
+        subtitle="GRN → start → complete → deliver → bill"
+        iconColor="text-pink-600"
+      >
+        <ProductionOrderFlow />
       </SectionCard>
 
       {/* Footer note */}
