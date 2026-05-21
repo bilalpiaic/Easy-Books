@@ -18,9 +18,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from db import create_db_and_tables
 from routers import (
     accounts, aging, audit, auth, bank_accounts, bank_imports, bills, bom,
-    customers, exchange_rates, imports, invoices, payments, periods, products,
-    rate_plans, reconciliations, recurring, reports, settings, stock_locations,
-    tax_codes, transactions, vendors,
+    customers, exchange_rates, grn, imports, invoices, payments, periods,
+    production_orders, products, rate_plans, reconciliations, recurring,
+    reports, settings, stock_locations, tax_codes, transactions, vendors,
 )
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
@@ -70,6 +70,7 @@ _ROUTERS = [
     tax_codes.router, recurring.router, exchange_rates.router,
     bank_imports.router, stock_locations.router,
     bom.router, rate_plans.router,
+    grn.router, production_orders.router,
 ]
 
 for r in _ROUTERS:

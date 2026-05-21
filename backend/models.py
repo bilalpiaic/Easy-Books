@@ -484,6 +484,85 @@ class StockMovement(SQLModel, table=True):
     notes: Optional[str] = None
 
 
+class GoodsReceiptNote(SQLModel, table=True):
+    """Receipt of customer-supplied material into the godown.
+
+    Custodial — the goods belong to the customer, not us. We hold them and
+    later issue them to a production order. Optionally a `declared_value`
+    can be supplied so that a memorandum JE (Dr 1210 / Cr 2150) is posted
+    to keep an off-balance-sheet record of our custodian liability.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_grn_number_per_tenant"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)            # e.g. GRN-0001
+    customer_id: int = Field(foreign_key="customer.id", index=True)
+    received_date: str
+    location_id: int = Field(foreign_key="stocklocation.id")  # must be customer_custodial type
+    declared_value: Money = money_col(default=Decimal("0"))   # optional memo value (sum across lines)
+    notes: Optional[str] = None
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GRNLine(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_grn_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    grn_id: int = Field(foreign_key="goodsreceiptnote.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id")
+    qty: Money = money_col()
+    lot_no: Optional[str] = None
+    declared_value: Money = money_col(default=Decimal("0"))   # per-line memo value
+    notes: Optional[str] = None
+
+
+class ProductionOrder(SQLModel, table=True):
+    """One run of producing N units of a recipe for a specific customer.
+
+    State machine:
+      draft → started → completed → delivered → billed
+                                              ↓
+                                          cancelled (from any non-billed state)
+    Each transition posts the relevant journal entries + stock movements.
+    Cost capitalisation: own_stock consumption hits WIP at start; FG capit-
+    alises from WIP at complete; delivery relieves FG at cost. Customer-
+    supplied components never touch the GL — only the custodial memo JE
+    posted at GRN time (released at delivery) tracks them.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_po_number_per_tenant"),
+        CheckConstraint(
+            "state IN ('draft','started','completed','delivered','billed','cancelled')",
+            name="ck_production_order_state",
+        ),
+        CheckConstraint("output_qty > 0", name="ck_production_order_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)            # PO-0001
+    bom_id: int = Field(foreign_key="bomheader.id", index=True)
+    customer_id: int = Field(foreign_key="customer.id", index=True)
+    rate_plan_id: Optional[int] = Field(default=None, foreign_key="rateplan.id")
+    output_qty: Money = money_col()
+    state: str = Field(default="draft", index=True)
+    # Cost basis snapshots (filled as transitions fire)
+    own_material_cost: Money = money_col(default=Decimal("0"))   # set on start
+    output_unit_cost: Money = money_col(default=Decimal("0"))    # set on complete
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
+    # Stage timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    billed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
 class InvoiceLine(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     invoice_id: int = Field(foreign_key="invoice.id", ondelete="CASCADE")
