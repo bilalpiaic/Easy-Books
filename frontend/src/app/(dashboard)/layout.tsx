@@ -16,13 +16,12 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const [open, setOpen]       = useState(false)
-  const [pinned, setPinned]   = useState(false)
-  const [hydrated, setHydrated] = useState(false)
+  const [open, setOpen]     = useState(false)
+  const [pinned, setPinned] = useState(false)
 
-  // Hydrate pinned preference from localStorage. Also auto-open the
-  // drawer on first render if the screen is wide enough to host it
-  // pinned — so desktop users see the menu by default.
+  // Auth gate + hydrate pinned preference from localStorage. Also auto-open
+  // the drawer on first render if the screen is wide enough — so desktop
+  // users see the menu by default.
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push("/login")
@@ -34,11 +33,8 @@ export default function DashboardLayout({
       setPinned(true)
       setOpen(true)
     } else if (isWide) {
-      // First-time desktop visitors: open but unpinned, so they discover the drawer
-      // pattern and can pin it if they like.
       setOpen(true)
     }
-    setHydrated(true)
   }, [router])
 
   const onOpen        = useCallback(() => setOpen(true), [])
@@ -68,15 +64,10 @@ export default function DashboardLayout({
         <div className="flex-1 flex flex-col min-w-0">
           <Header onOpenMenu={onOpen} />
           <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-20 md:pb-6 w-full">
-            {/*
-              No max-width constraint here — each page decides its own width.
-              Tables/dashboards fill the viewport; narrative content can
-              wrap itself with `max-w-prose` or similar where readability
-              matters.
-            */}
-            <div className="mx-auto w-full" suppressHydrationWarning>
-              {hydrated ? children : null}
-            </div>
+            {/* No max-width constraint — pages decide their own width.
+                Tables/dashboards fill the viewport; narrative content can
+                wrap itself with `max-w-prose` where readability matters. */}
+            {children}
           </main>
         </div>
         <BottomNav onMore={onOpen} />
