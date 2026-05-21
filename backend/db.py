@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from models import Account, SequenceCounter, Settings
+from models import Account, SequenceCounter, Settings, StockLocation
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -73,45 +73,112 @@ def get_tenant_session(tenant_id: int):
     with Session(engine) as session:
         yield session
 
+# Per-business-model Chart of Accounts templates. Each entry is
+# (code, name, type, is_memo). The four lists are designed to overlap on the
+# common backbone (cash, AR, AP, revenue, expense) so reports keep working
+# regardless of which model is chosen. Manufacturing adds the custodial pair
+# 1210/2150 with is_memo=True.
+
+_COA_COMMON: list[tuple[str, str, str, bool]] = [
+    # Universal backbone — present in every model
+    ("1000", "Cash in Hand",        "Asset",     False),
+    ("1010", "Bank",                "Asset",     False),
+    ("1100", "Accounts Receivable", "Asset",     False),
+    ("2000", "Accounts Payable",    "Liability", False),
+    ("2200", "GST Payable (Output)","Liability", False),
+    ("3000", "Owner Capital",       "Equity",    False),
+    ("3010", "Drawings",            "Equity",    False),
+    ("3100", "Retained Earnings",   "Equity",    False),
+    ("4000", "Sales Revenue",       "Revenue",   False),
+    ("4900", "Other Income",        "Revenue",   False),
+    ("5000", "General Expenses",    "Expense",   False),
+    ("5050", "Depreciation Expense","Expense",   False),
+    ("5900", "Other Expenses",      "Expense",   False),
+]
+
+# Service-style add-ons: time-based revenue + deferred revenue
+_COA_SERVICES_EXTRA: list[tuple[str, str, str, bool]] = [
+    ("4010", "Consulting Revenue",        "Revenue",   False),
+    ("4020", "Recurring Service Revenue", "Revenue",   False),
+    ("2300", "Deferred Revenue",          "Liability", False),
+    ("5110", "Subcontractor Costs",       "Expense",   False),
+]
+
+# Trader extras: finished-goods inventory + COGS + input GST
+_COA_TRADER_EXTRA: list[tuple[str, str, str, bool]] = [
+    ("1200", "Finished Goods Inventory", "Asset",   False),
+    ("1250", "GST Receivable (Input)",   "Asset",   False),
+    ("5010", "Cost of Goods Sold",       "Expense", False),
+    ("5020", "Freight In",               "Expense", False),
+    ("5030", "Storage & Handling",       "Expense", False),
+    ("5040", "Inventory Adjustments",    "Expense", False),
+]
+
+# Manufacturing extras: raw materials, WIP, custodial pair, labour, overhead
+_COA_MANUFACTURING_EXTRA: list[tuple[str, str, str, bool]] = [
+    ("1200", "Raw Material Inventory",   "Asset",     False),
+    ("1201", "Work-in-Progress",         "Asset",     False),
+    ("1202", "Finished Goods Inventory", "Asset",     False),
+    ("1210", "Customer Goods on Hand",   "Asset",     True),   # memo
+    ("1250", "GST Receivable (Input)",   "Asset",     False),
+    ("2150", "Customer Goods Liability", "Liability", True),   # memo (mirrors 1210)
+    ("4010", "Service Revenue (Value-Add)", "Revenue", False),
+    ("5010", "Cost of Goods Sold",       "Expense",   False),
+    ("5100", "Direct Labour",            "Expense",   False),
+    ("5110", "Subcontractor Costs",      "Expense",   False),
+    ("5200", "Manufacturing Overhead",   "Expense",   False),
+    ("5210", "Indirect Materials",       "Expense",   False),
+]
+
+
+def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
+    """Return the CoA template for a business model. Universal backbone always
+    present; model-specific extras layered on top. Codes are unique within
+    each template (Manufacturing's 1200 overrides Common-Trader's 1200 by
+    keying on code in the dict below)."""
+    by_code: dict[str, tuple[str, str, str, bool]] = {a[0]: a for a in _COA_COMMON}
+    extra_map = {
+        "services":      _COA_SERVICES_EXTRA,
+        "trader":        _COA_TRADER_EXTRA,
+        "manufacturing": _COA_MANUFACTURING_EXTRA,
+    }
+    for row in extra_map.get(business_model, []):
+        by_code[row[0]] = row
+    return sorted(by_code.values(), key=lambda r: r[0])
+
+
+# Module activation per business model. Module names are conventions used by
+# the frontend sidebar and (later) endpoint guards — they are NOT enforced at
+# the backend yet (V2.4 wires them up).
+MODULES_BY_MODEL: dict[str, list[str]] = {
+    "simple":        ["invoicing", "billing", "manual_jv"],
+    "services":      ["invoicing", "billing", "manual_jv", "service_catalogue"],
+    "trader":        ["invoicing", "billing", "manual_jv", "inventory"],
+    "manufacturing": ["invoicing", "billing", "manual_jv", "inventory",
+                      "stores", "bom", "production", "customer_goods"],
+}
+
+
 def seed_data(tenant_id: int, session: Optional[Session] = None):
     def run_seeding(s: Session):
+        # Look up the tenant to pick the right CoA template
+        from models import Tenant
+        tenant = s.get(Tenant, tenant_id)
+        model = (tenant.business_model if tenant else None) or "simple"
+
         account_count = s.exec(
             select(Account).where(Account.tenant_id == tenant_id)
         ).first()
 
         if not account_count:
-            # Default chart of accounts (codes are non-overlapping ranges per
-            # type, matching the rest of the codebase's auto-resolution logic).
-            initial_accounts = [
-                # 1xxx — Assets
-                Account(code="1000", name="Cash in Hand", type="Asset", tenant_id=tenant_id),
-                Account(code="1010", name="Bank", type="Asset", tenant_id=tenant_id),
-                Account(code="1100", name="Accounts Receivable", type="Asset", tenant_id=tenant_id),
-                Account(code="1200", name="Inventory (Raw Material)", type="Asset", tenant_id=tenant_id),
-                Account(code="1201", name="Finished Goods Inventory", type="Asset", tenant_id=tenant_id),
-                Account(code="1250", name="GST Receivable (Input)", type="Asset", tenant_id=tenant_id),
-                Account(code="1300", name="Work-in-Progress", type="Asset", tenant_id=tenant_id),
-                # 2xxx — Liabilities
-                Account(code="2000", name="Accounts Payable", type="Liability", tenant_id=tenant_id),
-                Account(code="2100", name="Advances Received", type="Liability", tenant_id=tenant_id),
-                Account(code="2200", name="GST Payable (Output)", type="Liability", tenant_id=tenant_id),
-                # 3xxx — Equity
-                Account(code="3000", name="Owner Capital", type="Equity", tenant_id=tenant_id),
-                Account(code="3010", name="Drawings", type="Equity", tenant_id=tenant_id),
-                Account(code="3100", name="Retained Earnings", type="Equity", tenant_id=tenant_id),
-                # 4xxx — Revenue
-                Account(code="4000", name="Sales Revenue", type="Revenue", tenant_id=tenant_id),
-                Account(code="4900", name="Other Income", type="Revenue", tenant_id=tenant_id),
-                # 5xxx — Expenses
-                Account(code="5000", name="General Expenses", type="Expense", tenant_id=tenant_id),
-                Account(code="5010", name="Cost of Goods Sold", type="Expense", tenant_id=tenant_id),
-                Account(code="5050", name="Depreciation Expense", type="Expense", tenant_id=tenant_id),
-                Account(code="5100", name="Labour & Wages", type="Expense", tenant_id=tenant_id),
-                Account(code="5300", name="Rent & Utilities", type="Expense", tenant_id=tenant_id),
-                Account(code="5400", name="Transport & Delivery", type="Expense", tenant_id=tenant_id),
-                Account(code="5900", name="Other Expenses", type="Expense", tenant_id=tenant_id),
-            ]
-            s.add_all(initial_accounts)
+            template = _coa_for(model)
+            s.add_all([
+                Account(
+                    code=code, name=name, type=atype,
+                    is_memo=is_memo, tenant_id=tenant_id,
+                )
+                for code, name, atype, is_memo in template
+            ])
             s.commit()
 
         settings_count = s.exec(
@@ -125,7 +192,7 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
         # Seed document-number counters so the at-runtime path never has to
         # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
         # without racing on the unique constraint.
-        for name in ("invoice", "bill"):
+        for name in ("invoice", "bill", "grn", "po"):
             existing = s.exec(
                 select(SequenceCounter).where(
                     SequenceCounter.tenant_id == tenant_id,
@@ -134,6 +201,38 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             ).first()
             if not existing:
                 s.add(SequenceCounter(tenant_id=tenant_id, name=name, next_value=1))
+
+        # Seed default StockLocations. Every tenant gets a "Main Store" so
+        # legacy invoice/bill flows can attach receipts to it without forcing
+        # the user to set up locations first.
+        main_store = s.exec(
+            select(StockLocation).where(
+                StockLocation.tenant_id == tenant_id,
+                StockLocation.code == "MAIN",
+            )
+        ).first()
+        if not main_store:
+            s.add(StockLocation(
+                tenant_id=tenant_id, code="MAIN", name="Main Store", type="own",
+            ))
+        # Manufacturing tenants additionally get a customer godown and a WIP
+        # bucket out of the box so they can record GRNs and production orders
+        # immediately after signup.
+        if model == "manufacturing":
+            for code, name, ltype in (
+                ("GODOWN", "Customer Goods Godown", "customer_custodial"),
+                ("WIP",    "Work-in-Progress Floor", "wip"),
+            ):
+                exists = s.exec(
+                    select(StockLocation).where(
+                        StockLocation.tenant_id == tenant_id,
+                        StockLocation.code == code,
+                    )
+                ).first()
+                if not exists:
+                    s.add(StockLocation(
+                        tenant_id=tenant_id, code=code, name=name, type=ltype,
+                    ))
         s.commit()
 
     if session:

@@ -7,6 +7,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
+  Factory,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ const TABS: Tab[] = [
   { id: "security",         label: "Security & CSRF",        icon: Shield,          shortLabel: "Sec"      },
   { id: "reports",          label: "Financial Reports",      icon: TrendingUp,      shortLabel: "Reports"  },
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
+  { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg"      },
 ]
 
 // ── Callout components ────────────────────────────────────────────────────────
@@ -102,42 +104,78 @@ function GettingStartedPanel() {
         This guide walks you through the first steps to get up and running.
       </p>
 
+      <SectionHeading>Sign Up — pick your business model</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        The signup page is a 2-step wizard. Step 1 asks for your <b>business model</b>; this
+        controls which Chart of Accounts you start with and which UI sections are enabled.
+      </p>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Model</th>
+              <th className="px-4 py-2.5 text-left">Best for</th>
+              <th className="px-4 py-2.5 text-left">Adds to base CoA</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["simple",        "Solo / micro-business",         "—"],
+              ["services",      "Consulting, agencies",          "Consulting & recurring revenue, deferred revenue, subcontractor costs"],
+              ["trader",        "Buy-and-resell goods",          "Finished Goods, COGS, Freight In, Storage, Inventory Adj."],
+              ["manufacturing", "Value-addition on customer goods", "Raw Material / WIP / FG, memo pair 1210/2150, Direct Labour, Overhead, Service Revenue (Value-Add)"],
+            ].map(([model, use, extras]) => (
+              <tr key={model} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{model}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{use}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/60">{extras}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <TipCallout>
+        You can change the business model later via <CodeBadge>Settings → PATCH /api/settings/business-model</CodeBadge>;
+        switching only <b>adds</b> any missing CoA accounts. It never deletes existing ones.
+      </TipCallout>
+
       <SectionHeading>Login</SectionHeading>
       <StepList steps={[
-        "Navigate to the app URL and you will be redirected to the Login page.",
-        "Enter your username and password, then click Sign In.",
-        "On first login you will be prompted to configure your company settings.",
-        "Your session token is stored securely in localStorage and refreshed automatically.",
+        "Step 2 of signup is your email + password (≥ 8 chars) + full name + company name.",
+        "On submit the system creates your tenant, seeds the CoA + stock locations + sequence counters, and logs you in as owner.",
+        "Your session token is stored in localStorage AND set as an HttpOnly cookie. Both work side-by-side.",
       ]} />
 
       <SectionHeading>Company Setup</SectionHeading>
       <StepList steps={[
         "Go to Settings from the left sidebar.",
-        "Enter your company name, address, currency, and fiscal year start date.",
+        "Confirm your company name, base currency, and fiscal year start date.",
         "Upload a company logo (optional) — it appears on printed invoices and reports.",
-        "Save settings. These details appear on all exported documents.",
+        "If you picked manufacturing, you'll already have MAIN, GODOWN, and WIP stock locations seeded.",
       ]} />
 
       <SectionHeading>Your First Transaction</SectionHeading>
       <StepList steps={[
-        "Before creating transactions, set up your Chart of Accounts (see the COA tab).",
+        "Add a few accounts beyond the seeded ones if needed (Chart of Accounts).",
         "Create at least one Customer (Receivable section) or Vendor (Payable section).",
         "Create an Invoice for a sale, or a Bill for a purchase.",
-        "Alternatively, use New Entry (Ledger section) for a direct journal entry.",
-        "Check the Dashboard to see your running totals and recent activity.",
+        "Manufacturing tenants: see the Manufacturing tab for the BoM → GRN → PO → bill flow.",
+        "Use New Entry (Ledger section) for a direct journal entry whenever you need an adjustment.",
+        "Check the Dashboard for KPIs and recent activity.",
       ]} />
 
       <TipCallout>
-        <strong>Pro tip:</strong> Use the Workflow reference page (
+        <strong>Pro tip:</strong> The Workflow page (
         <Link href="/workflow" className="underline underline-offset-2 text-blue-600 hover:text-blue-800">
           Dashboard → Workflow
         </Link>
-        ) to visualise exactly which GL accounts are affected by each transaction type.
+        ) is a visual reference of every accounting cycle — including the V2 production-order
+        lifecycle. Print-friendly for handing to your bookkeeper.
       </TipCallout>
 
       <MistakeCallout>
+        <p>Picking <CodeBadge>simple</CodeBadge> when you actually trade or manufacture — you can switch later, but starting with the right model gives you the right accounts up front.</p>
         <p>Skipping company setup — your logo and company name will be missing from all printed documents.</p>
-        <p>Creating transactions before setting up a Chart of Accounts — the system needs accounts to post to.</p>
         <p>Using the same account for both income and expense — always use separate account codes.</p>
       </MistakeCallout>
     </div>
@@ -192,18 +230,77 @@ function CoaPanel() {
         "Accounts cannot be deleted once they have transactions — deactivate them instead.",
       ]} />
 
+      <SectionHeading>Per-Business-Model Templates</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Your CoA is seeded from a <b>common backbone</b> (13 accounts every tenant has) plus a
+        <b> model-specific layer</b>. Switching business model later only <em>adds</em> missing
+        accounts — it never deletes existing ones.
+      </p>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Codes</th>
+              <th className="px-4 py-2.5 text-left">Layer</th>
+              <th className="px-4 py-2.5 text-left">Account</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["1000–1100", "common",        "Cash, Bank, AR"],
+              ["1200",      "trader / mfg",  "Finished Goods (trader) · Raw Material (mfg)"],
+              ["1201",      "manufacturing", "Work-in-Progress"],
+              ["1202",      "manufacturing", "Finished Goods"],
+              ["1210",      "manufacturing", "Customer Goods on Hand (MEMO — off balance sheet)"],
+              ["1250",      "trader / mfg",  "GST Receivable (Input)"],
+              ["2000",      "common",        "Accounts Payable"],
+              ["2150",      "manufacturing", "Customer Goods Liability (MEMO — pairs with 1210)"],
+              ["2200",      "common",        "GST Payable (Output)"],
+              ["2300",      "services",      "Deferred Revenue"],
+              ["4000",      "common",        "Sales Revenue"],
+              ["4010",      "services / mfg","Consulting Revenue (svc) · Service Revenue Value-Add (mfg)"],
+              ["4020",      "services",      "Recurring Service Revenue"],
+              ["5010",      "trader / mfg",  "Cost of Goods Sold"],
+              ["5100–5210", "manufacturing", "Direct Labour, Subcontractor, Overhead, Indirect Materials"],
+            ].map(([code, layer, name], i) => (
+              <tr key={i} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{code}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/55">{layer}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/80">{name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Memo (Custodial) Accounts</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Accounts with <CodeBadge>is_memo=true</CodeBadge> are shown in a <b>separate
+        Custodial section</b> of the Balance Sheet — they do not inflate your formal A=L+E
+        totals. They are used to record items you hold in custody but do not own (e.g. a
+        customer&apos;s raw material in your godown).
+      </p>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><CodeBadge>1210</CodeBadge> Customer Goods on Hand — debit balance, mirrors the qty/value of customer-owned material we hold.</li>
+        <li><CodeBadge>2150</CodeBadge> Customer Goods Liability — credit balance, our obligation to return it.</li>
+        <li>Posted by <CodeBadge>POST /api/grn</CodeBadge> when a non-zero <CodeBadge>declared_value</CodeBadge> is supplied.</li>
+        <li>Released automatically on <CodeBadge>POST /api/production-orders/&#123;id&#125;/deliver</CodeBadge> when every layer of the source GRN is drained.</li>
+      </ul>
+
       <SectionHeading>Best Practices</SectionHeading>
       <StepList steps={[
         "Keep code gaps between accounts (1000, 1010, 1020) so you can insert new accounts later.",
         "Use descriptive names: 'Trade Receivables' is clearer than 'AR'.",
         "Create a dedicated bank account code for each physical bank account.",
         "Separate Cost of Goods Sold (COGS) from operating expenses for accurate gross margin.",
+        "Manufacturing tenants: keep 1210/2150 with is_memo=true — never untick that flag, or those balances will pollute your real balance sheet.",
       ]} />
 
       <MistakeCallout>
-        <p>Using a single 'Sundry' account for everything — this makes reports meaningless.</p>
+        <p>Using a single &apos;Sundry&apos; account for everything — this makes reports meaningless.</p>
         <p>Forgetting to create a bank account in COA before creating bank transactions.</p>
         <p>Mixing asset and expense accounts — e.g. posting equipment purchases to an expense account.</p>
+        <p>Manually editing 1210 / 2150 from the COA UI — let the GRN / PO endpoints manage those balances.</p>
       </MistakeCallout>
     </div>
   )
@@ -341,12 +438,60 @@ function ProductsPanel() {
         </div>
       </div>
 
+      <SectionHeading>Multi-Location Inventory (V2.2)</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Stock layers are keyed by <CodeBadge>(product, location)</CodeBadge> — the same product
+        can live in multiple stores at different costs. Every tenant gets a <CodeBadge>MAIN</CodeBadge>
+        store seeded at signup. Manufacturing tenants additionally get <CodeBadge>GODOWN</CodeBadge>
+        (customer-custodial) and <CodeBadge>WIP</CodeBadge> (work-in-progress) out of the box.
+      </p>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Type</th>
+              <th className="px-4 py-2.5 text-left">Purpose</th>
+              <th className="px-4 py-2.5 text-left">Ownership</th>
+              <th className="px-4 py-2.5 text-left">Hits GL?</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["own",                "Manufacturer-owned stock (raw mat, FG, etc.)", "Yours",   "Yes — at WAvg cost"],
+              ["customer_custodial", "Godown holding customer-supplied material",     "Customer", "Only the memo pair 1210/2150"],
+              ["wip",                "Work-in-progress holding bucket",               "Yours",   "Yes — Dr 1201 WIP at start"],
+            ].map(([type, purpose, owner, gl]) => (
+              <tr key={type} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{type}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{purpose}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/60">{owner}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/60">{gl}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Lot Tracking + Stock-Movement Log</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Every receipt / issue / completion / shipment writes one immutable row to
+        <CodeBadge>StockMovement</CodeBadge>. The log is the source of truth; layers are a
+        materialised projection over it.
+      </p>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Direction values:</b> RECEIPT, CUSTODIAL_RECEIPT, ISSUE, CUSTODIAL_ISSUE, COMPLETION, CUSTODIAL_COMPLETION, DELIVERY, SHIPMENT, ADJUSTMENT.</li>
+        <li><b>posted_to_gl:</b> false for purely custodial movements (customer goods); true for own-stock movements that have a journal entry attached.</li>
+        <li><b>Lot number</b> flows from receipt → consumption to the linked movement and layer, so you can trace a finished output back to a specific raw lot.</li>
+        <li><b>Read the log</b> at <CodeBadge>GET /api/stock-locations/movements</CodeBadge> with filters <CodeBadge>direction</CodeBadge>, <CodeBadge>product_id</CodeBadge>, <CodeBadge>location_id</CodeBadge>.</li>
+      </ul>
+
       <SectionHeading>Reorder Levels</SectionHeading>
       <StepList steps={[
         "Open a stock product and set the Reorder Level field.",
         "When stock_qty falls at or below the reorder level, the item appears on the Dashboard under Low Stock.",
         "This is a visual alert only — no automatic purchase order is created.",
         "Use the Products list to view current stock levels across all items.",
+        "For per-location stock visibility, use GET /api/stock-locations/{id}/stock.",
       ]} />
 
       <SectionHeading>CSV Import</SectionHeading>
@@ -362,6 +507,7 @@ function ProductsPanel() {
         <p>Using service type for physical goods — stock levels will not be tracked.</p>
         <p>Setting a reorder level of 0 — all stock items will permanently show as low-stock.</p>
         <p>Importing products without a type column — the import will fail.</p>
+        <p>Trying to consume from a customer_custodial location for an own-stock BoM line — the consume call will refuse; that location is reserved for customer-owned layers.</p>
       </MistakeCallout>
     </div>
   )
@@ -409,9 +555,10 @@ function JournalPanel() {
 
       <SectionHeading>Reversal Entries</SectionHeading>
       <StepList steps={[
-        "To reverse a posted entry, create a new journal entry with the exact opposite debits and credits.",
-        "Reference the original JV number in the description (e.g. 'Reversal of JV-0042').",
-        "There is no automatic reversal button — reversals are always explicit new entries.",
+        "Use POST /api/transactions/{id}/reverse — it posts a mirror JV automatically and links it via reversed_by_id.",
+        "Reversal unwinds derived state: PaymentAllocations drop and invoice/bill statuses recompute; invoice stock-line consumption is restored; bill stock-line purchase peels back the inventory layer and recomputes avg_cost.",
+        "A reversed transaction cannot be reversed again (request returns 400).",
+        "Production-order stages currently DO NOT auto-reverse — to undo a started/completed PO you must call reverse on each underlying transaction in reverse order. Roadmap item.",
         "Check the Journal list to verify both the original and reversal entries appear correctly.",
       ]} />
 
@@ -479,10 +626,31 @@ function ReportsPanel() {
         "Use the CSV export for preparing your tax return.",
       ]} />
 
+      <SectionHeading>Manufacturing Reports (V2.5)</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Available only to manufacturing tenants. Reachable from the Production Floor
+        dashboard (<CodeBadge>/manufacturing</CodeBadge>) and via API.
+      </p>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><CodeBadge>GET /api/manufacturing/dashboard</CodeBadge> — pipeline counts by state + total WIP cost + total FG cost + custodial qty on hand.</li>
+        <li><CodeBadge>GET /api/manufacturing/wip-aging</CodeBadge> — open POs (state=started) bucketed by days since start (<i>0-7d / 8-14d / 15-30d / 30d+</i>).</li>
+        <li><CodeBadge>GET /api/manufacturing/production-summary</CodeBadge> — POs grouped by state with count + output_qty + cost. Accepts optional <CodeBadge>start</CodeBadge> + <CodeBadge>end</CodeBadge> date filters.</li>
+        <li><CodeBadge>GET /api/manufacturing/customer-custody</CodeBadge> — per-(customer, product) summary of goods we hold custodially + unreleased declared value.</li>
+      </ul>
+
+      <SectionHeading>Memo Accounts on the Balance Sheet</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Accounts with <CodeBadge>is_memo=true</CodeBadge> (1210 / 2150) appear in a
+        <b> separate Custodial section</b> at the bottom of the Balance Sheet — they don&apos;t
+        affect the formal A=L+E totals. The qty and value they track is the customer&apos;s,
+        not yours.
+      </p>
+
       <MistakeCallout>
-        <p>Running a P&L without setting the correct date range — you may miss transactions or include wrong periods.</p>
+        <p>Running a P&amp;L without setting the correct date range — you may miss transactions or include wrong periods.</p>
         <p>Ignoring a non-balancing Balance Sheet — this always indicates a data problem that needs fixing.</p>
         <p>Relying on profit figures that include unpaid invoices — check Cash Flow for actual liquidity.</p>
+        <p>Comparing custodial qty against your inventory totals — they&apos;re separate; custodial is the customer&apos;s, your inventory is yours.</p>
       </MistakeCallout>
     </div>
   )
@@ -922,6 +1090,92 @@ function CsvImportPanel() {
   )
 }
 
+function ManufacturingPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        The manufacturing track is enabled when you pick <CodeBadge>manufacturing</CodeBadge> as
+        your business model at signup. It adds custodial intake of customer-supplied material,
+        Bills of Material, value-addition rate plans, and a full production-order lifecycle —
+        all wired to the same double-entry GL.
+      </p>
+
+      <SectionHeading>The 5-step lifecycle</SectionHeading>
+      <StepList steps={[
+        "GRN (Goods Receipt) — record customer-supplied material into the GODOWN. Optional declared_value posts a memo JE (Dr 1210 / Cr 2150).",
+        "Bills of Material — define the recipe per output product. Each component is own_stock (your raw material) or customer_supplied (consumed from a GODOWN lot).",
+        "Rate Plan — set your per-unit value-add charge with optional materials passthrough, overhead %, and margin %. Assign one active plan per customer.",
+        "Production Order — created in DRAFT. POST /api/production-orders with bom_id, customer_id, output_qty. Auto-resolves the customer's active rate plan.",
+        "Walk it through: start → complete → deliver → bill. Each transition is its own JV — easy to audit and reverse independently.",
+      ]} />
+
+      <SectionHeading>Journal entries by stage</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Stage</th>
+              <th className="px-4 py-2.5 text-left">Debit</th>
+              <th className="px-4 py-2.5 text-left">Credit</th>
+              <th className="px-4 py-2.5 text-left">Movement</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["GRN (with declared value)", "1210 Customer Goods on Hand", "2150 Customer Goods Liab.", "CUSTODIAL_RECEIPT"],
+              ["start (own_stock)",         "1201 WIP",                    "1200 Raw Material",         "ISSUE"],
+              ["start (customer_supplied)", "—",                           "—",                         "CUSTODIAL_ISSUE"],
+              ["complete",                  "1202 Finished Goods",         "1201 WIP",                  "COMPLETION"],
+              ["deliver (FG)",              "5010 COGS",                   "1202 Finished Goods",       "DELIVERY"],
+              ["deliver (memo release)",    "2150 Customer Goods Liab.",   "1210 Customer Goods on Hand","—"],
+              ["bill",                      "1100 AR",                     "4010 Service Revenue",      "—"],
+            ].map(([stage, dr, cr, mv]) => (
+              <tr key={stage} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{stage}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{dr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{cr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]">{mv}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Rate plan formula</SectionHeading>
+      <pre className="mt-2 bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 text-[11px] leading-relaxed text-[#1a1814]/80 overflow-x-auto">
+{`base       = per_unit_rate × output_qty
+if includes_materials_at_cost:
+  base    += own_material_cost           (your consumables, at WAvg)
+overhead   = base × overhead_pct / 100
+subtotal   = base + overhead
+margin     = subtotal × margin_pct / 100
+total      = subtotal + margin            (excl. GST)`}
+      </pre>
+
+      <TipCallout>
+        <b>Customer goods never touch your asset accounts.</b> They live in a custodial
+        InventoryLayer (owner_customer_id set, unit_cost=0) and — if you supplied a declared
+        value — in the memo pair 1210/2150 (excluded from formal A=L+E totals). Memo balance
+        releases only when <i>every</i> layer of a GRN has been drained.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Skipping stages — every transition has a required predecessor (e.g. you can&apos;t bill until delivered). Use the one-click button on the Production Orders page.</p>
+        <p>Editing a BoM in-place — that breaks reconstructability. Post a <i>new version</i> instead (the prior version auto-deactivates).</p>
+        <p>Reassigning a rate plan to a customer expecting both to stay active — the old assignment auto-deactivates. History is preserved at <CodeBadge>/api/rate-plans/customer/&#123;id&#125;</CodeBadge>.</p>
+      </MistakeCallout>
+
+      <SectionHeading>Manufacturing reports</SectionHeading>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+        <li><b>Dashboard</b> — pipeline counts by state, total WIP/FG cost, custodial qty on hand.</li>
+        <li><b>WIP aging</b> — open POs (state=started) bucketed by days since start.</li>
+        <li><b>Production summary</b> — POs grouped by state with output_qty and cost totals.</li>
+        <li><b>Customer custody</b> — per-(customer, product) on-hand qty + unreleased declared value.</li>
+      </ul>
+    </div>
+  )
+}
+
 // ── Panel map ─────────────────────────────────────────────────────────────────
 
 const PANEL_MAP: Record<string, React.ReactNode> = {
@@ -941,6 +1195,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "security":        <SecurityPanel />,
   "reports":         <ReportsPanel />,
   "csv":             <CsvImportPanel />,
+  "manufacturing":   <ManufacturingPanel />,
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

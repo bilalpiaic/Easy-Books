@@ -27,9 +27,20 @@ def money_col(default: Decimal = ZERO, **kw):
 
 
 class Tenant(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint(
+            "business_model IN ('simple','services','trader','manufacturing')",
+            name="ck_tenant_business_model",
+        ),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     base_currency: str = Field(default="USD")  # ISO 4217; reporting currency
+    business_model: str = Field(default="simple", index=True)
+    # JSON-serialised list of enabled module names. Derived from business_model
+    # at signup but persisted so it can be edited later (e.g. a 'simple' tenant
+    # can enable the 'inventory' module without becoming a 'trader').
+    enabled_modules: str = Field(default="[]")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     users: List["User"] = Relationship(back_populates="tenant")
@@ -78,6 +89,10 @@ class Account(SQLModel, table=True):
     name: str
     type: str  # Asset | Liability | Equity | Revenue | Expense (CHECK enforced)
     parent_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    # Memorandum accounts (e.g. 1210 Customer Goods on Hand, 2150 Customer
+    # Goods Liability) are excluded from formal A=L+E totals on the balance
+    # sheet and shown in a separate "Memorandum / Custodial" section.
+    is_memo: bool = Field(default=False)
 
     tenant: Tenant = Relationship(back_populates="accounts")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="account")
@@ -283,16 +298,269 @@ class Product(SQLModel, table=True):
     is_active: bool = Field(default=True)
 
 
+class BomHeader(SQLModel, table=True):
+    """Bill of Materials — the recipe for producing one batch of an output.
+
+    A BoM is versioned: every time the recipe changes you bump `version` and
+    flag the new row `is_active=True` (and the old one False). Production
+    orders pin a specific version so cost reconstruction stays accurate even
+    after the BoM evolves.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "output_product_id", "version",
+            name="unique_bom_per_product_version",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    output_product_id: int = Field(foreign_key="product.id", index=True)
+    output_qty: Money = money_col(default=Decimal("1"))  # produces N output units per recipe run
+    version: int = Field(default=1)
+    is_active: bool = Field(default=True)
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class BomLine(SQLModel, table=True):
+    """One component line of a BoM.
+
+    `source` distinguishes manufacturer-owned consumables from customer-
+    supplied inputs:
+      own_stock        — pulled from a raw-material store; costs flow into
+                         WIP and ultimately COGS
+      customer_supplied — pulled from the customer-goods godown; cost is
+                         zero to us (custodial), GL impact via memo accounts
+                         only
+    """
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('own_stock','customer_supplied')",
+            name="ck_bom_line_source",
+        ),
+        CheckConstraint("qty_per_output > 0", name="ck_bom_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bom_id: int = Field(foreign_key="bomheader.id", ondelete="CASCADE", index=True)
+    component_product_id: int = Field(foreign_key="product.id")
+    qty_per_output: Money = money_col()
+    source: str = Field(default="own_stock")
+    default_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    is_optional: bool = Field(default=False)
+    notes: Optional[str] = None
+
+
+class RatePlan(SQLModel, table=True):
+    """Pricing template for value-addition services.
+
+    Per-unit flat rate is the headline number. The plan also captures whether
+    consumed materials get billed at cost (passthrough) and the overhead/
+    margin uplifts. Plans are versioned — historical invoices reference the
+    specific version they were billed under so they stay reproducible after
+    the catalogue changes.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "code", "version",
+            name="unique_rate_plan_code_version",
+        ),
+        CheckConstraint("per_unit_rate >= 0", name="ck_rate_plan_rate_nonneg"),
+        CheckConstraint("overhead_pct >= 0", name="ck_rate_plan_oh_nonneg"),
+        CheckConstraint("margin_pct >= 0", name="ck_rate_plan_margin_nonneg"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str = Field(index=True)
+    name: str
+    output_product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    per_unit_rate: Money = money_col()              # e.g. ₨50 per processed unit
+    includes_materials_at_cost: bool = Field(default=True)
+    overhead_pct: Money = money_col(default=Decimal("0"))   # % on direct cost
+    margin_pct: Money = money_col(default=Decimal("0"))     # % final markup
+    version: int = Field(default=1)
+    is_active: bool = Field(default=True)
+    valid_from: Optional[str] = None
+    valid_to: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CustomerRatePlan(SQLModel, table=True):
+    """Many-to-many assignment: a customer can have one or more rate plans
+    assigned. The active plan (is_active=true, most-recently-assigned) is
+    what production billing uses by default. History preserved.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "customer_id", "rate_plan_id",
+            name="unique_customer_rate_plan_assignment",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    customer_id: int = Field(foreign_key="customer.id", index=True)
+    rate_plan_id: int = Field(foreign_key="rateplan.id", index=True)
+    is_active: bool = Field(default=True)
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class StockLocation(SQLModel, table=True):
+    """A physical or logical place where inventory lives.
+
+    Types:
+      own                — manufacturer-owned stock (raw mat, FG, WIP staging)
+      customer_custodial — godown holding goods we received from a customer
+                           for processing; goods are NOT our asset
+      wip                — work-in-progress holding bucket during production
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="unique_stock_location_code"),
+        CheckConstraint(
+            "type IN ('own','customer_custodial','wip')",
+            name="ck_stock_location_type",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str = Field(index=True)              # e.g. RM-1, GODOWN-A
+    name: str                                  # human label
+    type: str                                  # own | customer_custodial | wip
+    is_active: bool = Field(default=True)
+
+
 class InventoryLayer(SQLModel, table=True):
-    """One row per stock receipt. Used for audit trail of cost layers."""
+    """One row per stock receipt (or movement that creates a fresh lot).
+
+    Layers are now scoped to (product, location) — the same product can have
+    separate layers in different stores, and goods in the customer godown
+    are owned by the customer (owner_customer_id set).
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     product_id: int = Field(foreign_key="product.id", index=True)
+    location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id", index=True)
+    owner_customer_id: Optional[int] = Field(
+        default=None, foreign_key="customer.id", index=True
+    )  # set for customer-custodial layers; null for own-stock
+    lot_no: Optional[str] = Field(default=None, index=True)
     qty_received: Money = money_col()
     qty_remaining: Money = money_col()
     unit_cost: Money = money_col()
-    source_doc: Optional[str] = None  # e.g. "BILL-0042"
+    source_doc: Optional[str] = None  # e.g. "BILL-0042", "GRN-0007"
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class StockMovement(SQLModel, table=True):
+    """Event log: every qty change writes one row.
+
+    InventoryLayer state can be reconstructed from these. Movements flagged
+    `posted_to_gl=false` are pure-custodial (customer goods in/out of godown
+    during processing) — no JE is written for those.
+    """
+    __table_args__ = (
+        CheckConstraint(
+            "direction IN ('RECEIPT','CUSTODIAL_RECEIPT','ISSUE','CUSTODIAL_ISSUE',"
+            "'COMPLETION','CUSTODIAL_COMPLETION','DELIVERY','SHIPMENT','ADJUSTMENT')",
+            name="ck_stock_movement_direction",
+        ),
+        CheckConstraint("qty > 0", name="ck_stock_movement_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    direction: str                              # see CHECK
+    qty: Money = money_col()
+    from_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    to_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    lot_no: Optional[str] = Field(default=None, index=True)
+    owner_customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    unit_cost: Money = money_col(default=Decimal("0"))
+    total_cost: Money = money_col(default=Decimal("0"))
+    source_doc_type: Optional[str] = None       # 'bill', 'invoice', 'grn', 'production_order', 'manual', 'adjustment'
+    source_doc_id: Optional[int] = None
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    posted_to_gl: bool = Field(default=False)
+    notes: Optional[str] = None
+
+
+class GoodsReceiptNote(SQLModel, table=True):
+    """Receipt of customer-supplied material into the godown.
+
+    Custodial — the goods belong to the customer, not us. We hold them and
+    later issue them to a production order. Optionally a `declared_value`
+    can be supplied so that a memorandum JE (Dr 1210 / Cr 2150) is posted
+    to keep an off-balance-sheet record of our custodian liability.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_grn_number_per_tenant"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)            # e.g. GRN-0001
+    customer_id: int = Field(foreign_key="customer.id", index=True)
+    received_date: str
+    location_id: int = Field(foreign_key="stocklocation.id")  # must be customer_custodial type
+    declared_value: Money = money_col(default=Decimal("0"))   # optional memo value (sum across lines)
+    notes: Optional[str] = None
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GRNLine(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_grn_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    grn_id: int = Field(foreign_key="goodsreceiptnote.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id")
+    qty: Money = money_col()
+    lot_no: Optional[str] = None
+    declared_value: Money = money_col(default=Decimal("0"))   # per-line memo value
+    notes: Optional[str] = None
+
+
+class ProductionOrder(SQLModel, table=True):
+    """One run of producing N units of a recipe for a specific customer.
+
+    State machine:
+      draft → started → completed → delivered → billed
+                                              ↓
+                                          cancelled (from any non-billed state)
+    Each transition posts the relevant journal entries + stock movements.
+    Cost capitalisation: own_stock consumption hits WIP at start; FG capit-
+    alises from WIP at complete; delivery relieves FG at cost. Customer-
+    supplied components never touch the GL — only the custodial memo JE
+    posted at GRN time (released at delivery) tracks them.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_po_number_per_tenant"),
+        CheckConstraint(
+            "state IN ('draft','started','completed','delivered','billed','cancelled')",
+            name="ck_production_order_state",
+        ),
+        CheckConstraint("output_qty > 0", name="ck_production_order_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)            # PO-0001
+    bom_id: int = Field(foreign_key="bomheader.id", index=True)
+    customer_id: int = Field(foreign_key="customer.id", index=True)
+    rate_plan_id: Optional[int] = Field(default=None, foreign_key="rateplan.id")
+    output_qty: Money = money_col()
+    state: str = Field(default="draft", index=True)
+    # Cost basis snapshots (filled as transitions fire)
+    own_material_cost: Money = money_col(default=Decimal("0"))   # set on start
+    output_unit_cost: Money = money_col(default=Decimal("0"))    # set on complete
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
+    # Stage timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    billed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    notes: Optional[str] = None
 
 
 class InvoiceLine(SQLModel, table=True):

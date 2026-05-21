@@ -8,13 +8,23 @@ import {
   Scale, FileText, PieChart, TrendingUp, LogOut, FileSignature, Users,
   ArrowDownLeft, Receipt, Truck, ArrowUpRight, Landmark, CheckCheck,
   Percent, Settings, X, Package, ChevronRight, GitBranch, HelpCircle,
+  Factory, ListChecks, Tags, PackagePlus, Warehouse,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
 import BottomNav from "./BottomNav"
 
-const NAV = [
+type NavItem = {
+  label: string
+  href: string
+  icon: React.ElementType
+  section: string
+  /** When set, item is only shown if the tenant's business_model matches. */
+  forModel?: "manufacturing"
+}
+
+const NAV: NavItem[] = [
   { label: "Dashboard",        href: "/dashboard",         icon: LayoutDashboard,  section: "Overview" },
   { label: "New Entry",        href: "/entry",             icon: PlusCircle,       section: "Ledger" },
   { label: "Journal",          href: "/journal",           icon: ClipboardList,    section: "Ledger" },
@@ -27,6 +37,11 @@ const NAV = [
   { label: "Vendors",          href: "/vendors",           icon: Truck,            section: "Payable" },
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
   { label: "Products",         href: "/products",          icon: Package,          section: "Payable" },
+  { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing", forModel: "manufacturing" },
+  { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing", forModel: "manufacturing" },
+  { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
+  { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing", forModel: "manufacturing" },
+  { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
   { label: "Reconciliations",  href: "/reconciliations",   icon: CheckCheck,       section: "Banking" },
   { label: "Trial Balance",    href: "/trial-balance",     icon: Scale,            section: "Reports" },
@@ -39,17 +54,20 @@ const NAV = [
   { label: "Settings",          href: "/settings",          icon: Settings,         section: "System" },
 ]
 
-const SECTIONS = ["Overview","Ledger","Receivable","Payable","Banking","Reports","System"]
+const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Manufacturing","Banking","Reports","System"]
 
 const SECTION_COLORS: Record<string, string> = {
-  Overview:   "text-[#ffd966]",
-  Ledger:     "text-blue-400",
-  Receivable: "text-green-400",
-  Payable:    "text-orange-400",
-  Banking:    "text-purple-400",
-  Reports:    "text-cyan-400",
-  System:     "text-white/40",
+  Overview:      "text-[#ffd966]",
+  Ledger:        "text-blue-400",
+  Receivable:    "text-green-400",
+  Payable:       "text-orange-400",
+  Manufacturing: "text-pink-400",
+  Banking:       "text-purple-400",
+  Reports:       "text-cyan-400",
+  System:        "text-white/40",
 }
+
+type Me = { tenant?: { business_model?: string } }
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -58,6 +76,7 @@ export default function Sidebar() {
   const [drawerOpen, setDrawer]   = useState(false)
   const [userName, setUserName]   = useState("User")
   const [userInitial, setInitial] = useState("U")
+  const [businessModel, setBusinessModel] = useState<string>("simple")
 
   useEffect(() => {
     const user = getCurrentUser()
@@ -65,7 +84,14 @@ export default function Sidebar() {
     apiFetch<Record<string,string>>("/api/settings")
       .then(d => { if (d?.company_name) setOrgName(d.company_name) })
       .catch(() => {})
+    apiFetch<Me>("/api/auth/me")
+      .then(d => { if (d?.tenant?.business_model) setBusinessModel(d.tenant.business_model) })
+      .catch(() => {})
   }, [])
+
+  // Filter NAV by business_model + filter sections to those that have items.
+  const visibleNav = NAV.filter(i => !i.forModel || i.forModel === businessModel)
+  const SECTIONS = ALL_SECTIONS.filter(s => visibleNav.some(i => i.section === s))
 
   const logout = () => {
     if (!window.confirm("Log out?")) return
@@ -87,7 +113,7 @@ export default function Sidebar() {
         </button>
 
         <nav className="flex-1 flex flex-col gap-0.5 items-center overflow-y-auto scrollbar-hide w-full px-1">
-          {NAV.map(item => {
+          {visibleNav.map(item => {
             const active = pathname === item.href
             return (
               <Link
@@ -137,7 +163,7 @@ export default function Sidebar() {
               <div className={cn("px-4 pt-3 pb-1 text-[9px] font-bold uppercase tracking-[0.15em]", SECTION_COLORS[section])}>
                 {section}
               </div>
-              {NAV.filter(i => i.section === section).map(item => {
+              {visibleNav.filter(i => i.section === section).map(item => {
                 const active = pathname === item.href
                 return (
                   <Link
@@ -198,7 +224,7 @@ export default function Sidebar() {
                   <div className={cn("px-5 pt-3 pb-1 text-[9px] font-bold uppercase tracking-[0.15em]", SECTION_COLORS[section])}>
                     {section}
                   </div>
-                  {NAV.filter(i => i.section === section).map(item => {
+                  {visibleNav.filter(i => i.section === section).map(item => {
                     const active = pathname === item.href
                     return (
                       <button

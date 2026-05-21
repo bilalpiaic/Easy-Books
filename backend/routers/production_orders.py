@@ -1,0 +1,696 @@
+"""ProductionOrder lifecycle: draft → started → completed → delivered → billed.
+
+Each transition is its own endpoint so the UI can guide the user step by
+step, and so each event lives as a separate Transaction in the GL (easier
+to reverse, audit, and reason about than a giant multi-stage JE).
+
+Cost flow (per user directive 8.3.8 — "all absorbed costs flow through WIP"):
+
+  start    : Dr 1201 WIP                Cr 1200 Raw Material  (own_stock only)
+             Customer-supplied components → CUSTODIAL_ISSUE movement, no JE
+  complete : Dr 1202 Finished Goods     Cr 1201 WIP            (cost from start)
+  deliver  : Dr 5010 COGS               Cr 1202 Finished Goods (FG → expense)
+             Dr 2150 Cust Goods Liab    Cr 1210 Cust Goods on Hand  (memo release,
+             only if the related GRNs posted a memo JE)
+  bill     : Invoice via RatePlan (per_unit_rate × qty + optional materials
+             passthrough + overhead% + margin%). Invoice posting handled by
+             /api/invoices machinery via direct call to post_transaction.
+"""
+from datetime import datetime
+from decimal import Decimal
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from sqlmodel import func, select
+
+from models import (
+    BomHeader, BomLine, Customer, CustomerRatePlan, GoodsReceiptNote,
+    GRNLine, Invoice, InvoiceLine, InventoryLayer, Product, ProductionOrder,
+    RatePlan, StockLocation,
+)
+from services.inventory import consume_stock, record_movement, record_purchase
+from services.money import D, ZERO, money
+from services.posting import EntryInput, post_transaction
+
+from .common import (
+    CurrentUserDep, SessionDep, WriteUserDep,
+    get_or_create_account, log_audit, next_number,
+)
+
+router = APIRouter(prefix="/api/production-orders", tags=["production-orders"])
+
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _get_po(session, tenant_id: int, po_id: int) -> ProductionOrder:
+    po = session.exec(
+        select(ProductionOrder).where(
+            ProductionOrder.id == po_id,
+            ProductionOrder.tenant_id == tenant_id,
+        )
+    ).first()
+    if not po:
+        raise HTTPException(404, "Production order not found")
+    return po
+
+
+def _resolve_wip_location(session, tenant_id: int) -> StockLocation:
+    loc = session.exec(
+        select(StockLocation).where(
+            StockLocation.tenant_id == tenant_id,
+            StockLocation.type == "wip",
+            StockLocation.is_active == True,  # noqa: E712
+        ).order_by(StockLocation.id)
+    ).first()
+    if not loc:
+        raise HTTPException(
+            400,
+            "No WIP location configured. Manufacturing tenants get one at signup; "
+            "create a StockLocation with type='wip' first.",
+        )
+    return loc
+
+
+def _resolve_main_own(session, tenant_id: int) -> StockLocation:
+    loc = session.exec(
+        select(StockLocation).where(
+            StockLocation.tenant_id == tenant_id,
+            StockLocation.type == "own",
+            StockLocation.is_active == True,  # noqa: E712
+        ).order_by(StockLocation.id)
+    ).first()
+    if not loc:
+        raise HTTPException(400, "No 'own' stock location configured")
+    return loc
+
+
+def _bom_lines(session, bom_id: int) -> List[BomLine]:
+    return session.exec(
+        select(BomLine).where(BomLine.bom_id == bom_id).order_by(BomLine.id)
+    ).all()
+
+
+def _serialise(po: ProductionOrder) -> dict:
+    out = po.model_dump()
+    for k in ("created_at", "started_at", "completed_at", "delivered_at",
+              "billed_at", "cancelled_at"):
+        v = out.get(k)
+        if isinstance(v, datetime):
+            out[k] = v.isoformat()
+    return out
+
+
+# ── CRUD ────────────────────────────────────────────────────────────────────
+
+
+class PoCreate(BaseModel):
+    bom_id: int
+    customer_id: int
+    output_qty: Decimal
+    rate_plan_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+@router.get("")
+def list_pos(
+    session: SessionDep, user: CurrentUserDep,
+    state: Optional[str] = None,
+    customer_id: Optional[int] = None,
+    skip: int = 0, limit: int = 100,
+):
+    q = select(ProductionOrder).where(ProductionOrder.tenant_id == user.tenant_id)
+    if state:
+        q = q.where(ProductionOrder.state == state)
+    if customer_id:
+        q = q.where(ProductionOrder.customer_id == customer_id)
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    items = session.exec(
+        q.order_by(ProductionOrder.id.desc()).offset(skip).limit(limit)
+    ).all()
+    return {"total": total, "items": [_serialise(p) for p in items]}
+
+
+@router.get("/{po_id}")
+def get_po(session: SessionDep, user: CurrentUserDep, po_id: int):
+    po = _get_po(session, user.tenant_id, po_id)
+    return _serialise(po)
+
+
+@router.post("", status_code=201)
+def create_po(session: SessionDep, user: WriteUserDep, body: PoCreate):
+    if D(body.output_qty) <= 0:
+        raise HTTPException(400, "output_qty must be > 0")
+    bom = session.get(BomHeader, body.bom_id)
+    if not bom or bom.tenant_id != user.tenant_id:
+        raise HTTPException(400, "BoM not found")
+    cust = session.get(Customer, body.customer_id)
+    if not cust or cust.tenant_id != user.tenant_id:
+        raise HTTPException(400, "Customer not found")
+    if body.rate_plan_id is not None:
+        rp = session.get(RatePlan, body.rate_plan_id)
+        if not rp or rp.tenant_id != user.tenant_id:
+            raise HTTPException(400, "Rate plan not found")
+    else:
+        # Auto-pick the customer's active rate plan if any
+        crp = session.exec(
+            select(CustomerRatePlan).where(
+                CustomerRatePlan.tenant_id == user.tenant_id,
+                CustomerRatePlan.customer_id == body.customer_id,
+                CustomerRatePlan.is_active == True,  # noqa: E712
+            )
+        ).first()
+        body.rate_plan_id = crp.rate_plan_id if crp else None
+
+    number = next_number(session, user.tenant_id, "po", "PO", width=4)
+    po = ProductionOrder(
+        tenant_id=user.tenant_id,
+        number=number,
+        bom_id=body.bom_id,
+        customer_id=body.customer_id,
+        rate_plan_id=body.rate_plan_id,
+        output_qty=money(D(body.output_qty)),
+        state="draft",
+        notes=body.notes,
+    )
+    session.add(po)
+    session.flush()
+    log_audit(
+        session, user, "CREATE", "production_order", po.id,
+        {"number": number, "bom_id": body.bom_id, "output_qty": str(body.output_qty)},
+    )
+    session.commit()
+    session.refresh(po)
+    return _serialise(po)
+
+
+# ── State transitions ───────────────────────────────────────────────────────
+
+
+def _require_state(po: ProductionOrder, expected: str) -> None:
+    if po.state != expected:
+        raise HTTPException(
+            400, f"PO is in state '{po.state}'; transition requires '{expected}'"
+        )
+
+
+@router.post("/{po_id}/start")
+def start_po(session: SessionDep, user: WriteUserDep, po_id: int):
+    """Issue components from MAIN/GODOWN → WIP. Own-stock consumption posts
+    a WIP/Raw-Material JE; customer-supplied components emit only a
+    CUSTODIAL_ISSUE movement (their cost lives in memo accounts)."""
+    po = _get_po(session, user.tenant_id, po_id)
+    _require_state(po, "draft")
+
+    bom = session.get(BomHeader, po.bom_id)
+    lines = _bom_lines(session, bom.id)
+    if not lines:
+        raise HTTPException(400, "BoM has no lines")
+
+    wip = _resolve_wip_location(session, user.tenant_id)
+    main_own = _resolve_main_own(session, user.tenant_id)
+    output_qty = D(po.output_qty)
+    batches = output_qty / D(bom.output_qty)
+
+    own_material_cost = ZERO
+
+    for ln in lines:
+        required = D(ln.qty_per_output) * batches
+        if required <= 0:
+            continue
+
+        prod = session.get(Product, ln.component_product_id)
+
+        if ln.source == "own_stock":
+            # Consume from our inventory at WAvg cost. consume_stock handles
+            # the qty + layer maths; we also need to redirect the JE since
+            # the default treats this as a sale (Dr COGS) — instead we want
+            # Dr WIP / Cr Raw Material.
+            # Approach: relieve stock manually via record_movement at avg
+            # cost, then post the JE ourselves.
+            if prod.product_type != "stock":
+                raise HTTPException(
+                    400,
+                    f"Component {prod.code or prod.id} is a service, cannot consume",
+                )
+            available = D(prod.stock_qty)
+            if available < required:
+                raise HTTPException(
+                    400,
+                    f"Insufficient stock for {prod.code or prod.id}: "
+                    f"need {required}, have {available}",
+                )
+            unit_cost = D(prod.avg_cost)
+            line_cost = money(required * unit_cost)
+            own_material_cost += D(line_cost)
+
+            # Deplete layers FIFO across own locations
+            remaining = required
+            consumed_from_loc = None
+            consumed_lot = None
+            layers = session.exec(
+                select(InventoryLayer)
+                .where(
+                    InventoryLayer.tenant_id == user.tenant_id,
+                    InventoryLayer.product_id == prod.id,
+                    InventoryLayer.owner_customer_id.is_(None),
+                    InventoryLayer.qty_remaining > 0,
+                )
+                .order_by(InventoryLayer.id.asc())
+            ).all()
+            for layer in layers:
+                if remaining <= 0:
+                    break
+                take = min(D(layer.qty_remaining), remaining)
+                layer.qty_remaining = D(layer.qty_remaining) - take
+                remaining -= take
+                session.add(layer)
+                if consumed_from_loc is None:
+                    consumed_from_loc = layer.location_id or main_own.id
+                    consumed_lot = layer.lot_no
+
+            prod.stock_qty = D(prod.stock_qty) - required
+            session.add(prod)
+
+            record_movement(
+                session,
+                tenant_id=user.tenant_id, product_id=prod.id,
+                direction="ISSUE", qty=required,
+                from_location_id=consumed_from_loc or main_own.id,
+                to_location_id=wip.id,
+                lot_no=consumed_lot,
+                unit_cost=unit_cost,
+                source_doc_type="production_order", source_doc_id=po.id,
+                posted_to_gl=True,
+            )
+
+        elif ln.source == "customer_supplied":
+            # Pull from GODOWN custodial layers (owner = po.customer_id).
+            # No GL effect — just movement + layer drain.
+            layers = session.exec(
+                select(InventoryLayer)
+                .where(
+                    InventoryLayer.tenant_id == user.tenant_id,
+                    InventoryLayer.product_id == prod.id,
+                    InventoryLayer.owner_customer_id == po.customer_id,
+                    InventoryLayer.qty_remaining > 0,
+                )
+                .order_by(InventoryLayer.id.asc())
+            ).all()
+            available = sum((D(l.qty_remaining) for l in layers), start=ZERO)
+            if available < required:
+                raise HTTPException(
+                    400,
+                    f"Insufficient custodial stock for {prod.code or prod.id}: "
+                    f"need {required}, have {available}",
+                )
+            remaining = required
+            consumed_from_loc = None
+            consumed_lot = None
+            for layer in layers:
+                if remaining <= 0:
+                    break
+                take = min(D(layer.qty_remaining), remaining)
+                layer.qty_remaining = D(layer.qty_remaining) - take
+                remaining -= take
+                session.add(layer)
+                if consumed_from_loc is None:
+                    consumed_from_loc = layer.location_id
+                    consumed_lot = layer.lot_no
+
+            record_movement(
+                session,
+                tenant_id=user.tenant_id, product_id=prod.id,
+                direction="CUSTODIAL_ISSUE", qty=required,
+                from_location_id=consumed_from_loc,
+                to_location_id=wip.id,
+                lot_no=consumed_lot,
+                owner_customer_id=po.customer_id,
+                source_doc_type="production_order", source_doc_id=po.id,
+                posted_to_gl=False,
+            )
+
+    # Post the WIP capitalisation JE (only if own materials consumed)
+    if own_material_cost > 0:
+        wip_acc = get_or_create_account(
+            session, user.tenant_id, "1201", "Work-in-Progress", "Asset"
+        )
+        rm_acc = get_or_create_account(
+            session, user.tenant_id, "1200", "Raw Material Inventory", "Asset"
+        )
+        post_transaction(
+            session, user,
+            date=datetime.utcnow().date().isoformat(),
+            description=f"{po.number} — issue to WIP",
+            entries=[
+                EntryInput(account_id=wip_acc.id, debit=own_material_cost),
+                EntryInput(account_id=rm_acc.id, credit=own_material_cost),
+            ],
+            audit_entity_type="production_order",
+            audit_detail={"number": po.number, "stage": "start", "own_material_cost": str(own_material_cost)},
+        )
+
+    po.state = "started"
+    po.started_at = datetime.utcnow()
+    po.own_material_cost = money(own_material_cost)
+    session.add(po)
+    log_audit(session, user, "START", "production_order", po.id, {"number": po.number})
+    session.commit()
+    session.refresh(po)
+    return _serialise(po)
+
+
+@router.post("/{po_id}/complete")
+def complete_po(session: SessionDep, user: WriteUserDep, po_id: int):
+    """Capitalise output: WIP → Finished Goods. Sets unit cost on output product
+    via a fresh InventoryLayer at the absorbed cost basis."""
+    po = _get_po(session, user.tenant_id, po_id)
+    _require_state(po, "started")
+
+    bom = session.get(BomHeader, po.bom_id)
+    main_own = _resolve_main_own(session, user.tenant_id)
+    wip = _resolve_wip_location(session, user.tenant_id)
+    output_qty = D(po.output_qty)
+    total_cost = D(po.own_material_cost)
+
+    unit_cost = money(total_cost / output_qty) if output_qty > 0 else ZERO
+
+    # Stock side: receipt of finished goods into MAIN at unit_cost
+    record_purchase(
+        session,
+        tenant_id=user.tenant_id,
+        product_id=bom.output_product_id,
+        qty=output_qty,
+        unit_cost=unit_cost,
+        source_doc=po.number,
+        location_id=main_own.id,
+        lot_no=po.number,
+    )
+    # record_purchase emits RECEIPT direction; we want COMPLETION semantics
+    # to be visible in the movement log. Overwrite the last movement's
+    # direction so reports distinguish purchases from production output.
+    # (record_purchase already flushed it.)
+    from models import StockMovement
+    last_mv = session.exec(
+        select(StockMovement)
+        .where(
+            StockMovement.tenant_id == user.tenant_id,
+            StockMovement.product_id == bom.output_product_id,
+            StockMovement.direction == "RECEIPT",
+        )
+        .order_by(StockMovement.id.desc())
+    ).first()
+    if last_mv and last_mv.notes == po.number:
+        last_mv.direction = "COMPLETION"
+        last_mv.from_location_id = wip.id
+        last_mv.source_doc_type = "production_order"
+        last_mv.source_doc_id = po.id
+        session.add(last_mv)
+
+    if total_cost > 0:
+        fg_acc = get_or_create_account(
+            session, user.tenant_id, "1202", "Finished Goods Inventory", "Asset"
+        )
+        wip_acc = get_or_create_account(
+            session, user.tenant_id, "1201", "Work-in-Progress", "Asset"
+        )
+        post_transaction(
+            session, user,
+            date=datetime.utcnow().date().isoformat(),
+            description=f"{po.number} — capitalise FG",
+            entries=[
+                EntryInput(account_id=fg_acc.id, debit=total_cost),
+                EntryInput(account_id=wip_acc.id, credit=total_cost),
+            ],
+            audit_entity_type="production_order",
+            audit_detail={"number": po.number, "stage": "complete", "total_cost": str(total_cost)},
+        )
+
+    po.state = "completed"
+    po.completed_at = datetime.utcnow()
+    po.output_unit_cost = unit_cost
+    session.add(po)
+    log_audit(session, user, "COMPLETE", "production_order", po.id, {"number": po.number})
+    session.commit()
+    session.refresh(po)
+    return _serialise(po)
+
+
+@router.post("/{po_id}/deliver")
+def deliver_po(session: SessionDep, user: WriteUserDep, po_id: int):
+    """Ship finished goods to customer. Relieves FG inventory at cost (Dr COGS)
+    and releases any custodial memo balance traced to this customer's GRNs."""
+    po = _get_po(session, user.tenant_id, po_id)
+    _require_state(po, "completed")
+
+    bom = session.get(BomHeader, po.bom_id)
+    main_own = _resolve_main_own(session, user.tenant_id)
+    output_qty = D(po.output_qty)
+
+    # Relieve FG at cost via consume_stock (handles layers + COGS calc).
+    cogs = consume_stock(
+        session,
+        tenant_id=user.tenant_id,
+        product_id=bom.output_product_id,
+        qty=output_qty,
+    )
+    # Reclassify the SHIPMENT movement consume_stock just wrote → DELIVERY
+    from models import StockMovement
+    last_mv = session.exec(
+        select(StockMovement)
+        .where(
+            StockMovement.tenant_id == user.tenant_id,
+            StockMovement.product_id == bom.output_product_id,
+            StockMovement.direction == "SHIPMENT",
+        )
+        .order_by(StockMovement.id.desc())
+    ).first()
+    if last_mv:
+        last_mv.direction = "DELIVERY"
+        last_mv.source_doc_type = "production_order"
+        last_mv.source_doc_id = po.id
+        session.add(last_mv)
+
+    if cogs > 0:
+        cogs_acc = get_or_create_account(
+            session, user.tenant_id, "5010", "Cost of Goods Sold", "Expense"
+        )
+        fg_acc = get_or_create_account(
+            session, user.tenant_id, "1202", "Finished Goods Inventory", "Asset"
+        )
+        post_transaction(
+            session, user,
+            date=datetime.utcnow().date().isoformat(),
+            description=f"{po.number} — deliver / COGS",
+            entries=[
+                EntryInput(account_id=cogs_acc.id, debit=cogs),
+                EntryInput(account_id=fg_acc.id, credit=cogs),
+            ],
+            audit_entity_type="production_order",
+            audit_detail={"number": po.number, "stage": "deliver", "cogs": str(cogs)},
+        )
+
+    # Release custodial memo balance: find GRNs for this customer whose
+    # custodial stock was consumed (qty_remaining = 0 across their layers).
+    # We release the full declared_value of those GRNs.
+    memo_release = _release_customer_memo(session, user, po.customer_id)
+    if memo_release > 0:
+        memo_asset = get_or_create_account(
+            session, user.tenant_id, "1210", "Customer Goods on Hand", "Asset"
+        )
+        memo_liab = get_or_create_account(
+            session, user.tenant_id, "2150", "Customer Goods Liability", "Liability"
+        )
+        for acc in (memo_asset, memo_liab):
+            if not acc.is_memo:
+                acc.is_memo = True
+                session.add(acc)
+        post_transaction(
+            session, user,
+            date=datetime.utcnow().date().isoformat(),
+            description=f"{po.number} — release customer custody",
+            entries=[
+                EntryInput(account_id=memo_liab.id, debit=memo_release),
+                EntryInput(account_id=memo_asset.id, credit=memo_release),
+            ],
+            audit_entity_type="production_order",
+            audit_detail={"number": po.number, "stage": "deliver", "memo_release": str(memo_release)},
+        )
+
+    po.state = "delivered"
+    po.delivered_at = datetime.utcnow()
+    session.add(po)
+    log_audit(session, user, "DELIVER", "production_order", po.id, {"number": po.number})
+    session.commit()
+    session.refresh(po)
+    return _serialise(po)
+
+
+def _release_customer_memo(session, user, customer_id: int) -> Decimal:
+    """Sum declared_value of GRNs where all custodial layers are drained."""
+    grns = session.exec(
+        select(GoodsReceiptNote).where(
+            GoodsReceiptNote.tenant_id == user.tenant_id,
+            GoodsReceiptNote.customer_id == customer_id,
+            GoodsReceiptNote.declared_value > 0,
+        )
+    ).all()
+    released = ZERO
+    for g in grns:
+        # Have all layers tied to this GRN been drained?
+        layers = session.exec(
+            select(InventoryLayer).where(
+                InventoryLayer.tenant_id == user.tenant_id,
+                InventoryLayer.owner_customer_id == customer_id,
+                InventoryLayer.source_doc == g.number,
+            )
+        ).all()
+        if layers and all(D(l.qty_remaining) == 0 for l in layers):
+            released += D(g.declared_value)
+            # Zero out so we don't release the same GRN twice
+            g.declared_value = ZERO
+            session.add(g)
+    return released
+
+
+@router.post("/{po_id}/bill")
+def bill_po(session: SessionDep, user: WriteUserDep, po_id: int):
+    """Create an Invoice via the rate plan attached to this PO."""
+    po = _get_po(session, user.tenant_id, po_id)
+    _require_state(po, "delivered")
+    if po.rate_plan_id is None:
+        raise HTTPException(
+            400,
+            "PO has no rate plan; assign one to the customer or set rate_plan_id "
+            "on the PO before billing.",
+        )
+
+    rp = session.get(RatePlan, po.rate_plan_id)
+    if not rp or rp.tenant_id != user.tenant_id:
+        raise HTTPException(400, "Rate plan not found")
+
+    qty = D(po.output_qty)
+    base = qty * D(rp.per_unit_rate)
+    materials = D(po.own_material_cost) if rp.includes_materials_at_cost else ZERO
+    subtotal_pre = base + materials
+    overhead = subtotal_pre * D(rp.overhead_pct) / Decimal("100")
+    subtotal = subtotal_pre + overhead
+    margin = subtotal * D(rp.margin_pct) / Decimal("100")
+    total_net = subtotal + margin   # excl GST; matches Invoice.subtotal contract
+
+    # Build Invoice + InvoiceLine via direct construction (mirrors invoices.py)
+    cust = session.get(Customer, po.customer_id)
+    bom = session.get(BomHeader, po.bom_id)
+    output_prod = session.get(Product, bom.output_product_id)
+
+    invoice_number = next_number(session, user.tenant_id, "invoice", "INV", width=4)
+    today = datetime.utcnow().date().isoformat()
+    invoice = Invoice(
+        tenant_id=user.tenant_id,
+        number=invoice_number,
+        customer_id=cust.id,
+        customer_name=cust.name,
+        issue_date=today,
+        due_date=today,
+        description=f"Value-addition services for {po.number}",
+        subtotal=money(total_net),
+        gst_rate=ZERO,
+        gst_amount=ZERO,
+        total=money(total_net),
+        status="posted",
+    )
+    session.add(invoice)
+    session.flush()
+
+    # Line 1: value-add charge
+    session.add(InvoiceLine(
+        invoice_id=invoice.id,
+        product_id=output_prod.id,
+        description=f"{rp.name} ({qty} {output_prod.unit} × {rp.per_unit_rate})",
+        qty=money(qty),
+        unit=output_prod.unit,
+        rate=money(D(rp.per_unit_rate)),
+        amount=money(base),
+    ))
+    if materials > 0:
+        session.add(InvoiceLine(
+            invoice_id=invoice.id,
+            product_id=None,
+            description="Materials passthrough (at cost)",
+            qty=money(Decimal("1")),
+            rate=money(materials),
+            amount=money(materials),
+        ))
+    if overhead > 0:
+        session.add(InvoiceLine(
+            invoice_id=invoice.id,
+            product_id=None,
+            description=f"Overhead ({rp.overhead_pct}%)",
+            qty=money(Decimal("1")),
+            rate=money(overhead),
+            amount=money(overhead),
+        ))
+    if margin > 0:
+        session.add(InvoiceLine(
+            invoice_id=invoice.id,
+            product_id=None,
+            description=f"Margin ({rp.margin_pct}%)",
+            qty=money(Decimal("1")),
+            rate=money(margin),
+            amount=money(margin),
+        ))
+
+    # GL: Dr AR / Cr Service Revenue (Value-Add)
+    ar_acc = get_or_create_account(
+        session, user.tenant_id, "1100", "Accounts Receivable", "Asset"
+    )
+    rev_acc = get_or_create_account(
+        session, user.tenant_id, "4010", "Service Revenue (Value-Add)", "Revenue"
+    )
+    txn = post_transaction(
+        session, user,
+        date=today,
+        description=f"Invoice {invoice_number} — {po.number}",
+        entries=[
+            EntryInput(account_id=ar_acc.id, debit=money(total_net)),
+            EntryInput(account_id=rev_acc.id, credit=money(total_net)),
+        ],
+        audit_entity_type="invoice",
+        audit_detail={"invoice_number": invoice_number, "po_number": po.number},
+    )
+    invoice.transaction_id = txn.id
+    session.add(invoice)
+
+    po.state = "billed"
+    po.billed_at = datetime.utcnow()
+    po.invoice_id = invoice.id
+    session.add(po)
+    log_audit(
+        session, user, "BILL", "production_order", po.id,
+        {"number": po.number, "invoice_number": invoice_number, "total": str(total_net)},
+    )
+    session.commit()
+    session.refresh(po)
+    session.refresh(invoice)
+    return {"production_order": _serialise(po), "invoice": invoice.model_dump()}
+
+
+@router.post("/{po_id}/cancel")
+def cancel_po(session: SessionDep, user: WriteUserDep, po_id: int):
+    """Soft-cancel a PO. Only legal in draft state (other states have
+    materially committed inventory + JEs which require manual reversal)."""
+    po = _get_po(session, user.tenant_id, po_id)
+    if po.state not in ("draft",):
+        raise HTTPException(
+            400,
+            f"Cancel only allowed from 'draft' (current: '{po.state}'). "
+            "Use the journal-reversal flow to undo a started/completed PO.",
+        )
+    po.state = "cancelled"
+    po.cancelled_at = datetime.utcnow()
+    session.add(po)
+    log_audit(session, user, "CANCEL", "production_order", po.id, {"number": po.number})
+    session.commit()
+    session.refresh(po)
+    return _serialise(po)
