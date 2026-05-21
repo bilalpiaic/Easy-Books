@@ -298,6 +298,112 @@ class Product(SQLModel, table=True):
     is_active: bool = Field(default=True)
 
 
+class BomHeader(SQLModel, table=True):
+    """Bill of Materials — the recipe for producing one batch of an output.
+
+    A BoM is versioned: every time the recipe changes you bump `version` and
+    flag the new row `is_active=True` (and the old one False). Production
+    orders pin a specific version so cost reconstruction stays accurate even
+    after the BoM evolves.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "output_product_id", "version",
+            name="unique_bom_per_product_version",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    output_product_id: int = Field(foreign_key="product.id", index=True)
+    output_qty: Money = money_col(default=Decimal("1"))  # produces N output units per recipe run
+    version: int = Field(default=1)
+    is_active: bool = Field(default=True)
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class BomLine(SQLModel, table=True):
+    """One component line of a BoM.
+
+    `source` distinguishes manufacturer-owned consumables from customer-
+    supplied inputs:
+      own_stock        — pulled from a raw-material store; costs flow into
+                         WIP and ultimately COGS
+      customer_supplied — pulled from the customer-goods godown; cost is
+                         zero to us (custodial), GL impact via memo accounts
+                         only
+    """
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('own_stock','customer_supplied')",
+            name="ck_bom_line_source",
+        ),
+        CheckConstraint("qty_per_output > 0", name="ck_bom_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bom_id: int = Field(foreign_key="bomheader.id", ondelete="CASCADE", index=True)
+    component_product_id: int = Field(foreign_key="product.id")
+    qty_per_output: Money = money_col()
+    source: str = Field(default="own_stock")
+    default_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    is_optional: bool = Field(default=False)
+    notes: Optional[str] = None
+
+
+class RatePlan(SQLModel, table=True):
+    """Pricing template for value-addition services.
+
+    Per-unit flat rate is the headline number. The plan also captures whether
+    consumed materials get billed at cost (passthrough) and the overhead/
+    margin uplifts. Plans are versioned — historical invoices reference the
+    specific version they were billed under so they stay reproducible after
+    the catalogue changes.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "code", "version",
+            name="unique_rate_plan_code_version",
+        ),
+        CheckConstraint("per_unit_rate >= 0", name="ck_rate_plan_rate_nonneg"),
+        CheckConstraint("overhead_pct >= 0", name="ck_rate_plan_oh_nonneg"),
+        CheckConstraint("margin_pct >= 0", name="ck_rate_plan_margin_nonneg"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str = Field(index=True)
+    name: str
+    output_product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    per_unit_rate: Money = money_col()              # e.g. ₨50 per processed unit
+    includes_materials_at_cost: bool = Field(default=True)
+    overhead_pct: Money = money_col(default=Decimal("0"))   # % on direct cost
+    margin_pct: Money = money_col(default=Decimal("0"))     # % final markup
+    version: int = Field(default=1)
+    is_active: bool = Field(default=True)
+    valid_from: Optional[str] = None
+    valid_to: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CustomerRatePlan(SQLModel, table=True):
+    """Many-to-many assignment: a customer can have one or more rate plans
+    assigned. The active plan (is_active=true, most-recently-assigned) is
+    what production billing uses by default. History preserved.
+    """
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "customer_id", "rate_plan_id",
+            name="unique_customer_rate_plan_assignment",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    customer_id: int = Field(foreign_key="customer.id", index=True)
+    rate_plan_id: int = Field(foreign_key="rateplan.id", index=True)
+    is_active: bool = Field(default=True)
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class StockLocation(SQLModel, table=True):
     """A physical or logical place where inventory lives.
 
