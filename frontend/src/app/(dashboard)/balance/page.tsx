@@ -5,6 +5,7 @@ import { Printer, HelpCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
+import PrintHeader from "@/components/PrintHeader"
 
 interface BalanceItem {
   code: string
@@ -38,8 +39,9 @@ export default function BalanceSheetPage() {
   const isBalanced = Math.abs(totalAssets - totalLE) <= 0.01
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="max-w-4xl mx-auto">
+      <PrintHeader title="Balance Sheet" subtitle={`As of ${asOf}`} />
+      <div className="flex justify-between items-center mb-8 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
           <p className="text-[#1a1814]/60">Financial position as of {new Date(asOf).toLocaleDateString()}</p>

@@ -5,6 +5,7 @@ import { Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 import DateRangePicker from '@/components/DateRangePicker'
+import PrintHeader from '@/components/PrintHeader'
 
 interface CashFlowData {
   period: { start: string; end: string }
@@ -49,8 +50,9 @@ export default function CashFlow() {
   }, [start, end])
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-4xl">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6 max-w-5xl">
+      <PrintHeader title="Cash Flow Statement" subtitle={`Period: ${start} — ${end}`} />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif font-medium">Cash Flow Statement</h1>
           <p className="text-sm text-black/75 mt-1">Sources and uses of cash — Indirect Method</p>

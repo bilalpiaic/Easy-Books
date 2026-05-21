@@ -8,6 +8,7 @@ import { fmtPKR, downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
+import PrintHeader from "@/components/PrintHeader"
 import CsvImportButton from "@/components/CsvImportButton"
 
 interface JournalEntry {
@@ -74,8 +75,9 @@ export default function JournalPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+    <div>
+      <PrintHeader title="General Journal" subtitle={`Period: ${start} — ${end}`} orientation="landscape" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">General Journal</h1>
           <p className="text-[#1a1814]/60">Chronological record of all financial transactions</p>

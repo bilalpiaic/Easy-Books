@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import Pagination from "@/components/Pagination"
+import PrintHeader from "@/components/PrintHeader"
 
 interface LedgerEntry {
   date: string
@@ -61,8 +62,9 @@ function LedgerPageInner() {
   }, [start, end, search, page])
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+    <div>
+      <PrintHeader title="General Ledger" subtitle={`Period: ${start} — ${end}`} orientation="landscape" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">General Ledger</h1>
           <p className="text-[#1a1814]/60">Transaction history with running balance per account</p>
