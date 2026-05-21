@@ -31,6 +31,29 @@ body {
 }
 .table-scroll table { min-width: 600px; }
 
+/* ── Responsive auto-scroll for any card-wrapped table ──
+   Browsers that support :has() will turn an overflow-hidden card with a
+   table inside into a horizontal-scrolling container on narrow viewports,
+   so wide tables (PO list, journal, GL ledger) don't blow the layout. */
+@media (max-width: 900px) {
+  div.overflow-hidden:has(> table),
+  div.rounded-2xl:has(> table) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  div.overflow-hidden:has(> table) > table,
+  div.rounded-2xl:has(> table) > table {
+    min-width: 560px;
+  }
+}
+
+/* Reusable wrapper: any element with data-scroll-x scrolls horizontally on
+   overflow, with a small fade hint on the right edge. */
+[data-scroll-x] {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ── Bottom nav safe area ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
