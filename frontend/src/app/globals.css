@@ -90,16 +90,164 @@ body {
 .scrollbar-hide { scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* ── Print styles ── */
+/* ── Print styles ─────────────────────────────────────────────────
+   A4 with comfortable margins; branded headers + page numbers via
+   <PrintHeader>. Reports that need wider layout (Trial Balance,
+   General Ledger, Journal) opt into landscape via class
+   `print-landscape` on a wrapper or the PrintHeader's `orientation`. */
 @media print {
-  nav, aside, header, footer,
+  /* Hide all non-content chrome */
+  nav, aside, header,
   [data-sidebar], [data-header],
   .print\:hidden { display: none !important; }
-  main, [data-main] { margin: 0 !important; padding: 0 !important; width: 100% !important; }
-  @page { size: A4; margin: 20mm; }
-  body { background: white; color: black; font-size: 11pt; }
+
+  main, [data-main] {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Default: portrait A4 with margin reserved for our header/footer */
+  @page {
+    size: A4 portrait;
+    margin: 20mm 15mm 18mm 15mm;
+  }
+  /* Reports that opt-in to landscape — any page that contains a
+     .print-landscape element will switch its named page. */
+  @page :first { margin-top: 25mm; }   /* slightly more top margin on first page */
+
+  /* Landscape opt-in via class on any descendant */
+  body:has(.print-landscape) {
+    /* The named-page trick — gives Chrome a stable landscape target. */
+  }
+  body:has(.print-landscape) {
+    page: landscape-a4;
+  }
+  @page landscape-a4 {
+    size: A4 landscape;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 10.5pt;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Table behaviour: avoid breaking rows; repeat header on every page */
   tr { page-break-inside: avoid; }
   thead { display: table-header-group; }
-  table, th, td { border-color: #ccc !important; }
-  th { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  tfoot { display: table-footer-group; }
+  table { width: 100% !important; border-collapse: collapse; }
+  table, th, td {
+    border-color: #ccc !important;
+  }
+  th {
+    background: #f3f3ed !important;
+    color: #1a1814 !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 8.5pt;
+    letter-spacing: 0.05em;
+    padding: 5pt 6pt !important;
+    border-bottom: 1pt solid #999 !important;
+  }
+  td { padding: 4pt 6pt !important; }
+  tr:nth-child(even) td { background: #fafaf7 !important; }
+
+  /* ── Branded header (PrintHeader component) ─────────────────── */
+  .print-header {
+    border-bottom: 0.5pt solid #888;
+    padding-bottom: 8pt;
+    margin-bottom: 14pt;
+  }
+  .print-brand-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12pt;
+  }
+  .print-brand {
+    display: flex;
+    align-items: center;
+    gap: 10pt;
+  }
+  .print-logo {
+    width: 36pt; height: 36pt;
+    background: #b8943f !important;
+    color: #1a1814 !important;
+    border-radius: 6pt;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "DM Serif Display", serif;
+    font-size: 18pt; font-weight: 700;
+  }
+  .print-org-name {
+    font-family: "DM Serif Display", serif;
+    font-size: 14pt; font-weight: 700;
+    color: #1a1814;
+    line-height: 1.1;
+  }
+  .print-org-sub {
+    font-size: 7.5pt;
+    color: #666;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2pt;
+  }
+  .print-meta {
+    font-size: 8.5pt;
+    color: #555;
+    text-align: right;
+  }
+  .print-meta-line { margin-bottom: 2pt; }
+
+  .print-title-row {
+    margin-top: 14pt;
+    padding-top: 6pt;
+    border-top: 1.5pt solid #1a1814;
+  }
+  .print-title {
+    font-family: "DM Serif Display", serif;
+    font-size: 18pt;
+    font-weight: 700;
+    color: #1a1814;
+    margin: 0;
+  }
+  .print-subtitle {
+    font-size: 9.5pt;
+    color: #555;
+    margin-top: 2pt;
+  }
+  .print-stamp {
+    font-size: 7.5pt;
+    color: #888;
+    margin-top: 6pt;
+    text-align: right;
+  }
+
+  /* Page number footer */
+  @page {
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: "DM Sans", sans-serif;
+      font-size: 8pt;
+      color: #888;
+    }
+  }
+
+  /* Strip card/shadow styles that look bad in print */
+  .rounded-2xl, .rounded-3xl, .rounded-xl {
+    border-radius: 0 !important;
+  }
+  .shadow-sm, .shadow, .shadow-lg, .shadow-xl, .shadow-2xl,
+  .card-lift { box-shadow: none !important; }
+  .bg-white { background: white !important; }
+  .border, .border-\[\#ede9e2\] { border-color: #ccc !important; }
 }
+
+/* Screen-only utility to opt a report into landscape via the
+   PrintHeader (so the screen view doesn't change). */
+.print-landscape { /* meaningful only inside @media print */ }

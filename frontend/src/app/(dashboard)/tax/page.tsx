@@ -5,6 +5,7 @@ import { Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 import DateRangePicker from '@/components/DateRangePicker'
+import PrintHeader from '@/components/PrintHeader'
 
 interface TaxSummary {
   period: { start: string; end: string }
@@ -44,8 +45,9 @@ export default function TaxReports() {
   }, [start, end])
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-4xl">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6 max-w-5xl">
+      <PrintHeader title="Tax Report" subtitle={`Period: ${start} — ${end}`} />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif font-medium">Tax Reports</h1>
           <p className="text-sm text-black/75 mt-1">GST returns and income tax estimate — Pakistan ITO 2001</p>

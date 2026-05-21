@@ -6,6 +6,7 @@ import { Scale, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR, downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
+import PrintHeader from "@/components/PrintHeader"
 
 interface TrialBalanceItem {
   code: string
@@ -42,8 +43,9 @@ export default function TrialBalancePage() {
   const grandTotalCredit = data.reduce((sum, item) => sum + item.total_credit, 0)
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div className="max-w-5xl mx-auto">
+      <PrintHeader title="Trial Balance" subtitle={`Period: ${start} — ${end}`} />
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Trial Balance</h1>
           <p className="text-[#1a1814]/60">Debit and credit totals per account</p>

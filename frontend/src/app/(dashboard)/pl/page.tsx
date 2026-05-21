@@ -5,6 +5,7 @@ import { TrendingUp, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
+import PrintHeader from "@/components/PrintHeader"
 
 interface PnLItem {
   name: string
@@ -40,8 +41,9 @@ export default function PnLPage() {
   const netIncome = totalRevenue - totalExpense
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div className="max-w-4xl mx-auto">
+      <PrintHeader title="Income Statement" subtitle={`Period: ${start} — ${end}`} />
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Income Statement</h1>
           <p className="text-[#1a1814]/60">Revenue and expenses for the selected period</p>
