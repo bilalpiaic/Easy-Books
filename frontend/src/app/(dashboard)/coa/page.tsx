@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Search, Trash2 } from "lucide-react"
+import { Plus, Search, Trash2, Printer } from "lucide-react"
+import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { cn, fmtPKR } from "@/lib/utils"
 import Pagination from "@/components/Pagination"
@@ -79,14 +80,23 @@ export default function COAPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+    <div>
+      <PrintHeader title="Chart of Accounts" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Chart of Accounts</h1>
           <p className="text-[#1a1814]/60">Manage your organisation's ledger accounts</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <CsvImportButton entity="accounts" onSuccess={loadAccounts} />
+          <button
+            onClick={() => window.print()}
+            className="border border-[#ede9e2] px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#f6f3ee] transition-colors font-bold text-sm"
+            title="Print"
+          >
+            <Printer className="w-4 h-4" />
+            Print
+          </button>
           <button
             onClick={() => { setEditAccount(null); setModalOpen(true) }}
             className="bg-[#b8943f] text-black font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#a38338] transition-colors"

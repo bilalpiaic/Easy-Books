@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Eye, EyeOff, Trash2 } from 'lucide-react'
+import { Plus, Eye, EyeOff, Trash2, Printer } from 'lucide-react'
+import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 
@@ -94,8 +95,9 @@ export default function BankAccounts() {
   const totalBalance = accounts.filter(a => a.is_active).reduce((s, a) => s + a.balance, 0)
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6">
+      <PrintHeader title="Bank Accounts" />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif font-medium">Bank Accounts</h1>
           <p className="text-sm text-black/75 mt-1">Monitor bank balances and track cash positions</p>
@@ -104,6 +106,14 @@ export default function BankAccounts() {
           <button onClick={() => setHideBalance(!hideBalance)} className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee]">
             {hideBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             {hideBalance ? 'Show' : 'Hide'} Balance
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            title="Print"
+          >
+            <Printer className="w-4 h-4" />
+            Print
           </button>
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" />

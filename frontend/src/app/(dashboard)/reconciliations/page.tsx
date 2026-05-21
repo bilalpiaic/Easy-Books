@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, CheckCircle, XCircle, Printer } from 'lucide-react'
+import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 
@@ -101,16 +102,27 @@ export default function Reconciliations() {
   const difference = detail ? detail.statement_balance - matchedBalance : 0
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6">
+      <PrintHeader title="Reconciliations" />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif font-medium">Reconciliations</h1>
           <p className="text-sm text-black/75 mt-1">Bank reconciliation and cash verification</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
-          <Plus className="w-4 h-4" />
-          New Reconciliation
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            title="Print"
+          >
+            <Printer className="w-4 h-4" />
+            Print
+          </button>
+          <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+            <Plus className="w-4 h-4" />
+            New Reconciliation
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
