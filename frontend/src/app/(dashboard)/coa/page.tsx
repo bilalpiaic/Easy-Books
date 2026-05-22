@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Plus, Search, Trash2, Printer } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
+import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { cn, fmtPKR } from "@/lib/utils"
 import Pagination from "@/components/Pagination"
@@ -141,8 +142,12 @@ export default function COAPage() {
                 const parent = acc.parent_id ? accounts.find(a => a.id === acc.parent_id) : null
                 return (
                 <tr key={acc.id} className="hover:bg-[#f6f3ee]/50 transition-colors">
-                  <td className="px-8 py-5 font-mono text-sm">{acc.code}</td>
-                  <td className="px-8 py-5 font-medium">{acc.name}</td>
+                  <td className="px-8 py-5 font-mono text-sm">
+                    <DocLink type="account" id={acc.name} label={acc.code} />
+                  </td>
+                  <td className="px-8 py-5 font-medium">
+                    <DocLink type="account" id={acc.name} label={acc.name} className="font-medium" />
+                  </td>
                   <td className="px-8 py-5">
                     <span className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
