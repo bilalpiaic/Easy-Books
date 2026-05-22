@@ -110,7 +110,7 @@ Easy-Books **enforces this at the database level**:
 
 ### 3.2 Chart of Accounts
 
-Your Chart of Accounts (CoA) is pre-seeded based on your business model:
+Your Chart of Accounts (CoA) is pre-seeded based on your business model **selected at signup**:
 
 | Model | Accounts | Purpose |
 |-------|----------|---------|
@@ -123,6 +123,8 @@ Each account has:
 - **Code** (e.g., 1100, 4000, 5010) — unique per tenant
 - **Name** (e.g., "Accounts Receivable")
 - **Type** (Asset / Liability / Equity / Revenue / Expense)
+
+**Note:** Business model is set at signup and cannot be changed through the UI. If you need to switch models, contact your administrator or use the API endpoint `PATCH /api/settings/business-model` (which adds any missing CoA accounts but never deletes existing ones).
 
 **To add a new account:** Go to `/dashboard/coa`, click **+ New Account**, and save.
 

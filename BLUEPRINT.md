@@ -328,7 +328,7 @@ The sidebar reads `/api/auth/me` → `tenant.business_model` and filters its NAV
 ### Manufacturing extra
 1200 Raw Material Inventory · 1201 Work-in-Progress · 1202 Finished Goods Inventory · **1210 Customer Goods on Hand (memo)** · 1250 GST Receivable · **2150 Customer Goods Liability (memo)** · 4010 Service Revenue (Value-Add) · 5010 COGS · 5100 Direct Labour · 5110 Subcontractor Costs · 5200 Manufacturing Overhead · 5210 Indirect Materials
 
-Switching business model via `PATCH /api/settings/business-model` adds the new template's accounts that don't already exist (never deletes existing ones).
+Switching business model via `PATCH /api/settings/business-model` *(admin-only API endpoint; not exposed in UI)* adds the new template's accounts that don't already exist (never deletes existing ones). Business model is selected at signup; UI does not provide model-switching capability.
 
 ---
 
