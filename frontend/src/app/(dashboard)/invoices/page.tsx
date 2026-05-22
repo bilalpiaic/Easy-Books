@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Download, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
+import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -13,6 +14,7 @@ import LineItemsTable, { LineItem } from '@/components/LineItemsTable'
 interface Invoice {
   id: number
   number: string
+  customer_id: number | null
   customer_name: string | null
   issue_date: string
   due_date: string
@@ -233,11 +235,13 @@ export default function Invoices() {
               <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">No invoices found.</td></tr>
             ) : invoices.map(inv => (
               <tr key={inv.id} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">{inv.number}</td>
+                <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
+                  <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[#b8943f] font-bold" />
+                </td>
                 <td className="px-6 py-4">
-                  {inv.customer_name
-                    ? <Link href={`/customers`} className="hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors">{inv.customer_name}</Link>
-                    : '—'}
+                  {inv.customer_id && inv.customer_name
+                    ? <DocLink type="customer" id={inv.customer_id} label={inv.customer_name} />
+                    : (inv.customer_name ?? '—')}
                 </td>
                 <td className="px-6 py-4 text-black/70">{inv.issue_date}</td>
                 <td className="px-6 py-4 text-black/70">{inv.due_date}</td>

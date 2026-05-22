@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
+import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -162,14 +163,14 @@ export default function PaymentsReceived() {
               <tr key={p.id} className="hover:bg-[#f6f3ee]/50">
                 <td className="px-6 py-4 text-black/70">{p.payment_date}</td>
                 <td className="px-6 py-4 font-medium">
-                  {p.customer_name
-                    ? <Link href="/customers" className="hover:text-[#b8943f] hover:underline underline-offset-2">{p.customer_name}</Link>
-                    : '—'}
+                  {p.invoice_id && p.customer_name
+                    ? <DocLink type="invoice" id={p.invoice_id} label={p.customer_name} />
+                    : (p.customer_name ?? '—')}
                 </td>
                 <td className="px-6 py-4 font-mono text-sm text-black/60">
-                  {p.reference
-                    ? <Link href="/invoices" className="hover:text-[#b8943f] hover:underline underline-offset-2">{p.reference}</Link>
-                    : '—'}
+                  {p.invoice_id
+                    ? <DocLink type="invoice" id={p.invoice_id} label={p.reference ?? `INV #${p.invoice_id}`} className="text-black/60" />
+                    : (p.reference ?? '—')}
                 </td>
                 <td className="px-6 py-4 capitalize text-black/70">{p.method.replace('_', ' ')}</td>
                 <td className="px-6 py-4 text-right font-mono font-bold text-green-700">{fmtPKR(p.amount)}</td>

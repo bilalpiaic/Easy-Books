@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Search, Trash2, Download, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
+import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -167,7 +168,9 @@ export default function Customers() {
               <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No customers found.</td></tr>
             ) : customers.map(c => (
               <tr key={c.id} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-4 font-medium">{c.name}</td>
+                <td className="px-6 py-4 font-medium">
+                  <DocLink type="customer" id={c.id} label={c.name} className="font-medium" />
+                </td>
                 <td className="px-6 py-4 text-black/70">{c.email ?? '—'}</td>
                 <td className="px-6 py-4 text-black/70">{c.phone ?? '—'}</td>
                 <td className="px-6 py-4 text-right font-mono">{fmtPKR(c.opening_balance)}</td>
