@@ -24,6 +24,7 @@ class SettingsUpdate(BaseModel):
     invoice_prefix: Optional[str] = None
     bill_prefix: Optional[str] = None
     financial_statement_date: Optional[str] = None
+    business_tagline: Optional[str] = None
 
 
 @router.get("")

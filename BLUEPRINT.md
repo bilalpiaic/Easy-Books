@@ -343,8 +343,16 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - `GET /me` — returns `{user, tenant: {id, name, base_currency, business_model, enabled_modules}}`.
 
 ### Settings (`/api/settings`)
-- `GET /` — KV map. Always includes `company_name`, `currency`.
-- `PATCH /` — upsert KV pairs.
+- `GET /` — KV map. Includes:
+  - `company_name` — displayed in header and reports
+  - `business_tagline` — shown below company name (e.g., "Easy-Books · Double-Entry Accounting")
+  - `currency` — base currency for all transactions
+  - `tax_id` — business tax/EIN identifier
+  - `fiscal_year_start` — accounting year start month
+  - `financial_statement_date` — reporting period preference
+  - `invoice_prefix` / `bill_prefix` — document numbering prefixes
+  - `email_notifications` — notification preference
+- `PATCH /` — upsert KV pairs (all fields optional, only provided fields updated).
 - `PATCH /business-model` *(admin)* — switches model, adds missing CoA accounts.
 - `PATCH /modules` *(admin)* — overrides `enabled_modules` independently.
 
@@ -862,6 +870,38 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 - Frontend → Vercel static + edge functions.
 - DB → Vercel Postgres / Neon / Supabase.
 - Env vars to set in production: `DATABASE_URL`, `JWT_SECRET_KEY`, `APP_ENV=production`, `FRONTEND_ORIGIN`, `NEXT_PUBLIC_API_URL`.
+
+---
+
+## 18.1. DEMO DATA & SEEDING
+
+**Automatic Demo Tenants (on first run):**
+- On database init (`db.py`), four demo tenants are auto-created, one per business model:
+  - `demo.simple@easy-books.app` (Simple model)
+  - `demo.services@easy-books.app` (Services model)
+  - `demo.trader@easy-books.app` (Trader model)
+  - `demo.manufacturing@easy-books.app` (Manufacturing model)
+  - All use password: `demo1234`
+- Each demo tenant has a Chart of Accounts, sequence counters, and stock locations pre-seeded.
+
+**Rich Mock Data Population:**
+- Run `scripts/seed_demo.py` to populate demo tenants with realistic transactional data:
+  ```bash
+  cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
+  ```
+- Each demo tenant receives:
+  - 12+ Customers (with distinct names like "Alpha Retail Group", "Cascade Holdings", etc.)
+  - 12+ Vendors (suppliers with names like "Acme Supplies", "Crescent Logistics", etc.)
+  - 5–27 Products (depending on model: services, trader stock, or manufacturing raw materials + finished goods)
+  - 12 Invoices + 12 Bills (full transaction history with GL postings)
+  - 40–65 Journal entries (accounting records)
+  - Manufacturing-specific data: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders (for manufacturing demo only)
+- Script is **idempotent**: re-running it will reuse existing demo tenants and skip entities already present.
+
+**Use cases:**
+- QA / regression testing: fresh dataset with known state.
+- Live demo: customers can log in to a pre-loaded, fully-populated business.
+- Onboarding: new users see realistic data structures before entering their own.
 
 ---
 

@@ -147,6 +147,18 @@ export default function SettingsPage() {
               className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
             />
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-black/85 mb-2">Business Tagline</label>
+            <input
+              type="text"
+              value={form.business_tagline}
+              onChange={e => handleChange("business_tagline", e.target.value)}
+              placeholder="e.g., Easy-Books · Double-Entry Accounting"
+              className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
+            />
+            <p className="text-xs text-black/60 mt-1">Appears below your company name in the header and printed documents</p>
+          </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>

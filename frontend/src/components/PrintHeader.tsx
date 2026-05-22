@@ -15,6 +15,7 @@ interface PrintHeaderProps {
 interface CompanyInfo {
   name: string
   initial: string
+  tagline?: string
   address?: string
   phone?: string
   email?: string
@@ -25,7 +26,7 @@ interface CompanyInfo {
  * Branded report header for printed/PDF output.
  *
  * Renders only on print (hidden on screen via `hidden print:block`).
- * Pulls company name from /api/settings; falls back to "Easy-Books".
+ * Pulls company name and tagline from /api/settings; falls back to defaults.
  *
  * Use at the top of every report page:
  *   <PrintHeader title="Trial Balance" subtitle="As of 2026-05-21" />
@@ -36,7 +37,7 @@ interface CompanyInfo {
 export default function PrintHeader({
   title, subtitle, orientation = "portrait",
 }: PrintHeaderProps) {
-  const [info, setInfo] = useState<CompanyInfo>({ name: "Easy-Books", initial: "E" })
+  const [info, setInfo] = useState<CompanyInfo>({ name: "Easy-Books", initial: "E", tagline: "Easy-Books · Double-Entry Accounting" })
 
   useEffect(() => {
     apiFetch<Record<string, string>>("/api/settings")
@@ -45,6 +46,7 @@ export default function PrintHeader({
         setInfo({
           name,
           initial: name.charAt(0).toUpperCase(),
+          tagline: d?.business_tagline || "Easy-Books · Double-Entry Accounting",
           address: d?.address,
           phone: d?.phone,
           email: d?.email,
@@ -71,7 +73,7 @@ export default function PrintHeader({
           <div className="print-logo">{info.initial}</div>
           <div className="print-org">
             <div className="print-org-name">{info.name}</div>
-            <div className="print-org-sub">Easy-Books · Double-Entry Accounting</div>
+            <div className="print-org-sub">{info.tagline}</div>
           </div>
         </div>
         <div className="print-meta">

@@ -65,6 +65,35 @@ def create_db_and_tables():
                 session.add(admin_user)
                 session.commit()
 
+        # Seed 4 demo tenants with pre-loaded data
+        demo_configs = [
+            ("demo.simple@easy-books.app", "simple", "Demo - Simple", "Demo User"),
+            ("demo.services@easy-books.app", "services", "Demo - Services", "Demo User"),
+            ("demo.trader@easy-books.app", "trader", "Demo - Trader", "Demo User"),
+            ("demo.manufacturing@easy-books.app", "manufacturing", "Demo - Manufacturing", "Demo User"),
+        ]
+        demo_password_hash = get_password_hash("demo1234")
+
+        for email, model, company, full_name in demo_configs:
+            demo_user = session.exec(select(User).where(User.email == email)).first()
+            if not demo_user:
+                demo_tenant = Tenant(name=company, business_model=model)
+                session.add(demo_tenant)
+                session.commit()
+                session.refresh(demo_tenant)
+
+                seed_data(demo_tenant.id, session=session)
+
+                demo_user = User(
+                    email=email,
+                    hashed_password=demo_password_hash,
+                    full_name=full_name,
+                    tenant_id=demo_tenant.id,
+                    role="owner",
+                )
+                session.add(demo_user)
+                session.commit()
+
 def get_session():
     with Session(engine) as session:
         yield session
@@ -131,6 +160,31 @@ _COA_MANUFACTURING_EXTRA: list[tuple[str, str, str, bool]] = [
 ]
 
 
+# Telecom franchise extras: Tracker system, load float, RSO channel, SIM stock
+_COA_TELECOM_EXTRA: list[tuple[str, str, str, bool]] = [
+    # Assets
+    ("1110", "Commission Receivable",          "Asset",   False),
+    ("1120", "RSO Receivables",                "Asset",   False),
+    ("1200", "SIM Card Inventory",             "Asset",   False),
+    ("1201", "IMSI Inventory",                 "Asset",   False),
+    ("1210", "Tracker Deposit Balance",        "Asset",   False),
+    ("1211", "Load Float Asset (MSR SIM)",     "Asset",   False),
+    ("1212", "RSO Load Receivable",            "Asset",   False),
+    ("1213", "Retail Load Receivable",         "Asset",   False),
+    ("1250", "GST Receivable (Input)",         "Asset",   False),
+    # Revenue
+    ("4020", "Load Uplift Commission (3%)",    "Revenue", False),
+    ("4030", "SIM Sale Revenue",               "Revenue", False),
+    ("4050", "RSO Channel Revenue",            "Revenue", False),
+    ("4060", "FCA Target Commission",          "Revenue", False),
+    # Expenses
+    ("5011", "COGS — SIMs",                   "Expense", False),
+    ("5021", "Retail Incentives",              "Expense", False),
+    ("5070", "Tracker Variance",               "Expense", False),
+    ("5090", "Target Shortfall Penalties",     "Expense", False),
+]
+
+
 def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
     """Return the CoA template for a business model. Universal backbone always
     present; model-specific extras layered on top. Codes are unique within
@@ -138,9 +192,10 @@ def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
     keying on code in the dict below)."""
     by_code: dict[str, tuple[str, str, str, bool]] = {a[0]: a for a in _COA_COMMON}
     extra_map = {
-        "services":      _COA_SERVICES_EXTRA,
-        "trader":        _COA_TRADER_EXTRA,
-        "manufacturing": _COA_MANUFACTURING_EXTRA,
+        "services":          _COA_SERVICES_EXTRA,
+        "trader":            _COA_TRADER_EXTRA,
+        "manufacturing":     _COA_MANUFACTURING_EXTRA,
+        "telecom_franchise": _COA_TELECOM_EXTRA,
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
@@ -151,11 +206,12 @@ def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
 # the frontend sidebar and (later) endpoint guards — they are NOT enforced at
 # the backend yet (V2.4 wires them up).
 MODULES_BY_MODEL: dict[str, list[str]] = {
-    "simple":        ["invoicing", "billing", "manual_jv"],
-    "services":      ["invoicing", "billing", "manual_jv", "service_catalogue"],
-    "trader":        ["invoicing", "billing", "manual_jv", "inventory"],
-    "manufacturing": ["invoicing", "billing", "manual_jv", "inventory",
-                      "stores", "bom", "production", "customer_goods"],
+    "simple":            ["invoicing", "billing", "manual_jv"],
+    "services":          ["invoicing", "billing", "manual_jv", "service_catalogue"],
+    "trader":            ["invoicing", "billing", "manual_jv", "inventory"],
+    "manufacturing":     ["invoicing", "billing", "manual_jv", "inventory",
+                          "stores", "bom", "production", "customer_goods"],
+    "telecom_franchise": ["invoicing", "billing", "manual_jv", "inventory", "telecom"],
 }
 
 
@@ -192,7 +248,10 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
         # Seed document-number counters so the at-runtime path never has to
         # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
         # without racing on the unique constraint.
-        for name in ("invoice", "bill", "grn", "po"):
+        base_counters = ["invoice", "bill", "grn", "po"]
+        telecom_counters = ["tracker_txn", "load_transfer", "sim_sale", "rso_collection", "fca"]
+        counter_names = base_counters + (telecom_counters if model == "telecom_franchise" else [])
+        for name in counter_names:
             existing = s.exec(
                 select(SequenceCounter).where(
                     SequenceCounter.tenant_id == tenant_id,
@@ -201,6 +260,22 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             ).first()
             if not existing:
                 s.add(SequenceCounter(tenant_id=tenant_id, name=name, next_value=1))
+
+        # Telecom tenants get a dedicated SIM stock location.
+        if model == "telecom_franchise":
+            for code, loc_name, ltype in (
+                ("SIM_STOCK", "SIM Card Store", "own"),
+            ):
+                exists = s.exec(
+                    select(StockLocation).where(
+                        StockLocation.tenant_id == tenant_id,
+                        StockLocation.code == code,
+                    )
+                ).first()
+                if not exists:
+                    s.add(StockLocation(
+                        tenant_id=tenant_id, code=code, name=loc_name, type=ltype,
+                    ))
 
         # Seed default StockLocations. Every tenant gets a "Main Store" so
         # legacy invoice/bill flows can attach receipts to it without forcing
