@@ -79,6 +79,23 @@ def list_invoices(
     return {"total": total, "items": result_items}
 
 
+@router.get("/api/invoices/{invoice_id}")
+def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
+    """Single invoice with its lines + customer name."""
+    inv = session.exec(
+        select(Invoice).where(
+            Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not inv:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Invoice not found")
+    lines = session.exec(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id).order_by(InvoiceLine.id)
+    ).all()
+    return {**inv.model_dump(), "lines": [ln.model_dump() for ln in lines]}
+
+
 @router.post("/api/invoices", status_code=201)
 def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate):
     prefix_row = session.exec(

@@ -142,24 +142,33 @@ export default function ProductionOrdersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {nxt && (
-                        <button
-                          disabled={busyId === p.id}
-                          onClick={() => advance(p, nxt)}
-                          className="px-3 py-1.5 text-xs font-semibold bg-[#1a1814] text-white rounded-lg hover:bg-[#b8943f] hover:text-[#1a1814] transition-colors disabled:opacity-50"
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
+                        <a
+                          href={`/manufacturing/production-orders/${p.id}/print`}
+                          title="Print this PO"
+                          className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
                         >
-                          {busyId === p.id ? "Working…" : `→ ${nxt}`}
-                        </button>
-                      )}
-                      {p.state === "draft" && (
-                        <button
-                          disabled={busyId === p.id}
-                          onClick={() => advance(p, "cancel")}
-                          className="ml-2 px-3 py-1.5 text-xs text-red-700 hover:text-red-900 underline"
-                        >
-                          cancel
-                        </button>
-                      )}
+                          <Printer className="w-3.5 h-3.5" />
+                        </a>
+                        {nxt && (
+                          <button
+                            disabled={busyId === p.id}
+                            onClick={() => advance(p, nxt)}
+                            className="px-3 py-1.5 text-xs font-semibold bg-[#1a1814] text-white rounded-lg hover:bg-[#b8943f] hover:text-[#1a1814] transition-colors disabled:opacity-50"
+                          >
+                            {busyId === p.id ? "Working…" : `→ ${nxt}`}
+                          </button>
+                        )}
+                        {p.state === "draft" && (
+                          <button
+                            disabled={busyId === p.id}
+                            onClick={() => advance(p, "cancel")}
+                            className="px-3 py-1.5 text-xs text-red-700 hover:text-red-900 underline"
+                          >
+                            cancel
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
