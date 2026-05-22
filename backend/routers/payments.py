@@ -84,6 +84,40 @@ def list_payments_received(
     return {"total": total, "items": items}
 
 
+@router.get("/api/payments-received/{payment_id}")
+def get_payment_received(
+    session: SessionDep, user: CurrentUserDep, payment_id: int
+):
+    """Single payment with its allocations (joined to invoice numbers)."""
+    pay = session.exec(
+        select(PaymentReceived).where(
+            PaymentReceived.id == payment_id,
+            PaymentReceived.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not pay:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Payment not found")
+    rows = session.exec(
+        select(PaymentAllocation, Invoice)
+        .join(Invoice, Invoice.id == PaymentAllocation.invoice_id, isouter=True)
+        .where(
+            PaymentAllocation.tenant_id == user.tenant_id,
+            PaymentAllocation.payment_received_id == pay.id,
+        )
+    ).all()
+    allocations = [
+        {
+            "id": a.id,
+            "invoice_id": a.invoice_id,
+            "invoice_number": inv.number if inv else None,
+            "amount": a.amount,
+        }
+        for a, inv in rows
+    ]
+    return {**pay.model_dump(), "allocations": allocations}
+
+
 @router.post("/api/payments-received", status_code=201)
 def create_payment_received(
     session: SessionDep, user: WriteUserDep, body: PaymentReceivedCreate
@@ -180,6 +214,40 @@ class BillPaymentCreate(BaseModel):
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
     allocations: List[AllocationLine] = []
+
+
+@router.get("/api/bill-payments/{payment_id}")
+def get_bill_payment(
+    session: SessionDep, user: CurrentUserDep, payment_id: int
+):
+    """Single bill-payment with its allocations (joined to bill numbers)."""
+    pay = session.exec(
+        select(BillPayment).where(
+            BillPayment.id == payment_id,
+            BillPayment.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not pay:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Bill payment not found")
+    rows = session.exec(
+        select(PaymentAllocation, Bill)
+        .join(Bill, Bill.id == PaymentAllocation.bill_id, isouter=True)
+        .where(
+            PaymentAllocation.tenant_id == user.tenant_id,
+            PaymentAllocation.bill_payment_id == pay.id,
+        )
+    ).all()
+    allocations = [
+        {
+            "id": a.id,
+            "bill_id": a.bill_id,
+            "bill_number": bill.number if bill else None,
+            "amount": a.amount,
+        }
+        for a, bill in rows
+    ]
+    return {**pay.model_dump(), "allocations": allocations}
 
 
 @router.get("/api/bill-payments")
