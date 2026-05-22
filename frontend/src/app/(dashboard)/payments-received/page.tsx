@@ -150,6 +150,7 @@ export default function PaymentsReceived() {
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Reference</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
               <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
+              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16">Print</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -172,6 +173,15 @@ export default function PaymentsReceived() {
                 </td>
                 <td className="px-6 py-4 capitalize text-black/70">{p.method.replace('_', ' ')}</td>
                 <td className="px-6 py-4 text-right font-mono font-bold text-green-700">{fmtPKR(p.amount)}</td>
+                <td className="px-6 py-4 text-right">
+                  <Link
+                    href={`/payments-received/${p.id}/print`}
+                    title="Print receipt"
+                    className="inline-flex p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { RotateCcw, Download } from "lucide-react"
+import { RotateCcw, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR, downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
@@ -140,16 +140,27 @@ export default function JournalPage() {
                       <td className="px-6 py-5 text-right font-mono text-sm">{entry.debit > 0 ? fmtPKR(entry.debit) : "-"}</td>
                       <td className="px-6 py-5 text-right font-mono text-sm">{entry.credit > 0 ? fmtPKR(entry.credit) : "-"}</td>
                       <td className="px-6 py-5">
-                        {isFirstLine && !entry.is_reversed && (
-                          <button
-                            onClick={() => handleReverse(entry)}
-                            disabled={reversing === entry.transaction_id}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#1a1814]/60 hover:text-[#b8943f] hover:bg-[#f6f3ee] rounded-lg transition-colors disabled:opacity-50"
-                            title="Reverse this entry"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            Reverse
-                          </button>
+                        {isFirstLine && (
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/journal/${entry.transaction_id}/print`}
+                              title="Print this JV"
+                              className="inline-flex p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                            >
+                              <Printer className="w-3 h-3" />
+                            </Link>
+                            {!entry.is_reversed && (
+                              <button
+                                onClick={() => handleReverse(entry)}
+                                disabled={reversing === entry.transaction_id}
+                                className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-[#1a1814]/60 hover:text-[#b8943f] hover:bg-[#f6f3ee] rounded transition-colors disabled:opacity-50"
+                                title="Reverse this entry"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                Reverse
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>
