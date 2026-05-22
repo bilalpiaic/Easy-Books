@@ -7,7 +7,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory,
+  Factory, Link2,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -35,6 +35,7 @@ const TABS: Tab[] = [
   { id: "roles",            label: "Roles & Access",         icon: Users,           shortLabel: "Roles"    },
   { id: "security",         label: "Security & CSRF",        icon: Shield,          shortLabel: "Sec"      },
   { id: "reports",          label: "Financial Reports",      icon: TrendingUp,      shortLabel: "Reports"  },
+  { id: "sub-ledgers",      label: "Sub-Ledgers & Drill-Down", icon: Link2,         shortLabel: "Drill"    },
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
   { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg"      },
 ]
@@ -1090,6 +1091,127 @@ function CsvImportPanel() {
   )
 }
 
+function SubLedgersPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        The General Ledger answers <i>"what is the balance of account X?"</i>. Sub-ledgers answer
+        <i> "which customer / vendor / product caused that balance, and which document booked it?"</i>.
+        Easy-Books wires three sub-ledgers and a cyclic drill-down link graph on top of the GL —
+        click any account code, JV number, invoice/bill number, customer, vendor or product
+        anywhere in the app and you land on its source record.
+      </p>
+
+      <SectionHeading>The three sub-ledgers</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Sub-ledger</th>
+              <th className="px-4 py-2.5 text-left">Endpoint</th>
+              <th className="px-4 py-2.5 text-left">Page</th>
+              <th className="px-4 py-2.5 text-left">Running balance</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            <tr className="hover:bg-[#faf8f4]">
+              <td className="px-4 py-2.5 font-semibold">Customer AR (debit-normal)</td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70"><CodeBadge>GET /api/customers/&#123;id&#125;/ledger</CodeBadge></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]"><Link href="/customers" className="underline">/customers/[id]/ledger</Link></td>
+              <td className="px-4 py-2.5">Σ Dr − Σ Cr (positive = owes you)</td>
+            </tr>
+            <tr className="hover:bg-[#faf8f4]">
+              <td className="px-4 py-2.5 font-semibold">Vendor AP (credit-normal)</td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70"><CodeBadge>GET /api/vendors/&#123;id&#125;/ledger</CodeBadge></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]"><Link href="/vendors" className="underline">/vendors/[id]/ledger</Link></td>
+              <td className="px-4 py-2.5">Σ Cr − Σ Dr (positive = you owe)</td>
+            </tr>
+            <tr className="hover:bg-[#faf8f4]">
+              <td className="px-4 py-2.5 font-semibold">Product stock card</td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70"><CodeBadge>GET /api/products/&#123;id&#125;/stock-card</CodeBadge></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]"><Link href="/products" className="underline">/products/[id]/stock-card</Link></td>
+              <td className="px-4 py-2.5">Σ qty_in − Σ qty_out + value @ WAvg</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>The cyclic drill-down graph</SectionHeading>
+      <pre className="mt-2 bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 text-[11px] leading-relaxed text-[#1a1814]/80 overflow-x-auto">
+{`Trial Balance ──▶ click code ──▶ Account Ledger
+                                       │
+                                       │ click JV no.
+                                       ▼
+                                  JV Detail (/journal/{id})
+                                       │
+                                source_docs[]   reversed_by_id
+                                       │              │
+                                       ▼              ▼
+                  /invoices/{id}, /bills/{id}, /grn/{id}, ...
+                                       │
+                                       │ click party
+                                       ▼
+                       /customers/{id}/ledger
+                       /vendors/{id}/ledger
+                                       │
+                                       └── click any JV ─▶ back to JV Detail
+                                       └── click product ─▶ /products/{id}/stock-card`}
+      </pre>
+
+      <SectionHeading>Source-document resolution on any JV</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        <CodeBadge>GET /api/transactions/&#123;id&#125;</CodeBadge> now returns a
+        <CodeBadge>source_docs[]</CodeBadge> array — the API reverse-resolves which Invoice / Bill
+        / Payment / GRN posted this JV, plus <CodeBadge>is_reversed</CodeBadge> and
+        <CodeBadge>reversed_by_id</CodeBadge>. The JV detail page renders these as one-click links
+        — there is no orphan JV in the system.
+      </p>
+
+      <SectionHeading>Best practice — accounting standards alignment</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Need</th>
+              <th className="px-4 py-2.5 text-left">Standard</th>
+              <th className="px-4 py-2.5 text-left">How Easy-Books satisfies it</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["Audit reperformability",        "ISA 230 §A6",      "source_docs[] + reversed_by_id"],
+              ["Internal control traceability", "ISA 315.A82",      "Cyclic link graph — every node has in & out links"],
+              ["Consistency of presentation",   "IAS 1.45",         "Single <DocLink> resolver = single URL convention"],
+              ["Receivable / payable disclosure","IFRS 7.7 / IAS 1.78(b)","Customer & vendor sub-ledgers with full period activity"],
+              ["Inventory carrying amount + movement","IAS 2.36(d)/(g)","Stock card driven by StockMovement event log"],
+              ["Change history",                "ISA 240 / SOC 2 CC7.3","AuditLog row per mutation"],
+            ].map(([need, std, how]) => (
+              <tr key={need} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{need}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]">{std}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{how}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <TipCallout>
+        <b>Drill-down is the audit trail.</b> If an external auditor asks <i>"why is AR ₹5.4 L?"</i>,
+        open Trial Balance → click <code>1100 Accounts Receivable</code> → see every JV → click any
+        JV → click <code>source_docs[0]</code> → see the originating invoice with lines, customer,
+        and tax. No spreadsheet, no separate report, no copy-paste — reperformability is built in.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Treating <CodeBadge>Product.stock_qty</CodeBadge> as the source of truth — it&apos;s a projection. The <CodeBadge>StockMovement</CodeBadge> event log is canonical; the stock card derives from it.</p>
+        <p>Editing a sub-ledger directly — you can&apos;t. Sub-ledgers are read-only views. To change a balance, reverse the originating JV (<CodeBadge>POST /api/transactions/&#123;id&#125;/reverse</CodeBadge>) and post a corrected one. This is what <b>IAS 8.42</b> calls for.</p>
+        <p>Skipping the source-doc click on JV detail — every JV that <i>can</i> be traced should be traced before posting a correction. Reversing a JV that was already used to allocate a payment cascades — read §5.7 of WORKFLOW.md.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
 function ManufacturingPanel() {
   return (
     <div>
@@ -1194,6 +1316,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "roles":           <RolesPanel />,
   "security":        <SecurityPanel />,
   "reports":         <ReportsPanel />,
+  "sub-ledgers":     <SubLedgersPanel />,
   "csv":             <CsvImportPanel />,
   "manufacturing":   <ManufacturingPanel />,
 }

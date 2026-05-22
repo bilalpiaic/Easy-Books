@@ -19,6 +19,7 @@ Stack: FastAPI + SQLModel + Alembic (backend) · Next.js 16 + React 19 + Tailwin
 - **Period close** — `POST /api/periods/{id}/close` posts the closing JV (Revenue/Expense → Retained Earnings), locks the period, and materialises per-account balances into `AccountBalance` for fast trial-balance reads. `/reopen` unlocks and invalidates the cache.
 - **Recurring journal entries** — `RecurringTemplate` with `daily | weekly | monthly | quarterly | yearly`. `POST /api/recurring/run-due` materialises every template whose `next_run <= today` and advances the schedule. Idempotent per `(template, next_run)`.
 - **Reversal** — `POST /api/transactions/{id}/reverse` posts the mirror JV *and* unwinds derived state: payment allocations are dropped (statuses recomputed), invoice reversal restores stock and reverses the COGS sub-JV automatically, bill reversal peels back the inventory layer and recomputes `avg_cost`.
+- **Sub-ledger views & audit-trail drill-down** — per-customer AR ledger, per-vendor AP ledger (credit-normal — positive = "we owe"), per-product stock card with running quantity & value. Reverse-resolution from any `JournalEntry` back to its source document (Invoice, Bill, Payment, GRN) is wired into `GET /api/transactions/{id}.source_docs[]`. Every account code, JV-number, invoice/bill/voucher number, customer name, vendor name and product code rendered in the app is a clickable link to its primary record — closing the IAS 1 / ISA 230 audit-trail loop end-to-end. Aligns with **IAS 1.45** (consistency of presentation), **ISA 230** (audit documentation — reperformance), **ISA 315** (internal control via traceability), and **IAS 2.36(d)** (carrying-amount disclosure per inventory class).
 
 ### Banking
 - **Bank account balances** derived live from the GL — no separate ledger to drift.
@@ -40,7 +41,7 @@ Stack: FastAPI + SQLModel + Alembic (backend) · Next.js 16 + React 19 + Tailwin
 - **Atomic numbering** — invoice/bill numbers come from a per-tenant `SequenceCounter` with `SELECT FOR UPDATE`. Two concurrent POSTs cannot mint the same number; reversal/delete doesn't reset the sequence.
 
 ### Reports (all live from the GL)
-Trial balance · General ledger (running balance per account) · Income statement · Balance sheet · Cash flow (indirect method) · Tax summary (GST output/input + income-tax slab estimate) · AR/AP aging (uses **outstanding** balance, net of partial payments) · Dashboard KPIs + charts.
+Trial balance · General ledger (running balance per account) · **AR sub-ledger** (per customer) · **AP sub-ledger** (per vendor, credit-normal) · **Stock card** (per product, qty + value) · Income statement · Balance sheet · Cash flow (indirect method) · Tax summary (GST output/input + income-tax slab estimate) · AR/AP aging (uses **outstanding** balance, net of partial payments) · Dashboard KPIs + charts. Every list page and every report is hyperlinked: click any account, JV, invoice, bill, customer, vendor or product to drill straight to the source document — no URL typing, no orphan rows.
 
 ### Manufacturing track (V2)
 
@@ -148,10 +149,14 @@ frontend/src/
 ├── app/login/ · app/signup/  ← signup is a 2-step wizard with business-model picker
 ├── app/(dashboard)/          ← auth-gated, 28 pages
 │   ├── dashboard/            ← KPIs + charts
-│   ├── invoices/ · bills/ · payments-received/ · bill-payments/
-│   ├── customers/ · vendors/ · products/
+│   ├── invoices/ · invoices/[id]/   ← list + non-print interactive detail (Back/Print/Reverse)
+│   ├── bills/    · bills/[id]/      ← list + non-print interactive detail
+│   ├── payments-received/ · bill-payments/
+│   ├── customers/ · customers/[id]/ledger/   ← per-customer AR sub-ledger (running balance)
+│   ├── vendors/   · vendors/[id]/ledger/     ← per-vendor AP sub-ledger (credit-normal)
+│   ├── products/  · products/[id]/stock-card/← StockMovement-driven qty + value card
 │   ├── entry/                ← manual JV
-│   ├── journal/ · ledger/    ← read-only GL views
+│   ├── journal/ · journal/[id]/ · ledger/  ← read-only GL views + JV detail w/ source-doc link
 │   ├── trial-balance/ · pl/ · balance/ · cashflow/ · tax/
 │   ├── coa/                  ← Chart of Accounts editor
 │   ├── bank-accounts/ · reconciliations/
@@ -167,6 +172,8 @@ frontend/src/
 ├── components/
 │   ├── Sidebar.tsx           ← adaptive — Manufacturing section gated on tenant
 │   ├── BusinessModelPicker.tsx ← used by signup wizard
+│   ├── DocLink.tsx           ← central drill-down resolver: maps {type,id} → /detail href
+│   ├── PrintHeader.tsx       ← branded A4 portrait/landscape print output
 │   ├── guidance/             ← HelpCallout, FieldHint, EmptyStateGuide
 │   └── …                     ← Header, modals, charts, CsvImportButton
 └── lib/                      ← apiFetch, auth, utils
@@ -208,6 +215,13 @@ This branch (`saas-transition-foundation`) carries the active SaaS work. Shipped
 - **A** — Dashboard outstanding, reversal completeness, delete safety
 - **B** — FX inverse fallback, scoped auto-match, atomic numbering via `SequenceCounter`
 - **C** — CSRF middleware, DB-backed login throttle
+
+**Drill-down + sub-ledger track (D-track)**
+- **PR-A** — Backend sub-ledger endpoints (`/customers/{id}/ledger`, `/vendors/{id}/ledger`, `/products/{id}/stock-card`) + transaction source-doc reverse-resolution on `GET /api/transactions/{id}`
+- **PR-B** — Non-print interactive detail pages: `/invoices/[id]`, `/bills/[id]`, `/journal/[id]` with toolbar (Back / Print / Reverse)
+- **PR-C** — Customer ledger + Vendor ledger (credit-normal) + Product stock card pages, each with date filter, summary tiles and print
+- **PR-D** — Drill-down link sweep across every list page via the new `<DocLink>` resolver (11 entity kinds)
+- **PR-E** — COA account code & name hyperlinked to their respective account ledgers, closing the cyclic audit trail
 
 **Manufacturing track (V-track)**
 - **V2.1** — Business-model selection at signup, per-model Chart of Accounts, `Account.is_memo` for custodial pairs, guidance scaffolding (`HelpCallout`, `FieldHint`, `EmptyStateGuide`)
