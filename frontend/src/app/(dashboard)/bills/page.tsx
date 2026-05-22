@@ -239,10 +239,19 @@ export default function Bills() {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <select value={b.status} onChange={e => handleStatusChange(b, e.target.value)}
-                    className="text-xs border border-[#ede9e2] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#b8943f]">
-                    {['draft', 'received', 'paid', 'overdue'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <div className="flex items-center justify-end gap-2">
+                    <Link
+                      href={`/bills/${b.id}/print`}
+                      title="Print this bill"
+                      className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                    </Link>
+                    <select value={b.status} onChange={e => handleStatusChange(b, e.target.value)}
+                      className="text-xs border border-[#ede9e2] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#b8943f]">
+                      {['draft', 'received', 'paid', 'overdue'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
                 </td>
               </tr>
             ))}

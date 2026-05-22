@@ -59,6 +59,21 @@ def list_bills(
     return {"total": total, "items": items}
 
 
+@router.get("/api/bills/{bill_id}")
+def get_bill(session: SessionDep, user: CurrentUserDep, bill_id: int):
+    """Single bill with its lines + vendor info."""
+    bill = session.exec(
+        select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)
+    ).first()
+    if not bill:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Bill not found")
+    lines = session.exec(
+        select(BillLine).where(BillLine.bill_id == bill.id).order_by(BillLine.id)
+    ).all()
+    return {**bill.model_dump(), "lines": [ln.model_dump() for ln in lines]}
+
+
 @router.post("/api/bills", status_code=201)
 def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     prefix_row = session.exec(
