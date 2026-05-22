@@ -1,0 +1,489 @@
+"""Sub-ledgers — drill-down views for customers, vendors, and products.
+
+These endpoints power the hyperlinked-reports UX. Each returns a
+chronological list of "entries" with a running balance so the same
+shape feeds both the customer/vendor party ledger pages and the
+product stock card page.
+
+All monetary amounts are converted to the tenant's base currency
+using the snapshotted exchange_rate stored on each invoice/bill.
+Qty columns surface only on stock-product lines.
+"""
+from __future__ import annotations
+
+from datetime import date as DateType
+from decimal import Decimal
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException
+from sqlmodel import select
+
+from models import (
+    Bill, BillLine, BillPayment, Customer, Invoice, InvoiceLine,
+    PaymentAllocation, PaymentReceived, Product, StockMovement, Vendor,
+)
+from services.money import D, ZERO, money
+
+from .common import CurrentUserDep, SessionDep
+
+router = APIRouter(tags=["sub-ledger"])
+
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _to_base(amount: Decimal, fx: Decimal) -> Decimal:
+    """Snapshot-FX conversion: amount × exchange_rate (doc→base)."""
+    return money(D(amount) * D(fx))
+
+
+def _invoice_stock_qty(session, invoice_id: int) -> tuple[Decimal, Optional[str]]:
+    """Sum of qty on stock-product lines of an invoice + a representative
+    unit label (the first stock line's unit). Returns (qty, unit)."""
+    rows = session.exec(
+        select(InvoiceLine, Product)
+        .join(Product, Product.id == InvoiceLine.product_id, isouter=True)
+        .where(InvoiceLine.invoice_id == invoice_id)
+    ).all()
+    qty = ZERO
+    unit: Optional[str] = None
+    for ln, prod in rows:
+        if prod is not None and prod.product_type == "stock":
+            qty += D(ln.qty)
+            if unit is None:
+                unit = ln.unit or prod.unit
+    return qty, unit
+
+
+def _bill_stock_qty(session, bill_id: int) -> tuple[Decimal, Optional[str]]:
+    rows = session.exec(
+        select(BillLine, Product)
+        .join(Product, Product.id == BillLine.product_id, isouter=True)
+        .where(BillLine.bill_id == bill_id)
+    ).all()
+    qty = ZERO
+    unit: Optional[str] = None
+    for ln, prod in rows:
+        if prod is not None and prod.product_type == "stock":
+            qty += D(ln.qty)
+            if unit is None:
+                unit = ln.unit or prod.unit
+    return qty, unit
+
+
+def _in_range(d: str, start: Optional[str], end: Optional[str]) -> bool:
+    if start and d < start:
+        return False
+    if end and d > end:
+        return False
+    return True
+
+
+# ── Customer ledger ─────────────────────────────────────────────────────────
+
+
+@router.get("/api/customers/{customer_id}/ledger")
+def customer_ledger(
+    session: SessionDep, user: CurrentUserDep, customer_id: int,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    """Chronological AR sub-ledger for a customer.
+
+    Rows:
+      - Invoices (debit AR)  — qty_out shows stock lines sold to customer
+      - PaymentReceived (credit AR) via direct invoice_id link or allocations
+
+    All amounts in tenant base currency. Running balance is opening AR
+    + ΣDr − ΣCr over the period.
+    """
+    cust = session.exec(
+        select(Customer).where(
+            Customer.id == customer_id,
+            Customer.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not cust:
+        raise HTTPException(404, "Customer not found")
+
+    opening = D(cust.opening_balance)
+
+    invoices = session.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.customer_id == customer_id,
+        ).order_by(Invoice.issue_date, Invoice.id)
+    ).all()
+    payments = session.exec(
+        select(PaymentReceived).where(
+            PaymentReceived.tenant_id == user.tenant_id,
+        ).order_by(PaymentReceived.payment_date, PaymentReceived.id)
+    ).all()
+
+    # Build raw event list
+    events: list[dict] = []
+
+    # Pre-compute opening balance: sum invoices < start - sum payments < start
+    pre_invoices = [i for i in invoices if start and i.issue_date < start]
+    pre_payments_amount = ZERO
+    for p in payments:
+        if not (start and p.payment_date < start):
+            continue
+        if p.invoice_id and any(i.customer_id == customer_id and i.id == p.invoice_id for i in invoices):
+            pre_payments_amount += D(p.amount)
+        else:
+            allocs = session.exec(
+                select(PaymentAllocation).where(
+                    PaymentAllocation.tenant_id == user.tenant_id,
+                    PaymentAllocation.payment_received_id == p.id,
+                )
+            ).all()
+            for a in allocs:
+                if a.invoice_id and any(i.id == a.invoice_id for i in invoices):
+                    pre_payments_amount += D(a.amount)
+
+    period_opening = opening + sum(
+        (_to_base(D(i.total), D(i.exchange_rate)) for i in pre_invoices),
+        start=ZERO,
+    ) - pre_payments_amount
+
+    # In-period invoices
+    for inv in invoices:
+        if not _in_range(inv.issue_date, start, end):
+            continue
+        amt_base = _to_base(D(inv.total), D(inv.exchange_rate))
+        qty, unit = _invoice_stock_qty(session, inv.id)
+        events.append({
+            "date": inv.issue_date,
+            "doc_type": "invoice",
+            "doc_id": inv.id,
+            "doc_number": inv.number,
+            "description": inv.description or f"Invoice {inv.number}",
+            "debit": str(amt_base),
+            "credit": "0",
+            "qty_out": str(qty) if qty > 0 else None,
+            "qty_in": None,
+            "unit": unit,
+            "currency": inv.currency,
+            "doc_amount": str(D(inv.total)),
+        })
+
+    # In-period payments — direct or via allocations targeting this customer's invoices
+    customer_invoice_ids = {i.id for i in invoices}
+    for p in payments:
+        if not _in_range(p.payment_date, start, end):
+            continue
+        applied = ZERO
+        if p.invoice_id and p.invoice_id in customer_invoice_ids:
+            applied = D(p.amount)
+        else:
+            allocs = session.exec(
+                select(PaymentAllocation).where(
+                    PaymentAllocation.tenant_id == user.tenant_id,
+                    PaymentAllocation.payment_received_id == p.id,
+                )
+            ).all()
+            for a in allocs:
+                if a.invoice_id and a.invoice_id in customer_invoice_ids:
+                    applied += D(a.amount)
+        if applied <= 0:
+            continue
+        events.append({
+            "date": p.payment_date,
+            "doc_type": "payment_received",
+            "doc_id": p.id,
+            "doc_number": f"REC-{p.id:05d}",
+            "description": f"Payment via {p.method}" + (f" ({p.reference})" if p.reference else ""),
+            "debit": "0",
+            "credit": str(applied),
+            "qty_out": None,
+            "qty_in": None,
+            "unit": None,
+            "currency": "—",
+            "doc_amount": str(applied),
+        })
+
+    # Sort chronologically (stable) + compute running balance
+    events.sort(key=lambda e: (e["date"], e["doc_id"]))
+    running = period_opening
+    total_dr = ZERO
+    total_cr = ZERO
+    total_qty_out = ZERO
+    for e in events:
+        running += D(e["debit"]) - D(e["credit"])
+        e["running_balance"] = str(money(running))
+        total_dr += D(e["debit"])
+        total_cr += D(e["credit"])
+        if e["qty_out"]:
+            total_qty_out += D(e["qty_out"])
+
+    return {
+        "customer": {
+            "id": cust.id, "name": cust.name,
+            "email": cust.email, "phone": cust.phone,
+            "opening_balance": str(D(cust.opening_balance)),
+        },
+        "period": {"start": start, "end": end},
+        "opening_balance": str(money(period_opening)),
+        "entries": events,
+        "closing_balance": str(money(running)),
+        "totals": {
+            "debit": str(money(total_dr)),
+            "credit": str(money(total_cr)),
+            "qty_out": str(total_qty_out) if total_qty_out > 0 else None,
+        },
+    }
+
+
+# ── Vendor ledger ───────────────────────────────────────────────────────────
+
+
+@router.get("/api/vendors/{vendor_id}/ledger")
+def vendor_ledger(
+    session: SessionDep, user: CurrentUserDep, vendor_id: int,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    """Chronological AP sub-ledger for a vendor.
+
+    Rows:
+      - Bills (credit AP)  — qty_in shows stock lines purchased from vendor
+      - BillPayment (debit AP) via direct bill_id link or allocations
+    """
+    v = session.exec(
+        select(Vendor).where(
+            Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+
+    opening = D(v.opening_balance)
+    bills = session.exec(
+        select(Bill).where(
+            Bill.tenant_id == user.tenant_id, Bill.vendor_id == vendor_id,
+        ).order_by(Bill.bill_date, Bill.id)
+    ).all()
+    payments = session.exec(
+        select(BillPayment).where(
+            BillPayment.tenant_id == user.tenant_id,
+        ).order_by(BillPayment.payment_date, BillPayment.id)
+    ).all()
+
+    pre_bills_total = ZERO
+    for b in bills:
+        if start and b.bill_date < start:
+            pre_bills_total += _to_base(D(b.total), D(b.exchange_rate))
+
+    pre_payments_total = ZERO
+    bill_ids_for_vendor = {b.id for b in bills}
+    for p in payments:
+        if not (start and p.payment_date < start):
+            continue
+        if p.bill_id and p.bill_id in bill_ids_for_vendor:
+            pre_payments_total += D(p.amount)
+        else:
+            allocs = session.exec(
+                select(PaymentAllocation).where(
+                    PaymentAllocation.tenant_id == user.tenant_id,
+                    PaymentAllocation.bill_payment_id == p.id,
+                )
+            ).all()
+            for a in allocs:
+                if a.bill_id and a.bill_id in bill_ids_for_vendor:
+                    pre_payments_total += D(a.amount)
+
+    period_opening = opening + pre_bills_total - pre_payments_total
+
+    events: list[dict] = []
+    for b in bills:
+        if not _in_range(b.bill_date, start, end):
+            continue
+        amt_base = _to_base(D(b.total), D(b.exchange_rate))
+        qty, unit = _bill_stock_qty(session, b.id)
+        events.append({
+            "date": b.bill_date,
+            "doc_type": "bill",
+            "doc_id": b.id,
+            "doc_number": b.number,
+            "description": b.description or f"Bill {b.number}",
+            "debit": "0",
+            "credit": str(amt_base),
+            "qty_in": str(qty) if qty > 0 else None,
+            "qty_out": None,
+            "unit": unit,
+            "currency": b.currency,
+            "doc_amount": str(D(b.total)),
+        })
+
+    for p in payments:
+        if not _in_range(p.payment_date, start, end):
+            continue
+        applied = ZERO
+        if p.bill_id and p.bill_id in bill_ids_for_vendor:
+            applied = D(p.amount)
+        else:
+            allocs = session.exec(
+                select(PaymentAllocation).where(
+                    PaymentAllocation.tenant_id == user.tenant_id,
+                    PaymentAllocation.bill_payment_id == p.id,
+                )
+            ).all()
+            for a in allocs:
+                if a.bill_id and a.bill_id in bill_ids_for_vendor:
+                    applied += D(a.amount)
+        if applied <= 0:
+            continue
+        events.append({
+            "date": p.payment_date,
+            "doc_type": "bill_payment",
+            "doc_id": p.id,
+            "doc_number": f"PAY-{p.id:05d}",
+            "description": f"Payment via {p.method}" + (f" ({p.reference})" if p.reference else ""),
+            "debit": str(applied),
+            "credit": "0",
+            "qty_in": None,
+            "qty_out": None,
+            "unit": None,
+            "currency": "—",
+            "doc_amount": str(applied),
+        })
+
+    events.sort(key=lambda e: (e["date"], e["doc_id"]))
+    # AP is credit-normal: running balance = ΣCr − ΣDr, so a positive number
+    # represents "amount we owe the vendor".
+    running = period_opening
+    total_dr = ZERO
+    total_cr = ZERO
+    total_qty_in = ZERO
+    for e in events:
+        running += D(e["credit"]) - D(e["debit"])
+        e["running_balance"] = str(money(running))
+        total_dr += D(e["debit"])
+        total_cr += D(e["credit"])
+        if e["qty_in"]:
+            total_qty_in += D(e["qty_in"])
+
+    return {
+        "vendor": {
+            "id": v.id, "name": v.name,
+            "email": v.email, "phone": v.phone,
+            "opening_balance": str(D(v.opening_balance)),
+        },
+        "period": {"start": start, "end": end},
+        "opening_balance": str(money(period_opening)),
+        "entries": events,
+        "closing_balance": str(money(running)),
+        "totals": {
+            "debit": str(money(total_dr)),
+            "credit": str(money(total_cr)),
+            "qty_in": str(total_qty_in) if total_qty_in > 0 else None,
+        },
+    }
+
+
+# ── Product stock card ──────────────────────────────────────────────────────
+
+
+_INFLOW_DIRECTIONS = {"RECEIPT", "CUSTODIAL_RECEIPT", "COMPLETION", "CUSTODIAL_COMPLETION"}
+
+
+@router.get("/api/products/{product_id}/stock-card")
+def product_stock_card(
+    session: SessionDep, user: CurrentUserDep, product_id: int,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    """Movement-based stock card: opening qty/value at the start date,
+    each movement with running qty/value, closing at the end date.
+
+    Driven by StockMovement (V2.2). For products with no movements yet,
+    we fall back to the snapshot on Product.stock_qty / avg_cost.
+    """
+    prod = session.exec(
+        select(Product).where(
+            Product.id == product_id, Product.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not prod:
+        raise HTTPException(404, "Product not found")
+
+    movements = session.exec(
+        select(StockMovement).where(
+            StockMovement.tenant_id == user.tenant_id,
+            StockMovement.product_id == product_id,
+        ).order_by(StockMovement.occurred_at, StockMovement.id)
+    ).all()
+
+    # Opening qty/value = sum of in-flows minus out-flows that occurred
+    # strictly before `start`.
+    opening_qty = ZERO
+    opening_value = ZERO
+    cursor_qty = ZERO
+    cursor_value = ZERO
+
+    def _is_inflow(m: StockMovement) -> bool:
+        return m.direction in _INFLOW_DIRECTIONS
+
+    for mv in movements:
+        d = mv.occurred_at.date().isoformat() if hasattr(mv.occurred_at, "date") else str(mv.occurred_at)
+        if start and d < start:
+            if _is_inflow(mv):
+                opening_qty += D(mv.qty)
+                opening_value += D(mv.total_cost)
+            else:
+                opening_qty -= D(mv.qty)
+                opening_value -= D(mv.total_cost)
+
+    cursor_qty = opening_qty
+    cursor_value = opening_value
+
+    entries: list[dict] = []
+    total_in = ZERO
+    total_out = ZERO
+    for mv in movements:
+        d = mv.occurred_at.date().isoformat() if hasattr(mv.occurred_at, "date") else str(mv.occurred_at)
+        if not _in_range(d, start, end):
+            continue
+        inflow = _is_inflow(mv)
+        qty_signed = D(mv.qty) if inflow else -D(mv.qty)
+        cost_signed = D(mv.total_cost) if inflow else -D(mv.total_cost)
+        cursor_qty += qty_signed
+        cursor_value += cost_signed
+        if inflow:
+            total_in += D(mv.qty)
+        else:
+            total_out += D(mv.qty)
+        entries.append({
+            "date": d,
+            "direction": mv.direction,
+            "lot_no": mv.lot_no,
+            "from_location_id": mv.from_location_id,
+            "to_location_id": mv.to_location_id,
+            "qty_in": str(D(mv.qty)) if inflow else None,
+            "qty_out": str(D(mv.qty)) if not inflow else None,
+            "unit_cost": str(D(mv.unit_cost)),
+            "total_cost": str(D(mv.total_cost)),
+            "running_qty": str(cursor_qty),
+            "running_value": str(money(cursor_value)),
+            "source_doc_type": mv.source_doc_type,
+            "source_doc_id": mv.source_doc_id,
+            "posted_to_gl": mv.posted_to_gl,
+            "notes": mv.notes,
+        })
+
+    return {
+        "product": {
+            "id": prod.id, "code": prod.code, "name": prod.name,
+            "unit": prod.unit, "product_type": prod.product_type,
+            "stock_qty_snapshot": str(D(prod.stock_qty)),
+            "avg_cost_snapshot": str(D(prod.avg_cost)),
+        },
+        "period": {"start": start, "end": end},
+        "opening_qty": str(opening_qty),
+        "opening_value": str(money(opening_value)),
+        "entries": entries,
+        "closing_qty": str(cursor_qty),
+        "closing_value": str(money(cursor_value)),
+        "totals": {
+            "qty_in": str(total_in),
+            "qty_out": str(total_out),
+        },
+    }
