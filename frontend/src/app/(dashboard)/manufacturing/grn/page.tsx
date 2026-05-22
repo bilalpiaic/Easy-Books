@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { PackagePlus, Printer } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
+import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
@@ -91,8 +92,12 @@ export default function GrnPage() {
             <tbody>
               {grns.map(g => (
                 <tr key={g.id} className="border-t border-[#ede9e2]">
-                  <td className="px-4 py-2 font-mono text-xs">{g.number}</td>
-                  <td className="px-4 py-2">#{g.customer_id}</td>
+                  <td className="px-4 py-2 font-mono text-xs">
+                    <DocLink type="grn" id={g.id} label={g.number} className="text-[#b8943f]" />
+                  </td>
+                  <td className="px-4 py-2">
+                    <DocLink type="customer" id={g.customer_id} label={`#${g.customer_id}`} />
+                  </td>
                   <td className="px-4 py-2">{g.received_date}</td>
                   <td className="px-4 py-2">{g.lines.length}</td>
                   <td className="px-4 py-2">{g.declared_value}</td>

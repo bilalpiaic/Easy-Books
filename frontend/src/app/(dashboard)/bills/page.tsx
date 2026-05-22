@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Download, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
+import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -13,6 +14,7 @@ import LineItemsTable, { LineItem } from '@/components/LineItemsTable'
 interface Bill {
   id: number
   number: string
+  vendor_id: number | null
   vendor_name: string | null
   bill_date: string
   due_date: string
@@ -224,11 +226,13 @@ export default function Bills() {
               <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">No bills found.</td></tr>
             ) : bills.map(b => (
               <tr key={b.id} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">{b.number}</td>
+                <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
+                  <DocLink type="bill" id={b.id} label={b.number} className="text-[#b8943f] font-bold" />
+                </td>
                 <td className="px-6 py-4">
-                  {b.vendor_name
-                    ? <Link href="/vendors" className="hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors">{b.vendor_name}</Link>
-                    : '—'}
+                  {b.vendor_id && b.vendor_name
+                    ? <DocLink type="vendor" id={b.vendor_id} label={b.vendor_name} />
+                    : (b.vendor_name ?? '—')}
                 </td>
                 <td className="px-6 py-4 text-black/70">{b.bill_date}</td>
                 <td className="px-6 py-4 text-black/70">{b.due_date}</td>

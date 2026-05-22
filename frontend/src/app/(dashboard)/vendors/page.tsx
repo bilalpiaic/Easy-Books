@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Search, Trash2, Download, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
+import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -165,7 +166,9 @@ export default function Vendors() {
               <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No vendors found.</td></tr>
             ) : vendors.map(v => (
               <tr key={v.id} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-4 font-medium">{v.name}</td>
+                <td className="px-6 py-4 font-medium">
+                  <DocLink type="vendor" id={v.id} label={v.name} className="font-medium" />
+                </td>
                 <td className="px-6 py-4 text-black/70">{v.email ?? '—'}</td>
                 <td className="px-6 py-4 text-black/70">{v.phone ?? '—'}</td>
                 <td className="px-6 py-4 text-right font-mono">{fmtPKR(v.opening_balance)}</td>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Warehouse, Printer } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
+import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
@@ -131,8 +132,12 @@ export default function ProductionOrdersPage() {
                 const nxt = nextAction(p.state)
                 return (
                   <tr key={p.id} className="border-t border-[#ede9e2]">
-                    <td className="px-4 py-2 font-mono text-xs">{p.number}</td>
-                    <td className="px-4 py-2">#{p.customer_id}</td>
+                    <td className="px-4 py-2 font-mono text-xs">
+                      <DocLink type="production_order" id={p.id} label={p.number} className="text-[#b8943f]" />
+                    </td>
+                    <td className="px-4 py-2">
+                      <DocLink type="customer" id={p.customer_id} label={`#${p.customer_id}`} />
+                    </td>
                     <td className="px-4 py-2">{p.output_qty}</td>
                     <td className="px-4 py-2">{p.own_material_cost}</td>
                     <td className="px-4 py-2">{p.output_unit_cost}</td>

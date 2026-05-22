@@ -125,7 +125,9 @@ export default function JournalPage() {
                     <tr key={idx} className={`hover:bg-[#f6f3ee]/50 transition-colors ${entry.is_reversed ? 'opacity-60' : ''}`}>
                       <td className="px-6 py-5 text-sm">{entry.date}</td>
                       <td className="px-6 py-5">
-                        <span className="font-mono text-xs font-bold text-[#b8943f]">{entry.jv_number}</span>
+                        <Link href={`/journal/${entry.transaction_id}`} className="font-mono text-xs font-bold text-[#b8943f] hover:underline">
+                          {entry.jv_number}
+                        </Link>
                         {entry.is_reversed && isFirstLine && (
                           <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase rounded-full">Reversed</span>
                         )}

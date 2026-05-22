@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Search, Trash2, Download, Package, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
+import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -236,8 +237,12 @@ export default function Products() {
               <tr><td colSpan={8} className="px-6 py-8 text-center text-black/40">No products found.</td></tr>
             ) : products.map(p => (
               <tr key={p.id} className={`hover:bg-[#f6f3ee]/50 ${p.product_type === 'stock' && p.stock_qty <= 0 ? 'bg-red-50/30' : p.product_type === 'stock' && p.stock_qty <= p.reorder_level ? 'bg-amber-50/30' : ''}`}>
-                <td className="px-6 py-4 font-mono text-xs text-[#b8943f]">{p.code ?? '—'}</td>
-                <td className="px-6 py-4 font-medium">{p.name}</td>
+                <td className="px-6 py-4 font-mono text-xs text-[#b8943f]">
+                  {p.code ? <DocLink type="product" id={p.id} label={p.code} className="text-[#b8943f]" /> : '—'}
+                </td>
+                <td className="px-6 py-4 font-medium">
+                  <DocLink type="product" id={p.id} label={p.name} className="font-medium" />
+                </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.product_type === 'stock' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
                     {p.product_type}
