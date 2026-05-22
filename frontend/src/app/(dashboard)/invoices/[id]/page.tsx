@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer, RotateCcw, FileSignature } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
+import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface InvoiceLine {
   id: number
@@ -50,6 +51,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [inv, setInv]       = useState<Invoice | null>(null)
   const [error, setError]   = useState<string | null>(null)
   const [busy, setBusy]     = useState(false)
+  const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
 
   const load = () =>
     apiFetch<Invoice>(`/api/invoices/${id}`)
@@ -193,6 +195,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           <div className="border-t border-[#1a1814] pt-1.5 mt-1.5">
             <Row label="Total" value={fmtPKR(inv.total)} bold />
           </div>
+        </div>
+      </section>
+
+      {/* Attachments */}
+      <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 print:hidden">
+        <AttachmentPanel parentType="invoice" parentId={inv.id} embedded onSelect={setSelectedAtt} />
+        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden min-h-[60vh]">
+          <AttachmentPreviewPane att={selectedAtt} />
         </div>
       </section>
     </div>

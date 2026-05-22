@@ -17,11 +17,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db import create_db_and_tables
 from routers import (
-    accounts, aging, audit, auth, bank_accounts, bank_imports, bills, bom,
-    customers, exchange_rates, grn, imports, invoices, manufacturing_reports,
-    payments, periods, production_orders, products, rate_plans, reconciliations,
-    recurring, reports, settings, stock_locations, subledger, tax_codes,
-    transactions, vendors,
+    accounts, aging, attachments, audit, auth, bank_accounts, bank_imports,
+    bills, bom, customers, exchange_rates, grn, imports, invoices,
+    manufacturing_reports, payments, periods, production_orders, products,
+    rate_plans, reconciliations, recurring, reports, settings,
+    stock_locations, subledger, tax_codes, transactions, vendors,
 )
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
@@ -74,6 +74,7 @@ _ROUTERS = [
     grn.router, production_orders.router,
     manufacturing_reports.router,
     subledger.router,
+    attachments.router,
 ]
 
 for r in _ROUTERS:
@@ -113,4 +114,4 @@ for route in list(app.routes):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

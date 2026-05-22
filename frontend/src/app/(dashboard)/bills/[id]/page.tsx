@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer, RotateCcw, Receipt } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
+import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface BillLine {
   id: number
@@ -51,6 +52,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const [bill, setBill]   = useState<Bill | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy]   = useState(false)
+  const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
 
   const load = () =>
     apiFetch<Bill>(`/api/bills/${id}`)
@@ -171,6 +173,13 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <div className="border-t border-[#1a1814] pt-1.5 mt-1.5">
             <Row label="Total" value={fmtPKR(bill.total)} bold />
           </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 print:hidden">
+        <AttachmentPanel parentType="bill" parentId={bill.id} embedded onSelect={setSelectedAtt} />
+        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden min-h-[60vh]">
+          <AttachmentPreviewPane att={selectedAtt} />
         </div>
       </section>
     </div>

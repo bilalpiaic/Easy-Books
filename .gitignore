@@ -4,6 +4,8 @@ backend/__pycache__/
 backend/*.pyc
 backend/database.db
 backend/database.db.bak
+backend/uploads/
+uploads/
 __pycache__/
 *.pyc
 *.pyo

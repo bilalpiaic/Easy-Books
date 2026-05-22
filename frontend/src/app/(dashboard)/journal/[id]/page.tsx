@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer, RotateCcw, ScrollText } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
+import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface Entry {
   account_id: number
@@ -49,6 +50,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
   const [txn, setTxn]     = useState<Txn | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy]   = useState(false)
+  const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
 
   const load = () =>
     apiFetch<Txn>(`/api/transactions/${id}`)
@@ -192,6 +194,13 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
           <p className="text-sm whitespace-pre-wrap">{txn.notes}</p>
         </section>
       )}
+
+      <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 print:hidden">
+        <AttachmentPanel parentType="transaction" parentId={txn.id} embedded onSelect={setSelectedAtt} />
+        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden min-h-[60vh]">
+          <AttachmentPreviewPane att={selectedAtt} />
+        </div>
+      </section>
     </div>
   )
 }

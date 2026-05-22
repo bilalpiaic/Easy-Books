@@ -14,7 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import CheckConstraint, Column, Numeric
+from sqlalchemy import CheckConstraint, Column, Index, Numeric
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from services.money import Money, ZERO
@@ -761,6 +761,40 @@ class IdempotencyKey(SQLModel, table=True):
     status_code: int
     response_body: str          # JSON-serialised response
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Attachment(SQLModel, table=True):
+    """Polymorphic document attachment for vouchers and source documents.
+
+    A single row binds an uploaded file to its parent business record
+    (invoice / bill / transaction / payment_received / bill_payment). The
+    physical file lives under UPLOAD_ROOT / tenant_id / parent_type /
+    parent_id / file_name.uuid.ext; this row records the metadata.
+
+    Storage layout (local fs):
+        backend/uploads/<tenant_id>/<parent_type>/<parent_id>/<uuid>.<ext>
+
+    The composite index on (tenant_id, parent_type, parent_id) lets the
+    list endpoint enumerate attachments for one record in one seek.
+    """
+    __table_args__ = (
+        CheckConstraint(
+            "parent_type IN ('invoice','bill','transaction','payment_received','bill_payment','grn','production_order')",
+            name="ck_attachment_parent_type",
+        ),
+        Index("ix_attachment_parent", "tenant_id", "parent_type", "parent_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    parent_type: str = Field(index=True)
+    parent_id: int = Field(index=True)
+    file_name: str                       # uuid-prefixed name on disk
+    original_name: str                   # filename the user uploaded
+    mime_type: str
+    size_bytes: int
+    file_path: str                       # relative path under UPLOAD_ROOT
+    uploaded_by_id: int = Field(foreign_key="user.id")
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class RecurringTemplate(SQLModel, table=True):
