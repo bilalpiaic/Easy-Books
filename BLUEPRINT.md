@@ -373,7 +373,7 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - `POST /` — manual JV (`entries: [{account_id, debit, credit}]`); validated by `services/posting.py`.
 - `POST /{id}/reverse` — posts mirror JV. Unwinds derived state: drops PaymentAllocations + recomputes statuses; reverses stock purchase or consumption; cannot reverse a reversal.
 - `GET /` — list.
-- `GET /{id}` — header + lines.
+- `GET /{id}` — header + lines **+ `source_docs[]`** (reverse-resolves Invoice / Bill / Payment / GRN that posted this JV) **+ `is_reversed` + `reversed_by_id`** (audit trail per ISA 230 §A6).
 
 ### Periods (`/api/periods`)
 - CRUD + `POST /{id}/lock`, `POST /{id}/close`, `POST /{id}/reopen`. Close posts the closing JV (Revenue/Expense → Retained Earnings) and materialises `AccountBalance` rows.
@@ -451,6 +451,11 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 ### Reports (`/api/reports`)
 - `/journal`, `/ledger`, `/trial-balance`, `/income-statement`, `/balance-sheet`, `/cash-flow`, `/tax-summary`, `/dashboard`, `/aging`.
 
+### Sub-ledgers (drill-down layer)
+- `GET /api/customers/{id}/ledger?start=…&end=…` — per-customer AR sub-ledger. Opening balance, period activity (date, JV no., document, qty_out, Dr, Cr, running balance), closing balance. Aggregates `JournalEntry` rows that touch AR (`account.code = 1100`) where the source `Invoice` or `PaymentReceived` belongs to the customer. Maps to **IFRS 7.7** "information that enables users to evaluate the significance of financial instruments".
+- `GET /api/vendors/{id}/ledger?start=…&end=…` — per-vendor AP sub-ledger, credit-normal (`Σ credit − Σ debit`, positive = amount owed). Same shape, AP-side. Maps to **IAS 1.78(b)** "trade and other payables".
+- `GET /api/products/{id}/stock-card?start=…&end=…` — per-product stock card driven by the `StockMovement` event log (the source of truth — `Product.stock_qty` is a derived projection). Opening qty + value, per-row `qty_in / qty_out / unit_cost / running_qty / running_value`. Maps to **IAS 2.36(d)** "the carrying amount of inventories carried at fair value less costs to sell" and IAS 2.36(g) movement breakdown.
+
 ### Audit (`/api/audit`)
 - `GET /` — filterable list of `AuditLog` rows.
 
@@ -497,7 +502,7 @@ Then it writes one Transaction header + N JournalEntry rows + AuditLog row.
 4. Period.is_locked = True (posting service refuses future writes in this date range).
 ```
 
-### 9.5 Reversal
+### 9.5 Reversal — IAS 8.42 (correction of prior-period errors)
 ```
 POST /transactions/{id}/reverse:
   1. Refuses if already reversed.
@@ -510,6 +515,44 @@ POST /transactions/{id}/reverse:
 ```
 
 ### 9.6 Manufacturing (see §10)
+
+### 9.7 Sub-Ledgers & Audit-Trail Drill-Down
+```
+Trial Balance ── click account code ──▶ /ledger?account={name}
+                                              │
+                                              ▼
+                              Account ledger (running balance per JV)
+                                              │ click JV no.
+                                              ▼
+                                       /journal/{id}  (JV detail)
+                                              │
+                                source_docs[] ─┴── reversed_by_id
+                                              │
+                                              ▼
+                              /invoices/{id} | /bills/{id} | /payments-received/{id} | /grn/{id}
+                                              │
+                                  click party ▼
+                                              ▼
+                              /customers/{id}/ledger | /vendors/{id}/ledger
+                                              │
+                                              ▼
+                                       (back to JV)
+```
+
+**Architectural primitives:**
+- `<DocLink type={kind} id={id} label={text} />` (frontend/src/components/DocLink.tsx) — single resolver for 11 entity kinds. No page constructs hrefs inline.
+- Source-doc resolver in `routers/transactions.py` checks `Invoice / Bill / PaymentReceived / BillPayment / GoodsReceiptNote` for `transaction_id == jv.id` plus the COGS sub-JV link via `Transaction.parent_transaction_id`.
+- Sub-ledger SQL aggregates GL postings filtered by the AR/AP account code AND by source-document tenancy — never crosses tenant boundary.
+
+**Standards alignment:**
+| Need | Standard | Mechanism |
+|---|---|---|
+| Audit reperformability | ISA 230 §A6 | `GET /transactions/{id}.source_docs[]` + cyclic link graph (no dead ends) |
+| Internal control traceability | ISA 315.A82 | Every code/JV-no/doc-no/party-name in every list page is a `<DocLink>` |
+| Consistency of presentation | IAS 1.45 | Single resolver = single set of URL conventions across all reports |
+| Receivable / payable disclosure | IFRS 7.7, IAS 1.78(b) | AR / AP sub-ledgers with opening, period activity, closing |
+| Inventory carrying amount + movement | IAS 2.36(d), 2.36(g) | Stock card with running qty + value driven by StockMovement event log |
+| Change history | ISA 240, SOC 2 CC7.3 | `AuditLog` row per mutation — viewable at `/api/audit-log` |
 
 ---
 

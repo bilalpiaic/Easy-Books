@@ -26,6 +26,7 @@
    - 5.4 [Recurring Entries](#54-recurring-entries)
    - 5.5 [Bank Statement Import](#55-bank-statement-import)
    - 5.6 [Reversal Semantics](#56-reversal-semantics)
+   - 5.7 [Sub-Ledgers & Audit-Trail Drill-Down](#57-sub-ledgers--audit-trail-drill-down)
 6. [GL Posting Reference](#6-gl-posting-reference)
 7. [Report Catalog](#7-report-catalog)
 8. [API Endpoint Catalog](#8-api-endpoint-catalog)
@@ -673,7 +674,87 @@ Double-reversal is rejected with 400.
 
 ---
 
-## 6. GL POSTING REFERENCE
+### 5.7 Sub-Ledgers & Audit-Trail Drill-Down
+
+The General Ledger answers *"what's the balance of account X?"*. Sub-ledgers answer *"which customer / vendor / product caused that balance, and which document booked it?"*. Easy-Books renders three sub-ledgers and a cyclic drill-down link graph on top of the GL.
+
+#### 5.7.1 Standards alignment
+
+| Requirement | Standard | How Easy-Books satisfies it |
+|---|---|---|
+| Consistent presentation of balances | **IAS 1.45** | Every list page uses the same `<DocLink>` resolver and column conventions |
+| Reperformability of every posting | **ISA 230 §A6** | `GET /api/transactions/{id}.source_docs[]` reverse-resolves any JV to its originating Invoice / Bill / Payment / GRN |
+| Internal control traceability | **ISA 315.A82** | Cyclic drill-down — Trial Balance → Account Ledger → JV → source doc → party ledger → invoice → back to JV — has no orphan nodes |
+| Inventory disclosure by class | **IAS 2.36(d)** | Stock card per product shows running qty + value with movement type (`RECEIPT/ISSUE/COMPLETION/DELIVERY/ADJUSTMENT`) |
+| Receivable / payable disclosure | **IFRS 7.7, IAS 1.78(b)** | Customer & vendor ledgers expose opening, period activity, closing balance, FX-converted to tenant base currency |
+| Audit log of changes | **ISA 240, SOC 2 CC7.3** | Every mutation writes an `AuditLog` row — visible at `/api/audit-log` |
+
+#### 5.7.2 The three sub-ledgers
+
+**AR sub-ledger (debit-normal)** — `GET /api/customers/{id}/ledger?start=…&end=…`
+- Aggregates `JournalEntry` rows that touch AR (`account.code = 1100`) for invoices/payments belonging to this customer
+- Running balance = `Σ debit − Σ credit` (positive = customer owes you)
+- `qty_out` column derived from stock-product invoice lines for quick "did we ship something on this invoice?" reads
+- Frontend page: `/customers/[id]/ledger` — summary tiles (Opening / Charged / Paid / Closing) + table + Print
+
+**AP sub-ledger (credit-normal)** — `GET /api/vendors/{id}/ledger?start=…&end=…`
+- Aggregates AP postings (`account.code = 2000`) for bills/bill-payments belonging to this vendor
+- Running balance = `Σ credit − Σ debit` (positive = you owe vendor) — flipped to keep "amount owed" intuition
+- Frontend page: `/vendors/[id]/ledger`
+
+**Product stock card** — `GET /api/products/{id}/stock-card?start=…&end=…`
+- StockMovement event log is the source of truth (not `Product.stock_qty`, which is a projection)
+- Opening qty/value = pre-period in/out sums; each row carries `qty_in`, `qty_out`, `running_qty`, `unit_cost`, `running_value`
+- Frontend page: `/products/[id]/stock-card`
+
+#### 5.7.3 Source-document reverse-resolution
+
+`GET /api/transactions/{id}` now returns:
+
+```json
+{
+  "id": 84,
+  "jv_number": "JV-2026-0084",
+  "date": "2026-05-22",
+  "is_reversed": false,
+  "reversed_by_id": null,
+  "lines": [ … ],
+  "source_docs": [
+    { "kind": "invoice", "id": 17, "number": "INV-2026-0017" }
+  ]
+}
+```
+
+The resolver checks `Invoice.transaction_id`, `Bill.transaction_id`, `PaymentReceived.transaction_id`, `BillPayment.transaction_id`, `GoodsReceiptNote.transaction_id` (and the auto-generated COGS sub-JV's parent invoice via the `parent_transaction_id` link). A reversed JV exposes both the original `source_docs[]` AND `reversed_by_id` pointing forward to the mirror JV.
+
+#### 5.7.4 The `<DocLink>` resolver
+
+Single source of truth for "given an entity kind + id, where does it live?". `frontend/src/components/DocLink.tsx`:
+
+```tsx
+type DocKind =
+  | "account"   // ?account={name}             → /ledger
+  | "transaction" | "invoice" | "bill"         → /journal/{id}, /invoices/{id}, /bills/{id}
+  | "customer" | "vendor" | "product"          → /customers/{id}/ledger, /vendors/{id}/ledger, /products/{id}/stock-card
+  | "payment-received" | "bill-payment"        → /payments-received/{id}, /bill-payments/{id}
+  | "grn" | "production-order"                 → /manufacturing/grn/{id}, /manufacturing/production-orders/{id}
+```
+
+Every list page (`/invoices`, `/bills`, `/customers`, `/vendors`, `/products`, `/ledger`, `/journal`, `/coa`, `/trial-balance`, etc.) wraps code/number/name cells in `<DocLink type=… id=… label=… />`. Hover gives the standard underline-on-hover affordance; click navigates. No URL is ever constructed inline in a page — change the routing convention in one place, every page follows.
+
+#### 5.7.5 The cyclic drill-down graph
+
+```
+Trial Balance ─click code──▶ Account Ledger ─click JV──▶ JV Detail ─click source───┐
+       ▲                                                        │                 │
+       │                                                        ▼                 ▼
+       │                                                  Invoice / Bill     Customer / Vendor
+       │                                                        │                 Ledger
+       │                                                        ▼                 │
+       └──────────── click account code on JV ◀─── Source doc detail ◀────────────┘
+```
+
+Every node in the graph has at least one inbound and one outbound link — no dead ends. This is the property `ISA 315.A82` calls *"reperformability of the audit trail"*.
 
 | Business event | Debit | Credit | Side effects |
 |---|---|---|---|
@@ -765,7 +846,7 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET/POST | `/api/payments-received` | Accepts `allocations: [{invoice_id, amount}]` + legacy single-invoice shortcut |
 | GET/POST | `/api/bill-payments` | Same |
 | POST | `/api/transactions` | Manual JV |
-| GET | `/api/transactions/{id}` | JV detail with all JEs |
+| GET | `/api/transactions/{id}` | JV detail with all JEs **+ `source_docs[]` + `is_reversed` + `reversed_by_id`** (§5.7.3) |
 | POST | `/api/transactions/{id}/reverse` | Mirror JV + unwinds derived state (§5.6) |
 
 ### 8.4 Periods & audit
@@ -806,6 +887,9 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/tax-summary` | GST + income-tax slabs |
 | GET | `/api/reports/dashboard` | KPIs (outstanding net of allocations) |
 | GET | `/api/reports/dashboard/charts?months=12` | Chart series |
+| GET | `/api/customers/{id}/ledger?start=…&end=…` | AR sub-ledger — opening, period activity (qty_out + Dr/Cr), running balance, closing (§5.7.2) |
+| GET | `/api/vendors/{id}/ledger?start=…&end=…` | AP sub-ledger — credit-normal (positive = owed) |
+| GET | `/api/products/{id}/stock-card?start=…&end=…` | StockMovement-driven qty + value card (IAS 2.36(d) reading) |
 
 ### 8.8 CSV bulk import (master data)
 | Method | Path | Purpose |

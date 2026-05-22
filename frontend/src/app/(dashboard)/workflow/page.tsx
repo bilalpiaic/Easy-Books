@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2 } from "lucide-react"
 
 // ── Primitive building blocks ────────────────────────────────────────────────
 
@@ -603,6 +603,52 @@ function ReversalFlow() {
   )
 }
 
+function DrillDownFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed">
+        Every code, JV number, document number, customer, vendor, and product rendered in the app
+        is a clickable link to its source record. The shared <code className="font-mono text-[10px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5">&lt;DocLink /&gt;</code> resolver
+        wires the cyclic graph below — there are no dead-end rows. This is what
+        <b> ISA 230 §A6</b> calls <i>"reperformability of the audit trail"</i>.
+      </p>
+
+      <VFlow>
+        <HFlow>
+          <StepBox title="Trial Balance" accent="gold" impact="click code" />
+          <StepBox title="/coa" accent="gold" impact="click code or name" small />
+        </HFlow>
+        <Arrow vertical />
+        <StepBox title="Account Ledger (/ledger?account=…)" accent="blue" impact="running balance per JV" />
+        <Arrow vertical />
+        <StepBox title="JV Detail (/journal/{id})" accent="purple" impact="source_docs[] · reversed_by_id" />
+        <Arrow vertical />
+        <HFlow>
+          <StepBox title="/invoices/{id}" accent="green" small />
+          <StepBox title="/bills/{id}" accent="green" small />
+          <StepBox title="/payments-received/{id}" accent="green" small />
+          <StepBox title="/grn/{id}" accent="green" small />
+        </HFlow>
+        <Arrow vertical />
+        <HFlow>
+          <StepBox title="/customers/{id}/ledger" accent="teal" impact="AR sub-ledger (Dr − Cr)" />
+          <StepBox title="/vendors/{id}/ledger" accent="teal" impact="AP sub-ledger (Cr − Dr)" />
+          <StepBox title="/products/{id}/stock-card" accent="teal" impact="StockMovement-driven qty + value" />
+        </HFlow>
+      </VFlow>
+
+      <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3 text-xs text-[#1a1814]/75 leading-relaxed">
+        <b className="text-[#7a5c1e]">Best practice alignment.</b> Sub-ledgers fulfil
+        <b> IAS 1.78(b)</b> &amp; <b>IFRS 7.7</b> (receivable / payable disclosure),
+        the stock card fulfils <b>IAS 2.36(d)/(g)</b> (carrying amount + movements), and the cyclic drill-down satisfies
+        <b> ISA 315.A82</b> (internal-control traceability). Corrections never delete — reverse the
+        originating JV (<code className="font-mono text-[10px] bg-white border border-[#ede9e2] rounded px-1 py-0.5">POST /api/transactions/&#123;id&#125;/reverse</code>) and post the
+        corrected entry. This is what <b>IAS 8.42</b> calls for.
+      </div>
+    </div>
+  )
+}
+
 function ProductionOrderFlow() {
   return (
     <div className="space-y-4">
@@ -785,7 +831,17 @@ export default function WorkflowPage() {
         <ReversalFlow />
       </SectionCard>
 
-      {/* 10 — Production Order Lifecycle (V2) */}
+      {/* 10 — Drill-Down & Audit Trail */}
+      <SectionCard
+        icon={Link2}
+        title="Drill-Down & Audit Trail"
+        subtitle="Cyclic link graph from Trial Balance to source documents (ISA 230 / 315)"
+        iconColor="text-teal-600"
+      >
+        <DrillDownFlow />
+      </SectionCard>
+
+      {/* 11 — Production Order Lifecycle (V2) */}
       <SectionCard
         icon={Factory}
         title="Production Order Lifecycle (V2)"
