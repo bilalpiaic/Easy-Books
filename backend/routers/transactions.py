@@ -241,8 +241,10 @@ def reverse_transaction(
     return out
 
 
-@router.get("/{transaction_id}", response_model=TransactionRead)
+@router.get("/{transaction_id}")
 def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserDep):
+    """Returns the transaction header + entries + back-references to any
+    source documents (invoice/bill/payment/etc.) that posted this txn."""
     tx = session.exec(
         select(Transaction).where(
             Transaction.id == transaction_id, Transaction.tenant_id == user.tenant_id
@@ -261,6 +263,56 @@ def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserD
         }
         for je in tx.journal_entries
     ]
+
+    # Resolve back-references: a transaction can be the booking of an
+    # invoice, bill, payment-received, bill-payment, GRN, or a manual JV.
+    # Multiple may point at the same txn (e.g. an invoice + its COGS sub-JV
+    # share none, but reversal txns link back via reversed_by_id).
+    source_docs: list[dict] = []
+
+    inv = session.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == user.tenant_id, Invoice.transaction_id == tx.id
+        )
+    ).first()
+    if inv:
+        source_docs.append({"type": "invoice", "id": inv.id, "number": inv.number})
+
+    bill = session.exec(
+        select(Bill).where(
+            Bill.tenant_id == user.tenant_id, Bill.transaction_id == tx.id
+        )
+    ).first()
+    if bill:
+        source_docs.append({"type": "bill", "id": bill.id, "number": bill.number})
+
+    pmt = session.exec(
+        select(PaymentReceived).where(
+            PaymentReceived.tenant_id == user.tenant_id, PaymentReceived.transaction_id == tx.id
+        )
+    ).first()
+    if pmt:
+        source_docs.append({"type": "payment_received", "id": pmt.id, "number": f"REC-{pmt.id:05d}"})
+
+    bp = session.exec(
+        select(BillPayment).where(
+            BillPayment.tenant_id == user.tenant_id, BillPayment.transaction_id == tx.id
+        )
+    ).first()
+    if bp:
+        source_docs.append({"type": "bill_payment", "id": bp.id, "number": f"PAY-{bp.id:05d}"})
+
+    # GRN reverse-lookup (custodial memo JE)
+    from models import GoodsReceiptNote
+    grn = session.exec(
+        select(GoodsReceiptNote).where(
+            GoodsReceiptNote.tenant_id == user.tenant_id,
+            GoodsReceiptNote.transaction_id == tx.id,
+        )
+    ).first()
+    if grn:
+        source_docs.append({"type": "grn", "id": grn.id, "number": grn.number})
+
     return {
         "id": tx.id,
         "jv_number": tx.jv_number,
@@ -270,5 +322,8 @@ def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserD
         "party": tx.party,
         "payment_method": tx.payment_method,
         "notes": tx.notes,
+        "is_reversed": tx.is_reversed,
+        "reversed_by_id": tx.reversed_by_id,
         "entries": entries,
+        "source_docs": source_docs,
     }
