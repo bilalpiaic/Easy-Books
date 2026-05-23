@@ -9,6 +9,7 @@ import {
   ArrowDownLeft, Receipt, Truck, ArrowUpRight, Landmark, CheckCheck,
   Percent, Settings, X, Package, ChevronRight, GitBranch, HelpCircle,
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
+  Signal, Wallet, ArrowRightLeft, Banknote, Smartphone, Target,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -19,7 +20,7 @@ type NavItem = {
   href: string
   icon: React.ElementType
   section: string
-  forModel?: "manufacturing"
+  forModel?: "manufacturing" | "telecom_franchise"
 }
 
 const NAV: NavItem[] = [
@@ -40,6 +41,14 @@ const NAV: NavItem[] = [
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
   { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing", forModel: "manufacturing" },
   { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
+  { label: "Telecom Dashboard",href: "/telecom",                    icon: Signal,          section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Tracker & Load",   href: "/telecom/tracker",            icon: Wallet,          section: "Telecom", forModel: "telecom_franchise" },
+  { label: "RSO Agents",       href: "/telecom/rso/agents",         icon: Users,           section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Load Transfers",   href: "/telecom/rso/transfers",      icon: ArrowRightLeft,  section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Daily Collections",href: "/telecom/rso/collections",    icon: Banknote,        section: "Telecom", forModel: "telecom_franchise" },
+  { label: "SIM Batches",      href: "/telecom/sim/batches",        icon: Smartphone,      section: "Telecom", forModel: "telecom_franchise" },
+  { label: "SIM Sales",        href: "/telecom/sim/sales",          icon: Package,         section: "Telecom", forModel: "telecom_franchise" },
+  { label: "FCA & KPI Targets",href: "/telecom/fca",                icon: Target,          section: "Telecom", forModel: "telecom_franchise" },
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
   { label: "Reconciliations",  href: "/reconciliations",   icon: CheckCheck,       section: "Banking" },
   { label: "Trial Balance",    href: "/trial-balance",     icon: Scale,            section: "Reports" },
@@ -52,7 +61,7 @@ const NAV: NavItem[] = [
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
 ]
 
-const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Manufacturing","Banking","Reports","System"]
+const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Manufacturing","Telecom","Banking","Reports","System"]
 
 const SECTION_COLORS: Record<string, string> = {
   Overview:      "text-[#ffd966]",
@@ -60,6 +69,7 @@ const SECTION_COLORS: Record<string, string> = {
   Receivable:    "text-green-400",
   Payable:       "text-orange-400",
   Manufacturing: "text-pink-400",
+  Telecom:       "text-emerald-400",
   Banking:       "text-purple-400",
   Reports:       "text-cyan-400",
   System:        "text-white/40",

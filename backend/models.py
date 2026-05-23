@@ -880,7 +880,7 @@ class RSOAgent(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     name: str
     phone: str
-    cnic: str
+    cnic: Optional[str] = None
     territory: Optional[str] = None
     receivable_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     is_active: bool = Field(default=True)

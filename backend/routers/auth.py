@@ -104,7 +104,7 @@ def _throttle(session: Session, request: Request) -> None:
     session.flush()
 
 
-_VALID_MODELS = {"simple", "services", "trader", "manufacturing"}
+_VALID_MODELS = {"simple", "services", "trader", "manufacturing", "telecom_franchise"}
 
 
 class UserSignup(BaseModel):

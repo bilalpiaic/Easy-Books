@@ -71,6 +71,7 @@ def create_db_and_tables():
             ("demo.services@easy-books.app", "services", "Demo - Services", "Demo User"),
             ("demo.trader@easy-books.app", "trader", "Demo - Trader", "Demo User"),
             ("demo.manufacturing@easy-books.app", "manufacturing", "Demo - Manufacturing", "Demo User"),
+            ("demo.telecom@easy-books.app", "telecom_franchise", "Demo - Telecom Franchise", "Demo User"),
         ]
         demo_password_hash = get_password_hash("demo1234")
 

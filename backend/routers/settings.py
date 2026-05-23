@@ -51,7 +51,7 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
 
 # ── Business-model switching ─────────────────────────────────────────────────
 
-_VALID_MODELS = {"simple", "services", "trader", "manufacturing"}
+_VALID_MODELS = {"simple", "services", "trader", "manufacturing", "telecom_franchise"}
 
 
 class BusinessModelUpdate(BaseModel):

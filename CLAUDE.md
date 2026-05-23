@@ -61,7 +61,7 @@ npm install && node server.js    # runs on root package.json
 
 **Seeding:** On startup, `db.py` creates:
 - A default `Tenant`, seeds a Chart of Accounts, and optionally creates an admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars
-- Four pre-seeded demo tenants (one per business model) with placeholder users for immediate testing
+- Five pre-seeded demo tenants (one per business model) with placeholder users for immediate testing
 - Delete `backend/database.db` to reset to seeded state
 
 **Demo Tenants (auto-created on first run):**
@@ -71,6 +71,7 @@ npm install && node server.js    # runs on root package.json
 | `demo.services@easy-books.app` | Services | `demo1234` |
 | `demo.trader@easy-books.app` | Trader | `demo1234` |
 | `demo.manufacturing@easy-books.app` | Manufacturing | `demo1234` |
+| `demo.telecom@easy-books.app` | Telecom Franchise | `demo1234` |
 
 To populate demo tenants with mock data (12+ customers, vendors, invoices, bills per tenant):
 ```bash

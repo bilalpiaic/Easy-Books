@@ -23,6 +23,9 @@ from routers import (
     rate_plans, reconciliations, recurring, reports, settings,
     stock_locations, subledger, tax_codes, transactions, vendors,
 )
+from routers.telecom import tracker as telecom_tracker
+from routers.telecom import rso as telecom_rso
+from routers.telecom import sim as telecom_sim
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 
@@ -75,6 +78,10 @@ _ROUTERS = [
     manufacturing_reports.router,
     subledger.router,
     attachments.router,
+    # Telecom franchise module
+    telecom_tracker.router,
+    telecom_rso.router,
+    telecom_sim.router,
 ]
 
 for r in _ROUTERS:
