@@ -11,7 +11,12 @@ if DATABASE_URL:
     if "sslmode" not in DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
         sep = "&" if "?" in DATABASE_URL else "?"
         DATABASE_URL = f"{DATABASE_URL}{sep}sslmode=require"
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_size=1,
+        max_overflow=0,
+    )
 else:
     _environment = os.environ.get("ENVIRONMENT", "development").lower()
     if _environment == "production":
