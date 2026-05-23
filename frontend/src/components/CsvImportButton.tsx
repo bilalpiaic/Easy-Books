@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Upload, Download, X, CheckCircle, AlertTriangle, FileText, Loader2 } from "lucide-react"
-import { apiFetch, apiBase } from "@/lib/api"
+import { apiBase } from "@/lib/api"
 import { getAuthToken } from "@/lib/auth"
 
 export type ImportEntity = "transactions" | "accounts" | "customers" | "vendors" | "products"

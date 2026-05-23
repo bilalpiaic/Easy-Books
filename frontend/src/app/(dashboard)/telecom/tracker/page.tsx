@@ -120,6 +120,7 @@ export default function TrackerPage() {
       .finally(() => setLoading(false))
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
   useEffect(() => {
@@ -165,7 +166,7 @@ export default function TrackerPage() {
         <div className="rounded-xl border border-dashed border-[#b8943f]/30 p-10 text-center">
           <Wallet className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
           <p className="font-medium text-[#1a1814]">No Tracker accounts yet</p>
-          <p className="text-sm text-[#1a1814]/50 mt-1">Click "Add Account" to get started.</p>
+          <p className="text-sm text-[#1a1814]/50 mt-1">Click &quot;Add Account&quot; to get started.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

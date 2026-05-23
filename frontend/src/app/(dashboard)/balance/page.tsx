@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { Printer, HelpCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
-import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
 interface BalanceItem {

@@ -187,6 +187,7 @@ export default function FCAPage() {
       .catch(() => {})
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
   useEffect(() => { if (selected) loadEvents(selected) }, [selected])
 

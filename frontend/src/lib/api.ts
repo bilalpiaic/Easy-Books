@@ -11,6 +11,10 @@ export async function apiFetch<T = unknown>(
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
+      // Automatically set Content-Type for JSON bodies so FastAPI parses them correctly.
+      ...(options.body && typeof options.body === "string"
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...getAuthHeader(),
       ...(options.headers ?? {}),
     },

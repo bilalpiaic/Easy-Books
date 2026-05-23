@@ -59,6 +59,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
       .then(setBill)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [id])
 
   const reverse = async () => {

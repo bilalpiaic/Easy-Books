@@ -57,6 +57,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
       .then(setTxn)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [id])
 
   const reverse = async () => {
