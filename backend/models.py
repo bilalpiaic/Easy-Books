@@ -29,7 +29,7 @@ def money_col(default: Decimal = ZERO, **kw):
 class Tenant(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(
-            "business_model IN ('simple','services','trader','manufacturing')",
+            "business_model IN ('simple','services','trader','manufacturing','telecom')",
             name="ck_tenant_business_model",
         ),
     )

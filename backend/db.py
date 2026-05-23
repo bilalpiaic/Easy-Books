@@ -130,6 +130,29 @@ _COA_MANUFACTURING_EXTRA: list[tuple[str, str, str, bool]] = [
     ("5210", "Indirect Materials",       "Expense",   False),
 ]
 
+# Telecom extras: connectivity revenue split + prepaid deferred revenue +
+# interconnect / roaming COGS + SIM/device inventory + network opex.
+_COA_TELECOM_EXTRA: list[tuple[str, str, str, bool]] = [
+    ("1200", "SIM & Device Inventory",      "Asset",     False),
+    ("1250", "GST Receivable (Input)",      "Asset",     False),
+    ("2310", "Unearned Airtime Revenue",    "Liability", False),
+    ("2320", "Unearned Data Revenue",       "Liability", False),
+    ("2330", "Unearned SMS Revenue",        "Liability", False),
+    ("4010", "Airtime Revenue",             "Revenue",   False),
+    ("4020", "Data Revenue",                "Revenue",   False),
+    ("4030", "SMS Revenue",                 "Revenue",   False),
+    ("4040", "Roaming Revenue",             "Revenue",   False),
+    ("4050", "Interconnect Revenue",        "Revenue",   False),
+    ("4060", "Value-Added Services Revenue","Revenue",   False),
+    ("5010", "Cost of Goods Sold",          "Expense",   False),
+    ("5300", "Interconnect Charges",        "Expense",   False),
+    ("5310", "Roaming Costs",               "Expense",   False),
+    ("5320", "Bandwidth & Transmission",    "Expense",   False),
+    ("5330", "Tower & Site Rentals",        "Expense",   False),
+    ("5340", "Spectrum & Licence Fees",     "Expense",   False),
+    ("5350", "Network Maintenance",         "Expense",   False),
+]
+
 
 def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
     """Return the CoA template for a business model. Universal backbone always
@@ -141,6 +164,7 @@ def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
         "services":      _COA_SERVICES_EXTRA,
         "trader":        _COA_TRADER_EXTRA,
         "manufacturing": _COA_MANUFACTURING_EXTRA,
+        "telecom":       _COA_TELECOM_EXTRA,
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
@@ -156,6 +180,8 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "trader":        ["invoicing", "billing", "manual_jv", "inventory"],
     "manufacturing": ["invoicing", "billing", "manual_jv", "inventory",
                       "stores", "bom", "production", "customer_goods"],
+    "telecom":       ["invoicing", "billing", "manual_jv", "inventory",
+                      "deferred_revenue", "rate_plans"],
 }
 
 

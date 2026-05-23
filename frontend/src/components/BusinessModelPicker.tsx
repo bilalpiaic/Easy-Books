@@ -1,8 +1,8 @@
 "use client"
 
-import { Briefcase, Building2, Package, Factory, Check } from "lucide-react"
+import { Briefcase, Building2, Package, Factory, Radio, Check } from "lucide-react"
 
-export type BusinessModel = "simple" | "services" | "trader" | "manufacturing"
+export type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom"
 
 interface ModelOption {
   id: BusinessModel
@@ -45,6 +45,14 @@ const OPTIONS: ModelOption[] = [
     tagline: "Make or value-add products",
     bestFor: "Factories, workshops, processors — including value-addition on customer-supplied goods.",
     includes: ["Everything in Trader", "Raw material + WIP + finished goods stores", "Bills of Material", "Customer-goods custody (memo accounts)", "Production orders"],
+  },
+  {
+    id: "telecom",
+    label: "Telecom",
+    icon: Radio,
+    tagline: "Airtime, data, SMS — prepaid and postpaid",
+    bestFor: "Telecom operators, MVNOs, ISPs, recharge resellers — anyone selling connectivity bundles.",
+    includes: ["Airtime / data / SMS revenue split", "Unearned revenue for prepaid top-ups", "Interconnect & roaming COGS", "SIM & device inventory", "Spectrum / tower / bandwidth expenses"],
   },
 ]
 

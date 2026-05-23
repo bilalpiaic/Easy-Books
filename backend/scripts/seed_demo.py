@@ -48,6 +48,7 @@ DEMO_TENANTS = [
     ("demo.services@easy-books.app",      "Demo Services Ltd.",     "services"),
     ("demo.trader@easy-books.app",        "Demo Trading Co.",       "trader"),
     ("demo.manufacturing@easy-books.app", "Demo Manufacturing Co.", "manufacturing"),
+    ("demo.telecom@easy-books.app",       "Demo Telecom Co.",       "telecom"),
 ]
 
 # Each list has 12+ entries — meets the "at least 10 of each" requirement.
@@ -101,6 +102,25 @@ FINISHED_GOODS_MFG = [
     ("FG-SHIRT", "Finished Shirt", "ea"),
     ("FG-POLO",  "Finished Polo",  "ea"),
     ("FG-PANT",  "Finished Pants", "ea"),
+]
+# Telecom-specific: physical inventory (SIMs, devices) + connectivity bundles
+TELECOM_STOCK = [
+    ("SIM-PRE",    "Prepaid SIM Card",       "ea",  5,  1),
+    ("SIM-POST",   "Postpaid SIM Card",      "ea",  8,  2),
+    ("ROUTER-4G",  "4G LTE Router",          "ea", 75, 38),
+    ("ROUTER-5G",  "5G CPE Router",          "ea", 220, 110),
+    ("MIFI",       "MiFi Mobile Hotspot",    "ea", 120,  55),
+    ("DONGLE-USB", "USB Data Dongle",        "ea",  45,  18),
+]
+TELECOM_SERVICES = [
+    ("BUNDLE-VOICE",  "Airtime Bundle (min)",   "min",   0.05),
+    ("BUNDLE-DATA",   "Data Bundle (GB)",       "gb",    2.50),
+    ("BUNDLE-SMS",    "SMS Bundle (msg)",       "msg",   0.02),
+    ("ROAM-DAY",      "Daily Roaming Pass",     "day",   8.00),
+    ("VAS-CALLERID",  "Caller ID Subscription", "mo",    1.50),
+    ("VAS-VOICEMAIL", "Voicemail Subscription", "mo",    2.00),
+    ("PLAN-POST-BASIC","Postpaid Basic Plan",   "mo",   25.00),
+    ("PLAN-POST-PRO", "Postpaid Pro Plan",      "mo",   55.00),
 ]
 TAX_CODES = [
     ("GST-OUT-17", "GST Output 17%", 17, "output", "2200"),
@@ -185,8 +205,15 @@ def _seed_products(
         s.add(p); s.flush()
         return p
 
-    for code, name, unit, rate in SERVICE_PRODUCTS:
-        services.append(upsert(code, name, unit, D(rate), "service"))
+    if business_model == "telecom":
+        # Telecom replaces generic services with connectivity bundles
+        for code, name, unit, rate in TELECOM_SERVICES:
+            services.append(upsert(code, name, unit, D(rate), "service"))
+        for code, name, unit, sale, cost in TELECOM_STOCK:
+            stock.append(upsert(code, name, unit, D(sale), "stock"))
+    else:
+        for code, name, unit, rate in SERVICE_PRODUCTS:
+            services.append(upsert(code, name, unit, D(rate), "service"))
 
     if business_model in ("trader", "manufacturing"):
         for code, name, unit, sale, cost in STOCK_PRODUCTS_TRADER:
