@@ -13,6 +13,7 @@ dependencies = [
     "sqlmodel>=0.0.38",
     "uvicorn>=0.46.0",
     "psycopg2-binary>=2.9.9",
+    "supabase>=2.0.0",
 ]
 
 [dependency-groups]
