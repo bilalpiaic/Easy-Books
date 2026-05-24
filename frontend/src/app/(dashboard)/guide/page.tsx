@@ -7,7 +7,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory, Link2,
+  Factory, Link2, Radio,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -38,6 +38,7 @@ const TABS: Tab[] = [
   { id: "sub-ledgers",      label: "Sub-Ledgers & Drill-Down", icon: Link2,         shortLabel: "Drill"    },
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
   { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg"      },
+  { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom"  },
 ]
 
 // ── Callout components ────────────────────────────────────────────────────────
@@ -125,6 +126,7 @@ function GettingStartedPanel() {
               ["services",      "Consulting, agencies",          "Consulting & recurring revenue, deferred revenue, subcontractor costs"],
               ["trader",        "Buy-and-resell goods",          "Finished Goods, COGS, Freight In, Storage, Inventory Adj."],
               ["manufacturing", "Value-addition on customer goods", "Raw Material / WIP / FG, memo pair 1210/2150, Direct Labour, Overhead, Service Revenue (Value-Add)"],
+              ["telecom_franchise", "Mobile-operator franchise", "56-account franchise CoA: Tracker Deposit 1210, Load Float 1211, RSO/Retail receivables, MM float, SIM/device inventory, commission & FCA revenue, royalty & fee amortisation"],
             ].map(([model, use, extras]) => (
               <tr key={model} className="hover:bg-[#faf8f4]">
                 <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{model}</td>
@@ -263,6 +265,12 @@ function CoaPanel() {
               ["4020",      "services",      "Recurring Service Revenue"],
               ["5010",      "trader / mfg",  "Cost of Goods Sold"],
               ["5100–5210", "manufacturing", "Direct Labour, Subcontractor, Overhead, Indirect Materials"],
+              ["1110",      "telecom",       "Commission Receivable"],
+              ["1210 / 1211","telecom",      "Tracker Deposit · Load Float Asset (MSR)"],
+              ["1212 / 1213","telecom",      "RSO · Retail Load Receivable"],
+              ["1214",      "telecom",       "Mobile Money Float Asset"],
+              ["4020 / 4060","telecom",      "Load Uplift Commission (3%) · FCA Target Commission"],
+              ["5030 / 5040","telecom",      "Franchise Fee Amortisation · Royalty Expense"],
             ].map(([code, layer, name], i) => (
               <tr key={i} className="hover:bg-[#faf8f4]">
                 <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{code}</td>
@@ -1298,6 +1306,94 @@ total      = subtotal + margin            (excl. GST)`}
   )
 }
 
+function TelecomFranchisePanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        The telecom-franchise track is enabled when you pick <CodeBadge>telecom_franchise</CodeBadge> as
+        your business model at signup. It models a mobile-operator franchise end-to-end: a prepaid
+        <b> Tracker</b> wallet, load distribution down a <b>MSR → RSO → Retail</b> chain, SIM
+        activations, monthly <b>FCA</b> targets, a mobile-money agency, postpaid billing,
+        commission reconciliation, and franchise-fee amortisation — all on the same double-entry GL.
+      </p>
+
+      <SectionHeading>The daily operating loop</SectionHeading>
+      <StepList steps={[
+        "Fund the Tracker — deposit cash with the operator (Dr 1210 / Cr Bank), then place a load order. The operator credits 3% more face value than the cash you spend; the uplift books as commission revenue at disbursement.",
+        "Procure stock — a tracker stock-debit pulls SIM/IMSI inventory (Dr 1200 / Cr 1210) and auto-creates a SIM batch.",
+        "Distribute load — push float MSR → RSO (Dr 1212 / Cr 1211), then RSO → Retail (Dr 1213 / Cr 1212). Each hop is a receivable.",
+        "Collect daily — each RSO banks cash covering load + stock sold; any gap posts to overage/shortage so balances reconcile.",
+        "Sell & activate — counter sales post sale + COGS; activations log the customer and accrue the operator commission as a receivable (1110).",
+        "Hit FCA targets — first-call activations are counted toward a monthly target; hitting it pays a commission (4060), missing it can trigger a penalty (5090).",
+        "Reconcile — settle the operator's commission statement against 1110; run mobile-money and postpaid; amortise the franchise fee and pay royalty.",
+      ]} />
+
+      <SectionHeading>Key journal entries</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Operation</th>
+              <th className="px-4 py-2.5 text-left">Debit</th>
+              <th className="px-4 py-2.5 text-left">Credit</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["Tracker deposit",        "1210 Tracker Deposit",     "1010 Bank"],
+              ["Load order (3% uplift)", "1211 Load Float ×1.03",    "1210 (cash) + 4020 (3%)"],
+              ["SIM stock debit",        "1200 SIM Inventory",       "1210 Tracker Deposit"],
+              ["MSR → RSO transfer",     "1212 RSO Load Rec.",       "1211 Load Float"],
+              ["RSO → Retail transfer",  "1213 Retail Load Rec.",    "1212 RSO Load Rec."],
+              ["RSO daily collection",   "1010 Bank",                "1212 + 1120 (± variance)"],
+              ["Commission accrual",     "1110 Commission Rec.",     "4020 / 4010 Revenue"],
+              ["FCA target commission",  "1210 Tracker / Bank",      "4060 FCA Target Commission"],
+              ["MM customer deposit",    "1000 Cash",                "2100 MM Float Liability"],
+              ["Postpaid bill",          "1130 Postpaid Cust Rec.",  "2110 Collections Payable"],
+              ["Postpaid remittance",    "2110 Collections Payable", "Bank (net) + 4040 (commission)"],
+              ["Fee amortisation",       "5030 Fee Amortisation",    "1301 Accum. Amortisation"],
+            ].map(([op, dr, cr]) => (
+              <tr key={op} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{op}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{dr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{cr}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>The 3% load uplift</SectionHeading>
+      <pre className="mt-2 bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 text-[11px] leading-relaxed text-[#1a1814]/80 overflow-x-auto">
+{`Dr 1211 Load Float Asset      cash × 1.03
+   Cr 1210 Tracker Deposit        cash
+   Cr 4020 Load Uplift Commission cash × 0.03`}
+      </pre>
+
+      <TipCallout>
+        <b>Two balances always reconcile to the GL:</b> the Tracker account&apos;s
+        <CodeBadge>deposit_balance</CodeBadge> equals account 1210, and its
+        <CodeBadge>load_balance</CodeBadge> equals account 1211. The Tracker Statement report shows
+        both the denormalised figure and the live GL figure side by side.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Treating FCA events as journal entries — they are <i>counted</i>, not posted. Only the monthly target commission/penalty hits the GL.</p>
+        <p>Forgetting mobile-money float moves <i>opposite</i> to cash: a customer deposit reduces your float, a withdrawal increases it.</p>
+        <p>Recording a load order larger than the available Tracker deposit — the posting is rejected until you top up the wallet.</p>
+      </MistakeCallout>
+
+      <SectionHeading>Telecom reports</SectionHeading>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+        <li><b>Dashboard</b> — tracker & load positions, commission receivable, RSO, MM float, SIM utilisation, FCA month progress.</li>
+        <li><b>RSO ledger</b> — per-RSO load in/out, cash collected, open balance.</li>
+        <li><b>Float statement</b> — mobile-money system balance vs GL 1214.</li>
+        <li><b>Commission aging, SIM utilisation, postpaid book, revenue-by-stream, FCA target, tracker statement</b>.</li>
+      </ul>
+    </div>
+  )
+}
+
 // ── Panel map ─────────────────────────────────────────────────────────────────
 
 const PANEL_MAP: Record<string, React.ReactNode> = {
@@ -1319,6 +1415,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "sub-ledgers":     <SubLedgersPanel />,
   "csv":             <CsvImportPanel />,
   "manufacturing":   <ManufacturingPanel />,
+  "telecom":         <TelecomFranchisePanel />,
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

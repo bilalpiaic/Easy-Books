@@ -47,7 +47,7 @@ Trial balance · General ledger (running balance per account) · **AR sub-ledger
 
 For tenants with `business_model = manufacturing`, Easy-Books adds a complete value-addition workflow on top of the core ledger:
 
-- **Business-model selection at signup** — `simple | services | trader | manufacturing`. Each variant gets a tailored Chart of Accounts (the manufacturing CoA includes raw-material, WIP, FG, the custodial memo pair `1210/2150`, direct labour, overhead) and a different set of enabled UI modules.
+- **Business-model selection at signup** — `simple | services | trader | manufacturing | telecom_franchise`. Each variant gets a tailored Chart of Accounts (the manufacturing CoA includes raw-material, WIP, FG, the custodial memo pair `1210/2150`, direct labour, overhead) and a different set of enabled UI modules.
 - **Multi-location inventory** — `StockLocation(code, type)` with `own | customer_custodial | wip` types. Manufacturing tenants seed `MAIN`, `GODOWN`, `WIP` out of the box. Layers are keyed by `(product, location)` so the same product can live in multiple stores at different costs.
 - **Lot tracking + stock-movement event log** — every receipt/issue/consumption writes a `StockMovement` row (`RECEIPT | CUSTODIAL_RECEIPT | ISSUE | CUSTODIAL_ISSUE | COMPLETION | DELIVERY | SHIPMENT | ADJUSTMENT`). The log is the source of truth; `InventoryLayer` is a materialised projection.
 - **Bills of Material** — versioned recipes (`BomHeader` + `BomLine`). Each line tags its source as `own_stock` (consumes from your inventory at WAvg cost — hits WIP) or `customer_supplied` (consumes from a customer godown — memo-only, never your asset). Posting a new version auto-deactivates the prior one; historical PO references stay reconstructable.
@@ -60,6 +60,22 @@ For tenants with `business_model = manufacturing`, Easy-Books adds a complete va
   - **bill** — generates an Invoice via the assigned RatePlan (`Dr AR / Cr 4010 Service Revenue`).
 - **Manufacturing reports** — `/api/manufacturing/dashboard` (pipeline counts + WIP/FG/custodial totals), `/wip-aging` (open POs bucketed by days since start), `/production-summary` (state-grouped totals), `/customer-custody` (who has what on hand).
 - **Adaptive UI** — the sidebar reads `business_model` from `/api/auth/me` and only surfaces the Manufacturing section (Production Floor, BoMs, Rate Plans, GRN, Production Orders) when applicable. Every manufacturing page ships with an inline `HelpCallout` + `EmptyStateGuide` so a first-time user always knows what the page does, why, and the next concrete step.
+
+### Telecom Franchise track (V3)
+
+For tenants with `business_model = telecom_franchise`, Easy-Books adds the full daily-operations model of a mobile-operator franchise (Tracker wallet, RSO distribution chain, FCA targets, mobile money, postpaid, commissions, franchise admin) on top of the core ledger. 23 dedicated `tc_*` tables back it; the **only** GL writer remains `services/posting.py`, so every posting below stays balanced and tenant-scoped.
+
+- **Franchise Chart of Accounts** — a 56-account template seeded for the model: Tracker Deposit `1210`, Load Float Asset `1211`, RSO/Retail load receivables `1212/1213`, Mobile-Money float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`/Accum. Amort. `1301`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue streams `4000–4061` (recharge, SIM activation, **3% load uplift `4020`**, mobile-money, bundles, device sales, postpaid, RSO channel, FCA target commission, franchise incentive); COGS/expense `5010–5090` (SIM/device COGS, RSO incentives, fee amortisation `5030`, royalty `5040`, tracker/float variance `5070`, target-shortfall penalty `5090`).
+- **Tracker wallet & load orders** — deposit cash with the operator (`Dr 1210 / Cr Bank`), then place a **load order** that converts deposit to spendable float with a 3% uplift booked as commission revenue at disbursement: `Dr 1211 (cash×1.03) / Cr 1210 (cash) / Cr 4020 (cash×0.03)`. Denormalised `deposit_balance`/`load_balance` on `tc_tracker_account` reconcile exactly to GL `1210`/`1211`.
+- **MSR → RSO → Retail load distribution** — each hop creates a receivable: `Dr 1212 / Cr 1211` (MSR→RSO), `Dr 1213 / Cr 1212` (RSO→Retail). RSO **daily collections** settle load + stock portions and route any over/under to overage `4900` / variance `5070`: `Dr Bank / Cr 1212 / Cr 1120 (± variance)`.
+- **SIM inventory & activations** — SIM/IMSI stock is procured through a tracker stock-debit (`Dr 1200 / Cr 1210`, auto-creates a `tc_sim_batch`). Counter sales post sale + COGS sub-JV; activations are logged and their operator commission **accrued** as a receivable (`Dr 1110 / Cr revenue`), cleared at statement settlement.
+- **FCA targets** — first-call activations are **counted, not journalised** per event. Hitting the monthly target pays a commission (`Cr 4060`, credited to tracker or bank); a shortfall books a penalty (`Dr 5090 / Cr 1210`).
+- **Mobile money agency** — float top-up (`Dr 1214 / Cr Cash`); customer deposit *reduces* float (`Dr Cash / Cr 2100`); withdrawal *increases* it (`Dr 2100 / Cr Cash`); commission to `4022`; wallet reconciliation routes the gap to variance/overage.
+- **Postpaid billing** — bill the customer on the operator's behalf (`Dr 1130 / Cr 2110`), collect (`Dr Cash / Cr 1130`), then **remit** net of your commission (`Dr 2110 / Cr Bank net / Cr 4040 commission`).
+- **Commission reconciliation** — record the operator's commission statement, then **settle** it against accrued receivable `1110`; any variance posts to franchise incentive `4061` (favourable) or adjustment (adverse).
+- **Franchise admin** — capitalise the up-front fee as an intangible (`Dr 1300 / Cr Bank`), amortise monthly over the agreement term (`Dr 5030 / Cr 1301`), and accrue/pay royalty on gross revenue (`Dr 5040 / Cr 2120` → `Dr 2120 / Cr Bank`).
+- **Telecom reports** — `/api/telecom/reports/dashboard` (tracker & load positions, commission receivable, RSO, MM float, SIM utilisation, FCA month progress), plus `commission-aging`, `rso-ledger`, `float-statement`, `sim-utilisation`, `postpaid-book`, `revenue-by-stream`, `fca-target`, `tracker-statement` (GL-vs-denormalised reconciliation).
+- **Adaptive UI** — the sidebar surfaces the Telecom section (Overview, Tracker & Load, RSO Channel, SIM & Activations, FCA & Targets, Mobile Money, Postpaid, Commissions, Franchise Admin, Devices) only for `telecom_franchise` tenants. Every operation is a schema-driven `ActionForm` that POSTs a balanced JV and surfaces the resulting JV number inline.
 
 ---
 
@@ -135,10 +151,15 @@ backend/
 │   ├── grn.py               ← (V2.4) Goods Receipt Note + memo JE
 │   ├── production_orders.py ← (V2.4) PO lifecycle (start/complete/deliver/bill)
 │   ├── manufacturing_reports.py ← (V2.5) dashboard + wip-aging + custody
+│   ├── telecom.py           ← (V3) franchise ops: tracker, RSO, SIM, FCA, MM, postpaid, commissions, franchise
+│   ├── telecom_reports.py   ← (V3) dashboard + 8 franchise reports
 │   └── …
+├── models_telecom.py        ← (V3) 23 tc_* tables (separate module, re-exported by models.py)
 ├── services/                ← pure-logic modules (no FastAPI)
 │   ├── posting.py           ← THE central GL writer
 │   ├── inventory.py         ← WAvg cost + reverse helpers
+│   ├── tracker_posting.py   ← (V3) tracker/load/RSO/SIM/FCA balanced JVs
+│   ├── franchise_posting.py ← (V3) mobile-money/postpaid/commission/franchise JVs
 │   ├── fx.py                ← exchange-rate lookup with inverse fallback
 │   ├── money.py             ← Decimal helpers, ROUND_HALF_EVEN
 │   ├── csrf.py              ← double-submit CSRF middleware
@@ -166,12 +187,24 @@ frontend/src/
 │   │   ├── rate-plans/       ← Rate Plan catalogue
 │   │   ├── grn/              ← Goods Receipt Note
 │   │   └── production-orders/← PO lifecycle (one-click advance)
+│   ├── telecom/             ← V3: shows only when business_model='telecom_franchise'
+│   │   ├── page.tsx         ← Telecom dashboard (KPI tiles, FCA progress, revenue by stream)
+│   │   ├── tracker/         ← deposits, load orders, stock debits, operators
+│   │   ├── rso/             ← MSR→RSO→Retail transfers, daily collections, RSO ledger
+│   │   ├── sim/             ← SIM batches, activations, counter sales, commission accrual
+│   │   ├── fca/             ← FCA events, monthly targets, target commission/penalty
+│   │   ├── mobile-money/    ← float, deposit/withdrawal, commission, reconcile
+│   │   ├── postpaid/        ← connections, bill/collect/remit
+│   │   ├── commissions/     ← statements, settlement, receivable aging
+│   │   ├── franchise/       ← agreement, fee amortisation, royalty
+│   │   └── devices/         ← IMEI inventory
 │   ├── workflow/             ← visual flowcharts
 │   ├── guide/                ← user guide (multi-tab)
 │   └── settings/
 ├── components/
-│   ├── Sidebar.tsx           ← adaptive — Manufacturing section gated on tenant
-│   ├── BusinessModelPicker.tsx ← used by signup wizard
+│   ├── Sidebar.tsx           ← adaptive — Manufacturing / Telecom sections gated on tenant
+│   ├── BusinessModelPicker.tsx ← used by signup wizard (5 models incl. telecom_franchise)
+│   ├── telecom/              ← V3: ActionForm (schema-driven JV poster) + primitives (Tabs, DataTable, Tile, useTelecomList)
 │   ├── DocLink.tsx           ← central drill-down resolver: maps {type,id} → /detail href
 │   ├── PrintHeader.tsx       ← branded A4 portrait/landscape print output
 │   ├── guidance/             ← HelpCallout, FieldHint, EmptyStateGuide
@@ -230,7 +263,14 @@ This branch (`saas-transition-foundation`) carries the active SaaS work. Shipped
 - **V2.4** — `GoodsReceiptNote` custodial flow + `ProductionOrder` state machine (start/complete/deliver/bill) with full GL postings
 - **V2.5** — Manufacturing reports (dashboard, wip-aging, production-summary, customer-custody) + adaptive sidebar + per-page in-app guidance
 
-**Test coverage:** 122 backend tests; full lifecycle end-to-end smoke verified.
+**Telecom Franchise track (V3-track)**
+- **V3.1** — `telecom_franchise` business model: CHECK-constraint migration, 56-account franchise CoA, model-specific module set, demo tenant
+- **V3.2** — 23 `tc_*` SQLModel tables (`models_telecom.py`): operator, tracker, SIM batch/activation, load transfers, RSO chain, mobile money, postpaid, commission statements, franchise agreements, KPI targets, device IMEI
+- **V3.3** — Posting services (`tracker_posting.py`, `franchise_posting.py`): deposits, 3% load-uplift orders, MSR→RSO→Retail distribution, RSO daily collection w/ variance, SIM stock & counter sales, FCA target commission/penalty, mobile-money float, postpaid bill/collect/remit, commission accrual & statement settlement, fee amortisation & royalty
+- **V3.4** — `/api/telecom/*` (40+ endpoints) + `/api/telecom/reports/*` (9 reports) + demo operational seed (Jazz operator, load chain, SIM activations, FCA events, franchise agreement)
+- **V3.5** — Telecom dashboard + 9 operation pages, schema-driven `ActionForm`, adaptive sidebar Telecom section. Invariants verified: `tracker.load_balance == GL 1211`, `tracker.deposit_balance == GL 1210`, trial balance nets to zero across all postings
+
+**Test coverage:** 122 backend tests; full lifecycle end-to-end smoke verified (incl. telecom load-float/deposit GL reconciliation + balanced trial balance).
 
 Not yet shipped (worth considering):
 - FX revaluation at period end (unrealised gain/loss on open AR/AP)

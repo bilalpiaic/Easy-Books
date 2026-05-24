@@ -34,12 +34,13 @@ node server.js
 ## High-level architecture
 
 - **Backend:** `backend/main.py` wires middleware and mounts domain routers in `backend/routers/`. Business logic lives in `backend/services/` — especially `services/posting.py`, the only path that writes `JournalEntry` rows and enforces GL invariants. Migrations are in `backend/alembic/`; schema bootstrapping is controlled by `SCHEMA_BOOTSTRAP` (`create_all` vs `alembic`).
-- **Frontend:** Next.js App Router with authenticated pages under `src/app/(dashboard)/`. `SettingsContext` initializes app settings from `/api/settings`, and `src/lib/api.ts` is the single fetch wrapper. Manufacturing UI is gated by `business_model` from `/api/auth/me`.
+- **Frontend:** Next.js App Router with authenticated pages under `src/app/(dashboard)/`. `SettingsContext` initializes app settings from `/api/settings`, and `src/lib/api.ts` is the single fetch wrapper. Manufacturing and Telecom Franchise UI sections are gated by `business_model` from `/api/auth/me`.
 - **Legacy:** `server.js` + `public/` are reference-only for the old stack.
 
 ## Key conventions
 
-- **Multi-tenancy:** Every model includes `tenant_id`; queries must filter by tenant; unique constraints (account codes, JV numbers) are tenant-scoped. JWT payload includes both `sub` (email) and `tenant_id`.
+- **Multi-tenancy:** Every model includes `tenant_id`; queries must filter by tenant; unique constraints (account codes, JV numbers) are tenant-scoped. JWT payload includes both `sub` (email) and `tenant_id`. `business_model` ∈ `simple | services | trader | manufacturing | telecom_franchise` (DB CHECK).
+- **Telecom franchise (V3):** Models live in `backend/models_telecom.py` (23 `tc_*` tables, re-exported by `models.py`). GL postings go through `services/tracker_posting.py` + `services/franchise_posting.py` (which still call `services/posting.py`). Routes under `routers/telecom.py` + `routers/telecom_reports.py`. Frontend under `src/app/(dashboard)/telecom/` using `components/telecom/ActionForm` + `primitives`.
 - **Posting rules:** `sum(debit) == sum(credit)` and no negative amounts. Use `services/posting.py` for any new GL writes.
 - **Money:** Backend uses `Decimal` (`NUMERIC(18,4)`) with banker's rounding (`ROUND_HALF_EVEN`) via `services/money.py`.
 - **Auth hardening:** Login returns both Bearer token and HttpOnly cookie; cookie-auth mutations must echo `eb_csrf` in `X-CSRF-Token`. Idempotency is enabled via the `Idempotency-Key` header.
@@ -49,5 +50,5 @@ node server.js
 ## References
 
 - **README.md** for full feature set and environment variables.
-- **BLUEPRINT.md** and **WORKFLOW.md** for domain flows, GL mappings, and manufacturing lifecycle.
+- **BLUEPRINT.md** and **WORKFLOW.md** for domain flows, GL mappings, and the manufacturing (§4.7) + telecom-franchise (§4.8) lifecycles.
 - **GEMINI.md** for a concise repo overview.

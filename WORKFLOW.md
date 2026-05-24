@@ -19,6 +19,7 @@
    - 4.5 [Manual Journal Entries](#45-manual-journal-entries)
    - 4.6 [Period-End Close](#46-period-end-close)
    - 4.7 [Manufacturing (V2)](#47-manufacturing-v2)
+   - 4.8 [Telecom Franchise (V3)](#48-telecom-franchise-v3)
 5. [Cross-Cutting Features](#5-cross-cutting-features)
    - 5.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 5.2 [Tax Codes](#52-tax-codes)
@@ -543,6 +544,83 @@ Memo balance is released only when **all** layers of a given GRN are fully drain
 
 ---
 
+### 4.8 TELECOM FRANCHISE (V3)
+
+Applies only to tenants where `Tenant.business_model == 'telecom_franchise'`. Signup seeds a 56-account franchise CoA and a franchise-specific module set. 23 `tc_*` tables (`models_telecom.py`) model the operational entities, but the **only** GL writer is still `services/posting.py` — every posting below is a balanced, tenant-scoped JV created via `tracker_posting.py` / `franchise_posting.py`.
+
+The model mirrors a real mobile-operator franchise: you pre-fund a **Tracker** wallet with the operator, convert it to spendable **load float** (earning a 3% uplift), push that float down a **MSR → RSO → Retail** distribution chain, collect cash daily, sell/activate SIMs, hit monthly **FCA** (first-call-activation) targets, run a **mobile-money** agency, bill **postpaid** on the operator's behalf, reconcile **commission statements**, and amortise the **franchise fee** / pay **royalty**.
+
+```
+  FUND THE WALLET            DISTRIBUTE LOAD             SELL & ACTIVATE            SETTLE & RECONCILE
+   │                          │                           │                          │
+   │ deposit  Dr 1210/Cr Bank │ MSR→RSO  Dr 1212/Cr 1211 │ stock debit Dr 1200/     │ RSO daily collection
+   │ load     Dr 1211 (×1.03) │ RSO→Retail Dr 1213/Cr1212│   Cr 1210 (+ tc_sim_batch)│   Dr Bank / Cr 1212
+   │          Cr 1210 (cash)  │                           │ counter sale + COGS       │   / Cr 1120 (±var→5070/4900)
+   │          Cr 4020 (3%)    │                           │ activation → accrue       │ commission statement
+   │                          │                           │   Dr 1110 / Cr 4020       │   settle vs 1110 (var→4061)
+   ▼                          ▼                           ▼                          ▼
+  deposit_balance==GL 1210   load receivables build      SIM inventory relieves      receivables clear
+  load_balance ==GL 1211                                 commission accrues          fee amortises / royalty pays
+```
+
+**Tracker & load order (`tracker_posting.py`):**
+
+| Operation | JV | Side-effect |
+|---|---|---|
+| `post_tracker_deposit` | `Dr 1210 Tracker Deposit / Cr 1010 Bank` | `tc_tracker_account.deposit_balance += amount` |
+| `post_load_order` | `Dr 1211 Load Float (cash×1.03) / Cr 1210 (cash) / Cr 4020 Load Uplift (cash×0.03)` | deposit_balance −= cash; load_balance += face. Rejects if deposit insufficient |
+| `post_stock_debit` | `Dr 1200/1201/1204 Inventory / Cr 1210` | creates a `tc_sim_batch` for code 1200; deposit_balance −= cost |
+| `post_msr_to_rso_transfer` | `Dr 1212 RSO Load Rec / Cr 1211 Load Float` | load_balance −= amount; `tc_load_transfer` row |
+| `post_rso_to_retail_transfer` | `Dr 1213 Retail Load Rec / Cr 1212 RSO Load Rec` | `tc_load_transfer` row |
+| `post_rso_daily_collection` | `Dr 1010 Bank / Cr 1212 (load) / Cr 1120 (stock)`; variance > 0 → `Cr 4900`, < 0 → `Dr 5070` | `tc_rso_daily_collection` row |
+| `post_counter_sim_sale` | sale `Dr Cash / Cr 4030` + COGS `Dr 5011 / Cr 1200` | two JVs |
+| `post_rso_sim_issue` | `Dr 1120 RSO Stock Rec (face) / Cr 1200 (cost) / Cr 4050 (margin)` | `tc_rso_stock_issue`; batch.qty_activated += qty |
+| `post_fca_target_commission` | `Dr 1210 or Bank / Cr 4060 FCA Target Commission` | credits tracker deposit when `credit_to='tracker'` |
+| `post_fca_target_penalty` | `Dr 5090 Target Shortfall Penalty / Cr 1210` | — |
+
+**Mobile money / postpaid / commission / franchise (`franchise_posting.py`):**
+
+| Operation | JV |
+|---|---|
+| `post_mm_float_top_up` | `Dr 1214 MM Float Asset / Cr Cash` |
+| `post_mm_customer_deposit` | `Dr Cash / Cr 2100 MM Float Liability` (float *decreases*) |
+| `post_mm_customer_withdrawal` | `Dr 2100 / Cr Cash` (float *increases*) |
+| `post_mm_commission_credit` | `Dr 1214 or Bank / Cr 4022 MM Commission` |
+| `post_mm_reconciliation` | diff → `Dr 5070` (shortage) or `Cr 4900` (overage); no entry when balanced |
+| `post_commission_accrual` | `Dr 1110 Commission Receivable / Cr revenue (4020 default)`; sets activation `commission_status='accrued'` |
+| `post_commission_statement_settlement` | `Dr Bank/Tracker / Cr 1110 (accrued)`; variance → `Cr 4061` (favourable) or `Dr 5000` (adverse). Zero lines skipped |
+| `post_postpaid_bill` | `Dr 1130 Postpaid Cust Rec / Cr 2110 Collections Payable` (gross) |
+| `post_postpaid_collection` | `Dr Cash / Cr 1130` |
+| `post_postpaid_remittance` | `Dr 2110 (gross) / Cr Bank (net) / Cr 4040 Postpaid Commission` |
+| `post_franchise_fee_capitalisation` | `Dr 1300 Franchise Intangible / Cr Bank` |
+| `post_franchise_fee_amortisation` | `Dr 5030 Fee Amortisation / Cr 1301 Accum. Amort.` (monthly = fee ÷ amortisation_months) |
+| `post_royalty_accrual` | `Dr 5040 Royalty Expense / Cr 2120 Royalty Payable` |
+| `post_royalty_payment` | `Dr 2120 / Cr Bank` |
+
+**FCA invariant:** first-call activations are **counted, not journalised** per event (`tc_fca_event` rows). Only the monthly target settlement (commission or penalty) hits the GL.
+
+**Reconciliation invariants (verified):**
+- `tc_tracker_account.deposit_balance` == GL balance of `1210`
+- `tc_tracker_account.load_balance` == GL balance of `1211`
+- 3-line load order balances exactly (`cash×1.03 == cash + cash×0.03`)
+- Trial balance nets to zero across the full franchise posting set
+
+**Telecom reports (V3):**
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/telecom/reports/dashboard` | Tracker & load positions, commission receivable, RSO count/stock-rec, MM float, SIM utilisation, FCA month progress |
+| `GET /api/telecom/reports/commission-aging` | Accrued commission receivable bucketed `current / 1-30 / 31-60 / 61-90 / 90+` |
+| `GET /api/telecom/reports/rso-ledger` | Per-RSO: load in (MSR), load out (retail), cash collected (load/stock/total), open load balance |
+| `GET /api/telecom/reports/float-statement` | MM accounts: system float vs GL `1214` for reconciliation |
+| `GET /api/telecom/reports/sim-utilisation` | Per-batch received / activated / available + unit cost |
+| `GET /api/telecom/reports/postpaid-book` | All postpaid bill cycles with collection + remittance status |
+| `GET /api/telecom/reports/revenue-by-stream` | Revenue per franchise stream (CoA 4xxx), sign-flipped + total |
+| `GET /api/telecom/reports/fca-target` | Current-month FCA actual vs target, achievement %, delta |
+| `GET /api/telecom/reports/tracker-statement` | Tracker txn ledger + GL-vs-denormalised deposit/load reconciliation |
+
+---
+
 ## 5. CROSS-CUTTING FEATURES
 
 ### 5.1 Multi-Currency & FX
@@ -897,6 +975,27 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/import/{entity}/sample` | Blank CSV template |
 | POST | `/api/import/accounts` \| `customers` \| `vendors` \| `products` \| `transactions` | Bulk create; per-row error collection; partial-success OK |
 
+### 8.9 Telecom franchise (V3 — `business_model = telecom_franchise`)
+| Method | Path | Purpose |
+|---|---|---|
+| GET/POST | `/api/telecom/operators` · `/tracker-accounts` | Operator + tracker (MSR) wallet master data |
+| POST | `/api/telecom/tracker/deposits` · `/load-orders` · `/stock-debits` | Fund wallet, place 3% load order, procure SIM/IMSI stock |
+| GET | `/api/telecom/tracker/transactions` | Tracker txn ledger |
+| GET/POST | `/api/telecom/rso/agents` · `/rso/retail-outlets` | RSO channel master data |
+| POST | `/api/telecom/load-transfers/msr-to-rso` · `/rso-to-retail` | Distribute load down the chain |
+| GET/POST | `/api/telecom/rso/collections` | RSO daily cash collection (load + stock ± variance) |
+| POST | `/api/telecom/rso/sim-issues` | Issue SIM stock to an RSO |
+| GET | `/api/telecom/sim/batches` · GET/POST `/sim/activations` | SIM inventory + activations |
+| POST | `/api/telecom/sim/activations/accrue-commission` · `/sim/counter-sales` | Accrue activation commission; walk-in sale |
+| GET/POST | `/api/telecom/fca/events` · `/kpi/targets` | FCA counter + monthly targets |
+| POST | `/api/telecom/fca/target-commission` · `/fca/target-penalty` | Monthly target settlement |
+| GET/POST | `/api/telecom/mm/accounts` · POST `/mm/top-up` · `/mm/deposit` · `/mm/withdrawal` · `/mm/commission` · `/mm/reconcile` · GET `/mm/transactions` | Mobile-money agency |
+| GET/POST | `/api/telecom/postpaid/connections` · POST `/postpaid/bills` · `/postpaid/collect` · `/postpaid/remit` · GET `/postpaid/cycles` | Postpaid billing on operator's behalf |
+| GET/POST | `/api/telecom/commissions/statements` · POST `/commissions/settle` | Commission statement + reconciliation |
+| GET/POST | `/api/telecom/franchise/agreements` · POST `/franchise/capitalise-fee` · `/franchise/amortise` · `/franchise/royalty/accrue` · `/franchise/royalty/pay` | Franchise fee + royalty |
+| GET/POST | `/api/telecom/imei` | Device IMEI inventory |
+| GET | `/api/telecom/reports/*` | 9 franchise reports (see §4.8) |
+
 ---
 
 ## 9. SECURITY MODEL
@@ -1051,6 +1150,8 @@ Auto-seeded on signup. 22 accounts across the five standard types:
 | 5300 | Rent & Utilities | Expense | Recurring/manual |
 | 5400 | Transport & Delivery | Expense | Manual |
 | 5900 | Other Expenses | Expense | Manual |
+
+**Model-specific CoA:** the `manufacturing` model extends this with raw-material/WIP/FG layers, the custodial memo pair `1210/2150`, direct labour and overhead. The `telecom_franchise` model swaps in a dedicated **56-account franchise CoA** seeded by `db.py` (`_COA_TELECOM_FRANCHISE_EXTRA`): Tracker Deposit `1210`, Load Float `1211`, RSO/Retail load receivables `1212/1213`, MM float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`/Accum. Amort `1301`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue `4000–4061` (incl. 3% load uplift `4020`, FCA target commission `4060`); COGS/expense `5010–5090` (fee amortisation `5030`, royalty `5040`, tracker/float variance `5070`, target penalty `5090`). See §4.8.
 
 ---
 
