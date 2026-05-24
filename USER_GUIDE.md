@@ -23,7 +23,7 @@
 
 ### 1.1 First-Time Login
 
-Easy-Books provides **4 pre-seeded demo tenants** for immediate exploration:
+Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 
 | Email | Password | Business Model |
 |-------|----------|---|
@@ -31,10 +31,13 @@ Easy-Books provides **4 pre-seeded demo tenants** for immediate exploration:
 | `demo.services@easy-books.app` | `demo1234` | Service firm (recurring revenue, time tracking) |
 | `demo.trader@easy-books.app` | `demo1234` | Trading company (buy/resell, inventory) |
 | `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing (BoMs, production orders) |
+| `demo.telecom@easy-books.app` | `demo1234` | Telecom Franchise (Tracker, RSO chain, FCA, SIM) |
 
-**To explore with mock data:**
-- Demo tenants include 12+ customers, 12+ vendors, realistic invoices/bills, and 40+ journal entries per tenant
-- No setup required — just log in and explore
+**Rich mock data included:**
+- Each tenant has **50+ customers, 50+ vendors, 50+ invoices, 50+ bills, 50+ manual journal entries**
+- Manufacturing tenant: 50 BoMs, 50 GRNs, 50 production orders, 50 rate plans
+- Telecom tenant: 50 SIM activations, 50 FCA events, full RSO chain & franchise agreement
+- `dev.sh` seeds automatically on every start — no manual step needed
 
 ### 1.2 Custom Business Setup
 
@@ -46,7 +49,7 @@ To create your own business:
    - Email
    - Password (≥ 8 characters)
    - Company name
-   - Business model (Simple / Services / Trader / Manufacturing)
+   - Business model (Simple / Services / Trader / Manufacturing / Telecom Franchise)
 3. Click **Start Free Trial**
 
 Easy-Books will:

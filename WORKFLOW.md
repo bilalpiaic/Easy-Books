@@ -1,7 +1,7 @@
 # Easy-Books — Workflow & Architecture Guide
 
 > Multi-tenant double-entry accounting SaaS
-> FastAPI + SQLModel + Alembic (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend)
+> FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend)
 > SQLite for dev, PostgreSQL-ready for prod · JWT + HttpOnly cookie auth · RBAC · CSRF · idempotency · multi-currency
 
 ---
@@ -54,12 +54,12 @@
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
-| Demo tenants | 4 pre-seeded: simple/services/trader/manufacturing (email: demo.{model}@easy-books.app, password: demo1234) |
+| Demo tenants | 5 pre-seeded: simple/services/trader/manufacturing/telecom_franchise (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 50+ records per type by `dev.sh` |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings` |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
-| Storage | SQLite (dev) → Postgres (prod) via SQLModel; Alembic migrations 0001 → 0013 |
+| Storage | SQLite (dev) → Postgres (prod) via SQLModel; `create_all()` bootstraps schema — no Alembic |
 | Reports | Live from `JournalEntry`; closed periods read materialised `AccountBalance` (**ISA 230** audit documentation) |
 | API surface | 80+ endpoints, mounted twice at `/api/*` and `/api/v1/*` |
 
@@ -118,7 +118,7 @@ backend/
 ├── models.py              ← SQLModel tables (28 tables current)
 ├── auth.py                ← JWT + bcrypt + secret hardening
 ├── db.py                  ← engine, seed_data, default CoA
-├── alembic.ini · alembic/versions/
+├── scripts/seed_demo.py
 ├── routers/               ← 21 domain routers
 │   ├── common.py          ← SessionDep, CurrentUserDep, WriteUserDep,
 │   │                        require_min_role, next_number, get_or_create_account
@@ -274,7 +274,7 @@ Easy-Books implements the following international accounting standards and best 
 
 ### Demo Tenant Initialization
 
-On first database run, Easy-Books auto-creates 4 pre-seeded demo tenants (one per business model):
+On first database run, Easy-Books auto-creates 5 pre-seeded demo tenants (one per business model). `dev.sh` also seeds each with 50+ records per entity type:
 
 | Tenant | Email | Model | Use Case |
 |---|---|---|---|
@@ -1243,7 +1243,7 @@ Every call to `services.posting.post_transaction` runs `_check_period_locked(ten
 - **API versioning** — every route at `/api/*` and `/api/v1/*`.
 - **CSRF** double-submit-cookie on cookie-auth path.
 - **DB-backed login throttle** — shared across workers.
-- **Migrations idempotent** — each Alembic file checks the inspector before creating tables/columns.
+- **Schema bootstrap** — `SQLModel.metadata.create_all()` on startup; no Alembic. New columns on existing tables require manual `ALTER TABLE` or a DB reset.
 
 ---
 

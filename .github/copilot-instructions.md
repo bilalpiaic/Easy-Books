@@ -33,7 +33,7 @@ node server.js
 
 ## High-level architecture
 
-- **Backend:** `backend/main.py` wires middleware and mounts domain routers in `backend/routers/`. Business logic lives in `backend/services/` — especially `services/posting.py`, the only path that writes `JournalEntry` rows and enforces GL invariants. Migrations are in `backend/alembic/`; schema bootstrapping is controlled by `SCHEMA_BOOTSTRAP` (`create_all` vs `alembic`).
+- **Backend:** `backend/main.py` wires middleware and mounts 29 domain routers in `backend/routers/`. Business logic lives in `backend/services/` — especially `services/posting.py`, the only path that writes `JournalEntry` rows and enforces GL invariants. Schema bootstrapped via `create_all()` — no Alembic.
 - **Frontend:** Next.js App Router with authenticated pages under `src/app/(dashboard)/`. `SettingsContext` initializes app settings from `/api/settings`, and `src/lib/api.ts` is the single fetch wrapper. Manufacturing and Telecom Franchise UI sections are gated by `business_model` from `/api/auth/me`.
 - **Legacy:** `server.js` + `public/` are reference-only for the old stack.
 
@@ -47,6 +47,12 @@ node server.js
 - **Auth hardening:** Login returns both Bearer token and HttpOnly cookie; cookie-auth mutations must echo `eb_csrf` in `X-CSRF-Token`. Idempotency is enabled via the `Idempotency-Key` header.
 - **API versioning:** Endpoints are mounted at `/api/*` and `/api/v1/*`; keep v1 stable for SDK consumers.
 - **Frontend constraints:** Next.js 16 has breaking changes — read `frontend/AGENTS.md` and `node_modules/next/dist/docs/` before editing.
+
+## Dev environment
+
+- **`./dev.sh`** — starts backend (port 8000) + frontend (port 3000) together. Auto-seeds all 5 demo tenants with 50+ records per entity type before starting. Handles WSL2 node/npm path issues automatically.
+- **No Alembic** — schema bootstrapped via `create_all()`; add columns to existing DBs with `ALTER TABLE` or delete `backend/database.db` to reset.
+- **5 demo tenants** — simple / services / trader / manufacturing / telecom_franchise, all at `demo.<model>@easy-books.app` / `demo1234`.
 
 ## References
 

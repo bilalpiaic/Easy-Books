@@ -28,7 +28,7 @@ from sqlmodel import Session, select
 from auth import get_password_hash
 from db import engine, seed_data
 from models import (
-    Account, BomHeader, BomLine, Bill, BillLine, BillPayment, Customer,
+    Account, AuditLog, BomHeader, BomLine, Bill, BillLine, BillPayment, Customer,
     CustomerRatePlan, ExchangeRate, GRNLine, GoodsReceiptNote, InventoryLayer,
     Invoice, InvoiceLine, PaymentAllocation, PaymentReceived, Product,
     ProductionOrder, RatePlan, RecurringTemplate, SequenceCounter, StockLocation,
@@ -71,12 +71,22 @@ CUSTOMER_NAMES = [
     "Delta Wholesale Co.", "Evergreen Brands", "Falcon Outfitters",
     "Greenline Imports", "Horizon Retailers", "Iris Apparel",
     "Junction Trading", "Karma Lifestyles", "Lakeside Markets",
+    "Meridian Goods", "Nova Fashion House", "Orbit Distributors",
+    "Pinnacle Stores", "Quest Apparel", "Radiant Retailers",
+    "Stellar Brands", "Titan Marketplaces", "Urban Bazaar",
+    "Vantage Wholesale", "Westfield Traders", "Xcel Boutiques",
+    "Zenith Commerce",
 ]
 VENDOR_NAMES = [
     "Acme Supplies", "Beacon Hardware", "Crescent Logistics",
     "Dynamo Industrial", "Echo Materials", "Fortune Components",
     "Golden Threads", "Helix Yarn Mills", "Imperial Tooling",
     "Junction Distributors", "Keystone Chemicals", "Lustre Packaging",
+    "Metro Raw Goods", "Nexus Fabrics", "Omega Procurement",
+    "Pioneer Resources", "Quality Inputs Ltd.", "Reliable Parts Co.",
+    "Summit Sourcing", "Trident Supplies", "United Raw Materials",
+    "Vertex Components", "Wholesale Direct", "XL Industrial",
+    "Zenith Vendors",
 ]
 SERVICE_PRODUCTS = [
     ("CONSULT-HR", "HR Consulting (per hour)",       "hr",   150),
@@ -322,7 +332,7 @@ def _seed_recurring_templates(s: Session, tenant_id: int) -> None:
 
 def _seed_bills(
     s: Session, user: User, vendors: list[Vendor], products: list[Product],
-    business_model: str, count: int = 12,
+    business_model: str, count: int = 50,
 ) -> list[Bill]:
     tid = user.tenant_id
     existing = s.exec(select(Bill).where(Bill.tenant_id == tid)).all()
@@ -414,7 +424,7 @@ def _seed_bills(
 
 def _seed_invoices(
     s: Session, user: User, customers: list[Customer], products: list[Product],
-    business_model: str, count: int = 12,
+    business_model: str, count: int = 50,
 ) -> list[Invoice]:
     tid = user.tenant_id
     existing = s.exec(select(Invoice).where(Invoice.tenant_id == tid)).all()
@@ -523,7 +533,7 @@ def _seed_invoices(
 
 
 def _seed_payments_received(
-    s: Session, user: User, invoices: list[Invoice], count: int = 12,
+    s: Session, user: User, invoices: list[Invoice], count: int = 50,
 ) -> None:
     tid = user.tenant_id
     posted_invoices = [i for i in invoices if i.status in ("posted", "partial", "paid")]
@@ -568,7 +578,7 @@ def _seed_payments_received(
 
 
 def _seed_bill_payments(
-    s: Session, user: User, bills: list[Bill], count: int = 12,
+    s: Session, user: User, bills: list[Bill], count: int = 50,
 ) -> None:
     tid = user.tenant_id
     existing = s.exec(select(BillPayment).where(BillPayment.tenant_id == tid)).all()
@@ -611,51 +621,95 @@ def _seed_bill_payments(
 # ── Manual JVs ────────────────────────────────────────────────────────────────
 
 
-def _seed_manual_jvs(s: Session, user: User, count: int = 12) -> None:
+def _seed_manual_jvs(s: Session, user: User, count: int = 50) -> None:
     tid = user.tenant_id
-    base_day = date.today() - timedelta(days=180)
-    # Pick a handful of stable accounts
-    cash = _account(s, tid, "1010")
-    bank = _account(s, tid, "1010") or _account(s, tid, "1000")
-    rent = _account(s, tid, "5000")
-    capital = _account(s, tid, "3000")
-    drawings = _account(s, tid, "3010")
-    other_inc = _account(s, tid, "4900")
-    depr = _account(s, tid, "5050")
+    base_day = date.today() - timedelta(days=365)
 
-    seeds = [
-        ("Owner capital injection",  capital, bank, D(50000), "credit"),
-        ("Office rent payment",      rent, cash,  D(1500),    "debit"),
-        ("Owner drawings",           drawings, cash, D(800),  "debit"),
-        ("Other income — refund",    other_inc, bank, D(450), "credit"),
-        ("Depreciation — month 1",   depr, _account(s, tid, "5050"), D(300), "debit"),
-        ("Owner top-up capital",     capital, bank, D(10000), "credit"),
-        ("Office rent — next month", rent, cash,   D(1500),   "debit"),
-        ("Owner drawings — 2",       drawings, cash, D(500),  "debit"),
-        ("Bank fees",                rent, bank,    D(25),    "debit"),
-        ("Other income — interest",  other_inc, bank, D(75),  "credit"),
-        ("Depreciation — month 2",   depr, _account(s, tid, "5050"), D(300), "debit"),
-        ("Office rent — month 3",    rent, cash,   D(1500),   "debit"),
+    cash      = _account(s, tid, "1010") or _account(s, tid, "1000")
+    bank      = _account(s, tid, "1010") or _account(s, tid, "1000")
+    rent      = _account(s, tid, "5000")
+    capital   = _account(s, tid, "3000")
+    drawings  = _account(s, tid, "3010")
+    other_inc = _account(s, tid, "4900")
+    depr_exp  = _account(s, tid, "5050")
+    salary    = _account(s, tid, "5100") or _account(s, tid, "5000")
+    util      = _account(s, tid, "5200") or _account(s, tid, "5000")
+    adv       = _account(s, tid, "5300") or _account(s, tid, "5000")
+
+    # Pattern pool — cycled to reach `count` entries
+    patterns = [
+        ("Owner capital injection",         capital,   bank,      D(50000)),
+        ("Office rent payment",             rent,      cash,      D(1500)),
+        ("Owner drawings",                  drawings,  cash,      D(800)),
+        ("Other income — refund",           other_inc, bank,      D(450)),
+        ("Depreciation charge",             depr_exp,  bank,      D(300)),
+        ("Owner top-up capital",            capital,   bank,      D(10000)),
+        ("Salary expense",                  salary,    cash,      D(3500)),
+        ("Utility bill payment",            util,      cash,      D(280)),
+        ("Advertising spend",               adv,       bank,      D(650)),
+        ("Bank interest income",            bank,      other_inc, D(95)),
+        ("Office supplies expense",         rent,      cash,      D(120)),
+        ("Owner drawings — Q2",             drawings,  cash,      D(600)),
+        ("Telephone & internet",            util,      cash,      D(180)),
+        ("Staff overtime payment",          salary,    cash,      D(900)),
+        ("Maintenance & repairs",           rent,      cash,      D(430)),
+        ("Professional fees",               adv,       bank,      D(2000)),
+        ("Travel & accommodation",          adv,       cash,      D(750)),
+        ("Stationery & printing",           rent,      cash,      D(85)),
+        ("Bank charges",                    rent,      bank,      D(35)),
+        ("Miscellaneous income",            bank,      other_inc, D(200)),
+        ("Security deposit paid",           capital,   bank,      D(5000)),
+        ("Asset injection — owner",         capital,   bank,      D(25000)),
+        ("Annual insurance premium",        adv,       bank,      D(1200)),
+        ("Cleaning services",               rent,      cash,      D(240)),
+        ("Software subscription",           adv,       bank,      D(300)),
+        ("Courier & postage",               rent,      cash,      D(60)),
+        ("Vehicle running expense",         util,      cash,      D(520)),
+        ("Depreciation — equipment",        depr_exp,  bank,      D(400)),
+        ("Festive bonuses",                 salary,    cash,      D(1500)),
+        ("Marketing campaign",              adv,       bank,      D(3200)),
+        ("Owner drawings — Q3",             drawings,  cash,      D(700)),
+        ("Training & development",          adv,       bank,      D(800)),
+        ("Fuel expense",                    util,      cash,      D(310)),
+        ("Water charges",                   util,      cash,      D(90)),
+        ("Electricity bill",                util,      cash,      D(460)),
+        ("Legal & compliance fees",         adv,       bank,      D(1800)),
+        ("Inventory write-off",             rent,      bank,      D(550)),
+        ("Gain on asset disposal",          bank,      other_inc, D(1100)),
+        ("Interest on loan",                rent,      bank,      D(620)),
+        ("Owner drawings — Q4",             drawings,  cash,      D(850)),
+        ("Yearend audit fee",               adv,       bank,      D(2500)),
+        ("Office renovation",               rent,      bank,      D(4500)),
+        ("Petty cash replenishment",        rent,      cash,      D(200)),
+        ("Staff welfare",                   salary,    cash,      D(350)),
+        ("Parking & toll fees",             util,      cash,      D(75)),
+        ("Printing & design",               adv,       bank,      D(480)),
+        ("Subscription renewal",            adv,       bank,      D(420)),
+        ("Owner capital — final tranche",   capital,   bank,      D(15000)),
+        ("Yearend depreciation adjustment", depr_exp,  bank,      D(500)),
     ]
 
-    # Filter out ones that need missing accounts
-    valid_seeds = [(d, a, b, amt, side) for d, a, b, amt, side in seeds if a and b]
+    valid = [(desc, a, b, amt) for desc, a, b, amt in patterns if a and b and a.id != b.id]
 
-    # Skip if we already have plenty of manual entries
-    from models import Transaction
-    n_existing = len(s.exec(select(Transaction).where(Transaction.tenant_id == tid)).all())
-    if n_existing >= 40:   # we'll already have plenty from invoices/bills/payments
-        return
+    existing_jv_count = len(s.exec(
+        select(AuditLog).where(
+            AuditLog.tenant_id == tid,
+            AuditLog.entity_type == "manual_jv",
+        )
+    ).all())
+    to_create = max(0, count - existing_jv_count)
 
-    for i, (desc, dr_acc, cr_acc, amt, _side) in enumerate(valid_seeds[:count]):
-        if dr_acc.id == cr_acc.id:
-            continue  # skip same-account entries
-        d = (base_day + timedelta(days=i * 10)).isoformat()
+    for i in range(to_create):
+        desc, dr_acc, cr_acc, base_amt = valid[i % len(valid)]
+        cycle = i // len(valid)
+        amt = money(base_amt + D(cycle * 50))
+        d = (base_day + timedelta(days=i * 7)).isoformat()
         post_transaction(
-            s, user, date=d, description=desc,
+            s, user, date=d,
+            description=f"{desc}{f' (#{cycle + 1})' if cycle else ''}",
             entries=[
-                EntryInput(account_id=dr_acc.id, debit=money(amt)),
-                EntryInput(account_id=cr_acc.id, credit=money(amt)),
+                EntryInput(account_id=dr_acc.id, debit=amt),
+                EntryInput(account_id=cr_acc.id, credit=amt),
             ],
             audit_entity_type="manual_jv",
             audit_detail={"desc": desc, "amount": str(amt)},
@@ -679,10 +733,10 @@ def _seed_manufacturing(
     if not raw or not fg or not customer_supplied_products:
         return
 
-    # 1. BoMs — one per finished good (3) + variations = 12+
+    # 1. BoMs — one per finished good (3) + variations = 50+
     existing_boms = s.exec(select(BomHeader).where(BomHeader.tenant_id == tid)).all()
-    if len(existing_boms) < 12:
-        for i in range(12 - len(existing_boms)):
+    if len(existing_boms) < 50:
+        for i in range(50 - len(existing_boms)):
             output = fg[i % len(fg)]
             # Each BoM consumes 1-2 raw + 1 customer-supplied
             r1 = raw[i % len(raw)]
@@ -721,22 +775,60 @@ def _seed_manufacturing(
                 source="customer_supplied",
             ))
 
-    # 2. Rate plans — 12
+    # 2. Rate plans — 50
     existing_plans = s.exec(select(RatePlan).where(RatePlan.tenant_id == tid)).all()
-    plans_to_create = max(0, 12 - len(existing_plans))
+    plans_to_create = max(0, 50 - len(existing_plans))
     plan_specs = [
-        ("STITCH-STD",  "Standard Stitching", 10, True,  5, 10),
-        ("STITCH-PREM", "Premium Stitching",  15, True,  8, 15),
-        ("CUT-STD",     "Standard Cutting",    5, False, 0,  0),
-        ("FINISH-LITE", "Light Finishing",     8, True,  3,  8),
-        ("FINISH-HEAVY","Heavy Finishing",    18, True,  6, 12),
-        ("DYE-STD",     "Standard Dyeing",    12, True,  4,  9),
-        ("DYE-PREM",    "Premium Dyeing",     22, True,  7, 14),
-        ("EMBROIDERY",  "Embroidery Work",    25, True,  5, 20),
-        ("PRINTING",    "Screen Printing",    14, True,  4, 12),
-        ("ASSEMBLY",    "Assembly Work",      20, True,  6, 18),
-        ("QC-EXPRESS",  "QC Express Lane",     6, False, 0,  5),
-        ("PACKAGING",   "Packaging Service",   4, True,  2,  6),
+        ("STITCH-STD",   "Standard Stitching",      10, True,  5, 10),
+        ("STITCH-PREM",  "Premium Stitching",        15, True,  8, 15),
+        ("CUT-STD",      "Standard Cutting",          5, False, 0,  0),
+        ("FINISH-LITE",  "Light Finishing",            8, True,  3,  8),
+        ("FINISH-HEAVY", "Heavy Finishing",           18, True,  6, 12),
+        ("DYE-STD",      "Standard Dyeing",           12, True,  4,  9),
+        ("DYE-PREM",     "Premium Dyeing",            22, True,  7, 14),
+        ("EMBROIDERY",   "Embroidery Work",           25, True,  5, 20),
+        ("PRINTING",     "Screen Printing",           14, True,  4, 12),
+        ("ASSEMBLY",     "Assembly Work",             20, True,  6, 18),
+        ("QC-EXPRESS",   "QC Express Lane",            6, False, 0,  5),
+        ("PACKAGING",    "Packaging Service",          4, True,  2,  6),
+        ("WASH-COLD",    "Cold Water Wash",            7, True,  2,  5),
+        ("WASH-HOT",     "Hot Water Wash",             9, True,  3,  7),
+        ("IRON-STD",     "Standard Ironing",           5, True,  2,  4),
+        ("IRON-STEAM",   "Steam Pressing",             8, True,  3,  6),
+        ("FOLD-PACK",    "Fold & Pack",                4, True,  1,  3),
+        ("LABEL-SEW",    "Label Sewing",               3, True,  1,  2),
+        ("INSPECT-QC",   "Quality Inspection",        10, False, 0,  8),
+        ("OVERLOCK",     "Overlocking",                6, True,  2,  5),
+        ("BUTTON-ATT",   "Button Attachment",          4, True,  1,  3),
+        ("ZIPPER-FIT",   "Zipper Fitting",             5, True,  2,  4),
+        ("TRIM-CUT",     "Trim Cutting",               3, True,  1,  2),
+        ("SMOCKING",     "Smocking Work",             30, True,  8, 22),
+        ("BEADWORK",     "Bead Work",                 35, True, 10, 25),
+        ("HAND-EMBROI",  "Hand Embroidery",           40, True, 12, 28),
+        ("LACE-ATT",     "Lace Attachment",           18, True,  5, 14),
+        ("PATCH-SEW",    "Patch Sewing",              12, True,  4, 10),
+        ("HEAT-PRESS",   "Heat Transfer Press",       16, True,  5, 11),
+        ("SUBLIMATION",  "Sublimation Printing",      20, True,  6, 14),
+        ("STONEWASH",    "Stone Washing",             15, True,  5, 10),
+        ("ACID-WASH",    "Acid Wash Treatment",       17, True,  6, 12),
+        ("ENZYME-WASH",  "Enzyme Washing",            13, True,  4,  9),
+        ("PIGMENT-DYE",  "Pigment Dyeing",            19, True,  6, 13),
+        ("DISCHARGE-PR", "Discharge Printing",        21, True,  7, 15),
+        ("DEVORE",       "Devore Technique",          38, True, 11, 26),
+        ("BURNOUT",      "Burnout Print",             28, True,  9, 20),
+        ("RESIST-DYE",   "Resist Dyeing",             24, True,  7, 17),
+        ("PLEATING",     "Pleating Work",             22, True,  7, 16),
+        ("SMASH-PLEAT",  "Smash Pleating",            26, True,  8, 18),
+        ("BOX-PLEAT",    "Box Pleating",              23, True,  7, 16),
+        ("PINTUCK",      "Pintuck Stitching",         16, True,  5, 11),
+        ("FAGOTING",     "Fagoting Work",             32, True,  9, 23),
+        ("TRAPUNTO",     "Trapunto Quilting",         36, True, 10, 26),
+        ("SHADOW-WORK",  "Shadow Work Embroidery",    42, True, 12, 30),
+        ("CUTWORK",      "Cutwork Embroidery",        45, True, 13, 32),
+        ("CHAIN-STITCH", "Chain Stitch",              18, True,  5, 12),
+        ("CROSS-STITCH", "Cross Stitch",              28, True,  8, 20),
+        ("SATIN-STITCH", "Satin Stitch",              22, True,  7, 15),
+        ("FRENCH-KNOT",  "French Knot Work",          30, True,  9, 21),
     ]
     plan_objs: list[RatePlan] = list(existing_plans)
     for spec in plan_specs[:plans_to_create]:
@@ -768,7 +860,7 @@ def _seed_manufacturing(
             tenant_id=tid, customer_id=c.id, rate_plan_id=plan_objs[0].id, is_active=True,
         ))
 
-    # 4. GRNs — 12, each receiving customer-supplied material
+    # 4. GRNs — 50, each receiving customer-supplied material
     godown = s.exec(
         select(StockLocation).where(
             StockLocation.tenant_id == tid, StockLocation.type == "customer_custodial",
@@ -778,7 +870,7 @@ def _seed_manufacturing(
         return
     existing_grns = s.exec(select(GoodsReceiptNote).where(GoodsReceiptNote.tenant_id == tid)).all()
     grn_objs: list[GoodsReceiptNote] = list(existing_grns)
-    grns_to_create = max(0, 12 - len(existing_grns))
+    grns_to_create = max(0, 50 - len(existing_grns))
     base_day = date.today() - timedelta(days=80)
     for i in range(grns_to_create):
         customer = customers[i % len(customers)]
@@ -831,12 +923,13 @@ def _seed_manufacturing(
             s.add(grn)
         grn_objs.append(grn)
 
-    # 5. Production orders — 12, distributed across states
+    # 5. Production orders — 50, distributed across states
     existing_pos = s.exec(select(ProductionOrder).where(ProductionOrder.tenant_id == tid)).all()
-    pos_to_create = max(0, 12 - len(existing_pos))
+    pos_to_create = max(0, 50 - len(existing_pos))
     state_pattern = [
-        "draft", "draft", "started", "started", "completed",
-        "completed", "delivered", "delivered", "billed", "billed", "billed", "cancelled",
+        "draft", "draft", "draft", "started", "started", "started",
+        "completed", "completed", "delivered", "delivered",
+        "billed", "billed", "billed", "cancelled", "draft",
     ]
     for i in range(pos_to_create):
         # Pick an active BoM
@@ -955,18 +1048,18 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
 
     # 8. SIM activations (some with commission accrued)
     activations: list[SimActivation] = []
-    for i in range(12):
+    for i in range(50):
         act = SimActivation(
             tenant_id=tid, operator_id=op.id,
             sim_number=f"0300{1000000 + i:07d}",
             batch_id=batch.id if batch else None,
-            activation_date=(today - timedelta(days=20 - i)).isoformat(),
-            customer_name=f"Customer {i+1}", activation_type="prepaid",
+            activation_date=(today - timedelta(days=50 - i)).isoformat(),
+            customer_name=f"Customer {i+1}", activation_type="prepaid" if i % 3 != 0 else "postpaid",
             status="active", commission_rate=D("150"), commission_status="pending",
         )
         s.add(act); s.flush()
         activations.append(act)
-    for act in activations[:6]:
+    for act in activations[:25]:
         post_commission_accrual(s, user, activation=act, amount=D("150"),
                                 date=act.activation_date, revenue_account_code="4020")
     s.flush()
@@ -974,10 +1067,10 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
     # 9. FCA events this month + a monthly target
     month = today.strftime("%Y-%m")
     target = KpiTarget(tenant_id=tid, operator_id=op.id, target_month=f"{month}-01",
-                       metric="fca", target_value=D("30"))
+                       metric="fca", target_value=D("60"))
     s.add(target); s.flush()
-    for i in range(22):
-        day = min(i + 1, today.day if today.day > 0 else 1)
+    for i in range(50):
+        day = min((i % 28) + 1, today.day if today.day > 0 else 1)
         s.add(FcaEvent(
             tenant_id=tid, msisdn=f"0301{2000000 + i:07d}",
             event_date=f"{month}-{day:02d}", source_channel="rso_retail",

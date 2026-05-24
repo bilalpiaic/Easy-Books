@@ -52,12 +52,16 @@ npm install && node server.js    # runs on root package.json
 
 | File | Purpose |
 |------|---------|
-| `main.py` | All FastAPI routes and dependency injection (~81 KB) |
+| `main.py` | FastAPI bootstrap — middleware wiring and router mounts (~80 lines) |
 | `models.py` | SQLModel table + schema definitions |
-| `db.py` | Engine creation, startup seeding (default tenant + CoA + admin user) |
+| `models_telecom.py` | 23 `tc_*` tables for the Telecom Franchise business model |
+| `db.py` | Engine creation, startup seeding (default tenant + CoA + admin user + 5 demo tenants) |
 | `auth.py` | JWT encoding/decoding, bcrypt password hashing |
+| `routers/` | 29 domain routers (accounts, invoices, bills, payments, users, telecom, reports, …) |
+| `services/` | Pure-logic modules — `posting.py` is the only GL writer |
+| `scripts/seed_demo.py` | Idempotent rich mock-data seeder (50+ per entity type) |
 
-**Database:** SQLite (`backend/database.db`) in dev; PostgreSQL via `DATABASE_URL` in production. Schema is created via `SQLModel.metadata.create_all()` — no Alembic migrations exist.
+**Database:** SQLite (`backend/database.db`) in dev; PostgreSQL via `DATABASE_URL` in production. Schema is created via `SQLModel.metadata.create_all()` — **no Alembic migrations**; schema changes to existing DBs require manual `ALTER TABLE`.
 
 **Seeding:** On startup, `db.py` creates:
 - A default `Tenant`, seeds a Chart of Accounts, and optionally creates an admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars
@@ -73,7 +77,7 @@ npm install && node server.js    # runs on root package.json
 | `demo.manufacturing@easy-books.app` | Manufacturing | `demo1234` |
 | `demo.telecom@easy-books.app` | Telecom Franchise | `demo1234` |
 
-To populate demo tenants with mock data (12+ customers, vendors, invoices, bills per tenant):
+Demo tenants are auto-populated with **50+ customers, vendors, invoices, bills, and journal entries per tenant** each time `dev.sh` runs (idempotent — skips rows that already exist). To run the seeder manually:
 ```bash
 cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 ```
@@ -143,14 +147,15 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - **Tenant isolation** — always filter by `tenant_id`; missing this silently leaks cross-tenant data.
 - **Debit/credit balance** — validate totals before any transaction commit.
 - **JWT payload** — must include both `sub` and `tenant_id`; auth middleware depends on both fields.
-- **No migration tool** — schema changes require manual coordination; `create_all()` only adds new tables, it does not alter existing ones.
+- **No migration tool** — `create_all()` only adds new tables; it does not alter existing ones. For columns added to existing tables, use `ALTER TABLE` directly on the SQLite file (see `dev.sh` history for examples).
+- **WSL2 npm issue** — `dev.sh` resolves the Linux node binary automatically; never invoke Windows `npm` inside WSL2 paths.
 
 ---
 
 ## Adding Common Features
 
 **New report:**
-1. Add FastAPI endpoint in `backend/main.py` using `select()` with tenant filter.
+1. Add FastAPI endpoint in the appropriate `backend/routers/` file (or `routers/reports.py`) using `select()` with tenant filter.
 2. Create `frontend/src/app/(dashboard)/[report-name]/page.tsx`.
 3. Use `apiFetch` for data; `react-chartjs-2` for visualizations.
 

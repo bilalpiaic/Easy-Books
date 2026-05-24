@@ -73,7 +73,7 @@ The system is designed so every financial number on every screen is **derived li
 | ORM | **SQLModel** (Pydantic + SQLAlchemy) | Same model is the wire schema and the table |
 | DB (dev) | **SQLite** | Zero-setup local dev; honoured by `SCHEMA_BOOTSTRAP=create_all` |
 | DB (prod) | **PostgreSQL** | Row-level locks (`SELECT FOR UPDATE`) for atomic numbering and avg-cost updates |
-| Migrations | **Alembic** | Idempotent revisions 0001–0013 |
+| Migrations | **None (create_all)** | `SQLModel.metadata.create_all()` on startup; manual `ALTER TABLE` for existing DBs |
 | Auth | **JWT (HS256) + bcrypt + HttpOnly cookie + CSRF** | Same backend supports SDK Bearer clients and browser cookie clients |
 | Frontend | **Next.js 16 (App Router)** + React 19 | Server components for the shell, client components for forms |
 | Styling | **Tailwind v4** (+ `tailwind-merge`) | Per-token theming; brand palette `#f6f3ee / #b8943f / #1a1814` |
@@ -96,7 +96,7 @@ Easy-Books/
 │   ├── models.py             ← 32 SQLModel tables
 │   ├── auth.py               ← JWT encode/decode + bcrypt password hash + secret hardening
 │   ├── db.py                 ← engine, seed_data, per-model CoA templates
-│   ├── alembic.ini · alembic/versions/0001…0013
+│   ├── scripts/seed_demo.py     ← idempotent mock-data seeder (50+ per entity type)
 │   ├── routers/
 │   │   ├── common.py            SessionDep, CurrentUserDep, WriteUserDep, RBAC, next_number, log_audit
 │   │   ├── auth.py              signup, login (+throttle), logout, /me, profile (name/phone/password/avatar), accept-invite
@@ -816,7 +816,7 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 - `detail` is a JSON blob — caller decides what context to record.
 
 ### 13.4 Idempotent migrations
-- Every Alembic revision starts with `insp.get_table_names()` / `insp.get_columns(...)` checks. Re-running is safe even on a fresh-baseline DB.
+- Schema bootstrapped via `SQLModel.metadata.create_all()`. No Alembic. New columns require manual `ALTER TABLE` or DB reset.
 - V2.2's `0011_stock_locations` uses `op.execute("ALTER TABLE … ADD COLUMN …")` instead of `batch_alter_table` because the legacy `SQLModel.metadata.create_all` baseline had anonymous constraints that batch-mode couldn't rename. SQLite + Postgres both support `ADD COLUMN` without table reconstruction.
 
 ### 13.5 Guidance components
@@ -919,7 +919,7 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 ## 18.1. DEMO DATA & SEEDING
 
 **Automatic Demo Tenants (on first run):**
-- On database init (`db.py`), four demo tenants are auto-created, one per business model:
+- On database init (`db.py`), five demo tenants are auto-created, one per business model. `dev.sh` seeds each with 50+ records per entity type:
   - `demo.simple@easy-books.app` (Simple model)
   - `demo.services@easy-books.app` (Services model)
   - `demo.trader@easy-books.app` (Trader model)

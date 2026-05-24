@@ -1,102 +1,152 @@
 # GEMINI.md — Easy-Books Project Context
 
-This file provides the foundational context, architectural overview, and development guidelines for the Easy-Books project.
+This file provides foundational context, architecture, and development guidelines for Easy-Books.
 
 ## Project Overview
-**Easy-Books** is a specialized Financial Management System (FMS) designed for small to medium enterprises (specifically modeled for "Malik Enterprises"). It enables professional double-entry bookkeeping, transaction tracking (Revenue/Expense), and real-time generation of financial reports like Trial Balances and Income Statements.
 
-### Key Technologies
-The project follows a modern monorepo-style architecture with two primary stacks:
+**Easy-Books** is a multi-tenant double-entry accounting SaaS for SMEs. It enforces bookkeeping invariants at the database level (∑Dr = ∑Cr, no negative amounts, no posting into locked periods), keeps inventory at Weighted-Average cost, and derives every financial report live from the General Ledger.
 
-1.  **Modern Stack (Primary):**
-    *   **Frontend:** Next.js 16 (React 19), TypeScript, Tailwind CSS, Lucide Icons.
-    *   **Backend:** FastAPI (Python), SQLModel (SQLAlchemy + Pydantic), SQLite.
-2.  **Legacy/Reference Stack:**
-    *   **Backend:** Node.js, Express.js, better-sqlite3.
-    *   **Frontend:** Static HTML, Vanilla JavaScript, CSS.
+Five business models are supported, each with a tailored Chart of Accounts and adaptive UI:
+
+| Model | Key features |
+|---|---|
+| `simple` | Invoicing + billing + manual JVs |
+| `services` | Recurring revenue, service products |
+| `trader` | Stock inventory (Weighted-Average FIFO), buy/resell |
+| `manufacturing` | BoMs, production orders, custodial GRNs, rate plans |
+| `telecom_franchise` | Tracker wallet, RSO chain, SIM activations, FCA targets, mobile money, postpaid, commissions, franchise admin |
 
 ---
 
-## Architecture & Structure
+## Tech Stack
 
-```text
+| Layer | Choice |
+|---|---|
+| Backend | **FastAPI** + **SQLModel** (SQLAlchemy + Pydantic), Python 3.11+ |
+| Database (dev) | **SQLite** (`backend/database.db`) — `create_all()` bootstraps schema |
+| Database (prod) | **PostgreSQL** via `DATABASE_URL` env var |
+| Auth | **JWT HS256** + bcrypt + HttpOnly cookie + CSRF double-submit |
+| Frontend | **Next.js 16** (App Router) + **React 19** + **TypeScript** + Tailwind CSS v4 |
+| Icons | `lucide-react` only |
+| Charts | `react-chartjs-2` |
+
+**No Alembic.** Schema changes to existing databases require manual `ALTER TABLE`. Delete `backend/database.db` to get a fresh seeded DB.
+
+---
+
+## Repository Layout
+
+```
 /
-├── backend/            # FastAPI Application (Modern Backend)
-│   ├── main.py         # API entry point and routes
-│   ├── models.py       # SQLModel database schemas
-│   ├── db.py           # Database engine and seeding logic
-│   └── database.db     # SQLite data store
-├── frontend/           # Next.js Application (Modern Frontend)
-│   ├── src/app/        # App Router pages and layouts
-│   ├── src/components/ # Shared UI components (Sidebar, Header)
-│   └── src/lib/        # Utilities and formatting helpers
-├── public/             # Static HTML/JS Frontend (Legacy)
-├── server.js           # Express.js Backend (Legacy)
-└── db.js               # SQLite setup for legacy stack
+├── backend/
+│   ├── main.py              # FastAPI bootstrap — middleware + router mounts (~80 lines)
+│   ├── models.py            # SQLModel tables (core)
+│   ├── models_telecom.py    # 23 tc_* tables for telecom_franchise
+│   ├── db.py                # Engine, create_all, seed 5 demo tenants + CoA
+│   ├── auth.py              # JWT + bcrypt
+│   ├── routers/             # 29 domain routers
+│   ├── services/
+│   │   ├── posting.py       # THE only GL writer — enforces all invariants
+│   │   ├── inventory.py     # Weighted-Average cost, FIFO layer relief
+│   │   ├── tracker_posting.py   # Telecom: tracker/load/RSO/SIM/FCA JVs
+│   │   ├── franchise_posting.py # Telecom: mobile-money/postpaid/commission/franchise JVs
+│   │   ├── fx.py            # Exchange-rate lookup + inverse fallback
+│   │   ├── money.py         # Decimal helpers, ROUND_HALF_EVEN
+│   │   ├── csrf.py          # Double-submit CSRF middleware
+│   │   └── idempotency.py   # Response-cache middleware
+│   ├── scripts/
+│   │   └── seed_demo.py     # Idempotent mock-data seeder — 50+ per entity type
+│   └── tests/               # pytest suite
+├── frontend/
+│   └── src/
+│       ├── app/login/  signup/       # Public routes
+│       ├── app/(dashboard)/          # 29 auth-gated pages
+│       │   ├── telecom/              # Telecom Franchise section (9 sub-pages)
+│       │   ├── manufacturing/        # Manufacturing section (5 sub-pages)
+│       │   ├── team/  profile/       # Multi-user + self-service profile
+│       │   └── …                     # Invoices, bills, reports, CoA, banking, …
+│       ├── app/accept-invite/        # Public — tokenized invite accept
+│       ├── components/
+│       │   ├── Sidebar.tsx           # Adaptive sidebar (hides sections by business_model + role)
+│       │   ├── telecom/ActionForm.tsx # Schema-driven JV poster for telecom ops
+│       │   ├── DocLink.tsx           # Central drill-down resolver
+│       │   └── PrintHeader.tsx       # Branded A4 print output
+│       ├── context/SettingsContext.tsx # Company branding + preferences, app-wide
+│       └── lib/api.ts                # apiFetch — auto-injects Bearer token
+├── dev.sh                   # Start both servers; auto-seeds demo data; handles WSL2 node/npm
+├── public/                  # Legacy Express/vanilla JS reference (do not touch)
+└── server.js                # Legacy Express backend (do not touch)
 ```
 
 ---
 
-## Building and Running
+## Running Locally
 
-### 1. Modern Backend (FastAPI)
-*   **Dependencies:** Uses `sqlmodel`, `fastapi`, and `uvicorn`.
-*   **Setup:**
-    ```bash
-    cd backend
-    python -m venv venv
-    source venv/bin/activate  # or venv\Scripts\activate on Windows
-    pip install -r requirements.txt  # or use 'uv sync' if uv is installed
-    ```
-*   **Run:**
-    ```bash
-    python main.py
-    ```
+```bash
+# One command starts everything (seeds demo data automatically)
+./dev.sh
 
-### 2. Modern Frontend (Next.js)
-*   **Setup:**
-    ```bash
-    cd frontend
-    npm install
-    ```
-*   **Run (Development):**
-    ```bash
-    npm run dev
-    ```
+# Backend only
+cd backend && .venv/bin/python main.py   # → http://localhost:8000 (Swagger at /docs)
 
-### 3. Legacy Stack (Express)
-*   **Run:**
-    ```bash
-    npm install
-    node server.js
-    ```
+# Frontend only (WSL2: use the Linux node, not Windows npm)
+cd frontend && node node_modules/next/dist/bin/next dev   # → http://localhost:3000
+
+# Re-seed demo data
+cd backend && PYTHONPATH=. .venv/bin/python -m scripts.seed_demo
+```
 
 ---
 
-## Development Conventions
+## Demo Tenants
 
-### UI & UX (Malik Enterprises Brand)
-*   **Theme:** Elegant, professional palette:
-    *   Background: `#f6f3ee` (Cream)
-    *   Primary/Accent: `#b8943f` (Gold)
-    *   Text/Sidebar: `#1a1814` (Deep Charcoal)
-*   **Typography:** Uses **DM Sans** for main UI and **DM Serif Display** for headings.
-*   **Icons:** Use `lucide-react` for all iconography.
+Auto-created on first run; seeded with 50+ records per entity type by `dev.sh`:
 
-### Data Modeling (SQLModel)
-*   All database models must inherit from `SQLModel`.
-*   Maintain a strict separation between database tables (`table=True`) and API schemas (Read/Create models).
-*   Double-entry consistency: All transactions must ensure that the sum of Debits equals the sum of Credits.
-
-### API Standards
-*   Endpoints are prefixed with `/api`.
-*   Use `CORS` middleware to allow frontend communication (currently configured for all origins in development).
-*   Follow RESTful principles for account management and transaction posting.
+| Email | Password | Model |
+|---|---|---|
+| `demo.simple@easy-books.app` | `demo1234` | simple |
+| `demo.services@easy-books.app` | `demo1234` | services |
+| `demo.trader@easy-books.app` | `demo1234` | trader |
+| `demo.manufacturing@easy-books.app` | `demo1234` | manufacturing |
+| `demo.telecom@easy-books.app` | `demo1234` | telecom_franchise |
 
 ---
 
-## TODO / Roadmap
-- [ ] Implement remaining report pages in Next.js (General Journal, General Ledger, COA).
-- [ ] Finalize the "New Entry" transaction form in the modern frontend.
-- [ ] Add Balance Sheet and Cash Flow statement APIs.
-- [ ] Implement user role-based access control (Owner, Accountant, Manager).
+## Key Invariants
+
+- **∑Dr = ∑Cr** — enforced in `services/posting.py` before any DB write.
+- **Tenant isolation** — every table has `tenant_id`; every query filters by it; cross-tenant access returns 404 (not 403).
+- **No raw GL writes** — all journal entries go through `services/posting.py`.
+- **Decimal money** — `NUMERIC(18,4)`, `ROUND_HALF_EVEN`, no floats in financial paths.
+- **Locked periods** — posting into a closed period is rejected.
+- **Atomic numbering** — invoice/bill/JV numbers from `SequenceCounter` with `SELECT FOR UPDATE`.
+
+---
+
+## Environment Variables
+
+**Backend** (`backend/.env`):
+```
+DATABASE_URL=              # PostgreSQL URL (omit for SQLite)
+JWT_SECRET_KEY=            # openssl rand -hex 32 (required in production)
+FRONTEND_ORIGIN=http://localhost:3000
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_PASSWORD=
+SEED_COMPANY_NAME=
+UPLOAD_ROOT=uploads        # Filesystem root for avatars + attachments
+```
+
+**Frontend** (`frontend/.env.local`):
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+---
+
+## Further Reading
+
+- [`README.md`](./README.md) — full feature set, getting started, architecture tree.
+- [`BLUEPRINT.md`](./BLUEPRINT.md) — every model, endpoint, and business flow.
+- [`WORKFLOW.md`](./WORKFLOW.md) — GL Dr/Cr maps, accounting cycles, security model.
+- [`CLAUDE.md`](./CLAUDE.md) / [`GEMINI.md`](./GEMINI.md) — AI assistant context.
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md) — Vercel deployment guide.

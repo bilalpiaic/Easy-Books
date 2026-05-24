@@ -49,6 +49,30 @@ prefix() {
   done
 }
 
+# Seed demo data (idempotent — safe every run; skips rows that already exist).
+echo "seeding demo data..."
+if (
+  cd "$BACKEND_DIR"
+  PYTHONPATH=. "$VENV_PY" -m scripts.seed_demo
+) 2>&1 | prefix "seed" "33"; then
+  echo "demo data ready."
+else
+  echo "warning: demo seed reported errors (non-fatal — server still starting)" >&2
+fi
+
+# Resolve a Linux node binary — the Windows node/npm on PATH causes CMD.EXE to
+# be invoked inside WSL2, which fails with "UNC paths are not supported".
+NODE_BIN="$(command -v node 2>/dev/null)"
+if [[ -z "$NODE_BIN" || "$NODE_BIN" == /mnt/c/* ]]; then
+  # Fall back to the VSCode Server node if the PATH node is a Windows binary.
+  NODE_BIN="$(find /home -maxdepth 6 -path '*/.vscode-server/*/node' -type f 2>/dev/null | head -n1)"
+fi
+if [[ -z "$NODE_BIN" ]]; then
+  echo "error: no Linux node binary found. Install Node.js inside WSL2." >&2
+  exit 1
+fi
+NEXT_BIN="$FRONTEND_DIR/node_modules/next/dist/bin/next"
+
 BACK_PID=""
 FRONT_PID=""
 
@@ -77,7 +101,7 @@ BACK_PID=$!
 # Frontend: Next.js dev server on port 3000.
 (
   cd "$FRONTEND_DIR"
-  exec npm run dev --silent
+  exec "$NODE_BIN" "$NEXT_BIN" dev
 ) > >(prefix "frontend" "35") 2> >(prefix "frontend" "35" >&2) &
 FRONT_PID=$!
 

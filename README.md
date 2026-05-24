@@ -4,7 +4,7 @@
 
 **Easy-Books** is a multi-tenant double-entry accounting SaaS. It enforces book-keeping invariants in the database (∑Dr = ∑Cr, no negative amounts, no posting into locked periods), keeps inventory at Weighted-Average cost, and computes every report live from the General Ledger — no batch jobs.
 
-Stack: FastAPI + SQLModel + Alembic (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend) · SQLite for dev, PostgreSQL for prod.
+Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend) · SQLite for dev, PostgreSQL for prod.
 
 ---
 
@@ -85,8 +85,8 @@ For tenants with `business_model = telecom_franchise`, Easy-Books adds the full 
 
 ### Prerequisites
 - Python 3.11+
-- Node.js 18+
-- npm (or pnpm)
+- Node.js 20+ (LTS) — Linux binary required; on WSL2, `dev.sh` auto-resolves the correct binary
+- npm
 
 ### One-shot dev script
 
@@ -94,18 +94,14 @@ For tenants with `business_model = telecom_franchise`, Easy-Books adds the full 
 git clone https://github.com/bilalpiaic/Easy-Books.git
 cd Easy-Books
 
-# Backend dependencies
+# Backend dependencies (uv is recommended; pip works too)
 python -m venv backend/.venv
 backend/.venv/bin/pip install -r backend/requirements.txt
 
 # Frontend dependencies
 ( cd frontend && npm install )
 
-# Bring the local SQLite DB up to the latest schema
-( cd backend && DATABASE_URL=sqlite:///$(pwd)/database.db \
-    VIRTUAL_ENV=$(pwd)/.venv .venv/bin/alembic upgrade head )
-
-# Start backend + frontend together with prefixed log streams
+# Start backend + frontend together (seeds demo data automatically)
 ./dev.sh
 ```
 
@@ -120,7 +116,7 @@ Open http://localhost:3000/signup, fill in your name, company, email, and a pass
 
 ### Demo accounts (pre-seeded)
 
-Four demo tenants are auto-created on first run, one per business model:
+Five demo tenants are auto-created on first run, one per business model. `dev.sh` also populates each with rich mock data (idempotent — safe to re-run):
 
 | Email | Password | Model |
 |-------|----------|-------|
@@ -128,14 +124,15 @@ Four demo tenants are auto-created on first run, one per business model:
 | `demo.services@easy-books.app` | `demo1234` | Services / recurring revenue |
 | `demo.trader@easy-books.app` | `demo1234` | Inventory / buy-and-resell |
 | `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing / value-addition |
+| `demo.telecom@easy-books.app` | `demo1234` | Telecom Franchise |
 
-To populate demo tenants with realistic mock data (12+ customers, vendors, invoices, bills per tenant):
+Each demo tenant contains **50+ customers, 50+ vendors, 50+ invoices, 50+ bills, 50+ manual JVs**, plus model-specific records (BoMs, GRNs, production orders, SIM activations, FCA events, etc.).
+
+To seed manually (or re-seed after a DB reset):
 
 ```bash
 cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 ```
-
-Reload the login page and you'll see the demo buttons pre-filled with sample data.
 
 ### Environment variables
 
@@ -145,7 +142,7 @@ Reload the login page and you'll see the demo buttons pre-filled with sample dat
 | `JWT_SECRET_KEY` | HMAC secret for JWT signing. **Required in production** — startup fails if missing/default when `APP_ENV=production`. | Insecure default in dev |
 | `APP_ENV` | `development` or `production`. Affects cookie `Secure` flag, JWT secret check. | `development` |
 | `FRONTEND_ORIGIN` | Comma-separated CORS allow-list. | `http://localhost:3000` |
-| `SCHEMA_BOOTSTRAP` | `create_all` (default — `SQLModel.metadata.create_all` on startup) or `alembic` (skip startup DDL; run migrations explicitly). | `create_all` |
+| `SCHEMA_BOOTSTRAP` | `create_all` — `SQLModel.metadata.create_all` on startup (only option; Alembic not used). | `create_all` |
 | `SEED_COMPANY_NAME` | Default company name for the first tenant. | `My Company` |
 | `UPLOAD_ROOT` | Filesystem root for uploaded files — document attachments and user avatars, stored under `<root>/<tenant_id>/…`. | `uploads` |
 
@@ -159,8 +156,7 @@ backend/
 ├── models.py                ← SQLModel tables
 ├── auth.py                  ← JWT + bcrypt
 ├── db.py                    ← engine, seed_data, default CoA
-├── alembic/versions/        ← 0001 → 0013 (idempotent migrations)
-├── routers/                 ← 27 domain routers
+├── routers/                 ← 29 domain routers
 │   ├── common.py            ← shared deps (SessionDep, CurrentUserDep, WriteUserDep, AdminUserDep, …)
 │   ├── auth.py              ← signup, login, logout, /me, profile (name/phone/password/avatar), accept-invite
 │   ├── users.py             ← (V3.6) team management (admin+): create/invite/role/activate/reset-password
@@ -187,11 +183,12 @@ backend/
 │   ├── money.py             ← Decimal helpers, ROUND_HALF_EVEN
 │   ├── csrf.py              ← double-submit CSRF middleware
 │   └── idempotency.py       ← response-cache middleware
-└── tests/                   ← 122 tests (pytest)
+├── scripts/seed_demo.py     ← idempotent rich mock-data seeder (50+ per entity type)
+└── tests/                   ← backend pytest suite
 
 frontend/src/
 ├── app/login/ · app/signup/  ← signup is a 2-step wizard with business-model picker
-├── app/(dashboard)/          ← auth-gated, 28 pages
+├── app/(dashboard)/          ← auth-gated, 29 pages
 │   ├── dashboard/            ← KPIs + charts
 │   ├── invoices/ · invoices/[id]/   ← list + non-print interactive detail (Back/Print/Reverse)
 │   ├── bills/    · bills/[id]/      ← list + non-print interactive detail
@@ -246,15 +243,14 @@ frontend/src/
 # Run all backend tests
 cd backend && .venv/bin/python -m pytest
 
-# Apply migrations to a database
-DATABASE_URL=sqlite:///./database.db .venv/bin/alembic upgrade head
-
-# Generate a new migration (autogenerate from model diffs)
-.venv/bin/alembic revision --autogenerate -m "your message"
-
 # Type-check the frontend
 cd frontend && npx tsc --noEmit
+
+# Re-seed demo data (idempotent)
+cd backend && PYTHONPATH=. .venv/bin/python -m scripts.seed_demo
 ```
+
+**Schema changes:** There is no migration tool. `SQLModel.metadata.create_all()` adds new tables on startup but does not alter existing ones. For columns added to an existing table, run `ALTER TABLE` on the SQLite file directly, or delete `backend/database.db` to get a fresh seeded DB.
 
 ---
 
@@ -264,7 +260,7 @@ This branch (`saas-transition-foundation`) carries the active SaaS work. Shipped
 
 **Core platform (P-track)**
 - **P0** — Decimal money, central posting service, COGS, period-lock
-- **P1** — Router split (21 routers), atomic numbering, Alembic baseline
+- **P1** — Router split (29 routers), atomic numbering, sequence counters
 - **P2** — RBAC, HttpOnly cookie auth, password min-length, secret hardening
 - **P3** — Tax codes, payment allocations, period close, recurring entries
 - **P4** — Idempotency keys, `/api/v1` versioning
@@ -299,7 +295,7 @@ This branch (`saas-transition-foundation`) carries the active SaaS work. Shipped
 **Team & profile track (V3.6-track)**
 - **V3.6** — Multi-user per tenant: `routers/users.py` (admin+ list/create/role/activate/reset-password + tokenized invites), `UserInvite` table, profile self-service (name/phone, change-password, avatar upload), `is_active` enforced on every request, last-active-owner guard. Frontend: Profile + Team pages, public accept-invite, role-gated sidebar. User model extended (`phone`, `avatar_url`, `must_change_password`, `created_at`, `last_login_at`)
 
-**Test coverage:** 122 backend tests; full lifecycle end-to-end smoke verified (incl. telecom load-float/deposit GL reconciliation + balanced trial balance).
+**Test coverage:** backend pytest suite; full lifecycle end-to-end smoke verified (incl. telecom load-float/deposit GL reconciliation + balanced trial balance). `dev.sh` auto-seeds all 5 demo tenants with 50+ records per entity type on every start.
 
 Not yet shipped (worth considering):
 - FX revaluation at period end (unrealised gain/loss on open AR/AP)

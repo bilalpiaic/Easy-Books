@@ -31,7 +31,7 @@ Copy `.env.example` to `.env.local`:
 src/
 ├── app/                # Next.js App Router
 │   ├── login/  signup/ # public routes
-│   └── (dashboard)/    # auth-gated route group (28 pages)
+│   └── (dashboard)/    # auth-gated route group (29 pages)
 ├── components/         # UI components (Sidebar, DocLink, PrintHeader, ...)
 ├── context/            # SettingsContext (currency/company)
 └── lib/                # apiFetch, auth helpers

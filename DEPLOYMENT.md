@@ -56,7 +56,7 @@ Alternative: **Vercel Postgres** (Storage tab in Vercel dashboard) — same prod
 ## 3. DEPLOY BACKEND
 
 ```bash
-cd /home/droid/projects/Easy-Books/backend
+cd /home/mbilal71/projects/Easy-Books/backend
 vercel
 ```
 
@@ -107,7 +107,7 @@ curl https://easy-books-backend.vercel.app/docs
 ## 4. DEPLOY FRONTEND
 
 ```bash
-cd /home/droid/projects/Easy-Books/frontend
+cd /home/mbilal71/projects/Easy-Books/frontend
 vercel
 ```
 
@@ -135,7 +135,7 @@ Note the URL (e.g. `https://easy-books-frontend.vercel.app`).
 Now that you know the frontend URL, update the backend env var:
 
 ```bash
-cd /home/droid/projects/Easy-Books/backend
+cd /home/mbilal71/projects/Easy-Books/backend
 vercel env rm FRONTEND_ORIGIN production
 vercel env add FRONTEND_ORIGIN production
 # Value: https://easy-books-frontend.vercel.app
@@ -234,7 +234,7 @@ Already mitigated — the root `package.json`/`package-lock.json` are legacy art
 of an earlier Express prototype. The `.vercelignore` at the root excludes them from
 deploys. If they still cause warnings, delete them locally:
 ```bash
-rm /home/droid/projects/Easy-Books/{package.json,package-lock.json,db.js,server.js}
+rm /home/mbilal71/projects/Easy-Books/{package.json,package-lock.json,db.js,server.js}
 ```
 
 ---
@@ -250,7 +250,7 @@ Once production is live, demo tenants are auto-created on the first database ini
 
 **Option B: Direct database seeding (dev/test only)**
 - In your local backend, run: `cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo`
-- This populates all four demo tenants with 12+ customers, vendors, invoices, bills each
+- This populates all five demo tenants with 50+ customers, vendors, invoices, bills, and JVs each
 - **WARNING:** This approach bypasses the API and should only be used in dev/staging — it does not generate audit logs or trigger webhooks
 
 ---
@@ -291,5 +291,5 @@ All-in: **$0/month** to get started. Upgrade path is clean once you exceed limit
 
 ---
 
-**Last updated:** 2026-05-19
-**Branch:** `saas-transition-foundation`
+**Last updated:** 2026-05-24
+**Branch:** `main`
