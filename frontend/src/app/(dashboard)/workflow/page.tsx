@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2 } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio } from "lucide-react"
 
 // ── Primitive building blocks ────────────────────────────────────────────────
 
@@ -705,6 +705,64 @@ function ProductionOrderFlow() {
   )
 }
 
+function TelecomFranchiseFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed">
+        Telecom-franchise tenants only. Cash flows into a prepaid <b>Tracker</b> wallet, converts to
+        spendable <b>load float</b> with a 3% uplift, then moves down a MSR → RSO → Retail chain.
+        Each step posts its own balanced JV. The Tracker&apos;s deposit and load balances always
+        reconcile to GL accounts 1210 and 1211.
+      </p>
+
+      <VFlow>
+        <StepBox
+          title="Tracker deposit"
+          accent="teal"
+          impact="Pre-fund the operator wallet with cash."
+          gl="Dr 1210 Tracker Deposit / Cr 1010 Bank"
+        />
+        <StepBox
+          title="Load order (3% uplift)"
+          accent="gold"
+          impact="Deposit converts to load float; operator credits 3% extra face value, booked as commission revenue at disbursement."
+          gl="Dr 1211 (cash×1.03) / Cr 1210 (cash) / Cr 4020 (3%)"
+        />
+        <StepBox
+          title="MSR → RSO → Retail"
+          accent="orange"
+          impact="Distribute float down the channel; each hop creates a receivable."
+          gl="Dr 1212 / Cr 1211   then   Dr 1213 / Cr 1212"
+        />
+        <StepBox
+          title="RSO daily collection"
+          accent="blue"
+          impact="RSO banks cash covering load + stock sold; any gap routes to overage (4900) or shortage (5070)."
+          gl="Dr 1010 Bank / Cr 1212 (load) / Cr 1120 (stock) ± variance"
+        />
+        <StepBox
+          title="SIM activation → commission"
+          accent="purple"
+          impact="Activate SIMs, then accrue operator commission as a receivable; cleared at statement settlement."
+          gl="Dr 1110 Commission Rec. / Cr 4020 Revenue"
+        />
+        <StepBox
+          title="FCA target / postpaid / franchise"
+          accent="green"
+          impact="Monthly FCA target pays 4060 (or penalty 5090); postpaid bill→collect→remit; franchise fee amortises to 5030, royalty to 5040."
+          gl="Cr 4060 · Dr 2110/Cr Bank+4040 · Dr 5030/Cr 1301"
+        />
+      </VFlow>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">
+        <span className="font-bold">FCA events are counted, not journalised</span> — only the monthly
+        target settlement (commission or penalty) hits the GL. Mobile-money float moves <i>opposite</i>
+        to cash: a customer deposit reduces float (Dr Cash / Cr 2100), a withdrawal increases it.
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function WorkflowPage() {
@@ -849,6 +907,16 @@ export default function WorkflowPage() {
         iconColor="text-pink-600"
       >
         <ProductionOrderFlow />
+      </SectionCard>
+
+      {/* 12 — Telecom Franchise Lifecycle (V3) */}
+      <SectionCard
+        icon={Radio}
+        title="Telecom Franchise Lifecycle (V3)"
+        subtitle="Tracker deposit → load (3% uplift) → MSR→RSO→Retail → collect → activate → settle"
+        iconColor="text-teal-600"
+      >
+        <TelecomFranchiseFlow />
       </SectionCard>
 
       {/* Footer note */}

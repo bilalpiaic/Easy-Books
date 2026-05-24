@@ -2,180 +2,163 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Signal, Wallet, Users, ArrowRightLeft, Banknote, Smartphone, Target } from "lucide-react"
+import {
+  Radio, Wallet, Network, Smartphone, Target, Banknote,
+  ReceiptText, Percent, ScrollText, Coins, TrendingUp,
+} from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
+import { Tile, Section, PageHeader, ErrorBanner, money } from "@/components/telecom/primitives"
 
 interface Dashboard {
-  tracker_deposit_balance: string
-  load_float_balance: string
-  rso_load_outstanding: string
-  retail_load_outstanding: string
-  rso_stock_receivable: string
-  commission_receivable: string
-  current_kpi: {
-    target_month: string
-    target_fca_count: number
-    actual_fca_count: number
-    incentive_earned: string
-    penalty_applied: string
-    status: string
-  } | null
+  as_of: string
+  tracker: {
+    deposit_balance: string; load_float: string
+    rso_load_receivable: string; retail_load_receivable: string
+  }
+  commissions: { receivable: string }
+  rso: { agent_count: number; stock_receivable: string }
+  mobile_money: { float_asset: string; float_liability: string }
+  sim: { inventory_cost: string; total_received: number; total_activated: number; available: number }
+  fca: { month: string; actual: number; target: string | null; achievement_pct: string | null }
 }
 
-interface KPICardProps {
-  label: string
-  value: string
-  sub?: string
-  tone?: "default" | "warning" | "success"
-  icon: React.ElementType
-}
-
-function KPICard({ label, value, sub, tone = "default", icon: Icon }: KPICardProps) {
-  const toneClass =
-    tone === "warning" ? "border-amber-200 bg-amber-50"
-    : tone === "success" ? "border-emerald-200 bg-emerald-50"
-    : "border-[#b8943f]/20 bg-white"
-  return (
-    <div className={`rounded-xl border p-4 flex gap-3 items-start ${toneClass}`}>
-      <div className="mt-0.5 shrink-0">
-        <Icon className="w-5 h-5 text-[#b8943f]" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide truncate">{label}</p>
-        <p className="text-xl font-semibold text-[#1a1814] font-mono mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-[#1a1814]/50 mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  )
-}
-
-interface QuickLinkProps { href: string; icon: React.ElementType; label: string }
-function QuickLink({ href, icon: Icon, label }: QuickLinkProps) {
-  return (
-    <Link href={href}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#b8943f]/20
-                 bg-white text-sm text-[#1a1814] hover:bg-[#f6f3ee] hover:border-[#b8943f]/40 transition-colors">
-      <Icon className="w-4 h-4 text-[#b8943f]" />
-      {label}
-    </Link>
-  )
-}
-
-function fmt(v: string | undefined) {
-  if (!v) return "PKR 0"
-  const n = parseFloat(v)
-  return "PKR " + n.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+interface RevenueStream { code: string; name: string; amount: string }
+interface RevenueResp { items: RevenueStream[]; total_revenue: string }
 
 export default function TelecomDashboardPage() {
-  const [data, setData]   = useState<Dashboard | null>(null)
+  const [data, setData] = useState<Dashboard | null>(null)
+  const [rev, setRev] = useState<RevenueResp | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    apiFetch<Dashboard>("/api/telecom/dashboard")
+    apiFetch<Dashboard>("/api/telecom/reports/dashboard")
       .then(setData)
-      .catch(e => setError(e instanceof Error ? e.message : "Failed to load dashboard"))
+      .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
+    apiFetch<RevenueResp>("/api/telecom/reports/revenue-by-stream")
+      .then(setRev)
+      .catch(() => {})
   }, [])
 
-  const kpi = data?.current_kpi
-  const fcaProgress = kpi
-    ? Math.min(100, Math.round((kpi.actual_fca_count / Math.max(1, kpi.target_fca_count)) * 100))
-    : 0
+  const fca = data?.fca
+  const pct = fca?.achievement_pct ? Number(fca.achievement_pct) : null
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <Signal className="w-7 h-7 text-[#b8943f]" />
-        <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Telecom Franchise</h1>
-          <p className="text-sm text-[#1a1814]/60">Tracker balances, load float, RSO channel, and FCA KPIs.</p>
-        </div>
-      </header>
+      <PageHeader
+        icon={Radio}
+        title="Telecom Franchise"
+        subtitle="Daily operations across Tracker, RSO channel, SIM, mobile money and targets."
+      />
 
-      <HelpCallout title="How the telecom franchise works" tone="tip">
+      <HelpCallout title="How the franchise money flows" tone="tip">
         <ol className="list-decimal pl-4 space-y-1">
-          <li><b>Deposit funds</b> into the Tracker wallet (Advance to Operator).</li>
-          <li><b>Order load</b> — Tracker debits 100%, MSR SIM receives 103% (3% is commission income).</li>
-          <li><b>Distribute load</b> to RSO agents → RSO distributes to retail outlets.</li>
-          <li><b>Collect daily</b> — RSO deposits cash covering load + SIM stock settlements.</li>
-          <li><b>FCA events</b> count toward the monthly operator target; commission is posted at month-end.</li>
+          <li><b>Top up the Tracker</b> — deposit cash with the operator (Dr Tracker Deposit / Cr Bank).</li>
+          <li><b>Place a load order</b> — convert deposit to load float; you earn a 3% uplift commission at disbursement.</li>
+          <li><b>Distribute load</b> down the chain: MSR → RSO → Retail outlets.</li>
+          <li><b>Collect daily</b> from each RSO — load portion + stock portion ± variance.</li>
+          <li><b>Hit FCA targets</b> — first-call activations are counted toward a monthly target that pays a commission.</li>
         </ol>
+        <p className="mt-2 text-[11px] opacity-80">
+          Every posting keeps <code>sum(debit) == sum(credit)</code>. The tiles below read straight from the GL.
+        </p>
       </HelpCallout>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-900 rounded-xl px-4 py-3 text-sm">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
-      {/* Balance KPI cards */}
-      <section>
-        <h2 className="text-xs font-semibold text-[#1a1814]/40 uppercase tracking-widest mb-3">Balances</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPICard label="Tracker Deposit"   value={fmt(data?.tracker_deposit_balance)} icon={Wallet} />
-          <KPICard label="Load Float (MSR)"  value={fmt(data?.load_float_balance)}      icon={Signal} />
-          <KPICard label="RSO Load Owed"     value={fmt(data?.rso_load_outstanding)}    icon={Users}
-            tone={parseFloat(data?.rso_load_outstanding || "0") > 0 ? "warning" : "default"} />
-          <KPICard label="Retail Load Owed"  value={fmt(data?.retail_load_outstanding)} icon={ArrowRightLeft} />
-          <KPICard label="RSO Stock Owed"    value={fmt(data?.rso_stock_receivable)}    icon={Smartphone} />
-          <KPICard label="Commission Rec."   value={fmt(data?.commission_receivable)}   icon={Banknote} />
+      <Section title="Tracker & Load float">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Tile icon={Wallet} label="Tracker deposit" value={money(data?.tracker.deposit_balance)} hint="Acct 1210" />
+          <Tile icon={Coins} label="Load float (MSR)" value={money(data?.tracker.load_float)} hint="Acct 1211" />
+          <Tile icon={Network} label="RSO load receivable" value={money(data?.tracker.rso_load_receivable)} hint="Acct 1212" />
+          <Tile icon={Network} label="Retail load receivable" value={money(data?.tracker.retail_load_receivable)} hint="Acct 1213" />
         </div>
-      </section>
+      </Section>
 
-      {/* FCA KPI section */}
-      {kpi && (
-        <section>
-          <h2 className="text-xs font-semibold text-[#1a1814]/40 uppercase tracking-widest mb-3">
-            FCA Target — {kpi.target_month}
-          </h2>
-          <div className="rounded-xl border border-[#b8943f]/20 bg-white p-5 space-y-3">
-            <div className="flex justify-between items-baseline">
-              <span className="text-sm text-[#1a1814]/60">Progress</span>
-              <span className="font-mono text-lg font-semibold text-[#1a1814]">
-                {kpi.actual_fca_count} / {kpi.target_fca_count} FCAs
-              </span>
-            </div>
-            <div className="w-full bg-[#f6f3ee] rounded-full h-3 overflow-hidden">
-              <div
-                className={`h-3 rounded-full transition-all ${fcaProgress >= 100 ? "bg-emerald-500" : "bg-[#b8943f]"}`}
-                style={{ width: `${fcaProgress}%` }}
-              />
-            </div>
-            <div className="flex gap-6 text-sm">
-              <div>
-                <span className="text-[#1a1814]/50">Achievement </span>
-                <span className="font-semibold text-[#1a1814]">{fcaProgress}%</span>
-              </div>
-              {parseFloat(kpi.incentive_earned) > 0 && (
-                <div className="text-emerald-700">
-                  <span>Commission earned </span>
-                  <span className="font-semibold">{fmt(kpi.incentive_earned)}</span>
-                </div>
-              )}
-              {parseFloat(kpi.penalty_applied) > 0 && (
-                <div className="text-red-700">
-                  <span>Penalty </span>
-                  <span className="font-semibold">{fmt(kpi.penalty_applied)}</span>
-                </div>
-              )}
-            </div>
+      <Section title="Channel & receivables">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Tile icon={Percent} label="Commission receivable" value={money(data?.commissions.receivable)} hint="Acct 1110" />
+          <Tile icon={Network} label="RSO agents" value={data ? String(data.rso.agent_count) : "—"} hint={`Stock rec. ${money(data?.rso.stock_receivable)}`} />
+          <Tile icon={Banknote} label="Mobile money float" value={money(data?.mobile_money.float_asset)} hint={`Liability ${money(data?.mobile_money.float_liability)}`} />
+          <Tile icon={Smartphone} label="SIMs available" value={data ? String(data.sim.available) : "—"} hint={`${data?.sim.total_activated ?? 0} / ${data?.sim.total_received ?? 0} activated`} />
+        </div>
+      </Section>
+
+      <Section title={`FCA target — ${fca?.month ?? "this month"}`}>
+        <div className="bg-white border border-[#ede9e2] rounded-2xl px-4 py-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#1a1814]/60">First-call activations</span>
+            <span className="font-serif font-bold text-[#1a1814]">
+              {fca?.actual ?? 0}{fca?.target ? ` / ${fca.target}` : ""}
+            </span>
           </div>
-        </section>
-      )}
-
-      {/* Quick links */}
-      <section>
-        <h2 className="text-xs font-semibold text-[#1a1814]/40 uppercase tracking-widest mb-3">Quick Access</h2>
-        <div className="flex flex-wrap gap-2">
-          <QuickLink href="/telecom/tracker"         icon={Wallet}        label="Tracker & Load" />
-          <QuickLink href="/telecom/rso/agents"      icon={Users}         label="RSO Agents" />
-          <QuickLink href="/telecom/rso/transfers"   icon={ArrowRightLeft} label="Load Transfers" />
-          <QuickLink href="/telecom/rso/collections" icon={Banknote}      label="Daily Collections" />
-          <QuickLink href="/telecom/sim/batches"     icon={Smartphone}    label="SIM Batches" />
-          <QuickLink href="/telecom/fca"             icon={Target}        label="FCA & KPI Targets" />
+          <div className="mt-2 h-2.5 rounded-full bg-[#f0ece4] overflow-hidden">
+            <div
+              className="h-full bg-[#b8943f] transition-all"
+              style={{ width: pct !== null ? `${Math.min(pct, 100)}%` : "0%" }}
+            />
+          </div>
+          <div className="mt-1.5 text-xs text-[#1a1814]/55">
+            {pct !== null ? `${pct}% of monthly target` : "No target set for this month — add one under FCA & Targets."}
+          </div>
         </div>
-      </section>
+      </Section>
+
+      <Section title="Revenue by stream">
+        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              {(rev?.items ?? []).filter(s => Number(s.amount) !== 0).map(s => (
+                <tr key={s.code} className="border-t border-[#ede9e2] first:border-t-0">
+                  <td className="px-4 py-2 font-mono text-xs text-[#1a1814]/60">{s.code}</td>
+                  <td className="px-4 py-2">{s.name}</td>
+                  <td className="px-4 py-2 text-right font-medium">{money(s.amount)}</td>
+                </tr>
+              ))}
+              {rev && rev.items.every(s => Number(s.amount) === 0) && (
+                <tr><td className="px-4 py-6 text-center text-[#1a1814]/50" colSpan={3}>No revenue posted yet.</td></tr>
+              )}
+            </tbody>
+            {rev && (
+              <tfoot>
+                <tr className="border-t-2 border-[#b8943f]/30 bg-[#faf6ec] font-bold">
+                  <td className="px-4 py-2" colSpan={2}>Total revenue</td>
+                  <td className="px-4 py-2 text-right flex items-center justify-end gap-1">
+                    <TrendingUp className="w-3.5 h-3.5 text-[#b8943f]" />{money(rev.total_revenue)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Jump to">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <QuickLink href="/telecom/tracker"      icon={Wallet}      title="Tracker & Load"   subtitle="Deposits, load orders, stock" />
+          <QuickLink href="/telecom/rso"          icon={Network}     title="RSO Channel"      subtitle="Transfers & daily collections" />
+          <QuickLink href="/telecom/sim"          icon={Smartphone}  title="SIM & Activations" subtitle="Batches, activations, sales" />
+          <QuickLink href="/telecom/fca"          icon={Target}      title="FCA & Targets"    subtitle="Events, target commission" />
+          <QuickLink href="/telecom/mobile-money" icon={Banknote}    title="Mobile Money"     subtitle="Float, deposits, withdrawals" />
+          <QuickLink href="/telecom/postpaid"     icon={ReceiptText} title="Postpaid Billing" subtitle="Bills, collection, remittance" />
+          <QuickLink href="/telecom/commissions"  icon={Percent}     title="Commissions"      subtitle="Statements & reconciliation" />
+          <QuickLink href="/telecom/franchise"    icon={ScrollText}  title="Franchise Admin"  subtitle="Fee amortisation & royalty" />
+        </div>
+      </Section>
     </div>
+  )
+}
+
+function QuickLink({ href, icon: Icon, title, subtitle }: {
+  href: string; icon: React.ElementType; title: string; subtitle: string
+}) {
+  return (
+    <Link href={href} className="bg-white border border-[#ede9e2] rounded-xl px-4 py-3 hover:border-[#b8943f]/60 transition-colors block">
+      <div className="flex items-center gap-2">
+        <Icon className="w-4 h-4 text-[#b8943f]" />
+        <div className="text-sm font-semibold text-[#1a1814]">{title}</div>
+      </div>
+      <p className="text-xs text-[#1a1814]/60 mt-1.5">{subtitle}</p>
+    </Link>
   )
 }

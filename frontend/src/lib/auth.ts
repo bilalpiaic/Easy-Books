@@ -28,6 +28,7 @@ export const getAuthHeader = (): HeadersInit => {
 export interface CurrentUser {
   email: string
   full_name: string
+  role: string
 }
 
 export function getCurrentUser(): CurrentUser | null {
@@ -38,6 +39,7 @@ export function getCurrentUser(): CurrentUser | null {
     return {
       email: payload.sub ?? "",
       full_name: payload.full_name ?? payload.sub ?? "User",
+      role: payload.role ?? "viewer",
     }
   } catch {
     return null

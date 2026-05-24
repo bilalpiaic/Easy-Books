@@ -8,7 +8,8 @@ import {
   ArrowDownLeft, Receipt, Truck, ArrowUpRight, Landmark, CheckCheck,
   Percent, Settings, X, Package, ChevronRight, GitBranch, HelpCircle,
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
-  Signal, Wallet, ArrowRightLeft, Banknote, Smartphone, Target,
+  Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
+  ScrollText, Tablet, UserCircle, UsersRound,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -20,6 +21,8 @@ type NavItem = {
   icon: React.ElementType
   section: string
   forModel?: "manufacturing" | "telecom_franchise"
+  /** Only shown to admin+ (admin or owner). */
+  adminOnly?: boolean
 }
 
 const NAV: NavItem[] = [
@@ -40,14 +43,16 @@ const NAV: NavItem[] = [
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
   { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing", forModel: "manufacturing" },
   { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Telecom Dashboard",href: "/telecom",                    icon: Signal,          section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Tracker & Load",   href: "/telecom/tracker",            icon: Wallet,          section: "Telecom", forModel: "telecom_franchise" },
-  { label: "RSO Agents",       href: "/telecom/rso/agents",         icon: Users,           section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Load Transfers",   href: "/telecom/rso/transfers",      icon: ArrowRightLeft,  section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Daily Collections",href: "/telecom/rso/collections",    icon: Banknote,        section: "Telecom", forModel: "telecom_franchise" },
-  { label: "SIM Batches",      href: "/telecom/sim/batches",        icon: Smartphone,      section: "Telecom", forModel: "telecom_franchise" },
-  { label: "SIM Sales",        href: "/telecom/sim/sales",          icon: Package,         section: "Telecom", forModel: "telecom_franchise" },
-  { label: "FCA & KPI Targets",href: "/telecom/fca",                icon: Target,          section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Telecom Overview", href: "/telecom",                icon: Radio,       section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Tracker & Load",   href: "/telecom/tracker",        icon: Wallet,      section: "Telecom", forModel: "telecom_franchise" },
+  { label: "RSO Channel",      href: "/telecom/rso",            icon: Network,     section: "Telecom", forModel: "telecom_franchise" },
+  { label: "SIM & Activations",href: "/telecom/sim",            icon: Smartphone,  section: "Telecom", forModel: "telecom_franchise" },
+  { label: "FCA & Targets",    href: "/telecom/fca",            icon: Target,      section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Mobile Money",     href: "/telecom/mobile-money",   icon: Banknote,    section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Postpaid Billing", href: "/telecom/postpaid",       icon: ReceiptText, section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Commissions",      href: "/telecom/commissions",    icon: Percent,     section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Franchise Admin",  href: "/telecom/franchise",      icon: ScrollText,  section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Devices (IMEI)",   href: "/telecom/devices",        icon: Tablet,      section: "Telecom", forModel: "telecom_franchise" },
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
   { label: "Reconciliations",  href: "/reconciliations",   icon: CheckCheck,       section: "Banking" },
   { label: "Trial Balance",    href: "/trial-balance",     icon: Scale,            section: "Reports" },
@@ -55,6 +60,8 @@ const NAV: NavItem[] = [
   { label: "Balance Sheet",    href: "/balance",           icon: PieChart,         section: "Reports" },
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
+  { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
+  { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
@@ -68,13 +75,13 @@ const SECTION_COLORS: Record<string, string> = {
   Receivable:    "text-green-400",
   Payable:       "text-orange-400",
   Manufacturing: "text-pink-400",
-  Telecom:       "text-emerald-400",
+  Telecom:       "text-teal-400",
   Banking:       "text-purple-400",
   Reports:       "text-cyan-400",
   System:        "text-white/40",
 }
 
-type Me = { tenant?: { business_model?: string } }
+type Me = { role?: string; tenant?: { business_model?: string } }
 
 interface SidebarProps {
   /** Drawer is shown when true; closed when false. Caller controls. */
@@ -93,22 +100,30 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const [userName, setUserName]   = useState("User")
   const [userInitial, setInitial] = useState("U")
   const [businessModel, setBusinessModel] = useState<string>("simple")
+  const [role, setRole] = useState<string>(() => getCurrentUser()?.role ?? "viewer")
 
   useEffect(() => {
     const user = getCurrentUser()
     if (user) {
       setUserName(user.full_name)
       setInitial(user.full_name.charAt(0).toUpperCase())
+      setRole(user.role)
     }
     apiFetch<Record<string,string>>("/api/settings")
       .then(d => { if (d?.company_name) setOrgName(d.company_name) })
       .catch(() => {})
     apiFetch<Me>("/api/auth/me")
-      .then(d => { if (d?.tenant?.business_model) setBusinessModel(d.tenant.business_model) })
+      .then(d => {
+        if (d?.tenant?.business_model) setBusinessModel(d.tenant.business_model)
+        if (d?.role) setRole(d.role)
+      })
       .catch(() => {})
   }, [])
 
-  const visibleNav = NAV.filter(i => !i.forModel || i.forModel === businessModel)
+  const isAdmin = role === "admin" || role === "owner"
+  const visibleNav = NAV.filter(i =>
+    (!i.forModel || i.forModel === businessModel) && (!i.adminOnly || isAdmin)
+  )
   const SECTIONS = ALL_SECTIONS.filter(s => visibleNav.some(i => i.section === s))
 
   const logout = () => {

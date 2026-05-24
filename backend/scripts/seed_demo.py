@@ -34,10 +34,23 @@ from models import (
     ProductionOrder, RatePlan, RecurringTemplate, SequenceCounter, StockLocation,
     TaxCode, Tenant, User, Vendor,
 )
+from models_telecom import (
+    FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
+    RsoAgent, SimActivation, TrackerAccount,
+)
 from routers.common import next_number
+from services.franchise_posting import (
+    post_commission_accrual, post_franchise_fee_amortisation,
+    post_franchise_fee_capitalisation,
+)
 from services.inventory import consume_stock, record_movement, record_purchase
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
+from services.tracker_posting import (
+    post_fca_target_commission, post_load_order, post_msr_to_rso_transfer,
+    post_rso_daily_collection, post_rso_sim_issue, post_rso_to_retail_transfer,
+    post_stock_debit, post_tracker_deposit,
+)
 
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -48,6 +61,7 @@ DEMO_TENANTS = [
     ("demo.services@easy-books.app",      "Demo Services Ltd.",     "services"),
     ("demo.trader@easy-books.app",        "Demo Trading Co.",       "trader"),
     ("demo.manufacturing@easy-books.app", "Demo Manufacturing Co.", "manufacturing"),
+    ("demo.telecom@easy-books.app",       "Demo Telecom Franchise", "telecom_franchise"),
 ]
 
 # Each list has 12+ entries — meets the "at least 10 of each" requirement.
@@ -101,6 +115,25 @@ FINISHED_GOODS_MFG = [
     ("FG-SHIRT", "Finished Shirt", "ea"),
     ("FG-POLO",  "Finished Polo",  "ea"),
     ("FG-PANT",  "Finished Pants", "ea"),
+]
+# Telecom-specific: physical inventory (SIMs, devices) + connectivity bundles
+TELECOM_STOCK = [
+    ("SIM-PRE",    "Prepaid SIM Card",       "ea",  5,  1),
+    ("SIM-POST",   "Postpaid SIM Card",      "ea",  8,  2),
+    ("ROUTER-4G",  "4G LTE Router",          "ea", 75, 38),
+    ("ROUTER-5G",  "5G CPE Router",          "ea", 220, 110),
+    ("MIFI",       "MiFi Mobile Hotspot",    "ea", 120,  55),
+    ("DONGLE-USB", "USB Data Dongle",        "ea",  45,  18),
+]
+TELECOM_SERVICES = [
+    ("BUNDLE-VOICE",  "Airtime Bundle (min)",   "min",   0.05),
+    ("BUNDLE-DATA",   "Data Bundle (GB)",       "gb",    2.50),
+    ("BUNDLE-SMS",    "SMS Bundle (msg)",       "msg",   0.02),
+    ("ROAM-DAY",      "Daily Roaming Pass",     "day",   8.00),
+    ("VAS-CALLERID",  "Caller ID Subscription", "mo",    1.50),
+    ("VAS-VOICEMAIL", "Voicemail Subscription", "mo",    2.00),
+    ("PLAN-POST-BASIC","Postpaid Basic Plan",   "mo",   25.00),
+    ("PLAN-POST-PRO", "Postpaid Pro Plan",      "mo",   55.00),
 ]
 TAX_CODES = [
     ("GST-OUT-17", "GST Output 17%", 17, "output", "2200"),
@@ -185,8 +218,15 @@ def _seed_products(
         s.add(p); s.flush()
         return p
 
-    for code, name, unit, rate in SERVICE_PRODUCTS:
-        services.append(upsert(code, name, unit, D(rate), "service"))
+    if business_model == "telecom_franchise":
+        # Telecom franchise replaces generic services with connectivity bundles
+        for code, name, unit, rate in TELECOM_SERVICES:
+            services.append(upsert(code, name, unit, D(rate), "service"))
+        for code, name, unit, sale, cost in TELECOM_STOCK:
+            stock.append(upsert(code, name, unit, D(sale), "stock"))
+    else:
+        for code, name, unit, rate in SERVICE_PRODUCTS:
+            services.append(upsert(code, name, unit, D(rate), "service"))
 
     if business_model in ("trader", "manufacturing"):
         for code, name, unit, sale, cost in STOCK_PRODUCTS_TRADER:
@@ -827,6 +867,144 @@ def _seed_manufacturing(
     # Users can drive them through the lifecycle from the UI.
 
 
+# ── Telecom-franchise-specific ──────────────────────────────────────────────
+
+
+def _seed_telecom_franchise(s: Session, user: User) -> None:
+    """Seed a full daily-operations slice: operator, tracker, load chain, RSO
+    collections, SIM batch + activations, FCA events + target, and a franchise
+    agreement with amortisation. Idempotent — skips if an operator exists."""
+    tid = user.tenant_id
+    if s.exec(select(Operator).where(Operator.tenant_id == tid)).first():
+        return   # already seeded
+
+    def acc_id(code: str) -> Optional[int]:
+        a = _account(s, tid, code)
+        return a.id if a else None
+
+    today = date.today()
+    setup_day = (today - timedelta(days=100)).isoformat()
+
+    # 1. Operator — wired to the franchise CoA
+    op = Operator(
+        tenant_id=tid, name="Jazz", operator_code="JAZZ",
+        contact_person="Franchise Desk", contact_phone="0300-1112223",
+        commission_settlement_cycle="monthly",
+        deposit_account_id=acc_id("1210"), load_account_id=acc_id("1211"),
+        payable_account_id=acc_id("2010"), commission_account_id=acc_id("4020"),
+    )
+    s.add(op); s.flush()
+
+    # 2. Tracker (MSR) account + initial deposit + load order (3% uplift)
+    ta = TrackerAccount(tenant_id=tid, operator_id=op.id, account_number="3001234567")
+    s.add(ta); s.flush()
+    post_tracker_deposit(s, user, tracker_account=ta, amount=D("500000"),
+                         date=setup_day, reference="Opening deposit")
+    post_load_order(s, user, tracker_account=ta, cash_debit=D("300000"),
+                    uplift_pct=D("3.00"), date=setup_day, reference="Initial load")
+    s.flush()
+
+    # 3. SIM stock procurement via tracker (creates a SIM batch)
+    batch, _ = post_stock_debit(
+        s, user, tracker_account=ta, inventory_account_code="1200",
+        qty=200, unit_cost=D("50"), date=setup_day, batch_number="SIMB-0001",
+    )
+    s.flush()
+
+    # 4. RSO agents + retail outlets
+    rsos: list[RsoAgent] = []
+    for name, terr in [("Imran Khan", "North Zone"), ("Sana Malik", "Central Zone"), ("Bilal Ahmed", "South Zone")]:
+        r = RsoAgent(tenant_id=tid, name=name, territory=terr,
+                     receivable_account_id=acc_id("1120"))
+        s.add(r); s.flush()
+        rsos.append(r)
+    outlets: list[RetailOutlet] = []
+    for i, r in enumerate(rsos):
+        o = RetailOutlet(tenant_id=tid, rso_id=r.id, shop_name=f"{r.territory} Mobile Point",
+                         owner_name=f"Owner {i+1}")
+        s.add(o); s.flush()
+        outlets.append(o)
+
+    # 5. Distribute load: MSR → each RSO, then RSO → retail
+    for r in rsos:
+        post_msr_to_rso_transfer(s, user, tracker_account=ta, rso=r,
+                                 amount=D("50000"), date=(today - timedelta(days=40)).isoformat())
+    s.flush()
+    post_rso_to_retail_transfer(s, user, rso=rsos[0], retail_outlet_id=outlets[0].id,
+                                amount=D("20000"), date=(today - timedelta(days=38)).isoformat())
+    s.flush()
+
+    # 7. SIM issue to each RSO from the batch (20 SIMs @ 80 face = 1600 stock each)
+    if batch is not None:
+        for i, r in enumerate(rsos):
+            post_rso_sim_issue(s, user, rso=r, batch=batch, qty=20,
+                               retail_price=D("80"), date=(today - timedelta(days=26 - i)).isoformat())
+            batch.qty_activated += 20
+        s.add(batch)
+    s.flush()
+
+    # 6. RSO daily collections — load + stock kept consistent with what was issued
+    #    (each RSO was issued 1600 of SIM stock; collect 1500 of it so the stock
+    #    receivable stays a small positive balance rather than going negative).
+    for i, r in enumerate(rsos):
+        post_rso_daily_collection(
+            s, user, rso=r, load_portion=D("30000"), stock_portion=D("1500"),
+            total_deposited=D("31500"), date=(today - timedelta(days=20 - i)).isoformat(),
+        )
+    s.flush()
+
+    # 8. SIM activations (some with commission accrued)
+    activations: list[SimActivation] = []
+    for i in range(12):
+        act = SimActivation(
+            tenant_id=tid, operator_id=op.id,
+            sim_number=f"0300{1000000 + i:07d}",
+            batch_id=batch.id if batch else None,
+            activation_date=(today - timedelta(days=20 - i)).isoformat(),
+            customer_name=f"Customer {i+1}", activation_type="prepaid",
+            status="active", commission_rate=D("150"), commission_status="pending",
+        )
+        s.add(act); s.flush()
+        activations.append(act)
+    for act in activations[:6]:
+        post_commission_accrual(s, user, activation=act, amount=D("150"),
+                                date=act.activation_date, revenue_account_code="4020")
+    s.flush()
+
+    # 9. FCA events this month + a monthly target
+    month = today.strftime("%Y-%m")
+    target = KpiTarget(tenant_id=tid, operator_id=op.id, target_month=f"{month}-01",
+                       metric="fca", target_value=D("30"))
+    s.add(target); s.flush()
+    for i in range(22):
+        day = min(i + 1, today.day if today.day > 0 else 1)
+        s.add(FcaEvent(
+            tenant_id=tid, msisdn=f"0301{2000000 + i:07d}",
+            event_date=f"{month}-{day:02d}", source_channel="rso_retail",
+            kpi_target_id=target.id,
+        ))
+    s.flush()
+    # Target commission earned (credited back to tracker deposit)
+    post_fca_target_commission(s, user, tracker_account=ta, amount=D("12000"),
+                               date=(today - timedelta(days=2)).isoformat(), credit_to="tracker")
+    s.flush()
+
+    # 10. Franchise agreement + capitalise fee + one month amortisation
+    ag = FranchiseAgreement(
+        tenant_id=tid, operator_id=op.id, agreement_number="FA-2024-JAZZ",
+        start_date=setup_day, franchise_fee_paid=D("600000"),
+        royalty_rate_pct=D("5"), min_monthly_target=D("250000"),
+        penalty_rate_pct=D("2"), amortisation_months=60,
+        intangible_account_id=acc_id("1300"), amortisation_account_id=acc_id("5030"),
+    )
+    s.add(ag); s.flush()
+    post_franchise_fee_capitalisation(s, user, agreement=ag, fee=D("600000"),
+                                      date=setup_day)
+    post_franchise_fee_amortisation(s, user, agreement=ag,
+                                    date=(today - timedelta(days=5)).isoformat())
+    s.flush()
+
+
 # ── Driver ────────────────────────────────────────────────────────────────────
 
 
@@ -882,6 +1060,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
 
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
+            s.commit()
+
+        if business_model == "telecom_franchise":
+            _seed_telecom_franchise(s, user)
             s.commit()
 
         # Report counts

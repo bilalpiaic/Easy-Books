@@ -1,8 +1,8 @@
 "use client"
 
-import { Briefcase, Building2, Package, Factory, Check } from "lucide-react"
+import { Briefcase, Building2, Package, Factory, Radio, Check } from "lucide-react"
 
-export type BusinessModel = "simple" | "services" | "trader" | "manufacturing"
+export type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
 
 interface ModelOption {
   id: BusinessModel
@@ -45,6 +45,14 @@ const OPTIONS: ModelOption[] = [
     tagline: "Make or value-add products",
     bestFor: "Factories, workshops, processors — including value-addition on customer-supplied goods.",
     includes: ["Everything in Trader", "Raw material + WIP + finished goods stores", "Bills of Material", "Customer-goods custody (memo accounts)", "Production orders"],
+  },
+  {
+    id: "telecom_franchise",
+    label: "Telecom Franchise",
+    icon: Radio,
+    tagline: "Operator franchise — Tracker, MSR load, RSO channel, FCA targets",
+    bestFor: "Jazz / Telenor / Zong / Ufone franchisees — Tracker-based load distribution, SIM/IMSI stock, RSO field teams, mobile money agency, postpaid billing.",
+    includes: ["Tracker deposit & load float (3% uplift)", "MSR → RSO → Retail load chain", "RSO daily cash + stock settlement", "Mobile money float (JazzCash/EasyPaisa)", "FCA target tracking + commission", "Postpaid billing & remittance", "Franchise fee amortisation"],
   },
 ]
 

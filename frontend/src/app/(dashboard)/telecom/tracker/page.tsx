@@ -1,247 +1,147 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Wallet, Plus } from "lucide-react"
-import { apiFetch } from "@/lib/api"
+import { Wallet } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
+import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
+import {
+  PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
+} from "@/components/telecom/primitives"
 
-interface TrackerAccount {
-  id: number
-  operator_name: string
-  operator_code: string
-  account_reference: string
-  deposit_balance: string
-  load_balance: string
-  gl_deposit_balance: string
-  gl_load_balance: string
-  is_active: boolean
-}
-
-interface Transaction {
-  id: number
-  txn_date: string
-  txn_type: string
-  amount: string
-  load_disbursed: string
-  commission_earned: string
-  tracker_reference: string | null
-  notes: string | null
-}
-
-const TXN_LABELS: Record<string, string> = {
-  deposit:          "Deposit",
-  load_order:       "Load Order",
-  stock_debit:      "Stock Debit",
-  commission_credit:"Commission",
-  penalty_debit:    "Penalty",
-  adjustment:       "Adjustment",
-}
-
-const TXN_COLORS: Record<string, string> = {
-  deposit:          "text-emerald-700 bg-emerald-50",
-  load_order:       "text-blue-700 bg-blue-50",
-  stock_debit:      "text-amber-700 bg-amber-50",
-  commission_credit:"text-purple-700 bg-purple-50",
-  penalty_debit:    "text-red-700 bg-red-50",
-  adjustment:       "text-slate-700 bg-slate-50",
-}
-
-function fmt(v: string | number | undefined) {
-  if (v === undefined || v === null) return "—"
-  const n = parseFloat(String(v))
-  if (isNaN(n)) return "—"
-  return "PKR " + n.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-interface CreateAccountFormProps { onCreated: () => void }
-function CreateAccountForm({ onCreated }: CreateAccountFormProps) {
-  const [form, setForm] = useState({ operator_name: "", operator_code: "JAZZ", account_reference: "" })
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true); setErr(null)
-    try {
-      await apiFetch("/api/telecom/tracker-accounts", { method: "POST", body: JSON.stringify(form) })
-      onCreated()
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Failed to create")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <form onSubmit={submit} className="bg-white border border-[#b8943f]/20 rounded-xl p-5 space-y-3">
-      <h3 className="font-semibold text-[#1a1814]">Add Tracker Account</h3>
-      {err && <p className="text-sm text-red-700">{err}</p>}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-[#1a1814]/60 block mb-1">Operator Name</label>
-          <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
-            value={form.operator_name} onChange={e => setForm(f => ({...f, operator_name: e.target.value}))} required />
-        </div>
-        <div>
-          <label className="text-xs text-[#1a1814]/60 block mb-1">Operator Code</label>
-          <select className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
-            value={form.operator_code} onChange={e => setForm(f => ({...f, operator_code: e.target.value}))}>
-            {["JAZZ","TELENOR","ZONG","UFONE"].map(c => <option key={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="col-span-2">
-          <label className="text-xs text-[#1a1814]/60 block mb-1">Tracker Account Reference</label>
-          <input className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
-            placeholder="Your Tracker ID / franchisee code"
-            value={form.account_reference} onChange={e => setForm(f => ({...f, account_reference: e.target.value}))} required />
-        </div>
-      </div>
-      <button type="submit" disabled={saving}
-        className="px-4 py-2 rounded-lg bg-[#b8943f] text-white text-sm font-medium disabled:opacity-50">
-        {saving ? "Saving…" : "Create Account"}
-      </button>
-    </form>
-  )
+interface Operator { id: number; name: string; operator_code: string; commission_settlement_cycle: string }
+interface TrackerAccount { id: number; operator_id: number; account_number: string; deposit_balance: string; load_balance: string }
+interface TrackerTxn {
+  id: number; txn_date: string; txn_type: string; amount: string
+  load_disbursed: string; commission_earned: string; tracker_reference: string | null
 }
 
 export default function TrackerPage() {
-  const [accounts, setAccounts] = useState<TrackerAccount[]>([])
-  const [selected, setSelected] = useState<number | null>(null)
-  const [detail, setDetail] = useState<{ transactions: Transaction[] } | null>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const operators = useTelecomList<Operator>("/api/telecom/operators")
+  const accounts = useTelecomList<TrackerAccount>("/api/telecom/tracker-accounts")
+  const txns = useTelecomList<TrackerTxn>("/api/telecom/tracker/transactions")
 
-  const load = () => {
-    setLoading(true)
-    apiFetch<{ items: TrackerAccount[] }>("/api/telecom/tracker-accounts")
-      .then(d => { setAccounts(d.items); if (d.items.length > 0 && !selected) setSelected(d.items[0].id) })
-      .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
-      .finally(() => setLoading(false))
-  }
+  const opOptions: SelectOption[] = operators.items.map(o => ({ value: String(o.id), label: `${o.name} (${o.operator_code})` }))
+  const acctOptions: SelectOption[] = accounts.items.map(a => ({ value: String(a.id), label: a.account_number }))
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [])
+  const refreshAccounts = () => { accounts.refetch(); txns.refetch() }
 
-  useEffect(() => {
-    if (!selected) return
-    apiFetch<{ transactions: Transaction[] }>(`/api/telecom/tracker-accounts/${selected}`)
-      .then(setDetail)
-      .catch(() => {})
-  }, [selected])
+  const operatorFields: FieldDef[] = [
+    { kind: "text", name: "name", label: "Operator name", required: true, placeholder: "Jazz" },
+    { kind: "text", name: "operator_code", label: "Operator code", required: true, placeholder: "JAZZ" },
+    { kind: "text", name: "contact_person", label: "Contact person" },
+    { kind: "text", name: "contact_phone", label: "Contact phone" },
+    { kind: "select", name: "commission_settlement_cycle", label: "Settlement cycle", default: "monthly",
+      options: [{ value: "monthly", label: "Monthly" }, { value: "weekly", label: "Weekly" }, { value: "fortnightly", label: "Fortnightly" }] },
+  ]
 
-  const selectedAcc = accounts.find(a => a.id === selected)
+  const acctFields: FieldDef[] = [
+    { kind: "select", name: "operator_id", label: "Operator", required: true, options: opOptions },
+    { kind: "text", name: "account_number", label: "Tracker / MSR number", required: true, placeholder: "3001234567" },
+  ]
+
+  const depositFields: FieldDef[] = [
+    { kind: "select", name: "tracker_account_id", label: "Tracker account", required: true, options: acctOptions },
+    { kind: "number", name: "amount", label: "Amount deposited", required: true, help: "Dr 1210 Tracker Deposit / Cr Bank" },
+    { kind: "date", name: "date", label: "Date" },
+    { kind: "text", name: "reference", label: "Reference / slip #" },
+  ]
+
+  const loadFields: FieldDef[] = [
+    { kind: "select", name: "tracker_account_id", label: "Tracker account", required: true, options: acctOptions },
+    { kind: "number", name: "cash_debit", label: "Cash from deposit", required: true, help: "Deduction from Tracker Deposit balance" },
+    { kind: "number", name: "uplift_pct", label: "Uplift %", default: "3.00", help: "Commission uplift earned at disbursement" },
+    { kind: "date", name: "date", label: "Date" },
+    { kind: "text", name: "reference", label: "Reference" },
+  ]
+
+  const stockFields: FieldDef[] = [
+    { kind: "select", name: "tracker_account_id", label: "Tracker account", required: true, options: acctOptions },
+    { kind: "select", name: "inventory_account_code", label: "Inventory type", default: "1200",
+      options: [{ value: "1200", label: "SIM cards (1200)" }, { value: "1204", label: "IMSI (1204)" }, { value: "1201", label: "Scratch / PIN (1201)" }] },
+    { kind: "number", name: "qty", label: "Quantity", required: true, step: "1" },
+    { kind: "number", name: "unit_cost", label: "Unit cost", required: true },
+    { kind: "text", name: "batch_number", label: "Batch number" },
+    { kind: "date", name: "date", label: "Date" },
+  ]
+
+  const acctCols: Column<TrackerAccount>[] = [
+    { header: "Account #", cell: a => a.account_number, mono: true },
+    { header: "Deposit balance", cell: a => money(a.deposit_balance) },
+    { header: "Load balance", cell: a => money(a.load_balance) },
+  ]
+
+  const opCols: Column<Operator>[] = [
+    { header: "Code", cell: o => o.operator_code, mono: true },
+    { header: "Name", cell: o => o.name },
+    { header: "Cycle", cell: o => o.commission_settlement_cycle },
+  ]
+
+  const txnCols: Column<TrackerTxn>[] = [
+    { header: "Date", cell: t => t.txn_date, mono: true },
+    { header: "Type", cell: t => t.txn_type },
+    { header: "Amount", cell: t => money(t.amount) },
+    { header: "Load disbursed", cell: t => money(t.load_disbursed) },
+    { header: "Commission", cell: t => money(t.commission_earned) },
+    { header: "Reference", cell: t => t.tracker_reference ?? "—" },
+  ]
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Wallet className="w-7 h-7 text-[#b8943f]" />
-          <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Tracker & Load</h1>
-            <p className="text-sm text-[#1a1814]/60">Operator Tracker wallet and load order history.</p>
-          </div>
-        </div>
-        <button onClick={() => setShowForm(f => !f)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#b8943f] text-white text-sm font-medium">
-          <Plus className="w-4 h-4" /> Add Account
-        </button>
-      </header>
+      <PageHeader icon={Wallet} title="Tracker & Load" subtitle="Operator deposit wallet, load orders, and stock procurement." />
 
-      <HelpCallout title="Tracker deposit → Load order cycle" tone="tip">
-        <ol className="list-decimal pl-4 space-y-1 text-sm">
-          <li>Deposit cash from your bank into Tracker (Dr 1210 / Cr Bank).</li>
-          <li>Place a load order — Tracker debits 100%, MSR SIM receives 103% (the 3% uplift posts as commission income).</li>
-          <li>Transfer load from MSR SIM to RSO agents via the <b>Load Transfers</b> page.</li>
-        </ol>
+      <HelpCallout title="The 3% load uplift, explained" tone="tip">
+        A load order converts your Tracker deposit into spendable load float. The operator credits you
+        <b> 3% more face value</b> than the cash you spend, booked as commission revenue right away:
+        <pre className="mt-2 bg-white/50 rounded px-2 py-1 text-[11px] leading-relaxed">
+{`Dr 1211 Load Float Asset     cash × 1.03
+   Cr 1210 Tracker Deposit       cash
+   Cr 4020 Load Uplift Commission cash × 0.03`}
+        </pre>
       </HelpCallout>
 
-      {showForm && <CreateAccountForm onCreated={() => { setShowForm(false); load() }} />}
+      <ErrorBanner error={operators.error ?? accounts.error ?? txns.error} />
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-900 rounded-xl px-4 py-3 text-sm">{error}</div>}
-
-      {loading ? (
-        <p className="text-sm text-[#1a1814]/50">Loading…</p>
-      ) : accounts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#b8943f]/30 p-10 text-center">
-          <Wallet className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="font-medium text-[#1a1814]">No Tracker accounts yet</p>
-          <p className="text-sm text-[#1a1814]/50 mt-1">Click &quot;Add Account&quot; to get started.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Account list */}
-          <div className="space-y-2">
-            {accounts.map(a => (
-              <button key={a.id} onClick={() => setSelected(a.id)}
-                className={`w-full text-left rounded-xl border p-4 transition-colors
-                  ${a.id === selected ? "border-[#b8943f] bg-[#fdf9f0]" : "border-[#b8943f]/20 bg-white hover:bg-[#f6f3ee]"}`}>
-                <p className="font-semibold text-sm text-[#1a1814]">{a.operator_name}</p>
-                <p className="text-xs text-[#1a1814]/50">{a.operator_code} · {a.account_reference}</p>
-                <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-                  <div>
-                    <span className="text-[#1a1814]/40">Deposit </span>
-                    <span className="font-mono font-semibold">{fmt(a.gl_deposit_balance)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[#1a1814]/40">Load </span>
-                    <span className="font-mono font-semibold">{fmt(a.gl_load_balance)}</span>
-                  </div>
-                </div>
-              </button>
-            ))}
+      <Tabs tabs={[
+        { id: "deposit", label: "Deposit", content: (
+          <Section title="Top up tracker deposit">
+            <ActionForm endpoint="/api/telecom/tracker/deposits" fields={depositFields} submitLabel="Post deposit" onSuccess={refreshAccounts} />
+          </Section>
+        )},
+        { id: "load", label: "Load order", content: (
+          <Section title="Place load order (3% uplift)">
+            <ActionForm endpoint="/api/telecom/tracker/load-orders" fields={loadFields} submitLabel="Post load order" onSuccess={refreshAccounts} />
+          </Section>
+        )},
+        { id: "stock", label: "Stock debit", content: (
+          <Section title="Procure stock via tracker">
+            <ActionForm endpoint="/api/telecom/tracker/stock-debits" fields={stockFields} submitLabel="Post stock debit" onSuccess={refreshAccounts} />
+          </Section>
+        )},
+        { id: "accounts", label: "Accounts", content: (
+          <div className="space-y-4">
+            <Section title="Tracker accounts">
+              <DataTable columns={acctCols} rows={accounts.items} empty="No tracker accounts yet." />
+            </Section>
+            <Section title="Register a tracker account">
+              <ActionForm endpoint="/api/telecom/tracker-accounts" fields={acctFields} submitLabel="Add tracker account" successText={() => "Tracker account added."} onSuccess={accounts.refetch} />
+            </Section>
           </div>
-
-          {/* Transaction history */}
-          <div className="md:col-span-2">
-            {selectedAcc && (
-              <div className="rounded-xl border border-[#b8943f]/20 bg-white overflow-hidden">
-                <div className="px-5 py-3 border-b border-[#b8943f]/10 flex items-center justify-between">
-                  <h2 className="font-semibold text-[#1a1814]">
-                    {selectedAcc.operator_name} — Transactions
-                  </h2>
-                </div>
-                {!detail?.transactions?.length ? (
-                  <p className="text-sm text-[#1a1814]/40 p-5">No transactions yet.</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-xs text-[#1a1814]/40 uppercase tracking-wide border-b border-[#b8943f]/10">
-                        <th className="px-4 py-2 text-left">Date</th>
-                        <th className="px-4 py-2 text-left">Type</th>
-                        <th className="px-4 py-2 text-right">Amount</th>
-                        <th className="px-4 py-2 text-right">Load</th>
-                        <th className="px-4 py-2 text-right">Commission</th>
-                        <th className="px-4 py-2 text-left">Ref</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.transactions.map(t => (
-                        <tr key={t.id} className="border-b border-[#b8943f]/5 hover:bg-[#f6f3ee]">
-                          <td className="px-4 py-2 font-mono text-xs">{t.txn_date}</td>
-                          <td className="px-4 py-2">
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${TXN_COLORS[t.txn_type] || "text-slate-700 bg-slate-50"}`}>
-                              {TXN_LABELS[t.txn_type] || t.txn_type}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono">{fmt(t.amount)}</td>
-                          <td className="px-4 py-2 text-right font-mono text-blue-700">
-                            {parseFloat(t.load_disbursed) > 0 ? fmt(t.load_disbursed) : "—"}
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono text-emerald-700">
-                            {parseFloat(t.commission_earned) > 0 ? fmt(t.commission_earned) : "—"}
-                          </td>
-                          <td className="px-4 py-2 text-xs text-[#1a1814]/50">{t.tracker_reference || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
+        )},
+        { id: "operators", label: "Operators", content: (
+          <div className="space-y-4">
+            <Section title="Operators">
+              <DataTable columns={opCols} rows={operators.items} empty="No operators yet." />
+            </Section>
+            <Section title="Add an operator">
+              <ActionForm endpoint="/api/telecom/operators" fields={operatorFields} submitLabel="Add operator" successText={() => "Operator added."} onSuccess={operators.refetch} />
+            </Section>
           </div>
-        </div>
-      )}
+        )},
+        { id: "txns", label: "Transactions", content: (
+          <Section title="Tracker transaction ledger">
+            <DataTable columns={txnCols} rows={txns.items} empty="No tracker transactions yet." />
+          </Section>
+        )},
+      ]} />
     </div>
   )
 }

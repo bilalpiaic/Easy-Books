@@ -26,6 +26,7 @@
 8. [API Catalogue — Every Endpoint](#8-api-catalogue--every-endpoint)
 9. [Accounting Cycles & GL Postings](#9-accounting-cycles--gl-postings)
 10. [Manufacturing Track (V2)](#10-manufacturing-track-v2)
+10A. [Telecom Franchise Track (V3)](#10a-telecom-franchise-track-v3)
 11. [Reports](#11-reports)
 12. [Security Model](#12-security-model)
 13. [Cross-Cutting Concerns](#13-cross-cutting-concerns)
@@ -98,7 +99,8 @@ Easy-Books/
 │   ├── alembic.ini · alembic/versions/0001…0013
 │   ├── routers/
 │   │   ├── common.py            SessionDep, CurrentUserDep, WriteUserDep, RBAC, next_number, log_audit
-│   │   ├── auth.py              signup (+business_model), login (+throttle), logout, /me
+│   │   ├── auth.py              signup, login (+throttle), logout, /me, profile (name/phone/password/avatar), accept-invite
+│   │   ├── users.py             (V3.6) team management (admin+): create/invite/role/activate/reset-password
 │   │   ├── settings.py          tenant settings + /business-model + /modules
 │   │   ├── accounts.py          CoA CRUD
 │   │   ├── customers.py · vendors.py · products.py
@@ -217,8 +219,9 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 
 | Table | Notes |
 |---|---|
-| `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing` CHECK), `enabled_modules` (JSON array string), `created_at` |
-| `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `is_active`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id` |
+| `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing/telecom_franchise` CHECK), `enabled_modules` (JSON array string), `created_at` |
+| `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `phone`, `avatar_url`, `is_active`, `must_change_password`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id`, `created_at`, `last_login_at` |
+| `userinvite` | Pending tenant invite — `email`, `role` (CHECK), `token` (unique), `invited_by_id`, `expires_at`, `accepted_at`. Consumed by `POST /api/auth/accept-invite` |
 | `settings` | KV per tenant — `company_name`, fiscal year, number prefixes |
 | `account` | `code`, `name`, `type` (`Asset/Liability/Equity/Revenue/Expense` CHECK), `parent_id`, **`is_memo`** (V2.1 — excludes from formal A=L+E totals) |
 | `accountingperiod` | `period_start`, `period_end`, `is_locked`, `name` |
@@ -295,6 +298,7 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | `services` | Service firms (consulting, agencies) | + Consulting Revenue, Recurring Service Revenue, Deferred Revenue, Subcontractor Costs |
 | `trader` | Goods buy-resell | + Finished Goods Inventory, COGS, Freight In, Storage, Inventory Adjustments, GST Receivable |
 | `manufacturing` | Value-addition / contract mfg | + RM/WIP/FG inventory, Customer Goods on Hand (memo 1210), Customer Goods Liability (memo 2150), Direct Labour, Manufacturing Overhead, Indirect Materials, Service Revenue (Value-Add) |
+| `telecom_franchise` | Mobile-operator franchise | + 56-account franchise CoA: Tracker Deposit `1210`, Load Float `1211`, RSO/Retail load receivables `1212/1213`, MM float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue `4000–4061` (3% load uplift `4020`, FCA target `4060`); fee amortisation `5030`, royalty `5040`, variance `5070`, penalty `5090`. See WORKFLOW §4.8 |
 
 `Tenant.enabled_modules` is a JSON-serialised list. Derived from `business_model` at signup, but admins can override via `PATCH /api/settings/modules`. Frontend uses it to gate UI sections.
 
@@ -306,6 +310,9 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 "trader":        ["invoicing","billing","manual_jv","inventory"]
 "manufacturing": ["invoicing","billing","manual_jv","inventory",
                   "stores","bom","production","customer_goods"]
+"telecom_franchise": ["invoicing","billing","manual_jv","inventory",
+                  "tracker","sim_airtime","mobile_money","device_sales",
+                  "postpaid_billing","commission_tracking","rso_channel","franchise_admin"]
 ```
 
 The sidebar reads `/api/auth/me` → `tenant.business_model` and filters its NAV array; sections with no visible items are hidden entirely.
@@ -328,7 +335,10 @@ The sidebar reads `/api/auth/me` → `tenant.business_model` and filters its NAV
 ### Manufacturing extra
 1200 Raw Material Inventory · 1201 Work-in-Progress · 1202 Finished Goods Inventory · **1210 Customer Goods on Hand (memo)** · 1250 GST Receivable · **2150 Customer Goods Liability (memo)** · 4010 Service Revenue (Value-Add) · 5010 COGS · 5100 Direct Labour · 5110 Subcontractor Costs · 5200 Manufacturing Overhead · 5210 Indirect Materials
 
-Switching business model via `PATCH /api/settings/business-model` *(admin-only API endpoint; not exposed in UI)* adds the new template's accounts that don't already exist (never deletes existing ones). Business model is selected at signup; UI does not provide model-switching capability.
+### Telecom franchise extra (`_COA_TELECOM_FRANCHISE_EXTRA`, 56 accounts)
+1110 Commission Receivable · 1120 RSO Receivables · 1130 Postpaid Customer Receivable · 1200 SIM Card Inventory · 1201 Scratch/PIN · 1202 Device Inventory · 1204 IMSI Inventory · **1210 Tracker Deposit Balance** · **1211 Load Float Asset (MSR)** · 1212 RSO Load Receivable · 1213 Retail Load Receivable · 1214 Mobile Money Float Asset · 1250 GST Receivable · 1300 Franchise Intangible · 1301 Accum. Amortisation · 2010 Operator Payable · 2100 MM Float Liability · 2110 Postpaid Collections Payable · 2120 Royalty Payable · 2300 Advance from Operator · 4000 Airtime/Recharge · 4010 SIM Activation · **4020 Load Uplift Commission (3%)** · 4021 Recharge Commission · 4022 Mobile Money Commission · 4023 Bundle Commission · 4030 SIM Sale · 4031 Device Sales · 4040 Postpaid Billing · 4050 RSO Channel · **4060 FCA Target Commission** · 4061 Franchise Incentive · 5010/5011/5012 COGS (devices/SIMs/scratch) · 5020 RSO Incentives · 5021 Retail Incentives · 5030 Fee Amortisation · 5040 Royalty · 5060 MM Transaction Costs · 5070 Tracker/Float Variance · 5080 Bad Debt-RSO · 5090 Target Shortfall Penalty
+
+Business model is selected at signup. Switching later via `PATCH /api/settings/business-model` *(admin-only API; not exposed in the UI)* adds the new template's accounts that don't already exist (never deletes existing ones).
 
 ---
 
@@ -336,11 +346,20 @@ Switching business model via `PATCH /api/settings/business-model` *(admin-only A
 
 All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK stability.
 
-### Auth (`/api/auth`)
+### Auth & profile (`/api/auth`)
 - `POST /signup` — body: `{email, password, full_name, company_name, business_model?}` → creates Tenant + User (role=owner) + seeds CoA + locations + sequence counters.
-- `POST /login` — OAuth2-form (`username` + `password`) → returns `access_token` and sets `eb_access` (HttpOnly) + `eb_csrf` cookies.
+- `POST /login` — OAuth2-form (`username` + `password`) → returns `access_token` + `must_change_password` and sets `eb_access` (HttpOnly) + `eb_csrf` cookies. Rejects inactive users (403); stamps `last_login_at`.
 - `POST /logout` — clears cookies.
-- `GET /me` — returns `{user, tenant: {id, name, base_currency, business_model, enabled_modules}}`.
+- `GET /me` — returns the full user (id, email, full_name, phone, avatar_url, role, must_change_password, created_at, last_login_at) + `tenant: {id, name, base_currency, business_model, enabled_modules}`.
+- `PATCH /me` — update own `full_name` / `phone`.
+- `POST /change-password` — verify current → set new (≥ 8); clears `must_change_password`.
+- `POST` / `DELETE /me/avatar`, `GET /users/{id}/avatar` — avatar upload/remove/serve (tenant-scoped, ≤ 5 MB image).
+- `GET /invite/{token}` (public) — inspect a pending invite; `POST /accept-invite` (public) — activate the User from a token.
+
+### Team / users (`/api/users`, admin+)
+- `GET /` list · `POST /` create (temp password, returned once) · `PATCH /{id}` role/active/name · `POST /{id}/reset-password` · `DELETE /{id}` deactivate.
+- `GET`/`POST /invites`, `DELETE /invites/{id}` — tokenized invitations (7-day expiry).
+- Guards: no self-role-change / self-deactivation; owner role is owner-grantable only; last active owner protected.
 
 ### Settings (`/api/settings`)
 - `GET /` — KV map. Includes:
@@ -689,6 +708,28 @@ Each transition is its own `Transaction`. Benefits:
 
 ---
 
+## 10A. TELECOM FRANCHISE TRACK (V3)
+
+Applies to `business_model == 'telecom_franchise'`. 23 `tc_*` tables (`models_telecom.py`); GL writes flow through `services/tracker_posting.py` + `services/franchise_posting.py`, which call the same central `services/posting.py`. Routes in `routers/telecom.py` (40+ endpoints) and `routers/telecom_reports.py` (9 reports). Frontend in `src/app/(dashboard)/telecom/` (dashboard + 9 pages) built on `components/telecom/ActionForm` + `primitives`.
+
+### 10A.1 Entities (`tc_*`)
+Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimBatch · SimActivation · AirtimeStock · AirtimeSale · LoadTransfer · RetailOutlet · RsoAgent · RsoStockIssue · RsoDailyCollection · RsoTarget · FcaEvent · KpiTarget · MobileMoneyAccount · MobileMoneyTransaction · DeviceImei · PostpaidConnection · PostpaidBillCycle · CommissionStatement · CommissionLine · FranchiseAgreement.
+
+### 10A.2 The operational cycle
+1. **Fund** — tracker deposit (`Dr 1210 / Cr Bank`), then load order with 3% uplift (`Dr 1211 ×1.03 / Cr 1210 / Cr 4020 ×0.03`).
+2. **Procure** — SIM/IMSI stock debit (`Dr 1200 / Cr 1210`, creates a batch).
+3. **Distribute** — MSR→RSO (`Dr 1212 / Cr 1211`), RSO→Retail (`Dr 1213 / Cr 1212`).
+4. **Sell/activate** — counter sale + COGS; activation → accrue commission (`Dr 1110 / Cr 4020`).
+5. **Collect** — RSO daily collection (`Dr Bank / Cr 1212 / Cr 1120`, variance → `5070`/`4900`).
+6. **Targets** — FCA events counted; monthly settlement pays `4060` or penalises `5090`.
+7. **Adjacent revenue** — mobile money (`1214`/`2100`/`4022`), postpaid bill/collect/remit (`1130`/`2110`/`4040`).
+8. **Reconcile & amortise** — settle commission statements against `1110`; capitalise fee `1300`, amortise `5030`, royalty `5040`/`2120`.
+
+### 10A.3 Invariants
+`tc_tracker_account.deposit_balance == GL 1210` · `tc_tracker_account.load_balance == GL 1211` · load order balances exactly · FCA events are counted, never journalised per event · trial balance nets to zero. Full Dr/Cr table in WORKFLOW §4.8.
+
+---
+
 ## 11. REPORTS
 
 | Endpoint | Source | Notes |
@@ -720,8 +761,10 @@ Each transition is its own `Transaction`. Benefits:
 ### 12.2 RBAC
 - Roles: `viewer < accountant < admin < owner` (rank in `_ROLE_ORDER`).
 - `WriteUserDep` requires `accountant+` (most mutations).
-- `AdminUserDep` requires `admin+` (settings, business-model switch, modules).
+- `AdminUserDep` requires `admin+` (settings, business-model switch, modules, **all of `/api/users`**).
 - DB CHECK enforces role values; first user of a tenant is `owner`.
+- **Active check:** `get_current_user` rejects `is_active=false` users on every request (403) — deactivation is instant, not deferred to token expiry.
+- **Member management guards:** no self-role-change or self-deactivation; only an owner grants/edits the `owner` role; the last active owner can't be demoted or deactivated.
 
 ### 12.3 Auth
 - **JWT (HS256)** signed with `JWT_SECRET_KEY`. Payload: `{sub: email, tenant_id, exp}`. Auth middleware decodes from either:

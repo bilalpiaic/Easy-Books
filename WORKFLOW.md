@@ -21,6 +21,7 @@
    - 6.5 [Manual Journal Entries](#45-manual-journal-entries)
    - 6.6 [Period-End Close](#46-period-end-close)
    - 6.7 [Manufacturing (V2)](#47-manufacturing-v2)
+   - 6.8 [Telecom Franchise (V3)](#48-telecom-franchise-v3)
 7. [Cross-Cutting Features](#5-cross-cutting-features)
    - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 7.2 [Tax Codes](#52-tax-codes)
@@ -666,6 +667,83 @@ Memo balance is released only when **all** layers of a given GRN are fully drain
 
 ---
 
+### 4.8 TELECOM FRANCHISE (V3)
+
+Applies only to tenants where `Tenant.business_model == 'telecom_franchise'`. Signup seeds a 56-account franchise CoA and a franchise-specific module set. 23 `tc_*` tables (`models_telecom.py`) model the operational entities, but the **only** GL writer is still `services/posting.py` — every posting below is a balanced, tenant-scoped JV created via `tracker_posting.py` / `franchise_posting.py`.
+
+The model mirrors a real mobile-operator franchise: you pre-fund a **Tracker** wallet with the operator, convert it to spendable **load float** (earning a 3% uplift), push that float down a **MSR → RSO → Retail** distribution chain, collect cash daily, sell/activate SIMs, hit monthly **FCA** (first-call-activation) targets, run a **mobile-money** agency, bill **postpaid** on the operator's behalf, reconcile **commission statements**, and amortise the **franchise fee** / pay **royalty**.
+
+```
+  FUND THE WALLET            DISTRIBUTE LOAD             SELL & ACTIVATE            SETTLE & RECONCILE
+   │                          │                           │                          │
+   │ deposit  Dr 1210/Cr Bank │ MSR→RSO  Dr 1212/Cr 1211 │ stock debit Dr 1200/     │ RSO daily collection
+   │ load     Dr 1211 (×1.03) │ RSO→Retail Dr 1213/Cr1212│   Cr 1210 (+ tc_sim_batch)│   Dr Bank / Cr 1212
+   │          Cr 1210 (cash)  │                           │ counter sale + COGS       │   / Cr 1120 (±var→5070/4900)
+   │          Cr 4020 (3%)    │                           │ activation → accrue       │ commission statement
+   │                          │                           │   Dr 1110 / Cr 4020       │   settle vs 1110 (var→4061)
+   ▼                          ▼                           ▼                          ▼
+  deposit_balance==GL 1210   load receivables build      SIM inventory relieves      receivables clear
+  load_balance ==GL 1211                                 commission accrues          fee amortises / royalty pays
+```
+
+**Tracker & load order (`tracker_posting.py`):**
+
+| Operation | JV | Side-effect |
+|---|---|---|
+| `post_tracker_deposit` | `Dr 1210 Tracker Deposit / Cr 1010 Bank` | `tc_tracker_account.deposit_balance += amount` |
+| `post_load_order` | `Dr 1211 Load Float (cash×1.03) / Cr 1210 (cash) / Cr 4020 Load Uplift (cash×0.03)` | deposit_balance −= cash; load_balance += face. Rejects if deposit insufficient |
+| `post_stock_debit` | `Dr 1200/1201/1204 Inventory / Cr 1210` | creates a `tc_sim_batch` for code 1200; deposit_balance −= cost |
+| `post_msr_to_rso_transfer` | `Dr 1212 RSO Load Rec / Cr 1211 Load Float` | load_balance −= amount; `tc_load_transfer` row |
+| `post_rso_to_retail_transfer` | `Dr 1213 Retail Load Rec / Cr 1212 RSO Load Rec` | `tc_load_transfer` row |
+| `post_rso_daily_collection` | `Dr 1010 Bank / Cr 1212 (load) / Cr 1120 (stock)`; variance > 0 → `Cr 4900`, < 0 → `Dr 5070` | `tc_rso_daily_collection` row |
+| `post_counter_sim_sale` | sale `Dr Cash / Cr 4030` + COGS `Dr 5011 / Cr 1200` | two JVs |
+| `post_rso_sim_issue` | `Dr 1120 RSO Stock Rec (face) / Cr 1200 (cost) / Cr 4050 (margin)` | `tc_rso_stock_issue`; batch.qty_activated += qty |
+| `post_fca_target_commission` | `Dr 1210 or Bank / Cr 4060 FCA Target Commission` | credits tracker deposit when `credit_to='tracker'` |
+| `post_fca_target_penalty` | `Dr 5090 Target Shortfall Penalty / Cr 1210` | — |
+
+**Mobile money / postpaid / commission / franchise (`franchise_posting.py`):**
+
+| Operation | JV |
+|---|---|
+| `post_mm_float_top_up` | `Dr 1214 MM Float Asset / Cr Cash` |
+| `post_mm_customer_deposit` | `Dr Cash / Cr 2100 MM Float Liability` (float *decreases*) |
+| `post_mm_customer_withdrawal` | `Dr 2100 / Cr Cash` (float *increases*) |
+| `post_mm_commission_credit` | `Dr 1214 or Bank / Cr 4022 MM Commission` |
+| `post_mm_reconciliation` | diff → `Dr 5070` (shortage) or `Cr 4900` (overage); no entry when balanced |
+| `post_commission_accrual` | `Dr 1110 Commission Receivable / Cr revenue (4020 default)`; sets activation `commission_status='accrued'` |
+| `post_commission_statement_settlement` | `Dr Bank/Tracker / Cr 1110 (accrued)`; variance → `Cr 4061` (favourable) or `Dr 5000` (adverse). Zero lines skipped |
+| `post_postpaid_bill` | `Dr 1130 Postpaid Cust Rec / Cr 2110 Collections Payable` (gross) |
+| `post_postpaid_collection` | `Dr Cash / Cr 1130` |
+| `post_postpaid_remittance` | `Dr 2110 (gross) / Cr Bank (net) / Cr 4040 Postpaid Commission` |
+| `post_franchise_fee_capitalisation` | `Dr 1300 Franchise Intangible / Cr Bank` |
+| `post_franchise_fee_amortisation` | `Dr 5030 Fee Amortisation / Cr 1301 Accum. Amort.` (monthly = fee ÷ amortisation_months) |
+| `post_royalty_accrual` | `Dr 5040 Royalty Expense / Cr 2120 Royalty Payable` |
+| `post_royalty_payment` | `Dr 2120 / Cr Bank` |
+
+**FCA invariant:** first-call activations are **counted, not journalised** per event (`tc_fca_event` rows). Only the monthly target settlement (commission or penalty) hits the GL.
+
+**Reconciliation invariants (verified):**
+- `tc_tracker_account.deposit_balance` == GL balance of `1210`
+- `tc_tracker_account.load_balance` == GL balance of `1211`
+- 3-line load order balances exactly (`cash×1.03 == cash + cash×0.03`)
+- Trial balance nets to zero across the full franchise posting set
+
+**Telecom reports (V3):**
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/telecom/reports/dashboard` | Tracker & load positions, commission receivable, RSO count/stock-rec, MM float, SIM utilisation, FCA month progress |
+| `GET /api/telecom/reports/commission-aging` | Accrued commission receivable bucketed `current / 1-30 / 31-60 / 61-90 / 90+` |
+| `GET /api/telecom/reports/rso-ledger` | Per-RSO: load in (MSR), load out (retail), cash collected (load/stock/total), open load balance |
+| `GET /api/telecom/reports/float-statement` | MM accounts: system float vs GL `1214` for reconciliation |
+| `GET /api/telecom/reports/sim-utilisation` | Per-batch received / activated / available + unit cost |
+| `GET /api/telecom/reports/postpaid-book` | All postpaid bill cycles with collection + remittance status |
+| `GET /api/telecom/reports/revenue-by-stream` | Revenue per franchise stream (CoA 4xxx), sign-flipped + total |
+| `GET /api/telecom/reports/fca-target` | Current-month FCA actual vs target, achievement %, delta |
+| `GET /api/telecom/reports/tracker-statement` | Tracker txn ledger + GL-vs-denormalised deposit/load reconciliation |
+
+---
+
 ## 5. CROSS-CUTTING FEATURES
 
 ### 5.1 Multi-Currency & FX
@@ -936,14 +1014,33 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 
 Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned alias). Future breaking changes ship under `/api/v2/`.
 
-### 8.1 Auth & settings
+### 8.1 Auth, profile & settings
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/auth/signup` | Create tenant + seed CoA + `owner` user (password ≥ 8) |
-| POST | `/api/auth/login` | OAuth2 password → JWT + HttpOnly cookie + CSRF cookie + body `{access_token, role, csrf_token}` |
+| POST | `/api/auth/login` | OAuth2 password → JWT + HttpOnly cookie + CSRF cookie + body `{access_token, role, csrf_token, must_change_password}`. Rejects inactive users (403); stamps `last_login_at` |
 | POST | `/api/auth/logout` | Clears both cookies |
-| GET | `/api/auth/me` | Current user (email, full_name, role) |
+| GET | `/api/auth/me` | Current user (id, email, full_name, phone, avatar_url, role, must_change_password, created_at, last_login_at, tenant) |
+| PATCH | `/api/auth/me` | Update own `full_name` / `phone` |
+| POST | `/api/auth/change-password` | Verify current → set new (≥ 8); clears `must_change_password` |
+| POST/DELETE | `/api/auth/me/avatar` | Upload (multipart, PNG/JPEG/GIF/WebP ≤ 5 MB) / remove own avatar |
+| GET | `/api/auth/users/{id}/avatar` | Serve a tenant member's avatar (tenant-scoped; 404 cross-tenant) |
+| GET | `/api/auth/invite/{token}` | Public — inspect a pending invite (email, role, company) |
+| POST | `/api/auth/accept-invite` | Public — `{token, full_name, password}` → activates the User and logs in |
 | GET/PATCH | `/api/settings` | Company name, fiscal year start, currency display, document prefixes |
+
+### 8.1a Team / user management (`/api/users`, admin+)
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/users` | List tenant members (role, is_active, last_login, …) |
+| POST | `/api/users` | Create a member with a temporary password (returned once); `must_change_password=true` |
+| PATCH | `/api/users/{id}` | Change `full_name` / `role` / `is_active`. Guards below |
+| POST | `/api/users/{id}/reset-password` | Issue a new temporary password (forces change at next login) |
+| DELETE | `/api/users/{id}` | Soft-delete (deactivate) — audit rows reference the user id |
+| GET/POST | `/api/users/invites` | List pending / create a tokenized invite (7-day expiry) → `{token, accept_path}` |
+| DELETE | `/api/users/invites/{id}` | Revoke a pending invite |
+
+**Role guards** (enforced in `routers/users.py`): you cannot change your own role or deactivate yourself; only an **owner** may grant or modify the `owner` role; the **last active owner** cannot be demoted or deactivated.
 
 ### 8.2 Master data
 | Method | Path | Purpose |
@@ -1020,6 +1117,27 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/import/{entity}/sample` | Blank CSV template |
 | POST | `/api/import/accounts` \| `customers` \| `vendors` \| `products` \| `transactions` | Bulk create; per-row error collection; partial-success OK |
 
+### 8.9 Telecom franchise (V3 — `business_model = telecom_franchise`)
+| Method | Path | Purpose |
+|---|---|---|
+| GET/POST | `/api/telecom/operators` · `/tracker-accounts` | Operator + tracker (MSR) wallet master data |
+| POST | `/api/telecom/tracker/deposits` · `/load-orders` · `/stock-debits` | Fund wallet, place 3% load order, procure SIM/IMSI stock |
+| GET | `/api/telecom/tracker/transactions` | Tracker txn ledger |
+| GET/POST | `/api/telecom/rso/agents` · `/rso/retail-outlets` | RSO channel master data |
+| POST | `/api/telecom/load-transfers/msr-to-rso` · `/rso-to-retail` | Distribute load down the chain |
+| GET/POST | `/api/telecom/rso/collections` | RSO daily cash collection (load + stock ± variance) |
+| POST | `/api/telecom/rso/sim-issues` | Issue SIM stock to an RSO |
+| GET | `/api/telecom/sim/batches` · GET/POST `/sim/activations` | SIM inventory + activations |
+| POST | `/api/telecom/sim/activations/accrue-commission` · `/sim/counter-sales` | Accrue activation commission; walk-in sale |
+| GET/POST | `/api/telecom/fca/events` · `/kpi/targets` | FCA counter + monthly targets |
+| POST | `/api/telecom/fca/target-commission` · `/fca/target-penalty` | Monthly target settlement |
+| GET/POST | `/api/telecom/mm/accounts` · POST `/mm/top-up` · `/mm/deposit` · `/mm/withdrawal` · `/mm/commission` · `/mm/reconcile` · GET `/mm/transactions` | Mobile-money agency |
+| GET/POST | `/api/telecom/postpaid/connections` · POST `/postpaid/bills` · `/postpaid/collect` · `/postpaid/remit` · GET `/postpaid/cycles` | Postpaid billing on operator's behalf |
+| GET/POST | `/api/telecom/commissions/statements` · POST `/commissions/settle` | Commission statement + reconciliation |
+| GET/POST | `/api/telecom/franchise/agreements` · POST `/franchise/capitalise-fee` · `/franchise/amortise` · `/franchise/royalty/accrue` · `/franchise/royalty/pay` | Franchise fee + royalty |
+| GET/POST | `/api/telecom/imei` | Device IMEI inventory |
+| GET | `/api/telecom/reports/*` | 9 franchise reports (see §4.8) |
+
 ---
 
 ## 9. SECURITY MODEL
@@ -1030,19 +1148,27 @@ Every query in every endpoint filters by `tenant_id` from the JWT. Cross-tenant 
 
 ### 9.2 RBAC
 
-| Role | Reads | Writes | Period close / lock | Account delete |
-|---|---|---|---|---|
-| `viewer` | ✔ | — | — | — |
-| `accountant` | ✔ | ✔ | — | — |
-| `admin` | ✔ | ✔ | ✔ | ✔ |
-| `owner` | ✔ | ✔ | ✔ | ✔ |
+| Role | Reads | Writes | Period close / lock | Account delete | Manage users |
+|---|---|---|---|---|---|
+| `viewer` | ✔ | — | — | — | — |
+| `accountant` | ✔ | ✔ | — | — | — |
+| `admin` | ✔ | ✔ | ✔ | ✔ | ✔ (not owner role) |
+| `owner` | ✔ | ✔ | ✔ | ✔ | ✔ (incl. owner role) |
 
 DB-level `CHECK role IN ('owner','admin','accountant','viewer')`. First user of a tenant becomes `owner` at signup. Dependencies in `routers/common.py`:
-- `CurrentUserDep` — any authenticated user
+- `CurrentUserDep` — any authenticated **and active** user. `get_current_user` re-checks `is_active` on **every** request, so deactivating a member locks them out immediately even with a still-valid token (403).
 - `WriteUserDep` — `accountant+`
-- `AdminUserDep` — `admin+`
+- `AdminUserDep` — `admin+` (gates the entire `/api/users` surface)
 
 `require_min_role(role)` factory generates more if needed.
+
+### 9.2a Multi-user onboarding & guards
+
+Two ways to add members to a tenant (no email provider required):
+1. **Admin-created** — `POST /api/users` mints the account with a temporary password returned **once**; `must_change_password=true` forces a reset at first login (the SPA redirects such logins to `/profile?changePassword=1`).
+2. **Invite link** — `POST /api/users/invites` creates a `UserInvite` (unique token, 7-day expiry). The recipient opens `/accept-invite?token=…`, sets name + password, and `POST /api/auth/accept-invite` materialises an active `User` and logs them in. A copyable link is the fallback when email isn't wired.
+
+Management guards (see §8.1a): no self-role-change, no self-deactivation, owner-role changes are owner-only, and the last active owner is protected from demotion/deactivation — so a tenant can never be locked out of its own admin surface.
 
 ### 9.3 Auth: JWT + HttpOnly cookie
 
@@ -1175,6 +1301,8 @@ Auto-seeded on signup. 22 accounts across the five standard types:
 | 5400 | Transport & Delivery | Expense | Manual |
 | 5900 | Other Expenses | Expense | Manual |
 
+**Model-specific CoA:** the `manufacturing` model extends this with raw-material/WIP/FG layers, the custodial memo pair `1210/2150`, direct labour and overhead. The `telecom_franchise` model swaps in a dedicated **56-account franchise CoA** seeded by `db.py` (`_COA_TELECOM_FRANCHISE_EXTRA`): Tracker Deposit `1210`, Load Float `1211`, RSO/Retail load receivables `1212/1213`, MM float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`/Accum. Amort `1301`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue `4000–4061` (incl. 3% load uplift `4020`, FCA target commission `4060`); COGS/expense `5010–5090` (fee amortisation `5030`, royalty `5040`, tracker/float variance `5070`, target penalty `5090`). See §4.8.
+
 ---
 
 ## 13. MIGRATION HISTORY
@@ -1194,12 +1322,14 @@ Auto-seeded on signup. 22 accounts across the five standard types:
 | `0011_stock_locations` | V2.2 | `StockLocation` + `StockMovement` + `InventoryLayer.location_id`/`owner_customer_id`/`lot_no`; backfills `MAIN` per tenant and `GODOWN`/`WIP` for manufacturing |
 | `0012_bom_rate_plans` | V2.3 | `BomHeader`, `BomLine`, `RatePlan`, `CustomerRatePlan` |
 | `0013_grn_production_order` | V2.4 | `GoodsReceiptNote`, `GRNLine`, `ProductionOrder` (with state-machine CHECK) |
+| telecom franchise (V3) | V3.1–3.5 | 23 `tc_*` tables (`models_telecom.py`); `Tenant.business_model` CHECK extended with `telecom_franchise` |
+| user/team (V3.6) | V3.6 | `User.phone`/`avatar_url`/`must_change_password`/`created_at`/`last_login_at` columns + `UserInvite` table |
 
-All migrations are idempotent (check inspector before `create_table` / `add_column`), so they can safely be re-run on a fresh-baseline DB.
+All migrations are idempotent (check inspector before `create_table` / `add_column`), so they can safely be re-run on a fresh-baseline DB. In dev (`SCHEMA_BOOTSTRAP=create_all`) new tables are auto-created; new columns on existing tables are added with a one-shot `ALTER TABLE` (SQLite-safe).
 
 ---
 
-> **Last updated:** 2026-05-21
+> **Last updated:** 2026-05-24
 > **Branch:** `saas-transition-foundation`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

@@ -62,6 +62,13 @@ def get_current_user(
     user = session.exec(select(User).where(User.email == email)).first()
     if user is None:
         raise credentials_exception
+    if not user.is_active:
+        # A deactivated user is locked out immediately, even with a still-valid
+        # token — the check happens on every request, not just at login.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated. Contact an administrator.",
+        )
     return user
 
 

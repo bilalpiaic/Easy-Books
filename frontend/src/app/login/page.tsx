@@ -19,6 +19,7 @@ const DEMO_OPTIONS: DemoOption[] = [
   { label: "Services",      email: "demo.services@easy-books.app",      model: "services",      blurb: "Agencies & consultancies — recurring revenue" },
   { label: "Trader",        email: "demo.trader@easy-books.app",        model: "trader",        blurb: "Buy-and-resell — inventory + COGS" },
   { label: "Manufacturing", email: "demo.manufacturing@easy-books.app", model: "manufacturing", blurb: "Value-addition — BoMs, GRN, PO lifecycle" },
+  { label: "Telecom Franchise", email: "demo.telecom@easy-books.app", model: "telecom_franchise", blurb: "Operator franchise — Tracker, RSO chain, FCA targets" },
 ]
 const DEMO_PASSWORD = "demo1234"
 
@@ -44,7 +45,8 @@ export default function LoginPage() {
       if (!response.ok) throw new Error("Invalid email or password")
       const data = await response.json()
       setAuthToken(data.access_token)
-      router.push("/dashboard")
+      // Admin-created accounts carry a temporary password — force a change.
+      router.push(data.must_change_password ? "/profile?changePassword=1" : "/dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed")
     } finally {
