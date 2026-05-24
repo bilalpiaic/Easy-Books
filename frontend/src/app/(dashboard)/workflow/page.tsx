@@ -498,7 +498,7 @@ function CurrencyFlow() {
         <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-purple-700 mb-2">Document fields</p>
           <div className="font-mono text-[11px] text-purple-800 space-y-0.5">
-            <p>currency      = "EUR"</p>
+            <p>currency      = &quot;EUR&quot;</p>
             <p>exchange_rate = 1.10</p>
             <p>subtotal      = 1,000 (EUR)</p>
             <p>total         = 1,000 (EUR)</p>
@@ -610,7 +610,7 @@ function DrillDownFlow() {
         Every code, JV number, document number, customer, vendor, and product rendered in the app
         is a clickable link to its source record. The shared <code className="font-mono text-[10px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5">&lt;DocLink /&gt;</code> resolver
         wires the cyclic graph below — there are no dead-end rows. This is what
-        <b> ISA 230 §A6</b> calls <i>"reperformability of the audit trail"</i>.
+        <b> ISA 230 §A6</b> calls <i>&quot;reperformability of the audit trail&quot;</i>.
       </p>
 
       <VFlow>

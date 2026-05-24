@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Scale, Printer, Download } from "lucide-react"
+import { Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR, downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"

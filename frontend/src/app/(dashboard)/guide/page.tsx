@@ -579,8 +579,8 @@ function JournalPanel() {
 
       <MistakeCallout>
         <p>Saving an unbalanced entry — the system prevents this, but always double-check your totals.</p>
-        <p>Posting adjustments to the wrong period — always set the correct entry date, not today's date.</p>
-        <p>Describing entries as just "adjustment" — use meaningful descriptions for auditability.</p>
+        <p>Posting adjustments to the wrong period — always set the correct entry date, not today&apos;s date.</p>
+        <p>Describing entries as just &quot;adjustment&quot; — use meaningful descriptions for auditability.</p>
       </MistakeCallout>
     </div>
   )
@@ -697,7 +697,7 @@ function PaymentsPanel() {
         Dr  1000 Cash in Hand       400.00<br/>
         &nbsp;&nbsp;&nbsp;&nbsp;Cr  1100 Accounts Receivable        400.00<br/>
         <span className="text-[#7a5c1e]">+ PaymentAllocation {`{`}invoice_id=INV-0042, amount=400.00{`}`}</span><br/>
-        <span className="text-[#7a5c1e]">+ Invoice.status = "partial"  (400 paid of 1000 total)</span>
+        <span className="text-[#7a5c1e]">+ Invoice.status = &quot;partial&quot;  (400 paid of 1000 total)</span>
       </div>
 
       <TipCallout>
@@ -1039,7 +1039,7 @@ function SecurityPanel() {
       </TipCallout>
 
       <MistakeCallout>
-        <p>Forgetting credentials: 'include' on browser fetches — the access cookie won&apos;t be sent and you&apos;ll get 401.</p>
+        <p>Forgetting credentials: &apos;include&apos; on browser fetches — the access cookie won&apos;t be sent and you&apos;ll get 401.</p>
         <p>Sending the CSRF token in the body instead of the X-CSRF-Token header — the middleware only reads the header.</p>
       </MistakeCallout>
     </div>
@@ -1121,8 +1121,8 @@ function SubLedgersPanel() {
   return (
     <div>
       <p className="text-sm text-[#1a1814]/70 leading-relaxed">
-        The General Ledger answers <i>"what is the balance of account X?"</i>. Sub-ledgers answer
-        <i> "which customer / vendor / product caused that balance, and which document booked it?"</i>.
+        The General Ledger answers <i>&quot;what is the balance of account X?&quot;</i>. Sub-ledgers answer
+        <i> &quot;which customer / vendor / product caused that balance, and which document booked it?&quot;</i>.
         Easy-Books wires three sub-ledgers and a cyclic drill-down link graph on top of the GL —
         click any account code, JV number, invoice/bill number, customer, vendor or product
         anywhere in the app and you land on its source record.
@@ -1223,7 +1223,7 @@ function SubLedgersPanel() {
       </div>
 
       <TipCallout>
-        <b>Drill-down is the audit trail.</b> If an external auditor asks <i>"why is AR ₹5.4 L?"</i>,
+        <b>Drill-down is the audit trail.</b> If an external auditor asks <i>&quot;why is AR ₹5.4 L?&quot;</i>,
         open Trial Balance → click <code>1100 Accounts Receivable</code> → see every JV → click any
         JV → click <code>source_docs[0]</code> → see the originating invoice with lines, customer,
         and tax. No spreadsheet, no separate report, no copy-paste — reperformability is built in.

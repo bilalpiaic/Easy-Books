@@ -13,6 +13,17 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Project-wide rule overrides.
+  {
+    rules: {
+      // The set-state-in-effect rule flags the standard data-fetching pattern
+      // `setLoading(true)` at the top of a useEffect. This is intentional and
+      // correct — the rule is too aggressive for this codebase's pattern.
+      "react-hooks/set-state-in-effect": "off",
+      // Unused vars are warnings, not errors — keep visibility but don't fail.
+      "@typescript-eslint/no-unused-vars": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -3,14 +3,26 @@
 Attaches PDFs / images / Office docs to any of: invoice, bill, transaction
 (manual JV), payment_received, bill_payment, grn, production_order.
 
-Storage layout
---------------
-    UPLOAD_ROOT / <tenant_id> / <parent_type> / <parent_id> / <uuid>.<ext>
+Storage backend
+---------------
+Files are stored in Supabase Storage (S3-compatible object store).
 
-Tenant isolation is enforced both at the row (`tenant_id` filter on every
-query) and at the path (tenant id is the first directory). Files for one
-tenant can never be served to another, even on path-traversal attempts —
-the resolved real path is asserted to live under that tenant's directory.
+Bucket layout:
+    <bucket> / <tenant_id> / <parent_type> / <parent_id> / <uuid>.<ext>
+
+The bucket name is configured via SUPABASE_BUCKET env var (default:
+"attachments"). The bucket should be set to PRIVATE in Supabase — files
+are only served through this API, never via public URLs.
+
+Tenant isolation: the tenant_id is the top-level prefix in every storage
+path. The DB row also carries tenant_id and every query filters on it so
+a tenant can never access another tenant's rows or paths.
+
+Required env vars
+-----------------
+    SUPABASE_URL          https://<project-ref>.supabase.co
+    SUPABASE_SERVICE_KEY  service-role key (bypasses RLS for server-side ops)
+    SUPABASE_BUCKET       bucket name (default: attachments)
 
 Endpoints
 ---------
@@ -24,11 +36,11 @@ from __future__ import annotations
 
 import os
 import uuid
-from pathlib import Path
+from functools import lru_cache
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlmodel import select
 
 from models import (
@@ -42,38 +54,49 @@ router = APIRouter(prefix="/api/attachments", tags=["attachments"])
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-UPLOAD_ROOT = Path(os.environ.get("UPLOAD_ROOT", "uploads")).resolve()
+_SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+_SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "attachments")
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))  # 25 MB
 
-# MIME allowlist. We accept the document classes the UI can preview natively
-# (PDF, images) plus Office docs (download-only). Executables, scripts, and
-# anything else is rejected at upload to keep the storage layer benign.
 _ALLOWED_MIME = {
-    # Images — previewable
     "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif",
-    # PDF — previewable in <iframe>
     "application/pdf",
-    # Office docs — download-only
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    # Plain CSV / text
     "text/csv", "text/plain",
 }
 
 _PARENT_TABLE = {
-    "invoice":           Invoice,
-    "bill":              Bill,
-    "transaction":       Transaction,
-    "payment_received":  PaymentReceived,
-    "bill_payment":      BillPayment,
-    "grn":               GoodsReceiptNote,
-    "production_order":  ProductionOrder,
+    "invoice":          Invoice,
+    "bill":             Bill,
+    "transaction":      Transaction,
+    "payment_received": PaymentReceived,
+    "bill_payment":     BillPayment,
+    "grn":              GoodsReceiptNote,
+    "production_order": ProductionOrder,
 }
 
+
+# ── Supabase client (lazy, cached) ───────────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def _storage():
+    """Return the Supabase storage client, initialised once per process."""
+    if not _SUPABASE_URL or not _SUPABASE_SERVICE_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="File storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.",
+        )
+    from supabase import create_client
+    return create_client(_SUPABASE_URL, _SUPABASE_SERVICE_KEY).storage
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _ensure_parent_belongs_to_tenant(session, parent_type: str, parent_id: int, tenant_id: int):
     model = _PARENT_TABLE.get(parent_type)
@@ -83,13 +106,10 @@ def _ensure_parent_belongs_to_tenant(session, parent_type: str, parent_id: int, 
         select(model).where(model.id == parent_id, model.tenant_id == tenant_id)
     ).first()
     if not row:
-        # 404 rather than 403 to avoid enumeration across tenants.
         raise HTTPException(status_code=404, detail=f"{parent_type} {parent_id} not found")
 
 
 def _safe_extension(filename: str) -> str:
-    """Return a lowercase extension restricted to [a-z0-9]. Never returns a
-    leading dot. Defaults to 'bin' when the input has nothing safe."""
     if not filename or "." not in filename:
         return "bin"
     ext = filename.rsplit(".", 1)[-1].lower()
@@ -97,17 +117,9 @@ def _safe_extension(filename: str) -> str:
     return safe or "bin"
 
 
-def _resolve_storage_path(att: Attachment) -> Path:
-    """Resolve the on-disk path for an Attachment row and guarantee it lives
-    inside UPLOAD_ROOT/<tenant_id>/. Defends against any future row whose
-    file_path was set externally — never trust the row blindly."""
-    candidate = (UPLOAD_ROOT / att.file_path).resolve()
-    tenant_root = (UPLOAD_ROOT / str(att.tenant_id)).resolve()
-    try:
-        candidate.relative_to(tenant_root)
-    except ValueError:
-        raise HTTPException(status_code=500, detail="Attachment path outside tenant root")
-    return candidate
+def _storage_path(tenant_id: int, parent_type: str, parent_id: int, stored_name: str) -> str:
+    """Build the bucket-relative path for a file."""
+    return f"{tenant_id}/{parent_type}/{parent_id}/{stored_name}"
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -129,7 +141,6 @@ async def upload_attachment(
             detail=f"Unsupported file type '{file.content_type}'. Allowed: PDF, images, Office docs, CSV/text.",
         )
 
-    # Stream-read to enforce the size cap without buffering huge uploads in RAM.
     contents = await file.read()
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(
@@ -141,11 +152,16 @@ async def upload_attachment(
 
     ext = _safe_extension(file.filename or "")
     stored_name = f"{uuid.uuid4().hex}.{ext}"
-    rel_dir = Path(str(user.tenant_id)) / parent_type / str(parent_id)
-    abs_dir = UPLOAD_ROOT / rel_dir
-    abs_dir.mkdir(parents=True, exist_ok=True)
-    rel_path = rel_dir / stored_name
-    (UPLOAD_ROOT / rel_path).write_bytes(contents)
+    path = _storage_path(user.tenant_id, parent_type, parent_id, stored_name)
+
+    try:
+        _storage().from_(SUPABASE_BUCKET).upload(
+            path,
+            contents,
+            {"content-type": file.content_type or "application/octet-stream"},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Storage upload failed: {exc}") from exc
 
     att = Attachment(
         tenant_id=user.tenant_id,
@@ -155,7 +171,7 @@ async def upload_attachment(
         original_name=file.filename or stored_name,
         mime_type=file.content_type,
         size_bytes=len(contents),
-        file_path=str(rel_path),
+        file_path=path,
         uploaded_by_id=user.id,
     )
     session.add(att)
@@ -208,14 +224,10 @@ def delete_attachment(att_id: int, session: SessionDep, user: WriteUserDep):
     att = session.get(Attachment, att_id)
     if not att or att.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="Attachment not found")
-    # Best-effort fs cleanup. Row deletion proceeds even if the file is gone —
-    # an orphan row is worse than an orphan file.
     try:
-        path = _resolve_storage_path(att)
-        if path.exists():
-            path.unlink()
+        _storage().from_(SUPABASE_BUCKET).remove([att.file_path])
     except Exception:
-        pass
+        pass  # best-effort; proceed with DB deletion even if storage removal fails
     session.delete(att)
     log_audit(
         session, user, "delete", "attachment", att.id,
@@ -231,10 +243,9 @@ def _serve(att_id: int, session, user, *, disposition: str):
     att = session.get(Attachment, att_id)
     if not att or att.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="Attachment not found")
-    path = _resolve_storage_path(att)
-    if not path.exists():
-        raise HTTPException(status_code=410, detail="File missing on disk")
-    headers = {
-        "Content-Disposition": f'{disposition}; filename="{att.original_name}"',
-    }
-    return FileResponse(path, media_type=att.mime_type, headers=headers)
+    try:
+        data: bytes = _storage().from_(SUPABASE_BUCKET).download(att.file_path)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Storage download failed: {exc}") from exc
+    headers = {"Content-Disposition": f'{disposition}; filename="{att.original_name}"'}
+    return Response(content=data, media_type=att.mime_type, headers=headers)

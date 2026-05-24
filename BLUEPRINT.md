@@ -338,7 +338,7 @@ The sidebar reads `/api/auth/me` → `tenant.business_model` and filters its NAV
 ### Telecom franchise extra (`_COA_TELECOM_FRANCHISE_EXTRA`, 56 accounts)
 1110 Commission Receivable · 1120 RSO Receivables · 1130 Postpaid Customer Receivable · 1200 SIM Card Inventory · 1201 Scratch/PIN · 1202 Device Inventory · 1204 IMSI Inventory · **1210 Tracker Deposit Balance** · **1211 Load Float Asset (MSR)** · 1212 RSO Load Receivable · 1213 Retail Load Receivable · 1214 Mobile Money Float Asset · 1250 GST Receivable · 1300 Franchise Intangible · 1301 Accum. Amortisation · 2010 Operator Payable · 2100 MM Float Liability · 2110 Postpaid Collections Payable · 2120 Royalty Payable · 2300 Advance from Operator · 4000 Airtime/Recharge · 4010 SIM Activation · **4020 Load Uplift Commission (3%)** · 4021 Recharge Commission · 4022 Mobile Money Commission · 4023 Bundle Commission · 4030 SIM Sale · 4031 Device Sales · 4040 Postpaid Billing · 4050 RSO Channel · **4060 FCA Target Commission** · 4061 Franchise Incentive · 5010/5011/5012 COGS (devices/SIMs/scratch) · 5020 RSO Incentives · 5021 Retail Incentives · 5030 Fee Amortisation · 5040 Royalty · 5060 MM Transaction Costs · 5070 Tracker/Float Variance · 5080 Bad Debt-RSO · 5090 Target Shortfall Penalty
 
-Switching business model via `PATCH /api/settings/business-model` adds the new template's accounts that don't already exist (never deletes existing ones).
+Business model is selected at signup. Switching later via `PATCH /api/settings/business-model` *(admin-only API; not exposed in the UI)* adds the new template's accounts that don't already exist (never deletes existing ones).
 
 ---
 
@@ -362,8 +362,16 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - Guards: no self-role-change / self-deactivation; owner role is owner-grantable only; last active owner protected.
 
 ### Settings (`/api/settings`)
-- `GET /` — KV map. Always includes `company_name`, `currency`.
-- `PATCH /` — upsert KV pairs.
+- `GET /` — KV map. Includes:
+  - `company_name` — displayed in header and reports
+  - `business_tagline` — shown below company name (e.g., "Easy-Books · Double-Entry Accounting")
+  - `currency` — base currency for all transactions
+  - `tax_id` — business tax/EIN identifier
+  - `fiscal_year_start` — accounting year start month
+  - `financial_statement_date` — reporting period preference
+  - `invoice_prefix` / `bill_prefix` — document numbering prefixes
+  - `email_notifications` — notification preference
+- `PATCH /` — upsert KV pairs (all fields optional, only provided fields updated).
 - `PATCH /business-model` *(admin)* — switches model, adds missing CoA accounts.
 - `PATCH /modules` *(admin)* — overrides `enabled_modules` independently.
 
@@ -905,6 +913,38 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 - Frontend → Vercel static + edge functions.
 - DB → Vercel Postgres / Neon / Supabase.
 - Env vars to set in production: `DATABASE_URL`, `JWT_SECRET_KEY`, `APP_ENV=production`, `FRONTEND_ORIGIN`, `NEXT_PUBLIC_API_URL`.
+
+---
+
+## 18.1. DEMO DATA & SEEDING
+
+**Automatic Demo Tenants (on first run):**
+- On database init (`db.py`), four demo tenants are auto-created, one per business model:
+  - `demo.simple@easy-books.app` (Simple model)
+  - `demo.services@easy-books.app` (Services model)
+  - `demo.trader@easy-books.app` (Trader model)
+  - `demo.manufacturing@easy-books.app` (Manufacturing model)
+  - All use password: `demo1234`
+- Each demo tenant has a Chart of Accounts, sequence counters, and stock locations pre-seeded.
+
+**Rich Mock Data Population:**
+- Run `scripts/seed_demo.py` to populate demo tenants with realistic transactional data:
+  ```bash
+  cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
+  ```
+- Each demo tenant receives:
+  - 12+ Customers (with distinct names like "Alpha Retail Group", "Cascade Holdings", etc.)
+  - 12+ Vendors (suppliers with names like "Acme Supplies", "Crescent Logistics", etc.)
+  - 5–27 Products (depending on model: services, trader stock, or manufacturing raw materials + finished goods)
+  - 12 Invoices + 12 Bills (full transaction history with GL postings)
+  - 40–65 Journal entries (accounting records)
+  - Manufacturing-specific data: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders (for manufacturing demo only)
+- Script is **idempotent**: re-running it will reuse existing demo tenants and skip entities already present.
+
+**Use cases:**
+- QA / regression testing: fresh dataset with known state.
+- Live demo: customers can log in to a pre-loaded, fully-populated business.
+- Onboarding: new users see realistic data structures before entering their own.
 
 ---
 

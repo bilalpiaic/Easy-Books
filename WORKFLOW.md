@@ -9,40 +9,42 @@
 ## TABLE OF CONTENTS
 
 1. [Snapshot](#1-snapshot)
-2. [Architecture](#2-architecture)
-3. [Data Model](#3-data-model)
-4. [The Accounting Cycles](#4-the-accounting-cycles)
-   - 4.1 [Sales / Receivables](#41-sales--receivables)
-   - 4.2 [Purchase / Payables](#42-purchase--payables)
-   - 4.3 [Inventory (Weighted-Average)](#43-inventory-weighted-average)
-   - 4.4 [Banking & Reconciliation](#44-banking--reconciliation)
-   - 4.5 [Manual Journal Entries](#45-manual-journal-entries)
-   - 4.6 [Period-End Close](#46-period-end-close)
-   - 4.7 [Manufacturing (V2)](#47-manufacturing-v2)
-   - 4.8 [Telecom Franchise (V3)](#48-telecom-franchise-v3)
-5. [Cross-Cutting Features](#5-cross-cutting-features)
-   - 5.1 [Multi-Currency & FX](#51-multi-currency--fx)
-   - 5.2 [Tax Codes](#52-tax-codes)
-   - 5.3 [Payment Allocations](#53-payment-allocations)
-   - 5.4 [Recurring Entries](#54-recurring-entries)
-   - 5.5 [Bank Statement Import](#55-bank-statement-import)
-   - 5.6 [Reversal Semantics](#56-reversal-semantics)
-   - 5.7 [Sub-Ledgers & Audit-Trail Drill-Down](#57-sub-ledgers--audit-trail-drill-down)
-6. [GL Posting Reference](#6-gl-posting-reference)
-7. [Report Catalog](#7-report-catalog)
-8. [API Endpoint Catalog](#8-api-endpoint-catalog)
-9. [Security Model](#9-security-model)
-   - 9.1 [Multi-Tenant Isolation](#91-multi-tenant-isolation)
-   - 9.2 [RBAC](#92-rbac)
-   - 9.3 [Auth: JWT + HttpOnly Cookie](#93-auth-jwt--httponly-cookie)
-   - 9.4 [CSRF (Double-Submit-Cookie)](#94-csrf-double-submit-cookie)
-   - 9.5 [Login Throttle](#95-login-throttle)
-   - 9.6 [Period Lock](#96-period-lock)
-   - 9.7 [Idempotency Keys](#97-idempotency-keys)
-10. [Engineered Invariants](#10-engineered-invariants)
-11. [Verification & Smoke Tests](#11-verification--smoke-tests)
-12. [Default Chart of Accounts](#12-default-chart-of-accounts)
-13. [Migration History](#13-migration-history)
+2. [International Accounting Standards Alignment](#31-international-accounting-standards-alignment)
+3. [Getting Started: Demo Tenants & Customization](#32-getting-started-demo-tenants--customization)
+4. [Architecture](#2-architecture)
+5. [Data Model](#3-data-model)
+6. [The Accounting Cycles](#4-the-accounting-cycles)
+   - 6.1 [Sales / Receivables](#41-sales--receivables)
+   - 6.2 [Purchase / Payables](#42-purchase--payables)
+   - 6.3 [Inventory (Weighted-Average)](#43-inventory-weighted-average)
+   - 6.4 [Banking & Reconciliation](#44-banking--reconciliation)
+   - 6.5 [Manual Journal Entries](#45-manual-journal-entries)
+   - 6.6 [Period-End Close](#46-period-end-close)
+   - 6.7 [Manufacturing (V2)](#47-manufacturing-v2)
+   - 6.8 [Telecom Franchise (V3)](#48-telecom-franchise-v3)
+7. [Cross-Cutting Features](#5-cross-cutting-features)
+   - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
+   - 7.2 [Tax Codes](#52-tax-codes)
+   - 7.3 [Payment Allocations](#53-payment-allocations)
+   - 7.4 [Recurring Entries](#54-recurring-entries)
+   - 7.5 [Bank Statement Import](#55-bank-statement-import)
+   - 7.6 [Reversal Semantics](#56-reversal-semantics)
+   - 7.7 [Sub-Ledgers & Audit-Trail Drill-Down](#57-sub-ledgers--audit-trail-drill-down)
+8. [GL Posting Reference](#6-gl-posting-reference)
+9. [Report Catalog](#7-report-catalog)
+10. [API Endpoint Catalog](#8-api-endpoint-catalog)
+11. [Security Model](#9-security-model)
+    - 11.1 [Multi-Tenant Isolation](#91-multi-tenant-isolation)
+    - 11.2 [RBAC](#92-rbac)
+    - 11.3 [Auth: JWT + HttpOnly Cookie](#93-auth-jwt--httponly-cookie)
+    - 11.4 [CSRF (Double-Submit-Cookie)](#94-csrf-double-submit-cookie)
+    - 11.5 [Login Throttle](#95-login-throttle)
+    - 11.6 [Period Lock](#96-period-lock)
+    - 11.7 [Idempotency Keys](#97-idempotency-keys)
+12. [Engineered Invariants](#10-engineered-invariants)
+13. [Verification & Smoke Tests](#11-verification--smoke-tests)
+14. [Default Chart of Accounts](#12-default-chart-of-accounts)
+15. [Migration History](#13-migration-history)
 
 ---
 
@@ -51,12 +53,14 @@
 | Aspect | Detail |
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
-| Accounting compliance | ∑Dr = ∑Cr exact (Decimal), IAS 2 / ASC 330 inventory at WAvg, GST output/input separated, period-lock enforced at the posting service |
+| Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
+| Demo tenants | 4 pre-seeded: simple/services/trader/manufacturing (email: demo.{model}@easy-books.app, password: demo1234) |
+| Customization | Business tagline + company branding per tenant via `/dashboard/settings` |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
-| Storage | SQLite (dev) → Postgres (prod) via SQLModel; Alembic migrations 0001 → 0009 |
-| Reports | Live from `JournalEntry`; closed periods read materialised `AccountBalance` |
+| Storage | SQLite (dev) → Postgres (prod) via SQLModel; Alembic migrations 0001 → 0013 |
+| Reports | Live from `JournalEntry`; closed periods read materialised `AccountBalance` (**ISA 230** audit documentation) |
 | API surface | 80+ endpoints, mounted twice at `/api/*` and `/api/v1/*` |
 
 ---
@@ -153,6 +157,48 @@ frontend/src/app/(dashboard)/
 
 ---
 
+## 3.1 INTERNATIONAL ACCOUNTING STANDARDS ALIGNMENT
+
+Easy-Books implements the following international accounting standards and best practices:
+
+| Standard | Implementation | Evidence |
+|---|---|---|
+| **IAS 1** (Presentation of Financial Statements) | Consistent ledger presentation; all GL items traced to source documents | Every JournalEntry links back to Invoice/Bill/Payment/GRN via reverse-resolution lookup; clickable GL hyperlinks to source docs |
+| **IAS 2** (Inventory) | Weighted-Average cost method; no negative stock | `services/inventory.py`: `record_purchase()` appends layer; `consume_stock()` relieves at running WAvg; FIFO layer depletion |
+| **IAS 8** (Accounting Policies) | Consistent methods across periods; change tracking via audit log | Audit trail logs every transaction mutation (INSERT/UPDATE/DELETE); period-close materialises balances immutably |
+| **IAS 18 / IFRS 15** (Revenue Recognition) | Revenue posted on invoice issue; partial payments tracked separately | Invoice `status ∈ {draft, issued, partial, paid, overdue}`; allocations preserve invoice total vs paid amount |
+| **IAS 21** (Effects of Changes in Foreign Exchange Rates) | FX rates snapshot at transaction date; no retroactive revaluation (V1) | `Invoice/Bill.currency + .exchange_rate` captured at issue; `ExchangeRate(date, from, to, rate)` catalog with date fallback |
+| **IAS 32 / IFRS 9** (Financial Instruments) | Separate asset/liability/equity classification; payables credit-normal | `Account.type ∈ {Asset, Liability, Equity, Revenue, Expense}`; AP ledger shows credit-normal (positive = we owe) |
+| **ISA 230** (Audit Documentation) | Complete audit trail; reperformance from any JE to source | Every GL line hyperlinks to its original document (Invoice, Bill, Payment, GRN); time-stamped mutations in audit log |
+| **ISA 315** (Understanding the Entity) | Internal controls enforced in code (not UI) | Period-lock prevents posting into closed periods; tenant_id scoped queries prevent cross-tenant reads; central posting service is sole GL writer |
+| **IFRS 16** (Leases) | Custodial goods tracking for manufacturing (V2) | `StockLocation.type ∈ {own, customer_custodial, wip}`; memo account pair `1210/2150` for customer goods on hand |
+
+**Compliance checks embedded in posting service** (`services/posting.py`):
+- ✓ `∑debit == ∑credit` exact (Decimal precision)
+- ✓ No negative amounts in any line
+- ✓ No both-sided rows (Dr > 0 AND Cr > 0)
+- ✓ No posting into locked periods
+- ✓ Account belongs to posting user's tenant
+- ✓ JV number unique per tenant per period
+
+---
+
+## 3. DATA MODEL
+
+### 3.1 Settings & Customization
+
+| Field | Purpose | Type | IAS/IFRS |
+|---|---|---|---|
+| `company_name` | Business legal entity name | String | **IAS 1.49** — entity identification |
+| `business_tagline` | Tagline/motto (e.g., "Double-Entry Accounting") | String | **IAS 1.45** — presentation consistency |
+| `tax_id` | Tax identification number / EIN | String | **IAS 1.49** — statutory reporting |
+| `currency` | Base currency for all transactions | Code (PKR/USD/EUR/etc.) | **IAS 21** — functional currency |
+| `fiscal_year_start` | Accounting year start month | Month | **IAS 1.49** — reporting period |
+| `financial_statement_date` | Statement date preference | month_end \| quarter_end \| year_end | **IAS 1.49** |
+| `invoice_prefix` / `bill_prefix` | Document numbering | String | **IAS 1.99** — document identification |
+
+---
+
 ## 3. DATA MODEL
 
 ```
@@ -224,9 +270,86 @@ frontend/src/app/(dashboard)/
 
 ---
 
+## 3.2 GETTING STARTED: DEMO TENANTS & CUSTOMIZATION
+
+### Demo Tenant Initialization
+
+On first database run, Easy-Books auto-creates 4 pre-seeded demo tenants (one per business model):
+
+| Tenant | Email | Model | Use Case |
+|---|---|---|---|
+| Demo Simple Co. | `demo.simple@easy-books.app` | Simple | Solo/micro-business (essentials only) |
+| Demo Services Ltd. | `demo.services@easy-books.app` | Services | Agencies & consultancies (recurring revenue) |
+| Demo Trading Co. | `demo.trader@easy-books.app` | Trader | Buy-and-resell (inventory + COGS) |
+| Demo Mfg Co. | `demo.manufacturing@easy-books.app` | Manufacturing | Value-addition (BoMs, GRN, PO lifecycle) |
+
+**Password (all):** `demo1234`
+
+Each demo tenant receives:
+- ✓ Seeded Chart of Accounts (22+ per model)
+- ✓ Sequence counters (invoice, bill, GRN, PO numbers)
+- ✓ Stock locations (MAIN + model-specific)
+- ✓ Default business tagline: "Easy-Books · Double-Entry Accounting"
+
+### Mock Data Population (Optional)
+
+To populate demo tenants with realistic transactional data for QA/onboarding:
+
+```bash
+cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
+```
+
+Each demo tenant receives:
+- 12+ Customers (Alpha Retail Group, Beacon Boutiques, etc.)
+- 12+ Vendors (Acme Supplies, Crescent Logistics, etc.)
+- 5–27 Products (model-dependent)
+- 12 Invoices + 12 Bills (full workflow examples)
+- 40–65 Journal entries (GL postings)
+- Manufacturing-specific: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders
+
+**Script is idempotent:** re-running skips entities already present.
+
+### Company Branding Customization
+
+Every tenant can customize its branding via `/dashboard/settings`:
+
+| Setting | Default | Display Location |
+|---|---|---|
+| Company Name | "My Company" | Header (left), all reports, print header |
+| Business Tagline | "Easy-Books · Double-Entry Accounting" | Header (below company name), printed documents |
+| Tax ID | "" | Reports footer, compliance documents |
+| Currency | "PKR" | All monetary fields, reports |
+| Fiscal Year Start | "January" | Period definitions, year-end close |
+
+**Example:**  
+- Company Name: "Garment Loop"  
+- Tagline: "Premium Textiles Manufacturing"  
+- Tax ID: "12-3456789"  
+
+Result in Header:
+```
+Garment Loop
+Premium Textiles Manufacturing
+```
+
+All settings are persisted per-tenant via `PATCH /api/settings`; no additional backend logic required (**IAS 1.49** entity consistency).
+
+---
+
 ## 4. THE ACCOUNTING CYCLES
 
-### 4.1 SALES / RECEIVABLES
+**All accounting cycles comply with:**
+- **IAS 1** — Presentation & classification (Dr/Cr, deferred revenue)
+- **IAS 18 / IFRS 15** — Revenue recognition (invoice-at-issue method)
+- **IAS 2** — Inventory valuation (Weighted-Average cost, FIFO depletion)
+- **IAS 21** — FX effects (snapshot at transaction date, no retroactive revaluation in V1)
+- **ISA 230** — Audit trail completeness (every GL item traces to source document)
+
+---
+
+### 4.1 SALES / RECEIVABLES (**IAS 18 / IFRS 15**)
+
+Revenue is recognised on invoice issue; partial payments tracked separately per **IFRS 15.B2.1** (control of goods transfers to customer).
 
 ```
   CREATE CUSTOMER          ISSUE INVOICE              RECEIVE PAYMENT
@@ -241,12 +364,12 @@ frontend/src/app/(dashboard)/
                           + Product.stock_qty -=         (paid | partial)
 ```
 
-| # | Action | Page | Endpoint | DB writes | GL impact |
-|---|---|---|---|---|---|
-| 1 | Add customer | `/customers` | `POST /api/customers` | `Customer` | — |
-| 2 | Issue invoice | `/invoices` | `POST /api/invoices` | `Invoice` + lines + `Transaction` + JEs (+ COGS sub-JV for stock) | **Dr AR · Cr Revenue · Cr GST Payable (Output)** |
-| 3 | Receive payment | `/payments-received` | `POST /api/payments-received` | `PaymentReceived` + `Transaction` + JEs + `PaymentAllocation[]` | **Dr Cash/Bank · Cr AR** |
-| 4 | View aging | `/invoices` (aging panel) | `GET /api/invoices/aging` | — | Buckets net of allocations |
+| # | Action | Page | Endpoint | DB writes | GL impact | Standard |
+|---|---|---|---|---|---|---|
+| 1 | Add customer | `/customers` | `POST /api/customers` | `Customer` | — | **IAS 1** |
+| 2 | Issue invoice | `/invoices` | `POST /api/invoices` | `Invoice` + lines + `Transaction` + JEs (+ COGS sub-JV for stock) | **Dr AR · Cr Revenue · Cr GST Output** | **IFRS 15** |
+| 3 | Receive payment | `/payments-received` | `POST /api/payments-received` | `PaymentReceived` + `Transaction` + JEs + `PaymentAllocation[]` | **Dr Cash/Bank · Cr AR** | **IAS 32** |
+| 4 | View aging | `/invoices` (aging panel) | `GET /api/invoices/aging` | — | Buckets net of allocations | **IAS 1.99** |
 
 **Invoice GL — service sale, 1000 + 17% GST, base currency:**
 ```
@@ -255,7 +378,7 @@ frontend/src/app/(dashboard)/
 4000 Sales Revenue                       1,000.00
 2200 GST Payable (Output)                  170.00
                              ─────────   ─────────
-                             1,170.00    1,170.00 ✓
+                             1,170.00    1,170.00 ✓  (IAS 1.44 — balanced)
 ```
 
 **Invoice GL — stock sale, 3 units × 100 (cost 6/unit), base currency:**

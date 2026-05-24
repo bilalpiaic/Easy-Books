@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Paperclip, Upload, X, Eye, Download, Trash2, FileText, Image as ImageIcon,
+  Paperclip, Upload, Eye, Download, Trash2, FileText, Image as ImageIcon,
   FileSpreadsheet, File as FileIcon, AlertCircle,
 } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
@@ -89,7 +89,6 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
     } finally {
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parentType, parentId])
 
   useEffect(() => { reload() }, [reload])
@@ -333,6 +332,7 @@ function AuthedViewer({ url, att }: { url: string; att: Attachment }) {
   if (att.mime_type.startsWith("image/")) {
     return (
       <div className="h-full overflow-auto bg-[#f6f3ee] flex items-start justify-center p-4">
+        {/* eslint-disable-next-line @next/next/no-img-element -- blob URL; Next.js Image cannot optimize it */}
         <img src={blobUrl} alt={att.original_name} className="max-w-full h-auto rounded shadow" />
       </div>
     )

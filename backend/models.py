@@ -846,6 +846,236 @@ class RecurringTemplate(SQLModel, table=True):
     entries_json: str
 
 
+# ---------------------------------------------------------------------------
+# Telecom Franchise models
+# ---------------------------------------------------------------------------
+
+class TrackerAccount(SQLModel, table=True):
+    """Franchisee's Tracker wallet per operator (cash deposited with the
+    telecom company that is consumed by load orders and stock debits)."""
+    __tablename__ = "tracker_account"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "account_reference", name="uq_tracker_account_ref"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    operator_name: str                        # e.g. "Jazz (PMCL)"
+    operator_code: str                        # JAZZ | TELENOR | ZONG | UFONE
+    account_reference: str                    # franchisee's Tracker ID
+    deposit_balance: Money = money_col()      # denormalised; mirrors Account(1210)
+    load_balance: Money = money_col()         # denormalised; mirrors Account(1211)
+    deposit_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    load_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TrackerTransaction(SQLModel, table=True):
+    """Every movement in the Tracker wallet: deposits, load orders, SIM/IMSI
+    stock debits, FCA commission credits, and penalty debits."""
+    __tablename__ = "tracker_transaction"
+    __table_args__ = (
+        CheckConstraint(
+            "txn_type IN ('deposit','load_order','stock_debit',"
+            "'commission_credit','penalty_debit','adjustment')",
+            name="ck_tracker_txn_type",
+        ),
+        CheckConstraint("amount > 0", name="ck_tracker_txn_amount_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    tracker_account_id: int = Field(foreign_key="tracker_account.id", index=True)
+    txn_date: str                             # ISO date string
+    txn_type: str                             # see CHECK
+    amount: Money = money_col()               # amount paid / debited (always positive)
+    load_disbursed: Money = money_col()       # for load_order: 103% of amount
+    commission_earned: Money = money_col()    # for load_order: 3% of amount
+    tracker_reference: Optional[str] = None  # operator's transaction ID
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    is_reconciled: bool = Field(default=False)
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RSOAgent(SQLModel, table=True):
+    """Retail Sales Officer — field team member who handles load distribution
+    and SIM stock allocation to tagged retail outlets."""
+    __tablename__ = "rso_agent"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "cnic", name="uq_rso_agent_cnic"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    phone: str
+    cnic: Optional[str] = None
+    territory: Optional[str] = None
+    receivable_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RetailOutlet(SQLModel, table=True):
+    """A retail shop tagged to a specific RSO. Receives load and SIM stock
+    from that RSO; cash collected by RSO daily."""
+    __tablename__ = "retail_outlet"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    rso_id: int = Field(foreign_key="rso_agent.id", index=True)
+    shop_name: str
+    owner_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class LoadTransfer(SQLModel, table=True):
+    """One hop in the load distribution chain: MSR SIM → RSO SIM, or RSO SIM
+    → Retail outlet SIM.  Each hop has a GL entry and is settled by the
+    downstream daily collection."""
+    __tablename__ = "load_transfer"
+    __table_args__ = (
+        CheckConstraint(
+            "from_type IN ('msr','rso')",
+            name="ck_load_transfer_from_type",
+        ),
+        CheckConstraint(
+            "to_type IN ('rso','retail')",
+            name="ck_load_transfer_to_type",
+        ),
+        CheckConstraint("amount > 0", name="ck_load_transfer_amount_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    transfer_date: str                        # ISO date
+    from_type: str                            # msr | rso
+    from_ref_id: Optional[int] = None        # rso_agent.id when from_type=rso
+    to_type: str                              # rso | retail
+    to_ref_id: int                            # rso_agent.id or retail_outlet.id
+    amount: Money = money_col()               # face value of load transferred
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    is_settled: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SimBatch(SQLModel, table=True):
+    """A batch of SIM cards received from the telecom company.  Cost is
+    auto-debited from the Tracker balance (stock_debit transaction)."""
+    __tablename__ = "sim_batch"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "batch_reference", name="uq_sim_batch_ref"),
+        CheckConstraint("qty_received > 0", name="ck_sim_batch_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    operator_name: str
+    batch_reference: str                      # company-assigned batch number
+    series_from: Optional[str] = None
+    series_to: Optional[str] = None
+    qty_received: int
+    qty_activated: int = Field(default=0)     # counter sales
+    qty_issued_rso: int = Field(default=0)    # issued to RSO channel
+    unit_cost: Money = money_col()            # Tracker deduction / qty
+    received_date: str                        # ISO date
+    tracker_txn_id: Optional[int] = Field(default=None, foreign_key="tracker_transaction.id")
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SimActivation(SQLModel, table=True):
+    """A SIM card sold at the service counter or issued to the RSO channel."""
+    __tablename__ = "sim_activation"
+    __table_args__ = (
+        CheckConstraint(
+            "activation_type IN ('counter_sale','rso_issue')",
+            name="ck_sim_activation_type",
+        ),
+        CheckConstraint(
+            "status IN ('pending','active','rejected')",
+            name="ck_sim_activation_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    sim_batch_id: int = Field(foreign_key="sim_batch.id", index=True)
+    sim_number: Optional[str] = None         # MSISDN if known
+    activation_date: str                      # ISO date
+    customer_name: Optional[str] = None
+    customer_cnic: Optional[str] = None
+    activation_type: str                      # counter_sale | rso_issue
+    rso_id: Optional[int] = Field(default=None, foreign_key="rso_agent.id", index=True)
+    status: str = Field(default="pending")
+    sale_price: Money = money_col()           # for counter sales
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RSODailyCollection(SQLModel, table=True):
+    """RSO's daily bank deposit that settles both load transferred and SIM
+    stock issued to that RSO.  Variance (if any) posts to account 5070."""
+    __tablename__ = "rso_daily_collection"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    rso_id: int = Field(foreign_key="rso_agent.id", index=True)
+    collection_date: str                      # ISO date
+    load_portion: Money = money_col()         # load settlement cash
+    stock_portion: Money = money_col()        # SIM stock settlement cash
+    total_deposited: Money = money_col()      # actual bank deposit
+    variance: Money = money_col()             # total - load - stock (±); posts to 5070
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    is_reconciled: bool = Field(default=False)
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class FCAEvent(SQLModel, table=True):
+    """First Call Activation — logged when an end customer makes their first
+    call on a newly activated SIM.  No GL posting; only increments the
+    KPITarget counter.  Commission is posted at month-end close."""
+    __tablename__ = "fca_event"
+    __table_args__ = (
+        CheckConstraint(
+            "source_channel IN ('counter','rso_retail','direct')",
+            name="ck_fca_event_channel",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    kpi_target_id: int = Field(foreign_key="kpi_target.id", index=True)
+    sim_number: Optional[str] = None
+    event_date: str                           # ISO date
+    source_channel: str                       # counter | rso_retail | direct
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class KPITarget(SQLModel, table=True):
+    """Monthly FCA target set by the telecom company.  Tracks actual FCA
+    count; at month-end close, posts the commission or penalty JV."""
+    __tablename__ = "kpi_target"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "tracker_account_id", "target_month",
+                         name="uq_kpi_target_month"),
+        CheckConstraint(
+            "status IN ('open','closed')",
+            name="ck_kpi_target_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    tracker_account_id: int = Field(foreign_key="tracker_account.id", index=True)
+    target_month: str                         # YYYY-MM-01
+    target_fca_count: int
+    actual_fca_count: int = Field(default=0)
+    incentive_earned: Money = money_col()
+    penalty_applied: Money = money_col()
+    commission_txn_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    status: str = Field(default="open")       # open | closed
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 # --- API DTOs (used by routers for request bodies & responses) ---
 
 class JournalEntryCreate(JournalEntryBase):

@@ -239,7 +239,23 @@ rm /home/droid/projects/Easy-Books/{package.json,package-lock.json,db.js,server.
 
 ---
 
-## 10. ROLLBACK
+## 9.1 SEEDING DEMO DATA (optional)
+
+Once production is live, demo tenants are auto-created on the first database init. To populate them with realistic mock data (customers, vendors, invoices, bills), you have two options:
+
+**Option A: Seed via backend API (recommended for production)**
+- Write a script that calls `POST /api/auth/login` with `demo.simple@easy-books.app` / `demo1234`
+- Use the returned JWT to call `POST /api/invoices`, `POST /api/bills`, etc. via the public API
+- This respects all business logic (GL postings, permissions, audit logging)
+
+**Option B: Direct database seeding (dev/test only)**
+- In your local backend, run: `cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo`
+- This populates all four demo tenants with 12+ customers, vendors, invoices, bills each
+- **WARNING:** This approach bypasses the API and should only be used in dev/staging — it does not generate audit logs or trigger webhooks
+
+---
+
+## 11. ROLLBACK
 
 ```bash
 # List recent deployments
@@ -251,7 +267,7 @@ vercel promote <deployment-url>
 
 ---
 
-## 11. WHAT'S NOT INCLUDED (and why)
+## 12. WHAT'S NOT INCLUDED (and why)
 
 | Feature | Status | Why |
 |---|---|---|
@@ -263,7 +279,7 @@ vercel promote <deployment-url>
 
 ---
 
-## 12. TOTAL COST (free tier)
+## 13. TOTAL COST (free tier)
 
 | Service | Free tier | Sufficient for |
 |---|---|---|

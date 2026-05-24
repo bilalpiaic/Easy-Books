@@ -118,6 +118,25 @@ Press `Ctrl-C` once to stop both cleanly.
 
 Open http://localhost:3000/signup, fill in your name, company, email, and a password (≥ 8 chars). A new tenant is created with a default Chart of Accounts; you're auto-logged-in as `owner` of that tenant.
 
+### Demo accounts (pre-seeded)
+
+Four demo tenants are auto-created on first run, one per business model:
+
+| Email | Password | Model |
+|-------|----------|-------|
+| `demo.simple@easy-books.app` | `demo1234` | Simple invoicing |
+| `demo.services@easy-books.app` | `demo1234` | Services / recurring revenue |
+| `demo.trader@easy-books.app` | `demo1234` | Inventory / buy-and-resell |
+| `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing / value-addition |
+
+To populate demo tenants with realistic mock data (12+ customers, vendors, invoices, bills per tenant):
+
+```bash
+cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
+```
+
+Reload the login page and you'll see the demo buttons pre-filled with sample data.
+
 ### Environment variables
 
 | Var | Purpose | Default |

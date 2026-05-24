@@ -24,6 +24,7 @@ class SettingsUpdate(BaseModel):
     invoice_prefix: Optional[str] = None
     bill_prefix: Optional[str] = None
     financial_statement_date: Optional[str] = None
+    business_tagline: Optional[str] = None
 
 
 @router.get("")
@@ -50,7 +51,7 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
 
 # ── Business-model switching ─────────────────────────────────────────────────
 
-_VALID_MODELS = {"simple", "services", "trader", "manufacturing"}
+_VALID_MODELS = {"simple", "services", "trader", "manufacturing", "telecom_franchise"}
 
 
 class BusinessModelUpdate(BaseModel):

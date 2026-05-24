@@ -59,7 +59,24 @@ npm install && node server.js    # runs on root package.json
 
 **Database:** SQLite (`backend/database.db`) in dev; PostgreSQL via `DATABASE_URL` in production. Schema is created via `SQLModel.metadata.create_all()` — no Alembic migrations exist.
 
-**Seeding:** On startup, `db.py` creates a default `Tenant`, seeds a Chart of Accounts, and optionally creates an admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars. Delete `backend/database.db` to reset to seeded state.
+**Seeding:** On startup, `db.py` creates:
+- A default `Tenant`, seeds a Chart of Accounts, and optionally creates an admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars
+- Five pre-seeded demo tenants (one per business model) with placeholder users for immediate testing
+- Delete `backend/database.db` to reset to seeded state
+
+**Demo Tenants (auto-created on first run):**
+| Email | Model | Password |
+|-------|-------|----------|
+| `demo.simple@easy-books.app` | Simple | `demo1234` |
+| `demo.services@easy-books.app` | Services | `demo1234` |
+| `demo.trader@easy-books.app` | Trader | `demo1234` |
+| `demo.manufacturing@easy-books.app` | Manufacturing | `demo1234` |
+| `demo.telecom@easy-books.app` | Telecom Franchise | `demo1234` |
+
+To populate demo tenants with mock data (12+ customers, vendors, invoices, bills per tenant):
+```bash
+cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
+```
 
 **API conventions:**
 - All endpoints prefixed with `/api`
@@ -73,7 +90,17 @@ npm install && node server.js    # runs on root package.json
 
 **API layer:** `src/lib/api.ts` — `apiFetch(path, options)` auto-injects the `Authorization: Bearer` header from `localStorage` key `access_token`.
 
-**State:** `SettingsContext` (`src/context/`) fetches `/api/settings` on init and provides currency/company settings app-wide. No external state management library.
+**Settings System:** `SettingsContext` (`src/context/SettingsContext.tsx`) fetches `/api/settings` on app init and provides settings app-wide via `useSettings()` hook. Settings include:
+- `company_name` — displayed in header and reports
+- `business_tagline` — shown below company name (e.g., "Easy-Books · Double-Entry Accounting")
+- `currency`, `fiscal_year_start`, `financial_statement_date` — accounting preferences
+- `invoice_prefix`, `bill_prefix` — document numbering
+- `tax_id`, `email_notifications` — compliance and notifications
+
+**Company Branding:** Users customize their branding via `/dashboard/settings`:
+- Company name appears in `Header` + `PrintHeader`
+- Business tagline appears below company name in header and all printed documents
+- All settings are persisted per-tenant via `/api/settings` PATCH endpoint
 
 **UI conventions:**
 - Icons: `lucide-react` only
@@ -136,3 +163,11 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 1. Update `Account.type` documentation/enum.
 2. Add seeding defaults in `db.py` if needed.
 3. Update any report aggregation logic that groups by account type.
+
+**Customize company branding/settings:**
+1. Add new setting key to `AppSettings` interface in `frontend/src/context/SettingsContext.tsx`
+2. Add default value to `defaults` object in same file
+3. Add field to `SettingsUpdate` model in `backend/routers/settings.py`
+4. Add UI input field to `frontend/src/app/(dashboard)/settings/page.tsx`
+5. Display setting value where needed (Header, PrintHeader, etc.) using `useSettings()` hook
+6. Settings are auto-persisted via `/api/settings` PATCH endpoint — no additional backend logic needed
