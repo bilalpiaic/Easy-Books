@@ -130,27 +130,61 @@ _COA_MANUFACTURING_EXTRA: list[tuple[str, str, str, bool]] = [
     ("5210", "Indirect Materials",       "Expense",   False),
 ]
 
-# Telecom extras: connectivity revenue split + prepaid deferred revenue +
-# interconnect / roaming COGS + SIM/device inventory + network opex.
-_COA_TELECOM_EXTRA: list[tuple[str, str, str, bool]] = [
-    ("1200", "SIM & Device Inventory",      "Asset",     False),
-    ("1250", "GST Receivable (Input)",      "Asset",     False),
-    ("2310", "Unearned Airtime Revenue",    "Liability", False),
-    ("2320", "Unearned Data Revenue",       "Liability", False),
-    ("2330", "Unearned SMS Revenue",        "Liability", False),
-    ("4010", "Airtime Revenue",             "Revenue",   False),
-    ("4020", "Data Revenue",                "Revenue",   False),
-    ("4030", "SMS Revenue",                 "Revenue",   False),
-    ("4040", "Roaming Revenue",             "Revenue",   False),
-    ("4050", "Interconnect Revenue",        "Revenue",   False),
-    ("4060", "Value-Added Services Revenue","Revenue",   False),
-    ("5010", "Cost of Goods Sold",          "Expense",   False),
-    ("5300", "Interconnect Charges",        "Expense",   False),
-    ("5310", "Roaming Costs",               "Expense",   False),
-    ("5320", "Bandwidth & Transmission",    "Expense",   False),
-    ("5330", "Tower & Site Rentals",        "Expense",   False),
-    ("5340", "Spectrum & Licence Fees",     "Expense",   False),
-    ("5350", "Network Maintenance",         "Expense",   False),
+# Telecom-Franchise CoA — combines the corrected operational model (Tracker
+# deposits, load float, MSR→RSO→Retail chain, FCA target commission) with the
+# extension blueprint (mobile money agency, postpaid billing, IMEI/device
+# sales, commission accrual workflow, franchise fee amortisation, RSO
+# channel). Codes follow BLUEPRINT.md numbering; descriptions match the
+# §3 (Telecom Extension) and §4 (Corrected) reference tables.
+_COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool]] = [
+    # ── Assets ──────────────────────────────────────────────────────────
+    ("1110", "Commission Receivable",         "Asset",     False),
+    ("1120", "RSO Receivables",               "Asset",     False),
+    ("1130", "Postpaid Customer Receivable",  "Asset",     False),
+    ("1200", "SIM Card Inventory",            "Asset",     False),
+    ("1201", "Scratch Card / PIN Inventory",  "Asset",     False),
+    ("1202", "Device Inventory",              "Asset",     False),
+    ("1203", "Bundle Code Inventory",         "Asset",     False),
+    ("1204", "IMSI Inventory",                "Asset",     False),
+    ("1210", "Tracker Deposit Balance",       "Asset",     False),
+    ("1211", "Load Float Asset (MSR SIM)",    "Asset",     False),
+    ("1212", "RSO Load Receivable",           "Asset",     False),
+    ("1213", "Retail Load Receivable",        "Asset",     False),
+    ("1214", "Mobile Money Float Asset",      "Asset",     False),
+    ("1250", "GST Receivable (Input)",        "Asset",     False),
+    ("1300", "Franchise Intangible Asset",    "Asset",     False),
+    ("1301", "Accumulated Amortisation",      "Asset",     False),  # contra
+    # ── Liabilities ─────────────────────────────────────────────────────
+    ("2010", "Operator Payable",              "Liability", False),
+    ("2100", "Mobile Money Float Liability",  "Liability", False),
+    ("2110", "Postpaid Collections Payable",  "Liability", False),
+    ("2120", "Franchise Royalty Payable",     "Liability", False),
+    ("2300", "Advance from Operator",         "Liability", False),
+    # ── Revenue ─────────────────────────────────────────────────────────
+    ("4000", "Airtime / Recharge Revenue",        "Revenue", False),
+    ("4010", "SIM Activation Revenue",            "Revenue", False),
+    ("4020", "Load Uplift Commission (3%)",       "Revenue", False),
+    ("4021", "Commission Income — Recharges",     "Revenue", False),
+    ("4022", "Commission Income — Digital (MM)",  "Revenue", False),
+    ("4023", "Commission Income — Bundles",       "Revenue", False),
+    ("4030", "SIM Sale Revenue",                  "Revenue", False),
+    ("4031", "Device Sales Revenue",              "Revenue", False),
+    ("4040", "Postpaid Billing Revenue",          "Revenue", False),
+    ("4050", "RSO Channel Revenue",               "Revenue", False),
+    ("4060", "FCA Target Commission",             "Revenue", False),
+    ("4061", "Franchise Incentive Income",        "Revenue", False),
+    # ── Expenses ────────────────────────────────────────────────────────
+    ("5010", "COGS — Devices",                    "Expense", False),
+    ("5011", "COGS — SIMs",                       "Expense", False),
+    ("5012", "COGS — Scratch Cards",              "Expense", False),
+    ("5020", "RSO Incentives & Commissions",      "Expense", False),
+    ("5021", "Retail Incentives",                 "Expense", False),
+    ("5030", "Franchise Fee Amortisation",        "Expense", False),
+    ("5040", "Franchise Royalty Expense",         "Expense", False),
+    ("5060", "Mobile Money Transaction Costs",    "Expense", False),
+    ("5070", "Tracker / Float Variance",          "Expense", False),
+    ("5080", "Bad Debt — RSO Channel",            "Expense", False),
+    ("5090", "Target Shortfall Penalties",        "Expense", False),
 ]
 
 
@@ -164,7 +198,7 @@ def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
         "services":      _COA_SERVICES_EXTRA,
         "trader":        _COA_TRADER_EXTRA,
         "manufacturing": _COA_MANUFACTURING_EXTRA,
-        "telecom":       _COA_TELECOM_EXTRA,
+        "telecom_franchise": _COA_TELECOM_FRANCHISE_EXTRA,
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
@@ -180,8 +214,12 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "trader":        ["invoicing", "billing", "manual_jv", "inventory"],
     "manufacturing": ["invoicing", "billing", "manual_jv", "inventory",
                       "stores", "bom", "production", "customer_goods"],
-    "telecom":       ["invoicing", "billing", "manual_jv", "inventory",
-                      "deferred_revenue", "rate_plans"],
+    "telecom_franchise": [
+        "invoicing", "billing", "manual_jv", "inventory",
+        "tracker", "sim_airtime", "mobile_money", "device_sales",
+        "postpaid_billing", "commission_tracking", "rso_channel",
+        "franchise_admin",
+    ],
 }
 
 

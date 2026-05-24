@@ -29,7 +29,7 @@ def money_col(default: Decimal = ZERO, **kw):
 class Tenant(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(
-            "business_model IN ('simple','services','trader','manufacturing','telecom')",
+            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise')",
             name="ck_tenant_business_model",
         ),
     )
@@ -838,3 +838,15 @@ class TransactionRead(TransactionBase):
 class JournalEntryRead(JournalEntryBase):
     account_name: str
     account_type: str
+
+
+# Re-export telecom-franchise tables so SQLModel.metadata.create_all() picks
+# them up at boot and existing `from models import X` imports keep working.
+from models_telecom import (  # noqa: E402,F401
+    AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
+    DeviceImei, FcaEvent, FranchiseAgreement, KpiTarget, LoadTransfer,
+    MobileMoneyAccount, MobileMoneyTransaction, Operator,
+    PostpaidBillCycle, PostpaidConnection, RetailOutlet, RsoAgent,
+    RsoDailyCollection, RsoStockIssue, RsoTarget, SimActivation, SimBatch,
+    TrackerAccount, TrackerTransaction,
+)
