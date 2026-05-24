@@ -99,7 +99,8 @@ Easy-Books/
 │   ├── alembic.ini · alembic/versions/0001…0013
 │   ├── routers/
 │   │   ├── common.py            SessionDep, CurrentUserDep, WriteUserDep, RBAC, next_number, log_audit
-│   │   ├── auth.py              signup (+business_model), login (+throttle), logout, /me
+│   │   ├── auth.py              signup, login (+throttle), logout, /me, profile (name/phone/password/avatar), accept-invite
+│   │   ├── users.py             (V3.6) team management (admin+): create/invite/role/activate/reset-password
 │   │   ├── settings.py          tenant settings + /business-model + /modules
 │   │   ├── accounts.py          CoA CRUD
 │   │   ├── customers.py · vendors.py · products.py
@@ -219,7 +220,8 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | Table | Notes |
 |---|---|
 | `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing/telecom_franchise` CHECK), `enabled_modules` (JSON array string), `created_at` |
-| `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `is_active`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id` |
+| `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `phone`, `avatar_url`, `is_active`, `must_change_password`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id`, `created_at`, `last_login_at` |
+| `userinvite` | Pending tenant invite — `email`, `role` (CHECK), `token` (unique), `invited_by_id`, `expires_at`, `accepted_at`. Consumed by `POST /api/auth/accept-invite` |
 | `settings` | KV per tenant — `company_name`, fiscal year, number prefixes |
 | `account` | `code`, `name`, `type` (`Asset/Liability/Equity/Revenue/Expense` CHECK), `parent_id`, **`is_memo`** (V2.1 — excludes from formal A=L+E totals) |
 | `accountingperiod` | `period_start`, `period_end`, `is_locked`, `name` |
@@ -344,11 +346,20 @@ Switching business model via `PATCH /api/settings/business-model` adds the new t
 
 All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK stability.
 
-### Auth (`/api/auth`)
+### Auth & profile (`/api/auth`)
 - `POST /signup` — body: `{email, password, full_name, company_name, business_model?}` → creates Tenant + User (role=owner) + seeds CoA + locations + sequence counters.
-- `POST /login` — OAuth2-form (`username` + `password`) → returns `access_token` and sets `eb_access` (HttpOnly) + `eb_csrf` cookies.
+- `POST /login` — OAuth2-form (`username` + `password`) → returns `access_token` + `must_change_password` and sets `eb_access` (HttpOnly) + `eb_csrf` cookies. Rejects inactive users (403); stamps `last_login_at`.
 - `POST /logout` — clears cookies.
-- `GET /me` — returns `{user, tenant: {id, name, base_currency, business_model, enabled_modules}}`.
+- `GET /me` — returns the full user (id, email, full_name, phone, avatar_url, role, must_change_password, created_at, last_login_at) + `tenant: {id, name, base_currency, business_model, enabled_modules}`.
+- `PATCH /me` — update own `full_name` / `phone`.
+- `POST /change-password` — verify current → set new (≥ 8); clears `must_change_password`.
+- `POST` / `DELETE /me/avatar`, `GET /users/{id}/avatar` — avatar upload/remove/serve (tenant-scoped, ≤ 5 MB image).
+- `GET /invite/{token}` (public) — inspect a pending invite; `POST /accept-invite` (public) — activate the User from a token.
+
+### Team / users (`/api/users`, admin+)
+- `GET /` list · `POST /` create (temp password, returned once) · `PATCH /{id}` role/active/name · `POST /{id}/reset-password` · `DELETE /{id}` deactivate.
+- `GET`/`POST /invites`, `DELETE /invites/{id}` — tokenized invitations (7-day expiry).
+- Guards: no self-role-change / self-deactivation; owner role is owner-grantable only; last active owner protected.
 
 ### Settings (`/api/settings`)
 - `GET /` — KV map. Always includes `company_name`, `currency`.
@@ -742,8 +753,10 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 ### 12.2 RBAC
 - Roles: `viewer < accountant < admin < owner` (rank in `_ROLE_ORDER`).
 - `WriteUserDep` requires `accountant+` (most mutations).
-- `AdminUserDep` requires `admin+` (settings, business-model switch, modules).
+- `AdminUserDep` requires `admin+` (settings, business-model switch, modules, **all of `/api/users`**).
 - DB CHECK enforces role values; first user of a tenant is `owner`.
+- **Active check:** `get_current_user` rejects `is_active=false` users on every request (403) — deactivation is instant, not deferred to token expiry.
+- **Member management guards:** no self-role-change or self-deactivation; only an owner grants/edits the `owner` role; the last active owner can't be demoted or deactivated.
 
 ### 12.3 Auth
 - **JWT (HS256)** signed with `JWT_SECRET_KEY`. Payload: `{sub: email, tenant_id, exp}`. Auth middleware decodes from either:

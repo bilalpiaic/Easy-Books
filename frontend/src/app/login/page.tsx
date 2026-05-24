@@ -45,7 +45,8 @@ export default function LoginPage() {
       if (!response.ok) throw new Error("Invalid email or password")
       const data = await response.json()
       setAuthToken(data.access_token)
-      router.push("/dashboard")
+      // Admin-created accounts carry a temporary password — force a change.
+      router.push(data.must_change_password ? "/profile?changePassword=1" : "/dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed")
     } finally {

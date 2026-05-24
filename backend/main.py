@@ -22,7 +22,7 @@ from routers import (
     manufacturing_reports, payments, periods, production_orders, products,
     rate_plans, reconciliations, recurring, reports, settings,
     stock_locations, subledger, tax_codes, telecom, telecom_reports,
-    transactions, vendors,
+    transactions, users, vendors,
 )
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
@@ -76,6 +76,7 @@ _ROUTERS = [
     manufacturing_reports.router,
     subledger.router,
     attachments.router,
+    users.router,
     telecom.router,
     telecom_reports.router,
 ]

@@ -60,11 +60,39 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     hashed_password: str
     full_name: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
     is_active: bool = Field(default=True)
+    # When true, the user must set a new password before doing anything else
+    # (admin-created accounts with a temporary password).
+    must_change_password: bool = Field(default=False)
     role: str = Field(default="viewer", index=True)
     tenant_id: int = Field(foreign_key="tenant.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_login_at: Optional[datetime] = None
 
     tenant: Tenant = Relationship(back_populates="users")
+
+
+class UserInvite(SQLModel, table=True):
+    """Pending invitation for a new user to join a tenant. The recipient
+    accepts by POSTing the token + a chosen password to
+    /api/auth/accept-invite, which materialises an active User row."""
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('owner','admin','accountant','viewer')",
+            name="ck_invite_role",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    email: str = Field(index=True)
+    role: str = Field(default="viewer")
+    token: str = Field(unique=True, index=True)
+    invited_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    expires_at: datetime
+    accepted_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Settings(SQLModel, table=True):

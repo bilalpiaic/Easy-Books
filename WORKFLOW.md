@@ -891,14 +891,33 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 
 Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned alias). Future breaking changes ship under `/api/v2/`.
 
-### 8.1 Auth & settings
+### 8.1 Auth, profile & settings
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/auth/signup` | Create tenant + seed CoA + `owner` user (password ≥ 8) |
-| POST | `/api/auth/login` | OAuth2 password → JWT + HttpOnly cookie + CSRF cookie + body `{access_token, role, csrf_token}` |
+| POST | `/api/auth/login` | OAuth2 password → JWT + HttpOnly cookie + CSRF cookie + body `{access_token, role, csrf_token, must_change_password}`. Rejects inactive users (403); stamps `last_login_at` |
 | POST | `/api/auth/logout` | Clears both cookies |
-| GET | `/api/auth/me` | Current user (email, full_name, role) |
+| GET | `/api/auth/me` | Current user (id, email, full_name, phone, avatar_url, role, must_change_password, created_at, last_login_at, tenant) |
+| PATCH | `/api/auth/me` | Update own `full_name` / `phone` |
+| POST | `/api/auth/change-password` | Verify current → set new (≥ 8); clears `must_change_password` |
+| POST/DELETE | `/api/auth/me/avatar` | Upload (multipart, PNG/JPEG/GIF/WebP ≤ 5 MB) / remove own avatar |
+| GET | `/api/auth/users/{id}/avatar` | Serve a tenant member's avatar (tenant-scoped; 404 cross-tenant) |
+| GET | `/api/auth/invite/{token}` | Public — inspect a pending invite (email, role, company) |
+| POST | `/api/auth/accept-invite` | Public — `{token, full_name, password}` → activates the User and logs in |
 | GET/PATCH | `/api/settings` | Company name, fiscal year start, currency display, document prefixes |
+
+### 8.1a Team / user management (`/api/users`, admin+)
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/users` | List tenant members (role, is_active, last_login, …) |
+| POST | `/api/users` | Create a member with a temporary password (returned once); `must_change_password=true` |
+| PATCH | `/api/users/{id}` | Change `full_name` / `role` / `is_active`. Guards below |
+| POST | `/api/users/{id}/reset-password` | Issue a new temporary password (forces change at next login) |
+| DELETE | `/api/users/{id}` | Soft-delete (deactivate) — audit rows reference the user id |
+| GET/POST | `/api/users/invites` | List pending / create a tokenized invite (7-day expiry) → `{token, accept_path}` |
+| DELETE | `/api/users/invites/{id}` | Revoke a pending invite |
+
+**Role guards** (enforced in `routers/users.py`): you cannot change your own role or deactivate yourself; only an **owner** may grant or modify the `owner` role; the **last active owner** cannot be demoted or deactivated.
 
 ### 8.2 Master data
 | Method | Path | Purpose |
@@ -1006,19 +1025,27 @@ Every query in every endpoint filters by `tenant_id` from the JWT. Cross-tenant 
 
 ### 9.2 RBAC
 
-| Role | Reads | Writes | Period close / lock | Account delete |
-|---|---|---|---|---|
-| `viewer` | ✔ | — | — | — |
-| `accountant` | ✔ | ✔ | — | — |
-| `admin` | ✔ | ✔ | ✔ | ✔ |
-| `owner` | ✔ | ✔ | ✔ | ✔ |
+| Role | Reads | Writes | Period close / lock | Account delete | Manage users |
+|---|---|---|---|---|---|
+| `viewer` | ✔ | — | — | — | — |
+| `accountant` | ✔ | ✔ | — | — | — |
+| `admin` | ✔ | ✔ | ✔ | ✔ | ✔ (not owner role) |
+| `owner` | ✔ | ✔ | ✔ | ✔ | ✔ (incl. owner role) |
 
 DB-level `CHECK role IN ('owner','admin','accountant','viewer')`. First user of a tenant becomes `owner` at signup. Dependencies in `routers/common.py`:
-- `CurrentUserDep` — any authenticated user
+- `CurrentUserDep` — any authenticated **and active** user. `get_current_user` re-checks `is_active` on **every** request, so deactivating a member locks them out immediately even with a still-valid token (403).
 - `WriteUserDep` — `accountant+`
-- `AdminUserDep` — `admin+`
+- `AdminUserDep` — `admin+` (gates the entire `/api/users` surface)
 
 `require_min_role(role)` factory generates more if needed.
+
+### 9.2a Multi-user onboarding & guards
+
+Two ways to add members to a tenant (no email provider required):
+1. **Admin-created** — `POST /api/users` mints the account with a temporary password returned **once**; `must_change_password=true` forces a reset at first login (the SPA redirects such logins to `/profile?changePassword=1`).
+2. **Invite link** — `POST /api/users/invites` creates a `UserInvite` (unique token, 7-day expiry). The recipient opens `/accept-invite?token=…`, sets name + password, and `POST /api/auth/accept-invite` materialises an active `User` and logs them in. A copyable link is the fallback when email isn't wired.
+
+Management guards (see §8.1a): no self-role-change, no self-deactivation, owner-role changes are owner-only, and the last active owner is protected from demotion/deactivation — so a tenant can never be locked out of its own admin surface.
 
 ### 9.3 Auth: JWT + HttpOnly cookie
 
@@ -1172,12 +1199,14 @@ Auto-seeded on signup. 22 accounts across the five standard types:
 | `0011_stock_locations` | V2.2 | `StockLocation` + `StockMovement` + `InventoryLayer.location_id`/`owner_customer_id`/`lot_no`; backfills `MAIN` per tenant and `GODOWN`/`WIP` for manufacturing |
 | `0012_bom_rate_plans` | V2.3 | `BomHeader`, `BomLine`, `RatePlan`, `CustomerRatePlan` |
 | `0013_grn_production_order` | V2.4 | `GoodsReceiptNote`, `GRNLine`, `ProductionOrder` (with state-machine CHECK) |
+| telecom franchise (V3) | V3.1–3.5 | 23 `tc_*` tables (`models_telecom.py`); `Tenant.business_model` CHECK extended with `telecom_franchise` |
+| user/team (V3.6) | V3.6 | `User.phone`/`avatar_url`/`must_change_password`/`created_at`/`last_login_at` columns + `UserInvite` table |
 
-All migrations are idempotent (check inspector before `create_table` / `add_column`), so they can safely be re-run on a fresh-baseline DB.
+All migrations are idempotent (check inspector before `create_table` / `add_column`), so they can safely be re-run on a fresh-baseline DB. In dev (`SCHEMA_BOOTSTRAP=create_all`) new tables are auto-created; new columns on existing tables are added with a one-shot `ALTER TABLE` (SQLite-safe).
 
 ---
 
-> **Last updated:** 2026-05-21
+> **Last updated:** 2026-05-24
 > **Branch:** `saas-transition-foundation`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

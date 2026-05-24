@@ -29,6 +29,8 @@ Stack: FastAPI + SQLModel + Alembic (backend) · Next.js 16 + React 19 + Tailwin
 ### Multi-tenant SaaS
 - **Self-service signup** creates an isolated tenant + seeded Chart of Accounts (22 default accounts).
 - **RBAC** — `owner | admin | accountant | viewer`. First user of a tenant is `owner`. `WriteUserDep` guards every mutating endpoint (`accountant+` required); `AdminUserDep` is available for elevated-admin endpoints.
+- **Team & multi-user** — multiple users per tenant, managed from a **Team** page (admin+). Two onboarding paths: an admin **creates an account** with a one-time temporary password (forced change at first login), or **sends an invite link** (tokenized, 7-day expiry, copyable when no email provider is wired). Admins assign roles inline, **activate/deactivate** members, and reset passwords. Guards: you can't change your own role or deactivate yourself, only an owner may grant the `owner` role, and the **last active owner** can't be demoted or deactivated. Deactivation is enforced on every request (`get_current_user` rejects inactive users with 403 — a still-valid token stops working immediately).
+- **User profile** — each user has a self-service Profile page: edit name & phone, change password, upload an avatar (PNG/JPEG/GIF/WebP ≤ 5 MB, stored tenant-scoped under `UPLOAD_ROOT`), and view their role, organisation, join date and last-login.
 - **Tenant isolation** at the data layer — every query filters by `tenant_id`; cross-tenant reads return 404 (never 403 — no enumeration). The central posting service double-checks that referenced accounts belong to the caller's tenant.
 - **Audit log** — every mutation writes a row (user, action, entity, before/after JSON).
 
@@ -126,6 +128,7 @@ Open http://localhost:3000/signup, fill in your name, company, email, and a pass
 | `FRONTEND_ORIGIN` | Comma-separated CORS allow-list. | `http://localhost:3000` |
 | `SCHEMA_BOOTSTRAP` | `create_all` (default — `SQLModel.metadata.create_all` on startup) or `alembic` (skip startup DDL; run migrations explicitly). | `create_all` |
 | `SEED_COMPANY_NAME` | Default company name for the first tenant. | `My Company` |
+| `UPLOAD_ROOT` | Filesystem root for uploaded files — document attachments and user avatars, stored under `<root>/<tenant_id>/…`. | `uploads` |
 
 ---
 
@@ -138,9 +141,10 @@ backend/
 ├── auth.py                  ← JWT + bcrypt
 ├── db.py                    ← engine, seed_data, default CoA
 ├── alembic/versions/        ← 0001 → 0013 (idempotent migrations)
-├── routers/                 ← 26 domain routers
-│   ├── common.py            ← shared deps (SessionDep, CurrentUserDep, WriteUserDep, …)
-│   ├── auth.py              ← signup (with business_model), login, logout, /me
+├── routers/                 ← 27 domain routers
+│   ├── common.py            ← shared deps (SessionDep, CurrentUserDep, WriteUserDep, AdminUserDep, …)
+│   ├── auth.py              ← signup, login, logout, /me, profile (name/phone/password/avatar), accept-invite
+│   ├── users.py             ← (V3.6) team management (admin+): create/invite/role/activate/reset-password
 │   ├── invoices.py · bills.py · payments.py
 │   ├── tax_codes.py · exchange_rates.py · recurring.py
 │   ├── bank_accounts.py · bank_imports.py · reconciliations.py
@@ -198,11 +202,14 @@ frontend/src/
 │   │   ├── commissions/     ← statements, settlement, receivable aging
 │   │   ├── franchise/       ← agreement, fee amortisation, royalty
 │   │   └── devices/         ← IMEI inventory
+│   ├── profile/             ← (V3.6) self-service profile: name/phone, password, avatar, account info
+│   ├── team/                ← (V3.6) team management (admin+): members, roles, activation, invites
 │   ├── workflow/             ← visual flowcharts
 │   ├── guide/                ← user guide (multi-tab)
 │   └── settings/
+├── app/accept-invite/       ← (V3.6) public page — set name + password from an invite token
 ├── components/
-│   ├── Sidebar.tsx           ← adaptive — Manufacturing / Telecom sections gated on tenant
+│   ├── Sidebar.tsx           ← adaptive — Manufacturing / Telecom + Team(admin) / Profile gated on tenant & role
 │   ├── BusinessModelPicker.tsx ← used by signup wizard (5 models incl. telecom_franchise)
 │   ├── telecom/              ← V3: ActionForm (schema-driven JV poster) + primitives (Tabs, DataTable, Tile, useTelecomList)
 │   ├── DocLink.tsx           ← central drill-down resolver: maps {type,id} → /detail href
@@ -269,6 +276,9 @@ This branch (`saas-transition-foundation`) carries the active SaaS work. Shipped
 - **V3.3** — Posting services (`tracker_posting.py`, `franchise_posting.py`): deposits, 3% load-uplift orders, MSR→RSO→Retail distribution, RSO daily collection w/ variance, SIM stock & counter sales, FCA target commission/penalty, mobile-money float, postpaid bill/collect/remit, commission accrual & statement settlement, fee amortisation & royalty
 - **V3.4** — `/api/telecom/*` (40+ endpoints) + `/api/telecom/reports/*` (9 reports) + demo operational seed (Jazz operator, load chain, SIM activations, FCA events, franchise agreement)
 - **V3.5** — Telecom dashboard + 9 operation pages, schema-driven `ActionForm`, adaptive sidebar Telecom section. Invariants verified: `tracker.load_balance == GL 1211`, `tracker.deposit_balance == GL 1210`, trial balance nets to zero across all postings
+
+**Team & profile track (V3.6-track)**
+- **V3.6** — Multi-user per tenant: `routers/users.py` (admin+ list/create/role/activate/reset-password + tokenized invites), `UserInvite` table, profile self-service (name/phone, change-password, avatar upload), `is_active` enforced on every request, last-active-owner guard. Frontend: Profile + Team pages, public accept-invite, role-gated sidebar. User model extended (`phone`, `avatar_url`, `must_change_password`, `created_at`, `last_login_at`)
 
 **Test coverage:** 122 backend tests; full lifecycle end-to-end smoke verified (incl. telecom load-float/deposit GL reconciliation + balanced trial balance).
 

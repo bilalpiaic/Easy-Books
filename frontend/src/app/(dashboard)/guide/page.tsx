@@ -963,13 +963,31 @@ function RolesPanel() {
       <StepList steps={[
         "A viewer trying to POST/PUT/PATCH/DELETE anything → 403 with a clear message.",
         "Accountants can do day-to-day work — invoices, bills, payments, manual JVs — but cannot close periods or delete accounts.",
-        "Period close, account delete, and other admin operations require admin or owner.",
-        "Roles are stored in the JWT, so role changes take effect on next login.",
+        "Period close, account delete, and managing users require admin or owner.",
+        "Roles are stored in the JWT; a role change applies on the user's next request/login.",
       ]} />
+
+      <SectionHeading>Managing your team</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Admins and owners get a <CodeBadge>Team</CodeBadge> page (under <b>System</b> in the sidebar) to run a
+        multi-user organisation. Two ways to onboard a colleague:
+      </p>
+      <StepList steps={[
+        "Create account — add their email, name and role; the page shows a one-time temporary password to relay. They're forced to set a new password at first login.",
+        "Send invite — generate a tokenized link (valid 7 days) and share it; the recipient sets their own name and password at /accept-invite.",
+        "Assign roles inline, reset a password, or activate/deactivate a member. Deactivating locks them out instantly — even a still-valid session stops working.",
+      ]} />
+
+      <SectionHeading>Your profile</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Every user has a <CodeBadge>My Profile</CodeBadge> page to edit their name &amp; phone, change their
+        password, upload an avatar, and review their role, organisation, join date and last login.
+      </p>
 
       <MistakeCallout>
         <p>Promoting too many users to admin — you lose the audit-of-actions benefit of restricted access.</p>
-        <p>Demoting yourself to viewer — you&apos;ll need another admin/owner to put you back.</p>
+        <p>You can&apos;t change your own role or deactivate yourself — ask another admin/owner.</p>
+        <p>The last active owner is protected: you can&apos;t demote or deactivate the only owner, so a tenant is never locked out of its admin surface.</p>
       </MistakeCallout>
     </div>
   )

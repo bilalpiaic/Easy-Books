@@ -10,7 +10,7 @@ import {
   Percent, Settings, X, Package, ChevronRight, GitBranch, HelpCircle,
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
-  ScrollText, Tablet,
+  ScrollText, Tablet, UserCircle, UsersRound,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -22,6 +22,8 @@ type NavItem = {
   icon: React.ElementType
   section: string
   forModel?: "manufacturing" | "telecom_franchise"
+  /** Only shown to admin+ (admin or owner). */
+  adminOnly?: boolean
 }
 
 const NAV: NavItem[] = [
@@ -59,6 +61,8 @@ const NAV: NavItem[] = [
   { label: "Balance Sheet",    href: "/balance",           icon: PieChart,         section: "Reports" },
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
+  { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
+  { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
@@ -78,7 +82,7 @@ const SECTION_COLORS: Record<string, string> = {
   System:        "text-white/40",
 }
 
-type Me = { tenant?: { business_model?: string } }
+type Me = { role?: string; tenant?: { business_model?: string } }
 
 interface SidebarProps {
   /** Drawer is shown when true; closed when false. Caller controls. */
@@ -97,22 +101,30 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const [userName, setUserName]   = useState("User")
   const [userInitial, setInitial] = useState("U")
   const [businessModel, setBusinessModel] = useState<string>("simple")
+  const [role, setRole] = useState<string>(() => getCurrentUser()?.role ?? "viewer")
 
   useEffect(() => {
     const user = getCurrentUser()
     if (user) {
       setUserName(user.full_name)
       setInitial(user.full_name.charAt(0).toUpperCase())
+      setRole(user.role)
     }
     apiFetch<Record<string,string>>("/api/settings")
       .then(d => { if (d?.company_name) setOrgName(d.company_name) })
       .catch(() => {})
     apiFetch<Me>("/api/auth/me")
-      .then(d => { if (d?.tenant?.business_model) setBusinessModel(d.tenant.business_model) })
+      .then(d => {
+        if (d?.tenant?.business_model) setBusinessModel(d.tenant.business_model)
+        if (d?.role) setRole(d.role)
+      })
       .catch(() => {})
   }, [])
 
-  const visibleNav = NAV.filter(i => !i.forModel || i.forModel === businessModel)
+  const isAdmin = role === "admin" || role === "owner"
+  const visibleNav = NAV.filter(i =>
+    (!i.forModel || i.forModel === businessModel) && (!i.adminOnly || isAdmin)
+  )
   const SECTIONS = ALL_SECTIONS.filter(s => visibleNav.some(i => i.section === s))
 
   const logout = () => {
