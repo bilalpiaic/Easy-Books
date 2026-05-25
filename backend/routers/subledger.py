@@ -380,6 +380,237 @@ def vendor_ledger(
     }
 
 
+# ── Customer statement ──────────────────────────────────────────────────────
+
+
+@router.get("/api/customers/{customer_id}/statement")
+def customer_statement(
+    session: SessionDep, user: CurrentUserDep, customer_id: int,
+    from_date: Optional[str] = None, to_date: Optional[str] = None,
+):
+    """Account statement for a customer: open invoices, payments, balances.
+
+    Returns a print-ready structure with:
+      - customer info
+      - period
+      - opening_balance (AR balance before from_date)
+      - invoices in period with outstanding amount per invoice
+      - payments in period
+      - closing_balance
+    """
+    cust = session.exec(
+        select(Customer).where(
+            Customer.id == customer_id, Customer.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not cust:
+        raise HTTPException(404, "Customer not found")
+
+    invoices = session.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.customer_id == customer_id,
+        ).order_by(Invoice.issue_date, Invoice.id)
+    ).all()
+
+    payments_all = session.exec(
+        select(PaymentReceived).where(
+            PaymentReceived.tenant_id == user.tenant_id,
+        ).order_by(PaymentReceived.payment_date, PaymentReceived.id)
+    ).all()
+    customer_invoice_ids = {i.id for i in invoices}
+
+    # Opening balance: all invoices before from_date minus payments before from_date
+    opening = D(cust.opening_balance)
+    if from_date:
+        pre_inv = [i for i in invoices if i.issue_date < from_date]
+        opening += sum((_to_base(D(i.total), D(i.exchange_rate)) for i in pre_inv), start=ZERO)
+        for p in payments_all:
+            if p.payment_date >= from_date:
+                continue
+            applied = _payment_applied_to_customer(session, p, customer_invoice_ids)
+            opening -= applied
+
+    # In-period invoices
+    period_invoices = []
+    for inv in invoices:
+        if not _in_range(inv.issue_date, from_date, to_date):
+            continue
+        # Outstanding = total - sum of allocations
+        alloc_total = session.exec(
+            select(PaymentAllocation).where(
+                PaymentAllocation.invoice_id == inv.id,
+                PaymentAllocation.tenant_id == user.tenant_id,
+            )
+        ).all()
+        allocated = sum((D(a.amount) for a in alloc_total), start=ZERO)
+        outstanding = max(ZERO, _to_base(D(inv.total), D(inv.exchange_rate)) - allocated)
+        period_invoices.append({
+            "id": inv.id,
+            "number": inv.number,
+            "date": inv.issue_date,
+            "due_date": inv.due_date,
+            "status": inv.status,
+            "total": str(_to_base(D(inv.total), D(inv.exchange_rate))),
+            "outstanding": str(money(outstanding)),
+            "currency": inv.currency,
+        })
+
+    # In-period payments
+    period_payments = []
+    for p in payments_all:
+        if not _in_range(p.payment_date, from_date, to_date):
+            continue
+        applied = _payment_applied_to_customer(session, p, customer_invoice_ids)
+        if applied <= 0:
+            continue
+        period_payments.append({
+            "id": p.id,
+            "date": p.payment_date,
+            "method": p.method,
+            "reference": p.reference,
+            "amount": str(money(applied)),
+        })
+
+    # Closing balance
+    closing = opening
+    for inv_row in period_invoices:
+        closing += D(inv_row["total"])
+    for pay_row in period_payments:
+        closing -= D(pay_row["amount"])
+
+    return {
+        "customer": {
+            "id": cust.id, "name": cust.name,
+            "email": cust.email, "phone": cust.phone, "address": cust.address,
+        },
+        "period": {"from": from_date, "to": to_date},
+        "opening_balance": str(money(opening)),
+        "invoices": period_invoices,
+        "payments": period_payments,
+        "closing_balance": str(money(closing)),
+    }
+
+
+def _payment_applied_to_customer(
+    session, p: "PaymentReceived", customer_invoice_ids: set
+) -> Decimal:
+    if p.invoice_id and p.invoice_id in customer_invoice_ids:
+        return D(p.amount)
+    allocs = session.exec(
+        select(PaymentAllocation).where(
+            PaymentAllocation.payment_received_id == p.id,
+        )
+    ).all()
+    return sum((D(a.amount) for a in allocs if a.invoice_id in customer_invoice_ids), start=ZERO)
+
+
+# ── Vendor statement ─────────────────────────────────────────────────────────
+
+
+@router.get("/api/vendors/{vendor_id}/statement")
+def vendor_statement(
+    session: SessionDep, user: CurrentUserDep, vendor_id: int,
+    from_date: Optional[str] = None, to_date: Optional[str] = None,
+):
+    """Account statement for a vendor: open bills, payments, balances."""
+    from models import BillPayment as BillPaymentModel
+
+    v = session.exec(
+        select(Vendor).where(
+            Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+
+    bills = session.exec(
+        select(Bill).where(
+            Bill.tenant_id == user.tenant_id,
+            Bill.vendor_id == vendor_id,
+        ).order_by(Bill.bill_date, Bill.id)
+    ).all()
+    vendor_bill_ids = {b.id for b in bills}
+
+    bp_all = session.exec(
+        select(BillPaymentModel).where(
+            BillPaymentModel.tenant_id == user.tenant_id,
+        ).order_by(BillPaymentModel.payment_date, BillPaymentModel.id)
+    ).all()
+
+    opening = D(v.opening_balance)
+    if from_date:
+        pre_bills = [b for b in bills if b.bill_date < from_date]
+        opening += sum((_to_base(D(b.total), D(b.exchange_rate)) for b in pre_bills), start=ZERO)
+        for bp in bp_all:
+            if bp.payment_date >= from_date:
+                continue
+            applied = _bp_applied_to_vendor(session, bp, vendor_bill_ids)
+            opening -= applied
+
+    period_bills = []
+    for bill in bills:
+        if not _in_range(bill.bill_date, from_date, to_date):
+            continue
+        from models import PaymentAllocation as PA
+        alloc_total = session.exec(
+            select(PA).where(PA.bill_id == bill.id, PA.tenant_id == user.tenant_id)
+        ).all()
+        allocated = sum((D(a.amount) for a in alloc_total), start=ZERO)
+        outstanding = max(ZERO, _to_base(D(bill.total), D(bill.exchange_rate)) - allocated)
+        period_bills.append({
+            "id": bill.id,
+            "number": bill.number,
+            "date": bill.bill_date,
+            "due_date": bill.due_date,
+            "status": bill.status,
+            "total": str(_to_base(D(bill.total), D(bill.exchange_rate))),
+            "outstanding": str(money(outstanding)),
+            "currency": bill.currency,
+        })
+
+    period_payments = []
+    for bp in bp_all:
+        if not _in_range(bp.payment_date, from_date, to_date):
+            continue
+        applied = _bp_applied_to_vendor(session, bp, vendor_bill_ids)
+        if applied <= 0:
+            continue
+        period_payments.append({
+            "id": bp.id,
+            "date": bp.payment_date,
+            "method": bp.method,
+            "reference": bp.reference,
+            "amount": str(money(applied)),
+        })
+
+    closing = opening
+    for b_row in period_bills:
+        closing += D(b_row["total"])
+    for p_row in period_payments:
+        closing -= D(p_row["amount"])
+
+    return {
+        "vendor": {
+            "id": v.id, "name": v.name,
+            "email": v.email, "phone": v.phone, "address": v.address,
+        },
+        "period": {"from": from_date, "to": to_date},
+        "opening_balance": str(money(opening)),
+        "bills": period_bills,
+        "payments": period_payments,
+        "closing_balance": str(money(closing)),
+    }
+
+
+def _bp_applied_to_vendor(session, bp, vendor_bill_ids: set) -> Decimal:
+    from models import PaymentAllocation as PA
+    if bp.bill_id and bp.bill_id in vendor_bill_ids:
+        return D(bp.amount)
+    allocs = session.exec(select(PA).where(PA.bill_payment_id == bp.id)).all()
+    return sum((D(a.amount) for a in allocs if a.bill_id in vendor_bill_ids), start=ZERO)
+
+
 # ── Product stock card ──────────────────────────────────────────────────────
 
 

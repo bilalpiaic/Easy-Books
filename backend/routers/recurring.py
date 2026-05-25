@@ -103,6 +103,39 @@ def create_recurring(
     return t
 
 
+@router.patch("/{template_id}")
+def toggle_recurring(session: SessionDep, user: WriteUserDep, template_id: int, is_active: bool):
+    """Activate or deactivate a recurring template."""
+    t = session.exec(
+        select(RecurringTemplate).where(
+            RecurringTemplate.id == template_id,
+            RecurringTemplate.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not t:
+        raise HTTPException(404, "Template not found")
+    t.is_active = is_active
+    session.add(t)
+    session.commit()
+    session.refresh(t)
+    return {**t.model_dump(), "entries": _json.loads(t.entries_json)}
+
+
+@router.delete("/{template_id}", status_code=204)
+def delete_recurring(session: SessionDep, user: WriteUserDep, template_id: int):
+    """Delete a recurring template."""
+    t = session.exec(
+        select(RecurringTemplate).where(
+            RecurringTemplate.id == template_id,
+            RecurringTemplate.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not t:
+        raise HTTPException(404, "Template not found")
+    session.delete(t)
+    session.commit()
+
+
 @router.post("/run-due")
 def run_due_recurring(session: SessionDep, user: WriteUserDep):
     """Materialise all templates whose next_run <= today. Returns the count

@@ -8,6 +8,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import FilterBar from '@/components/FilterBar'
 import SortableHeader from '@/components/SortableHeader'
+import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -94,6 +95,26 @@ export default function Bills() {
   const [accounts, setAccounts]     = useState<Account[]>([])
   const [products, setProducts]     = useState<Product[]>([])
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
+  const [selectedIds, setSelectedIds]   = useState<Set<number>>(new Set())
+
+  const handleBulkAction = async (action: string) => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    if (action === 'delete' && !window.confirm(`Delete ${ids.length} draft bill(s)?`)) return
+    if (action === 'void' && !window.confirm(`Void ${ids.length} bill(s)?`)) return
+    try {
+      const res = await apiFetch<{ affected: number; errors: string[] }>('/api/bills/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action }),
+      })
+      if (res.errors.length > 0) alert(res.errors.join('\n'))
+      setSelectedIds(new Set())
+      load()
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
 
   const load = () => {
     setLoading(true)
@@ -323,6 +344,13 @@ export default function Bills() {
           <table className="w-full text-sm min-w-[700px]">
             <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
+                <th className="px-4 py-4 w-10">
+                  <input type="checkbox"
+                    className="rounded border-[#ede9e2] accent-[#b8943f]"
+                    checked={bills.length > 0 && bills.every(b => selectedIds.has(b.id))}
+                    onChange={e => setSelectedIds(e.target.checked ? new Set(bills.map(b => b.id)) : new Set())}
+                  />
+                </th>
                 <SortableHeader label="Bill #"     field="number"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Vendor"     field="vendor_name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Bill Date"  field="bill_date"   sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
@@ -334,10 +362,10 @@ export default function Bills() {
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
               {loading ? (
-                <SkeletonRow cols={7} />
+                <SkeletonRow cols={8} />
               ) : bills.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <p className="text-black/40 mb-3">No bills found.</p>
                     <button onClick={openCreate} className="text-sm text-[#b8943f] hover:underline font-medium">
                       + Record your first bill
@@ -345,7 +373,18 @@ export default function Bills() {
                   </td>
                 </tr>
               ) : bills.map(b => (
-                <tr key={b.id} className={`hover:bg-[#f6f3ee]/50 ${b.status === 'overdue' ? 'bg-red-50/30' : ''}`}>
+                <tr key={b.id} className={`hover:bg-[#f6f3ee]/50 ${b.status === 'overdue' ? 'bg-red-50/30' : ''} ${selectedIds.has(b.id) ? 'bg-[#ffd966]/10' : ''}`}>
+                  <td className="px-4 py-4 w-10">
+                    <input type="checkbox"
+                      className="rounded border-[#ede9e2] accent-[#b8943f]"
+                      checked={selectedIds.has(b.id)}
+                      onChange={e => setSelectedIds(prev => {
+                        const next = new Set(prev)
+                        e.target.checked ? next.add(b.id) : next.delete(b.id)
+                        return next
+                      })}
+                    />
+                  </td>
                   <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
                     <DocLink type="bill" id={b.id} label={b.number} className="text-[#b8943f] font-bold" />
                   </td>
@@ -413,6 +452,16 @@ export default function Bills() {
           </div>
         </div>
       )}
+
+      <BulkActionBar
+        count={selectedIds.size}
+        actions={[
+          { label: 'Mark Received', onClick: () => handleBulkAction('mark_received') },
+          { label: 'Void', onClick: () => handleBulkAction('void'), variant: 'danger' },
+          { label: 'Delete', onClick: () => handleBulkAction('delete'), variant: 'danger' },
+        ]}
+        onClear={() => setSelectedIds(new Set())}
+      />
 
       {/* Create / Edit Modal */}
       {modalOpen && (

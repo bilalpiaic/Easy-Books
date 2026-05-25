@@ -70,9 +70,15 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
         <Link href="/vendors" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
           <ArrowLeft className="w-4 h-4" /> Vendors
         </Link>
-        <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
-          <Printer className="w-4 h-4" /> Print
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href={`/vendors/${id}/statement?from=${start}&to=${end}`}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/40 rounded-lg text-sm font-bold text-[#b8943f] hover:bg-[#faf6ec]">
+            <Printer className="w-4 h-4" /> Print Statement
+          </Link>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
+            <Printer className="w-4 h-4" /> Print Ledger
+          </button>
+        </div>
       </div>
 
       <header className="bg-white border border-[#ede9e2] rounded-xl p-5 flex items-start gap-3 print:hidden">

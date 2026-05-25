@@ -535,3 +535,59 @@ def update_invoice_status(
     session.commit()
     session.refresh(inv)
     return inv
+
+
+# ── Bulk actions ─────────────────────────────────────────────────────────────
+
+from typing import Literal  # noqa: E402
+
+class BulkInvoiceAction(BaseModel):
+    ids: list[int]
+    action: Literal["mark_sent", "void", "delete"]
+
+
+@router.post("/api/invoices/bulk")
+def bulk_invoice_action(session: SessionDep, user: WriteUserDep, body: BulkInvoiceAction):
+    """Bulk mark_sent / void / delete on a list of invoice IDs (tenant-scoped)."""
+    invoices = session.exec(
+        select(Invoice).where(
+            Invoice.id.in_(body.ids),
+            Invoice.tenant_id == user.tenant_id,
+        )
+    ).all()
+
+    affected = 0
+    errors: list[str] = []
+
+    for inv in invoices:
+        if body.action == "mark_sent":
+            if inv.status not in ("draft", "sent"):
+                errors.append(f"Invoice {inv.number}: cannot mark_sent (status={inv.status})")
+                continue
+            inv.status = "sent"
+            session.add(inv)
+            log_audit(session, user, "UPDATE", "invoice", inv.id, {"number": inv.number, "status": "sent"})
+            affected += 1
+
+        elif body.action == "void":
+            if inv.status in ("paid",):
+                errors.append(f"Invoice {inv.number}: cannot void a paid invoice")
+                continue
+            inv.status = "void"
+            session.add(inv)
+            log_audit(session, user, "UPDATE", "invoice", inv.id, {"number": inv.number, "status": "void"})
+            affected += 1
+
+        elif body.action == "delete":
+            if inv.status != "draft":
+                errors.append(f"Invoice {inv.number}: only draft invoices can be deleted (status={inv.status})")
+                continue
+            lines = session.exec(select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)).all()
+            for ln in lines:
+                session.delete(ln)
+            session.delete(inv)
+            log_audit(session, user, "DELETE", "invoice", inv.id, {"number": inv.number})
+            affected += 1
+
+    session.commit()
+    return {"affected": affected, "errors": errors}

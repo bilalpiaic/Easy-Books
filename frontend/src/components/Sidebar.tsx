@@ -9,7 +9,7 @@ import {
   Percent, Settings, X, Package, ChevronRight, GitBranch, HelpCircle,
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
-  ScrollText, Tablet, UserCircle, UsersRound,
+  ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { label: "Dashboard",        href: "/dashboard",         icon: LayoutDashboard,  section: "Overview" },
   { label: "New Entry",        href: "/entry",             icon: PlusCircle,       section: "Ledger" },
   { label: "Journal",          href: "/journal",           icon: ClipboardList,    section: "Ledger" },
+  { label: "Recurring",        href: "/recurring",         icon: RefreshCw,        section: "Ledger" },
   { label: "General Ledger",   href: "/ledger",            icon: BookOpen,         section: "Ledger" },
   { label: "Chart of Accounts",href: "/coa",               icon: TableProperties,  section: "Ledger" },
   { label: "Invoices",         href: "/invoices",          icon: FileSignature,    section: "Receivable" },

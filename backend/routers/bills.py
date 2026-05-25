@@ -488,3 +488,59 @@ def update_bill_status(
     session.commit()
     session.refresh(b)
     return b
+
+
+# ── Bulk actions ─────────────────────────────────────────────────────────────
+
+from typing import Literal  # noqa: E402
+
+class BulkBillAction(BaseModel):
+    ids: list[int]
+    action: Literal["mark_received", "void", "delete"]
+
+
+@router.post("/api/bills/bulk")
+def bulk_bill_action(session: SessionDep, user: WriteUserDep, body: BulkBillAction):
+    """Bulk mark_received / void / delete on a list of bill IDs (tenant-scoped)."""
+    bills = session.exec(
+        select(Bill).where(
+            Bill.id.in_(body.ids),
+            Bill.tenant_id == user.tenant_id,
+        )
+    ).all()
+
+    affected = 0
+    errors: list[str] = []
+
+    for bill in bills:
+        if body.action == "mark_received":
+            if bill.status not in ("draft", "received"):
+                errors.append(f"Bill {bill.number}: cannot mark_received (status={bill.status})")
+                continue
+            bill.status = "received"
+            session.add(bill)
+            log_audit(session, user, "UPDATE", "bill", bill.id, {"number": bill.number, "status": "received"})
+            affected += 1
+
+        elif body.action == "void":
+            if bill.status in ("paid",):
+                errors.append(f"Bill {bill.number}: cannot void a paid bill")
+                continue
+            bill.status = "void"
+            session.add(bill)
+            log_audit(session, user, "UPDATE", "bill", bill.id, {"number": bill.number, "status": "void"})
+            affected += 1
+
+        elif body.action == "delete":
+            if bill.status != "draft":
+                errors.append(f"Bill {bill.number}: only draft bills can be deleted (status={bill.status})")
+                continue
+            lines = session.exec(select(BillLine).where(BillLine.bill_id == bill.id)).all()
+            for ln in lines:
+                session.delete(ln)
+            session.delete(bill)
+            log_audit(session, user, "DELETE", "bill", bill.id, {"number": bill.number})
+            affected += 1
+
+    session.commit()
+    return {"affected": affected, "errors": errors}

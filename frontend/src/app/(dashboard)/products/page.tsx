@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Plus, Search, Trash2, Download, Package, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
+import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -61,6 +63,8 @@ function stockBadge(p: Product) {
 }
 
 export default function Products() {
+  const searchParams = useSearchParams()
+  const [lowStockOnly, setLowStockOnly] = useState(() => searchParams.get('low_stock') === 'true')
   const [products, setProducts] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -72,11 +76,23 @@ export default function Products() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds)
+    if (!window.confirm(`Delete ${ids.length} product(s)? This cannot be undone.`)) return
+    const results = await Promise.allSettled(ids.map(id => apiFetch(`/api/products/${id}`, { method: 'DELETE' })))
+    const failed = results.filter(r => r.status === 'rejected').length
+    if (failed > 0) alert(`${failed} deletion(s) failed — they may be referenced in existing invoices.`)
+    setSelectedIds(new Set())
+    load()
+  }
 
   const load = () => {
     setIsLoading(true)
     const params = new URLSearchParams({ skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
     if (search) params.set('search', search)
+    if (lowStockOnly) params.set('low_stock', 'true')
     apiFetch<{ total: number; items: Product[] }>(`/api/products?${params}`)
       .then(d => { setProducts(d.items); setTotal(d.total) })
       .catch(() => {})
@@ -89,8 +105,8 @@ export default function Products() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => { setPage(1) }, [search])
-  useEffect(load, [page, search])
+  useEffect(() => { setPage(1) }, [search, lowStockOnly])
+  useEffect(load, [page, search, lowStockOnly])
 
   const openAdd = () => { setEditProduct(null); setForm(emptyForm); setFormError(''); setModalOpen(true) }
   const openEdit = (p: Product) => {
@@ -206,13 +222,21 @@ export default function Products() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
-        <input
-          type="text" placeholder="Search products..."
-          value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
-        />
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
+          <input
+            type="text" placeholder="Search products..."
+            value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+          />
+        </div>
+        <button
+          onClick={() => setLowStockOnly(v => !v)}
+          className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${lowStockOnly ? 'bg-amber-100 border-amber-300 text-amber-700' : 'border-[#ede9e2] hover:bg-[#f6f3ee] text-black/70'}`}
+        >
+          {lowStockOnly ? 'Low Stock Only ✓' : 'Low Stock Filter'}
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
@@ -220,6 +244,13 @@ export default function Products() {
         <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
+              <th className="px-4 py-4 w-10">
+                <input type="checkbox"
+                  className="rounded border-[#ede9e2] accent-[#b8943f]"
+                  checked={products.length > 0 && products.every(p => selectedIds.has(p.id))}
+                  onChange={e => setSelectedIds(e.target.checked ? new Set(products.map(p => p.id)) : new Set())}
+                />
+              </th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
@@ -232,11 +263,22 @@ export default function Products() {
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {isLoading ? (
-              <SkeletonRow cols={8} />
+              <SkeletonRow cols={9} />
             ) : products.length === 0 ? (
-              <tr><td colSpan={8} className="px-6 py-8 text-center text-black/40">No products found.</td></tr>
+              <tr><td colSpan={9} className="px-6 py-8 text-center text-black/40">No products found.</td></tr>
             ) : products.map(p => (
-              <tr key={p.id} className={`hover:bg-[#f6f3ee]/50 ${p.product_type === 'stock' && p.stock_qty <= 0 ? 'bg-red-50/30' : p.product_type === 'stock' && p.stock_qty <= p.reorder_level ? 'bg-amber-50/30' : ''}`}>
+              <tr key={p.id} className={`hover:bg-[#f6f3ee]/50 ${selectedIds.has(p.id) ? 'bg-[#ffd966]/10' : p.product_type === 'stock' && p.stock_qty <= 0 ? 'bg-red-50/30' : p.product_type === 'stock' && p.stock_qty <= p.reorder_level ? 'bg-amber-50/30' : ''}`}>
+                <td className="px-4 py-4 w-10">
+                  <input type="checkbox"
+                    className="rounded border-[#ede9e2] accent-[#b8943f]"
+                    checked={selectedIds.has(p.id)}
+                    onChange={e => setSelectedIds(prev => {
+                      const next = new Set(prev)
+                      e.target.checked ? next.add(p.id) : next.delete(p.id)
+                      return next
+                    })}
+                  />
+                </td>
                 <td className="px-6 py-4 font-mono text-xs text-[#b8943f]">
                   {p.code ? <DocLink type="product" id={p.id} label={p.code} className="text-[#b8943f]" /> : '—'}
                 </td>
@@ -271,6 +313,12 @@ export default function Products() {
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
+
+      <BulkActionBar
+        count={selectedIds.size}
+        actions={[{ label: 'Delete Selected', onClick: handleBulkDelete, variant: 'danger' }]}
+        onClear={() => setSelectedIds(new Set())}
+      />
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

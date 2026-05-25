@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Search, Trash2, Download, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
+import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -42,6 +43,17 @@ export default function Vendors() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds)
+    if (!window.confirm(`Delete ${ids.length} vendor(s)? This cannot be undone.`)) return
+    const results = await Promise.allSettled(ids.map(id => apiFetch(`/api/vendors/${id}`, { method: 'DELETE' })))
+    const failed = results.filter(r => r.status === 'rejected').length
+    if (failed > 0) alert(`${failed} deletion(s) failed — they may have linked bills.`)
+    setSelectedIds(new Set())
+    load()
+  }
 
   const load = () => {
     setIsLoading(true)
@@ -151,6 +163,13 @@ export default function Vendors() {
         <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
+              <th className="px-4 py-4 w-10">
+                <input type="checkbox"
+                  className="rounded border-[#ede9e2] accent-[#b8943f]"
+                  checked={vendors.length > 0 && vendors.every(v => selectedIds.has(v.id))}
+                  onChange={e => setSelectedIds(e.target.checked ? new Set(vendors.map(v => v.id)) : new Set())}
+                />
+              </th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Name</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Email</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Phone</th>
@@ -161,11 +180,22 @@ export default function Vendors() {
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {isLoading ? (
-              <SkeletonRow cols={6} />
+              <SkeletonRow cols={7} />
             ) : vendors.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No vendors found.</td></tr>
+              <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">No vendors found.</td></tr>
             ) : vendors.map(v => (
-              <tr key={v.id} className="hover:bg-[#f6f3ee]/50">
+              <tr key={v.id} className={`hover:bg-[#f6f3ee]/50 ${selectedIds.has(v.id) ? 'bg-[#ffd966]/10' : ''}`}>
+                <td className="px-4 py-4 w-10">
+                  <input type="checkbox"
+                    className="rounded border-[#ede9e2] accent-[#b8943f]"
+                    checked={selectedIds.has(v.id)}
+                    onChange={e => setSelectedIds(prev => {
+                      const next = new Set(prev)
+                      e.target.checked ? next.add(v.id) : next.delete(v.id)
+                      return next
+                    })}
+                  />
+                </td>
                 <td className="px-6 py-4 font-medium">
                   <DocLink type="vendor" id={v.id} label={v.name} className="font-medium" />
                 </td>
@@ -190,6 +220,12 @@ export default function Vendors() {
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
+
+      <BulkActionBar
+        count={selectedIds.size}
+        actions={[{ label: 'Delete Selected', onClick: handleBulkDelete, variant: 'danger' }]}
+        onClear={() => setSelectedIds(new Set())}
+      />
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

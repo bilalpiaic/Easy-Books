@@ -8,6 +8,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import FilterBar from '@/components/FilterBar'
 import SortableHeader from '@/components/SortableHeader'
+import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -95,6 +96,7 @@ export default function Invoices() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const load = () => {
     setLoading(true)
@@ -200,6 +202,25 @@ export default function Invoices() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, invoices])
+
+  const handleBulkAction = async (action: string) => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    if (action === 'delete' && !window.confirm(`Delete ${ids.length} draft invoice(s)?`)) return
+    if (action === 'void' && !window.confirm(`Void ${ids.length} invoice(s)?`)) return
+    try {
+      const res = await apiFetch<{ affected: number; errors: string[] }>('/api/invoices/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action }),
+      })
+      if (res.errors.length > 0) alert(res.errors.join('\n'))
+      setSelectedIds(new Set())
+      load()
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
 
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
   const gstAmount = Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
@@ -327,6 +348,13 @@ export default function Invoices() {
           <table className="w-full text-sm min-w-[700px]">
             <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
+                <th className="px-4 py-4 w-10">
+                  <input type="checkbox"
+                    className="rounded border-[#ede9e2] accent-[#b8943f]"
+                    checked={invoices.length > 0 && invoices.every(i => selectedIds.has(i.id))}
+                    onChange={e => setSelectedIds(e.target.checked ? new Set(invoices.map(i => i.id)) : new Set())}
+                  />
+                </th>
                 <SortableHeader label="Invoice #"  field="number"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Customer"   field="customer_name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Issue Date" field="issue_date"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
@@ -338,10 +366,10 @@ export default function Invoices() {
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
               {loading ? (
-                <SkeletonRow cols={7} />
+                <SkeletonRow cols={8} />
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <p className="text-black/40 mb-3">No invoices found.</p>
                     <button onClick={openCreate} className="text-sm text-[#b8943f] hover:underline font-medium">
                       + Create your first invoice
@@ -349,7 +377,18 @@ export default function Invoices() {
                   </td>
                 </tr>
               ) : invoices.map(inv => (
-                <tr key={inv.id} className={`hover:bg-[#f6f3ee]/50 ${inv.status === 'overdue' ? 'bg-red-50/30' : ''}`}>
+                <tr key={inv.id} className={`hover:bg-[#f6f3ee]/50 ${inv.status === 'overdue' ? 'bg-red-50/30' : ''} ${selectedIds.has(inv.id) ? 'bg-[#ffd966]/10' : ''}`}>
+                  <td className="px-4 py-4 w-10">
+                    <input type="checkbox"
+                      className="rounded border-[#ede9e2] accent-[#b8943f]"
+                      checked={selectedIds.has(inv.id)}
+                      onChange={e => setSelectedIds(prev => {
+                        const next = new Set(prev)
+                        e.target.checked ? next.add(inv.id) : next.delete(inv.id)
+                        return next
+                      })}
+                    />
+                  </td>
                   <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
                     <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[#b8943f] font-bold" />
                   </td>
@@ -417,6 +456,16 @@ export default function Invoices() {
           </div>
         </div>
       )}
+
+      <BulkActionBar
+        count={selectedIds.size}
+        actions={[
+          { label: 'Mark Sent', onClick: () => handleBulkAction('mark_sent') },
+          { label: 'Void', onClick: () => handleBulkAction('void'), variant: 'danger' },
+          { label: 'Delete', onClick: () => handleBulkAction('delete'), variant: 'danger' },
+        ]}
+        onClear={() => setSelectedIds(new Set())}
+      />
 
       {/* Create / Edit Modal */}
       {modalOpen && (
