@@ -87,9 +87,17 @@ export default function TrialBalancePage() {
               data.map(item => (
                 <tr key={item.code} className="hover:bg-[#f6f3ee]/30 transition-colors">
                   <td className="px-8 py-4">
-                    <span className="font-mono text-xs text-[#b8943f] mr-3">{item.code}</span>
-                    <Link href={`/ledger?account=${encodeURIComponent(item.name)}`}
-                      className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors">
+                    <Link
+                      href={`/ledger?account=${encodeURIComponent(item.code)}&start=${start}&end=${end}`}
+                      className="font-mono text-xs text-[#b8943f] mr-3 hover:underline underline-offset-2"
+                      title="Open in General Ledger"
+                    >
+                      {item.code}
+                    </Link>
+                    <Link
+                      href={`/ledger?account=${encodeURIComponent(item.code)}&start=${start}&end=${end}`}
+                      className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors"
+                    >
                       {item.name}
                     </Link>
                   </td>

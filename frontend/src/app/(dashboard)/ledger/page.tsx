@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ChevronRight, BookOpen } from "lucide-react"
+import { ChevronRight, BookOpen, Printer, Download } from "lucide-react"
+import { downloadCSV } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
@@ -49,19 +50,21 @@ function LedgerPageInner() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
 
-  const [start, setStart] = useState(range.start)
-  const [end, setEnd] = useState(range.end)
+  // Initialise date range from query params (Trial Balance drill-down carries start/end)
+  const [start, setStart] = useState(searchParams.get("start") ?? range.start)
+  const [end, setEnd]     = useState(searchParams.get("end")   ?? range.end)
   const [ledgerData, setLedgerData] = useState<LedgerAccount | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Initialise account from ?account=CODE query param (e.g. linked from Trial Balance)
+  // Initialise account from ?account=CODE query param (Trial Balance passes code)
   useEffect(() => {
     const code = searchParams.get("account")
     apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500")
       .then(d => {
         setAccounts(d.items)
         if (code) {
-          const match = d.items.find(a => a.code === code || a.name === code)
+          // match by code first (exact), then fall back to name substring
+          const match = d.items.find(a => a.code === code) ?? d.items.find(a => a.name === code)
           if (match) setSelectedAccount(match)
         }
       })
@@ -101,12 +104,43 @@ function LedgerPageInner() {
         </span>
       </nav>
 
-      {/* Page title */}
-      <div className="flex items-center gap-3 mb-5 print:hidden">
-        <BookOpen className="w-5 h-5 text-[#b8943f]" />
-        <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">General Ledger</h1>
-          <p className="text-xs text-[#1a1814]/55">Select an account to view its transaction history with running balance</p>
+      {/* Page title + actions */}
+      <div className="flex items-center justify-between gap-3 mb-5 print:hidden">
+        <div className="flex items-center gap-3">
+          <BookOpen className="w-5 h-5 text-[#b8943f]" />
+          <div>
+            <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">General Ledger</h1>
+            <p className="text-xs text-[#1a1814]/55">Select an account to view its transaction history with running balance</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {selectedAccount && ledgerData && (
+            <button
+              onClick={() => downloadCSV(
+                `ledger-${selectedAccount.code}-${start}-${end}.csv`,
+                ledgerData.entries.map(e => ({
+                  Date: e.date,
+                  "JV #": e.jv_number,
+                  Description: e.description,
+                  Debit: e.debit || "",
+                  Credit: e.credit || "",
+                  Balance: e.balance,
+                }))
+              )}
+              className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+              title="Export CSV"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => window.print()}
+            disabled={!selectedAccount || !ledgerData}
+            className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            title={selectedAccount && ledgerData ? "Print ledger" : "Select an account first"}
+          >
+            <Printer className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
