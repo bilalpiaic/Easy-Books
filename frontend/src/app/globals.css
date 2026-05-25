@@ -101,10 +101,28 @@ body {
   [data-sidebar], [data-header],
   .print\:hidden { display: none !important; }
 
+  /*
+   * The dashboard shell uses `flex h-screen overflow-hidden` + `overflow-y-auto`
+   * on main. This clips everything to one viewport height, so content beyond
+   * the first A4 page is silently cut off. Override all scroll containers so
+   * the full document flows across as many pages as needed.
+   */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .h-screen   { height: auto !important; }
+  .overflow-hidden { overflow: visible !important; }
+  .overflow-y-auto { overflow: visible !important; height: auto !important; }
+  /* Tables may legitimately use overflow-x-auto; keep horizontal scroll working */
+  .overflow-x-auto { overflow: auto !important; }
+
   main, [data-main] {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   /* Default: portrait A4 with margin reserved for our header/footer */

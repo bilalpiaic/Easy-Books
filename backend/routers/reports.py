@@ -421,7 +421,10 @@ def get_income_statement(
 def get_ledger(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
-    search: Optional[str] = None, skip: int = 0, limit: int = 50,
+    search: Optional[str] = None,
+    account_id: Optional[int] = None,
+    account_code: Optional[str] = None,
+    skip: int = 0, limit: int = 50,
 ):
     q = (
         session.query(Account, Transaction, JournalEntry)
@@ -433,7 +436,11 @@ def get_ledger(
         q = q.filter(Transaction.date >= start)
     if end:
         q = q.filter(Transaction.date <= end)
-    if search:
+    if account_id:
+        q = q.filter(Account.id == account_id)
+    elif account_code:
+        q = q.filter(Account.code == account_code)
+    elif search:
         q = q.filter(Account.name.ilike(f"%{search}%"))
 
     rows = q.order_by(Account.code, Transaction.date, Transaction.id).all()
@@ -452,6 +459,7 @@ def get_ledger(
         accounts[account.id]["running_balance"] = running
         accounts[account.id]["entries"].append({
             "date": tx.date,
+            "transaction_id": tx.id,
             "jv_number": tx.jv_number,
             "description": tx.description or "",
             "debit": je.debit,

@@ -81,12 +81,12 @@ export default function NewEntryPage() {
         })),
     }
     try {
-      await apiFetch("/api/transactions", {
+      const created = await apiFetch<{ id: number }>("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
-      router.push("/journal")
+      router.push(`/journal/${created.id}/print`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save")
     } finally {
