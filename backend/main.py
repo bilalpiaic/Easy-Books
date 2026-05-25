@@ -14,13 +14,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from db import create_db_and_tables
 from routers import (
     accounts, aging, attachments, audit, auth, bank_accounts, bank_imports,
     bills, bom, customers, exchange_rates, grn, imports, invoices,
-    manufacturing_reports, payments, periods, production_orders, products,
-    rate_plans, reconciliations, recurring, reports, settings,
+    manufacturing_reports, payment_terms, payments, periods, production_orders,
+    products, rate_plans, reconciliations, recurring, reports, settings,
     stock_locations, subledger, tax_codes, telecom, telecom_reports,
     transactions, users, vendors,
 )
@@ -66,7 +67,7 @@ app.add_middleware(
 _ROUTERS = [
     auth.router, settings.router, accounts.router, customers.router,
     vendors.router, products.router, invoices.router, bills.router,
-    payments.router, aging.router, bank_accounts.router,
+    payments.router, payment_terms.router, aging.router, bank_accounts.router,
     reconciliations.router, periods.router, audit.router,
     transactions.router, reports.router, imports.router,
     tax_codes.router, recurring.router, exchange_rates.router,
@@ -83,6 +84,12 @@ _ROUTERS = [
 
 for r in _ROUTERS:
     app.include_router(r)
+
+# Serve uploaded files (company logos, attachments) under /uploads/
+import pathlib as _pl
+_uploads = _pl.Path(__file__).parent / "uploads"
+_uploads.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_uploads)), name="uploads")
 
 # v1 alias: a thin pass-through that re-mounts every /api/* route at /api/v1/*
 # pointing to the same endpoint function. Future v2 breaking changes ship

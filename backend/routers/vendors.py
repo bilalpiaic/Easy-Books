@@ -34,10 +34,15 @@ class VendorUpdate(BaseModel):
 def list_vendors(
     session: SessionDep, user: CurrentUserDep,
     search: str = "", skip: int = 0, limit: int = 50,
+    sort_by: str = "name", sort_dir: str = "asc",
 ):
+    from sqlmodel import asc as _asc, desc as _desc
+    _sortable = {"name": Vendor.name, "email": Vendor.email, "opening_balance": Vendor.opening_balance}
+    col = _sortable.get(sort_by, Vendor.name)
     q = select(Vendor).where(Vendor.tenant_id == user.tenant_id)
     if search:
         q = q.where(Vendor.name.ilike(f"%{search}%"))
+    q = q.order_by(_asc(col) if sort_dir == "asc" else _desc(col))
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(q.offset(skip).limit(limit)).all()
     return {"total": total, "items": items}

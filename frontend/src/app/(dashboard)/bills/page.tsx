@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Download, Printer } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { Plus, Download, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
+import FilterBar from '@/components/FilterBar'
+import SortableHeader from '@/components/SortableHeader'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -22,21 +25,30 @@ interface Bill {
   gst_amount: number
   total: number
   status: string
+  notes?: string | null
+  internal_memo?: string | null
+  lines?: LineItem[]
+}
+
+interface AgingBuckets {
+  current: number; "1_30": number; "31_60": number; "61_90": number; over_90: number
+  items: { id: number; name: string; number: string; due_date: string; amount: number; days_past: number; bucket: string }[]
 }
 
 interface Vendor { id: number; name: string }
 interface Account { id: number; code: string; name: string; type: string }
 interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string }
-interface AgingBuckets {
-  current: number; "1_30": number; "31_60": number; "61_90": number; over_90: number
-}
+interface PaymentTerm { id: number; code: string; name: string; days: number }
 
 interface BillForm {
   vendor_id: string
   vendor_name: string
   bill_date: string
   due_date: string
+  payment_term_id: string
   description: string
+  notes: string
+  internal_memo: string
   gst_rate: string
   ap_account_id: string
   expense_account_id: string
@@ -44,91 +56,195 @@ interface BillForm {
 
 const emptyForm: BillForm = {
   vendor_id: '', vendor_name: '', bill_date: new Date().toISOString().split('T')[0],
-  due_date: '', description: '', gst_rate: '17',
+  due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
   ap_account_id: '', expense_account_id: '',
 }
 
 const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
+  draft:    'bg-gray-100 text-gray-700',
   received: 'bg-blue-100 text-blue-700',
-  paid: 'bg-green-100 text-green-700',
-  overdue: 'bg-red-100 text-red-700',
+  partial:  'bg-amber-100 text-amber-700',
+  paid:     'bg-green-100 text-green-700',
+  overdue:  'bg-red-100 text-red-700',
 }
 
 const PAGE_SIZE = 50
+const BILL_STATUSES = ['draft', 'received', 'partial', 'paid', 'overdue']
 
 export default function Bills() {
-  const [bills, setBills] = useState<Bill[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<BillForm>(emptyForm)
-  const [lines, setLines] = useState<LineItem[]>([])
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState('')
-  const [vendors, setVendors] = useState<Vendor[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [aging, setAging] = useState<AgingBuckets | null>(null)
+  const searchParams = useSearchParams()
+  const [bills, setBills]       = useState<Bill[]>([])
+  const [total, setTotal]       = useState(0)
+  const [page, setPage]         = useState(1)
+  const [search, setSearch]     = useState('')
+  const [status, setStatus]     = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo]     = useState('')
+  const [sortBy, setSortBy]     = useState('bill_date')
+  const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('desc')
+  const [loading, setLoading]   = useState(true)
+  const [aging, setAging]       = useState<AgingBuckets | null>(null)
+  const [modalOpen, setModalOpen]   = useState(false)
+  const [editBill, setEditBill]     = useState<Bill | null>(null)
+  const [form, setForm]             = useState<BillForm>(emptyForm)
+  const [lines, setLines]           = useState<LineItem[]>([])
+  const [saving, setSaving]         = useState(false)
+  const [formError, setFormError]   = useState('')
+  const [vendors, setVendors]       = useState<Vendor[]>([])
+  const [accounts, setAccounts]     = useState<Account[]>([])
+  const [products, setProducts]     = useState<Product[]>([])
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
 
   const load = () => {
     setLoading(true)
-    const params = new URLSearchParams({ skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
-    if (search) params.set('search', search)
+    const params = new URLSearchParams({
+      skip: String((page - 1) * PAGE_SIZE),
+      limit: String(PAGE_SIZE),
+      sort_by: sortBy,
+      sort_dir: sortDir,
+    })
+    if (search)   params.set('search',    search)
+    if (status)   params.set('status',    status)
+    if (dateFrom) params.set('date_from', dateFrom)
+    if (dateTo)   params.set('date_to',   dateTo)
     apiFetch<{ total: number; items: Bill[] }>(`/api/bills?${params}`)
       .then(d => { setBills(d.items); setTotal(d.total) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { setPage(1) }, [search])
-  useEffect(load, [page, search])
+  const handleSort = (field: string, dir: 'asc' | 'desc') => {
+    setSortBy(field); setSortDir(dir); setPage(1)
+  }
+
+  useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo])
+  useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir])
   useEffect(() => {
     apiFetch<AgingBuckets>('/api/bills/aging').then(setAging).catch(() => {})
   }, [])
 
-  const openModal = () => {
+  const openCreate = () => {
+    loadModalData()
+    setEditBill(null)
+    setForm(emptyForm)
+    setLines([])
+    setFormError('')
+    setModalOpen(true)
+  }
+
+  const openEdit = (bill: Bill) => {
+    loadModalData()
+    setEditBill(bill)
+    setForm({
+      vendor_id: String(bill.vendor_id ?? ''),
+      vendor_name: bill.vendor_name ?? '',
+      bill_date: bill.bill_date,
+      due_date: bill.due_date,
+      payment_term_id: '',
+      description: '', notes: '', internal_memo: '',
+      gst_rate: '17',
+      ap_account_id: '',
+      expense_account_id: '',
+    })
+    // Fetch full bill with lines
+    apiFetch<Bill & { gst_rate: number; description: string; ap_account_id: number | null; expense_account_id: number | null; payment_term_id: number | null }>(`/api/bills/${bill.id}`)
+      .then(full => {
+        setForm({
+          vendor_id: String(full.vendor_id ?? ''),
+          vendor_name: full.vendor_name ?? '',
+          bill_date: full.bill_date,
+          due_date: full.due_date,
+          payment_term_id: full.payment_term_id ? String(full.payment_term_id) : '',
+          description: full.description ?? '',
+          notes: full.notes ?? '',
+          internal_memo: full.internal_memo ?? '',
+          gst_rate: String(full.gst_rate ?? 17),
+          ap_account_id: full.ap_account_id ? String(full.ap_account_id) : '',
+          expense_account_id: full.expense_account_id ? String(full.expense_account_id) : '',
+        })
+        setLines((full.lines ?? []).map(l => ({
+          product_id: l.product_id ?? undefined,
+          description: l.description,
+          qty: Number(l.qty),
+          unit: l.unit ?? 'pcs',
+          rate: Number(l.rate),
+          amount: Number(l.amount),
+        })))
+      })
+      .catch(() => {})
+    setFormError('')
+    setModalOpen(true)
+  }
+
+  const loadModalData = () => {
     Promise.all([
       apiFetch<{ total: number; items: Vendor[] }>('/api/vendors?limit=200'),
       apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500'),
       apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
-    ]).then(([v, a, p]) => { setVendors(v.items); setAccounts(a.items); setProducts(p.items) }).catch(() => {})
-    setForm(emptyForm); setLines([]); setFormError(''); setModalOpen(true)
+      apiFetch<PaymentTerm[]>('/api/payment-terms'),
+    ]).then(([v, a, p, terms]) => {
+      setVendors(v.items)
+      setAccounts(a.items)
+      setProducts(p.items)
+      setPaymentTerms(terms)
+    }).catch(() => {})
   }
 
-  const subtotal = lines.reduce((s, l) => s + l.amount, 0)
-  const gstAmount = Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
+  // Auto-open edit modal if navigated with ?edit=<id>
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (editId && bills.length > 0) {
+      const bill = bills.find(b => String(b.id) === editId)
+      if (bill && bill.status === 'draft') openEdit(bill)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, bills])
+
+  const subtotal   = lines.reduce((s, l) => s + l.amount, 0)
+  const gstAmount  = Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
   const totalAmount = Math.round((subtotal + gstAmount) * 100) / 100
 
   const handleSave = async () => {
-    if (lines.length === 0) { setFormError('Add at least one line item'); return }
-    if (lines.some(l => !l.description.trim())) { setFormError('All lines must have a description'); return }
-    if (!form.bill_date || !form.due_date) { setFormError('Both dates are required'); return }
+    if (lines.length === 0)                       { setFormError('Add at least one line item'); return }
+    if (lines.some(l => !l.description.trim()))   { setFormError('All lines must have a description'); return }
+    if (!form.bill_date || (!form.due_date && !form.payment_term_id)) {
+      setFormError('Bill date required; provide either a due date or a payment term'); return
+    }
     setSaving(true); setFormError('')
+    const body = {
+      vendor_id: form.vendor_id ? parseInt(form.vendor_id) : null,
+      vendor_name: form.vendor_name || null,
+      bill_date: form.bill_date,
+      due_date: form.due_date,
+      payment_term_id: form.payment_term_id ? parseInt(form.payment_term_id) : null,
+      description: form.description || null,
+      notes: form.notes || null,
+      internal_memo: form.internal_memo || null,
+      lines: lines.map(l => ({
+        product_id: l.product_id ?? null,
+        description: l.description,
+        qty: l.qty,
+        unit: l.unit ?? null,
+        rate: l.rate,
+      })),
+      gst_rate: parseFloat(form.gst_rate) || 0,
+      ap_account_id: form.ap_account_id ? parseInt(form.ap_account_id) : null,
+      expense_account_id: form.expense_account_id ? parseInt(form.expense_account_id) : null,
+    }
     try {
-      await apiFetch('/api/bills', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vendor_id: form.vendor_id ? parseInt(form.vendor_id) : null,
-          vendor_name: form.vendor_name || null,
-          bill_date: form.bill_date,
-          due_date: form.due_date,
-          description: form.description || null,
-          lines: lines.map(l => ({
-            product_id: l.product_id ?? null,
-            description: l.description,
-            qty: l.qty,
-            unit: l.unit ?? null,
-            rate: l.rate,
-          })),
-          gst_rate: parseFloat(form.gst_rate) || 0,
-          ap_account_id: form.ap_account_id ? parseInt(form.ap_account_id) : null,
-          expense_account_id: form.expense_account_id ? parseInt(form.expense_account_id) : null,
-        }),
-      })
+      if (editBill) {
+        await apiFetch(`/api/bills/${editBill.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      } else {
+        await apiFetch('/api/bills', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      }
       setModalOpen(false); load()
     } catch (err) {
       setFormError((err as Error).message)
@@ -137,9 +253,9 @@ export default function Bills() {
     }
   }
 
-  const handleStatusChange = async (b: Bill, status: string) => {
+  const handleStatusChange = async (b: Bill, newStatus: string) => {
     try {
-      await apiFetch(`/api/bills/${b.id}/status?status=${status}`, { method: 'PATCH' })
+      await apiFetch(`/api/bills/${b.id}/status?status=${newStatus}`, { method: 'PATCH' })
       load()
     } catch (err) {
       alert((err as Error).message)
@@ -147,9 +263,9 @@ export default function Bills() {
   }
 
   const payable = bills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.total, 0)
-  const paid = bills.filter(b => b.status === 'paid').reduce((s, b) => s + b.total, 0)
+  const paid    = bills.filter(b => b.status === 'paid').reduce((s, b) => s + b.total, 0)
 
-  const apAccounts = accounts.filter(a => a.type === 'Liability')
+  const apAccounts      = accounts.filter(a => a.type === 'Liability')
   const expenseAccounts = accounts.filter(a => a.type === 'Expense')
 
   return (
@@ -165,20 +281,16 @@ export default function Bills() {
             onClick={() => downloadCSV('bills.csv', bills.map(b => ({ Number: b.number, Vendor: b.vendor_name, Date: b.bill_date, Due: b.due_date, Subtotal: b.subtotal, GST: b.gst_amount, Total: b.total, Status: b.status })))}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Download className="w-4 h-4" />
-            Export
+            <Download className="w-4 h-4" /> Export
           </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
-            title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
+            <Printer className="w-4 h-4" /> Print
           </button>
-          <button onClick={openModal} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
-            <Plus className="w-4 h-4" />
-            New Bill
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+            <Plus className="w-4 h-4" /> New Bill
           </button>
         </div>
       </div>
@@ -198,69 +310,88 @@ export default function Bills() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
-        <input type="text" placeholder="Search bills..." value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]" />
-      </div>
+      <FilterBar
+        search={search} onSearch={setSearch}
+        statuses={BILL_STATUSES} status={status} onStatus={setStatus}
+        dateFrom={dateFrom} dateTo={dateTo}
+        onDateFrom={setDateFrom} onDateTo={setDateTo}
+        placeholder="Search by bill # or vendor…"
+      />
 
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
-          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Bill #</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Vendor</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Bill Date</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Due Date</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75">Total</th>
-              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/75">Status</th>
-              <th className="px-6 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
-            {loading ? (
-              <SkeletonRow cols={7} />
-            ) : bills.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">No bills found.</td></tr>
-            ) : bills.map(b => (
-              <tr key={b.id} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
-                  <DocLink type="bill" id={b.id} label={b.number} className="text-[#b8943f] font-bold" />
-                </td>
-                <td className="px-6 py-4">
-                  {b.vendor_id && b.vendor_name
-                    ? <DocLink type="vendor" id={b.vendor_id} label={b.vendor_name} />
-                    : (b.vendor_name ?? '—')}
-                </td>
-                <td className="px-6 py-4 text-black/70">{b.bill_date}</td>
-                <td className="px-6 py-4 text-black/70">{b.due_date}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmtPKR(b.total)}</td>
-                <td className="px-6 py-4 text-center">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[b.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {b.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-2">
-                    <Link
-                      href={`/bills/${b.id}/print`}
-                      title="Print this bill"
-                      className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                    </Link>
-                    <select value={b.status} onChange={e => handleStatusChange(b, e.target.value)}
-                      className="text-xs border border-[#ede9e2] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#b8943f]">
-                      {['draft', 'received', 'paid', 'overdue'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                </td>
+          <table className="w-full text-sm min-w-[700px]">
+            <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+              <tr>
+                <SortableHeader label="Bill #"     field="number"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Vendor"     field="vendor_name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Bill Date"  field="bill_date"   sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Due Date"   field="due_date"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Total"      field="total"       sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
+                <SortableHeader label="Status"     field="status"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
+                <th className="px-6 py-4" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-[#ede9e2]">
+              {loading ? (
+                <SkeletonRow cols={7} />
+              ) : bills.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <p className="text-black/40 mb-3">No bills found.</p>
+                    <button onClick={openCreate} className="text-sm text-[#b8943f] hover:underline font-medium">
+                      + Record your first bill
+                    </button>
+                  </td>
+                </tr>
+              ) : bills.map(b => (
+                <tr key={b.id} className={`hover:bg-[#f6f3ee]/50 ${b.status === 'overdue' ? 'bg-red-50/30' : ''}`}>
+                  <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
+                    <DocLink type="bill" id={b.id} label={b.number} className="text-[#b8943f] font-bold" />
+                  </td>
+                  <td className="px-6 py-4">
+                    {b.vendor_id && b.vendor_name
+                      ? <DocLink type="vendor" id={b.vendor_id} label={b.vendor_name} />
+                      : (b.vendor_name ?? '—')}
+                  </td>
+                  <td className="px-6 py-4 text-black/70">{b.bill_date}</td>
+                  <td className={`px-6 py-4 ${b.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{b.due_date}</td>
+                  <td className="px-6 py-4 text-right font-mono">{fmtPKR(b.total)}</td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[b.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {b.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-2">
+                      {b.status === 'draft' && (
+                        <button
+                          onClick={() => openEdit(b)}
+                          className="text-xs px-2 py-1 border border-[#b8943f]/40 text-[#b8943f] rounded hover:bg-[#faf6ec]"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <Link
+                        href={`/bills/${b.id}/print`}
+                        title="Print this bill"
+                        className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </Link>
+                      <select
+                        value={b.status}
+                        onChange={e => handleStatusChange(b, e.target.value)}
+                        className="text-xs border border-[#ede9e2] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#b8943f]"
+                      >
+                        {BILL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <div className="border-t border-[#ede9e2] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
@@ -273,8 +404,8 @@ export default function Bills() {
             <h3 className="text-xs font-bold uppercase tracking-widest text-black/75">AP Aging Analysis</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-[#ede9e2]">
-            {[['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]].map(([label, val]) => (
-              <div key={String(label)} className="p-4 text-center">
+            {([['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]] as [string, number][]).map(([label, val]) => (
+              <div key={label} className="p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">{label}</p>
                 <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-orange-600' : 'text-black/40'}`}>{fmtPKR(Number(val))}</p>
               </div>
@@ -283,11 +414,14 @@ export default function Bills() {
         </div>
       )}
 
+      {/* Create / Edit Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">New Bill</h2>
+            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
+              {editBill ? `Edit Bill ${editBill.number}` : 'New Bill'}
+            </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -306,11 +440,33 @@ export default function Bills() {
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Bill Date</label>
                   <input type="date" value={form.bill_date} onChange={e => setForm(p => ({ ...p, bill_date: e.target.value }))}
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Term</label>
+                  <select
+                    value={form.payment_term_id}
+                    onChange={e => {
+                      const termId = e.target.value
+                      setForm(p => {
+                        const term = paymentTerms.find(t => String(t.id) === termId)
+                        const due = term && p.bill_date
+                          ? new Date(new Date(p.bill_date).getTime() + term.days * 86400000).toISOString().split('T')[0]
+                          : p.due_date
+                        return { ...p, payment_term_id: termId, due_date: due }
+                      })
+                    }}
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                  >
+                    <option value="">— select —</option>
+                    {paymentTerms.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Due Date</label>
@@ -353,6 +509,21 @@ export default function Bills() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Notes (printed)</label>
+                  <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                    placeholder="Printed on the bill for the vendor"
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm resize-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</label>
+                  <textarea rows={2} value={form.internal_memo} onChange={e => setForm(p => ({ ...p, internal_memo: e.target.value }))}
+                    placeholder="Staff-only note, not printed"
+                    className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-none" />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">AP Account</label>
@@ -376,7 +547,7 @@ export default function Bills() {
               <div className="flex justify-end gap-3 pt-2">
                 <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
                 <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Posting...' : 'Post Bill'}
+                  {saving ? 'Posting...' : (editBill ? 'Save Changes' : 'Post Bill')}
                 </button>
               </div>
             </div>

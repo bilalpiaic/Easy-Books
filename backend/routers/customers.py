@@ -34,10 +34,15 @@ class CustomerUpdate(BaseModel):
 def list_customers(
     session: SessionDep, user: CurrentUserDep,
     search: str = "", skip: int = 0, limit: int = 50,
+    sort_by: str = "name", sort_dir: str = "asc",
 ):
+    from sqlmodel import asc as _asc, desc as _desc
+    _sortable = {"name": Customer.name, "email": Customer.email, "opening_balance": Customer.opening_balance}
+    col = _sortable.get(sort_by, Customer.name)
     q = select(Customer).where(Customer.tenant_id == user.tenant_id)
     if search:
         q = q.where(Customer.name.ilike(f"%{search}%"))
+    q = q.order_by(_asc(col) if sort_dir == "asc" else _desc(col))
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(q.offset(skip).limit(limit)).all()
     return {"total": total, "items": items}

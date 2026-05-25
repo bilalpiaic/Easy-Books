@@ -1,12 +1,13 @@
 """Bill CRUD + auto-posting."""
+from datetime import date as DateType, timedelta
 from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session, func, select
+from sqlmodel import Session, asc, desc, func, select
 
-from models import Account, Bill, BillLine, Product, Settings, Tenant, Vendor
+from models import Account, Bill, BillLine, JournalEntry, PaymentTerm, Product, Settings, Tenant, Transaction, Vendor
 from services.fx import rate_to_base
 from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
@@ -29,8 +30,11 @@ class BillCreate(BaseModel):
     vendor_id: Optional[int] = None
     vendor_name: Optional[str] = None
     bill_date: str
-    due_date: str
+    due_date: str = ""
+    payment_term_id: Optional[int] = None
     description: Optional[str] = None
+    notes: Optional[str] = None
+    internal_memo: Optional[str] = None
     lines: List[BillLineCreate] = []
     gst_rate: Decimal = Decimal("17")
     ap_account_id: Optional[int] = None
@@ -44,19 +48,69 @@ def _next_bill_number(session: Session, tenant_id: int, prefix: str) -> str:
     return next_number(session, tenant_id, "bill", prefix)
 
 
+def _auto_overdue(session: Session, bills: list) -> None:
+    """Mark past-due unpaid bills as overdue in-place and persist."""
+    today = DateType.today()
+    changed = []
+    for bill in bills:
+        if bill.status not in ("paid", "partial", "overdue") and bill.due_date:
+            due = DateType.fromisoformat(str(bill.due_date)) if isinstance(bill.due_date, str) else bill.due_date
+            if due < today:
+                bill.status = "overdue"
+                changed.append(bill)
+    if changed:
+        for bill in changed:
+            session.add(bill)
+        session.commit()
+
+
+_SORTABLE = {
+    "number":      Bill.number,
+    "vendor_name": Bill.vendor_name,
+    "bill_date":   Bill.bill_date,
+    "due_date":    Bill.due_date,
+    "total":       Bill.total,
+    "status":      Bill.status,
+}
+
+
 @router.get("/api/bills")
 def list_bills(
     session: SessionDep, user: CurrentUserDep,
     search: str = "", skip: int = 0, limit: int = 50, status: str = "",
+    sort_by: str = "bill_date", sort_dir: str = "desc",
+    date_from: Optional[str] = None, date_to: Optional[str] = None,
+    vendor_id: Optional[int] = None,
 ):
     q = select(Bill).where(Bill.tenant_id == user.tenant_id)
     if search:
         q = q.where((Bill.number.ilike(f"%{search}%")) | (Bill.vendor_name.ilike(f"%{search}%")))
     if status:
         q = q.where(Bill.status == status)
+    if date_from:
+        q = q.where(Bill.bill_date >= date_from)
+    if date_to:
+        q = q.where(Bill.bill_date <= date_to)
+    if vendor_id:
+        q = q.where(Bill.vendor_id == vendor_id)
+
+    col = _SORTABLE.get(sort_by, Bill.bill_date)
+    q = q.order_by(asc(col) if sort_dir == "asc" else desc(col))
+
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
-    items = session.exec(q.order_by(Bill.bill_date.desc()).offset(skip).limit(limit)).all()
-    return {"total": total, "items": items}
+    items = session.exec(q.offset(skip).limit(limit)).all()
+    _auto_overdue(session, list(items))
+    result_items = []
+    for bill in items:
+        d = bill.model_dump()
+        d["lines"] = [
+            l.model_dump()
+            for l in session.exec(
+                select(BillLine).where(BillLine.bill_id == bill.id)
+            ).all()
+        ]
+        result_items.append(d)
+    return {"total": total, "items": result_items}
 
 
 @router.get("/api/bills/{bill_id}")
@@ -66,8 +120,9 @@ def get_bill(session: SessionDep, user: CurrentUserDep, bill_id: int):
         select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)
     ).first()
     if not bill:
-        from fastapi import HTTPException
         raise HTTPException(404, "Bill not found")
+    _auto_overdue(session, [bill])
+    session.refresh(bill)
     lines = session.exec(
         select(BillLine).where(BillLine.bill_id == bill.id).order_by(BillLine.id)
     ).all()
@@ -101,6 +156,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
             raise HTTPException(400, str(e))
 
     vname = body.vendor_name
+    term_id = body.payment_term_id
     if body.vendor_id:
         v = session.exec(
             select(Vendor).where(Vendor.id == body.vendor_id, Vendor.tenant_id == user.tenant_id)
@@ -108,6 +164,21 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         if not v:
             raise HTTPException(404, "Vendor not found")
         vname = v.name
+        if not term_id and v.payment_term_id:
+            term_id = v.payment_term_id
+
+    due_date = body.due_date
+    if term_id:
+        term = session.exec(
+            select(PaymentTerm).where(
+                PaymentTerm.id == term_id, PaymentTerm.tenant_id == user.tenant_id
+            )
+        ).first()
+        if term and not due_date:
+            bill_dt = DateType.fromisoformat(body.bill_date)
+            due_date = str(bill_dt + timedelta(days=term.days))
+    if not due_date:
+        due_date = body.bill_date
 
     bill = Bill(
         tenant_id=user.tenant_id,
@@ -115,8 +186,11 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         vendor_id=body.vendor_id,
         vendor_name=vname,
         bill_date=body.bill_date,
-        due_date=body.due_date,
+        due_date=due_date,
+        payment_term_id=term_id,
         description=body.description,
+        notes=body.notes,
+        internal_memo=body.internal_memo,
         subtotal=subtotal,
         gst_rate=D(body.gst_rate),
         gst_amount=gst_amount,
@@ -210,6 +284,183 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         session, user, "CREATE", "bill", bill.id,
         {"number": bill.number, "total": str(total)},
     )
+    session.commit()
+    session.refresh(bill)
+
+    lines_out = session.exec(select(BillLine).where(BillLine.bill_id == bill.id)).all()
+    result = bill.model_dump()
+    result["lines"] = [l.model_dump() for l in lines_out]
+    return result
+
+
+@router.put("/api/bills/{bill_id}")
+def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: BillCreate):
+    """Edit a draft bill. Raises 403 if already posted."""
+    bill = session.exec(
+        select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)
+    ).first()
+    if not bill:
+        raise HTTPException(404, "Bill not found")
+    if bill.status != "draft":
+        raise HTTPException(403, f"Cannot edit bill with status '{bill.status}'. Only draft bills can be edited.")
+
+    vname = body.vendor_name
+    term_id = body.payment_term_id
+    if body.vendor_id:
+        v = session.exec(
+            select(Vendor).where(Vendor.id == body.vendor_id, Vendor.tenant_id == user.tenant_id)
+        ).first()
+        if not v:
+            raise HTTPException(404, "Vendor not found")
+        vname = v.name
+        if not term_id and v.payment_term_id:
+            term_id = v.payment_term_id
+
+    due_date = body.due_date
+    if term_id:
+        term = session.exec(
+            select(PaymentTerm).where(
+                PaymentTerm.id == term_id, PaymentTerm.tenant_id == user.tenant_id
+            )
+        ).first()
+        if term and not due_date:
+            bill_dt = DateType.fromisoformat(body.bill_date)
+            due_date = str(bill_dt + timedelta(days=term.days))
+    if not due_date:
+        due_date = body.bill_date
+
+    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
+    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    total = money(subtotal + gst_amount)
+
+    tenant = session.get(Tenant, user.tenant_id)
+    base_currency = tenant.base_currency if tenant else "USD"
+    doc_currency = body.currency or base_currency
+    if body.exchange_rate is not None:
+        fx_rate = D(body.exchange_rate)
+    elif doc_currency == base_currency:
+        fx_rate = ONE
+    else:
+        try:
+            fx_rate = rate_to_base(session, user.tenant_id, doc_currency, body.bill_date)
+        except LookupError as e:
+            raise HTTPException(400, str(e))
+
+    # Reverse existing GL JV if present
+    if bill.transaction_id:
+        old_txn = session.get(Transaction, bill.transaction_id)
+        if old_txn and not old_txn.is_reversed:
+            old_entries = session.exec(
+                select(JournalEntry).where(JournalEntry.transaction_id == old_txn.id)
+            ).all()
+            rev_txn = post_transaction(
+                session, user,
+                date=str(DateType.today()),
+                description=f"Reversal of {old_txn.jv_number} (bill edit)",
+                entries=[
+                    EntryInput(account_id=je.account_id, debit=D(je.credit), credit=D(je.debit))
+                    for je in old_entries
+                ],
+                audit_entity_type="bill",
+                audit_detail={"bill_number": bill.number, "action": "edit_reversal"},
+            )
+            old_txn.is_reversed = True
+            old_txn.reversed_by_id = rev_txn.id
+            session.add(old_txn)
+        bill.transaction_id = None
+
+    # Delete existing lines
+    for ln in session.exec(select(BillLine).where(BillLine.bill_id == bill.id)).all():
+        session.delete(ln)
+    session.flush()
+
+    # Update bill fields
+    bill.vendor_id = body.vendor_id
+    bill.vendor_name = vname
+    bill.bill_date = body.bill_date
+    bill.due_date = due_date
+    bill.payment_term_id = term_id
+    bill.description = body.description
+    bill.notes = body.notes
+    bill.internal_memo = body.internal_memo
+    bill.subtotal = subtotal
+    bill.gst_rate = D(body.gst_rate)
+    bill.gst_amount = gst_amount
+    bill.total = total
+    bill.currency = doc_currency
+    bill.exchange_rate = fx_rate
+    bill.ap_account_id = body.ap_account_id
+    bill.expense_account_id = body.expense_account_id
+    session.add(bill)
+    session.flush()
+
+    # Insert new lines
+    total_stock_value = ZERO
+    for line_data in body.lines:
+        line_qty = D(line_data.qty)
+        line_rate = D(line_data.rate)
+        amount = money(line_qty * line_rate)
+        session.add(BillLine(
+            bill_id=bill.id,
+            product_id=line_data.product_id,
+            description=line_data.description,
+            qty=line_qty,
+            unit=line_data.unit,
+            rate=line_rate,
+            amount=amount,
+        ))
+        if line_data.product_id:
+            prod = session.exec(
+                select(Product).where(
+                    Product.id == line_data.product_id,
+                    Product.tenant_id == user.tenant_id,
+                )
+            ).first()
+            if prod and prod.product_type == "stock":
+                record_purchase(
+                    session, tenant_id=user.tenant_id,
+                    product_id=prod.id, qty=line_qty, unit_cost=line_rate, source_doc=bill.number,
+                )
+                total_stock_value += amount
+
+    # Re-post GL
+    ap_acc = (
+        session.get(Account, body.ap_account_id)
+        if body.ap_account_id
+        else get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
+    )
+    total_base = money(total * fx_rate)
+    total_stock_base = money(total_stock_value * fx_rate)
+    gst_base = money(gst_amount * fx_rate)
+    non_stock_base = money((subtotal - total_stock_value) * fx_rate)
+
+    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base)]
+    if total_stock_value > 0:
+        inv_acc = get_or_create_account(session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset")
+        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_base))
+    if non_stock_base > 0:
+        exp_acc = (
+            session.get(Account, body.expense_account_id)
+            if body.expense_account_id
+            else get_or_create_account(session, user.tenant_id, "5000", "General Expenses", "Expense")
+        )
+        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base))
+    if gst_amount > 0:
+        gst_input_acc = get_or_create_account(session, user.tenant_id, "1250", "GST Receivable (Input)", "Asset")
+        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_base))
+
+    txn = post_transaction(
+        session, user,
+        date=bill.bill_date,
+        description=f"Bill {bill.number} — {vname or ''} (edited)",
+        entries=entries,
+        audit_entity_type="bill",
+        audit_detail={"bill_number": bill.number, "total": str(total)},
+    )
+    bill.transaction_id = txn.id
+    session.add(bill)
+
+    log_audit(session, user, "UPDATE", "bill", bill.id, {"number": bill.number, "total": str(total)})
     session.commit()
     session.refresh(bill)
 

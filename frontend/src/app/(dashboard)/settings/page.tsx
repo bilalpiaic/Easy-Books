@@ -1,9 +1,16 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2, Upload, CalendarDays } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
+
+interface PaymentTerm {
+  id: number
+  code: string
+  name: string
+  days: number
+}
 
 interface AccountingPeriod {
   id: number
@@ -35,12 +42,25 @@ export default function SettingsPage() {
   const [addingPeriod, setAddingPeriod] = useState(false)
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
   const [auditFilter, setAuditFilter] = useState("")
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError, setLogoError] = useState("")
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
+  const [termForm, setTermForm] = useState({ code: "", name: "", days: "" })
+  const [addingTerm, setAddingTerm] = useState(false)
+  const [termSaving, setTermSaving] = useState(false)
 
   useEffect(() => { setForm(ctxSettings) }, [ctxSettings])
 
   useEffect(() => {
     apiFetch<AccountingPeriod[]>("/api/periods")
       .then(setPeriods)
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    apiFetch<PaymentTerm[]>("/api/payment-terms")
+      .then(setPaymentTerms)
       .catch(() => {})
   }, [])
 
@@ -87,6 +107,61 @@ export default function SettingsPage() {
       setPeriods(prev => prev.filter(p => p.id !== period.id))
     } catch (err) {
       alert((err as Error).message)
+    }
+  }
+
+  const handleAddTerm = async () => {
+    if (!termForm.code || !termForm.name || termForm.days === "") return
+    setTermSaving(true)
+    try {
+      const created = await apiFetch<PaymentTerm>("/api/payment-terms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: termForm.code, name: termForm.name, days: Number(termForm.days) }),
+      })
+      setPaymentTerms(prev => [...prev, created].sort((a, b) => a.days - b.days))
+      setTermForm({ code: "", name: "", days: "" })
+      setAddingTerm(false)
+    } catch (err) {
+      alert((err as Error).message)
+    } finally {
+      setTermSaving(false)
+    }
+  }
+
+  const handleDeleteTerm = async (term: PaymentTerm) => {
+    if (!window.confirm(`Delete payment term "${term.name}"?`)) return
+    try {
+      await apiFetch(`/api/payment-terms/${term.id}`, { method: "DELETE" })
+      setPaymentTerms(prev => prev.filter(t => t.id !== term.id))
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
+
+  const handleLogoUpload = async (file: File) => {
+    setLogoUploading(true)
+    setLogoError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/settings/logo`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || "Upload failed")
+      }
+      const data = await res.json() as { logo_url: string }
+      setForm(prev => ({ ...prev, logo_url: data.logo_url }))
+      reload()
+    } catch (err) {
+      setLogoError((err as Error).message)
+    } finally {
+      setLogoUploading(false)
     }
   }
 
@@ -217,6 +292,123 @@ export default function SettingsPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
+        <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-black">
+          <Building2 className="w-5 h-5 text-[#b8943f]" />
+          Company Profile
+        </h2>
+        <p className="text-sm text-black/60 mb-6">Appears on printed invoices, bills, and reports.</p>
+
+        {logoError && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">{logoError}</div>
+        )}
+
+        {/* Logo upload */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-black/85 mb-2">Company Logo</label>
+          <div className="flex items-center gap-4">
+            {form.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`${process.env.NEXT_PUBLIC_API_URL || ""}${form.logo_url}`}
+                alt="Company logo"
+                className="h-16 w-auto object-contain border border-[#ede9e2] rounded-lg p-1 bg-white"
+              />
+            ) : (
+              <div className="h-16 w-24 flex items-center justify-center border-2 border-dashed border-[#ede9e2] rounded-lg text-black/30 text-xs">
+                No logo
+              </div>
+            )}
+            <div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={e => { if (e.target.files?.[0]) handleLogoUpload(e.target.files[0]) }}
+              />
+              <button
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoUploading}
+                className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-medium hover:bg-[#f6f3ee] transition-colors disabled:opacity-50"
+              >
+                <Upload className="w-4 h-4" />
+                {logoUploading ? "Uploading…" : "Upload Logo"}
+              </button>
+              <p className="text-xs text-black/50 mt-1">PNG, JPEG, SVG, WebP, GIF — max 5 MB</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Address */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-black/85 mb-2">Address Line 1</label>
+            <input
+              type="text"
+              value={form.address_line1}
+              onChange={e => handleChange("address_line1", e.target.value)}
+              placeholder="e.g., 123 Business Street"
+              className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-black/85 mb-2">Address Line 2</label>
+            <input
+              type="text"
+              value={form.address_line2}
+              onChange={e => handleChange("address_line2", e.target.value)}
+              placeholder="e.g., Suite 4, Floor 2"
+              className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-black/85 mb-2">City</label>
+              <input
+                type="text"
+                value={form.city}
+                onChange={e => handleChange("city", e.target.value)}
+                placeholder="e.g., Karachi"
+                className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-black/85 mb-2">Country</label>
+              <input
+                type="text"
+                value={form.country}
+                onChange={e => handleChange("country", e.target.value)}
+                placeholder="e.g., Pakistan"
+                className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-black/85 mb-2">Phone</label>
+              <input
+                type="text"
+                value={form.phone}
+                onChange={e => handleChange("phone", e.target.value)}
+                placeholder="e.g., +92 21 1234567"
+                className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-black/85 mb-2">Website</label>
+              <input
+                type="text"
+                value={form.website}
+                onChange={e => handleChange("website", e.target.value)}
+                placeholder="e.g., www.mycompany.com"
+                className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 text-black">Document Numbering</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -244,6 +436,89 @@ export default function SettingsPage() {
             <p className="text-xs text-black/60 mt-1 font-medium">Example: {form.bill_prefix}-001</p>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
+            <CalendarDays className="w-5 h-5 text-[#b8943f]" />
+            Payment Terms
+          </h2>
+          <button
+            onClick={() => setAddingTerm(v => !v)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg text-sm font-medium hover:bg-[#a07c35] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Term
+          </button>
+        </div>
+
+        {addingTerm && (
+          <div className="mb-6 p-4 bg-[#f6f3ee] rounded-xl grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Code</label>
+              <input
+                type="text"
+                placeholder="e.g. NET30"
+                value={termForm.code}
+                onChange={e => setTermForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Net 30 Days"
+                value={termForm.name}
+                onChange={e => setTermForm(p => ({ ...p, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Days</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="30"
+                value={termForm.days}
+                onChange={e => setTermForm(p => ({ ...p, days: e.target.value }))}
+                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+            <button
+              onClick={handleAddTerm}
+              disabled={termSaving}
+              className="px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-bold hover:bg-[#b8943f] transition-colors disabled:opacity-50"
+            >
+              {termSaving ? "Saving…" : "Create"}
+            </button>
+          </div>
+        )}
+
+        {paymentTerms.length === 0 ? (
+          <p className="text-sm text-black/40 py-4">No payment terms defined.</p>
+        ) : (
+          <div className="divide-y divide-[#ede9e2]">
+            {paymentTerms.map(term => (
+              <div key={term.id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-xs font-bold bg-[#f6f3ee] px-2 py-0.5 rounded text-[#b8943f]">{term.code}</span>
+                  <span className="font-medium text-black">{term.name}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-black/60">{term.days === 0 ? "Due on receipt" : `${term.days} days`}</span>
+                  <button
+                    onClick={() => handleDeleteTerm(term)}
+                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">

@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from models import Account, SequenceCounter, Settings, StockLocation
+from models import Account, PaymentTerm, SequenceCounter, Settings, StockLocation
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -351,6 +351,22 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                     s.add(StockLocation(
                         tenant_id=tenant_id, code=code, name=name, type=ltype,
                     ))
+        # Seed default payment terms for every tenant
+        for code, name, days in (
+            ("DOR",   "Due on Receipt",  0),
+            ("NET15", "Net 15 Days",    15),
+            ("NET30", "Net 30 Days",    30),
+            ("NET60", "Net 60 Days",    60),
+        ):
+            exists = s.exec(
+                select(PaymentTerm).where(
+                    PaymentTerm.tenant_id == tenant_id,
+                    PaymentTerm.code == code,
+                )
+            ).first()
+            if not exists:
+                s.add(PaymentTerm(tenant_id=tenant_id, code=code, name=name, days=days))
+
         s.commit()
 
     if session:

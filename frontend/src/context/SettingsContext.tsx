@@ -13,6 +13,14 @@ export interface AppSettings {
   bill_prefix: string
   financial_statement_date: string
   business_tagline: string
+  // Company profile
+  logo_url: string
+  address_line1: string
+  address_line2: string
+  city: string
+  country: string
+  phone: string
+  website: string
 }
 
 const defaults: AppSettings = {
@@ -25,6 +33,13 @@ const defaults: AppSettings = {
   bill_prefix: "BILL",
   financial_statement_date: "month_end",
   business_tagline: "Easy-Books · Double-Entry Accounting",
+  logo_url: "",
+  address_line1: "",
+  address_line2: "",
+  city: "",
+  country: "",
+  phone: "",
+  website: "",
 }
 
 interface SettingsContextValue {

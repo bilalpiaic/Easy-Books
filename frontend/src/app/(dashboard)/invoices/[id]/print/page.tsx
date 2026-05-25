@@ -23,6 +23,7 @@ interface Invoice {
   issue_date: string
   due_date: string
   description: string | null
+  notes: string | null
   subtotal: string | number
   gst_rate: string | number
   gst_amount: string | number
@@ -125,6 +126,13 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
               ))}
             </tbody>
           </table>
+
+          {/* Notes (customer-facing) */}
+          {inv.notes && (
+            <div className="mb-4 text-sm border-l-2 border-[#b8943f]/40 pl-3 text-[#1a1814]/70 whitespace-pre-wrap">
+              {inv.notes}
+            </div>
+          )}
 
           {/* Totals */}
           <div className="flex justify-end">

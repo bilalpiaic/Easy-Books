@@ -211,6 +211,77 @@ def get_dashboard_data(
         )
     ).one() or 0
 
+    # Cash & Bank balance: sum of all 10xx GL accounts (debit normal)
+    cash_balance = session.exec(
+        select(
+            func.coalesce(
+                func.sum(JournalEntry.debit - JournalEntry.credit),
+                0,
+            )
+        )
+        .join(Account, Account.id == JournalEntry.account_id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Account.code.like("10%"),
+        )
+    ).one() or ZERO
+
+    # AR aging buckets (all-time outstanding, same logic as /api/invoices/aging)
+    from datetime import date as _today_date
+    _today = _today_date.today()
+    aging_rows = session.exec(
+        select(
+            Invoice.id, Invoice.due_date, Invoice.total,
+            func.coalesce(
+                select(func.sum(PaymentAllocation.amount))
+                .where(PaymentAllocation.invoice_id == Invoice.id)
+                .correlate(Invoice).scalar_subquery(),
+                0,
+            ).label("allocated"),
+        ).where(Invoice.tenant_id == user.tenant_id)
+    ).all()
+    ar_aging = {"current": ZERO, "1_30": ZERO, "31_60": ZERO, "61_90": ZERO, "over_90": ZERO}
+    for row in aging_rows:
+        outstanding = D(row.total) - D(row.allocated)
+        if outstanding <= 0:
+            continue
+        due = _today_date.fromisoformat(str(row.due_date))
+        days_past = (_today - due).days
+        if days_past <= 0:
+            ar_aging["current"] += outstanding
+        elif days_past <= 30:
+            ar_aging["1_30"] += outstanding
+        elif days_past <= 60:
+            ar_aging["31_60"] += outstanding
+        elif days_past <= 90:
+            ar_aging["61_90"] += outstanding
+        else:
+            ar_aging["over_90"] += outstanding
+
+    # AP due this week
+    week_end = str(_today + timedelta(days=7))
+    ap_due_week = session.exec(
+        select(
+            func.coalesce(
+                func.sum(
+                    Bill.total
+                    - func.coalesce(
+                        select(func.sum(PaymentAllocation.amount))
+                        .where(PaymentAllocation.bill_id == Bill.id)
+                        .correlate(Bill).scalar_subquery(),
+                        0,
+                    )
+                ),
+                0,
+            )
+        ).where(
+            Bill.tenant_id == user.tenant_id,
+            Bill.status.in_(open_statuses_ap),
+            Bill.due_date <= week_end,
+        )
+    ).one() or ZERO
+
     return {
         "summary": {
             "total_revenue": total_revenue,
@@ -221,6 +292,9 @@ def get_dashboard_data(
             "overdue_invoices": overdue_invoices,
             "unpaid_bills": unpaid_bills,
             "low_stock_items": low_stock,
+            "cash_balance": cash_balance,
+            "ar_aging": ar_aging,
+            "ap_due_week": ap_due_week,
         },
         "recent": [
             {

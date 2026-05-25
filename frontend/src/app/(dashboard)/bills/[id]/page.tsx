@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Printer, RotateCcw, Receipt } from "lucide-react"
+import { ArrowLeft, Printer, RotateCcw, Receipt, Pencil } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -25,6 +25,8 @@ interface Bill {
   bill_date: string
   due_date: string
   description: string | null
+  notes: string | null
+  internal_memo: string | null
   subtotal: number
   gst_rate: number
   gst_amount: number
@@ -89,6 +91,14 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <div className="flex items-center gap-2">
+          {bill.status === "draft" && (
+            <Link
+              href={`/bills?edit=${bill.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
+            >
+              <Pencil className="w-4 h-4" /> Edit
+            </Link>
+          )}
           <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
             <Printer className="w-4 h-4" /> Print
           </Link>
@@ -166,6 +176,23 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           </tbody>
         </table>
       </section>
+
+      {(bill.notes || bill.internal_memo) && (
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {bill.notes && (
+            <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</div>
+              <p className="text-sm text-[#1a1814]/80 whitespace-pre-wrap">{bill.notes}</p>
+            </div>
+          )}
+          {bill.internal_memo && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</div>
+              <p className="text-sm text-amber-900/80 whitespace-pre-wrap">{bill.internal_memo}</p>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="flex justify-end">
         <div className="bg-white border border-[#ede9e2] rounded-xl p-4 w-full sm:w-80 text-sm space-y-1">

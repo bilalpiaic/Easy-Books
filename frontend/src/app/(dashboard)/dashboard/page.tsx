@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, Hash, Wallet,
   ArrowDownLeft, ArrowUpRight, Clock,
   Package, AlertTriangle, FileSignature,
-  Receipt, ChevronRight,
+  Receipt, ChevronRight, Banknote, CalendarClock,
 } from "lucide-react"
 import {
   Chart as ChartJS,
@@ -24,6 +24,14 @@ ChartJS.register(
   PointElement, ArcElement, Title, Tooltip, Legend, Filler
 )
 
+interface ArAging {
+  current: number
+  "1_30": number
+  "31_60": number
+  "61_90": number
+  over_90: number
+}
+
 interface DashboardSummary {
   total_revenue: number
   total_expense: number
@@ -33,6 +41,9 @@ interface DashboardSummary {
   overdue_invoices: number
   unpaid_bills: number
   low_stock_items: number
+  cash_balance: number
+  ar_aging: ArAging | null
+  ap_due_week: number
 }
 
 interface RecentTx { id: number; jv_number: string; date: string; description: string }
@@ -142,6 +153,25 @@ export default function Dashboard() {
     }],
   }
 
+  const agingLabels = ["Current", "1–30d", "31–60d", "61–90d", "90d+"]
+  const agingValues = s?.ar_aging
+    ? [s.ar_aging.current, s.ar_aging["1_30"], s.ar_aging["31_60"], s.ar_aging["61_90"], s.ar_aging.over_90]
+    : null
+  const agingBarData = {
+    labels: agingLabels,
+    datasets: [{
+      data: agingValues ?? [0, 0, 0, 0, 0],
+      backgroundColor: [
+        "rgba(22,163,74,0.78)",
+        "rgba(234,179,8,0.78)",
+        "rgba(249,115,22,0.78)",
+        "rgba(239,68,68,0.82)",
+        "rgba(185,28,28,0.88)",
+      ],
+      borderRadius: 4,
+    }],
+  }
+
   const baseChartOpts: ChartOptions<"bar"> = {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtPKR(ctx.parsed.y as number) } } },
@@ -185,20 +215,53 @@ export default function Dashboard() {
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {/* Primary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <PrimaryKpi label="Revenue"   value={s ? fmtPKR(s.total_revenue) : null}  icon={TrendingUp}   bg="bg-green-50"  border="border-green-200"  text="text-green-800"  sub={margin ? `${margin}% margin` : undefined} />
-        <PrimaryKpi label="Expenses"  value={s ? fmtPKR(s.total_expense) : null}  icon={TrendingDown}  bg="bg-red-50"    border="border-red-200"    text="text-red-800" />
-        <PrimaryKpi label="Net Profit" value={s ? fmtPKR(netProfit) : null}       icon={Wallet}        bg={netProfit < 0 ? "bg-red-50" : "bg-amber-50"} border={netProfit < 0 ? "border-red-200" : "border-amber-200"} text={netProfit < 0 ? "text-red-800" : "text-amber-800"} sub={netProfit < 0 ? "Net loss" : "Net gain"} />
-        <PrimaryKpi label="Vouchers"  value={s ? s.transaction_count.toString() : null} icon={Hash} bg="bg-blue-50" border="border-blue-200" text="text-blue-800" sub="posted" compact />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <PrimaryKpi label="Revenue"    value={s ? fmtPKR(s.total_revenue) : null}           icon={TrendingUp}  bg="bg-green-50"   border="border-green-200"   text="text-green-800"   sub={margin ? `${margin}% margin` : undefined} />
+        <PrimaryKpi label="Expenses"   value={s ? fmtPKR(s.total_expense) : null}           icon={TrendingDown} bg="bg-red-50"     border="border-red-200"     text="text-red-800" />
+        <PrimaryKpi label="Net Profit" value={s ? fmtPKR(netProfit) : null}                 icon={Wallet}      bg={netProfit < 0 ? "bg-red-50" : "bg-amber-50"} border={netProfit < 0 ? "border-red-200" : "border-amber-200"} text={netProfit < 0 ? "text-red-800" : "text-amber-800"} sub={netProfit < 0 ? "Net loss" : "Net gain"} />
+        <PrimaryKpi label="Cash & Bank" value={s ? fmtPKR(s.cash_balance ?? 0) : null}     icon={Banknote}    bg="bg-emerald-50" border="border-emerald-200"   text="text-emerald-800" sub="available balance" />
+        <PrimaryKpi label="Vouchers"   value={s ? s.transaction_count.toString() : null}    icon={Hash}        bg="bg-blue-50"    border="border-blue-200"     text="text-blue-800"    sub="posted" compact />
       </div>
 
       {/* Secondary metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <SecondaryKpi label="AR Outstanding"  value={s ? fmtPKR(s.ar_outstanding) : null}     icon={ArrowDownLeft} color="text-green-700"  href="/invoices"  badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", color: "bg-red-100 text-red-700" } : undefined} />
-        <SecondaryKpi label="AP Outstanding"  value={s ? fmtPKR(s.ap_outstanding) : null}     icon={ArrowUpRight}  color="text-orange-700" href="/bills"     badge={s?.unpaid_bills   ? { count: s.unpaid_bills,   label: "unpaid",  color: "bg-orange-100 text-orange-700" } : undefined} />
-        <SecondaryKpi label="Overdue Invoices" value={s ? s.overdue_invoices.toString() : null} icon={Clock}        color="text-red-600"   href="/invoices"  valueClass={s && s.overdue_invoices > 0 ? "text-red-600 font-bold" : undefined} />
-        <SecondaryKpi label="Low Stock Items"  value={s ? s.low_stock_items.toString() : null}  icon={Package}      color="text-purple-600" href="/products"  valueClass={s && s.low_stock_items > 0 ? "text-amber-600 font-bold" : undefined} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <SecondaryKpi label="AR Outstanding"   value={s ? fmtPKR(s.ar_outstanding) : null}       icon={ArrowDownLeft}  color="text-green-700"  href="/invoices"                badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", color: "bg-red-100 text-red-700" } : undefined} />
+        <SecondaryKpi label="AP Outstanding"   value={s ? fmtPKR(s.ap_outstanding) : null}       icon={ArrowUpRight}   color="text-orange-700" href="/bills"                   badge={s?.unpaid_bills ? { count: s.unpaid_bills, label: "unpaid", color: "bg-orange-100 text-orange-700" } : undefined} />
+        <SecondaryKpi label="Overdue Invoices" value={s ? s.overdue_invoices.toString() : null}   icon={Clock}          color="text-red-600"    href="/invoices"                valueClass={s && s.overdue_invoices > 0 ? "text-red-600 font-bold" : undefined} />
+        <SecondaryKpi label="Low Stock Items"  value={s ? s.low_stock_items.toString() : null}    icon={Package}        color="text-purple-600" href="/products?low_stock=true" valueClass={s && s.low_stock_items > 0 ? "text-amber-600 font-bold" : undefined} />
+        <SecondaryKpi label="AP Due This Week" value={s ? fmtPKR(s.ap_due_week ?? 0) : null}     icon={CalendarClock}  color="text-rose-600"   href="/bills"                   valueClass={s && (s.ap_due_week ?? 0) > 0 ? "text-rose-600 font-bold" : undefined} />
       </div>
+
+      {/* AR Aging Mini-Chart */}
+      {s?.ar_aging && (
+        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">AR Aging (Receivables)</p>
+              <p className="text-[10px] text-[#1a1814]/40 mt-0.5">Outstanding invoice amounts by age bucket</p>
+            </div>
+            <Link href="/invoices" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View invoices →</Link>
+          </div>
+          <div className="h-36">
+            <Bar data={agingBarData} options={{
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtPKR(ctx.parsed.y as number) } } },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmtPKR(v as number) } },
+              },
+            } as ChartOptions<"bar">} />
+          </div>
+          <div className="flex items-center gap-4 mt-2 flex-wrap">
+            {agingLabels.map((label, i) => (
+              <span key={label} className="flex items-center gap-1 text-[10px] text-[#1a1814]/55">
+                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: agingBarData.datasets[0].backgroundColor[i] }} />
+                {label}: <span className="font-semibold text-[#1a1814]/75">{fmtPKR(agingValues?.[i] ?? 0)}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Alert */}
       {s && (s.overdue_invoices > 0 || s.low_stock_items > 0) && (
@@ -207,7 +270,7 @@ export default function Dashboard() {
           <span className="text-sm font-medium text-amber-800">Action required:</span>
           {s.overdue_invoices > 0 && <Link href="/invoices" className="text-sm text-amber-700 underline underline-offset-2 hover:text-amber-900">{s.overdue_invoices} overdue invoice{s.overdue_invoices > 1 ? "s" : ""}</Link>}
           {s.overdue_invoices > 0 && s.low_stock_items > 0 && <span className="text-amber-400">·</span>}
-          {s.low_stock_items > 0 && <Link href="/products" className="text-sm text-amber-700 underline underline-offset-2 hover:text-amber-900">{s.low_stock_items} low-stock product{s.low_stock_items > 1 ? "s" : ""}</Link>}
+          {s.low_stock_items > 0 && <Link href="/products?low_stock=true" className="text-sm text-amber-700 underline underline-offset-2 hover:text-amber-900">{s.low_stock_items} low-stock product{s.low_stock_items > 1 ? "s" : ""}</Link>}
         </div>
       )}
 

@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Printer, RotateCcw, FileSignature } from "lucide-react"
+import { ArrowLeft, Printer, RotateCcw, FileSignature, Pencil } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -25,6 +25,8 @@ interface Invoice {
   issue_date: string
   due_date: string
   description: string | null
+  notes: string | null
+  internal_memo: string | null
   subtotal: number
   gst_rate: number
   gst_amount: number
@@ -95,6 +97,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </button>
         </div>
         <div className="flex items-center gap-2">
+          {inv.status === "draft" && (
+            <Link
+              href={`/invoices?edit=${inv.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
+            >
+              <Pencil className="w-4 h-4" /> Edit
+            </Link>
+          )}
           <Link
             href={`/invoices/${inv.id}/print`}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]"
@@ -187,6 +197,24 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </tbody>
         </table>
       </section>
+
+      {/* Notes */}
+      {(inv.notes || inv.internal_memo) && (
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {inv.notes && (
+            <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</div>
+              <p className="text-sm text-[#1a1814]/80 whitespace-pre-wrap">{inv.notes}</p>
+            </div>
+          )}
+          {inv.internal_memo && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</div>
+              <p className="text-sm text-amber-900/80 whitespace-pre-wrap">{inv.internal_memo}</p>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Totals */}
       <section className="flex justify-end">

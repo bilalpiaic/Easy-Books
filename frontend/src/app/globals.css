@@ -184,6 +184,12 @@ body {
     font-family: "DM Serif Display", serif;
     font-size: 18pt; font-weight: 700;
   }
+  .print-logo-img {
+    height: 36pt;
+    width: auto;
+    max-width: 90pt;
+    object-fit: contain;
+  }
   .print-org-name {
     font-family: "DM Serif Display", serif;
     font-size: 14pt; font-weight: 700;

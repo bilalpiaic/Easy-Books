@@ -16,9 +16,13 @@ interface CompanyInfo {
   name: string
   initial: string
   tagline?: string
-  address?: string
+  logo_url?: string
+  address_line1?: string
+  address_line2?: string
+  city?: string
+  country?: string
   phone?: string
-  email?: string
+  website?: string
   currency?: string
 }
 
@@ -47,9 +51,13 @@ export default function PrintHeader({
           name,
           initial: name.charAt(0).toUpperCase(),
           tagline: d?.business_tagline || "Easy-Books · Double-Entry Accounting",
-          address: d?.address,
+          logo_url: d?.logo_url,
+          address_line1: d?.address_line1,
+          address_line2: d?.address_line2,
+          city: d?.city,
+          country: d?.country,
           phone: d?.phone,
-          email: d?.email,
+          website: d?.website,
           currency: d?.currency,
         })
       })
@@ -70,20 +78,32 @@ export default function PrintHeader({
           so it appears at the top of every printed page). */}
       <div className="print-brand-row">
         <div className="print-brand">
-          <div className="print-logo">{info.initial}</div>
+          {info.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={info.logo_url} alt={info.name} className="print-logo-img" />
+          ) : (
+            <div className="print-logo">{info.initial}</div>
+          )}
           <div className="print-org">
             <div className="print-org-name">{info.name}</div>
             <div className="print-org-sub">{info.tagline}</div>
           </div>
         </div>
         <div className="print-meta">
-          <div className="print-meta-line">
-            {info.address && <span>{info.address}</span>}
-          </div>
-          <div className="print-meta-line">
-            {info.email && <span>{info.email}</span>}
-            {info.phone && <span> · {info.phone}</span>}
-          </div>
+          {info.address_line1 && <div className="print-meta-line">{info.address_line1}</div>}
+          {info.address_line2 && <div className="print-meta-line">{info.address_line2}</div>}
+          {(info.city || info.country) && (
+            <div className="print-meta-line">
+              {[info.city, info.country].filter(Boolean).join(", ")}
+            </div>
+          )}
+          {(info.phone || info.website) && (
+            <div className="print-meta-line">
+              {info.phone && <span>{info.phone}</span>}
+              {info.phone && info.website && <span> · </span>}
+              {info.website && <span>{info.website}</span>}
+            </div>
+          )}
         </div>
       </div>
 

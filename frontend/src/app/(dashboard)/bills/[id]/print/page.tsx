@@ -23,6 +23,7 @@ interface Bill {
   bill_date: string
   due_date: string
   description: string | null
+  notes: string | null
   subtotal: string | number
   gst_rate: string | number
   gst_amount: string | number
@@ -112,6 +113,13 @@ export default function BillPrintPage({ params }: { params: Promise<{ id: string
               ))}
             </tbody>
           </table>
+
+          {/* Notes (vendor-facing) */}
+          {bill.notes && (
+            <div className="mb-4 text-sm border-l-2 border-[#b8943f]/40 pl-3 text-[#1a1814]/70 whitespace-pre-wrap">
+              {bill.notes}
+            </div>
+          )}
 
           <div className="flex justify-end">
             <div className="w-full sm:w-72 space-y-1.5 text-sm">

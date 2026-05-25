@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Download, Printer } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { Plus, Download, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
+import FilterBar from '@/components/FilterBar'
+import SortableHeader from '@/components/SortableHeader'
 import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
@@ -22,6 +25,10 @@ interface Invoice {
   gst_amount: number
   total: number
   status: string
+  description: string | null
+  notes: string | null
+  internal_memo: string | null
+  lines?: LineItem[]
 }
 
 interface AgingBuckets {
@@ -32,13 +39,17 @@ interface AgingBuckets {
 interface Customer { id: number; name: string }
 interface Account { id: number; code: string; name: string; type: string }
 interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string }
+interface PaymentTerm { id: number; code: string; name: string; days: number }
 
 interface InvoiceForm {
   customer_id: string
   customer_name: string
   issue_date: string
   due_date: string
+  payment_term_id: string
   description: string
+  notes: string
+  internal_memo: string
   gst_rate: string
   ar_account_id: string
   revenue_account_id: string
@@ -46,7 +57,7 @@ interface InvoiceForm {
 
 const emptyForm: InvoiceForm = {
   customer_id: '', customer_name: '', issue_date: new Date().toISOString().split('T')[0],
-  due_date: '', description: '', gst_rate: '17',
+  due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
   ar_account_id: '', revenue_account_id: '',
 }
 
@@ -55,18 +66,27 @@ const statusColors: Record<string, string> = {
   sent: 'bg-blue-100 text-blue-700',
   paid: 'bg-green-100 text-green-700',
   overdue: 'bg-red-100 text-red-700',
+  partial: 'bg-amber-100 text-amber-700',
 }
 
 const PAGE_SIZE = 50
+const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 
 export default function Invoices() {
+  const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [sortBy, setSortBy] = useState('issue_date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [loading, setLoading] = useState(true)
   const [aging, setAging] = useState<AgingBuckets | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editInvoice, setEditInvoice] = useState<Invoice | null>(null)
   const [form, setForm] = useState<InvoiceForm>(emptyForm)
   const [lines, setLines] = useState<LineItem[]>([])
   const [saving, setSaving] = useState(false)
@@ -74,38 +94,112 @@ export default function Invoices() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
 
   const load = () => {
     setLoading(true)
-    const params = new URLSearchParams({ skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
+    const params = new URLSearchParams({
+      skip: String((page - 1) * PAGE_SIZE),
+      limit: String(PAGE_SIZE),
+      sort_by: sortBy,
+      sort_dir: sortDir,
+    })
     if (search) params.set('search', search)
+    if (status) params.set('status', status)
+    if (dateFrom) params.set('date_from', dateFrom)
+    if (dateTo) params.set('date_to', dateTo)
     apiFetch<{ total: number; items: Invoice[] }>(`/api/invoices?${params}`)
       .then(d => { setInvoices(d.items); setTotal(d.total) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { setPage(1) }, [search])
-  useEffect(load, [page, search])
+  const handleSort = (field: string, dir: 'asc' | 'desc') => {
+    setSortBy(field); setSortDir(dir); setPage(1)
+  }
+
+  useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo])
+  useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir])
   useEffect(() => {
     apiFetch<AgingBuckets>('/api/invoices/aging').then(setAging).catch(() => {})
   }, [])
 
-  const openModal = () => {
-    Promise.all([
-      apiFetch<{ total: number; items: Customer[] }>('/api/customers?limit=200'),
-      apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500'),
-      apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
-    ]).then(([c, a, p]) => {
-      setCustomers(c.items)
-      setAccounts(a.items)
-      setProducts(p.items)
-    }).catch(() => {})
+  const openCreate = () => {
+    loadModalData()
+    setEditInvoice(null)
     setForm(emptyForm)
     setLines([])
     setFormError('')
     setModalOpen(true)
   }
+
+  const openEdit = (inv: Invoice) => {
+    loadModalData()
+    setEditInvoice(inv)
+    setForm({
+      customer_id: String(inv.customer_id ?? ''),
+      customer_name: inv.customer_name ?? '',
+      issue_date: inv.issue_date,
+      due_date: inv.due_date,
+      payment_term_id: '',
+      description: '', notes: '', internal_memo: '',
+      gst_rate: '17',
+      ar_account_id: '',
+      revenue_account_id: '',
+    })
+    // Fetch full invoice with lines
+    apiFetch<Invoice & { gst_rate: number; ar_account_id: number | null; revenue_account_id: number | null; payment_term_id: number | null }>(`/api/invoices/${inv.id}`)
+      .then(full => {
+        setForm({
+          customer_id: String(full.customer_id ?? ''),
+          customer_name: full.customer_name ?? '',
+          issue_date: full.issue_date,
+          due_date: full.due_date,
+          payment_term_id: full.payment_term_id ? String(full.payment_term_id) : '',
+          description: full.description ?? '',
+          notes: full.notes ?? '',
+          internal_memo: full.internal_memo ?? '',
+          gst_rate: String(full.gst_rate ?? 17),
+          ar_account_id: full.ar_account_id ? String(full.ar_account_id) : '',
+          revenue_account_id: full.revenue_account_id ? String(full.revenue_account_id) : '',
+        })
+        setLines((full.lines ?? []).map(l => ({
+          product_id: l.product_id ?? undefined,
+          description: l.description,
+          qty: Number(l.qty),
+          unit: l.unit ?? 'pcs',
+          rate: Number(l.rate),
+          amount: Number(l.amount),
+        })))
+      })
+      .catch(() => {})
+    setFormError('')
+    setModalOpen(true)
+  }
+
+  const loadModalData = () => {
+    Promise.all([
+      apiFetch<{ total: number; items: Customer[] }>('/api/customers?limit=200'),
+      apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500'),
+      apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
+      apiFetch<PaymentTerm[]>('/api/payment-terms'),
+    ]).then(([c, a, p, terms]) => {
+      setCustomers(c.items)
+      setAccounts(a.items)
+      setProducts(p.items)
+      setPaymentTerms(terms)
+    }).catch(() => {})
+  }
+
+  // Auto-open edit modal if navigated with ?edit=<id>
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (editId && invoices.length > 0) {
+      const inv = invoices.find(i => String(i.id) === editId)
+      if (inv && inv.status === 'draft') openEdit(inv)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, invoices])
 
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
   const gstAmount = Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
@@ -114,30 +208,44 @@ export default function Invoices() {
   const handleSave = async () => {
     if (lines.length === 0) { setFormError('Add at least one line item'); return }
     if (lines.some(l => !l.description.trim())) { setFormError('All lines must have a description'); return }
-    if (!form.issue_date || !form.due_date) { setFormError('Both dates are required'); return }
+    if (!form.issue_date || (!form.due_date && !form.payment_term_id)) {
+      setFormError('Issue date required; provide either a due date or a payment term'); return
+    }
     setSaving(true); setFormError('')
+    const body = {
+      customer_id: form.customer_id ? parseInt(form.customer_id) : null,
+      customer_name: form.customer_name || null,
+      issue_date: form.issue_date,
+      due_date: form.due_date,
+      payment_term_id: form.payment_term_id ? parseInt(form.payment_term_id) : null,
+      description: form.description || null,
+      notes: form.notes || null,
+      internal_memo: form.internal_memo || null,
+      lines: lines.map(l => ({
+        product_id: l.product_id ?? null,
+        description: l.description,
+        qty: l.qty,
+        unit: l.unit ?? null,
+        rate: l.rate,
+      })),
+      gst_rate: parseFloat(form.gst_rate) || 0,
+      ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
+      revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
+    }
     try {
-      await apiFetch('/api/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customer_id: form.customer_id ? parseInt(form.customer_id) : null,
-          customer_name: form.customer_name || null,
-          issue_date: form.issue_date,
-          due_date: form.due_date,
-          description: form.description || null,
-          lines: lines.map(l => ({
-            product_id: l.product_id ?? null,
-            description: l.description,
-            qty: l.qty,
-            unit: l.unit ?? null,
-            rate: l.rate,
-          })),
-          gst_rate: parseFloat(form.gst_rate) || 0,
-          ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
-          revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
-        }),
-      })
+      if (editInvoice) {
+        await apiFetch(`/api/invoices/${editInvoice.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      } else {
+        await apiFetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      }
       setModalOpen(false); load()
     } catch (err) {
       setFormError((err as Error).message)
@@ -146,9 +254,9 @@ export default function Invoices() {
     }
   }
 
-  const handleStatusChange = async (inv: Invoice, status: string) => {
+  const handleStatusChange = async (inv: Invoice, newStatus: string) => {
     try {
-      await apiFetch(`/api/invoices/${inv.id}/status?status=${status}`, { method: 'PATCH' })
+      await apiFetch(`/api/invoices/${inv.id}/status?status=${newStatus}`, { method: 'PATCH' })
       load()
     } catch (err) {
       alert((err as Error).message)
@@ -180,12 +288,11 @@ export default function Invoices() {
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
-            title="Print"
           >
             <Printer className="w-4 h-4" />
             Print
           </button>
-          <button onClick={openModal} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" />
             New Invoice
           </button>
@@ -207,72 +314,88 @@ export default function Invoices() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
-        <input type="text" placeholder="Search by invoice # or customer..." value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]" />
-      </div>
+      <FilterBar
+        search={search} onSearch={setSearch}
+        statuses={INVOICE_STATUSES} status={status} onStatus={setStatus}
+        dateFrom={dateFrom} dateTo={dateTo}
+        onDateFrom={setDateFrom} onDateTo={setDateTo}
+        placeholder="Search by invoice # or customer…"
+      />
 
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
-          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Invoice #</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Customer</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Issue Date</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Due Date</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75">Total</th>
-              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/75">Status</th>
-              <th className="px-6 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
-            {loading ? (
-              <SkeletonRow cols={7} />
-            ) : invoices.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">No invoices found.</td></tr>
-            ) : invoices.map(inv => (
-              <tr key={inv.id} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
-                  <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[#b8943f] font-bold" />
-                </td>
-                <td className="px-6 py-4">
-                  {inv.customer_id && inv.customer_name
-                    ? <DocLink type="customer" id={inv.customer_id} label={inv.customer_name} />
-                    : (inv.customer_name ?? '—')}
-                </td>
-                <td className="px-6 py-4 text-black/70">{inv.issue_date}</td>
-                <td className="px-6 py-4 text-black/70">{inv.due_date}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmtPKR(inv.total)}</td>
-                <td className="px-6 py-4 text-center">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {inv.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-2">
-                    <Link
-                      href={`/invoices/${inv.id}/print`}
-                      title="Print this invoice"
-                      className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                    </Link>
-                    <select
-                      value={inv.status}
-                      onChange={e => handleStatusChange(inv, e.target.value)}
-                      className="text-xs border border-[#ede9e2] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#b8943f]"
-                    >
-                      {['draft', 'sent', 'paid', 'overdue'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                </td>
+          <table className="w-full text-sm min-w-[700px]">
+            <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+              <tr>
+                <SortableHeader label="Invoice #"  field="number"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Customer"   field="customer_name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Issue Date" field="issue_date"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Due Date"   field="due_date"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
+                <SortableHeader label="Total"      field="total"         sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
+                <SortableHeader label="Status"     field="status"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
+                <th className="px-6 py-4" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-[#ede9e2]">
+              {loading ? (
+                <SkeletonRow cols={7} />
+              ) : invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <p className="text-black/40 mb-3">No invoices found.</p>
+                    <button onClick={openCreate} className="text-sm text-[#b8943f] hover:underline font-medium">
+                      + Create your first invoice
+                    </button>
+                  </td>
+                </tr>
+              ) : invoices.map(inv => (
+                <tr key={inv.id} className={`hover:bg-[#f6f3ee]/50 ${inv.status === 'overdue' ? 'bg-red-50/30' : ''}`}>
+                  <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
+                    <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[#b8943f] font-bold" />
+                  </td>
+                  <td className="px-6 py-4">
+                    {inv.customer_id && inv.customer_name
+                      ? <DocLink type="customer" id={inv.customer_id} label={inv.customer_name} />
+                      : (inv.customer_name ?? '—')}
+                  </td>
+                  <td className="px-6 py-4 text-black/70">{inv.issue_date}</td>
+                  <td className={`px-6 py-4 ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{inv.due_date}</td>
+                  <td className="px-6 py-4 text-right font-mono">{fmtPKR(inv.total)}</td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-2">
+                      {inv.status === 'draft' && (
+                        <button
+                          onClick={() => openEdit(inv)}
+                          className="text-xs px-2 py-1 border border-[#b8943f]/40 text-[#b8943f] rounded hover:bg-[#faf6ec]"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <Link
+                        href={`/invoices/${inv.id}/print`}
+                        title="Print this invoice"
+                        className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </Link>
+                      <select
+                        value={inv.status}
+                        onChange={e => handleStatusChange(inv, e.target.value)}
+                        className="text-xs border border-[#ede9e2] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#b8943f]"
+                      >
+                        {INVOICE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <div className="border-t border-[#ede9e2] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
@@ -285,8 +408,8 @@ export default function Invoices() {
             <h3 className="text-xs font-bold uppercase tracking-widest text-black/75">AR Aging Analysis</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-[#ede9e2]">
-            {[['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]].map(([label, val]) => (
-              <div key={String(label)} className="p-4 text-center">
+            {([['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]] as [string, number][]).map(([label, val]) => (
+              <div key={label} className="p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">{label}</p>
                 <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-red-600' : 'text-black/40'}`}>{fmtPKR(Number(val))}</p>
               </div>
@@ -295,11 +418,14 @@ export default function Invoices() {
         </div>
       )}
 
+      {/* Create / Edit Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">New Invoice</h2>
+            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
+              {editInvoice ? `Edit Invoice ${editInvoice.number}` : 'New Invoice'}
+            </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -318,11 +444,33 @@ export default function Invoices() {
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Issue Date</label>
                   <input type="date" value={form.issue_date} onChange={e => setForm(p => ({ ...p, issue_date: e.target.value }))}
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Term</label>
+                  <select
+                    value={form.payment_term_id}
+                    onChange={e => {
+                      const termId = e.target.value
+                      setForm(p => {
+                        const term = paymentTerms.find(t => String(t.id) === termId)
+                        const due = term && p.issue_date
+                          ? new Date(new Date(p.issue_date).getTime() + term.days * 86400000).toISOString().split('T')[0]
+                          : p.due_date
+                        return { ...p, payment_term_id: termId, due_date: due }
+                      })
+                    }}
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                  >
+                    <option value="">— select —</option>
+                    {paymentTerms.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Due Date</label>
@@ -365,6 +513,21 @@ export default function Invoices() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Notes (printed)</label>
+                  <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                    placeholder="Printed on the invoice for the customer"
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm resize-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</label>
+                  <textarea rows={2} value={form.internal_memo} onChange={e => setForm(p => ({ ...p, internal_memo: e.target.value }))}
+                    placeholder="Staff-only note, not printed"
+                    className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-none" />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">AR Account</label>
@@ -389,7 +552,7 @@ export default function Invoices() {
               <div className="flex justify-end gap-3 pt-2">
                 <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
                 <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Posting...' : 'Post Invoice'}
+                  {saving ? 'Saving…' : editInvoice ? 'Save Changes' : 'Post Invoice'}
                 </button>
               </div>
             </div>

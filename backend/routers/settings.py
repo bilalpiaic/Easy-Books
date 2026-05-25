@@ -1,9 +1,12 @@
 """Company settings (single key/value table per tenant) + business-model
 switching + module activation."""
 import json as _json
+import os
+import uuid
+from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlmodel import select
 
@@ -13,6 +16,8 @@ from models import Account, Settings, Tenant
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
+
+UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
 
 
 class SettingsUpdate(BaseModel):
@@ -25,6 +30,14 @@ class SettingsUpdate(BaseModel):
     bill_prefix: Optional[str] = None
     financial_statement_date: Optional[str] = None
     business_tagline: Optional[str] = None
+    # Company profile / address
+    logo_url: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
 
 
 @router.get("")
@@ -47,6 +60,33 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
         session.add(row)
     session.commit()
     return {"success": True}
+
+
+@router.post("/logo")
+async def upload_logo(session: SessionDep, user: WriteUserDep, file: UploadFile = File(...)):
+    """Upload a company logo. Stores as /uploads/{tenant_id}/{uuid}.{ext}."""
+    allowed = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
+    if file.content_type not in allowed:
+        raise HTTPException(400, "Only PNG, JPEG, GIF, WebP, SVG allowed")
+    ext = Path(file.filename or "logo.png").suffix or ".png"
+    tenant_dir = UPLOADS_DIR / str(user.tenant_id)
+    tenant_dir.mkdir(parents=True, exist_ok=True)
+    fname = f"{uuid.uuid4().hex}{ext}"
+    dest = tenant_dir / fname
+    contents = await file.read()
+    dest.write_bytes(contents)
+    logo_url = f"/uploads/{user.tenant_id}/{fname}"
+    # Persist logo_url in settings
+    row = session.exec(
+        select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == "logo_url")
+    ).first()
+    if row:
+        row.value = logo_url
+    else:
+        row = Settings(key="logo_url", value=logo_url, tenant_id=user.tenant_id)
+    session.add(row)
+    session.commit()
+    return {"logo_url": logo_url}
 
 
 # ── Business-model switching ─────────────────────────────────────────────────

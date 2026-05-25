@@ -32,6 +32,7 @@ def list_products(
     user: CurrentUserDep,
     search: str = "",
     product_type: str = "",
+    low_stock: bool = False,
     skip: int = 0,
     limit: int = 100,
 ):
@@ -42,6 +43,8 @@ def list_products(
         )
     if product_type:
         q = q.where(Product.product_type == product_type)
+    if low_stock:
+        q = q.where(Product.product_type == "stock", Product.stock_qty <= Product.reorder_level)
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(q.order_by(Product.name).offset(skip).limit(limit)).all()
     return {"total": total, "items": items}

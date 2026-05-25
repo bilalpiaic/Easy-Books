@@ -180,6 +180,14 @@ class JournalEntry(JournalEntryBase, table=True):
     account: Account = Relationship(back_populates="journal_entries")
 
 
+class PaymentTerm(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str                  # "NET30"
+    name: str                  # "Net 30 Days"
+    days: int                  # 30
+
+
 class Customer(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
@@ -189,6 +197,7 @@ class Customer(SQLModel, table=True):
     address: Optional[str] = None
     opening_balance: Money = money_col()
     is_active: bool = Field(default=True)
+    payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
 
 
 class Vendor(SQLModel, table=True):
@@ -200,6 +209,7 @@ class Vendor(SQLModel, table=True):
     address: Optional[str] = None
     opening_balance: Money = money_col()
     is_active: bool = Field(default=True)
+    payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
 
 
 class Invoice(SQLModel, table=True):
@@ -211,6 +221,8 @@ class Invoice(SQLModel, table=True):
     issue_date: str
     due_date: str
     description: Optional[str] = None
+    notes: Optional[str] = None              # customer-facing; printed on invoice
+    internal_memo: Optional[str] = None     # staff-only; not printed
     subtotal: Money = money_col()              # in document currency
     gst_rate: Money = money_col(default=Decimal("17"))
     gst_amount: Money = money_col()            # in document currency
@@ -221,6 +233,7 @@ class Invoice(SQLModel, table=True):
     ar_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
 
 
 class Bill(SQLModel, table=True):
@@ -232,6 +245,8 @@ class Bill(SQLModel, table=True):
     bill_date: str
     due_date: str
     description: Optional[str] = None
+    notes: Optional[str] = None              # vendor-facing; printed on bill
+    internal_memo: Optional[str] = None     # staff-only; not printed
     subtotal: Money = money_col()              # in document currency
     gst_rate: Money = money_col(default=Decimal("17"))
     gst_amount: Money = money_col()            # in document currency
@@ -242,6 +257,7 @@ class Bill(SQLModel, table=True):
     ap_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
 
 
 class PaymentReceived(SQLModel, table=True):
