@@ -51,6 +51,8 @@ function CustomerStatementPageInner({ params }: { params: Promise<{ id: string }
   const [data, setData] = useState<Statement | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [generatedDate, setGeneratedDate] = useState('')
+  useEffect(() => { setGeneratedDate(new Date().toLocaleDateString()) }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -209,7 +211,7 @@ function CustomerStatementPageInner({ params }: { params: Promise<{ id: string }
 
         {/* Footer */}
         <div className="px-6 py-4 bg-[#f6f3ee] border-t border-[#ede9e2] flex justify-between items-center">
-          <p className="text-xs text-black/50">Statement generated {new Date().toLocaleDateString()}</p>
+          <p className="text-xs text-black/50">Statement generated {generatedDate}</p>
           <div className="text-right">
             <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Balance Due</p>
             <p className={`text-xl font-bold font-mono ${closingNum > 0 ? 'text-red-600' : 'text-green-600'}`}>

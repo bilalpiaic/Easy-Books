@@ -55,6 +55,7 @@ export default function RecurringPage() {
   const [formError, setFormError] = useState('')
   const [running, setRunning] = useState(false)
   const [lastRunResult, setLastRunResult] = useState<string | null>(null)
+  const [now, setNow] = useState<Date | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -65,6 +66,7 @@ export default function RecurringPage() {
   }
 
   useEffect(() => {
+    setNow(new Date())
     load()
     apiFetch<{ items: Account[] }>('/api/accounts?limit=500')
       .then(d => setAccounts(d.items))
@@ -230,7 +232,7 @@ export default function RecurringPage() {
                     {FREQ_LABELS[t.frequency] ?? t.frequency}
                   </span>
                 </td>
-                <td className={`px-6 py-4 font-mono text-sm ${new Date(t.next_run) <= new Date() && t.is_active ? 'text-red-600 font-bold' : 'text-black/70'}`}>
+                <td className={`px-6 py-4 font-mono text-sm ${now && new Date(t.next_run) <= now && t.is_active ? 'text-red-600 font-bold' : 'text-black/70'}`}>
                   {t.next_run}
                 </td>
                 <td className="px-6 py-4 font-mono text-sm text-black/50">{t.last_run ?? '—'}</td>
