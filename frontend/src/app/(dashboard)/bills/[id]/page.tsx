@@ -2,8 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Printer, RotateCcw, Receipt, Pencil } from "lucide-react"
+import { Printer, RotateCcw, Receipt, Pencil, ChevronRight } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -50,7 +49,6 @@ const STATUS_TONE: Record<string, string> = {
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const router = useRouter()
   const [bill, setBill]   = useState<Bill | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy]   = useState(false)
@@ -86,10 +84,12 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </button>
+      <nav className="flex items-center gap-1.5 text-xs text-black/40">
+        <Link href="/bills" className="hover:text-black/70 transition-colors">Bills</Link>
+        <ChevronRight className="w-3 h-3" />
+        <span className="text-black/60">{bill.number}</span>
+      </nav>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           {bill.status === "draft" && (
             <Link

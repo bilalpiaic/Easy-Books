@@ -55,6 +55,13 @@ export default function BankAccounts() {
     setEditAccount(null); setForm(emptyForm); setFormError(''); setModalOpen(true)
   }
 
+  useEffect(() => {
+    const h = () => openAdd()
+    window.addEventListener("kbd:new", h)
+    return () => window.removeEventListener("kbd:new", h)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const openEdit = (ba: BankAccount) => {
     apiFetch<{ total: number; items: CoaAccount[] }>('/api/accounts?limit=500')
       .then(d => setCoaAccounts(d.items.filter(a => a.type === 'Asset')))

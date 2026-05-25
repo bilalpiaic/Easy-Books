@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { Suspense, use, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Printer } from 'lucide-react'
@@ -42,7 +42,7 @@ function defaultRange() {
   return { from: from.toISOString().split('T')[0], to: to.toISOString().split('T')[0] }
 }
 
-export default function CustomerStatementPage({ params }: { params: Promise<{ id: string }> }) {
+function CustomerStatementPageInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const searchParams = useSearchParams()
   const r0 = defaultRange()
@@ -220,4 +220,8 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ id
       </div>
     </div>
   )
+}
+
+export default function CustomerStatementPage({ params }: { params: Promise<{ id: string }> }) {
+  return <Suspense><CustomerStatementPageInner params={params} /></Suspense>
 }

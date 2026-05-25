@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2, ShieldCheck } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
@@ -46,7 +46,7 @@ function useAuthedImage(path: string | null | undefined): string | null {
   return url
 }
 
-export default function ProfilePage() {
+function ProfilePageInner() {
   const params = useSearchParams()
   const forcePwd = params.get("changePassword") === "1"
 
@@ -278,4 +278,8 @@ function AccountInfoCard({ me }: { me: Me }) {
       </dl>
     </Card>
   )
+}
+
+export default function ProfilePage() {
+  return <Suspense><ProfilePageInner /></Suspense>
 }

@@ -1,12 +1,42 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Sidebar from "@/components/Sidebar"
 import Header from "@/components/Header"
 import BottomNav from "@/components/BottomNav"
 import { isAuthenticated } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
+
+const TITLE_MAP: Record<string, string> = {
+  "/dashboard":        "Dashboard",
+  "/entry":            "New Entry",
+  "/journal":          "Journal",
+  "/recurring":        "Recurring",
+  "/ledger":           "General Ledger",
+  "/coa":              "Chart of Accounts",
+  "/invoices":         "Invoices",
+  "/customers":        "Customers",
+  "/payments-received":"Payments Received",
+  "/bills":            "Bills",
+  "/vendors":          "Vendors",
+  "/bill-payments":    "Bill Payments",
+  "/products":         "Products",
+  "/bank-accounts":    "Bank Accounts",
+  "/reconciliations":  "Reconciliations",
+  "/trial-balance":    "Trial Balance",
+  "/pl":               "Income Statement",
+  "/balance":          "Balance Sheet",
+  "/cashflow":         "Cash Flow",
+  "/tax":              "Tax Reports",
+  "/profile":          "My Profile",
+  "/team":             "Team",
+  "/workflow":         "Workflow",
+  "/guide":            "User Guide",
+  "/settings":         "Settings",
+  "/manufacturing":    "Manufacturing",
+  "/telecom":          "Telecom",
+}
 
 const LS_KEY_PINNED = "eb_sidebar_pinned"
 
@@ -15,7 +45,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const router = useRouter()
+  const router   = useRouter()
+  const pathname = usePathname()
   const [open, setOpen]     = useState(false)
   const [pinned, setPinned] = useState(false)
 
@@ -36,6 +67,28 @@ export default function DashboardLayout({
       setOpen(true)
     }
   }, [router])
+
+  // Browser tab title — map pathname prefix to human-readable page name
+  useEffect(() => {
+    const match = Object.entries(TITLE_MAP).find(([path]) =>
+      pathname === path || pathname.startsWith(path + "/")
+    )
+    document.title = match ? `${match[1]} — Easy-Books` : "Easy-Books"
+  }, [pathname])
+
+  // Keyboard shortcut: press N (outside inputs) → open-new-modal event
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) return
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent("kbd:new"))
+      }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [])
 
   const onOpen        = useCallback(() => setOpen(true), [])
   const onClose       = useCallback(() => setOpen(false), [])

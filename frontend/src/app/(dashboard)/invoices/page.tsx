@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Plus, Download, Printer } from 'lucide-react'
+import { Plus, Download, Printer, FileSignature } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import FilterBar from '@/components/FilterBar'
@@ -73,7 +73,7 @@ const statusColors: Record<string, string> = {
 const PAGE_SIZE = 50
 const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 
-export default function Invoices() {
+function InvoicesInner() {
   const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [total, setTotal] = useState(0)
@@ -136,6 +136,13 @@ export default function Invoices() {
     setFormError('')
     setModalOpen(true)
   }
+
+  useEffect(() => {
+    const h = () => openCreate()
+    window.addEventListener("kbd:new", h)
+    return () => window.removeEventListener("kbd:new", h)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const openEdit = (inv: Invoice) => {
     loadModalData()
@@ -385,11 +392,14 @@ export default function Invoices() {
                 <SkeletonRow cols={8} />
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
-                    <p className="text-black/40 mb-3">No invoices found.</p>
-                    <button onClick={openCreate} className="text-sm text-[#b8943f] hover:underline font-medium">
-                      + Create your first invoice
-                    </button>
+                  <td colSpan={8} className="px-6 py-16 text-center">
+                    <div className="inline-flex flex-col items-center gap-3">
+                      <FileSignature className="w-10 h-10 text-black/20" />
+                      <p className="text-sm text-black/40 font-medium">No invoices yet</p>
+                      <button onClick={openCreate} className="px-4 py-2 bg-[#b8943f] text-white text-sm font-medium rounded-lg hover:bg-[#a07835] transition-colors">
+                        + Create Invoice
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : invoices.map(inv => (
@@ -668,4 +678,8 @@ export default function Invoices() {
       )}
     </div>
   )
+}
+
+export default function Invoices() {
+  return <Suspense><InvoicesInner /></Suspense>
 }

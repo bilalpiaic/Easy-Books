@@ -2,8 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Printer, CheckCircle } from "lucide-react"
+import { Printer, CheckCircle, ChevronRight } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtPKR } from "@/lib/utils"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -28,7 +27,6 @@ interface Payment {
 
 export default function PaymentReceivedDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const router = useRouter()
   const [pay, setPay] = useState<Payment | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
@@ -44,10 +42,12 @@ export default function PaymentReceivedDetail({ params }: { params: Promise<{ id
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </button>
+      <nav className="flex items-center gap-1.5 text-xs text-black/40">
+        <Link href="/payments-received" className="hover:text-black/70 transition-colors">Payments Received</Link>
+        <ChevronRight className="w-3 h-3" />
+        <span className="text-black/60">Receipt #{pay.id}</span>
+      </nav>
+      <div className="flex justify-end">
         <Link href={`/payments-received/${pay.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
           <Printer className="w-4 h-4" /> Print
         </Link>

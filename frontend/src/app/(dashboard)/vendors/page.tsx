@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Search, Trash2, Download, Printer } from 'lucide-react'
+import { Plus, Search, Trash2, Download, Printer, Truck } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import BulkActionBar from '@/components/BulkActionBar'
@@ -69,6 +69,14 @@ export default function Vendors() {
   useEffect(load, [page, search])
 
   const openAdd = () => { setEditVendor(null); setForm(emptyForm); setFormError(''); setModalOpen(true) }
+
+  useEffect(() => {
+    const h = () => openAdd()
+    window.addEventListener("kbd:new", h)
+    return () => window.removeEventListener("kbd:new", h)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const openEdit = (v: Vendor) => {
     setEditVendor(v)
     setForm({ name: v.name, email: v.email ?? '', phone: v.phone ?? '', address: v.address ?? '', opening_balance: String(v.opening_balance) })
@@ -182,7 +190,17 @@ export default function Vendors() {
             {isLoading ? (
               <SkeletonRow cols={7} />
             ) : vendors.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-8 text-center text-black/40">No vendors found.</td></tr>
+              <tr>
+                <td colSpan={7} className="px-6 py-16 text-center">
+                  <div className="inline-flex flex-col items-center gap-3">
+                    <Truck className="w-10 h-10 text-black/20" />
+                    <p className="text-sm text-black/40 font-medium">No vendors yet</p>
+                    <button onClick={openAdd} className="px-4 py-2 bg-[#b8943f] text-white text-sm font-medium rounded-lg hover:bg-[#a07835] transition-colors">
+                      + Add Vendor
+                    </button>
+                  </div>
+                </td>
+              </tr>
             ) : vendors.map(v => (
               <tr key={v.id} className={`hover:bg-[#f6f3ee]/50 ${selectedIds.has(v.id) ? 'bg-[#ffd966]/10' : ''}`}>
                 <td className="px-4 py-4 w-10">

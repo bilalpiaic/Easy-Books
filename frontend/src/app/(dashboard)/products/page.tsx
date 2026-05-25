@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Plus, Search, Trash2, Download, Package, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
@@ -62,7 +62,7 @@ function stockBadge(p: Product) {
   return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">In Stock</span>
 }
 
-export default function Products() {
+function ProductsInner() {
   const searchParams = useSearchParams()
   const [lowStockOnly, setLowStockOnly] = useState(() => searchParams.get('low_stock') === 'true')
   const [products, setProducts] = useState<Product[]>([])
@@ -109,6 +109,14 @@ export default function Products() {
   useEffect(load, [page, search, lowStockOnly])
 
   const openAdd = () => { setEditProduct(null); setForm(emptyForm); setFormError(''); setModalOpen(true) }
+
+  useEffect(() => {
+    const h = () => openAdd()
+    window.addEventListener("kbd:new", h)
+    return () => window.removeEventListener("kbd:new", h)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const openEdit = (p: Product) => {
     setEditProduct(p)
     setForm({
@@ -265,7 +273,17 @@ export default function Products() {
             {isLoading ? (
               <SkeletonRow cols={9} />
             ) : products.length === 0 ? (
-              <tr><td colSpan={9} className="px-6 py-8 text-center text-black/40">No products found.</td></tr>
+              <tr>
+                <td colSpan={9} className="px-6 py-16 text-center">
+                  <div className="inline-flex flex-col items-center gap-3">
+                    <Package className="w-10 h-10 text-black/20" />
+                    <p className="text-sm text-black/40 font-medium">No products yet</p>
+                    <button onClick={openAdd} className="px-4 py-2 bg-[#b8943f] text-white text-sm font-medium rounded-lg hover:bg-[#a07835] transition-colors">
+                      + Add Product
+                    </button>
+                  </div>
+                </td>
+              </tr>
             ) : products.map(p => (
               <tr key={p.id} className={`hover:bg-[#f6f3ee]/50 ${selectedIds.has(p.id) ? 'bg-[#ffd966]/10' : p.product_type === 'stock' && p.stock_qty <= 0 ? 'bg-red-50/30' : p.product_type === 'stock' && p.stock_qty <= p.reorder_level ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-4 py-4 w-10">
@@ -410,4 +428,8 @@ export default function Products() {
       )}
     </div>
   )
+}
+
+export default function Products() {
+  return <Suspense><ProductsInner /></Suspense>
 }
