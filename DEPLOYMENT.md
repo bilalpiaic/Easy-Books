@@ -250,7 +250,7 @@ Once production is live, demo tenants are auto-created on the first database ini
 
 **Option B: Direct database seeding (dev/test only)**
 - In your local backend, run: `cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo`
-- This populates all five demo tenants with 50+ customers, vendors, invoices, bills, and JVs each
+- This populates all five demo tenants with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates, and 60+ journal entries per tenant
 - **WARNING:** This approach bypasses the API and should only be used in dev/staging — it does not generate audit logs or trigger webhooks
 
 ---
@@ -291,5 +291,13 @@ All-in: **$0/month** to get started. Upgrade path is clean once you exceed limit
 
 ---
 
-**Last updated:** 2026-05-24
+---
+
+## 14. ROUTER ORDERING NOTE
+
+FastAPI matches routes in registration order. If you add new named sub-routes under a resource (e.g. `/api/invoices/aging`, `/api/invoices/bulk`), ensure those routers are mounted **before** the parameterized router (`/{invoice_id}`) in `backend/main.py`. In the current codebase this means `aging.router` is listed before `invoices.router` and `bills.router` in the `_ROUTERS` list.
+
+---
+
+**Last updated:** 2026-05-25
 **Branch:** `main`

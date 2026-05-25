@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-05-21 · **Branch:** `saas-transition-foundation`
+> **Last updated:** 2026-05-25 · **Branch:** `main`
 
 ---
 
@@ -933,12 +933,14 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
   cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
   ```
 - Each demo tenant receives:
-  - 12+ Customers (with distinct names like "Alpha Retail Group", "Cascade Holdings", etc.)
-  - 12+ Vendors (suppliers with names like "Acme Supplies", "Crescent Logistics", etc.)
-  - 5–27 Products (depending on model: services, trader stock, or manufacturing raw materials + finished goods)
-  - 12 Invoices + 12 Bills (full transaction history with GL postings)
-  - 40–65 Journal entries (accounting records)
-  - Manufacturing-specific data: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders (for manufacturing demo only)
+  - 25 Customers + 25 Vendors with full contact details
+  - 100 Invoices + 100 Bills spread across the past 365 days (never future-dated)
+  - 70 Payments Received + 70 Bill Payments with multi-invoice allocations
+  - 3 Bank Accounts (Current, Savings, Payroll) with reconciliation-ready balances
+  - 4 Payment Terms (Due on Receipt, Net 15, Net 30, Net 60)
+  - 6 Recurring Templates across all frequencies (daily → yearly)
+  - 60+ Manual Journal Entries cycling through every COA account
+  - Manufacturing-specific: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders (manufacturing tenant only)
 - Script is **idempotent**: re-running it will reuse existing demo tenants and skip entities already present.
 
 **Use cases:**
@@ -950,26 +952,53 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 
 ## 19. OPEN ITEMS & ROADMAP
 
+### Sprint 1–6 Shipped ✅
+
+| Sprint | Feature | Status |
+|--------|---------|--------|
+| 1.2 | Multi-invoice payment allocation UI (AR/AP linking) | ✅ Shipped |
+| 1.4 | Dashboard cash tile + AP-due-this-week tile | ✅ Shipped |
+| 1.5 | Column sorting + advanced filters on list pages | ✅ Shipped |
+| 1.6 | Overdue invoice/bill auto-flag on list fetch | ✅ Shipped |
+| 2.1 | Inline notes + internal memo on invoices/bills | ✅ Shipped |
+| 2.2 | Company logo upload + address in Settings | ✅ Shipped |
+| 2.3 | Payment terms (Net 30 etc.) + auto due-date | ✅ Shipped |
+| 3.1 | Bulk actions (mark-sent, void, delete) on list pages | ✅ Shipped |
+| 3.2 | Recurring journal template UI | ✅ Shipped |
+| 3.3 | Low-stock filter link from dashboard | ✅ Shipped |
+| 3.4 | Customer + Vendor Statement pages | ✅ Shipped |
+| 5.1 | Onboarding checklist on dashboard | ✅ Shipped |
+| 5.2 | Audit log tabs (Timeline / By User / Export CSV) | ✅ Shipped |
+| 5.3 | Document number format with `{YYYY}` / `{MM}` tokens | ✅ Shipped |
+| 6.1 | Browser tab `<title>` via pathname mapping | ✅ Shipped |
+| 6.2 | Empty-state CTAs with icon + button on all list pages | ✅ Shipped |
+| 6.3 | Breadcrumb nav on all detail pages | ✅ Shipped |
+| 6.4 | Keyboard shortcut `N` for New on all list pages | ✅ Shipped |
+| Seed | Demo data upgrade: 100 invoices, 100 bills, full-year spread | ✅ Shipped |
+
+### Still Pending
+
 **Manufacturing track (V2 follow-ups)**
 - Production-order **reversal helper** (currently requires manual JE reversal).
-- **Overhead / labour absorption** at PO start (currently only own_stock material flows through WIP; overhead is invoiced at bill time via rate plan but doesn't capitalise into WIP).
+- **Overhead / labour absorption** at PO start.
 - **Partial delivery** endpoint (currently one delivery = full output_qty).
-- **Damage / scrap** endpoint to write inventory off cleanly (currently manual JV).
+- **Damage / scrap** endpoint for inventory write-off.
 - **Multi-output BoMs** (joint-product manufacturing).
 - **By-product handling** with separate cost allocation.
 
 **Core platform**
-- **FX revaluation** at period end (unrealised gain/loss on open AR/AP).
+- **FX revaluation** at period end (unrealised gain/loss on open AR/AP via `services/fx.py`).
 - **Multi-currency on payments** (currently invoice currency is snapshot at issue; payments assumed in base currency).
-- **Daily overdue sweep** (`Invoice.status = 'overdue'` is not currently written by a cron).
-- **Email send**, **PDF generation**, **payment-link integration** (Stripe / Razorpay).
+- **Daily overdue sweep cron** (`Invoice.status = 'overdue'` is written on each list fetch but not via a scheduled task).
+- **Email send** (SMTP/SendGrid) and **payment-link integration** (Stripe / Razorpay).
+- **Server-side PDF generation** via WeasyPrint (browser print-to-PDF currently works; server-side adds download button).
 - **E2E tests** (Playwright) — login, signup wizard, full PO lifecycle in the UI.
-- **Frontend allocations UI** — currently allocations work via API but the UI hasn't surfaced a multi-invoice allocator.
 - **Currency selector** in the invoice/bill forms (currently uses base currency).
+- **IFRS 15 Deferred Revenue** (requires `DeliveryEvent` model and recognition schedule).
 
 **Developer ergonomics**
-- **Production fixtures** for a one-click seeded demo tenant.
 - **Storybook** for guidance components + form patterns.
+- **Alembic migrations** to replace `create_all()` for production schema management.
 
 ---
 

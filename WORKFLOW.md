@@ -54,7 +54,7 @@
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
-| Demo tenants | 5 pre-seeded: simple/services/trader/manufacturing/telecom_franchise (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 50+ records per type by `dev.sh` |
+| Demo tenants | 5 pre-seeded: simple/services/trader/manufacturing/telecom_franchise (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings` |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
@@ -300,39 +300,51 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 ```
 
 Each demo tenant receives:
-- 12+ Customers (Alpha Retail Group, Beacon Boutiques, etc.)
-- 12+ Vendors (Acme Supplies, Crescent Logistics, etc.)
-- 5–27 Products (model-dependent)
-- 12 Invoices + 12 Bills (full workflow examples)
-- 40–65 Journal entries (GL postings)
-- Manufacturing-specific: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders
+- 25 Customers + 25 Vendors (with full contact info)
+- 100 Invoices + 100 Bills (spread across past 365 days, never future-dated)
+- 70 Payments Received + 70 Bill Payments (multi-invoice allocations)
+- 3 Bank Accounts (Current, Savings, Payroll)
+- 4 Payment Terms (Due on Receipt, Net 15, Net 30, Net 60)
+- 6 Recurring Templates across all frequencies
+- 60+ Manual Journal Entries cycling through all CoA accounts
+- Manufacturing tenant: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders
 
 **Script is idempotent:** re-running skips entities already present.
 
-### Company Branding Customization
+### Company Branding & Settings
 
-Every tenant can customize its branding via `/dashboard/settings`:
+Every tenant customises its profile via `/dashboard/settings`:
 
 | Setting | Default | Display Location |
 |---|---|---|
-| Company Name | "My Company" | Header (left), all reports, print header |
-| Business Tagline | "Easy-Books · Double-Entry Accounting" | Header (below company name), printed documents |
-| Tax ID | "" | Reports footer, compliance documents |
+| Company Name | "My Company" | Header, all reports, print header |
+| Business Tagline | "Easy-Books · Double-Entry Accounting" | Header + printed documents |
+| Company Logo | — | Print header (img tag, served from `/uploads/`) |
+| Address Lines, City, Country | — | Print header (**IAS 1.49** disclosure) |
+| Phone, Website | — | Print header footer |
+| Tax ID | "" | Reports footer |
 | Currency | "PKR" | All monetary fields, reports |
 | Fiscal Year Start | "January" | Period definitions, year-end close |
+| Invoice / Bill number format | `{prefix}-{seq:04d}` | Supports `{YYYY}` and `{MM}` tokens, e.g. `INV-{YYYY}-{seq:04d}` → `INV-2026-0001` |
+| Default GL Accounts | AR=1100, AP=2000, Revenue=4000, COGS=5010 | Auto-selected on invoice/bill create |
 
-**Example:**  
-- Company Name: "Garment Loop"  
-- Tagline: "Premium Textiles Manufacturing"  
-- Tax ID: "12-3456789"  
+**Payment Terms** — managed via `/settings` → Payment Terms tab:
 
-Result in Header:
-```
-Garment Loop
-Premium Textiles Manufacturing
-```
+| Code | Name | Days |
+|---|---|---|
+| `RECEIPT` | Due on Receipt | 0 |
+| `NET15` | Net 15 Days | 15 |
+| `NET30` | Net 30 Days | 30 |
+| `NET60` | Net 60 Days | 60 |
 
-All settings are persisted per-tenant via `PATCH /api/settings`; no additional backend logic required (**IAS 1.49** entity consistency).
+Assign a term to a customer or vendor; when creating an invoice/bill the due date auto-calculates (`issue_date + term.days`).
+
+**Logo upload flow:**
+1. Go to `/settings` → Company Profile → click logo upload zone
+2. `POST /api/settings/logo` (multipart) → stores file in `backend/uploads/`
+3. Setting key `logo_url` = `/uploads/<filename>`; `PrintHeader` renders `<img>` at top of every printed document
+
+All settings are persisted per-tenant via `PATCH /api/settings` (**IAS 1.49** entity consistency).
 
 ---
 
@@ -790,7 +802,7 @@ CRUD: GET/POST/PUT /api/tax-codes
 
 ### 5.3 Payment Allocations
 
-A single payment can settle multiple invoices/bills with partial amounts:
+A single payment can settle multiple invoices/bills with partial amounts. The allocation modal (on `/payments-received` and `/bill-payments`) shows all open invoices/bills for the counterparty with their outstanding balance and an editable "Amount to Apply" column. A running "Total Applied vs Payment" counter warns if amounts don't balance.
 
 ```
 PaymentReceived (amount=1000)
@@ -830,6 +842,12 @@ Worker endpoint: POST /api/recurring/run-due
 ```
 
 `monthly` and longer frequencies clamp the day-of-month to the last valid day of the target month (e.g. 31 Jan → 28 Feb). Idempotent per `(template, next_run)` — running it twice for the same date is a no-op the second time because `next_run` advances after the first call.
+
+**Frontend** — `/recurring` page:
+- Lists all templates (name, frequency, next_run, last_run, active badge)
+- "Create Recurring" button → modal with name, frequency dropdown, next_run picker, and a GL line-item table
+- Per-row: Edit, Deactivate toggle, "Run Now" (calls `POST /api/recurring/run-due` with dry_run=false for the single template)
+- Overdue templates (next_run <= today) highlighted in red
 
 ---
 
@@ -975,6 +993,44 @@ Every node in the graph has at least one inbound and one outbound link — no de
 | Reversal (any) | Mirror of original | Mirror of original | Unwinds derived state per §5.6 |
 
 **Universal invariant:** ∑Dr = ∑Cr exact (`Decimal`). Backend rejects unbalanced JVs at the posting service.
+
+---
+
+### 5.8 Bulk Actions
+
+List pages (`/invoices`, `/bills`, `/customers`, `/vendors`, `/products`) support checkbox-based bulk operations via a floating `BulkActionBar` that appears when ≥1 row is checked.
+
+| Page | Available bulk actions |
+|------|----------------------|
+| Invoices | Mark as Sent, Void, Delete (draft only) |
+| Bills | Mark as Received, Void, Delete (draft only) |
+| Customers | Delete (no outstanding balance) |
+| Vendors | Delete (no outstanding balance) |
+| Products | Delete (zero stock) |
+
+**Backend:** `POST /api/invoices/bulk` / `POST /api/bills/bulk` accept `{ ids: [int], action: "mark_sent"|"void"|"delete" }`. Guards ensure only `draft` invoices/bills can be deleted; `void` transitions status to `"void"` without GL reversal (the document never posted).
+
+---
+
+### 5.9 Customer & Vendor Statements
+
+A statement is a period summary sent to a counterparty confirming their account standing.
+
+**Customer Statement** — `GET /api/customers/{id}/statement?from_date=&to_date=`:
+```json
+{
+  "customer": { "id": 1, "name": "Alpha Retail Group", ... },
+  "period": { "from": "2026-01-01", "to": "2026-05-25" },
+  "opening_balance": "0.00",
+  "invoices": [ { "number": "INV-0001", "date": "...", "total": "...", "outstanding": "..." } ],
+  "payments": [ { "date": "...", "amount": "..." } ],
+  "closing_balance": "15000.00"
+}
+```
+
+**Vendor Statement** mirrors the above but uses bills + bill-payments.
+
+Frontend pages at `/customers/[id]/statement` and `/vendors/[id]/statement` render a print-friendly statement with date-range pickers, summary tiles (Opening Balance / Invoices Billed / Closing Balance), line-item tables for documents and payments, and a Print button. Accessible from the customer/vendor ledger page via "Print Statement" button.
 
 ---
 

@@ -66,8 +66,8 @@ app.add_middleware(
 # surface.
 _ROUTERS = [
     auth.router, settings.router, accounts.router, customers.router,
-    vendors.router, products.router, invoices.router, bills.router,
-    payments.router, payment_terms.router, aging.router, bank_accounts.router,
+    vendors.router, products.router, aging.router, invoices.router, bills.router,
+    payments.router, payment_terms.router, bank_accounts.router,
     reconciliations.router, periods.router, audit.router,
     transactions.router, reports.router, imports.router,
     tax_codes.router, recurring.router, exchange_rates.router,

@@ -25,7 +25,7 @@ For one-shot dev (backend + frontend + demo seed together), use `./dev.sh` at th
 | `uv run pytest -v` | Verbose |
 | `uv run pytest tests/test_auth.py` | Single file |
 | `uv run pytest -k test_name` | Single test |
-| `PYTHONPATH=. .venv/bin/python -m scripts.seed_demo` | Seed all 5 demo tenants with 50+ records per type |
+| `PYTHONPATH=. uv run python -m scripts.seed_demo` | Seed all 5 demo tenants with 100 invoices, 100 bills, 70 payments, 25 customers/vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
 
 ## Structure
 
@@ -54,7 +54,7 @@ backend/
 │   ├── csrf.py          # Double-submit CSRF middleware
 │   └── idempotency.py   # Response-cache middleware
 ├── scripts/
-│   └── seed_demo.py     # Idempotent seeder — 50+ per entity per tenant
+│   └── seed_demo.py     # Idempotent seeder — 100 invoices/bills, 70 payments, 25 customers/vendors per tenant
 └── tests/
 ```
 

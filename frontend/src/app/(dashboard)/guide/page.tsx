@@ -7,7 +7,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory, Link2, Radio,
+  Factory, Link2, Radio, Keyboard, ListChecks,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -39,6 +39,8 @@ const TABS: Tab[] = [
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
   { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg"      },
   { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom"  },
+  { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
+  { id: "tips-shortcuts",   label: "Tips & Shortcuts",        icon: Keyboard,       shortLabel: "Tips"     },
 ]
 
 // ── Callout components ────────────────────────────────────────────────────────
@@ -153,9 +155,23 @@ function GettingStartedPanel() {
       <StepList steps={[
         "Go to Settings from the left sidebar.",
         "Confirm your company name, base currency, and fiscal year start date.",
-        "Upload a company logo (optional) — it appears on printed invoices and reports.",
+        "Upload a company logo — drag-and-drop or click the logo zone. It appears on all printed documents.",
+        "Fill in your address, phone, and website — these appear on printed invoices per IAS 1.49.",
+        "Set up Payment Terms (Net 30, Net 15, etc.) so due dates calculate automatically on new invoices.",
         "If you picked manufacturing, you'll already have MAIN, GODOWN, and WIP stock locations seeded.",
       ]} />
+
+      <SectionHeading>Onboarding Checklist</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        New tenants see a Setup Checklist card on the Dashboard. Complete each step to dismiss it:
+      </p>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Logo uploaded</b> — Settings → Company Profile → logo zone</li>
+        <li><b>Payment terms set</b> — Settings → Payment Terms → add at least one</li>
+        <li><b>First invoice created</b> — Invoices → New Invoice</li>
+        <li><b>Bank account added</b> — Banking → Bank Accounts → New Account</li>
+        <li><b>Team member invited</b> — Settings → Team → Invite User</li>
+      </ul>
 
       <SectionHeading>Your First Transaction</SectionHeading>
       <StepList steps={[
@@ -326,11 +342,20 @@ function InvoicingPanel() {
 
       <SectionHeading>Create an Invoice</SectionHeading>
       <StepList steps={[
-        "Go to Invoices in the sidebar, then click New Invoice.",
-        "Select a customer (or create one inline). Set the invoice date and due date.",
+        "Go to Invoices in the sidebar, then click New Invoice (or press N).",
+        "Select a customer (or create one inline). Set the invoice date.",
+        "Choose a Payment Term (Net 30, etc.) — the due date fills in automatically. You can still override it manually.",
         "Add line items: choose a product or type a description, enter quantity and unit price.",
-        "Apply tax rates if applicable — the system calculates tax automatically.",
-        "Click Save. The invoice moves to 'Unpaid' status and GL entries are posted.",
+        "Add a customer-facing Note (printed on invoice) or an internal memo (staff-only).",
+        "Click Save. GL entries post immediately and the invoice is marked sent.",
+      ]} />
+
+      <SectionHeading>Draft Editing</SectionHeading>
+      <StepList steps={[
+        "If an invoice is in 'draft' status, click Edit in the toolbar to reopen the create modal pre-filled.",
+        "Change any field — lines, prices, dates, notes.",
+        "Save. The old GL entries are reversed and new ones are posted.",
+        "Once posted (status changes from draft), editing is blocked. Use Reverse to correct a posted invoice.",
       ]} />
 
       <SectionHeading>Receive a Payment</SectionHeading>
@@ -676,20 +701,17 @@ function PaymentsPanel() {
         the <em>outstanding</em> balance, never the gross.
       </p>
 
-      <SectionHeading>Receive a Payment Against One Invoice</SectionHeading>
+      <SectionHeading>Multi-Invoice Allocation Modal</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        The New Payment modal shows a table of all open invoices for the selected customer (or bills for a vendor). Each row shows Invoice#, Due Date, Total, Outstanding, and an editable <b>Amount to Apply</b> column.
+      </p>
       <StepList steps={[
-        "Go to Payments Received and click New Payment.",
-        "Set payment date, amount, and method (cash, bank, cheque, etc.).",
-        "Choose the invoice in Allocations and set the allocated amount.",
-        "Save — Cash/Bank is debited, AR is credited, the allocation row is written, and the invoice status flips to paid or partial.",
-      ]} />
-
-      <SectionHeading>Split One Payment Across Multiple Invoices</SectionHeading>
-      <StepList steps={[
+        "Go to Payments Received (or Bill Payments) and click New Payment.",
+        "Select the customer/vendor. The allocation table populates with their open invoices/bills.",
         "Enter the gross payment amount at the top.",
-        "Add one allocation row per invoice — choose the invoice, set its share of the amount.",
-        "Sum of allocations cannot exceed the payment amount (server enforces 400 otherwise).",
-        "Each invoice's status is recomputed independently after the save.",
+        "In the allocation table, tick the invoices to settle and enter an amount for each.",
+        "A running 'Total Applied vs Payment Amount' counter turns red if you over- or under-allocate.",
+        "Save — GL posts, allocation rows are written, and each invoice status updates independently.",
       ]} />
 
       <SectionHeading>What the GL Looks Like</SectionHeading>
@@ -805,11 +827,12 @@ function RecurringPanel() {
 
       <SectionHeading>Creating a Template</SectionHeading>
       <StepList steps={[
-        "Go to Recurring → New Template.",
-        "Name it (e.g. Monthly office rent).",
-        "Choose frequency: daily, weekly, monthly, quarterly, or yearly.",
-        "Set next_run — the first date it should fire (ISO yyyy-mm-dd).",
-        "Add the journal entries that will post each cycle — both sides must balance.",
+        "Go to Accounting → Recurring in the sidebar (or press N on that page).",
+        "Click Create Recurring.",
+        "Name it (e.g. Monthly office rent) and choose frequency: daily, weekly, monthly, quarterly, or yearly.",
+        "Set next run date — the first date it should fire.",
+        "Add GL line items in the entries table — both debit and credit totals must match.",
+        "Save. The template appears in the list as active.",
       ]} />
 
       <SectionHeading>Running Due Templates</SectionHeading>
@@ -1412,6 +1435,183 @@ function TelecomFranchisePanel() {
   )
 }
 
+function BulkStatementsPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Bulk actions let you update many records at once. Customer and vendor statements give
+        counterparties a period summary of their account standing, ready to print or email.
+      </p>
+
+      <SectionHeading>Bulk Actions on List Pages</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Every list page (Invoices, Bills, Customers, Vendors, Products) has a checkbox column.
+        Select rows and a floating <b>Bulk Action Bar</b> appears at the bottom of the screen.
+      </p>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Page</th>
+              <th className="px-4 py-2.5 text-left">Available actions</th>
+              <th className="px-4 py-2.5 text-left">Guard</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["Invoices", "Mark as Sent, Void, Delete", "Delete only for draft; Void sets status=void without GL reversal"],
+              ["Bills", "Mark as Received, Void, Delete", "Same guards as invoices"],
+              ["Customers", "Delete", "No outstanding balance"],
+              ["Vendors", "Delete", "No outstanding balance"],
+              ["Products", "Delete", "Zero stock qty"],
+            ].map(([page, actions, guard]) => (
+              <tr key={page} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{page}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{actions}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/55">{guard}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Customer Statement</SectionHeading>
+      <StepList steps={[
+        "Open a customer's ledger page (Customers → [name] → View Ledger).",
+        "Click Print Statement in the toolbar.",
+        "Set the date range (defaults to current year).",
+        "The statement shows: opening balance, invoices billed in period, payments received, closing balance.",
+        "Click Print to send to the browser print dialog (save as PDF from there).",
+      ]} />
+
+      <SectionHeading>Vendor Statement</SectionHeading>
+      <StepList steps={[
+        "Open a vendor's ledger page (Vendors → [name] → View Ledger).",
+        "Click Print Statement in the toolbar.",
+        "Set the date range.",
+        "The statement shows: opening balance, bills received in period, payments made, closing balance.",
+        "Closing balance > 0 means you still owe the vendor.",
+      ]} />
+
+      <TipCallout>
+        Statements are point-in-time snapshots — the date range only filters which documents
+        appear in the body. The opening balance is computed from all activity <em>before</em> the
+        from-date, so the numbers always reconcile with the ledger.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Bulk-voiding an invoice that was already paid — the GL entries stay; only the status changes. Use Reverse on the payment first if you need to fully unwind.</p>
+        <p>Bulk-deleting draft invoices that are part of a recurring template — the template still fires next cycle and creates new ones.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function TipsShortcutsPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Quick tips to work faster in Easy-Books — keyboard shortcuts, list-page features,
+        and document-number customisation.
+      </p>
+
+      <SectionHeading>Keyboard Shortcuts</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Key</th>
+              <th className="px-4 py-2.5 text-left">Action</th>
+              <th className="px-4 py-2.5 text-left">Works on</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["N", "Open New / Create modal", "Invoices, Bills, Customers, Vendors, Products, Journal, Bank Accounts"],
+              ["Esc", "Close the currently open modal", "All modals"],
+            ].map(([key, action, where]) => (
+              <tr key={key} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5"><code className="font-mono text-[11px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5">{key}</code></td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{action}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/55">{where}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <TipCallout>
+        The <code className="font-mono text-[11px]">N</code> shortcut is suppressed when focus is inside a text input, textarea, or select — so you can type without triggering it.
+      </TipCallout>
+
+      <SectionHeading>Document Number Format</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Go to <b>Settings → Document Numbers</b> to customise the invoice and bill number format.
+        Supported tokens:
+      </p>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+              <th className="px-4 py-2.5 text-left">Token</th>
+              <th className="px-4 py-2.5 text-left">Meaning</th>
+              <th className="px-4 py-2.5 text-left">Example</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {[
+              ["{prefix}",         "The prefix you set (INV, BILL, etc.)", "INV"],
+              ["{seq:04d}",        "4-digit zero-padded sequence number",  "0042"],
+              ["{YYYY}",           "4-digit year",                         "2026"],
+              ["{MM}",             "2-digit month",                        "05"],
+            ].map(([token, meaning, example]) => (
+              <tr key={token} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-mono text-[#b8943f]">{token}</td>
+                <td className="px-4 py-2.5 text-[#1a1814]/70">{meaning}</td>
+                <td className="px-4 py-2.5 font-mono text-[#1a1814]/55">{example}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-[#1a1814]/65 mt-2">
+        Example format: <code className="font-mono text-[11px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5">INV-{"{YYYY}"}-{"{seq:04d}"}</code> → <b>INV-2026-0001</b>
+      </p>
+
+      <SectionHeading>Sorting & Filtering Lists</SectionHeading>
+      <StepList steps={[
+        "Click any column header with an arrow icon to sort ascending or descending.",
+        "Use the filter bar above the list to combine status, date range, and search filters.",
+        "Filters and sort are applied together — e.g. all overdue invoices sorted by amount.",
+        "Low-stock products: Dashboard → Low Stock tile links directly to Products filtered by low_stock=true.",
+      ]} />
+
+      <SectionHeading>Breadcrumb Navigation</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Every detail page (invoice, bill, customer ledger, etc.) shows a breadcrumb nav at the top:
+      </p>
+      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 mt-2">
+        Invoices › INV-2026-0042
+      </div>
+      <p className="text-xs text-[#1a1814]/55 mt-1.5">
+        Clicking the parent segment always goes to the list page — even if you navigated directly via a URL.
+      </p>
+
+      <SectionHeading>Notes & Internal Memos</SectionHeading>
+      <StepList steps={[
+        "When creating or editing an invoice or bill, expand the Notes section at the bottom of the form.",
+        "Customer Note — printed on the document; visible to the customer.",
+        "Internal Memo — shown only to users with accountant role or higher; never printed.",
+        "Both fields are optional and can be edited on draft documents.",
+      ]} />
+
+      <MistakeCallout>
+        <p>Using the internal memo for customer-facing information — it is hidden on the print layout.</p>
+        <p>Resetting document number sequences manually — the sequence counter is per-tenant and auto-increments; editing it directly can cause duplicate numbers.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
 // ── Panel map ─────────────────────────────────────────────────────────────────
 
 const PANEL_MAP: Record<string, React.ReactNode> = {
@@ -1434,6 +1634,8 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "csv":             <CsvImportPanel />,
   "manufacturing":   <ManufacturingPanel />,
   "telecom":         <TelecomFranchisePanel />,
+  "bulk-statements": <BulkStatementsPanel />,
+  "tips-shortcuts":  <TipsShortcutsPanel />,
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────

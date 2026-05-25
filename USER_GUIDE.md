@@ -2,6 +2,8 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
+**Last updated:** 2026-05-25 · **Version:** 2.0
+
 ---
 
 ## Table of Contents
@@ -11,11 +13,17 @@
 3. [Accounting Fundamentals](#3-accounting-fundamentals)
 4. [Sales Workflow (AR)](#4-sales-workflow-ar)
 5. [Purchase Workflow (AP)](#5-purchase-workflow-ap)
-6. [Inventory Management](#6-inventory-management)
-7. [Bank Reconciliation](#7-bank-reconciliation)
-8. [Financial Reporting](#8-financial-reporting)
-9. [Period Close](#9-period-close)
-10. [Multi-Tenant Administration](#10-multi-tenant-administration)
+6. [Payments & Allocations](#6-payments--allocations)
+7. [Inventory Management](#7-inventory-management)
+8. [Bank Reconciliation](#8-bank-reconciliation)
+9. [Financial Reporting](#9-financial-reporting)
+10. [Period Close](#10-period-close)
+11. [Recurring Journal Entries](#11-recurring-journal-entries)
+12. [Bulk Actions](#12-bulk-actions)
+13. [Customer & Vendor Statements](#13-customer--vendor-statements)
+14. [Team & User Management](#14-team--user-management)
+15. [Keyboard Shortcuts & UX Tips](#15-keyboard-shortcuts--ux-tips)
+16. [Best Practices & FAQ](#16-best-practices--faq)
 
 ---
 
@@ -27,71 +35,106 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 
 | Email | Password | Business Model |
 |-------|----------|---|
-| `demo.simple@easy-books.app` | `demo1234` | Micro-business (invoicing + billing only) |
-| `demo.services@easy-books.app` | `demo1234` | Service firm (recurring revenue, time tracking) |
+| `demo.simple@easy-books.app` | `demo1234` | Simple invoicing + billing |
+| `demo.services@easy-books.app` | `demo1234` | Services (recurring revenue, time-based billing) |
 | `demo.trader@easy-books.app` | `demo1234` | Trading company (buy/resell, inventory) |
 | `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing (BoMs, production orders) |
 | `demo.telecom@easy-books.app` | `demo1234` | Telecom Franchise (Tracker, RSO chain, FCA, SIM) |
 
-**Rich mock data included:**
-- Each tenant has **50+ customers, 50+ vendors, 50+ invoices, 50+ bills, 50+ manual journal entries**
+**Rich mock data included (full year coverage):**
+- Each tenant has **100 invoices, 100 bills, 70 payments received, 70 bill payments**
+- **25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates**
+- **60+ manual journal entries** covering all COA accounts (rent, salaries, depreciation, GST settlement) spread across the past 365 days
+- All invoices and bills have notes, payment terms, and realistic status distributions
 - Manufacturing tenant: 50 BoMs, 50 GRNs, 50 production orders, 50 rate plans
-- Telecom tenant: 50 SIM activations, 50 FCA events, full RSO chain & franchise agreement
-- `dev.sh` seeds automatically on every start — no manual step needed
+- Telecom tenant: full RSO chain, SIM activations, FCA events, franchise agreement
 
-### 1.2 Custom Business Setup
-
-To create your own business:
+### 1.2 Create Your Own Business
 
 1. Go to `/signup`
-2. Enter your details:
-   - Full name
-   - Email
-   - Password (≥ 8 characters)
-   - Company name
-   - Business model (Simple / Services / Trader / Manufacturing / Telecom Franchise)
-3. Click **Start Free Trial**
+2. Enter: full name, email, password (≥ 8 characters), company name
+3. Select **Business Model** — this determines your Chart of Accounts:
+   - **Simple** — core backbone (Cash, AR, AP, Revenue, Expenses)
+   - **Services** — + recurring revenue, deferred revenue, subcontractor costs
+   - **Trader** — + inventory, COGS, GST input/output
+   - **Manufacturing** — + Raw Materials, WIP, Finished Goods, direct labour, overhead
+   - **Telecom Franchise** — 56-account franchise template
+4. Click **Start Free Trial**
 
-Easy-Books will:
-- ✓ Create your tenant (isolated business entity)
-- ✓ Seed a Chart of Accounts matching your model
-- ✓ Create your admin user account
-- ✓ Log you in automatically
+Easy-Books creates your isolated tenant, seeds the COA, and logs you in as `owner`.
 
 ---
 
 ## 2. COMPANY SETUP & BRANDING
 
-### 2.1 Configure Company Information
+### 2.1 Company Profile
 
-Go to `/dashboard/settings` to customize your business:
+Go to **Settings → Company Profile** to configure your business identity:
 
-| Setting | Example | Impact | IAS Ref |
-|---------|---------|--------|---------|
-| **Company Name** | "Garment Loop" | Appears in header + all reports | **IAS 1.49** |
-| **Business Tagline** | "Premium Textiles Manufacturing" | Subtitle below company name | **IAS 1.45** |
-| **Tax ID** | "12-3456789" | Printed on invoices/reports | **IAS 1.49** |
-| **Base Currency** | PKR / USD / EUR / etc. | All transactions in this currency | **IAS 21.8** |
-| **Fiscal Year Start** | January / April / July / October | Determines financial year | **IAS 1.49** |
+| Field | Example | Impact |
+|-------|---------|--------|
+| Company Name | "Garment Loop Ltd." | Header, all reports, print documents |
+| Business Tagline | "Premium Textiles" | Subtitle below company name |
+| Address Line 1 | "12 Main Street" | Printed on invoices |
+| City | "Lahore" | Printed on invoices |
+| Country | "Pakistan" | Printed on invoices |
+| Phone | "+92-42-12345678" | Printed on invoices |
+| Website | "www.garmentloop.pk" | Printed on invoices |
+| Tax ID / NTN | "12-3456789" | Printed on invoices and tax reports |
+| Base Currency | PKR / USD / EUR | All transactions denominated in this currency |
+| Fiscal Year Start | January / April / July / October | Determines financial year boundaries |
 
-**Result in Header:**
-```
-Garment Loop
-Premium Textiles Manufacturing
-```
+All fields auto-save via `/api/settings` PATCH.
 
-All settings are auto-saved to the database via `/api/settings` PATCH endpoint.
+### 2.2 Logo Upload
 
-### 2.2 Document Numbering
+In **Settings → Company Profile**, click **Upload Logo**:
+- Accepted: PNG, JPEG, GIF, WebP (≤ 5 MB)
+- Logo appears on all printed documents (invoices, bills, statements)
+- Stored per-tenant under `UPLOAD_ROOT/<tenant_id>/`
 
-Configure invoice and bill prefixes:
+### 2.3 Document Numbering
 
-| Setting | Default | Usage |
-|---------|---------|-------|
-| Invoice Prefix | `INV` | Auto-generates INV-0001, INV-0002, etc. |
-| Bill Prefix | `BILL` | Auto-generates BILL-0001, BILL-0002, etc. |
+In **Settings → Number Formats**, configure format strings:
 
-Number sequences are **tenant-scoped** and **atomic** — concurrent invoices never get the same number.
+| Token | Replaced with | Example |
+|-------|--------------|---------|
+| `{prefix}` | Invoice/Bill prefix from settings | `INV` |
+| `{YYYY}` | Current 4-digit year | `2026` |
+| `{MM}` | Current 2-digit month | `05` |
+| `{seq:04d}` | Zero-padded sequence | `0001` |
+
+Example: `{prefix}-{YYYY}-{seq:04d}` → `INV-2026-0001`
+
+A live preview updates as you type. Number sequences are **tenant-scoped** and **atomic** — concurrent invoices never get the same number.
+
+### 2.4 Payment Terms
+
+In **Settings → Payment Terms**, manage standard terms:
+
+| Code | Name | Days | Usage |
+|------|------|------|-------|
+| DOR | Due on Receipt | 0 | Immediate payment |
+| NET15 | Net 15 Days | 15 | Due in 15 days |
+| NET30 | Net 30 Days | 30 | Standard commercial |
+| NET60 | Net 60 Days | 60 | Extended credit |
+
+Click **+ Add Term** to create custom terms (e.g., "Net 45 Days").
+
+Assign terms to **customers** and **vendors** — invoices and bills will auto-inherit the term and calculate `due_date = issue_date + days`.
+
+### 2.5 Default GL Accounts
+
+In **Settings → Default GL Accounts**, override the hardcoded posting defaults:
+
+| Account | Default code | Usage |
+|---------|-------------|-------|
+| AR Account | 1100 | Debited on invoice post |
+| AP Account | 2000 | Credited on bill post |
+| Revenue Account | 4000 | Credited on invoice post |
+| COGS Account | 5010 | Debited on stock sale |
+
+Select accounts from the dropdown — only accounts of the matching type are shown.
 
 ---
 
@@ -101,112 +144,98 @@ Number sequences are **tenant-scoped** and **atomic** — concurrent invoices ne
 
 Every transaction must balance: **∑Debit = ∑Credit**
 
-Easy-Books **enforces this at the database level**:
-- No transaction is posted unless debits exactly equal credits
-- The system prevents:
-  - ✓ Unbalanced journal entries
-  - ✓ Negative amounts
-  - ✓ Both-sided rows (Dr > 0 AND Cr > 0 simultaneously)
-  - ✓ Posting into locked periods
-
-**Compliance:** IAS 1.44 — every balanced statement demonstrates reliability.
+Easy-Books enforces this at the database level via `services/posting.py`:
+- Unbalanced JVs are rejected before any DB write
+- Negative amounts are rejected
+- Both-sided rows (Dr > 0 AND Cr > 0) are rejected
+- Posting into locked periods is rejected
 
 ### 3.2 Chart of Accounts
 
-Your Chart of Accounts (CoA) is pre-seeded based on your business model **selected at signup**:
+Go to **Chart of Accounts** (`/coa`) to view and manage your accounts.
 
-| Model | Accounts | Purpose |
-|-------|----------|---------|
-| Simple | 22 | Core backbone (Cash, AR, AP, Revenue, Expenses) |
-| Services | 27 | + Recurring revenue, deferred revenue |
-| Trader | 30 | + Inventory, COGS, GST input/output |
-| Manufacturing | 35+ | + Raw materials, WIP, FG, labor, overhead |
+| Account code range | Type | Normal balance |
+|-------------------|------|---------------|
+| 1xxx | Asset | Debit |
+| 2xxx | Liability | Credit |
+| 3xxx | Equity | Credit |
+| 4xxx | Revenue | Credit |
+| 5xxx | Expense / COGS | Debit |
 
-Each account has:
-- **Code** (e.g., 1100, 4000, 5010) — unique per tenant
-- **Name** (e.g., "Accounts Receivable")
-- **Type** (Asset / Liability / Equity / Revenue / Expense)
+Click any account code throughout the app to drill into its ledger.
 
-**Note:** Business model is set at signup and cannot be changed through the UI. If you need to switch models, contact your administrator or use the API endpoint `PATCH /api/settings/business-model` (which adds any missing CoA accounts but never deletes existing ones).
+### 3.3 Manual Journal Entry
 
-**To add a new account:** Go to `/dashboard/coa`, click **+ New Account**, and save.
+Go to **New Entry** (`/entry`) to post a manual JV:
 
-### 3.3 Account Types & Normal Balances
+1. Enter a description
+2. Add lines (account, debit amount or credit amount — one per line)
+3. Verify the running Dr/Cr totals are equal
+4. Click **Post**
 
-| Type | Normal Balance | Purpose | IAS Class |
-|------|---|---|---|
-| **Asset** | Debit | Cash, receivables, inventory | **IAS 32.9** |
-| **Liability** | Credit | Payables, loan, GST owed | **IAS 32.9** |
-| **Equity** | Credit | Owner capital, retained earnings | **IAS 32.9** |
-| **Revenue** | Credit | Sales, interest income | **IAS 18** |
-| **Expense** | Debit | Cost of goods, rent, utilities | **IAS 8** |
+The system assigns the next JV number from the tenant's sequence counter.
 
-Easy-Books displays these intelligently in reports — e.g., AP shows as **credit-normal** (positive = "we owe").
+### 3.4 General Ledger & Journal
+
+- **Journal** (`/journal`) — all posted transactions with date, JV number, description, total. Click any row to see its lines and source documents.
+- **General Ledger** (`/ledger`) — all accounts with running balance. Filter by account and date range.
+- **Journal Entry detail** (`/journal/:id`) — lines with account codes hyperlinked to their ledger, source-document links (invoice, bill, payment).
 
 ---
 
 ## 4. SALES WORKFLOW (AR)
 
-**Compliance:** IAS 18 / IFRS 15 — Revenue recognized when control of goods passes to customer.
+**Compliance:** IAS 18 / IFRS 15 — Revenue recognised when control of goods passes to the customer.
 
-### 4.1 Create a Customer
+### 4.1 Manage Customers
 
-1. Go to `/dashboard/customers`
-2. Click **+ New Customer**
-3. Enter:
-   - Name (e.g., "Alpha Retail Group")
-   - Email (for contact)
-   - Phone (optional)
-4. Click **Save**
+Go to **Customers** (`/customers`):
+- **+ Add Customer** — name, email, phone, address, payment term
+- Customer list shows balance outstanding for each customer
+- Click a customer name to open their **AR Ledger** (all invoices + payments + running balance)
 
-### 4.2 Issue an Invoice
+### 4.2 Create an Invoice
 
-1. Go to `/dashboard/invoices`
-2. Click **+ New Invoice**
-3. Select **Customer** (dropdown)
-4. Enter line items:
-   - Product / description
-   - Quantity
-   - Unit price
-   - (Tax will auto-calculate if tax code assigned)
-5. Click **Issue**
+1. Go to **Invoices** → **New Invoice** (or press `N`)
+2. Select customer (balance hint shown if they have outstanding)
+3. Select **Payment Term** — `due_date` auto-calculates
+4. Add line items: product/description, qty, rate
+   - Each line can have its own **Tax Code** for per-line GST
+5. Add **Notes** (printed on the invoice) and **Internal Memo** (staff-only)
+6. Click **Post Invoice**
 
-**GL Impact (service sale, 1000 + 17% GST):**
+**GL posted:**
 ```
-Dr 1100 (AR)         1,170.00
-  Cr 4000 (Revenue)            1,000.00
-  Cr 2200 (GST Out)               170.00
-                     ─────────  ─────────
-                     1,170.00    1,170.00 ✓
+Dr 1100  Accounts Receivable    1,170.00
+  Cr 4000  Revenue               1,000.00
+  Cr 2200  GST Payable             170.00
 ```
 
-**Invoice Status:** Auto-derived from payments
-- `issued` — no payments received
-- `partial` — some payment received
-- `paid` — fully paid
-- `overdue` — due date passed, unpaid
+**Invoice statuses (auto-derived):**
+| Status | Meaning |
+|--------|---------|
+| `draft` | Not yet posted — can be edited |
+| `posted` | JV posted, awaiting payment |
+| `partial` | Part payment received |
+| `paid` | Fully settled |
+| `overdue` | Past due date, unpaid — auto-flagged |
+| `reversed` | JV reversed, balance zeroed |
+| `void` | Administratively voided |
 
-### 4.3 Receive a Payment
+### 4.3 Edit a Draft Invoice
 
-1. Go to `/dashboard/payments-received`
-2. Click **+ New Payment**
-3. Select customer, amount, payment date
-4. Choose invoices to allocate against (click rows to select)
-5. Click **Save**
+If the invoice status is `draft`, a **Edit** button appears in the toolbar. Clicking it opens the create modal pre-filled with existing data. On save, lines are replaced and the JV is re-posted.
 
-**GL Impact (cash payment):**
-```
-Dr 1010 (Bank)       1,170.00
-  Cr 1100 (AR)                 1,170.00
-```
+### 4.4 Reverse an Invoice
 
-**Payment can settle multiple invoices** — allocations preserve audit trail.
+Click **Reverse** in the invoice toolbar (only available when a JV has been posted and status ≠ `reversed`). A mirror JV is posted immediately, stock is returned to inventory, and the COGS sub-JV is reversed.
 
-### 4.4 View Customer Aging
+### 4.5 AR Aging
 
-Go to `/dashboard/invoices` → **Aging** tab:
-- Shows outstanding AR by aging bucket (0–30 days, 30–60, 60–90, 90+ days)
-- **Net of allocations** — partial payments reduce outstanding amount
+At the bottom of **Invoices**, an **AR Aging Analysis** panel shows:
+- Buckets: Current, 1–30, 31–60, 61–90, 90+ days overdue
+- A table of the 10 most overdue invoices with days-past
+- Amounts are **net of partial payments** (IAS 1.35)
 
 ---
 
@@ -214,329 +243,392 @@ Go to `/dashboard/invoices` → **Aging** tab:
 
 **Compliance:** IAS 2.11 — Purchase recognition when risk of ownership transfers.
 
-### 5.1 Create a Vendor
+### 5.1 Manage Vendors
 
-1. Go to `/dashboard/vendors`
-2. Click **+ New Vendor**
-3. Enter name, contact details
-4. Click **Save**
+Go to **Vendors** (`/vendors`):
+- **+ Add Vendor** — name, email, phone, address, payment term
+- Click a vendor name to open their **AP Ledger** (credit-normal: positive = "we owe")
 
 ### 5.2 Record a Bill
 
-1. Go to `/dashboard/bills`
-2. Click **+ New Bill**
-3. Select **Vendor**
-4. Enter line items (description, amount, tax code)
-5. Click **Record**
+1. Go to **Bills** → **+ Record Bill** (or press `N`)
+2. Select vendor
+3. Select Payment Term — `due_date` auto-calculates
+4. Add line items with optional per-line tax code
+5. Add notes and internal memo
+6. Click **Record**
 
-**GL Impact (expense purchase, 1000 + 17% GST):**
+**GL posted (expense purchase, 17% GST):**
 ```
-Dr 5000 (Expense)      1,000.00
-Dr 1250 (GST Input)       170.00
-  Cr 2000 (AP)                    1,170.00
-```
-
-If **stock purchase** (product has inventory tracking):
-```
-Dr 1200 (Inventory)      1,000.00
-Dr 1250 (GST Input)         170.00
-  Cr 2000 (AP)                     1,170.00
+Dr 5000  Expense               1,000.00
+Dr 1250  GST Input               170.00
+  Cr 2000  Accounts Payable      1,170.00
 ```
 
-### 5.3 Pay a Bill
-
-1. Go to `/dashboard/bill-payments`
-2. Click **+ New Payment**
-3. Select vendor, amount, payment date
-4. Allocate to bills
-5. Click **Save**
-
-**GL Impact:**
+**For stock purchases** (product with inventory tracking):
 ```
-Dr 2000 (AP)         1,170.00
-  Cr 1010 (Bank)               1,170.00
+Dr 1200  Inventory             1,000.00
+Dr 1250  GST Input               170.00
+  Cr 2000  Accounts Payable      1,170.00
 ```
+
+### 5.3 AP Aging
+
+Below the bills list, **AP Aging Analysis** shows outstanding payables by age bucket — use this for cash-flow planning.
 
 ---
 
-## 6. INVENTORY MANAGEMENT
+## 6. PAYMENTS & ALLOCATIONS
 
-**Compliance:** IAS 2.19 — Inventory valued at **Weighted-Average cost**, not FIFO or LIFO.
+### 6.1 Receive a Payment (AR)
 
-### 6.1 Add Products
+1. Go to **Payments Received** → **+ New Payment** (or press `N`)
+2. Select customer and payment date
+3. A table shows all **open invoices** with their outstanding balance
+4. Enter an "Amount to Apply" against each invoice row you want to settle
+5. The running total must match the payment amount (warning shown if they differ)
+6. Click **Save**
 
-1. Go to `/dashboard/products`
-2. Click **+ New Product**
-3. Enter:
-   - SKU (unique code, e.g., "SKU-A1")
-   - Name (e.g., "Premium Cotton Shirt")
-   - Type: `stock` or `service`
-   - Unit (ea, kg, m, hr, etc.)
-   - Cost (used for COGS calculations)
+**GL posted:**
+```
+Dr 1010  Bank               1,170.00
+  Cr 1100  Accounts Receivable   1,170.00
+```
+
+One payment can settle **multiple invoices** in one step.
+
+### 6.2 Pay a Bill (AP)
+
+1. Go to **Bill Payments** → **+ New Payment** (or press `N`)
+2. Select vendor
+3. A table shows all open bills — allocate amounts
 4. Click **Save**
 
-### 6.2 Stock Receipt (Purchase)
-
-When you receive stock from a vendor, a bill automatically:
-- Appends an **InventoryLayer** (cost, qty, date)
-- Recomputes running **Weighted-Average cost**
-
-**Example:** 3 units @ 50 each (cost 15 each)
-- Previous WAvg: 12/unit (50 units in stock)
-- New receipt: 3 units @ 15 = 45 in layer total
-- **New WAvg:** (50 × 12 + 3 × 15) / (50 + 3) = **11.88/unit**
-
-### 6.3 Stock Consumption (Invoice)
-
-When you issue an invoice with stock items:
-- System relieves stock at the **running WAvg cost**
-- **Oldest layers deplete first** (FIFO depletion)
-- A separate **COGS sub-JV** posts automatically
-
-**Example:** Sell 2 units @ 100 each (WAvg = 11.88)
+**GL posted:**
 ```
-JV #1 (Sale):
-Dr 1100 (AR)           200.00
-  Cr 4000 (Revenue)             200.00
-
-JV #2 (COGS, separate JV):
-Dr 5010 (COGS)          23.76    ← 2 × 11.88
-  Cr 1200 (Inventory)            23.76
+Dr 2000  Accounts Payable   1,170.00
+  Cr 1010  Bank                 1,170.00
 ```
-
-### 6.4 View Stock Card
-
-Go to `/dashboard/products` → Click product name → **Stock Card**
-
-Shows:
-- Receipt date, qty, cost per unit → **Running balance**
-- Consumption date, qty, cost → **Running WAvg**
-- **Stock value at-hand** (qty × WAvg cost)
-
-**Compliance:** IAS 2.36(d) — Carrying amount disclosed per inventory class.
 
 ---
 
-## 7. BANK RECONCILIATION
+## 7. INVENTORY MANAGEMENT
+
+**Compliance:** IAS 2.19 — Inventory valued at **Weighted-Average cost**.
+
+### 7.1 Add a Product
+
+Go to **Products** → **+ Add Product** (or press `N`):
+- SKU (unique per tenant)
+- Name
+- Type: `stock` (tracked inventory) or `service` (no stock)
+- Unit (ea, kg, m, hr, etc.)
+- Sale price / cost price
+- Reorder level — rows highlighted amber when `stock_qty ≤ reorder_level`
+
+### 7.2 Low-Stock Filter
+
+Click the **Low Stock** badge on the dashboard or add `?low_stock=true` to the products URL to filter the list to items at or below reorder level.
+
+### 7.3 Stock Card
+
+Click a product → **Stock Card** (`/products/:id/stock-card`):
+- Chronological list of all receipts and issues
+- Running quantity and Weighted-Average cost per event
+- Current stock value = qty × WAvg cost
+
+### 7.4 COGS posting
+
+When an invoice includes stock items, the system automatically posts a COGS sub-JV:
+```
+Dr 5010  Cost of Goods Sold     23.76  ← 2 units × WAvg cost
+  Cr 1200  Inventory              23.76
+```
+
+---
+
+## 8. BANK RECONCILIATION
 
 **Compliance:** IAS 7 — Cash flow statement derived from bank balance reconciliation.
 
-### 7.1 Import Bank Statement
+### 8.1 Bank Accounts
 
-1. Go to `/dashboard/bank-accounts`
-2. Select account
-3. Click **Import Statement**
-4. Upload CSV (5 columns: date, description, debit, credit, balance)
-5. Click **Upload**
+Go to **Bank Accounts** → **+ Add Account**:
+- Account name, bank name, account number
+- Select the GL account code (e.g., 1010 Bank)
+- GL balance is always the live balance (no separate ledger)
 
-Easy-Books de-duplicates by **SHA-256 file hash** — re-uploading same file twice doesn't duplicate rows.
+### 8.2 Import Bank Statement
 
-### 7.2 Auto-Match Transactions
+1. Select a bank account
+2. Click **Import Statement**
+3. Upload a CSV with 5 columns: `date, description, debit, credit, balance`
+4. Easy-Books de-duplicates by SHA-256 hash — re-uploading the same file is safe
 
-System attempts to **match statement lines to GL transactions** by:
-- Amount equality
-- ±3-day date window
-- Automatic allocation if unique
+### 8.3 Auto-Match & Manual Match
 
-Matched lines show **green checkmark**; unmatched show **orange flag**.
+- **Auto-match** tries to link each statement line to a GL transaction by amount + ±3-day date window
+- Matched rows show green; unmatched show orange
+- Click any unmatched row to manually link it to a transaction
 
-### 7.3 Manual Matching
+### 8.4 Lock & Close Period
 
-For unmatched lines:
-1. Click **Unmatched** tab
-2. Select statement line
-3. Choose GL transaction to match
-4. Click **Link**
-
-### 7.4 Period Reconciliation Lock
-
-Once reconciled:
-1. Select all matched lines
-2. Click **Lock & Close Period**
-
-This:
-- ✓ Verifies GL balance = statement balance
-- ✓ Locks the period (no edits allowed)
-- ✓ Materialises account balances for fast reporting
+Once all lines are matched, click **Lock & Close** — verifies GL balance = statement balance, locks the period, materialises account balances.
 
 ---
 
-## 8. FINANCIAL REPORTING
+## 9. FINANCIAL REPORTING
 
-All reports are **live from the General Ledger** — no batch jobs, always current.
+All reports are **live from the GL** — always current, no batch jobs.
 
-### 8.1 Trial Balance
+| Report | Path | IAS ref |
+|--------|------|---------|
+| Trial Balance | `/trial-balance` | IAS 1.35 |
+| Income Statement (P&L) | `/pl` | IAS 1.99 |
+| Balance Sheet | `/balance` | IAS 1.54 |
+| Cash Flow | `/cashflow` | IAS 7.20 |
+| Tax Summary (GST) | `/tax` | Local tax law |
+| AR Aging | `/invoices` (bottom panel) | IAS 1.60 |
+| AP Aging | `/bills` (bottom panel) | IAS 1.60 |
+| General Ledger | `/ledger` | IAS 1.45 |
+| Customer Ledger | `/customers/:id/ledger` | ISA 230 |
+| Vendor Ledger | `/vendors/:id/ledger` | ISA 230 |
+| Stock Card | `/products/:id/stock-card` | IAS 2.36(d) |
 
-Go to `/dashboard/trial-balance`
+### 9.1 Dashboard KPIs
 
-Shows:
-- Account code, name, type
-- **Debit & Credit totals** (Σ Dr should = Σ Cr)
-- **Warning if imbalanced** (indicates posting error)
-
-**Compliance:** IAS 1.35 — Basis for all financial statements.
-
-### 8.2 Income Statement (P&L)
-
-Go to `/dashboard/pl`
-
-Shows:
-- **Revenue** (credit balance)
-- **Less: Expenses** (debit balance)
-- **Net Income** (bottom line)
-
-Formatted per **IAS 1.99** (consistent presentation, revenue first).
-
-### 8.3 Balance Sheet
-
-Go to `/dashboard/balance`
-
-Shows:
-- **Assets** (debit balance)
-- **Liabilities** (credit balance)
-- **Equity** (credit balance)
-
-Equation: **Assets = Liabilities + Equity** ✓
-
-### 8.4 Cash Flow (Indirect Method)
-
-Go to `/dashboard/cashflow`
-
-Derives cash movement from:
-- Net income
-- Working capital changes (AR, AP, inventory)
-- Investing activities (if configured)
-- Financing activities (if configured)
-
-**Compliance:** IAS 7.20 — Indirect method (GL-based).
-
-### 8.5 Tax Summary
-
-Go to `/dashboard/tax`
-
-Shows:
-- **GST Output** (tax owed on sales)
-- **GST Input** (tax recoverable on purchases)
-- **Net GST Due** (output - input)
-
-By tax code and period, supporting tax returns.
+The dashboard shows:
+- **Net Profit** — revenue minus expenses YTD
+- **Cash & Bank** — sum of all bank/cash GL accounts
+- **AR Outstanding** — total unpaid invoices
+- **AP Due This Week** — bills due within 7 days
+- **Overdue Invoices** — count with link to filtered list
+- **Low Stock Items** — count with link to low-stock filter
+- **AR Aging Chart** — 5-bucket mini-chart
+- **Recent Transactions** — last 10 JVs
 
 ---
 
-## 9. PERIOD CLOSE
+## 10. PERIOD CLOSE
 
 **Compliance:** IAS 1.49 — Consistent period reporting; reversal-proof once closed.
 
-### 9.1 Create Accounting Period
+### 10.1 Create a Period
 
-1. Go to `/dashboard/settings` → **Accounting Periods**
-2. Click **+ New Period**
-3. Enter name (e.g., "FY 2026 Q1") and date range
-4. Click **Save**
+Settings → **Accounting Periods** → **+ New Period** — enter name and date range.
 
-### 9.2 Close a Period
+### 10.2 Close a Period
 
-1. Select period
-2. Click **Close Period**
+Select a period → **Close Period**:
+- Posts a **Closing JV** (Revenue/Expense → Retained Earnings)
+- Locks the period (no further GL writes allowed)
+- Materialises account balances into `AccountBalance` for fast reporting
 
-Easy-Books will:
-- ✓ Post a **Closing JV** (Revenue/Expense → Retained Earnings)
-- ✓ Lock the period (no further edits allowed)
-- ✓ Materialise account balances into **AccountBalance** table (for fast reporting)
+### 10.3 Reopen a Period (Admin only)
 
-### 9.3 Reopen a Period (Admin Only)
-
-If you need to post corrections:
-1. Select period
-2. Click **Reopen**
-
-Reverses the closing JV, clears materialised balances. Period is now editable again.
+Select a period → **Reopen** — reverses the closing JV, clears materialised balances.
 
 ---
 
-## 10. MULTI-TENANT ADMINISTRATION
+## 11. RECURRING JOURNAL ENTRIES
 
-### 10.1 User Roles & Permissions
+Go to **Recurring** (`/recurring`) to manage recurring templates.
 
-| Role | Invoice | Bill | JV | Settings | Users |
-|------|---------|------|----|-|-|
-| **Viewer** | View | View | View | — | — |
-| **Accountant** | Create/Edit | Create/Edit | Create/Edit | — | — |
-| **Admin** | ✓ | ✓ | ✓ | Edit | Manage |
-| **Owner** | ✓ | ✓ | ✓ | ✓ | ✓ |
+### 11.1 Create a Template
 
-First user of a tenant is **Owner** by default.
+Click **+ New Recurring** (or press `N`):
+- Name and description
+- **Frequency**: daily, weekly, monthly, quarterly, yearly
+- **Next Run** date — when the first run fires
+- **Journal Lines** — accounts with debit/credit amounts (must balance)
 
-### 10.2 Add Users (Owner/Admin Only)
+Example: Monthly office rent `Dr Rent Expense 50,000 / Cr Bank 50,000`
 
-1. Go to `/dashboard/settings` → **Users**
-2. Click **+ Invite User**
-3. Enter email, select role
-4. Click **Send Invite**
+### 11.2 Run Templates
 
-User receives email with login link.
+Templates with `next_run ≤ today` are highlighted in red.
+- Click **Run Now** to fire a single template immediately
+- Or POST `/api/recurring/run-due` to fire all due templates at once (use via scheduler / cron)
 
-### 10.3 Audit Trail
+After each run, `next_run` advances by one period and `last_run` is recorded.
 
-Go to `/dashboard/settings` → **Audit Log**
+### 11.3 Deactivate / Reactivate
 
-Shows:
-- User (email)
-- Action (CREATE, UPDATE, DELETE)
-- Entity type (Invoice, Bill, Account, etc.)
-- Timestamp
-- Before/after JSON (what changed)
-
-Every transaction is logged — **ISA 230** compliance (audit documentation).
+Toggle the active switch in the row — inactive templates are skipped by the run-due sweep.
 
 ---
 
-## Best Practices
+## 12. BULK ACTIONS
 
-### ✓ Accounting Hygiene
+### 12.1 Invoice / Bill Bulk Actions
+
+On the Invoices or Bills list page:
+1. Check the checkbox column for each row (or check the header to select all)
+2. The **floating Bulk Action bar** appears at the bottom showing count
+3. Available actions:
+   - **Mark Sent** — changes `draft` invoices to `sent` status
+   - **Void** — marks selected as `void` (non-reversible administrative action)
+   - **Delete** — permanently deletes `draft` invoices/bills (confirms before action)
+
+### 12.2 Customer / Vendor Bulk Export
+
+On the Customers or Vendors list, check rows then use the **Export CSV** button to download selected records.
+
+---
+
+## 13. CUSTOMER & VENDOR STATEMENTS
+
+### 13.1 Customer Statement
+
+1. Go to **Customers** → click a customer → **Customer Ledger**
+2. Click **Print Statement** in the toolbar
+3. Select a **date range** (defaults to current year)
+4. The statement shows:
+   - Customer info (name, email, phone)
+   - Opening balance
+   - All invoices in the period (number, date, due, status, total, outstanding)
+   - All payments received
+   - Closing balance
+5. Click **Print** for a browser print-to-PDF output
+
+### 13.2 Vendor Statement
+
+Same flow via **Vendors** → vendor → **Vendor Ledger** → **Print Statement**.
+
+Shows bills instead of invoices, and "Payments Made" instead of "Payments Received".
+
+---
+
+## 14. TEAM & USER MANAGEMENT
+
+### 14.1 User Roles
+
+| Role | Create/Edit | Settings | Manage Users |
+|------|------------|----------|-------------|
+| Viewer | — | — | — |
+| Accountant | ✓ | — | — |
+| Admin | ✓ | ✓ | ✓ |
+| Owner | ✓ | ✓ | ✓ |
+
+### 14.2 Add a Team Member
+
+Go to **Team** (`/team`) → **+ Add User**:
+- Enter email, full name, role
+- Set a temporary password (user is forced to change on first login)
+- Or use **Invite Link** — generates a tokenized URL (7-day expiry) that the user clicks to set their own password
+
+### 14.3 Manage Members
+
+From the Team page:
+- **Change role** — select from the dropdown (owner can change any role; you can't change your own role)
+- **Deactivate** — revokes access immediately (token stops working on next request)
+- **Reset password** — generates a new temporary password
+- **Last active owner** cannot be deactivated or demoted
+
+### 14.4 My Profile
+
+Go to **Profile** (`/profile`):
+- **Avatar** — upload PNG/JPEG/GIF/WebP ≤ 5 MB
+- **Personal details** — full name, phone
+- **Change password** — current password required
+- **Account info** — role, organisation, join date, last login
+
+---
+
+## 15. KEYBOARD SHORTCUTS & UX TIPS
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `N` | Open the "New" modal on any list page (invoices, bills, customers, vendors, products, journal, bank accounts) |
+| `Ctrl+P` / `Cmd+P` | Print the current document (on detail/print pages) |
+
+`N` is ignored when focus is inside any input, textarea, select, or contenteditable element.
+
+### Breadcrumbs
+
+All detail pages show a breadcrumb at the top:
+```
+Invoices › INV-0042
+```
+Click the first crumb to return to the list. Uses `<Link href>` — works even when navigating directly to a URL.
+
+### Browser Tab Titles
+
+Each page sets a descriptive `document.title`:
+- List pages: `Invoices — Easy-Books`
+- Detail pages: `Invoices — Easy-Books` (route prefix match)
+- Special pages: `Dashboard`, `My Profile`, `Settings`, etc.
+
+### Empty States
+
+All list pages show an icon + message + **gold action button** when empty:
+- No customers → "No customers yet" + **+ Add Customer**
+- No invoices → "No invoices yet" + **+ Create Invoice**
+- etc.
+
+### Filter & Sort
+
+All major list pages (invoices, bills, customers, vendors, products) support:
+- **Search** — by name, number, or description
+- **Status filter** — multi-select status dropdown
+- **Date range** — from/to date pickers
+- **Sortable columns** — click any column header to sort; click again to reverse
+
+### Audit Log
+
+Go to **Settings → Audit Log**. Tabs:
+- **Timeline** — all entries grouped by day
+- **By User** — grouped by who made the change
+- **By Entity** — grouped by entity type (Invoice, Bill, Customer, etc.)
+- **Export CSV** — download filtered log
+
+---
+
+## 16. BEST PRACTICES & FAQ
+
+### Accounting Hygiene
 
 1. **Reconcile bank monthly** — lock period once balanced
-2. **Review aging reports weekly** — follow up on overdue AR
-3. **Run trial balance daily** — catch posting errors early
-4. **Reverse, don't delete** — preserves audit trail
-5. **Lock periods annually** — prevent accidental edits
+2. **Review AR aging weekly** — follow up on 30+ day overdue invoices
+3. **Run trial balance daily** — catch posting errors early; ∑Dr must = ∑Cr
+4. **Reverse, don't delete** — deleting posted records loses audit trail
+5. **Close periods annually** — prevents accidental backdated edits
+6. **Use payment terms** — auto-calculates due dates and feeds the AP-due-this-week tile
 
-### ✓ International Standards
+### IAS/IFRS Compliance
 
-- **IAS 1** — Consistent company name + branding in all outputs
-- **IAS 2** — Use Weighted-Average inventory method (system default)
-- **IAS 18 / IFRS 15** — Recognize revenue on invoice issue (not cash receipt)
-- **ISA 230** — Every GL line traces to source document (click to verify)
-- **IAS 21** — FX rates snapshot at transaction date (no retroactive revaluation)
+| Standard | What Easy-Books does |
+|----------|---------------------|
+| IAS 1.49 | Company name, address, Tax ID printed on all documents |
+| IAS 1.60 | Overdue invoices auto-flagged; AR/AP aging net of partial payments |
+| IAS 2.19 | Weighted-Average cost (never FIFO or LIFO) |
+| IAS 7.20 | Cash flow computed by indirect method from GL |
+| IAS 18 / IFRS 15 | Revenue recognised on invoice post |
+| IAS 21 | FX rate snapshot at transaction date |
+| ISA 230 | Every GL line traceable to source document via clickable links |
+| ISA 315 | Double-entry invariants enforced; period-lock; audit trail |
 
-### ✓ Security
+### FAQ
 
-- Change password quarterly
-- Use strong passwords (≥12 characters, mixed case + numbers)
-- Revoke user access immediately on departure
-- Review audit log for suspicious activity
-- Enable 2FA if available (coming in V2)
+**Q: Can I edit a posted invoice?**  
+A: Only `draft` invoices can be edited via the Edit button. Posted invoices must be reversed and re-created, which preserves the full audit trail.
 
----
+**Q: How does per-line tax work?**  
+A: In the invoice/bill create modal, each line can select a tax code from the catalog. The system posts a separate GST JV line per tax code applied.
 
-## FAQ
-
-**Q: Can I change the accounting year?**  
-A: Yes, in Settings → Fiscal Year Start. Affects future periods only; existing periods unchanged.
-
-**Q: What if I need to edit an old invoice?**  
-A: If period is open, click invoice → Edit → Save. If period is locked, create a reversal (Invoice → Reverse) + new corrected invoice.
-
-**Q: How does COGS work?**  
-A: When you sell stock, the system auto-posts COGS at Weighted-Average cost + a separate JV. Two JVs per stock sale (one for revenue, one for COGS).
-
-**Q: Why does my trial balance not balance?**  
-A: Check for unposted transactions (drafts). Click **Try Balance** to verify; it shows first error.
+**Q: Why is my trial balance not balanced?**  
+A: All posted transactions are guaranteed balanced by the posting service. If you see a discrepancy, check for manually-entered account adjustments or contact support.
 
 **Q: Can I use multiple currencies?**  
-A: Yes. Set base currency in Settings; create invoices/bills in other currencies. FX rates from `/dashboard/exchange-rates` lookup table.
+A: Yes. Set base currency in Settings. Each invoice/bill stores the transaction currency and an exchange rate snapshot. Reports convert to base currency at the stored rate.
 
----
+**Q: How do I set up recurring rent?**  
+A: Go to Recurring → New Recurring. Set frequency to `monthly`, next_run to the 1st of next month, and add two lines: Dr Rent Expense / Cr Bank. The system will auto-post this JV each month.
 
-**Last updated:** 2026-05-23  
-**Version:** 1.0 (IAS/IFRS compliant)
+**Q: What does "void" vs "reverse" mean?**  
+A: **Reverse** posts a mirror JV (accounting-correct, full audit trail). **Void** is an administrative mark that suppresses the document without touching the GL — use only for documents that were never paid or sent.
+
+**Q: Can I export data?**  
+A: Yes — most list pages have an **Export CSV** button. The audit log also has CSV export. Invoice/bill print pages print to PDF via the browser.
