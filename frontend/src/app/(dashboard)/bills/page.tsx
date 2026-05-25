@@ -357,7 +357,7 @@ export default function Bills() {
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
-            <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+            <thead className="sticky top-0 z-10 bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
                 <th className="px-4 py-4 w-10">
                   <input type="checkbox"

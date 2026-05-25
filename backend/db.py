@@ -301,6 +301,16 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             if not exists:
                 s.add(Settings(tenant_id=tenant_id, key=key, value=code))
 
+        # Seed initial onboarding checklist (all steps false)
+        import json as _json
+        ob_row = s.exec(
+            select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "onboarding_steps")
+        ).first()
+        if not ob_row:
+            steps = {"company_profile": False, "first_customer": False,
+                     "payment_terms": False, "first_invoice": False, "first_bill": False}
+            s.add(Settings(tenant_id=tenant_id, key="onboarding_steps", value=_json.dumps(steps)))
+
         # Seed document-number counters so the at-runtime path never has to
         # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
         # without racing on the unique constraint.

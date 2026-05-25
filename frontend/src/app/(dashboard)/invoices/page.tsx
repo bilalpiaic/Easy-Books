@@ -97,6 +97,7 @@ export default function Invoices() {
   const [products, setProducts] = useState<Product[]>([])
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
+  const [customerBalance, setCustomerBalance] = useState<number | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const load = () => {
@@ -361,7 +362,7 @@ export default function Invoices() {
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
-            <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+            <thead className="sticky top-0 z-10 bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
                 <th className="px-4 py-4 w-10">
                   <input type="checkbox"
@@ -469,6 +470,32 @@ export default function Invoices() {
               </div>
             ))}
           </div>
+          {aging.items && aging.items.filter(i => i.days_past > 0).length > 0 && (
+            <div className="border-t border-[#ede9e2] overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-[#f6f3ee]">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Invoice</th>
+                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Customer</th>
+                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Due</th>
+                    <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-black/50">Amount</th>
+                    <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-red-600">Days Overdue</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#ede9e2]">
+                  {aging.items.filter(i => i.days_past > 0).sort((a, b) => b.days_past - a.days_past).slice(0, 10).map(item => (
+                    <tr key={item.id} className="hover:bg-red-50/30">
+                      <td className="px-4 py-2 font-mono font-bold text-[#b8943f]">{item.number}</td>
+                      <td className="px-4 py-2 text-black/70">{item.name}</td>
+                      <td className="px-4 py-2 text-black/60">{item.due_date}</td>
+                      <td className="px-4 py-2 text-right font-mono">{fmtPKR(item.amount)}</td>
+                      <td className="px-4 py-2 text-right font-bold text-red-600">{item.days_past}d</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -495,11 +522,23 @@ export default function Invoices() {
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer</label>
                   <select value={form.customer_id}
-                    onChange={e => { const c = customers.find(c => c.id === parseInt(e.target.value)); setForm(p => ({ ...p, customer_id: e.target.value, customer_name: c?.name ?? '' })) }}
+                    onChange={e => {
+                      const c = customers.find(c => c.id === parseInt(e.target.value))
+                      setForm(p => ({ ...p, customer_id: e.target.value, customer_name: c?.name ?? '' }))
+                      setCustomerBalance(null)
+                      if (e.target.value) {
+                        apiFetch<{ closing_balance?: number; balance?: number }>(`/api/customers/${e.target.value}/ledger`)
+                          .then(d => setCustomerBalance(d.closing_balance ?? d.balance ?? null))
+                          .catch(() => {})
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
                     <option value="">— Select or type name —</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
+                  {customerBalance !== null && customerBalance > 0 && (
+                    <p className="text-xs text-amber-700 mt-1 font-medium">Outstanding balance: {fmtPKR(customerBalance)}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer Name</label>

@@ -13,7 +13,7 @@ from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, next_number
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
 router = APIRouter(tags=["bills"])
 
@@ -44,9 +44,9 @@ class BillCreate(BaseModel):
     exchange_rate: Optional[Decimal] = None
 
 
-def _next_bill_number(session: Session, tenant_id: int, prefix: str) -> str:
+def _next_bill_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
     """Atomic per-tenant bill number via SequenceCounter."""
-    return next_number(session, tenant_id, "bill", prefix)
+    return next_number(session, tenant_id, "bill", prefix, fmt=fmt)
 
 
 def _auto_overdue(session: Session, bills: list) -> None:
@@ -138,6 +138,12 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         )
     ).first()
     prefix = prefix_row.value if prefix_row else "BILL"
+    fmt_row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == user.tenant_id, Settings.key == "bill_number_format"
+        )
+    ).first()
+    bill_fmt = fmt_row.value if fmt_row else None
 
     subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
     gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
@@ -183,7 +189,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
 
     bill = Bill(
         tenant_id=user.tenant_id,
-        number=_next_bill_number(session, user.tenant_id, prefix),
+        number=_next_bill_number(session, user.tenant_id, prefix, bill_fmt),
         vendor_id=body.vendor_id,
         vendor_name=vname,
         bill_date=body.bill_date,
@@ -308,6 +314,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         session, user, "CREATE", "bill", bill.id,
         {"number": bill.number, "total": str(total)},
     )
+    mark_onboarding_step(session, user.tenant_id, "first_bill")
     session.commit()
     session.refresh(bill)
 

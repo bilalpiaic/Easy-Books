@@ -35,6 +35,7 @@ interface AuditLogEntry {
   detail: string | null
   timestamp: string
   user_name: string
+  user_id: number
 }
 
 export default function SettingsPage() {
@@ -49,6 +50,9 @@ export default function SettingsPage() {
   const [addingPeriod, setAddingPeriod] = useState(false)
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
   const [auditFilter, setAuditFilter] = useState("")
+  const [auditTab, setAuditTab] = useState<'timeline' | 'by_user' | 'by_entity'>('timeline')
+  const [auditDateFrom, setAuditDateFrom] = useState("")
+  const [auditDateTo, setAuditDateTo] = useState("")
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoError, setLogoError] = useState("")
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -79,11 +83,14 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    const url = auditFilter ? `/api/audit-log?entity_type=${auditFilter}&limit=100` : "/api/audit-log?limit=100"
-    apiFetch<{ total: number; items: AuditLogEntry[] }>(url)
+    const params = new URLSearchParams({ limit: "200" })
+    if (auditFilter) params.set("entity_type", auditFilter)
+    if (auditDateFrom) params.set("date_from", auditDateFrom)
+    if (auditDateTo) params.set("date_to", auditDateTo)
+    apiFetch<{ total: number; items: AuditLogEntry[] }>(`/api/audit-log?${params}`)
       .then(res => setAuditLogs(res.items))
       .catch(() => {})
-  }, [auditFilter])
+  }, [auditFilter, auditDateFrom, auditDateTo])
 
   const handleAddPeriod = async () => {
     if (!periodForm.period_start || !periodForm.period_end) return
@@ -450,6 +457,34 @@ export default function SettingsPage() {
             <p className="text-xs text-black/60 mt-1 font-medium">Example: {form.bill_prefix}-001</p>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-[#ede9e2]">
+          {[
+            { field: 'invoice_number_format' as const, label: 'Invoice Number Format', prefix: form.invoice_prefix || 'INV' },
+            { field: 'bill_number_format' as const,    label: 'Bill Number Format',    prefix: form.bill_prefix || 'BILL' },
+          ].map(({ field, label, prefix }) => {
+            const fmt = form[field] || '{prefix}-{seq:04d}'
+            const preview = fmt
+              .replace('{prefix}', prefix)
+              .replace('{YYYY}', new Date().getFullYear().toString())
+              .replace('{MM}', String(new Date().getMonth() + 1).padStart(2, '0'))
+              .replace(/\{seq(?::(\d+)d)?\}/g, (_, w) => String(1).padStart(w ? parseInt(w) : 4, '0'))
+            return (
+              <div key={field}>
+                <label className="block text-sm font-semibold text-black/85 mb-2">{label}</label>
+                <input
+                  type="text"
+                  value={form[field]}
+                  onChange={e => handleChange(field, e.target.value)}
+                  placeholder="{prefix}-{seq:04d}"
+                  className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black placeholder-black/40 font-mono text-sm"
+                />
+                <p className="text-xs text-black/60 mt-1 font-mono">Preview: <span className="font-bold text-[#b8943f]">{preview}</span></p>
+                <p className="text-[10px] text-black/40 mt-0.5">Tokens: <code>{'{prefix}'}</code> <code>{'{seq:04d}'}</code> <code>{'{YYYY}'}</code> <code>{'{MM}'}</code></p>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
@@ -678,38 +713,72 @@ export default function SettingsPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
             <ClipboardList className="w-5 h-5 text-[#b8943f]" />
             Audit Log
           </h2>
-          <select
-            value={auditFilter}
-            onChange={e => setAuditFilter(e.target.value)}
-            className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
-          >
-            <option value="">All entities</option>
-            <option value="account">Accounts</option>
-            <option value="customer">Customers</option>
-            <option value="vendor">Vendors</option>
-            <option value="invoice">Invoices</option>
-            <option value="bill">Bills</option>
-            <option value="transaction">Transactions</option>
-          </select>
+          <div className="flex flex-wrap gap-2 items-center">
+            <input type="date" value={auditDateFrom} onChange={e => setAuditDateFrom(e.target.value)}
+              className="px-2 py-1.5 border border-[#ede9e2] rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              placeholder="From" />
+            <input type="date" value={auditDateTo} onChange={e => setAuditDateTo(e.target.value)}
+              className="px-2 py-1.5 border border-[#ede9e2] rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+              placeholder="To" />
+            <select value={auditFilter} onChange={e => setAuditFilter(e.target.value)}
+              className="px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#b8943f]">
+              <option value="">All entities</option>
+              <option value="account">Accounts</option>
+              <option value="customer">Customers</option>
+              <option value="vendor">Vendors</option>
+              <option value="invoice">Invoices</option>
+              <option value="bill">Bills</option>
+              <option value="transaction">Transactions</option>
+            </select>
+            <button
+              onClick={() => {
+                const headers = ['Timestamp','User','Action','Entity','Detail']
+                const rows = auditLogs.map(l => [
+                  new Date(l.timestamp).toLocaleString(), l.user_name, l.action,
+                  `${l.entity_type}${l.entity_id ? ' #' + l.entity_id : ''}`, l.detail ?? ''
+                ])
+                const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+                const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
+                a.download = 'audit-log.csv'; a.click()
+              }}
+              className="px-3 py-1.5 text-xs font-bold border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-4 border-b border-[#ede9e2]">
+          {(['timeline', 'by_user', 'by_entity'] as const).map(tab => (
+            <button key={tab} onClick={() => setAuditTab(tab)}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px ${
+                auditTab === tab
+                  ? 'text-[#b8943f] border-[#b8943f]'
+                  : 'text-black/50 border-transparent hover:text-black/70'
+              }`}>
+              {tab === 'timeline' ? 'Timeline' : tab === 'by_user' ? 'By User' : 'By Entity'}
+            </button>
+          ))}
         </div>
 
         {auditLogs.length === 0 ? (
-          <p className="text-sm text-black/40 py-4">No audit log entries yet.</p>
-        ) : (
+          <p className="text-sm text-black/40 py-4">No audit log entries found.</p>
+        ) : auditTab === 'timeline' ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[#f6f3ee] text-left">
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Timestamp</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">User</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Action</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Entity</th>
-                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Detail</th>
+              <thead className="sticky top-0 z-10 bg-[#f6f3ee]">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Timestamp</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">User</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Action</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Entity</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Detail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#ede9e2]">
@@ -725,12 +794,60 @@ export default function SettingsPage() {
                         'bg-blue-100 text-blue-700'
                       }`}>{log.action}</span>
                     </td>
-                    <td className="px-4 py-3 text-black/70 capitalize">{log.entity_type} {log.entity_id ? `#${log.entity_id}` : ''}</td>
+                    <td className="px-4 py-3 text-black/70 capitalize">{log.entity_type}{log.entity_id ? ` #${log.entity_id}` : ''}</td>
                     <td className="px-4 py-3 font-mono text-xs text-black/50 max-w-xs truncate">{log.detail}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : auditTab === 'by_user' ? (
+          <div className="space-y-3">
+            {Object.entries(
+              auditLogs.reduce((acc, l) => { acc[l.user_name] = (acc[l.user_name] || []); acc[l.user_name].push(l); return acc }, {} as Record<string, AuditLogEntry[]>)
+            ).map(([user, entries]) => (
+              <div key={user} className="border border-[#ede9e2] rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-[#f6f3ee] flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#1a1814]">{user}</span>
+                  <span className="text-xs text-black/50">{entries.length} action{entries.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="divide-y divide-[#ede9e2] max-h-48 overflow-y-auto">
+                  {entries.slice(0, 20).map(l => (
+                    <div key={l.id} className="px-4 py-2 flex items-center gap-3 text-xs">
+                      <span className="text-black/40 font-mono w-32 flex-shrink-0">{new Date(l.timestamp).toLocaleString()}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase flex-shrink-0 ${
+                        l.action === 'CREATE' ? 'bg-green-100 text-green-700' : l.action === 'DELETE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                      }`}>{l.action}</span>
+                      <span className="text-black/70 capitalize">{l.entity_type}{l.entity_id ? ` #${l.entity_id}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {Object.entries(
+              auditLogs.reduce((acc, l) => { acc[l.entity_type] = (acc[l.entity_type] || []); acc[l.entity_type].push(l); return acc }, {} as Record<string, AuditLogEntry[]>)
+            ).sort((a, b) => b[1].length - a[1].length).map(([entity, entries]) => (
+              <div key={entity} className="border border-[#ede9e2] rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-[#f6f3ee] flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#1a1814] capitalize">{entity}</span>
+                  <span className="text-xs text-black/50">{entries.length} event{entries.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="divide-y divide-[#ede9e2] max-h-48 overflow-y-auto">
+                  {entries.slice(0, 20).map(l => (
+                    <div key={l.id} className="px-4 py-2 flex items-center gap-3 text-xs">
+                      <span className="text-black/40 font-mono w-32 flex-shrink-0">{new Date(l.timestamp).toLocaleString()}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase flex-shrink-0 ${
+                        l.action === 'CREATE' ? 'bg-green-100 text-green-700' : l.action === 'DELETE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                      }`}>{l.action}</span>
+                      <span className="text-black/50 truncate">{l.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

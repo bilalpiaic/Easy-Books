@@ -13,7 +13,7 @@ from sqlmodel import select
 from db import MODULES_BY_MODEL, _coa_for
 from models import Account, Settings, Tenant
 
-from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep
+from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -43,6 +43,11 @@ class SettingsUpdate(BaseModel):
     default_ap_account: Optional[str] = None
     default_revenue_account: Optional[str] = None
     default_cogs_account: Optional[str] = None
+    # Document number formats (tokens: {prefix} {seq:04d} {YYYY} {MM})
+    invoice_number_format: Optional[str] = None
+    bill_number_format: Optional[str] = None
+    # Onboarding
+    onboarding_dismissed: Optional[str] = None
 
 
 @router.get("")
@@ -90,6 +95,7 @@ async def upload_logo(session: SessionDep, user: WriteUserDep, file: UploadFile 
     else:
         row = Settings(key="logo_url", value=logo_url, tenant_id=user.tenant_id)
     session.add(row)
+    mark_onboarding_step(session, user.tenant_id, "company_profile")
     session.commit()
     return {"logo_url": logo_url}
 

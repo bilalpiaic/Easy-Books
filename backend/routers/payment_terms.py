@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from models import PaymentTerm
 
-from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep
+from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
 
 router = APIRouter(prefix="/api/payment-terms", tags=["payment-terms"])
 
@@ -50,6 +50,7 @@ def create_payment_term(session: SessionDep, user: AdminUserDep, body: PaymentTe
         days=body.days,
     )
     session.add(term)
+    mark_onboarding_step(session, user.tenant_id, "payment_terms")
     session.commit()
     session.refresh(term)
     return term

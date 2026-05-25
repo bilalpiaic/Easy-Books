@@ -15,7 +15,7 @@ from services.inventory import consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, next_number
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
 router = APIRouter(tags=["invoices"])
 
@@ -49,9 +49,9 @@ class InvoiceCreate(BaseModel):
     exchange_rate: Optional[Decimal] = None  # override; else resolved from ExchangeRate
 
 
-def _next_invoice_number(session: Session, tenant_id: int, prefix: str) -> str:
+def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
     """Atomic per-tenant invoice number via SequenceCounter."""
-    return next_number(session, tenant_id, "invoice", prefix)
+    return next_number(session, tenant_id, "invoice", prefix, fmt=fmt)
 
 
 def _auto_overdue(session: Session, invoices: list) -> None:
@@ -151,6 +151,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         )
     ).first()
     prefix = prefix_row.value if prefix_row else "INV"
+    fmt_row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == user.tenant_id, Settings.key == "invoice_number_format"
+        )
+    ).first()
+    inv_fmt = fmt_row.value if fmt_row else None
 
     subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
     gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
@@ -202,7 +208,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
 
     invoice = Invoice(
         tenant_id=user.tenant_id,
-        number=_next_invoice_number(session, user.tenant_id, prefix),
+        number=_next_invoice_number(session, user.tenant_id, prefix, inv_fmt),
         customer_id=body.customer_id,
         customer_name=cname,
         issue_date=body.issue_date,
@@ -345,6 +351,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         session, user, "CREATE", "invoice", invoice.id,
         {"number": invoice.number, "total": str(total)},
     )
+    mark_onboarding_step(session, user.tenant_id, "first_invoice")
     session.commit()
     session.refresh(invoice)
 

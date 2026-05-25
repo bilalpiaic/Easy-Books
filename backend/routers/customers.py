@@ -8,7 +8,7 @@ from sqlmodel import func, select
 
 from models import Customer, Invoice, PaymentReceived
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit, mark_onboarding_step
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 
@@ -54,6 +54,7 @@ def create_customer(session: SessionDep, user: WriteUserDep, body: CustomerCreat
     session.add(c)
     session.flush()
     log_audit(session, user, "CREATE", "customer", c.id, {"name": c.name})
+    mark_onboarding_step(session, user.tenant_id, "first_customer")
     session.commit()
     session.refresh(c)
     return c

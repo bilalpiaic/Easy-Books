@@ -215,7 +215,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                 {section}
               </div>
               {visibleNav.filter(i => i.section === section).map(item => {
-                const active = pathname === item.href
+                const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"))
                 return (
                   <button
                     key={item.href}

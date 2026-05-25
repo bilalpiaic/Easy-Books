@@ -134,7 +134,8 @@ def log_audit(
 
 
 def next_number(
-    session: Session, tenant_id: int, name: str, prefix: str, *, width: int = 4
+    session: Session, tenant_id: int, name: str, prefix: str, *,
+    width: int = 4, fmt: Optional[str] = None,
 ) -> str:
     """Atomic per-tenant document numbering.
 
@@ -145,7 +146,17 @@ def next_number(
     Caller is responsible for commit; the increment is part of the same
     transaction as the document being numbered, so a rollback releases the
     consumed value.
+
+    If `fmt` is provided it is a template string supporting tokens:
+      {prefix}    → the prefix value (e.g. "INV")
+      {seq:04d}   → zero-padded sequence number (width in the token overrides `width`)
+      {seq}       → sequence number with default width
+      {YYYY}      → 4-digit year
+      {MM}        → 2-digit month
     """
+    import re
+    from datetime import date as _date
+
     row = session.exec(
         select(SequenceCounter)
         .where(
@@ -162,7 +173,42 @@ def next_number(
     row.next_value = value + 1
     session.add(row)
     session.flush()
+
+    if fmt:
+        now = _date.today()
+        result = fmt.replace("{prefix}", prefix)
+        result = result.replace("{YYYY}", str(now.year))
+        result = result.replace("{MM}", f"{now.month:02d}")
+        # {seq:04d} or {seq:Nd}
+        result = re.sub(
+            r"\{seq(?::(\d+)d)?\}",
+            lambda m: f"{value:0{int(m.group(1)) if m.group(1) else width}d}",
+            result,
+        )
+        return result
     return f"{prefix}-{value:0{width}d}"
+
+
+def mark_onboarding_step(session: Session, tenant_id: int, step: str) -> None:
+    """Set a single onboarding step to True without committing (caller commits)."""
+    import json as _j
+    row = session.exec(
+        select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "onboarding_steps")
+    ).first()
+    steps: dict = {}
+    if row and row.value:
+        try:
+            steps = _j.loads(row.value)
+        except Exception:
+            steps = {}
+    if steps.get(step):
+        return
+    steps[step] = True
+    if row:
+        row.value = _j.dumps(steps)
+    else:
+        row = Settings(tenant_id=tenant_id, key="onboarding_steps", value=_j.dumps(steps))
+    session.add(row)
 
 
 def get_default_account(

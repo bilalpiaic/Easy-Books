@@ -18,6 +18,7 @@ import { Bar, Doughnut, Line } from "react-chartjs-2"
 import { fmtPKR } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import DateRangePicker from "@/components/DateRangePicker"
+import { useSettings } from "@/context/SettingsContext"
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, LineElement,
@@ -70,6 +71,14 @@ const DOUGHNUT_COLORS = [
   "#0891b2","#ea580c","#db2777","#65a30d",
 ]
 
+const ONBOARDING_STEPS = [
+  { key: "company_profile", label: "Upload company logo",     href: "/settings#company" },
+  { key: "first_customer",  label: "Add your first customer", href: "/customers" },
+  { key: "payment_terms",   label: "Set up payment terms",    href: "/settings#payment-terms" },
+  { key: "first_invoice",   label: "Create your first invoice", href: "/invoices" },
+  { key: "first_bill",      label: "Record your first bill",  href: "/bills" },
+]
+
 export default function Dashboard() {
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
@@ -77,6 +86,8 @@ export default function Dashboard() {
   const [data, setData]   = useState<DashboardData | null>(null)
   const [charts, setCharts] = useState<ChartData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { settings, reload: reloadSettings } = useSettings()
+  const [checklistDismissed, setChecklistDismissed] = useState(false)
 
   useEffect(() => {
     setData(null)
@@ -213,6 +224,58 @@ export default function Dashboard() {
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
+
+      {/* Onboarding checklist */}
+      {(() => {
+        if (checklistDismissed || settings.onboarding_dismissed === "true") return null
+        let steps: Record<string, boolean> = {}
+        try { steps = JSON.parse(settings.onboarding_steps || "{}") } catch { return null }
+        const total = ONBOARDING_STEPS.length
+        const done = ONBOARDING_STEPS.filter(s => steps[s.key]).length
+        if (done === total) return null
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileSignature className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-sm font-bold text-amber-900">Setup Checklist — {done} of {total} complete</h3>
+                  <div className="flex-1 bg-amber-200 rounded-full h-1.5 max-w-[120px]">
+                    <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${done / total * 100}%` }} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {ONBOARDING_STEPS.map(step => (
+                    <Link key={step.key} href={step.href}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        steps[step.key]
+                          ? "bg-amber-100 text-amber-700 line-through opacity-60"
+                          : "bg-white border border-amber-200 text-amber-800 hover:bg-amber-100"
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold ${steps[step.key] ? "bg-green-500 text-white" : "bg-amber-200 text-amber-700"}`}>
+                        {steps[step.key] ? "✓" : "○"}
+                      </span>
+                      {step.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  setChecklistDismissed(true)
+                  await apiFetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onboarding_dismissed: "true" }) })
+                  reloadSettings()
+                }}
+                className="text-amber-400 hover:text-amber-700 transition-colors flex-shrink-0"
+                title="Dismiss checklist"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Primary KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
