@@ -1,20 +1,27 @@
-"""Seed four demo tenants (one per business model) with rich mock data.
+"""Seed five demo tenants (one per business model) with rich mock data spanning
+a full calendar year.
 
 Idempotent — if a demo tenant already exists, the script reuses it and
 skips entities that are already present. Safe to re-run.
 
+Data coverage (v2 — post-sprint upgrade):
+  • All dates within the past 12 months (365-day rolling window)
+  • 100 invoices + 100 bills per tenant, evenly spread month-by-month
+  • Every model-specific COA account exercised (4010/4020/5100/5200/5030 etc.)
+  • 2–3 bank accounts seeded per tenant
+  • Payment terms randomly assigned to customers, vendors, invoices, bills
+  • notes / internal_memo fields populated with realistic text
+  • 60+ manual JVs covering all expense / revenue / balance-sheet accounts
+
 Usage:
-    PYTHONPATH=. .venv/bin/python -m scripts.seed_demo
+    PYTHONPATH=. uv run python -m scripts.seed_demo
 
-Or programmatically:
-    from scripts.seed_demo import seed_all_demos
-    seed_all_demos()
-
-Credentials (login at the configured frontend URL):
+Credentials:
     demo.simple@easy-books.app         / demo1234
     demo.services@easy-books.app       / demo1234
     demo.trader@easy-books.app         / demo1234
     demo.manufacturing@easy-books.app  / demo1234
+    demo.telecom@easy-books.app        / demo1234
 """
 from __future__ import annotations
 
@@ -28,11 +35,12 @@ from sqlmodel import Session, select
 from auth import get_password_hash
 from db import engine, seed_data
 from models import (
-    Account, AuditLog, BomHeader, BomLine, Bill, BillLine, BillPayment, Customer,
-    CustomerRatePlan, ExchangeRate, GRNLine, GoodsReceiptNote, InventoryLayer,
-    Invoice, InvoiceLine, PaymentAllocation, PaymentReceived, Product,
-    ProductionOrder, RatePlan, RecurringTemplate, SequenceCounter, StockLocation,
-    TaxCode, Tenant, User, Vendor,
+    Account, AuditLog, BankAccount, BomHeader, BomLine, Bill, BillLine,
+    BillPayment, Customer, CustomerRatePlan, ExchangeRate, GRNLine,
+    GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine, PaymentAllocation,
+    PaymentReceived, PaymentTerm, Product, ProductionOrder, RatePlan,
+    RecurringTemplate, SequenceCounter, StockLocation, TaxCode, Tenant, User,
+    Vendor,
 )
 from models_telecom import (
     FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
@@ -53,7 +61,7 @@ from services.tracker_posting import (
 )
 
 
-# ── Configuration ────────────────────────────────────────────────────────────
+# ── Configuration ─────────────────────────────────────────────────────────────
 
 DEMO_PASSWORD = "demo1234"
 DEMO_TENANTS = [
@@ -63,8 +71,6 @@ DEMO_TENANTS = [
     ("demo.manufacturing@easy-books.app", "Demo Manufacturing Co.", "manufacturing"),
     ("demo.telecom@easy-books.app",       "Demo Telecom Franchise", "telecom_franchise"),
 ]
-
-# Each list has 12+ entries — meets the "at least 10 of each" requirement.
 
 CUSTOMER_NAMES = [
     "Alpha Retail Group", "Beacon Boutiques", "Cascade Holdings",
@@ -105,7 +111,6 @@ STOCK_PRODUCTS_TRADER = [
     ("SKU-A7", "Knit Beanie",          "ea",  15,   5),
     ("SKU-A8", "Cotton Socks (3pk)",   "pk",  12,   4),
 ]
-# Manufacturing-specific
 RAW_MATERIALS = [
     ("RM-COT",  "Cotton Yarn",         "kg",   8),
     ("RM-POL",  "Polyester Yarn",      "kg",   6),
@@ -126,7 +131,6 @@ FINISHED_GOODS_MFG = [
     ("FG-POLO",  "Finished Polo",  "ea"),
     ("FG-PANT",  "Finished Pants", "ea"),
 ]
-# Telecom-specific: physical inventory (SIMs, devices) + connectivity bundles
 TELECOM_STOCK = [
     ("SIM-PRE",    "Prepaid SIM Card",       "ea",  5,  1),
     ("SIM-POST",   "Postpaid SIM Card",      "ea",  8,  2),
@@ -154,8 +158,127 @@ TAX_CODES = [
     ("GST-IN-0",   "GST Input 0%",    0, "input",  "1250"),
 ]
 
+INVOICE_NOTES_POOL = [
+    "Payment due within terms. Thank you for your business.",
+    "All prices exclusive of applicable taxes.",
+    "Please reference invoice number on remittance.",
+    "Goods remain property of seller until full payment received.",
+    "Late payments subject to 1.5% per month finance charge.",
+    "Bank details on file. Please confirm before transfer.",
+    "This invoice supersedes any verbal quotation.",
+    "Thank you for your continued partnership.",
+    "Prices valid as quoted. Subject to change without notice.",
+    "Discount of 2% available for payment within 10 days.",
+]
+INVOICE_MEMO_POOL = [
+    "Customer requested split shipment — verify delivery address.",
+    "High-value account — expedite if queries arise.",
+    "Discount negotiated by sales team for Q3 target.",
+    "Follow up if not paid by due date.",
+    "Credit limit reviewed — approved for this order.",
+    "VIP customer — handle with priority.",
+    "Contract reference attached to file.",
+    "Pending final sign-off from operations.",
+    "Part of annual framework agreement.",
+    "Cross-sell opportunity identified — flag to account manager.",
+]
+BILL_NOTES_POOL = [
+    "Please confirm receipt and process within payment terms.",
+    "Prices as per agreed rate card.",
+    "Subject to inspection and acceptance of goods.",
+    "Returns policy: 30 days from invoice date.",
+    "All amounts in USD unless stated otherwise.",
+    "Ensure PO number quoted on remittance.",
+    "Vendor bank details on file.",
+    "Payment terms as per master supply agreement.",
+    "GST registration number verified.",
+    "Goods dispatched under separate cover.",
+]
+BILL_MEMO_POOL = [
+    "Match against PO before approving payment.",
+    "Cheaper alternative sourced — review for next order.",
+    "Vendor delivered late — deduct penalty per SLA.",
+    "Quality check passed — goods released to inventory.",
+    "Three-way match complete.",
+    "Hold payment pending credit note for damaged goods.",
+    "Recurring supplier — auto-approve if within budget.",
+    "Budget line: opex/supplies — approved.",
+    "Price variance from last order — query with vendor.",
+    "Approved by finance director 2024.",
+]
 
-# ── Tiny helpers ──────────────────────────────────────────────────────────────
+# ── Date helpers ──────────────────────────────────────────────────────────────
+
+
+def _spread_dates(count: int, days_ago: int = 365, min_days_ago: int = 3) -> list[str]:
+    """Return `count` ascending ISO date strings spread across the past
+    `days_ago` days with ±3 day jitter so dates are not mechanically even."""
+    today = date.today()
+    dates: list[str] = []
+    for i in range(count):
+        # Even spacing across the window
+        frac = i / max(count - 1, 1)
+        base_days = int(days_ago - frac * (days_ago - min_days_ago))
+        jitter = random.randint(-3, 3)
+        days_back = max(min_days_ago, base_days + jitter)
+        dates.append((today - timedelta(days=days_back)).isoformat())
+    return sorted(dates)
+
+
+def _due_date(issue: str, term_days: int) -> str:
+    """Return due date string `term_days` after `issue`."""
+    return (date.fromisoformat(issue) + timedelta(days=term_days)).isoformat()
+
+
+# ── COA routing helpers ───────────────────────────────────────────────────────
+
+
+def _expense_pool(s: Session, tid: int, model: str) -> list[Account]:
+    """Return non-empty list of expense accounts to distribute bills across."""
+    code_groups: dict[str, list[str]] = {
+        "simple":            ["5000", "5050", "5900"],
+        "services":          ["5000", "5050", "5110", "5900"],
+        "trader":            ["5000", "5010", "5020", "5030", "5040", "5050"],
+        "manufacturing":     ["5000", "5010", "5050", "5100", "5110", "5200", "5210"],
+        "telecom_franchise": ["5000", "5010", "5011", "5012", "5020", "5021",
+                              "5030", "5040", "5060", "5050"],
+    }
+    pool = []
+    for code in code_groups.get(model, ["5000"]):
+        a = _account(s, tid, code)
+        if a:
+            pool.append(a)
+    if not pool:
+        fallback = _account(s, tid, "5000")
+        if fallback:
+            pool.append(fallback)
+    return pool
+
+
+def _revenue_pool(s: Session, tid: int, model: str) -> list[Account]:
+    """Return non-empty list of revenue accounts for invoices."""
+    code_groups: dict[str, list[str]] = {
+        "simple":            ["4000", "4900"],
+        "services":          ["4000", "4010", "4020", "4900"],
+        "trader":            ["4000", "4900"],
+        "manufacturing":     ["4000", "4010", "4900"],
+        "telecom_franchise": ["4000", "4010", "4020", "4021", "4022",
+                              "4023", "4030", "4031", "4040", "4050",
+                              "4060", "4061"],
+    }
+    pool = []
+    for code in code_groups.get(model, ["4000"]):
+        a = _account(s, tid, code)
+        if a:
+            pool.append(a)
+    if not pool:
+        fallback = _account(s, tid, "4000")
+        if fallback:
+            pool.append(fallback)
+    return pool
+
+
+# ── Basic entity seeders ──────────────────────────────────────────────────────
 
 
 def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int) -> User:
@@ -187,7 +310,11 @@ def _seed_customers(s: Session, tenant_id: int) -> list[Customer]:
         ).first()
         if existing:
             out.append(existing); continue
-        c = Customer(tenant_id=tenant_id, name=name, email=name.lower().replace(" ", ".") + "@example.com")
+        c = Customer(
+            tenant_id=tenant_id, name=name,
+            email=name.lower().replace(" ", ".") + "@example.com",
+            phone=f"+1-{random.randint(200,999)}-{random.randint(100,999)}-{random.randint(1000,9999)}",
+        )
         s.add(c); s.flush()
         out.append(c)
     return out
@@ -201,10 +328,34 @@ def _seed_vendors(s: Session, tenant_id: int) -> list[Vendor]:
         ).first()
         if existing:
             out.append(existing); continue
-        v = Vendor(tenant_id=tenant_id, name=name, email=name.lower().replace(" ", ".") + "@example.com")
+        v = Vendor(
+            tenant_id=tenant_id, name=name,
+            email=name.lower().replace(" ", ".") + "@example.com",
+            phone=f"+1-{random.randint(200,999)}-{random.randint(100,999)}-{random.randint(1000,9999)}",
+        )
         s.add(v); s.flush()
         out.append(v)
     return out
+
+
+def _assign_payment_terms(s: Session, tenant_id: int,
+                           customers: list[Customer],
+                           vendors: list[Vendor]) -> list[PaymentTerm]:
+    """Assign random payment terms to customers and vendors."""
+    terms = s.exec(
+        select(PaymentTerm).where(PaymentTerm.tenant_id == tenant_id)
+    ).all()
+    if not terms:
+        return []
+    for c in customers:
+        if c.payment_term_id is None:
+            c.payment_term_id = random.choice(terms).id
+            s.add(c)
+    for v in vendors:
+        if v.payment_term_id is None:
+            v.payment_term_id = random.choice(terms).id
+            s.add(v)
+    return terms
 
 
 def _seed_products(
@@ -215,7 +366,8 @@ def _seed_products(
     stock: list[Product] = []
     customer_supplied: list[Product] = []
 
-    def upsert(code: str, name: str, unit: str, default_rate: Decimal, product_type: str) -> Product:
+    def upsert(code: str, name: str, unit: str, default_rate: Decimal,
+               product_type: str) -> Product:
         existing = s.exec(
             select(Product).where(Product.tenant_id == tenant_id, Product.code == code)
         ).first()
@@ -229,7 +381,6 @@ def _seed_products(
         return p
 
     if business_model == "telecom_franchise":
-        # Telecom franchise replaces generic services with connectivity bundles
         for code, name, unit, rate in TELECOM_SERVICES:
             services.append(upsert(code, name, unit, D(rate), "service"))
         for code, name, unit, sale, cost in TELECOM_STOCK:
@@ -262,7 +413,6 @@ def _seed_tax_codes(s: Session, tenant_id: int) -> None:
             continue
         acc = _account(s, tenant_id, gl_code)
         if acc is None:
-            # Some business models don't ship with input-GST (1250) etc. Skip.
             continue
         s.add(TaxCode(
             tenant_id=tenant_id, code=code, name=name,
@@ -304,12 +454,12 @@ def _seed_recurring_templates(s: Session, tenant_id: int) -> None:
         return
     today = date.today()
     templates = [
-        ("Office Rent",        "monthly",   "5000", "1000",  "Monthly office rent"),
-        ("Internet & Phone",   "monthly",   "5000", "1000",  "Connectivity"),
-        ("Cleaning Services",  "monthly",   "5000", "1000",  "Office cleaning"),
-        ("Software Licenses",  "monthly",   "5000", "1000",  "SaaS subscriptions"),
-        ("Bookkeeping Fee",    "quarterly", "5000", "1000",  "External bookkeeping"),
-        ("Insurance Premium",  "yearly",    "5000", "1000",  "Annual policy"),
+        ("Office Rent",        "monthly",   "5000", "1010", "Monthly office rent"),
+        ("Internet & Phone",   "monthly",   "5000", "1010", "Connectivity"),
+        ("Cleaning Services",  "monthly",   "5000", "1010", "Office cleaning"),
+        ("Software Licenses",  "monthly",   "5000", "1010", "SaaS subscriptions"),
+        ("Bookkeeping Fee",    "quarterly", "5000", "1010", "External bookkeeping"),
+        ("Insurance Premium",  "yearly",    "5000", "1010", "Annual policy"),
     ]
     for name, freq, expense_code, cash_code, descr in templates:
         exp = _account(s, tenant_id, expense_code)
@@ -327,56 +477,105 @@ def _seed_recurring_templates(s: Session, tenant_id: int) -> None:
         ))
 
 
+# ── Bank accounts ─────────────────────────────────────────────────────────────
+
+
+def _seed_bank_accounts(s: Session, tenant_id: int) -> None:
+    """Seed 2–3 bank accounts per tenant, linked to the Bank (1010) COA account."""
+    existing = s.exec(
+        select(BankAccount).where(BankAccount.tenant_id == tenant_id)
+    ).all()
+    if existing:
+        return
+    bank_coa = _account(s, tenant_id, "1010")
+    cash_coa  = _account(s, tenant_id, "1000")
+
+    configs = [
+        ("Main Current Account", "Habib Bank Ltd.",  "1234-5678-9012", bank_coa),
+        ("USD Operating Account", "Standard Chartered", "9876-5432-1098", bank_coa),
+        ("Petty Cash Float",     None,               None,             cash_coa),
+    ]
+    for name, bank_name, acc_no, coa in configs:
+        if coa is None:
+            continue
+        s.add(BankAccount(
+            tenant_id=tenant_id,
+            name=name,
+            bank_name=bank_name,
+            account_number=acc_no,
+            coa_account_id=coa.id,
+        ))
+
+
 # ── Bills (purchase) ──────────────────────────────────────────────────────────
 
 
 def _seed_bills(
     s: Session, user: User, vendors: list[Vendor], products: list[Product],
-    business_model: str, count: int = 50,
+    business_model: str, payment_terms: list[PaymentTerm], count: int = 100,
 ) -> list[Bill]:
     tid = user.tenant_id
     existing = s.exec(select(Bill).where(Bill.tenant_id == tid)).all()
     if len(existing) >= count:
-        return existing
+        return list(existing)
 
-    base_day = date.today() - timedelta(days=120)
-    bills: list[Bill] = []
+    dates = _spread_dates(count, days_ago=365, min_days_ago=5)
+    bills: list[Bill] = list(existing)
+
     ap = _account(s, tid, "2000")
-    gst_input = _account(s, tid, "1250") or _account(s, tid, "2200")  # fallback
+    gst_input = _account(s, tid, "1250") or _account(s, tid, "2200")
+    exp_pool = _expense_pool(s, tid, business_model)
 
     purchasable = [p for p in products if p.product_type == "stock"] or products
 
-    for i in range(count - len(existing)):
-        bill_date = (base_day + timedelta(days=i * 7)).isoformat()
-        vendor = vendors[i % len(vendors)]
+    to_create = count - len(existing)
+    for i in range(to_create):
+        idx = len(existing) + i
+        bill_date = dates[idx] if idx < len(dates) else dates[-1]
+        vendor = vendors[idx % len(vendors)]
 
-        # Pick 1-3 lines
+        # Pick payment term
+        term = random.choice(payment_terms) if payment_terms else None
+        term_days = term.days if term else 30
+        due = _due_date(bill_date, term_days)
+
         n_lines = random.randint(1, 3)
         chosen = random.sample(purchasable, min(n_lines, len(purchasable)))
         subtotal = ZERO
         line_items: list[dict] = []
         for p in chosen:
-            qty = D(random.randint(5, 20))
+            qty = D(random.randint(5, 25))
             rate = D(p.default_rate) / D(2) if p.default_rate > 0 else D(random.randint(2, 30))
             rate = money(rate if rate > 0 else D(5))
             amount = money(qty * rate)
             subtotal += amount
             line_items.append({"product": p, "qty": qty, "rate": rate, "amount": amount})
 
+        # Seasonal uplift: Q3–Q4 (months 7-12 from year start) ×1.3
+        month = date.fromisoformat(bill_date).month
+        if month >= 7:
+            subtotal = money(subtotal * D("1.3"))
+            line_items = [{**li, "amount": money(li["amount"] * D("1.3"))} for li in line_items]
+
         gst_rate = D(17)
         gst_amount = money(subtotal * gst_rate / D(100))
         total = money(subtotal + gst_amount)
 
         number = next_number(s, tid, "bill", "BILL", width=4)
+        status_cycle = ("posted", "posted", "posted", "partial", "paid", "posted")
+        status = status_cycle[idx % len(status_cycle)]
 
         bill = Bill(
             tenant_id=tid, number=number, vendor_id=vendor.id,
             vendor_name=vendor.name,
-            bill_date=bill_date, due_date=(base_day + timedelta(days=i*7 + 30)).isoformat(),
+            bill_date=bill_date, due_date=due,
             description=f"Purchase from {vendor.name}",
+            notes=random.choice(BILL_NOTES_POOL),
+            internal_memo=random.choice(BILL_MEMO_POOL) if random.random() > 0.5 else None,
             subtotal=money(subtotal), gst_rate=gst_rate, gst_amount=gst_amount,
             total=total, currency="USD", exchange_rate=D(1),
-            status="posted",
+            status=status,
+            payment_term_id=term.id if term else None,
             ap_account_id=ap.id if ap else None,
         )
         s.add(bill); s.flush()
@@ -395,11 +594,9 @@ def _seed_bills(
                     source_doc=number,
                 )
 
-        # JE: Dr Expense / Inventory + Dr GST / Cr AP
-        exp_acc = _account(s, tid, "5000") or _account(s, tid, "5010")
-        entries = []
-        if exp_acc:
-            entries.append(EntryInput(account_id=exp_acc.id, debit=money(subtotal)))
+        # JE: Dr model-specific expense + Dr GST / Cr AP
+        exp_acc = exp_pool[idx % len(exp_pool)]
+        entries = [EntryInput(account_id=exp_acc.id, debit=money(subtotal))]
         if gst_amount > 0 and gst_input:
             entries.append(EntryInput(account_id=gst_input.id, debit=gst_amount))
         if ap:
@@ -424,32 +621,43 @@ def _seed_bills(
 
 def _seed_invoices(
     s: Session, user: User, customers: list[Customer], products: list[Product],
-    business_model: str, count: int = 50,
+    business_model: str, payment_terms: list[PaymentTerm], count: int = 100,
 ) -> list[Invoice]:
     tid = user.tenant_id
     existing = s.exec(select(Invoice).where(Invoice.tenant_id == tid)).all()
     if len(existing) >= count:
-        return existing
+        return list(existing)
 
-    base_day = date.today() - timedelta(days=90)
-    invoices: list[Invoice] = []
+    dates = _spread_dates(count, days_ago=365, min_days_ago=5)
+    invoices: list[Invoice] = list(existing)
+
     ar = _account(s, tid, "1100")
-    rev = _account(s, tid, "4000")
     gst_out = _account(s, tid, "2200")
     cogs = _account(s, tid, "5010")
     inv_acc = _account(s, tid, "1200") or _account(s, tid, "1202")
+    rev_pool = _revenue_pool(s, tid, business_model)
 
     sellable = [p for p in products if p.product_type in ("stock", "service")] or products
 
-    for i in range(count - len(existing)):
-        issue_date = (base_day + timedelta(days=i * 5)).isoformat()
-        customer = customers[i % len(customers)]
+    status_cycle = ("draft", "posted", "posted", "partial", "paid",
+                    "posted", "posted", "paid", "overdue", "posted")
+
+    to_create = count - len(existing)
+    for i in range(to_create):
+        idx = len(existing) + i
+        issue_date = dates[idx] if idx < len(dates) else dates[-1]
+        customer = customers[idx % len(customers)]
+
+        term = random.choice(payment_terms) if payment_terms else None
+        term_days = term.days if term else 30
+        due = _due_date(issue_date, term_days)
 
         n_lines = random.randint(1, 3)
         chosen = random.sample(sellable, min(n_lines, len(sellable)))
         subtotal = ZERO
         line_items: list[dict] = []
         total_cogs = ZERO
+
         for p in chosen:
             qty = D(random.randint(1, 6))
             rate = D(p.default_rate) if p.default_rate > 0 else D(random.randint(20, 100))
@@ -461,28 +669,40 @@ def _seed_invoices(
                     cogs_amt = consume_stock(s, tenant_id=tid, product_id=p.id, qty=qty)
                     total_cogs += cogs_amt
                 except Exception:
-                    pass  # not enough stock — skip silently for demo
+                    pass
+
+        # Seasonal uplift Q3–Q4
+        month = date.fromisoformat(issue_date).month
+        if month >= 7:
+            subtotal = money(subtotal * D("1.25"))
+            line_items = [{**li, "amount": money(li["amount"] * D("1.25"))} for li in line_items]
 
         gst_rate = D(17)
         gst_amount = money(subtotal * gst_rate / D(100))
         total = money(subtotal + gst_amount)
 
         number = next_number(s, tid, "invoice", "INV", width=4)
+        status = status_cycle[idx % len(status_cycle)]
+        # Overdue: only if due date is in the past
+        if status == "overdue" and date.fromisoformat(due) >= date.today():
+            status = "posted"
 
-        # Distribute statuses
-        bucket = i % 4
-        status = ("draft", "posted", "partial", "paid")[bucket]
+        # Route to a model-specific revenue account
+        rev_acc = rev_pool[idx % len(rev_pool)]
 
         invoice = Invoice(
             tenant_id=tid, number=number, customer_id=customer.id,
             customer_name=customer.name,
-            issue_date=issue_date, due_date=(base_day + timedelta(days=i*5 + 30)).isoformat(),
+            issue_date=issue_date, due_date=due,
             description=f"Sale to {customer.name}",
+            notes=random.choice(INVOICE_NOTES_POOL),
+            internal_memo=random.choice(INVOICE_MEMO_POOL) if random.random() > 0.5 else None,
             subtotal=money(subtotal), gst_rate=gst_rate, gst_amount=gst_amount,
             total=total, currency="USD", exchange_rate=D(1),
             status=status,
+            payment_term_id=term.id if term else None,
             ar_account_id=ar.id if ar else None,
-            revenue_account_id=rev.id if rev else None,
+            revenue_account_id=rev_acc.id if rev_acc else None,
         )
         s.add(invoice); s.flush()
 
@@ -494,14 +714,13 @@ def _seed_invoices(
                 rate=li["rate"], amount=li["amount"],
             ))
 
-        # JE: Dr AR / Cr Revenue + Cr GST (only for non-draft)
-        if status != "draft" and ar and rev:
+        if status != "draft" and ar and rev_acc:
             entries = [EntryInput(account_id=ar.id, debit=total)]
             if gst_amount > 0 and gst_out:
-                entries.append(EntryInput(account_id=rev.id, credit=money(subtotal)))
+                entries.append(EntryInput(account_id=rev_acc.id, credit=money(subtotal)))
                 entries.append(EntryInput(account_id=gst_out.id, credit=gst_amount))
             else:
-                entries.append(EntryInput(account_id=rev.id, credit=total))
+                entries.append(EntryInput(account_id=rev_acc.id, credit=total))
             txn = post_transaction(
                 s, user, date=issue_date,
                 description=f"Invoice {number} — {customer.name}",
@@ -512,7 +731,6 @@ def _seed_invoices(
             invoice.transaction_id = txn.id
             s.add(invoice)
 
-            # COGS sub-JV
             if total_cogs > 0 and cogs and inv_acc:
                 post_transaction(
                     s, user, date=issue_date,
@@ -533,30 +751,41 @@ def _seed_invoices(
 
 
 def _seed_payments_received(
-    s: Session, user: User, invoices: list[Invoice], count: int = 50,
+    s: Session, user: User, invoices: list[Invoice], count: int = 70,
 ) -> None:
     tid = user.tenant_id
-    posted_invoices = [i for i in invoices if i.status in ("posted", "partial", "paid")]
-    if not posted_invoices:
+    posted = [i for i in invoices if i.status in ("posted", "partial", "paid", "overdue")]
+    if not posted:
         return
-    existing = s.exec(select(PaymentReceived).where(PaymentReceived.tenant_id == tid)).all()
+    existing = s.exec(
+        select(PaymentReceived).where(PaymentReceived.tenant_id == tid)
+    ).all()
     if len(existing) >= count:
         return
     cash = _account(s, tid, "1010") or _account(s, tid, "1000")
-    ar = _account(s, tid, "1100")
+    ar   = _account(s, tid, "1100")
     if not cash or not ar:
         return
 
-    base_day = date.today() - timedelta(days=60)
-    for i, inv in enumerate(posted_invoices[:count - len(existing)]):
-        ratio = D("0.5") if inv.status == "partial" else D("1.0") if inv.status == "paid" else D("1.0")
-        amount = money(D(inv.total) * ratio)
+    to_create = min(count - len(existing), len(posted))
+    for i, inv in enumerate(posted[:to_create]):
+        # Payment date: 5–45 days after invoice issue date (stays in past)
+        inv_date = date.fromisoformat(inv.issue_date)
+        pay_offset = random.randint(5, 45)
+        pay_d = inv_date + timedelta(days=pay_offset)
+        if pay_d > date.today():
+            pay_d = date.today() - timedelta(days=random.randint(1, 5))
+        pay_date = pay_d.isoformat()
+
+        ratio = D("0.5") if inv.status == "partial" else D("1.0")
+        amount = money(D(str(inv.total)) * ratio)
         if amount <= 0:
             continue
-        pay_date = (base_day + timedelta(days=i * 3)).isoformat()
+
         pay = PaymentReceived(
             tenant_id=tid, invoice_id=inv.id, customer_name=inv.customer_name,
-            payment_date=pay_date, amount=amount, method="bank",
+            payment_date=pay_date, amount=amount,
+            method=random.choice(["bank", "cash", "cheque"]),
             cash_account_id=cash.id,
         )
         s.add(pay); s.flush()
@@ -568,7 +797,7 @@ def _seed_payments_received(
             description=f"Payment for {inv.number}",
             entries=[
                 EntryInput(account_id=cash.id, debit=amount),
-                EntryInput(account_id=ar.id, credit=amount),
+                EntryInput(account_id=ar.id,   credit=amount),
             ],
             audit_entity_type="payment",
             audit_detail={"invoice": inv.number, "amount": str(amount)},
@@ -578,26 +807,37 @@ def _seed_payments_received(
 
 
 def _seed_bill_payments(
-    s: Session, user: User, bills: list[Bill], count: int = 50,
+    s: Session, user: User, bills: list[Bill], count: int = 70,
 ) -> None:
     tid = user.tenant_id
-    existing = s.exec(select(BillPayment).where(BillPayment.tenant_id == tid)).all()
+    existing = s.exec(
+        select(BillPayment).where(BillPayment.tenant_id == tid)
+    ).all()
     if len(existing) >= count:
         return
     cash = _account(s, tid, "1010") or _account(s, tid, "1000")
-    ap = _account(s, tid, "2000")
+    ap   = _account(s, tid, "2000")
     if not cash or not ap:
         return
 
-    base_day = date.today() - timedelta(days=45)
-    for i, bill in enumerate(bills[:count - len(existing)]):
-        amount = money(D(bill.total) * (D("0.7") if i % 3 == 0 else D("1.0")))
+    to_create = min(count - len(existing), len(bills))
+    for i, bill in enumerate(bills[:to_create]):
+        bill_date = date.fromisoformat(bill.bill_date)
+        pay_offset = random.randint(5, 40)
+        pay_d = bill_date + timedelta(days=pay_offset)
+        if pay_d > date.today():
+            pay_d = date.today() - timedelta(days=random.randint(1, 5))
+        pay_date = pay_d.isoformat()
+
+        ratio = D("0.7") if i % 4 == 0 else D("1.0")
+        amount = money(D(str(bill.total)) * ratio)
         if amount <= 0:
             continue
-        pay_date = (base_day + timedelta(days=i * 3)).isoformat()
+
         pay = BillPayment(
             tenant_id=tid, bill_id=bill.id, vendor_name=bill.vendor_name,
-            payment_date=pay_date, amount=amount, method="bank",
+            payment_date=pay_date, amount=amount,
+            method=random.choice(["bank", "cheque"]),
             cash_account_id=cash.id,
         )
         s.add(pay); s.flush()
@@ -608,7 +848,7 @@ def _seed_bill_payments(
             s, user, date=pay_date,
             description=f"Payment for {bill.number}",
             entries=[
-                EntryInput(account_id=ap.id, debit=amount),
+                EntryInput(account_id=ap.id,   debit=amount),
                 EntryInput(account_id=cash.id, credit=amount),
             ],
             audit_entity_type="bill_payment",
@@ -621,89 +861,166 @@ def _seed_bill_payments(
 # ── Manual JVs ────────────────────────────────────────────────────────────────
 
 
-def _seed_manual_jvs(s: Session, user: User, count: int = 50) -> None:
+def _seed_manual_jvs(s: Session, user: User, count: int = 60) -> None:
     tid = user.tenant_id
-    base_day = date.today() - timedelta(days=365)
 
-    cash      = _account(s, tid, "1010") or _account(s, tid, "1000")
-    bank      = _account(s, tid, "1010") or _account(s, tid, "1000")
-    rent      = _account(s, tid, "5000")
-    capital   = _account(s, tid, "3000")
-    drawings  = _account(s, tid, "3010")
-    other_inc = _account(s, tid, "4900")
-    depr_exp  = _account(s, tid, "5050")
-    salary    = _account(s, tid, "5100") or _account(s, tid, "5000")
-    util      = _account(s, tid, "5200") or _account(s, tid, "5000")
-    adv       = _account(s, tid, "5300") or _account(s, tid, "5000")
+    # Resolve accounts — fall back gracefully if a code doesn't exist for this model
+    def acc(code: str) -> Optional[Account]:
+        return _account(s, tid, code)
 
-    # Pattern pool — cycled to reach `count` entries
-    patterns = [
-        ("Owner capital injection",         capital,   bank,      D(50000)),
-        ("Office rent payment",             rent,      cash,      D(1500)),
-        ("Owner drawings",                  drawings,  cash,      D(800)),
-        ("Other income — refund",           other_inc, bank,      D(450)),
-        ("Depreciation charge",             depr_exp,  bank,      D(300)),
-        ("Owner top-up capital",            capital,   bank,      D(10000)),
-        ("Salary expense",                  salary,    cash,      D(3500)),
-        ("Utility bill payment",            util,      cash,      D(280)),
-        ("Advertising spend",               adv,       bank,      D(650)),
-        ("Bank interest income",            bank,      other_inc, D(95)),
-        ("Office supplies expense",         rent,      cash,      D(120)),
-        ("Owner drawings — Q2",             drawings,  cash,      D(600)),
-        ("Telephone & internet",            util,      cash,      D(180)),
-        ("Staff overtime payment",          salary,    cash,      D(900)),
-        ("Maintenance & repairs",           rent,      cash,      D(430)),
-        ("Professional fees",               adv,       bank,      D(2000)),
-        ("Travel & accommodation",          adv,       cash,      D(750)),
-        ("Stationery & printing",           rent,      cash,      D(85)),
-        ("Bank charges",                    rent,      bank,      D(35)),
-        ("Miscellaneous income",            bank,      other_inc, D(200)),
-        ("Security deposit paid",           capital,   bank,      D(5000)),
-        ("Asset injection — owner",         capital,   bank,      D(25000)),
-        ("Annual insurance premium",        adv,       bank,      D(1200)),
-        ("Cleaning services",               rent,      cash,      D(240)),
-        ("Software subscription",           adv,       bank,      D(300)),
-        ("Courier & postage",               rent,      cash,      D(60)),
-        ("Vehicle running expense",         util,      cash,      D(520)),
-        ("Depreciation — equipment",        depr_exp,  bank,      D(400)),
-        ("Festive bonuses",                 salary,    cash,      D(1500)),
-        ("Marketing campaign",              adv,       bank,      D(3200)),
+    cash       = acc("1010") or acc("1000")
+    bank       = acc("1010") or acc("1000")
+    ar         = acc("1100")
+    ap         = acc("2000")
+    gst_out    = acc("2200")
+    gst_in     = acc("1250")
+    capital    = acc("3000")
+    drawings   = acc("3010")
+    retained   = acc("3100")
+    revenue    = acc("4000")
+    cons_rev   = acc("4010")  # services / manufacturing / telecom
+    rec_rev    = acc("4020")  # services / telecom
+    other_inc  = acc("4900")
+    gen_exp    = acc("5000")
+    cogs       = acc("5010")
+    freight    = acc("5020")  # trader / mfg
+    storage    = acc("5030")  # trader / mfg
+    inv_adj    = acc("5040")  # trader
+    depr_exp   = acc("5050")
+    dir_labour = acc("5100")  # manufacturing
+    sub_cost   = acc("5110")  # services / mfg
+    mfg_oh     = acc("5200")  # manufacturing
+    indirect   = acc("5210")  # manufacturing
+    other_exp  = acc("5900")
+    deferred   = acc("2300")  # services
+    inventory  = acc("1200") or acc("1202")
+
+    # Build pattern list — skip entries where both accounts don't exist
+    raw_patterns: list[tuple[str, Optional[Account], Optional[Account], Decimal]] = [
+        # Opening & capital
+        ("Owner capital injection — Q1",    capital,   bank,      D(50000)),
+        ("Owner capital top-up — Q2",       capital,   bank,      D(15000)),
+        ("Owner capital top-up — Q3",       capital,   bank,      D(10000)),
+        ("Owner drawings — Q1",             drawings,  cash,      D(800)),
+        ("Owner drawings — Q2",             drawings,  cash,      D(900)),
         ("Owner drawings — Q3",             drawings,  cash,      D(700)),
-        ("Training & development",          adv,       bank,      D(800)),
-        ("Fuel expense",                    util,      cash,      D(310)),
-        ("Water charges",                   util,      cash,      D(90)),
-        ("Electricity bill",                util,      cash,      D(460)),
-        ("Legal & compliance fees",         adv,       bank,      D(1800)),
-        ("Inventory write-off",             rent,      bank,      D(550)),
-        ("Gain on asset disposal",          bank,      other_inc, D(1100)),
-        ("Interest on loan",                rent,      bank,      D(620)),
-        ("Owner drawings — Q4",             drawings,  cash,      D(850)),
-        ("Yearend audit fee",               adv,       bank,      D(2500)),
-        ("Office renovation",               rent,      bank,      D(4500)),
-        ("Petty cash replenishment",        rent,      cash,      D(200)),
-        ("Staff welfare",                   salary,    cash,      D(350)),
-        ("Parking & toll fees",             util,      cash,      D(75)),
-        ("Printing & design",               adv,       bank,      D(480)),
-        ("Subscription renewal",            adv,       bank,      D(420)),
-        ("Owner capital — final tranche",   capital,   bank,      D(15000)),
+        ("Owner drawings — Q4",             drawings,  cash,      D(1000)),
+        ("Transfer to retained earnings",   retained,  revenue,   D(5000)),
+        # Operating expenses — general
+        ("Office rent — Jan",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Feb",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Mar",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Apr",               gen_exp,   bank,      D(1500)),
+        ("Office rent — May",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Jun",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Jul",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Aug",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Sep",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Oct",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Nov",               gen_exp,   bank,      D(1500)),
+        ("Office rent — Dec",               gen_exp,   bank,      D(1500)),
+        ("Electricity bill — Q1",           gen_exp,   cash,      D(460)),
+        ("Electricity bill — Q2",           gen_exp,   cash,      D(510)),
+        ("Electricity bill — Q3",           gen_exp,   cash,      D(570)),
+        ("Electricity bill — Q4",           gen_exp,   cash,      D(490)),
+        ("Internet & phone",                gen_exp,   bank,      D(180)),
+        ("Cleaning services",               gen_exp,   cash,      D(240)),
+        ("Security deposit paid",           gen_exp,   bank,      D(3000)),
+        ("Office supplies",                 gen_exp,   cash,      D(120)),
+        ("Stationery & printing",           gen_exp,   cash,      D(85)),
+        ("Courier & postage",               gen_exp,   cash,      D(60)),
+        ("Bank charges — Q1",               gen_exp,   bank,      D(35)),
+        ("Bank charges — Q2",               gen_exp,   bank,      D(40)),
+        ("Bank charges — Q3",               gen_exp,   bank,      D(38)),
+        ("Bank charges — Q4",               gen_exp,   bank,      D(42)),
+        ("Vehicle running costs",           gen_exp,   cash,      D(520)),
+        ("Fuel expense",                    gen_exp,   cash,      D(310)),
+        ("Parking & toll",                  gen_exp,   cash,      D(75)),
+        # Depreciation
+        ("Depreciation — equipment Q1",     depr_exp,  bank,      D(400)),
+        ("Depreciation — equipment Q2",     depr_exp,  bank,      D(400)),
+        ("Depreciation — equipment Q3",     depr_exp,  bank,      D(400)),
+        ("Depreciation — equipment Q4",     depr_exp,  bank,      D(400)),
         ("Yearend depreciation adjustment", depr_exp,  bank,      D(500)),
+        # Salaries / labour
+        ("Salary — Jan",                    dir_labour or gen_exp, cash, D(12000)),
+        ("Salary — Feb",                    dir_labour or gen_exp, cash, D(12000)),
+        ("Salary — Mar",                    dir_labour or gen_exp, cash, D(12000)),
+        ("Salary — Apr",                    dir_labour or gen_exp, cash, D(12500)),
+        ("Salary — May",                    dir_labour or gen_exp, cash, D(12500)),
+        ("Salary — Jun",                    dir_labour or gen_exp, cash, D(12500)),
+        ("Salary — Jul",                    dir_labour or gen_exp, cash, D(13000)),
+        ("Salary — Aug",                    dir_labour or gen_exp, cash, D(13000)),
+        ("Salary — Sep",                    dir_labour or gen_exp, cash, D(13000)),
+        ("Salary — Oct",                    dir_labour or gen_exp, cash, D(13500)),
+        ("Salary — Nov",                    dir_labour or gen_exp, cash, D(13500)),
+        ("Salary — Dec — incl. bonus",      dir_labour or gen_exp, cash, D(18000)),
+        ("Overtime payment",                dir_labour or gen_exp, cash, D(900)),
+        ("Staff welfare",                   gen_exp,   cash,      D(350)),
+        # Manufacturing overhead (mfg only — skipped if acc is None)
+        ("Factory overhead — Q1",           mfg_oh,    bank,      D(8000)),
+        ("Factory overhead — Q2",           mfg_oh,    bank,      D(8500)),
+        ("Factory overhead — Q3",           mfg_oh,    bank,      D(9000)),
+        ("Factory overhead — Q4",           mfg_oh,    bank,      D(8200)),
+        ("Indirect materials consumed",     indirect,  inventory, D(2000)),
+        ("Subcontractor cost — batch A",    sub_cost,  bank,      D(5000)),
+        ("Subcontractor cost — batch B",    sub_cost,  bank,      D(4500)),
+        # Trader freight & storage
+        ("Freight in — shipment 1",         freight,   bank,      D(1200)),
+        ("Freight in — shipment 2",         freight,   bank,      D(950)),
+        ("Storage charges — Q1",            storage,   bank,      D(600)),
+        ("Storage charges — Q2",            storage,   bank,      D(650)),
+        ("Inventory adjustment write-off",  inv_adj,   inventory, D(800)),
+        # Marketing & admin
+        ("Marketing campaign — digital",    other_exp, bank,      D(3200)),
+        ("Trade show expenses",             other_exp, bank,      D(2800)),
+        ("Professional fees — legal",       other_exp, bank,      D(1800)),
+        ("Yearend audit fee",               other_exp, bank,      D(2500)),
+        ("Training & development",          other_exp, bank,      D(800)),
+        ("Annual insurance premium",        gen_exp,   bank,      D(1200)),
+        ("Office renovation",               gen_exp,   bank,      D(4500)),
+        # Revenue / income
+        ("Bank interest income",            bank,      other_inc, D(95)),
+        ("Gain on asset disposal",          bank,      other_inc, D(1100)),
+        ("Miscellaneous income",            bank,      other_inc, D(200)),
+        # Services-specific revenue recognition
+        ("Consulting revenue — project A",  bank,      cons_rev or revenue, D(8500)),
+        ("Consulting revenue — project B",  bank,      cons_rev or revenue, D(6200)),
+        ("Recurring support contract",      bank,      rec_rev or revenue,  D(3600)),
+        ("Deferred revenue recognised",     deferred,  rec_rev or revenue,  D(2400)),
+        # GST settlement
+        ("GST payable settlement — Q1",     gst_out,   bank,      D(15000)),
+        ("GST payable settlement — Q2",     gst_out,   bank,      D(18000)),
+        ("GST payable settlement — Q3",     gst_out,   bank,      D(22000)),
+        ("GST input credit claimed",        bank,      gst_in,    D(8000)),
     ]
 
-    valid = [(desc, a, b, amt) for desc, a, b, amt in patterns if a and b and a.id != b.id]
+    # Filter to patterns where both accounts are non-None and distinct
+    valid = [
+        (desc, a, b, amt)
+        for desc, a, b, amt in raw_patterns
+        if a is not None and b is not None and a.id != b.id
+    ]
+    if not valid:
+        return
 
-    existing_jv_count = len(s.exec(
+    existing_count = len(s.exec(
         select(AuditLog).where(
             AuditLog.tenant_id == tid,
             AuditLog.entity_type == "manual_jv",
         )
     ).all())
-    to_create = max(0, count - existing_jv_count)
+    to_create = max(0, count - existing_count)
+    if to_create == 0:
+        return
+
+    jv_dates = _spread_dates(to_create, days_ago=365, min_days_ago=3)
 
     for i in range(to_create):
         desc, dr_acc, cr_acc, base_amt = valid[i % len(valid)]
         cycle = i // len(valid)
         amt = money(base_amt + D(cycle * 50))
-        d = (base_day + timedelta(days=i * 7)).isoformat()
+        d = jv_dates[i]
         post_transaction(
             s, user, date=d,
             description=f"{desc}{f' (#{cycle + 1})' if cycle else ''}",
@@ -727,18 +1044,16 @@ def _seed_manufacturing(
 ) -> None:
     tid = user.tenant_id
 
-    # Pick raw materials + finished goods
     raw = [p for p in stock_products if p.code and p.code.startswith("RM-")]
     fg  = [p for p in stock_products if p.code and p.code.startswith("FG-")]
     if not raw or not fg or not customer_supplied_products:
         return
 
-    # 1. BoMs — one per finished good (3) + variations = 50+
+    # BoMs — 50, one per finished good × variations
     existing_boms = s.exec(select(BomHeader).where(BomHeader.tenant_id == tid)).all()
     if len(existing_boms) < 50:
         for i in range(50 - len(existing_boms)):
             output = fg[i % len(fg)]
-            # Each BoM consumes 1-2 raw + 1 customer-supplied
             r1 = raw[i % len(raw)]
             r2 = raw[(i + 1) % len(raw)]
             cs = customer_supplied_products[i % len(customer_supplied_products)]
@@ -775,7 +1090,7 @@ def _seed_manufacturing(
                 source="customer_supplied",
             ))
 
-    # 2. Rate plans — 50
+    # Rate plans — 50
     existing_plans = s.exec(select(RatePlan).where(RatePlan.tenant_id == tid)).all()
     plans_to_create = max(0, 50 - len(existing_plans))
     plan_specs = [
@@ -847,31 +1162,36 @@ def _seed_manufacturing(
         s.add(p); s.flush()
         plan_objs.append(p)
 
-    # 3. Assign first plan to each customer
+    # Assign first plan to each customer
     for c in customers:
         existing_assign = s.exec(
             select(CustomerRatePlan).where(
-                CustomerRatePlan.tenant_id == tid, CustomerRatePlan.customer_id == c.id,
+                CustomerRatePlan.tenant_id == tid,
+                CustomerRatePlan.customer_id == c.id,
             )
         ).first()
         if existing_assign or not plan_objs:
             continue
         s.add(CustomerRatePlan(
-            tenant_id=tid, customer_id=c.id, rate_plan_id=plan_objs[0].id, is_active=True,
+            tenant_id=tid, customer_id=c.id,
+            rate_plan_id=plan_objs[0].id, is_active=True,
         ))
 
-    # 4. GRNs — 50, each receiving customer-supplied material
+    # GRNs — 50, spread over the year
     godown = s.exec(
         select(StockLocation).where(
-            StockLocation.tenant_id == tid, StockLocation.type == "customer_custodial",
+            StockLocation.tenant_id == tid,
+            StockLocation.type == "customer_custodial",
         )
     ).first()
     if not godown:
         return
-    existing_grns = s.exec(select(GoodsReceiptNote).where(GoodsReceiptNote.tenant_id == tid)).all()
+    existing_grns = s.exec(
+        select(GoodsReceiptNote).where(GoodsReceiptNote.tenant_id == tid)
+    ).all()
     grn_objs: list[GoodsReceiptNote] = list(existing_grns)
     grns_to_create = max(0, 50 - len(existing_grns))
-    base_day = date.today() - timedelta(days=80)
+    grn_dates = _spread_dates(grns_to_create, days_ago=360, min_days_ago=10)
     for i in range(grns_to_create):
         customer = customers[i % len(customers)]
         cs = customer_supplied_products[i % len(customer_supplied_products)]
@@ -880,7 +1200,7 @@ def _seed_manufacturing(
         number = next_number(s, tid, "grn", "GRN", width=4)
         grn = GoodsReceiptNote(
             tenant_id=tid, number=number, customer_id=customer.id,
-            received_date=(base_day + timedelta(days=i * 6)).isoformat(),
+            received_date=grn_dates[i],
             location_id=godown.id, declared_value=money(declared),
         )
         s.add(grn); s.flush()
@@ -888,27 +1208,24 @@ def _seed_manufacturing(
             grn_id=grn.id, product_id=cs.id, qty=qty,
             lot_no=f"LOT-{i+1:03d}", declared_value=money(declared),
         ))
-        # Custodial layer
         s.add(InventoryLayer(
             tenant_id=tid, product_id=cs.id, location_id=godown.id,
             owner_customer_id=customer.id, lot_no=f"LOT-{i+1:03d}",
             qty_received=qty, qty_remaining=qty, unit_cost=ZERO,
             source_doc=number,
         ))
-        # Movement
         record_movement(
             s, tenant_id=tid, product_id=cs.id, direction="CUSTODIAL_RECEIPT",
             qty=qty, to_location_id=godown.id, lot_no=f"LOT-{i+1:03d}",
             owner_customer_id=customer.id,
             source_doc_type="grn", source_doc_id=grn.id, posted_to_gl=False,
         )
-        # Memo JE
         memo_a = _account(s, tid, "1210")
         memo_l = _account(s, tid, "2150")
         if memo_a and memo_l and declared > 0:
-            for acc in (memo_a, memo_l):
-                if not acc.is_memo:
-                    acc.is_memo = True; s.add(acc)
+            for acc_obj in (memo_a, memo_l):
+                if not acc_obj.is_memo:
+                    acc_obj.is_memo = True; s.add(acc_obj)
             txn = post_transaction(
                 s, user, date=grn.received_date,
                 description=f"GRN {number} — custodial receipt",
@@ -923,8 +1240,10 @@ def _seed_manufacturing(
             s.add(grn)
         grn_objs.append(grn)
 
-    # 5. Production orders — 50, distributed across states
-    existing_pos = s.exec(select(ProductionOrder).where(ProductionOrder.tenant_id == tid)).all()
+    # Production orders — 50
+    existing_pos = s.exec(
+        select(ProductionOrder).where(ProductionOrder.tenant_id == tid)
+    ).all()
     pos_to_create = max(0, 50 - len(existing_pos))
     state_pattern = [
         "draft", "draft", "draft", "started", "started", "started",
@@ -932,7 +1251,6 @@ def _seed_manufacturing(
         "billed", "billed", "billed", "cancelled", "draft",
     ]
     for i in range(pos_to_create):
-        # Pick an active BoM
         active_bom = s.exec(
             select(BomHeader).where(
                 BomHeader.tenant_id == tid, BomHeader.is_active == True,  # noqa: E712
@@ -949,18 +1267,13 @@ def _seed_manufacturing(
             tenant_id=tid, number=number, bom_id=active_bom.id,
             customer_id=customer.id,
             rate_plan_id=rate_plan.id if rate_plan else None,
-            output_qty=qty, state="draft",
-            created_at=datetime.utcnow() - timedelta(days=30 - i),
+            output_qty=qty, state=state_pattern[i % len(state_pattern)],
+            created_at=datetime.utcnow() - timedelta(days=random.randint(10, 300)),
         )
         s.add(po); s.flush()
-        # Don't drive state transitions automatically — keep simple "draft" for now
-        # so we don't deplete custodial stock or post extra JEs in seed.
-
-    # The state pattern is left as is — most POs remain draft for demo simplicity.
-    # Users can drive them through the lifecycle from the UI.
 
 
-# ── Telecom-franchise-specific ──────────────────────────────────────────────
+# ── Telecom-franchise-specific ─────────────────────────────────────────────────
 
 
 def _seed_telecom_franchise(s: Session, user: User) -> None:
@@ -969,16 +1282,15 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
     agreement with amortisation. Idempotent — skips if an operator exists."""
     tid = user.tenant_id
     if s.exec(select(Operator).where(Operator.tenant_id == tid)).first():
-        return   # already seeded
+        return
 
     def acc_id(code: str) -> Optional[int]:
         a = _account(s, tid, code)
         return a.id if a else None
 
     today = date.today()
-    setup_day = (today - timedelta(days=100)).isoformat()
+    setup_day = (today - timedelta(days=340)).isoformat()
 
-    # 1. Operator — wired to the franchise CoA
     op = Operator(
         tenant_id=tid, name="Jazz", operator_code="JAZZ",
         contact_person="Franchise Desk", contact_phone="0300-1112223",
@@ -988,7 +1300,6 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
     )
     s.add(op); s.flush()
 
-    # 2. Tracker (MSR) account + initial deposit + load order (3% uplift)
     ta = TrackerAccount(tenant_id=tid, operator_id=op.id, account_number="3001234567")
     s.add(ta); s.flush()
     post_tracker_deposit(s, user, tracker_account=ta, amount=D("500000"),
@@ -997,77 +1308,85 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
                     uplift_pct=D("3.00"), date=setup_day, reference="Initial load")
     s.flush()
 
-    # 3. SIM stock procurement via tracker (creates a SIM batch)
     batch, _ = post_stock_debit(
         s, user, tracker_account=ta, inventory_account_code="1200",
         qty=200, unit_cost=D("50"), date=setup_day, batch_number="SIMB-0001",
     )
     s.flush()
 
-    # 4. RSO agents + retail outlets
     rsos: list[RsoAgent] = []
-    for name, terr in [("Imran Khan", "North Zone"), ("Sana Malik", "Central Zone"), ("Bilal Ahmed", "South Zone")]:
+    for name, terr in [("Imran Khan", "North Zone"), ("Sana Malik", "Central Zone"),
+                        ("Bilal Ahmed", "South Zone")]:
         r = RsoAgent(tenant_id=tid, name=name, territory=terr,
                      receivable_account_id=acc_id("1120"))
         s.add(r); s.flush()
         rsos.append(r)
     outlets: list[RetailOutlet] = []
     for i, r in enumerate(rsos):
-        o = RetailOutlet(tenant_id=tid, rso_id=r.id, shop_name=f"{r.territory} Mobile Point",
+        o = RetailOutlet(tenant_id=tid, rso_id=r.id,
+                         shop_name=f"{r.territory} Mobile Point",
                          owner_name=f"Owner {i+1}")
         s.add(o); s.flush()
         outlets.append(o)
 
-    # 5. Distribute load: MSR → each RSO, then RSO → retail
     for r in rsos:
-        post_msr_to_rso_transfer(s, user, tracker_account=ta, rso=r,
-                                 amount=D("50000"), date=(today - timedelta(days=40)).isoformat())
+        post_msr_to_rso_transfer(
+            s, user, tracker_account=ta, rso=r, amount=D("50000"),
+            date=(today - timedelta(days=280)).isoformat(),
+        )
     s.flush()
-    post_rso_to_retail_transfer(s, user, rso=rsos[0], retail_outlet_id=outlets[0].id,
-                                amount=D("20000"), date=(today - timedelta(days=38)).isoformat())
+    post_rso_to_retail_transfer(
+        s, user, rso=rsos[0], retail_outlet_id=outlets[0].id,
+        amount=D("20000"), date=(today - timedelta(days=270)).isoformat(),
+    )
     s.flush()
 
-    # 7. SIM issue to each RSO from the batch (20 SIMs @ 80 face = 1600 stock each)
     if batch is not None:
         for i, r in enumerate(rsos):
-            post_rso_sim_issue(s, user, rso=r, batch=batch, qty=20,
-                               retail_price=D("80"), date=(today - timedelta(days=26 - i)).isoformat())
+            post_rso_sim_issue(
+                s, user, rso=r, batch=batch, qty=20,
+                retail_price=D("80"),
+                date=(today - timedelta(days=250 - i)).isoformat(),
+            )
             batch.qty_activated += 20
         s.add(batch)
     s.flush()
 
-    # 6. RSO daily collections — load + stock kept consistent with what was issued
-    #    (each RSO was issued 1600 of SIM stock; collect 1500 of it so the stock
-    #    receivable stays a small positive balance rather than going negative).
     for i, r in enumerate(rsos):
         post_rso_daily_collection(
             s, user, rso=r, load_portion=D("30000"), stock_portion=D("1500"),
-            total_deposited=D("31500"), date=(today - timedelta(days=20 - i)).isoformat(),
+            total_deposited=D("31500"),
+            date=(today - timedelta(days=200 - i)).isoformat(),
         )
     s.flush()
 
-    # 8. SIM activations (some with commission accrued)
     activations: list[SimActivation] = []
     for i in range(50):
         act = SimActivation(
             tenant_id=tid, operator_id=op.id,
             sim_number=f"0300{1000000 + i:07d}",
             batch_id=batch.id if batch else None,
-            activation_date=(today - timedelta(days=50 - i)).isoformat(),
-            customer_name=f"Customer {i+1}", activation_type="prepaid" if i % 3 != 0 else "postpaid",
-            status="active", commission_rate=D("150"), commission_status="pending",
+            activation_date=(today - timedelta(days=300 - i * 6)).isoformat(),
+            customer_name=f"Customer {i+1}",
+            activation_type="prepaid" if i % 3 != 0 else "postpaid",
+            status="active", commission_rate=D("150"),
+            commission_status="pending",
         )
         s.add(act); s.flush()
         activations.append(act)
     for act in activations[:25]:
-        post_commission_accrual(s, user, activation=act, amount=D("150"),
-                                date=act.activation_date, revenue_account_code="4020")
+        post_commission_accrual(
+            s, user, activation=act, amount=D("150"),
+            date=act.activation_date, revenue_account_code="4020",
+        )
     s.flush()
 
-    # 9. FCA events this month + a monthly target
     month = today.strftime("%Y-%m")
-    target = KpiTarget(tenant_id=tid, operator_id=op.id, target_month=f"{month}-01",
-                       metric="fca", target_value=D("60"))
+    target = KpiTarget(
+        tenant_id=tid, operator_id=op.id,
+        target_month=f"{month}-01",
+        metric="fca", target_value=D("60"),
+    )
     s.add(target); s.flush()
     for i in range(50):
         day = min((i % 28) + 1, today.day if today.day > 0 else 1)
@@ -1077,24 +1396,27 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
             kpi_target_id=target.id,
         ))
     s.flush()
-    # Target commission earned (credited back to tracker deposit)
-    post_fca_target_commission(s, user, tracker_account=ta, amount=D("12000"),
-                               date=(today - timedelta(days=2)).isoformat(), credit_to="tracker")
+    post_fca_target_commission(
+        s, user, tracker_account=ta, amount=D("12000"),
+        date=(today - timedelta(days=30)).isoformat(), credit_to="tracker",
+    )
     s.flush()
 
-    # 10. Franchise agreement + capitalise fee + one month amortisation
     ag = FranchiseAgreement(
         tenant_id=tid, operator_id=op.id, agreement_number="FA-2024-JAZZ",
         start_date=setup_day, franchise_fee_paid=D("600000"),
         royalty_rate_pct=D("5"), min_monthly_target=D("250000"),
         penalty_rate_pct=D("2"), amortisation_months=60,
-        intangible_account_id=acc_id("1300"), amortisation_account_id=acc_id("5030"),
+        intangible_account_id=acc_id("1300"),
+        amortisation_account_id=acc_id("5030"),
     )
     s.add(ag); s.flush()
     post_franchise_fee_capitalisation(s, user, agreement=ag, fee=D("600000"),
                                       date=setup_day)
-    post_franchise_fee_amortisation(s, user, agreement=ag,
-                                    date=(today - timedelta(days=5)).isoformat())
+    post_franchise_fee_amortisation(
+        s, user, agreement=ag,
+        date=(today - timedelta(days=30)).isoformat(),
+    )
     s.flush()
 
 
@@ -1103,45 +1425,46 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
 
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
-    random.seed(hash(email) & 0xFFFFFFFF)  # deterministic per tenant
+    random.seed(hash(email) & 0xFFFFFFFF)
     with Session(engine) as s:
-        # Get or create tenant
         existing_user = s.exec(select(User).where(User.email == email)).first()
         if existing_user:
             tenant_id = existing_user.tenant_id
             tenant = s.get(Tenant, tenant_id)
-            # Ensure business_model is set correctly
             if tenant.business_model != business_model:
                 tenant.business_model = business_model
                 s.add(tenant); s.commit()
         else:
-            tenant = Tenant(name=company_name, business_model=business_model, base_currency="USD")
+            tenant = Tenant(name=company_name, business_model=business_model,
+                            base_currency="USD")
             s.add(tenant); s.commit(); s.refresh(tenant)
             tenant_id = tenant.id
-            # Reuse the existing seed_data helper — it lays down the
-            # business-model-specific CoA, stock locations, and counters.
             seed_data(tenant_id, session=s)
             _get_or_make_user(s, email, "Demo User", tenant_id)
 
         s.commit()
 
-        # Seed everything else
         user = s.exec(select(User).where(User.email == email)).first()
 
         customers = _seed_customers(s, tenant_id)
-        vendors = _seed_vendors(s, tenant_id)
+        vendors   = _seed_vendors(s, tenant_id)
         services, stock, custom_supp = _seed_products(s, tenant_id, business_model)
         all_products = services + stock + custom_supp
         s.commit()
 
         _seed_tax_codes(s, tenant_id)
         _seed_exchange_rates(s, tenant_id)
+        _seed_bank_accounts(s, tenant_id)
         s.commit()
 
-        # Need accounts after commit
-        bills = _seed_bills(s, user, vendors, all_products, business_model)
+        payment_terms = _assign_payment_terms(s, tenant_id, customers, vendors)
         s.commit()
-        invoices = _seed_invoices(s, user, customers, all_products, business_model)
+
+        bills    = _seed_bills(s, user, vendors, all_products, business_model,
+                               payment_terms)
+        s.commit()
+        invoices = _seed_invoices(s, user, customers, all_products, business_model,
+                                  payment_terms)
         s.commit()
         _seed_payments_received(s, user, invoices)
         _seed_bill_payments(s, user, bills)
@@ -1159,22 +1482,22 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             _seed_telecom_franchise(s, user)
             s.commit()
 
-        # Report counts
         from models import Transaction
         return {
-            "tenant": company_name,
-            "email": email,
+            "tenant":       company_name,
+            "email":        email,
             "business_model": business_model,
-            "tenant_id": tenant_id,
-            "customers": len(s.exec(select(Customer).where(Customer.tenant_id == tenant_id)).all()),
-            "vendors":   len(s.exec(select(Vendor).where(Vendor.tenant_id == tenant_id)).all()),
-            "products":  len(s.exec(select(Product).where(Product.tenant_id == tenant_id)).all()),
-            "invoices":  len(s.exec(select(Invoice).where(Invoice.tenant_id == tenant_id)).all()),
-            "bills":     len(s.exec(select(Bill).where(Bill.tenant_id == tenant_id)).all()),
+            "tenant_id":    tenant_id,
+            "customers":    len(s.exec(select(Customer).where(Customer.tenant_id == tenant_id)).all()),
+            "vendors":      len(s.exec(select(Vendor).where(Vendor.tenant_id == tenant_id)).all()),
+            "products":     len(s.exec(select(Product).where(Product.tenant_id == tenant_id)).all()),
+            "invoices":     len(s.exec(select(Invoice).where(Invoice.tenant_id == tenant_id)).all()),
+            "bills":        len(s.exec(select(Bill).where(Bill.tenant_id == tenant_id)).all()),
             "transactions": len(s.exec(select(Transaction).where(Transaction.tenant_id == tenant_id)).all()),
-            "boms":      len(s.exec(select(BomHeader).where(BomHeader.tenant_id == tenant_id)).all()),
-            "rate_plans":len(s.exec(select(RatePlan).where(RatePlan.tenant_id == tenant_id)).all()),
-            "grns":      len(s.exec(select(GoodsReceiptNote).where(GoodsReceiptNote.tenant_id == tenant_id)).all()),
+            "bank_accounts":len(s.exec(select(BankAccount).where(BankAccount.tenant_id == tenant_id)).all()),
+            "boms":         len(s.exec(select(BomHeader).where(BomHeader.tenant_id == tenant_id)).all()),
+            "rate_plans":   len(s.exec(select(RatePlan).where(RatePlan.tenant_id == tenant_id)).all()),
+            "grns":         len(s.exec(select(GoodsReceiptNote).where(GoodsReceiptNote.tenant_id == tenant_id)).all()),
             "production_orders": len(s.exec(select(ProductionOrder).where(ProductionOrder.tenant_id == tenant_id)).all()),
         }
 
