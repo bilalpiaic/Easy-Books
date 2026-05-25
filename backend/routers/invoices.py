@@ -9,13 +9,13 @@ from sqlmodel import Session, asc, desc, func, select
 
 from datetime import timedelta
 
-from models import Account, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, Tenant, Transaction
+from models import Account, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
 from services.fx import rate_to_base
 from services.inventory import consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, next_number
 
 router = APIRouter(tags=["invoices"])
 
@@ -29,6 +29,7 @@ class InvoiceLineCreate(BaseModel):
     qty: Decimal = Decimal("1")
     unit: Optional[str] = None
     rate: Decimal = Decimal("0")
+    tax_code_id: Optional[int] = None
 
 
 class InvoiceCreate(BaseModel):
@@ -225,9 +226,22 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
 
     # Persist line items; for stock lines, relieve inventory at WAvg cost and
     # accumulate total COGS so we can post one Dr COGS / Cr Inventory JV.
+    # For lines with tax_code_id, accumulate per-GL tax amounts.
     total_cogs = ZERO
+    per_gl_tax: dict[int, Decimal] = {}  # gl_account_id → total_tax for per-line mode
     for line_data in body.lines:
         amount = money(D(line_data.qty) * D(line_data.rate))
+        line_tax_code_id = line_data.tax_code_id
+        if line_tax_code_id:
+            tc = session.exec(
+                select(TaxCode).where(
+                    TaxCode.id == line_tax_code_id,
+                    TaxCode.tenant_id == user.tenant_id,
+                )
+            ).first()
+            if tc:
+                line_tax = money(amount * tc.rate / D("100"))
+                per_gl_tax[tc.gl_account_id] = per_gl_tax.get(tc.gl_account_id, ZERO) + line_tax
         session.add(
             InvoiceLine(
                 invoice_id=invoice.id,
@@ -237,6 +251,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
                 unit=line_data.unit,
                 rate=D(line_data.rate),
                 amount=amount,
+                tax_code_id=line_tax_code_id,
             )
         )
         if line_data.product_id:
@@ -254,15 +269,24 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
                     qty=D(line_data.qty),
                 )
 
+    # If per-line taxes were collected, override the header gst_amount.
+    use_per_line_tax = bool(per_gl_tax)
+    if use_per_line_tax:
+        gst_amount = sum_money(per_gl_tax.values())
+        total = money(subtotal + gst_amount)
+        invoice.gst_amount = gst_amount
+        invoice.total = total
+        session.add(invoice)
+
     ar_acc = (
         session.get(Account, body.ar_account_id)
         if body.ar_account_id
-        else get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
+        else get_default_account(session, user.tenant_id, "default_ar_account", "1100", "Accounts Receivable", "Asset")
     )
     rev_acc = (
         session.get(Account, body.revenue_account_id)
         if body.revenue_account_id
-        else get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
+        else get_default_account(session, user.tenant_id, "default_revenue_account", "4000", "Sales Revenue", "Revenue")
     )
 
     # Convert document amounts → base currency for GL posting.
@@ -271,7 +295,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     gst_base = money(gst_amount * fx_rate)
 
     entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
-    if gst_amount > 0:
+    if use_per_line_tax and per_gl_tax:
+        # Post each distinct tax GL account separately.
+        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal_base))
+        for gl_id, tax_amt in per_gl_tax.items():
+            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate)))
+    elif gst_amount > 0:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
@@ -468,12 +497,12 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     ar_acc = (
         session.get(Account, body.ar_account_id)
         if body.ar_account_id
-        else get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
+        else get_default_account(session, user.tenant_id, "default_ar_account", "1100", "Accounts Receivable", "Asset")
     )
     rev_acc = (
         session.get(Account, body.revenue_account_id)
         if body.revenue_account_id
-        else get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
+        else get_default_account(session, user.tenant_id, "default_revenue_account", "4000", "Sales Revenue", "Revenue")
     )
     total_base = money(total * fx_rate)
     subtotal_base = money(subtotal * fx_rate)

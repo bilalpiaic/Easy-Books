@@ -616,6 +616,7 @@ class InvoiceLine(SQLModel, table=True):
     unit: Optional[str] = None
     rate: Money = money_col()
     amount: Money = money_col()  # stored = qty × rate
+    tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
 
 
 class BillLine(SQLModel, table=True):
@@ -627,6 +628,7 @@ class BillLine(SQLModel, table=True):
     unit: Optional[str] = None
     rate: Money = money_col()
     amount: Money = money_col()  # stored = qty × rate
+    tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
 
 
 class TaxCode(SQLModel, table=True):

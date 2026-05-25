@@ -23,7 +23,7 @@ from sqlmodel import Session, select
 
 from auth import ALGORITHM, SECRET_KEY
 from db import get_session
-from models import Account, AuditLog, SequenceCounter, User
+from models import Account, AuditLog, SequenceCounter, Settings, User
 
 
 # auto_error=False so a missing Authorization header falls through to the
@@ -163,6 +163,29 @@ def next_number(
     session.add(row)
     session.flush()
     return f"{prefix}-{value:0{width}d}"
+
+
+def get_default_account(
+    session: Session,
+    tenant_id: int,
+    setting_key: str,
+    fallback_code: str,
+    fallback_name: str,
+    fallback_type: str,
+) -> Account:
+    """Resolve a default GL account: tenant setting → code lookup → auto-create.
+
+    Checks Settings[setting_key] for the tenant; if it contains a valid account
+    code, uses that. Otherwise falls back to `fallback_code`.
+    """
+    row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == tenant_id,
+            Settings.key == setting_key,
+        )
+    ).first()
+    code = row.value if (row and row.value) else fallback_code
+    return get_or_create_account(session, tenant_id, code, fallback_name, fallback_type)
 
 
 def get_or_create_account(

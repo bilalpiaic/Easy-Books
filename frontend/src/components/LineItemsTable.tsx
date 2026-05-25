@@ -10,6 +10,7 @@ export interface LineItem {
   unit?: string
   rate: number
   amount: number
+  tax_code_id?: number | null
 }
 
 interface Product {
@@ -21,20 +22,30 @@ interface Product {
   product_type: string
 }
 
+export interface TaxCodeOption {
+  id: number
+  code: string
+  name: string
+  rate: number
+  type: string
+}
+
 interface Props {
   lines: LineItem[]
   onChange: (lines: LineItem[]) => void
   products?: Product[]
+  taxCodes?: TaxCodeOption[]
+  showTax?: boolean
   readOnly?: boolean
 }
 
 const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
 
 function emptyLine(): LineItem {
-  return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0 }
+  return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0, tax_code_id: null }
 }
 
-export default function LineItemsTable({ lines, onChange, products = [], readOnly = false }: Props) {
+export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false }: Props) {
   const update = (idx: number, patch: Partial<LineItem>) => {
     const updated = lines.map((l, i) => {
       if (i !== idx) return l
@@ -65,18 +76,30 @@ export default function LineItemsTable({ lines, onChange, products = [], readOnl
 
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
 
+  // Extra columns: product, tax — affects colspan calculations
+  const hasProducts = products.length > 0
+  const hasTax = showTax
+  const baseCols = 4 // description, qty, unit, rate
+  const extraCols = (hasProducts ? 1 : 0) + (hasTax ? 1 : 0)
+  const totalDataCols = baseCols + extraCols + 1 // +1 for amount
+  const actionCol = readOnly ? 0 : 1
+  const totalCols = totalDataCols + actionCol
+
   return (
     <div className="border border-[#ede9e2] rounded-xl overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-[#f6f3ee]">
           <tr>
-            {products.length > 0 && (
+            {hasProducts && (
               <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Product</th>
             )}
             <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Description</th>
             <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Qty</th>
             <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Unit</th>
             <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Rate</th>
+            {hasTax && (
+              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 w-32">Tax</th>
+            )}
             <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Amount</th>
             {!readOnly && <th className="w-8" />}
           </tr>
@@ -84,7 +107,7 @@ export default function LineItemsTable({ lines, onChange, products = [], readOnl
         <tbody className="divide-y divide-[#ede9e2]">
           {lines.map((line, idx) => (
             <tr key={idx} className="hover:bg-[#f6f3ee]/30">
-              {products.length > 0 && (
+              {hasProducts && (
                 <td className="px-3 py-2">
                   {readOnly ? (
                     <span className="text-xs text-black/60">{products.find(p => p.id === line.product_id)?.name ?? "—"}</span>
@@ -151,6 +174,26 @@ export default function LineItemsTable({ lines, onChange, products = [], readOnl
                   />
                 )}
               </td>
+              {hasTax && (
+                <td className="px-3 py-2">
+                  {readOnly ? (
+                    <span className="text-xs text-black/60">
+                      {taxCodes.find(t => t.id === line.tax_code_id)?.code ?? "—"}
+                    </span>
+                  ) : (
+                    <select
+                      value={line.tax_code_id ?? ""}
+                      onChange={e => update(idx, { tax_code_id: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5"
+                    >
+                      <option value="">— none —</option>
+                      {taxCodes.map(t => (
+                        <option key={t.id} value={t.id}>{t.code} ({t.rate}%)</option>
+                      ))}
+                    </select>
+                  )}
+                </td>
+              )}
               <td className="px-3 py-2 text-right font-mono text-sm font-semibold">{fmtPKR(line.amount)}</td>
               {!readOnly && (
                 <td className="px-2 py-2">
@@ -163,7 +206,7 @@ export default function LineItemsTable({ lines, onChange, products = [], readOnl
           ))}
           {lines.length === 0 && (
             <tr>
-              <td colSpan={products.length > 0 ? 7 : 6} className="px-4 py-4 text-center text-xs text-black/40">
+              <td colSpan={totalCols} className="px-4 py-4 text-center text-xs text-black/40">
                 No line items. {!readOnly && "Click Add Row to begin."}
               </td>
             </tr>
@@ -171,7 +214,7 @@ export default function LineItemsTable({ lines, onChange, products = [], readOnl
         </tbody>
         <tfoot className="bg-[#f6f3ee] border-t border-[#ede9e2]">
           <tr>
-            <td colSpan={products.length > 0 ? (readOnly ? 4 : 5) : (readOnly ? 3 : 4)} className="px-3 py-2">
+            <td colSpan={totalCols - 1 - actionCol} className="px-3 py-2">
               {!readOnly && (
                 <button
                   type="button"

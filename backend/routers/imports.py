@@ -4,7 +4,7 @@ import io
 
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from models import Account, Customer, Product, Vendor
 from services.money import D
@@ -68,6 +68,137 @@ def _csv_response(entity: str) -> StreamingResponse:
     )
 
 
+# ── Validation helpers (no DB writes) ────────────────────────────────────────
+
+def _validate_accounts(rows: list[dict], session: Session, tenant_id: int):
+    VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
+    valid, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        code = (row.get("code") or "").strip()
+        name = (row.get("name") or "").strip()
+        atype = (row.get("type") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        if atype not in VALID_TYPES:
+            errors.append({"row": i, "message": f"type must be one of {sorted(VALID_TYPES)}"}); continue
+        if code:
+            existing = session.exec(
+                select(Account).where(Account.code == code, Account.tenant_id == tenant_id)
+            ).first()
+            if existing:
+                errors.append({"row": i, "message": f"account code '{code}' already exists"}); continue
+        valid += 1
+    return valid, errors
+
+
+def _validate_customers(rows: list[dict]):
+    valid, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        name = (row.get("name") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        try:
+            D(row.get("opening_balance") or "0")
+        except Exception:
+            errors.append({"row": i, "message": "opening_balance must be a number"}); continue
+        valid += 1
+    return valid, errors
+
+
+def _validate_vendors(rows: list[dict]):
+    valid, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        name = (row.get("name") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        try:
+            D(row.get("opening_balance") or "0")
+        except Exception:
+            errors.append({"row": i, "message": "opening_balance must be a number"}); continue
+        valid += 1
+    return valid, errors
+
+
+def _validate_products(rows: list[dict]):
+    VALID_TYPES = {"stock", "service"}
+    VALID_UNITS = {"pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"}
+    valid, errors = 0, []
+    for i, row in enumerate(rows, start=2):
+        name = (row.get("name") or "").strip()
+        if not name:
+            errors.append({"row": i, "message": "name is required"}); continue
+        ptype = (row.get("product_type") or "service").strip().lower()
+        if ptype not in VALID_TYPES:
+            errors.append({"row": i, "message": "product_type must be 'stock' or 'service'"}); continue
+        unit = (row.get("unit") or "pcs").strip().lower()
+        if unit not in VALID_UNITS:
+            errors.append({"row": i, "message": f"unit must be one of {sorted(VALID_UNITS)}"}); continue
+        try:
+            D(row.get("default_rate") or "0")
+            D(row.get("reorder_level") or "0")
+        except Exception:
+            errors.append({"row": i, "message": "default_rate and reorder_level must be numbers"}); continue
+        valid += 1
+    return valid, errors
+
+
+def _validate_transactions(rows: list[dict], session: Session, tenant_id: int):
+    errors: list[dict] = []
+    groups: dict[tuple, list] = {}
+    for i, row in enumerate(rows, start=2):
+        date = (row.get("date") or "").strip()
+        desc = (row.get("description") or "").strip()
+        if not date or not desc:
+            errors.append({"row": i, "message": "date and description are required"}); continue
+        groups.setdefault((date, desc), []).append((i, row))
+
+    valid = 0
+    for (_date, _desc), group_rows in groups.items():
+        group_errors = []
+        for i, row in group_rows:
+            acct_code = (row.get("account_code") or "").strip()
+            if not acct_code:
+                group_errors.append({"row": i, "message": "account_code is required"}); continue
+            acct = session.exec(
+                select(Account).where(Account.tenant_id == tenant_id, Account.code == acct_code)
+            ).first()
+            if not acct:
+                group_errors.append({"row": i, "message": f"account code '{acct_code}' not found"}); continue
+            try:
+                D(row.get("debit") or "0")
+                D(row.get("credit") or "0")
+            except Exception:
+                group_errors.append({"row": i, "message": "debit and credit must be numbers"}); continue
+        if group_errors:
+            errors.extend(group_errors)
+        else:
+            valid += 1
+    return valid, errors
+
+
+# ── Validate endpoint (no DB write) ──────────────────────────────────────────
+
+@router.post("/{entity}/validate")
+async def validate_import(
+    entity: str, file: UploadFile,
+    session: SessionDep, user: WriteUserDep,
+):
+    rows = _parse_csv(await file.read())
+    if entity == "accounts":
+        valid, errors = _validate_accounts(rows, session, user.tenant_id)
+    elif entity == "customers":
+        valid, errors = _validate_customers(rows)
+    elif entity == "vendors":
+        valid, errors = _validate_vendors(rows)
+    elif entity == "products":
+        valid, errors = _validate_products(rows)
+    elif entity == "transactions":
+        valid, errors = _validate_transactions(rows, session, user.tenant_id)
+    else:
+        raise HTTPException(404, f"Unknown entity: {entity}")
+    return {"valid_count": valid, "total_rows": len(rows), "errors": errors}
+
+
 @router.get("/{entity}/sample")
 def download_sample(entity: str, _user: CurrentUserDep):
     return _csv_response(entity)
@@ -80,25 +211,20 @@ def download_sample(entity: str, _user: CurrentUserDep):
 async def import_accounts(
     file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
-    VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
     rows = _parse_csv(await file.read())
-    imported, errors = 0, []
+    valid, errors = _validate_accounts(rows, session, user.tenant_id)
+    imported = 0
     for i, row in enumerate(rows, start=2):
         code = (row.get("code") or "").strip()
         name = (row.get("name") or "").strip()
         atype = (row.get("type") or "").strip()
-        if not name:
-            errors.append({"row": i, "message": "name is required"}); continue
-        if atype not in VALID_TYPES:
-            errors.append({"row": i, "message": f"type must be one of {sorted(VALID_TYPES)}"}); continue
-        if code:
-            existing = session.exec(
-                select(Account).where(
-                    Account.code == code, Account.tenant_id == user.tenant_id
-                )
-            ).first()
-            if existing:
-                errors.append({"row": i, "message": f"account code '{code}' already exists"}); continue
+        VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
+        if not name or atype not in VALID_TYPES:
+            continue
+        if code and session.exec(
+            select(Account).where(Account.code == code, Account.tenant_id == user.tenant_id)
+        ).first():
+            continue
         session.add(Account(
             tenant_id=user.tenant_id, code=code or None, name=name, type=atype,
         ))

@@ -1,6 +1,6 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2, Upload, CalendarDays } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2, Upload, CalendarDays, BookOpen } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
@@ -10,6 +10,13 @@ interface PaymentTerm {
   code: string
   name: string
   days: number
+}
+
+interface Account {
+  id: number
+  code: string
+  name: string
+  type: string
 }
 
 interface AccountingPeriod {
@@ -49,8 +56,15 @@ export default function SettingsPage() {
   const [termForm, setTermForm] = useState({ code: "", name: "", days: "" })
   const [addingTerm, setAddingTerm] = useState(false)
   const [termSaving, setTermSaving] = useState(false)
+  const [accounts, setAccounts] = useState<Account[]>([])
 
   useEffect(() => { setForm(ctxSettings) }, [ctxSettings])
+
+  useEffect(() => {
+    apiFetch<{ items: Account[] }>("/api/accounts?limit=500")
+      .then(d => setAccounts(d.items))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     apiFetch<AccountingPeriod[]>("/api/periods")
@@ -519,6 +533,37 @@ export default function SettingsPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
+        <h2 className="text-xl font-semibold mb-2 flex items-center gap-3 text-black">
+          <BookOpen className="w-5 h-5 text-[#b8943f]" />
+          Default GL Accounts
+        </h2>
+        <p className="text-sm text-black/55 mb-6">Select the default accounts used when posting invoices and bills. Enter an account code (e.g. 1100) or leave blank to use the system default.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {([
+            { key: 'default_ar_account',      label: 'Accounts Receivable (AR)', hint: 'Debited on invoice post', types: ['Asset'] },
+            { key: 'default_ap_account',      label: 'Accounts Payable (AP)',    hint: 'Credited on bill post',    types: ['Liability'] },
+            { key: 'default_revenue_account', label: 'Revenue Account',          hint: 'Credited on invoice post', types: ['Revenue'] },
+            { key: 'default_cogs_account',    label: 'COGS / Expense Account',   hint: 'Debited on bill post',     types: ['Expense'] },
+          ] as { key: keyof AppSettings; label: string; hint: string; types: string[] }[]).map(({ key, label, hint, types }) => (
+            <div key={key}>
+              <label className="block text-sm font-semibold text-black/85 mb-1">{label}</label>
+              <p className="text-xs text-black/50 mb-2">{hint}</p>
+              <select
+                value={form[key] ?? ''}
+                onChange={e => handleChange(key, e.target.value)}
+                className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black text-sm"
+              >
+                <option value="">— use system default —</option>
+                {accounts.filter(a => types.includes(a.type)).map(a => (
+                  <option key={a.id} value={a.code}>{a.code} — {a.name}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">

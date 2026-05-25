@@ -13,7 +13,7 @@ import { apiFetch } from '@/lib/api'
 import { fmtPKR, downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
-import LineItemsTable, { LineItem } from '@/components/LineItemsTable'
+import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 
 interface Invoice {
   id: number
@@ -96,6 +96,7 @@ export default function Invoices() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
+  const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const load = () => {
@@ -165,13 +166,14 @@ export default function Invoices() {
           ar_account_id: full.ar_account_id ? String(full.ar_account_id) : '',
           revenue_account_id: full.revenue_account_id ? String(full.revenue_account_id) : '',
         })
-        setLines((full.lines ?? []).map(l => ({
+        setLines((full.lines ?? []).map((l: LineItem & { tax_code_id?: number | null }) => ({
           product_id: l.product_id ?? undefined,
           description: l.description,
           qty: Number(l.qty),
           unit: l.unit ?? 'pcs',
           rate: Number(l.rate),
           amount: Number(l.amount),
+          tax_code_id: l.tax_code_id ?? null,
         })))
       })
       .catch(() => {})
@@ -185,11 +187,13 @@ export default function Invoices() {
       apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500'),
       apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
       apiFetch<PaymentTerm[]>('/api/payment-terms'),
-    ]).then(([c, a, p, terms]) => {
+      apiFetch<{ total: number; items: TaxCodeOption[] }>('/api/tax-codes?limit=100'),
+    ]).then(([c, a, p, terms, tc]) => {
       setCustomers(c.items)
       setAccounts(a.items)
       setProducts(p.items)
       setPaymentTerms(terms)
+      setTaxCodes(tc.items)
     }).catch(() => {})
   }
 
@@ -223,7 +227,17 @@ export default function Invoices() {
   }
 
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
-  const gstAmount = Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
+  const usePerLineTax = lines.some(l => l.tax_code_id)
+  const perLineTaxTotal = usePerLineTax
+    ? lines.reduce((s, l) => {
+        if (!l.tax_code_id) return s
+        const tc = taxCodes.find(t => t.id === l.tax_code_id)
+        return s + (tc ? Math.round(l.amount * tc.rate / 100 * 100) / 100 : 0)
+      }, 0)
+    : 0
+  const gstAmount = usePerLineTax
+    ? perLineTaxTotal
+    : Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
   const totalAmount = Math.round((subtotal + gstAmount) * 100) / 100
 
   const handleSave = async () => {
@@ -248,6 +262,7 @@ export default function Invoices() {
         qty: l.qty,
         unit: l.unit ?? null,
         rate: l.rate,
+        tax_code_id: l.tax_code_id ?? null,
       })),
       gst_rate: parseFloat(form.gst_rate) || 0,
       ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
@@ -536,7 +551,7 @@ export default function Invoices() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
-                <LineItemsTable lines={lines} onChange={setLines} products={products} />
+                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax />
               </div>
 
               <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
@@ -545,16 +560,20 @@ export default function Invoices() {
                   <span className="font-mono">{fmtPKR(subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-black/60">GST</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" min="0" max="100" step="0.5"
-                      value={form.gst_rate}
-                      onChange={e => setForm(p => ({ ...p, gst_rate: e.target.value }))}
-                      className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
-                    />
-                    <span className="text-black/60 text-xs">%</span>
-                    <span className="font-mono">{fmtPKR(gstAmount)}</span>
-                  </div>
+                  <span className="text-black/60">Tax</span>
+                  {usePerLineTax ? (
+                    <span className="font-mono text-xs text-black/60">(per-line) {fmtPKR(gstAmount)}</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="0" max="100" step="0.5"
+                        value={form.gst_rate}
+                        onChange={e => setForm(p => ({ ...p, gst_rate: e.target.value }))}
+                        className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
+                      />
+                      <span className="text-black/60 text-xs">%</span>
+                      <span className="font-mono">{fmtPKR(gstAmount)}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
                   <span>Total</span>

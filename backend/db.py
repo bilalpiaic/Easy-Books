@@ -288,6 +288,19 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             s.add(Settings(key="company_name", value=company, tenant_id=tenant_id))
             s.commit()
 
+        # Seed default GL account codes so get_default_account always finds them
+        for key, code in (
+            ("default_ar_account",      "1100"),
+            ("default_ap_account",      "2000"),
+            ("default_revenue_account", "4000"),
+            ("default_cogs_account",    "5010"),
+        ):
+            exists = s.exec(
+                select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)
+            ).first()
+            if not exists:
+                s.add(Settings(tenant_id=tenant_id, key=key, value=code))
+
         # Seed document-number counters so the at-runtime path never has to
         # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
         # without racing on the unique constraint.

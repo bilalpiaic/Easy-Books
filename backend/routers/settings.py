@@ -38,6 +38,11 @@ class SettingsUpdate(BaseModel):
     country: Optional[str] = None
     phone: Optional[str] = None
     website: Optional[str] = None
+    # Default GL accounts (stored as account codes e.g. "1100")
+    default_ar_account: Optional[str] = None
+    default_ap_account: Optional[str] = None
+    default_revenue_account: Optional[str] = None
+    default_cogs_account: Optional[str] = None
 
 
 @router.get("")

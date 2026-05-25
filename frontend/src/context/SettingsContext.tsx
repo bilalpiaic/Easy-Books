@@ -21,6 +21,11 @@ export interface AppSettings {
   country: string
   phone: string
   website: string
+  // Default GL accounts (account codes)
+  default_ar_account: string
+  default_ap_account: string
+  default_revenue_account: string
+  default_cogs_account: string
 }
 
 const defaults: AppSettings = {
@@ -40,6 +45,10 @@ const defaults: AppSettings = {
   country: "",
   phone: "",
   website: "",
+  default_ar_account: "1100",
+  default_ap_account: "2000",
+  default_revenue_account: "4000",
+  default_cogs_account: "5010",
 }
 
 interface SettingsContextValue {

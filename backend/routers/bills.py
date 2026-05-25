@@ -7,13 +7,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
 
-from models import Account, Bill, BillLine, JournalEntry, PaymentTerm, Product, Settings, Tenant, Transaction, Vendor
+from models import Account, Bill, BillLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction, Vendor
 from services.fx import rate_to_base
 from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, next_number
 
 router = APIRouter(tags=["bills"])
 
@@ -24,6 +24,7 @@ class BillLineCreate(BaseModel):
     qty: Decimal = Decimal("1")
     unit: Optional[str] = None
     rate: Decimal = Decimal("0")
+    tax_code_id: Optional[int] = None
 
 
 class BillCreate(BaseModel):
@@ -205,10 +206,22 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     session.flush()
 
     total_stock_value = ZERO
+    per_gl_tax: dict[int, Decimal] = {}  # gl_account_id → total_tax for per-line mode
     for line_data in body.lines:
         line_qty = D(line_data.qty)
         line_rate = D(line_data.rate)
         amount = money(line_qty * line_rate)
+        line_tax_code_id = line_data.tax_code_id
+        if line_tax_code_id:
+            tc = session.exec(
+                select(TaxCode).where(
+                    TaxCode.id == line_tax_code_id,
+                    TaxCode.tenant_id == user.tenant_id,
+                )
+            ).first()
+            if tc:
+                line_tax = money(amount * tc.rate / D("100"))
+                per_gl_tax[tc.gl_account_id] = per_gl_tax.get(tc.gl_account_id, ZERO) + line_tax
         session.add(
             BillLine(
                 bill_id=bill.id,
@@ -218,6 +231,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
                 unit=line_data.unit,
                 rate=line_rate,
                 amount=amount,
+                tax_code_id=line_tax_code_id,
             )
         )
         if line_data.product_id:
@@ -238,10 +252,18 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
                 )
                 total_stock_value += amount
 
+    use_per_line_tax = bool(per_gl_tax)
+    if use_per_line_tax:
+        gst_amount = sum_money(per_gl_tax.values())
+        total = money(subtotal + gst_amount)
+        bill.gst_amount = gst_amount
+        bill.total = total
+        session.add(bill)
+
     ap_acc = (
         session.get(Account, body.ap_account_id)
         if body.ap_account_id
-        else get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
+        else get_default_account(session, user.tenant_id, "default_ap_account", "2000", "Accounts Payable", "Liability")
     )
     # Convert document amounts → base currency for GL posting.
     total_base = money(total * fx_rate)
@@ -259,12 +281,14 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         exp_acc = (
             session.get(Account, body.expense_account_id)
             if body.expense_account_id
-            else get_or_create_account(
-                session, user.tenant_id, "5000", "General Expenses", "Expense"
-            )
+            else get_default_account(session, user.tenant_id, "default_cogs_account", "5000", "General Expenses", "Expense")
         )
         entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base))
-    if gst_amount > 0:
+    if use_per_line_tax and per_gl_tax:
+        # Post per-line input tax to each distinct GL account.
+        for gl_id, tax_amt in per_gl_tax.items():
+            entries.append(EntryInput(account_id=gl_id, debit=money(tax_amt * fx_rate)))
+    elif gst_amount > 0:
         gst_input_acc = get_or_create_account(
             session, user.tenant_id, "1250", "GST Receivable (Input)", "Asset"
         )
@@ -427,7 +451,7 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     ap_acc = (
         session.get(Account, body.ap_account_id)
         if body.ap_account_id
-        else get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
+        else get_default_account(session, user.tenant_id, "default_ap_account", "2000", "Accounts Payable", "Liability")
     )
     total_base = money(total * fx_rate)
     total_stock_base = money(total_stock_value * fx_rate)
