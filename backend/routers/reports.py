@@ -13,8 +13,8 @@ from fastapi import APIRouter, Query
 from sqlmodel import func, select
 
 from models import (
-    Account, Bill, Customer, Invoice, JournalEntry, PaymentAllocation, Product,
-    Transaction,
+    Account, Bill, Budget, Customer, Invoice, JournalEntry, PaymentAllocation,
+    Product, Transaction,
 )
 from services.money import D, ZERO, money
 
@@ -740,3 +740,168 @@ def tax_summary(
             "tax_basis": "ITO 2001 — Non-salaried individual slabs (FY 2024-25)",
         },
     }
+
+
+# ── Budget vs Actual ──────────────────────────────────────────────────────────
+
+
+@router.get("/budget-vs-actual")
+def get_budget_vs_actual(
+    session: SessionDep, user: CurrentUserDep,
+    year: int,
+    month: Optional[int] = None,
+):
+    """Return budget, actual, and variance per account for a fiscal year / month."""
+    import calendar as _cal
+
+    budgets = session.exec(
+        select(Budget).where(
+            Budget.tenant_id == user.tenant_id,
+            Budget.fiscal_year == year,
+            *([Budget.period_month == month] if month else []),
+        )
+    ).all()
+
+    result = []
+    for b in budgets:
+        if month:
+            period_start = f"{year}-{month:02d}-01"
+            last_day = _cal.monthrange(year, month)[1]
+            period_end = f"{year}-{month:02d}-{last_day:02d}"
+        else:
+            period_start = f"{year}-01-01"
+            period_end = f"{year}-12-31"
+
+        act_row = session.exec(
+            select(
+                func.coalesce(func.sum(JournalEntry.debit), 0).label("dr"),
+                func.coalesce(func.sum(JournalEntry.credit), 0).label("cr"),
+            )
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .where(
+                JournalEntry.account_id == b.account_id,
+                Transaction.tenant_id == user.tenant_id,
+                Transaction.date >= period_start,
+                Transaction.date <= period_end,
+            )
+        ).one()
+
+        acc = session.get(Account, b.account_id)
+        if not acc:
+            continue
+
+        # Expenses are debit-normal; Revenue/Liability/Equity are credit-normal
+        if acc.type == "Expense":
+            actual = D(act_row.dr) - D(act_row.cr)
+        else:
+            actual = D(act_row.cr) - D(act_row.dr)
+
+        budget_amt = D(str(b.amount))
+        variance = budget_amt - actual  # positive = under budget (favourable)
+
+        result.append({
+            "account_id": b.account_id,
+            "account_code": acc.code,
+            "account_name": acc.name,
+            "account_type": acc.type,
+            "month": b.period_month,
+            "fiscal_year": b.fiscal_year,
+            "budget": budget_amt,
+            "actual": actual,
+            "variance": variance,
+            "variance_pct": float(variance / budget_amt * 100) if budget_amt != ZERO else 0,
+        })
+    return result
+
+
+# ── FX Revaluation ────────────────────────────────────────────────────────────
+
+
+@router.post("/fx-revaluation")
+def run_fx_revaluation(
+    session: SessionDep, user: CurrentUserDep,
+    revaluation_date: str,
+):
+    """Revalue open foreign-currency AR to closing rate. IAS 21.23."""
+    from models import PaymentAllocation, Tenant
+    from routers.common import get_or_create_account
+    from services.fx import rate_to_base
+    from services.posting import EntryInput, post_transaction
+
+    tenant = session.get(Tenant, user.tenant_id)
+    base_currency = tenant.base_currency if tenant else "PKR"
+
+    # Include draft, sent, and partial — all have GL impact.
+    # Exclude paid (settled) and void/cancelled.
+    open_invoices = session.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.status.in_(["draft", "posted", "partial", "sent"]),
+            Invoice.transaction_id.is_not(None),
+            Invoice.currency != base_currency,
+        )
+    ).all()
+
+    fx_gain_acc = get_or_create_account(
+        session, user.tenant_id, "4901", "Unrealised FX Gain/Loss", "Revenue"
+    )
+
+    all_entries: list[EntryInput] = []
+    for inv in open_invoices:
+        alloc_total = session.exec(
+            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
+            .where(PaymentAllocation.invoice_id == inv.id)
+        ).one()
+        outstanding_doc = D(str(inv.total)) - D(str(alloc_total))
+        if outstanding_doc <= ZERO:
+            continue
+
+        try:
+            closing_rate = rate_to_base(session, user.tenant_id, inv.currency, revaluation_date)
+        except LookupError:
+            continue  # no rate available for this currency on this date
+
+        original_base = money(outstanding_doc * D(str(inv.exchange_rate)))
+        closing_base = money(outstanding_doc * closing_rate)
+        diff = closing_base - original_base
+        if abs(diff) < D("0.01"):
+            continue
+
+        if inv.ar_account_id:
+            ar_acc = session.get(Account, inv.ar_account_id)
+        else:
+            # Fall back to the default AR account (code 1100) for this tenant
+            ar_acc = session.exec(
+                select(Account).where(
+                    Account.tenant_id == user.tenant_id,
+                    Account.code == "1100",
+                )
+            ).first()
+        if not ar_acc:
+            continue
+
+        if diff > ZERO:  # FX gain: Dr AR, Cr FX Gain
+            all_entries += [
+                EntryInput(account_id=ar_acc.id, debit=diff),
+                EntryInput(account_id=fx_gain_acc.id, credit=diff),
+            ]
+        else:  # FX loss: Dr FX Loss, Cr AR
+            all_entries += [
+                EntryInput(account_id=fx_gain_acc.id, debit=-diff),
+                EntryInput(account_id=ar_acc.id, credit=-diff),
+            ]
+
+    if not all_entries:
+        return {"message": "No foreign-currency AR positions to revalue", "entries_count": 0}
+
+    txn = post_transaction(
+        session,
+        user,
+        date=revaluation_date,
+        description=f"FX Revaluation as at {revaluation_date}",
+        entries=all_entries,
+        audit_entity_type="fx_revaluation",
+        audit_detail={"revaluation_date": revaluation_date},
+    )
+    session.commit()
+    return {"jv_number": txn.jv_number, "entries_count": len(all_entries)}

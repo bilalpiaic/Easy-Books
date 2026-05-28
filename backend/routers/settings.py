@@ -62,15 +62,21 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
 def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdate):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
 
-    # cost_method is stored on Tenant, not in the KV settings table
+    # Some settings also live on the Tenant model (not just the KV table)
+    tenant = session.get(Tenant, user.tenant_id)
+
     if "cost_method" in updates:
         cm = updates.pop("cost_method")
         if cm not in ("wavg", "fifo"):
             raise HTTPException(400, "cost_method must be 'wavg' or 'fifo'")
-        tenant = session.get(Tenant, user.tenant_id)
         if tenant:
             tenant.cost_method = cm
             session.add(tenant)
+
+    # Keep Tenant.base_currency in sync with the "currency" KV setting
+    if "currency" in updates and tenant:
+        tenant.base_currency = updates["currency"]
+        session.add(tenant)
 
     for key, value in updates.items():
         row = session.exec(

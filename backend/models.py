@@ -679,6 +679,25 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class Budget(SQLModel, table=True):
+    """Monthly account-level budget for variance analysis. IAS 1 management commentary."""
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "account_id", "fiscal_year", "period_month",
+            name="unique_budget_per_account_period",
+        ),
+        CheckConstraint("period_month >= 1 AND period_month <= 12", name="ck_budget_month"),
+        CheckConstraint("fiscal_year >= 2000 AND fiscal_year <= 2100", name="ck_budget_year"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    account_id: int = Field(foreign_key="account.id")
+    fiscal_year: int
+    period_month: int  # 1–12
+    amount: Money = money_col()
+    label: Optional[str] = None
+
+
 class FixedAsset(SQLModel, table=True):
     """Long-lived asset with systematic depreciation. IAS 16 / IAS 38."""
     __table_args__ = (

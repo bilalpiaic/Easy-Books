@@ -19,10 +19,10 @@ from fastapi.staticfiles import StaticFiles
 from db import create_db_and_tables
 from routers import (
     accounts, aging, assets, attachments, audit, auth, bank_accounts, bank_imports,
-    bills, bom, credit_notes, customers, exchange_rates, grn, imports, invoices,
-    manufacturing_reports, payment_terms, payments, periods, production_orders,
-    products, rate_plans, reconciliations, recurring, reports, settings,
-    stock_locations, subledger, tax_codes, telecom, telecom_reports,
+    bills, bom, budgets, credit_notes, customers, exchange_rates, grn, imports,
+    invoices, manufacturing_reports, payment_terms, payments, periods,
+    production_orders, products, rate_plans, reconciliations, recurring, reports,
+    settings, stock_locations, subledger, tax_codes, telecom, telecom_reports,
     transactions, users, vendors,
 )
 from services.csrf import CsrfMiddleware
@@ -82,6 +82,7 @@ _ROUTERS = [
     telecom_reports.router,
     credit_notes.router,
     assets.router,
+    budgets.router,
 ]
 
 for r in _ROUTERS:
