@@ -387,31 +387,40 @@ def get_dashboard_charts(
 def get_income_statement(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
+    compare_start: Optional[str] = None, compare_end: Optional[str] = None,
 ):
-    q = (
-        session.query(
-            Account.name,
-            Account.type,
-            func.sum(JournalEntry.debit).label("total_debit"),
-            func.sum(JournalEntry.credit).label("total_credit"),
+    def _query(s, e):
+        q = (
+            session.query(
+                Account.name,
+                Account.type,
+                Account.code,
+                func.sum(JournalEntry.debit).label("total_debit"),
+                func.sum(JournalEntry.credit).label("total_credit"),
+            )
+            .join(JournalEntry, JournalEntry.account_id == Account.id)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .filter(Account.type.in_(["Revenue", "Expense"]))
+            .filter(Transaction.tenant_id == user.tenant_id)
         )
-        .join(JournalEntry, JournalEntry.account_id == Account.id)
-        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-        .filter(Account.type.in_(["Revenue", "Expense"]))
-        .filter(Transaction.tenant_id == user.tenant_id)
-    )
-    if start and end:
-        q = q.filter(Transaction.date >= start, Transaction.date <= end)
-    rows = q.group_by(Account.id).order_by(Account.type.desc(), Account.code).all()
-    return [
-        {
-            "name": r.name,
-            "type": r.type,
-            "total_debit": r.total_debit,
-            "total_credit": r.total_credit,
-        }
-        for r in rows
-    ]
+        if s and e:
+            q = q.filter(Transaction.date >= s, Transaction.date <= e)
+        rows = q.group_by(Account.id).order_by(Account.type.desc(), Account.code).all()
+        return [
+            {
+                "name": r.name,
+                "type": r.type,
+                "code": r.code,
+                "total_debit": r.total_debit,
+                "total_credit": r.total_credit,
+            }
+            for r in rows
+        ]
+
+    current = _query(start, end)
+    if compare_start and compare_end:
+        return {"current": current, "comparison": _query(compare_start, compare_end)}
+    return current  # backward-compatible flat list
 
 
 # ── General ledger (per-account with running balance) ────────────────────────
@@ -479,54 +488,59 @@ def get_balance_sheet(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
     date: Optional[str] = None,
+    compare_end: Optional[str] = None,
 ):
-    q = (
-        session.query(
-            Account.code,
-            Account.name,
-            Account.type,
-            func.sum(JournalEntry.debit).label("total_debit"),
-            func.sum(JournalEntry.credit).label("total_credit"),
+    def _query(s, e, as_of):
+        q = (
+            session.query(
+                Account.code,
+                Account.name,
+                Account.type,
+                func.sum(JournalEntry.debit).label("total_debit"),
+                func.sum(JournalEntry.credit).label("total_credit"),
+            )
+            .join(JournalEntry, JournalEntry.account_id == Account.id)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .filter(Transaction.tenant_id == user.tenant_id)
         )
-        .join(JournalEntry, JournalEntry.account_id == Account.id)
-        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-        .filter(Transaction.tenant_id == user.tenant_id)
-    )
-    if start:
-        q = q.filter(Transaction.date >= start)
-    if end:
-        q = q.filter(Transaction.date <= end)
-    elif date:
-        q = q.filter(Transaction.date <= date)
+        if s:
+            q = q.filter(Transaction.date >= s)
+        if e:
+            q = q.filter(Transaction.date <= e)
+        elif as_of:
+            q = q.filter(Transaction.date <= as_of)
+        rows = q.group_by(Account.id).order_by(Account.code).all()
+        items = []
+        net_income = ZERO
+        for r in rows:
+            debit = D(r.total_debit or 0)
+            credit = D(r.total_credit or 0)
+            if r.type == "Asset":
+                balance = debit - credit
+            elif r.type in ("Liability", "Equity"):
+                balance = credit - debit
+            elif r.type == "Revenue":
+                net_income += credit - debit
+                continue
+            elif r.type == "Expense":
+                net_income -= debit - credit
+                continue
+            else:
+                balance = debit - credit
+            items.append({"code": r.code, "name": r.name, "type": r.type, "balance": balance})
+        if net_income != 0:
+            items.append({
+                "code": "RE-CUR",
+                "name": "Retained Earnings (Current Period)",
+                "type": "Equity",
+                "balance": net_income,
+            })
+        return items
 
-    rows = q.group_by(Account.id).order_by(Account.code).all()
-    items = []
-    net_income = ZERO
-    for r in rows:
-        debit = D(r.total_debit or 0)
-        credit = D(r.total_credit or 0)
-        if r.type == "Asset":
-            balance = debit - credit
-        elif r.type in ("Liability", "Equity"):
-            balance = credit - debit
-        elif r.type == "Revenue":
-            net_income += credit - debit
-            continue
-        elif r.type == "Expense":
-            net_income -= debit - credit
-            continue
-        else:
-            balance = debit - credit
-        items.append({"code": r.code, "name": r.name, "type": r.type, "balance": balance})
-
-    if net_income != 0:
-        items.append({
-            "code": "RE-CUR",
-            "name": "Retained Earnings (Current Period)",
-            "type": "Equity",
-            "balance": net_income,
-        })
-    return items
+    current = _query(start, end, date)
+    if compare_end:
+        return {"current": current, "comparison": _query(None, compare_end, None)}
+    return current  # backward-compatible flat list
 
 
 # ── Cash flow (indirect) ─────────────────────────────────────────────────────
