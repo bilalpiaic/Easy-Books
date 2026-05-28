@@ -75,9 +75,14 @@ def create_po(session: SessionDep, user: WriteUserDep, body: POCreate):
     number = next_number(session, user.tenant_id, "purchase_order", "PO")
 
     vendor_name = body.vendor_name
-    if body.vendor_id and not vendor_name:
-        v = session.get(Vendor, body.vendor_id)
-        vendor_name = v.name if v else None
+    if body.vendor_id:
+        v = session.exec(
+            select(Vendor).where(Vendor.id == body.vendor_id, Vendor.tenant_id == user.tenant_id)
+        ).first()
+        if not v:
+            raise HTTPException(400, "Vendor not found for this tenant")
+        if not vendor_name:
+            vendor_name = v.name
 
     po = PurchaseOrder(
         tenant_id=user.tenant_id,

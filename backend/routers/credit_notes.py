@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Account, CreditNote, CreditNoteLine
+from models import Account, CreditNote, CreditNoteLine, Customer, Invoice
 from routers.common import (
     SessionDep,
     WriteUserDep,
@@ -74,6 +74,20 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
     if not body.lines:
         raise HTTPException(400, "At least one line is required")
 
+    # Validate all tenant-owned foreign keys (IDOR protection)
+    if body.invoice_id:
+        inv = session.exec(
+            select(Invoice).where(Invoice.id == body.invoice_id, Invoice.tenant_id == user.tenant_id)
+        ).first()
+        if not inv:
+            raise HTTPException(400, "Invoice not found for this tenant")
+    if body.customer_id:
+        cust = session.exec(
+            select(Customer).where(Customer.id == body.customer_id, Customer.tenant_id == user.tenant_id)
+        ).first()
+        if not cust:
+            raise HTTPException(400, "Customer not found for this tenant")
+
     subtotal = money(sum(D(ln.qty) * D(ln.rate) for ln in body.lines))
     total = subtotal  # CN totals do not add new tax
 
@@ -115,20 +129,23 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
     fx = D(str(body.exchange_rate))
     total_base = money(total * fx)
 
-    ar_acc = (
-        session.get(Account, body.ar_account_id)
-        if body.ar_account_id
-        else get_or_create_account(
-            session, user.tenant_id, "1100", "Accounts Receivable", "Asset"
-        )
-    )
-    rev_acc = (
-        session.get(Account, body.revenue_account_id)
-        if body.revenue_account_id
-        else get_or_create_account(
-            session, user.tenant_id, "4000", "Sales Revenue", "Revenue"
-        )
-    )
+    if body.ar_account_id:
+        ar_acc = session.exec(
+            select(Account).where(Account.id == body.ar_account_id, Account.tenant_id == user.tenant_id)
+        ).first()
+        if not ar_acc:
+            raise HTTPException(400, "AR account not found for this tenant")
+    else:
+        ar_acc = get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
+
+    if body.revenue_account_id:
+        rev_acc = session.exec(
+            select(Account).where(Account.id == body.revenue_account_id, Account.tenant_id == user.tenant_id)
+        ).first()
+        if not rev_acc:
+            raise HTTPException(400, "Revenue account not found for this tenant")
+    else:
+        rev_acc = get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
 
     txn = post_transaction(
         session,
