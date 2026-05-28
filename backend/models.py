@@ -679,6 +679,42 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class PurchaseOrder(SQLModel, table=True):
+    """Pre-approval document for purchases. Maps to a Bill on conversion. IAS 2."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_po_number_per_tenant"),
+        CheckConstraint(
+            "status IN ('draft','approved','received','billed','cancelled')",
+            name="ck_po_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    vendor_id: Optional[int] = Field(default=None, foreign_key="vendor.id")
+    vendor_name: Optional[str] = None
+    order_date: str
+    expected_date: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    subtotal: Money = money_col()
+    total: Money = money_col()
+    status: str = Field(default="draft")
+    bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PurchaseOrderLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    po_id: int = Field(foreign_key="purchaseorder.id", ondelete="CASCADE")
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    description: str
+    qty: Money = money_col(default=Decimal("1"))
+    unit: Optional[str] = None
+    rate: Money = money_col()
+    amount: Money = money_col()
+
+
 class Budget(SQLModel, table=True):
     """Monthly account-level budget for variance analysis. IAS 1 management commentary."""
     __table_args__ = (

@@ -316,7 +316,7 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
         # Seed document-number counters so the at-runtime path never has to
         # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
         # without racing on the unique constraint.
-        base_counters = ["invoice", "bill", "grn", "po", "credit_note"]
+        base_counters = ["invoice", "bill", "grn", "po", "credit_note", "purchase_order"]
         telecom_counters = ["tracker_txn", "load_transfer", "sim_sale", "rso_collection", "fca"]
         counter_names = base_counters + (telecom_counters if model == "telecom_franchise" else [])
         for name in counter_names:
