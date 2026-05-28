@@ -664,6 +664,48 @@ def bulk_invoice_action(session: SessionDep, user: WriteUserDep, body: BulkInvoi
     return {"affected": affected, "errors": errors}
 
 
+@router.post("/api/invoices/{invoice_id}/payment-link")
+def create_payment_link(session: SessionDep, user: WriteUserDep, invoice_id: int):
+    """Create a Stripe Checkout payment link for the invoice. G-12."""
+    import os
+    import stripe as _stripe
+    stripe_key = os.getenv("STRIPE_SECRET_KEY", "")
+    if not stripe_key:
+        raise HTTPException(400, "Stripe not configured. Set STRIPE_SECRET_KEY.")
+    _stripe.api_key = stripe_key
+
+    inv = session.exec(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    if inv.status == "paid":
+        raise HTTPException(400, "Invoice is already paid")
+
+    frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+    checkout = _stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": inv.currency.lower(),
+                "product_data": {"name": f"Invoice {inv.number}"},
+                "unit_amount": int(D(str(inv.total)) * 100),
+            },
+            "quantity": 1,
+        }],
+        metadata={"invoice_id": str(inv.id), "tenant_id": str(inv.tenant_id)},
+        success_url=f"{frontend_origin}/dashboard/invoices?paid={inv.id}",
+        cancel_url=f"{frontend_origin}/dashboard/invoices",
+    )
+    inv.payment_link_url = checkout.url
+    inv.payment_link_status = "unpaid"
+    session.add(inv)
+    log_audit(session, user, "UPDATE", "invoice", inv.id,
+              {"action": "payment_link_created", "url": checkout.url})
+    session.commit()
+    return {"payment_link_url": checkout.url}
+
+
 @router.get("/api/invoices/{invoice_id}/pdf")
 def download_invoice_pdf(session: SessionDep, user: CurrentUserDep, invoice_id: int):
     """Generate and return a PDF for the given invoice. G-14 server-side PDF."""

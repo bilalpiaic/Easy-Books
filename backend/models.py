@@ -242,6 +242,9 @@ class Invoice(SQLModel, table=True):
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
+    # Stripe payment link fields (G-12)
+    payment_link_url: Optional[str] = None
+    payment_link_status: Optional[str] = None  # "unpaid" | "paid"
 
 
 class Bill(SQLModel, table=True):

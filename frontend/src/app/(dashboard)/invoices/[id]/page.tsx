@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, ChevronRight, Download } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, ChevronRight, Download, Link as LinkIcon } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
 import { useFmt } from "@/context/SettingsContext"
@@ -128,6 +128,23 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           >
             <Download className="w-4 h-4" /> PDF
           </button>
+          {inv.status !== "paid" && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await apiFetch<{ payment_link_url: string }>(
+                    `/api/invoices/${inv.id}/payment-link`, { method: "POST" }
+                  )
+                  window.open(res.payment_link_url, "_blank")
+                } catch (e) {
+                  alert((e as Error).message)
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
+            >
+              <LinkIcon className="w-4 h-4" /> Payment Link
+            </button>
+          )}
           {inv.transaction_id && inv.status !== "reversed" && (
             <button
               onClick={reverse}

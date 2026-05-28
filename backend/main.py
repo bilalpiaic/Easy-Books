@@ -92,6 +92,46 @@ _ROUTERS = [
 for r in _ROUTERS:
     app.include_router(r)
 
+# ── Stripe webhook ────────────────────────────────────────────────────────────
+
+from fastapi import Request as _Request
+from models import Invoice as _Invoice
+from db import get_session as _get_session
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: _Request):
+    """Handle Stripe Checkout events. G-12."""
+    import stripe as _stripe
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+    if not webhook_secret:
+        return {"received": True}
+    try:
+        event = _stripe.Webhook.construct_event(payload, sig, webhook_secret)
+    except Exception:
+        from fastapi import HTTPException as _HTTP
+        raise _HTTP(400, "Invalid webhook signature")
+
+    if event["type"] == "checkout.session.completed":
+        data = event["data"]["object"]
+        invoice_id = int(data.get("metadata", {}).get("invoice_id", 0))
+        tenant_id = int(data.get("metadata", {}).get("tenant_id", 0))
+        if invoice_id and tenant_id:
+            with next(_get_session()) as session:
+                from sqlmodel import select as _select
+                inv = session.exec(
+                    _select(_Invoice).where(
+                        _Invoice.id == invoice_id, _Invoice.tenant_id == tenant_id
+                    )
+                ).first()
+                if inv:
+                    inv.payment_link_status = "paid"
+                    session.add(inv)
+                    session.commit()
+    return {"received": True}
+
+
 # Serve uploaded files (company logos, attachments) under /uploads/
 import pathlib as _pl
 _uploads = _pl.Path(__file__).parent / "uploads"
