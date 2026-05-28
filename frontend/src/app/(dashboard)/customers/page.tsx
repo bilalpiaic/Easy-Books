@@ -6,6 +6,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
+import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
@@ -33,6 +34,7 @@ const emptyForm: FormState = { name: '', email: '', phone: '', address: '', open
 const PAGE_SIZE = 50
 
 export default function Customers() {
+  const fmt = useFmt()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)

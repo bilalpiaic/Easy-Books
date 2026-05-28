@@ -42,11 +42,11 @@ interface Props {
 const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
 
 function emptyLine(): LineItem {
-  const fmt = useFmt()
   return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0, tax_code_id: null }
 }
 
 export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false }: Props) {
+  const fmt = useFmt()
   const update = (idx: number, patch: Partial<LineItem>) => {
     const updated = lines.map((l, i) => {
       if (i !== idx) return l

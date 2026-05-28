@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, ReceiptX } from "lucide-react"
+import { Plus, Receipt } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useSettings } from "@/context/SettingsContext"
@@ -155,7 +155,7 @@ export default function CreditNotesPage() {
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center py-16">
-                  <ReceiptX className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
+                  <Receipt className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
                   <p className="text-[#1a1814]/50 text-sm">No credit notes yet</p>
                   <button onClick={openModal} className="mt-3 text-[#b8943f] text-sm underline">Issue your first credit note</button>
                 </td>

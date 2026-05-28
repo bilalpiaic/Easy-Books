@@ -18,7 +18,6 @@ interface TrialBalanceItem {
 }
 
 function defaultRange() {
-  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return {
@@ -28,6 +27,7 @@ function defaultRange() {
 }
 
 export default function TrialBalancePage() {
+  const fmt = useFmt()
   const [data, setData] = useState<TrialBalanceItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const range = defaultRange()

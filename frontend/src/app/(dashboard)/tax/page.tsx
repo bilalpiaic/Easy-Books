@@ -24,7 +24,6 @@ interface TaxSummary {
 }
 
 function defaultRange() {
-  const fmt = useFmt()
   const today = new Date()
   const fyStart = today.getMonth() >= 6
     ? new Date(today.getFullYear(), 6, 1)
@@ -33,6 +32,7 @@ function defaultRange() {
 }
 
 export default function TaxReports() {
+  const fmt = useFmt()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)

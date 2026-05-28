@@ -10,6 +10,7 @@ import FilterBar from '@/components/FilterBar'
 import SortableHeader from '@/components/SortableHeader'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
+import { useFmt, useSettings } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
@@ -77,6 +78,8 @@ const PAGE_SIZE = 50
 const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 
 function InvoicesInner() {
+  const fmt = useFmt()
+  const { settings } = useSettings()
   const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [total, setTotal] = useState(0)
@@ -160,6 +163,7 @@ function InvoicesInner() {
       gst_rate: '17',
       ar_account_id: '',
       revenue_account_id: '',
+      currency: 'PKR', exchange_rate: '1',
     })
     // Fetch full invoice with lines
     apiFetch<Invoice & { gst_rate: number; ar_account_id: number | null; revenue_account_id: number | null; payment_term_id: number | null }>(`/api/invoices/${inv.id}`)
@@ -176,6 +180,8 @@ function InvoicesInner() {
           gst_rate: String(full.gst_rate ?? 17),
           ar_account_id: full.ar_account_id ? String(full.ar_account_id) : '',
           revenue_account_id: full.revenue_account_id ? String(full.revenue_account_id) : '',
+          currency: (full as Invoice & { currency?: string }).currency ?? 'PKR',
+          exchange_rate: String((full as Invoice & { exchange_rate?: number }).exchange_rate ?? 1),
         })
         setLines((full.lines ?? []).map((l: LineItem & { tax_code_id?: number | null }) => ({
           product_id: l.product_id ?? undefined,

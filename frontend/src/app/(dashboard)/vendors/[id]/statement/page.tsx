@@ -37,13 +37,13 @@ interface Statement {
 }
 
 function defaultRange() {
-  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { from: from.toISOString().split('T')[0], to: to.toISOString().split('T')[0] }
 }
 
 function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> }) {
+  const fmt = useFmt()
   const { id } = use(params)
   const searchParams = useSearchParams()
   const r0 = defaultRange()

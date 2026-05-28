@@ -38,13 +38,13 @@ const DOC_HREF: Record<string, (id: number) => string> = {
 }
 
 function defaultRange() {
-  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
 }
 
 export default function CustomerLedgerPage({ params }: { params: Promise<{ id: string }> }) {
+  const fmt = useFmt()
   const { id } = use(params)
   const r0 = defaultRange()
   const [start, setStart] = useState(r0.start)

@@ -22,13 +22,13 @@ interface CashFlowData {
 }
 
 function defaultRange() {
-  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split('T')[0], end: to.toISOString().split('T')[0] }
 }
 
 function Row({ label, value, indent = false, bold = false }: { label: string; value: number; indent?: boolean; bold?: boolean }) {
+  const fmt = useFmt()
   return (
     <div className={`flex justify-between py-2 ${bold ? 'border-t border-[#ede9e2] font-semibold' : ''}`}>
       <span className={indent ? 'ml-6 text-sm text-black/70' : ''}>{label}</span>
@@ -38,6 +38,7 @@ function Row({ label, value, indent = false, bold = false }: { label: string; va
 }
 
 export default function CashFlow() {
+  const fmt = useFmt()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)

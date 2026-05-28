@@ -11,6 +11,7 @@ import SortableHeader from '@/components/SortableHeader'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
 import { downloadCSV } from '@/lib/utils'
+import { useFmt, useSettings } from '@/context/SettingsContext'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
@@ -76,6 +77,8 @@ const PAGE_SIZE = 50
 const BILL_STATUSES = ['draft', 'received', 'partial', 'paid', 'overdue']
 
 function BillsInner() {
+  const fmt = useFmt()
+  const { settings } = useSettings()
   const searchParams = useSearchParams()
   const [bills, setBills]       = useState<Bill[]>([])
   const [total, setTotal]       = useState(0)
@@ -177,6 +180,7 @@ function BillsInner() {
       gst_rate: '17',
       ap_account_id: '',
       expense_account_id: '',
+      currency: 'PKR', exchange_rate: '1',
     })
     // Fetch full bill with lines
     apiFetch<Bill & { gst_rate: number; description: string; ap_account_id: number | null; expense_account_id: number | null; payment_term_id: number | null }>(`/api/bills/${bill.id}`)
@@ -193,6 +197,8 @@ function BillsInner() {
           gst_rate: String(full.gst_rate ?? 17),
           ap_account_id: full.ap_account_id ? String(full.ap_account_id) : '',
           expense_account_id: full.expense_account_id ? String(full.expense_account_id) : '',
+          currency: (full as any).currency ?? 'PKR',
+          exchange_rate: String((full as any).exchange_rate ?? 1),
         })
         setLines((full.lines ?? []).map((l: LineItem & { tax_code_id?: number | null }) => ({
           product_id: l.product_id ?? undefined,

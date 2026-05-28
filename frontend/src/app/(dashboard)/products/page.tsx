@@ -7,6 +7,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
+import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
@@ -63,6 +64,7 @@ function stockBadge(p: Product) {
 }
 
 function ProductsInner() {
+  const fmt = useFmt()
   const searchParams = useSearchParams()
   const [lowStockOnly, setLowStockOnly] = useState(() => searchParams.get('low_stock') === 'true')
   const [products, setProducts] = useState<Product[]>([])

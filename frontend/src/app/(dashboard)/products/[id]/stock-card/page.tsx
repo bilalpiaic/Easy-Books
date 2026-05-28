@@ -56,13 +56,13 @@ const DIRECTION_TONE: Record<string, string> = {
 }
 
 function defaultRange() {
-  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
 }
 
 export default function ProductStockCardPage({ params }: { params: Promise<{ id: string }> }) {
+  const fmt = useFmt()
   const { id } = use(params)
   const r0 = defaultRange()
   const [start, setStart] = useState(r0.start)

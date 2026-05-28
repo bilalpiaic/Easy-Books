@@ -36,13 +36,13 @@ interface LedgerAccount {
 }
 
 function defaultRange() {
-  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
 }
 
 function LedgerPageInner() {
+  const fmt = useFmt()
   const searchParams = useSearchParams()
   const range = defaultRange()
 
