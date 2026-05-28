@@ -15,7 +15,7 @@ import {
   type ChartOptions,
 } from "chart.js"
 import { Bar, Doughnut, Line } from "react-chartjs-2"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import { apiFetch } from "@/lib/api"
 import DateRangePicker from "@/components/DateRangePicker"
 import { useSettings } from "@/context/SettingsContext"
@@ -61,6 +61,7 @@ interface ChartData {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
@@ -185,19 +186,19 @@ export default function Dashboard() {
 
   const baseChartOpts: ChartOptions<"bar"> = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtPKR(ctx.parsed.y as number) } } },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y as number) } } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-      y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmtPKR(v as number) } },
+      y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmt(v as number) } },
     },
   }
 
   const lineOpts: ChartOptions<"line"> = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtPKR((ctx.parsed.y ?? 0) as number) } } },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt((ctx.parsed.y ?? 0) as number) } } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-      y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmtPKR(v as number) } },
+      y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmt(v as number) } },
     },
   }
 
@@ -205,7 +206,7 @@ export default function Dashboard() {
     responsive: true, maintainAspectRatio: false,
     plugins: {
       legend: { position: "right", labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } },
-      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmtPKR(ctx.parsed)}` } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}` } },
     },
     cutout: "62%",
   }
@@ -279,20 +280,20 @@ export default function Dashboard() {
 
       {/* Primary KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <PrimaryKpi label="Revenue"    value={s ? fmtPKR(s.total_revenue) : null}           icon={TrendingUp}  bg="bg-green-50"   border="border-green-200"   text="text-green-800"   sub={margin ? `${margin}% margin` : undefined} />
-        <PrimaryKpi label="Expenses"   value={s ? fmtPKR(s.total_expense) : null}           icon={TrendingDown} bg="bg-red-50"     border="border-red-200"     text="text-red-800" />
-        <PrimaryKpi label="Net Profit" value={s ? fmtPKR(netProfit) : null}                 icon={Wallet}      bg={netProfit < 0 ? "bg-red-50" : "bg-amber-50"} border={netProfit < 0 ? "border-red-200" : "border-amber-200"} text={netProfit < 0 ? "text-red-800" : "text-amber-800"} sub={netProfit < 0 ? "Net loss" : "Net gain"} />
-        <PrimaryKpi label="Cash & Bank" value={s ? fmtPKR(s.cash_balance ?? 0) : null}     icon={Banknote}    bg="bg-emerald-50" border="border-emerald-200"   text="text-emerald-800" sub="available balance" />
+        <PrimaryKpi label="Revenue"    value={s ? fmt(s.total_revenue) : null}           icon={TrendingUp}  bg="bg-green-50"   border="border-green-200"   text="text-green-800"   sub={margin ? `${margin}% margin` : undefined} />
+        <PrimaryKpi label="Expenses"   value={s ? fmt(s.total_expense) : null}           icon={TrendingDown} bg="bg-red-50"     border="border-red-200"     text="text-red-800" />
+        <PrimaryKpi label="Net Profit" value={s ? fmt(netProfit) : null}                 icon={Wallet}      bg={netProfit < 0 ? "bg-red-50" : "bg-amber-50"} border={netProfit < 0 ? "border-red-200" : "border-amber-200"} text={netProfit < 0 ? "text-red-800" : "text-amber-800"} sub={netProfit < 0 ? "Net loss" : "Net gain"} />
+        <PrimaryKpi label="Cash & Bank" value={s ? fmt(s.cash_balance ?? 0) : null}     icon={Banknote}    bg="bg-emerald-50" border="border-emerald-200"   text="text-emerald-800" sub="available balance" />
         <PrimaryKpi label="Vouchers"   value={s ? s.transaction_count.toString() : null}    icon={Hash}        bg="bg-blue-50"    border="border-blue-200"     text="text-blue-800"    sub="posted" compact />
       </div>
 
       {/* Secondary metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <SecondaryKpi label="AR Outstanding"   value={s ? fmtPKR(s.ar_outstanding) : null}       icon={ArrowDownLeft}  color="text-green-700"  href="/invoices"                badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", color: "bg-red-100 text-red-700" } : undefined} />
-        <SecondaryKpi label="AP Outstanding"   value={s ? fmtPKR(s.ap_outstanding) : null}       icon={ArrowUpRight}   color="text-orange-700" href="/bills"                   badge={s?.unpaid_bills ? { count: s.unpaid_bills, label: "unpaid", color: "bg-orange-100 text-orange-700" } : undefined} />
+        <SecondaryKpi label="AR Outstanding"   value={s ? fmt(s.ar_outstanding) : null}       icon={ArrowDownLeft}  color="text-green-700"  href="/invoices"                badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", color: "bg-red-100 text-red-700" } : undefined} />
+        <SecondaryKpi label="AP Outstanding"   value={s ? fmt(s.ap_outstanding) : null}       icon={ArrowUpRight}   color="text-orange-700" href="/bills"                   badge={s?.unpaid_bills ? { count: s.unpaid_bills, label: "unpaid", color: "bg-orange-100 text-orange-700" } : undefined} />
         <SecondaryKpi label="Overdue Invoices" value={s ? s.overdue_invoices.toString() : null}   icon={Clock}          color="text-red-600"    href="/invoices"                valueClass={s && s.overdue_invoices > 0 ? "text-red-600 font-bold" : undefined} />
         <SecondaryKpi label="Low Stock Items"  value={s ? s.low_stock_items.toString() : null}    icon={Package}        color="text-purple-600" href="/products?low_stock=true" valueClass={s && s.low_stock_items > 0 ? "text-amber-600 font-bold" : undefined} />
-        <SecondaryKpi label="AP Due This Week" value={s ? fmtPKR(s.ap_due_week ?? 0) : null}     icon={CalendarClock}  color="text-rose-600"   href="/bills"                   valueClass={s && (s.ap_due_week ?? 0) > 0 ? "text-rose-600 font-bold" : undefined} />
+        <SecondaryKpi label="AP Due This Week" value={s ? fmt(s.ap_due_week ?? 0) : null}     icon={CalendarClock}  color="text-rose-600"   href="/bills"                   valueClass={s && (s.ap_due_week ?? 0) > 0 ? "text-rose-600 font-bold" : undefined} />
       </div>
 
       {/* AR Aging Mini-Chart */}
@@ -308,10 +309,10 @@ export default function Dashboard() {
           <div className="h-36">
             <Bar data={agingBarData} options={{
               responsive: true, maintainAspectRatio: false,
-              plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtPKR(ctx.parsed.y as number) } } },
+              plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y as number) } } },
               scales: {
                 x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-                y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmtPKR(v as number) } },
+                y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmt(v as number) } },
               },
             } as ChartOptions<"bar">} />
           </div>
@@ -319,7 +320,7 @@ export default function Dashboard() {
             {agingLabels.map((label, i) => (
               <span key={label} className="flex items-center gap-1 text-[10px] text-[#1a1814]/55">
                 <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: agingBarData.datasets[0].backgroundColor[i] }} />
-                {label}: <span className="font-semibold text-[#1a1814]/75">{fmtPKR(agingValues?.[i] ?? 0)}</span>
+                {label}: <span className="font-semibold text-[#1a1814]/75">{fmt(agingValues?.[i] ?? 0)}</span>
               </span>
             ))}
           </div>

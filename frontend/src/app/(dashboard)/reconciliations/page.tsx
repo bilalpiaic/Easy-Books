@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plus, CheckCircle, XCircle, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR } from '@/lib/utils'
+import { useFmt } from '@/context/SettingsContext'
 
 interface Reconciliation {
   id: number
@@ -38,6 +38,7 @@ const emptyForm: NewRecForm = {
 }
 
 export default function Reconciliations() {
+  const fmt = useFmt()
   const [recs, setRecs] = useState<Reconciliation[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -158,7 +159,7 @@ export default function Reconciliations() {
               </div>
             </div>
             <div className="mt-3 text-sm text-black/60">
-              Statement balance: <span className="font-mono font-bold text-black">{fmtPKR(rec.statement_balance)}</span>
+              Statement balance: <span className="font-mono font-bold text-black">{fmt(rec.statement_balance)}</span>
             </div>
           </div>
         ))}
@@ -220,15 +221,15 @@ export default function Reconciliations() {
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Statement</p>
-                <p className="text-lg font-bold font-mono">{fmtPKR(detail.statement_balance)}</p>
+                <p className="text-lg font-bold font-mono">{fmt(detail.statement_balance)}</p>
               </div>
               <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Matched GL</p>
-                <p className="text-lg font-bold font-mono">{fmtPKR(matchedBalance)}</p>
+                <p className="text-lg font-bold font-mono">{fmt(matchedBalance)}</p>
               </div>
               <div className={`rounded-xl p-4 text-center ${Math.abs(difference) < 0.01 ? 'bg-green-50' : 'bg-red-50'}`}>
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Difference</p>
-                <p className={`text-lg font-bold font-mono ${Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>{fmtPKR(difference)}</p>
+                <p className={`text-lg font-bold font-mono ${Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>{fmt(difference)}</p>
               </div>
             </div>
 
@@ -250,8 +251,8 @@ export default function Reconciliations() {
                     <tr key={ln.id} className={ln.is_matched ? 'bg-green-50/60' : ''}>
                       <td className="px-4 py-3 text-black/60">{ln.date}</td>
                       <td className="px-4 py-3 max-w-xs truncate">{ln.description}</td>
-                      <td className="px-4 py-3 text-right font-mono">{ln.debit > 0 ? fmtPKR(ln.debit) : '—'}</td>
-                      <td className="px-4 py-3 text-right font-mono">{ln.credit > 0 ? fmtPKR(ln.credit) : '—'}</td>
+                      <td className="px-4 py-3 text-right font-mono">{ln.debit > 0 ? fmt(ln.debit) : '—'}</td>
+                      <td className="px-4 py-3 text-right font-mono">{ln.credit > 0 ? fmt(ln.credit) : '—'}</td>
                       <td className="px-4 py-3 text-center">
                         <button onClick={() => toggleLine(detail.id, ln.id, !ln.is_matched)}>
                           {ln.is_matched

@@ -7,7 +7,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR, downloadCSV } from '@/lib/utils'
+import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import CsvImportButton from '@/components/CsvImportButton'
@@ -309,7 +309,7 @@ function ProductsInner() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-black/60">{p.unit}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmtPKR(p.default_rate)}</td>
+                <td className="px-6 py-4 text-right font-mono">{fmt(p.default_rate)}</td>
                 <td className="px-6 py-4 text-right">
                   {p.product_type === 'stock' ? (
                     <span className="font-mono">{p.stock_qty.toLocaleString()} {p.unit}</span>

@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, RotateCcw, ScrollText, ChevronRight } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface Entry {
@@ -44,6 +44,7 @@ const DOC_HREF: Record<string, (id: number) => string> = {
 }
 
 export default function JvDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const fmt = useFmt()
   const { id } = use(params)
   const [txn, setTxn]     = useState<Txn | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -174,16 +175,16 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
                   </Link>
                 </td>
                 <td className="px-4 py-2 text-[10px] uppercase text-[#1a1814]/55">{e.account_type}</td>
-                <td className="px-4 py-2 text-right font-mono">{e.debit > 0 ? fmtPKR(e.debit) : "—"}</td>
-                <td className="px-4 py-2 text-right font-mono">{e.credit > 0 ? fmtPKR(e.credit) : "—"}</td>
+                <td className="px-4 py-2 text-right font-mono">{e.debit > 0 ? fmt(e.debit) : "—"}</td>
+                <td className="px-4 py-2 text-right font-mono">{e.credit > 0 ? fmt(e.credit) : "—"}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-[#1a1814] bg-[#faf6ec]">
               <td colSpan={2} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Totals</td>
-              <td className="px-4 py-2 text-right font-mono font-bold">{fmtPKR(totalDr)}</td>
-              <td className="px-4 py-2 text-right font-mono font-bold">{fmtPKR(totalCr)}</td>
+              <td className="px-4 py-2 text-right font-mono font-bold">{fmt(totalDr)}</td>
+              <td className="px-4 py-2 text-right font-mono font-bold">{fmt(totalCr)}</td>
             </tr>
           </tfoot>
         </table>

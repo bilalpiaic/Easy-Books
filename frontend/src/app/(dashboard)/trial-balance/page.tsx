@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR, downloadCSV } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -17,6 +18,7 @@ interface TrialBalanceItem {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return {
@@ -102,10 +104,10 @@ export default function TrialBalancePage() {
                     </Link>
                   </td>
                   <td className="px-8 py-4 text-right font-mono text-sm">
-                    {item.total_debit > 0 ? fmtPKR(item.total_debit) : "-"}
+                    {item.total_debit > 0 ? fmt(item.total_debit) : "-"}
                   </td>
                   <td className="px-8 py-4 text-right font-mono text-sm">
-                    {item.total_credit > 0 ? fmtPKR(item.total_credit) : "-"}
+                    {item.total_credit > 0 ? fmt(item.total_credit) : "-"}
                   </td>
                 </tr>
               ))
@@ -115,8 +117,8 @@ export default function TrialBalancePage() {
             <tfoot>
               <tr className="bg-[#1a1814] text-white">
                 <td className="px-8 py-5 font-bold uppercase tracking-widest text-xs">Grand Total</td>
-                <td className="px-8 py-5 text-right font-mono font-bold">{fmtPKR(grandTotalDebit)}</td>
-                <td className="px-8 py-5 text-right font-mono font-bold">{fmtPKR(grandTotalCredit)}</td>
+                <td className="px-8 py-5 text-right font-mono font-bold">{fmt(grandTotalDebit)}</td>
+                <td className="px-8 py-5 text-right font-mono font-bold">{fmt(grandTotalCredit)}</td>
               </tr>
             </tfoot>
           )}
@@ -127,7 +129,7 @@ export default function TrialBalancePage() {
       {!isLoading && Math.abs(grandTotalDebit - grandTotalCredit) > 0.01 && (
         <div className="mt-6 p-4 bg-red-50 border border-red-100 text-red-700 rounded-xl text-sm flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          Warning: Trial balance is not matching. Difference: {fmtPKR(Math.abs(grandTotalDebit - grandTotalCredit))}
+          Warning: Trial balance is not matching. Difference: {fmt(Math.abs(grandTotalDebit - grandTotalCredit))}
         </div>
       )}
     </div>

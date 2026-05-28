@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Printer, Truck } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -38,6 +38,7 @@ const DOC_HREF: Record<string, (id: number) => string> = {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
@@ -98,9 +99,9 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
           <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
         </div>
         <div className="bg-white border border-[#ede9e2] rounded-xl p-4 grid grid-cols-3 gap-3 text-center">
-          <Stat label="Opening" value={fmtPKR(Number(data.opening_balance))} />
+          <Stat label="Opening" value={fmt(Number(data.opening_balance))} />
           <Stat label="Closing"
-                value={fmtPKR(Number(data.closing_balance))}
+                value={fmt(Number(data.closing_balance))}
                 tone={Number(data.closing_balance) > 0 ? "amber" : "emerald"}
                 hint={Number(data.closing_balance) > 0 ? "We owe" : ""}
           />
@@ -127,7 +128,7 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
           <tbody className="divide-y divide-[#ede9e2]">
             <tr className="bg-[#faf8f4]">
               <td colSpan={6} className="px-3 py-2 text-[11px] font-bold text-[#1a1814]/55">Opening Balance</td>
-              <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(Number(data.opening_balance))}</td>
+              <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.opening_balance))}</td>
             </tr>
             {data.entries.map((e, i) => {
               const href = DOC_HREF[e.doc_type]?.(e.doc_id)
@@ -141,9 +142,9 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
                   <td className="px-3 py-2 text-right font-mono text-xs">
                     {e.qty_in ? <>+{e.qty_in} {e.unit ?? ""}</> : ""}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono">{Number(e.debit)  > 0 ? fmtPKR(Number(e.debit))  : ""}</td>
-                  <td className="px-3 py-2 text-right font-mono">{Number(e.credit) > 0 ? fmtPKR(Number(e.credit)) : ""}</td>
-                  <td className="px-3 py-2 text-right font-mono font-semibold">{fmtPKR(Number(e.running_balance))}</td>
+                  <td className="px-3 py-2 text-right font-mono">{Number(e.debit)  > 0 ? fmt(Number(e.debit))  : ""}</td>
+                  <td className="px-3 py-2 text-right font-mono">{Number(e.credit) > 0 ? fmt(Number(e.credit)) : ""}</td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(Number(e.running_balance))}</td>
                 </tr>
               )
             })}
@@ -152,9 +153,9 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
             <tr className="border-t-2 border-[#1a1814] bg-[#faf6ec]">
               <td colSpan={3} className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Totals</td>
               <td className="px-3 py-2 text-right font-mono text-xs">{data.totals.qty_in ?? ""}</td>
-              <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(Number(data.totals.debit))}</td>
-              <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(Number(data.totals.credit))}</td>
-              <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(Number(data.closing_balance))}</td>
+              <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.totals.debit))}</td>
+              <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.totals.credit))}</td>
+              <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.closing_balance))}</td>
             </tr>
           </tfoot>
         </table>

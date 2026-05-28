@@ -5,7 +5,8 @@ import { Plus, Search, Trash2, Printer } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
-import { cn, fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
+import { cn} from "@/lib/utils"
 import Pagination from "@/components/Pagination"
 import AccountFormModal from "@/components/AccountFormModal"
 import SkeletonRow from "@/components/SkeletonRow"
@@ -35,6 +36,7 @@ interface TBItem {
 const PAGE_SIZE = 50
 
 export default function COAPage() {
+  const fmt = useFmt()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -164,7 +166,7 @@ export default function COAPage() {
                     {parent ? <span className="font-mono">{parent.code} — {parent.name}</span> : <span className="text-[#1a1814]/30">—</span>}
                   </td>
                   <td className="px-8 py-5 text-right font-mono text-sm">
-                    {balances[acc.code] !== undefined ? fmtPKR(balances[acc.code]) : "-"}
+                    {balances[acc.code] !== undefined ? fmt(balances[acc.code]) : "-"}
                   </td>
                   <td className="px-8 py-5 flex items-center gap-3">
                     <button

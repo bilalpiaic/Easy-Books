@@ -6,7 +6,7 @@ import { Plus, Search, Printer, AlertCircle } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR } from '@/lib/utils'
+import { useFmt } from '@/context/SettingsContext'
 import Pagination from '@/components/Pagination'
 
 interface BillPaymentRecord {
@@ -57,6 +57,7 @@ const emptyForm: PayForm = {
 const PAGE_SIZE = 50
 
 export default function BillPayments() {
+  const fmt = useFmt()
   const [payments, setPayments]     = useState<BillPaymentRecord[]>([])
   const [total, setTotal]           = useState(0)
   const [page, setPage]             = useState(1)
@@ -202,7 +203,7 @@ export default function BillPayments() {
 
       <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
         <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Paid (this page)</p>
-        <p className="text-3xl font-bold text-red-600 mt-2">{fmtPKR(filtered.reduce((s, p) => s + p.amount, 0))}</p>
+        <p className="text-3xl font-bold text-red-600 mt-2">{fmt(filtered.reduce((s, p) => s + p.amount, 0))}</p>
       </div>
 
       <div className="relative">
@@ -251,7 +252,7 @@ export default function BillPayments() {
                       : (p.reference ?? '—')}
                   </td>
                   <td className="px-6 py-4 capitalize text-black/70">{p.method.replace('_', ' ')}</td>
-                  <td className="px-6 py-4 text-right font-mono font-bold text-red-700">{fmtPKR(p.amount)}</td>
+                  <td className="px-6 py-4 text-right font-mono font-bold text-red-700">{fmt(p.amount)}</td>
                   <td className="px-6 py-4 text-right">
                     <Link
                       href={`/bill-payments/${p.id}/print`}
@@ -353,7 +354,7 @@ export default function BillPayments() {
                               </td>
                               <td className="px-3 py-2 font-mono text-[#b8943f] font-bold text-xs">{bill.number}</td>
                               <td className="px-3 py-2 text-black/70 truncate max-w-[120px]">{bill.vendor_name ?? '—'}</td>
-                              <td className="px-3 py-2 text-right font-mono text-xs">{fmtPKR(bill.outstanding)}</td>
+                              <td className="px-3 py-2 text-right font-mono text-xs">{fmt(bill.outstanding)}</td>
                               <td className="px-3 py-2 text-right">
                                 {row.checked ? (
                                   <input
@@ -377,11 +378,11 @@ export default function BillPayments() {
                   {hasAllocations && (
                     <div className={`mt-2 flex items-center justify-between text-xs px-3 py-2 rounded-lg ${diff > 0.01 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
                       <span className="text-black/60">
-                        Payment: <strong>{fmtPKR(paymentAmount)}</strong> · Applied: <strong>{fmtPKR(totalApplied)}</strong>
+                        Payment: <strong>{fmt(paymentAmount)}</strong> · Applied: <strong>{fmt(totalApplied)}</strong>
                       </span>
                       {diff > 0.01 ? (
                         <span className="flex items-center gap-1 text-amber-700 font-medium">
-                          <AlertCircle className="w-3 h-3" /> Unallocated: {fmtPKR(diff)}
+                          <AlertCircle className="w-3 h-3" /> Unallocated: {fmt(diff)}
                         </span>
                       ) : (
                         <span className="text-green-700 font-medium">Fully applied ✓</span>

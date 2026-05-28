@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, RotateCcw, FileSignature, Pencil, ChevronRight } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface InvoiceLine {
@@ -47,6 +47,7 @@ const STATUS_TONE: Record<string, string> = {
 }
 
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const fmt = useFmt()
   const { id } = use(params)
   const [inv, setInv]       = useState<Invoice | null>(null)
   const [error, setError]   = useState<string | null>(null)
@@ -186,8 +187,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   ) : ln.description}
                 </td>
                 <td className="px-4 py-2 text-right font-mono">{ln.qty} {ln.unit ?? ""}</td>
-                <td className="px-4 py-2 text-right font-mono">{fmtPKR(ln.rate)}</td>
-                <td className="px-4 py-2 text-right font-mono">{fmtPKR(ln.amount)}</td>
+                <td className="px-4 py-2 text-right font-mono">{fmt(ln.rate)}</td>
+                <td className="px-4 py-2 text-right font-mono">{fmt(ln.amount)}</td>
               </tr>
             ))}
           </tbody>
@@ -215,10 +216,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       {/* Totals */}
       <section className="flex justify-end">
         <div className="bg-white border border-[#ede9e2] rounded-xl p-4 w-full sm:w-80 text-sm space-y-1">
-          <Row label="Subtotal" value={fmtPKR(inv.subtotal)} />
-          {inv.gst_rate > 0 && <Row label={`GST (${inv.gst_rate}%)`} value={fmtPKR(inv.gst_amount)} />}
+          <Row label="Subtotal" value={fmt(inv.subtotal)} />
+          {inv.gst_rate > 0 && <Row label={`GST (${inv.gst_rate}%)`} value={fmt(inv.gst_amount)} />}
           <div className="border-t border-[#1a1814] pt-1.5 mt-1.5">
-            <Row label="Total" value={fmtPKR(inv.total)} bold />
+            <Row label="Total" value={fmt(inv.total)} bold />
           </div>
         </div>
       </section>

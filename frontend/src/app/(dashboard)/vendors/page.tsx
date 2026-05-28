@@ -6,7 +6,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR, downloadCSV } from '@/lib/utils'
+import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import CsvImportButton from '@/components/CsvImportButton'
@@ -151,7 +151,7 @@ export default function Vendors() {
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Opening Balance Total</p>
-          <p className="text-2xl font-bold text-[#1a1814] mt-2">{fmtPKR(vendors.reduce((s, v) => s + v.opening_balance, 0))}</p>
+          <p className="text-2xl font-bold text-[#1a1814] mt-2">{fmt(vendors.reduce((s, v) => s + v.opening_balance, 0))}</p>
         </div>
       </div>
 
@@ -219,7 +219,7 @@ export default function Vendors() {
                 </td>
                 <td className="px-6 py-4 text-black/70">{v.email ?? '—'}</td>
                 <td className="px-6 py-4 text-black/70">{v.phone ?? '—'}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmtPKR(v.opening_balance)}</td>
+                <td className="px-6 py-4 text-right font-mono">{fmt(v.opening_balance)}</td>
                 <td className="px-6 py-4 text-center">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${v.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                     {v.is_active ? 'active' : 'inactive'}

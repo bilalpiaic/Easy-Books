@@ -1,7 +1,7 @@
 "use client"
 
 import { Trash2, Plus } from "lucide-react"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 
 export interface LineItem {
   product_id?: number | null
@@ -42,6 +42,7 @@ interface Props {
 const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
 
 function emptyLine(): LineItem {
+  const fmt = useFmt()
   return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0, tax_code_id: null }
 }
 
@@ -164,7 +165,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
               </td>
               <td className="px-3 py-2">
                 {readOnly ? (
-                  <span className="block text-right font-mono">{fmtPKR(line.rate)}</span>
+                  <span className="block text-right font-mono">{fmt(line.rate)}</span>
                 ) : (
                   <input
                     type="number" min="0" step="0.01"
@@ -194,7 +195,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                   )}
                 </td>
               )}
-              <td className="px-3 py-2 text-right font-mono text-sm font-semibold">{fmtPKR(line.amount)}</td>
+              <td className="px-3 py-2 text-right font-mono text-sm font-semibold">{fmt(line.amount)}</td>
               {!readOnly && (
                 <td className="px-2 py-2">
                   <button onClick={() => remove(idx)} className="text-red-400 hover:text-red-600">
@@ -226,7 +227,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
               )}
             </td>
             <td className="px-3 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/60">Subtotal</td>
-            <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(subtotal)}</td>
+            <td className="px-3 py-2 text-right font-mono font-bold">{fmt(subtotal)}</td>
             {!readOnly && <td />}
           </tr>
         </tfoot>

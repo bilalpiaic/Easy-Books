@@ -10,7 +10,7 @@ import FilterBar from '@/components/FilterBar'
 import SortableHeader from '@/components/SortableHeader'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR, downloadCSV } from '@/lib/utils'
+import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
@@ -53,12 +53,15 @@ interface BillForm {
   gst_rate: string
   ap_account_id: string
   expense_account_id: string
+  currency: string
+  exchange_rate: string
 }
 
 const emptyForm: BillForm = {
   vendor_id: '', vendor_name: '', bill_date: new Date().toISOString().split('T')[0],
   due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
   ap_account_id: '', expense_account_id: '',
+  currency: 'PKR', exchange_rate: '1',
 }
 
 const statusColors: Record<string, string> = {
@@ -272,6 +275,8 @@ function BillsInner() {
       })),
       gst_rate: parseFloat(form.gst_rate) || 0,
       ap_account_id: form.ap_account_id ? parseInt(form.ap_account_id) : null,
+      currency: form.currency || settings.currency,
+      exchange_rate: parseFloat(form.exchange_rate) || 1,
       expense_account_id: form.expense_account_id ? parseInt(form.expense_account_id) : null,
     }
     try {
@@ -341,11 +346,11 @@ function BillsInner() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Payable</p>
-          <p className="text-2xl font-bold text-orange-600 mt-2">{fmtPKR(payable)}</p>
+          <p className="text-2xl font-bold text-orange-600 mt-2">{fmt(payable)}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Paid</p>
-          <p className="text-2xl font-bold text-green-600 mt-2">{fmtPKR(paid)}</p>
+          <p className="text-2xl font-bold text-green-600 mt-2">{fmt(paid)}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Bills</p>
@@ -420,7 +425,7 @@ function BillsInner() {
                   </td>
                   <td className="px-6 py-4 text-black/70">{b.bill_date}</td>
                   <td className={`px-6 py-4 ${b.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{b.due_date}</td>
-                  <td className="px-6 py-4 text-right font-mono">{fmtPKR(b.total)}</td>
+                  <td className="px-6 py-4 text-right font-mono">{fmt(b.total)}</td>
                   <td className="px-6 py-4 text-center">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[b.status] ?? 'bg-gray-100 text-gray-700'}`}>
                       {b.status}
@@ -471,7 +476,7 @@ function BillsInner() {
             {([['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]] as [string, number][]).map(([label, val]) => (
               <div key={label} className="p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">{label}</p>
-                <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-orange-600' : 'text-black/40'}`}>{fmtPKR(Number(val))}</p>
+                <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-orange-600' : 'text-black/40'}`}>{fmt(Number(val))}</p>
               </div>
             ))}
           </div>
@@ -555,6 +560,25 @@ function BillsInner() {
                   className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Currency</label>
+                  <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value, exchange_rate: e.target.value === settings.currency ? '1' : p.exchange_rate }))}
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                    {['PKR','USD','EUR','GBP','AED','SAR','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                    Exchange Rate (1 {form.currency} = ? {settings.currency})
+                  </label>
+                  <input type="number" step="0.0001" min="0" value={form.exchange_rate}
+                    onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
+                    disabled={form.currency === settings.currency}
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm disabled:opacity-50" />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
                 <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax />
@@ -563,12 +587,12 @@ function BillsInner() {
               <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-black/60">Subtotal</span>
-                  <span className="font-mono">{fmtPKR(subtotal)}</span>
+                  <span className="font-mono">{fmt(subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-black/60">Tax</span>
                   {usePerLineTax ? (
-                    <span className="font-mono text-xs text-black/60">(per-line) {fmtPKR(gstAmount)}</span>
+                    <span className="font-mono text-xs text-black/60">(per-line) {fmt(gstAmount)}</span>
                   ) : (
                     <div className="flex items-center gap-2">
                       <input type="number" min="0" max="100" step="0.5"
@@ -577,13 +601,13 @@ function BillsInner() {
                         className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
                       />
                       <span className="text-black/60 text-xs">%</span>
-                      <span className="font-mono">{fmtPKR(gstAmount)}</span>
+                      <span className="font-mono">{fmt(gstAmount)}</span>
                     </div>
                   )}
                 </div>
                 <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
                   <span>Total</span>
-                  <span className="font-mono text-[#1a1814]">{fmtPKR(totalAmount)}</span>
+                  <span className="font-mono text-[#1a1814]">{fmt(totalAmount)}</span>
                 </div>
               </div>
 

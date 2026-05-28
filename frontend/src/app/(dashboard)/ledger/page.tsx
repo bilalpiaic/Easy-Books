@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ChevronRight, BookOpen, Printer, Download } from "lucide-react"
 import { downloadCSV } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -36,6 +36,7 @@ interface LedgerAccount {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
@@ -256,19 +257,19 @@ function LedgerPageInner() {
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/50">Total Debit</p>
                 <p className="font-mono text-sm font-semibold">
-                  {fmtPKR(ledgerData.entries.reduce((s, e) => s + (e.debit || 0), 0))}
+                  {fmt(ledgerData.entries.reduce((s, e) => s + (e.debit || 0), 0))}
                 </p>
               </div>
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/50">Total Credit</p>
                 <p className="font-mono text-sm font-semibold">
-                  {fmtPKR(ledgerData.entries.reduce((s, e) => s + (e.credit || 0), 0))}
+                  {fmt(ledgerData.entries.reduce((s, e) => s + (e.credit || 0), 0))}
                 </p>
               </div>
               <div className="border-l border-[#ede9e2] pl-6">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/50">Closing Balance</p>
                 <p className={`font-mono font-bold text-base ${closing < 0 ? "text-red-600" : "text-[#1a1814]"}`}>
-                  {fmtPKR(closing)}
+                  {fmt(closing)}
                 </p>
               </div>
             </div>
@@ -301,13 +302,13 @@ function LedgerPageInner() {
                     </td>
                     <td className="px-4 py-2.5 text-black/65 max-w-xs truncate">{entry.description}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-sm">
-                      {entry.debit > 0 ? fmtPKR(entry.debit) : <span className="text-black/20">—</span>}
+                      {entry.debit > 0 ? fmt(entry.debit) : <span className="text-black/20">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono text-sm">
-                      {entry.credit > 0 ? fmtPKR(entry.credit) : <span className="text-black/20">—</span>}
+                      {entry.credit > 0 ? fmt(entry.credit) : <span className="text-black/20">—</span>}
                     </td>
                     <td className={`px-4 py-2.5 text-right font-mono text-sm font-semibold ${entry.balance < 0 ? "text-red-600" : ""}`}>
-                      {fmtPKR(entry.balance)}
+                      {fmt(entry.balance)}
                     </td>
                   </tr>
                 ))}
@@ -318,13 +319,13 @@ function LedgerPageInner() {
                     {ledgerData.entries.length} transaction{ledgerData.entries.length !== 1 ? "s" : ""}
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-bold">
-                    {fmtPKR(ledgerData.entries.reduce((s, e) => s + (e.debit || 0), 0))}
+                    {fmt(ledgerData.entries.reduce((s, e) => s + (e.debit || 0), 0))}
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-bold">
-                    {fmtPKR(ledgerData.entries.reduce((s, e) => s + (e.credit || 0), 0))}
+                    {fmt(ledgerData.entries.reduce((s, e) => s + (e.credit || 0), 0))}
                   </td>
                   <td className={`px-4 py-3 text-right font-mono font-bold ${closing < 0 ? "text-red-600" : ""}`}>
-                    {fmtPKR(closing)}
+                    {fmt(closing)}
                   </td>
                 </tr>
               </tfoot>

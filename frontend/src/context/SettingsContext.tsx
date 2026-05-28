@@ -98,3 +98,9 @@ export function fmtCurrency(n: number, currency: string): string {
   const formatted = rounded.toLocaleString("en-PK")
   return `${currency} ${formatted}`
 }
+
+/** Hook that returns a formatter using the tenant's base currency. */
+export function useFmt() {
+  const { settings } = useSettings()
+  return (n: number) => fmtCurrency(n, settings.currency || "PKR")
+}

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { RotateCcw, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR, downloadCSV } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
@@ -29,6 +30,7 @@ interface JournalResponse {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
@@ -139,8 +141,8 @@ export default function JournalPage() {
                         </Link>
                         <div className="text-xs text-[#1a1814]/75">{entry.description}</div>
                       </td>
-                      <td className="px-6 py-5 text-right font-mono text-sm">{entry.debit > 0 ? fmtPKR(entry.debit) : "-"}</td>
-                      <td className="px-6 py-5 text-right font-mono text-sm">{entry.credit > 0 ? fmtPKR(entry.credit) : "-"}</td>
+                      <td className="px-6 py-5 text-right font-mono text-sm">{entry.debit > 0 ? fmt(entry.debit) : "-"}</td>
+                      <td className="px-6 py-5 text-right font-mono text-sm">{entry.credit > 0 ? fmt(entry.credit) : "-"}</td>
                       <td className="px-6 py-5">
                         {isFirstLine && (
                           <div className="flex items-center gap-1.5">

@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Printer, Package } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -56,6 +56,7 @@ const DIRECTION_TONE: Record<string, string> = {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
@@ -136,7 +137,7 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
             <tr className="bg-[#faf8f4]">
               <td colSpan={7} className="px-3 py-2 text-[11px] font-bold text-[#1a1814]/55">Opening</td>
               <td className="px-3 py-2 text-right font-mono font-bold">{data.opening_qty}</td>
-              <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(Number(data.opening_value))}</td>
+              <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.opening_value))}</td>
             </tr>
             {data.entries.map((m, i) => {
               const href = m.source_doc_id && m.source_doc_type ? DOC_HREF[m.source_doc_type]?.(m.source_doc_id) : undefined
@@ -158,9 +159,9 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-emerald-700">{m.qty_in ?? ""}</td>
                   <td className="px-3 py-2 text-right font-mono text-amber-700">{m.qty_out ?? ""}</td>
-                  <td className="px-3 py-2 text-right font-mono">{fmtPKR(Number(m.unit_cost))}</td>
+                  <td className="px-3 py-2 text-right font-mono">{fmt(Number(m.unit_cost))}</td>
                   <td className="px-3 py-2 text-right font-mono font-semibold">{m.running_qty}</td>
-                  <td className="px-3 py-2 text-right font-mono font-semibold">{fmtPKR(Number(m.running_value))}</td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(Number(m.running_value))}</td>
                 </tr>
               )
             })}
@@ -172,7 +173,7 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
               <td className="px-3 py-2 text-right font-mono font-bold text-amber-700">{data.totals.qty_out}</td>
               <td className="px-3 py-2"></td>
               <td className="px-3 py-2 text-right font-mono font-bold">{data.closing_qty}</td>
-              <td className="px-3 py-2 text-right font-mono font-bold">{fmtPKR(Number(data.closing_value))}</td>
+              <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.closing_value))}</td>
             </tr>
           </tfoot>
         </table>

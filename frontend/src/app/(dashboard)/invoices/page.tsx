@@ -10,7 +10,7 @@ import FilterBar from '@/components/FilterBar'
 import SortableHeader from '@/components/SortableHeader'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR, downloadCSV } from '@/lib/utils'
+import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
@@ -54,12 +54,15 @@ interface InvoiceForm {
   gst_rate: string
   ar_account_id: string
   revenue_account_id: string
+  currency: string
+  exchange_rate: string
 }
 
 const emptyForm: InvoiceForm = {
   customer_id: '', customer_name: '', issue_date: new Date().toISOString().split('T')[0],
   due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
   ar_account_id: '', revenue_account_id: '',
+  currency: 'PKR', exchange_rate: '1',
 }
 
 const statusColors: Record<string, string> = {
@@ -275,6 +278,8 @@ function InvoicesInner() {
       gst_rate: parseFloat(form.gst_rate) || 0,
       ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
       revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
+      currency: form.currency || settings.currency,
+      exchange_rate: parseFloat(form.exchange_rate) || 1,
     }
     try {
       if (editInvoice) {
@@ -346,11 +351,11 @@ function InvoicesInner() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Outstanding</p>
-          <p className="text-2xl font-bold text-[#b8943f] mt-2">{fmtPKR(outstanding)}</p>
+          <p className="text-2xl font-bold text-[#b8943f] mt-2">{fmt(outstanding)}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Collected</p>
-          <p className="text-2xl font-bold text-green-600 mt-2">{fmtPKR(paid)}</p>
+          <p className="text-2xl font-bold text-green-600 mt-2">{fmt(paid)}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Invoices</p>
@@ -425,7 +430,7 @@ function InvoicesInner() {
                   </td>
                   <td className="px-6 py-4 text-black/70">{inv.issue_date}</td>
                   <td className={`px-6 py-4 ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{inv.due_date}</td>
-                  <td className="px-6 py-4 text-right font-mono">{fmtPKR(inv.total)}</td>
+                  <td className="px-6 py-4 text-right font-mono">{fmt(inv.total)}</td>
                   <td className="px-6 py-4 text-center">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700'}`}>
                       {inv.status}
@@ -476,7 +481,7 @@ function InvoicesInner() {
             {([['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]] as [string, number][]).map(([label, val]) => (
               <div key={label} className="p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">{label}</p>
-                <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-red-600' : 'text-black/40'}`}>{fmtPKR(Number(val))}</p>
+                <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-red-600' : 'text-black/40'}`}>{fmt(Number(val))}</p>
               </div>
             ))}
           </div>
@@ -498,7 +503,7 @@ function InvoicesInner() {
                       <td className="px-4 py-2 font-mono font-bold text-[#b8943f]">{item.number}</td>
                       <td className="px-4 py-2 text-black/70">{item.name}</td>
                       <td className="px-4 py-2 text-black/60">{item.due_date}</td>
-                      <td className="px-4 py-2 text-right font-mono">{fmtPKR(item.amount)}</td>
+                      <td className="px-4 py-2 text-right font-mono">{fmt(item.amount)}</td>
                       <td className="px-4 py-2 text-right font-bold text-red-600">{item.days_past}d</td>
                     </tr>
                   ))}
@@ -547,7 +552,7 @@ function InvoicesInner() {
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                   {customerBalance !== null && customerBalance > 0 && (
-                    <p className="text-xs text-amber-700 mt-1 font-medium">Outstanding balance: {fmtPKR(customerBalance)}</p>
+                    <p className="text-xs text-amber-700 mt-1 font-medium">Outstanding balance: {fmt(customerBalance)}</p>
                   )}
                 </div>
                 <div>
@@ -598,6 +603,25 @@ function InvoicesInner() {
                   className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Currency</label>
+                  <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value, exchange_rate: e.target.value === settings.currency ? '1' : p.exchange_rate }))}
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                    {['PKR','USD','EUR','GBP','AED','SAR','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                    Exchange Rate (1 {form.currency} = ? {settings.currency})
+                  </label>
+                  <input type="number" step="0.0001" min="0" value={form.exchange_rate}
+                    onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
+                    disabled={form.currency === settings.currency}
+                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm disabled:opacity-50" />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
                 <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax />
@@ -606,12 +630,12 @@ function InvoicesInner() {
               <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-black/60">Subtotal</span>
-                  <span className="font-mono">{fmtPKR(subtotal)}</span>
+                  <span className="font-mono">{fmt(subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-black/60">Tax</span>
                   {usePerLineTax ? (
-                    <span className="font-mono text-xs text-black/60">(per-line) {fmtPKR(gstAmount)}</span>
+                    <span className="font-mono text-xs text-black/60">(per-line) {fmt(gstAmount)}</span>
                   ) : (
                     <div className="flex items-center gap-2">
                       <input type="number" min="0" max="100" step="0.5"
@@ -620,13 +644,13 @@ function InvoicesInner() {
                         className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
                       />
                       <span className="text-black/60 text-xs">%</span>
-                      <span className="font-mono">{fmtPKR(gstAmount)}</span>
+                      <span className="font-mono">{fmt(gstAmount)}</span>
                     </div>
                   )}
                 </div>
                 <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
                   <span>Total</span>
-                  <span className="font-mono text-[#1a1814]">{fmtPKR(totalAmount)}</span>
+                  <span className="font-mono text-[#1a1814]">{fmt(totalAmount)}</span>
                 </div>
               </div>
 

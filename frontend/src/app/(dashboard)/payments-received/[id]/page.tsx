@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, CheckCircle, ChevronRight } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtPKR } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface Allocation {
@@ -26,6 +26,7 @@ interface Payment {
 }
 
 export default function PaymentReceivedDetail({ params }: { params: Promise<{ id: string }> }) {
+  const fmt = useFmt()
   const { id } = use(params)
   const [pay, setPay] = useState<Payment | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -100,14 +101,14 @@ export default function PaymentReceivedDetail({ params }: { params: Promise<{ id
                     </Link>
                   ) : "—"}
                 </td>
-                <td className="px-4 py-2 text-right font-mono">{fmtPKR(Number(a.amount))}</td>
+                <td className="px-4 py-2 text-right font-mono">{fmt(Number(a.amount))}</td>
               </tr>
             ))}
           </tbody>
           <tfoot className="bg-[#faf6ec] border-t border-[#1a1814]">
             <tr>
               <td className="px-4 py-2 text-sm font-bold">Total received</td>
-              <td className="px-4 py-2 text-right font-mono font-bold">{fmtPKR(Number(pay.amount))}</td>
+              <td className="px-4 py-2 text-right font-mono font-bold">{fmt(Number(pay.amount))}</td>
             </tr>
           </tfoot>
         </table>

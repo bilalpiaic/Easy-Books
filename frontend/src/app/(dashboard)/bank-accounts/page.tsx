@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Eye, EyeOff, Trash2, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR } from '@/lib/utils'
+import { useFmt } from '@/context/SettingsContext'
 
 interface BankAccount {
   id: number
@@ -28,6 +28,7 @@ interface BankForm {
 const emptyForm: BankForm = { name: '', bank_name: '', account_number: '', coa_account_id: '' }
 
 export default function BankAccounts() {
+  const fmt = useFmt()
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [hideBalance, setHideBalance] = useState(false)
@@ -132,7 +133,7 @@ export default function BankAccounts() {
       <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
         <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Cash Position</p>
         <p className={`text-3xl font-bold mt-2 ${totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-          {hideBalance ? '••••••' : fmtPKR(totalBalance)}
+          {hideBalance ? '••••••' : fmt(totalBalance)}
         </p>
       </div>
 
@@ -159,7 +160,7 @@ export default function BankAccounts() {
             <div>
               <p className="text-xs text-black/60 uppercase tracking-widest font-bold">GL Balance</p>
               <p className={`text-2xl font-bold mt-1 ${ba.balance >= 0 ? 'text-[#b8943f]' : 'text-red-600'}`}>
-                {hideBalance ? '••••••' : fmtPKR(ba.balance)}
+                {hideBalance ? '••••••' : fmt(ba.balance)}
               </p>
             </div>
           </div>

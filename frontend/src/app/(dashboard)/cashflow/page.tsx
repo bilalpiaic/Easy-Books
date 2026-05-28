@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR } from '@/lib/utils'
+import { useFmt } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 
@@ -22,6 +22,7 @@ interface CashFlowData {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split('T')[0], end: to.toISOString().split('T')[0] }
@@ -31,7 +32,7 @@ function Row({ label, value, indent = false, bold = false }: { label: string; va
   return (
     <div className={`flex justify-between py-2 ${bold ? 'border-t border-[#ede9e2] font-semibold' : ''}`}>
       <span className={indent ? 'ml-6 text-sm text-black/70' : ''}>{label}</span>
-      <span className={`font-mono ${bold ? 'text-lg' : 'text-sm'} ${value < 0 ? 'text-red-600' : ''}`}>{fmtPKR(value)}</span>
+      <span className={`font-mono ${bold ? 'text-lg' : 'text-sm'} ${value < 0 ? 'text-red-600' : ''}`}>{fmt(value)}</span>
     </div>
   )
 }
@@ -114,16 +115,16 @@ export default function CashFlow() {
             <div className="flex justify-between pb-3 border-b border-[#ede9e2]">
               <span className="font-semibold">Net Change in Cash</span>
               <span className={`font-mono font-bold text-lg ${data.net_cash_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {data.net_cash_change >= 0 ? '+' : ''}{fmtPKR(data.net_cash_change)}
+                {data.net_cash_change >= 0 ? '+' : ''}{fmt(data.net_cash_change)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Beginning Cash Balance</span>
-              <span className="font-mono">{fmtPKR(data.beginning_balance)}</span>
+              <span className="font-mono">{fmt(data.beginning_balance)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold border-t border-[#ede9e2] pt-3">
               <span>Ending Cash Balance</span>
-              <span className="font-mono text-[#b8943f]">{fmtPKR(data.ending_balance)}</span>
+              <span className="font-mono text-[#b8943f]">{fmt(data.ending_balance)}</span>
             </div>
           </div>
         </div>

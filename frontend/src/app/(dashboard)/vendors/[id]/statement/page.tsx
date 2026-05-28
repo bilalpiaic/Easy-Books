@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR } from '@/lib/utils'
+import { useFmt } from '@/context/SettingsContext'
 import PrintHeader from '@/components/PrintHeader'
 
 interface StatementBill {
@@ -37,6 +37,7 @@ interface Statement {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { from: from.toISOString().split('T')[0], to: to.toISOString().split('T')[0] }
@@ -116,18 +117,18 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
         <div className="grid grid-cols-3 divide-x divide-[#ede9e2] border-b border-[#ede9e2] bg-[#f6f3ee]">
           <div className="px-6 py-4 text-center">
             <p className="text-xs text-black/50 uppercase tracking-widest font-bold mb-1">Opening Balance</p>
-            <p className="text-lg font-bold font-mono">{fmtPKR(Number(data.opening_balance))}</p>
+            <p className="text-lg font-bold font-mono">{fmt(Number(data.opening_balance))}</p>
           </div>
           <div className="px-6 py-4 text-center">
             <p className="text-xs text-black/50 uppercase tracking-widest font-bold mb-1">Bills Received</p>
             <p className="text-lg font-bold font-mono text-orange-600">
-              {fmtPKR(data.bills.reduce((s, b) => s + Number(b.total), 0))}
+              {fmt(data.bills.reduce((s, b) => s + Number(b.total), 0))}
             </p>
           </div>
           <div className="px-6 py-4 text-center">
             <p className="text-xs text-black/50 uppercase tracking-widest font-bold mb-1">Closing Balance</p>
             <p className={`text-lg font-bold font-mono ${closingNum > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {fmtPKR(closingNum)}
+              {fmt(closingNum)}
             </p>
             {closingNum > 0 && <p className="text-[10px] text-red-500 mt-0.5">Amount Owed to Vendor</p>}
           </div>
@@ -161,9 +162,9 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                         {b.status}
                       </span>
                     </td>
-                    <td className="py-2 text-right font-mono">{fmtPKR(Number(b.total))}</td>
+                    <td className="py-2 text-right font-mono">{fmt(Number(b.total))}</td>
                     <td className={`py-2 text-right font-mono font-bold ${Number(b.outstanding) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {fmtPKR(Number(b.outstanding))}
+                      {fmt(Number(b.outstanding))}
                     </td>
                   </tr>
                 ))}
@@ -193,7 +194,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                     <td className="py-2 text-black/70">{p.date}</td>
                     <td className="py-2 capitalize text-black/70">{p.method}</td>
                     <td className="py-2 text-black/50 text-xs">{p.reference ?? '—'}</td>
-                    <td className="py-2 text-right font-mono text-green-600">{fmtPKR(Number(p.amount))}</td>
+                    <td className="py-2 text-right font-mono text-green-600">{fmt(Number(p.amount))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -201,7 +202,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                 <tr className="border-t border-[#ede9e2]">
                   <td colSpan={3} className="py-2 text-xs font-bold text-black/50 uppercase tracking-widest">Total Paid</td>
                   <td className="py-2 text-right font-mono font-bold text-green-600">
-                    {fmtPKR(data.payments.reduce((s, p) => s + Number(p.amount), 0))}
+                    {fmt(data.payments.reduce((s, p) => s + Number(p.amount), 0))}
                   </td>
                 </tr>
               </tfoot>
@@ -215,7 +216,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
           <div className="text-right">
             <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Balance Owed</p>
             <p className={`text-xl font-bold font-mono ${closingNum > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {fmtPKR(closingNum)}
+              {fmt(closingNum)}
             </p>
           </div>
         </div>

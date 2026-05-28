@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { fmtPKR } from '@/lib/utils'
+import { useFmt } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 
@@ -24,6 +24,7 @@ interface TaxSummary {
 }
 
 function defaultRange() {
+  const fmt = useFmt()
   const today = new Date()
   const fyStart = today.getMonth() >= 6
     ? new Date(today.getFullYear(), 6, 1)
@@ -74,32 +75,32 @@ export default function TaxReports() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Output GST (Sales)</p>
-                <p className="text-xl font-bold font-mono text-red-600">{fmtPKR(data.gst.output_gst)}</p>
+                <p className="text-xl font-bold font-mono text-red-600">{fmt(data.gst.output_gst)}</p>
               </div>
               <div className="bg-[#f6f3ee] rounded-xl p-4 text-center">
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Input GST (Purchases)</p>
-                <p className="text-xl font-bold font-mono text-green-600">{fmtPKR(data.gst.input_gst)}</p>
+                <p className="text-xl font-bold font-mono text-green-600">{fmt(data.gst.input_gst)}</p>
               </div>
               <div className={`rounded-xl p-4 text-center ${data.gst.net_gst_payable > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
                 <p className="text-xs text-black/50 uppercase tracking-widest mb-1">Net GST Payable</p>
                 <p className={`text-xl font-bold font-mono ${data.gst.net_gst_payable > 0 ? 'text-red-700' : 'text-green-700'}`}>
-                  {fmtPKR(data.gst.net_gst_payable)}
+                  {fmt(data.gst.net_gst_payable)}
                 </p>
               </div>
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-2 border-b border-[#ede9e2]">
                 <span>Output GST (account 2200 credits)</span>
-                <span className="font-mono">{fmtPKR(data.gst.output_gst)}</span>
+                <span className="font-mono">{fmt(data.gst.output_gst)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-[#ede9e2]">
                 <span>Less: Input GST (account 1200 debits)</span>
-                <span className="font-mono">({fmtPKR(data.gst.input_gst)})</span>
+                <span className="font-mono">({fmt(data.gst.input_gst)})</span>
               </div>
               <div className="flex justify-between py-3 font-semibold text-base">
                 <span>Net GST Payable to FBR</span>
                 <span className={`font-mono ${data.gst.net_gst_payable > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {fmtPKR(data.gst.net_gst_payable)}
+                  {fmt(data.gst.net_gst_payable)}
                 </span>
               </div>
             </div>
@@ -111,15 +112,15 @@ export default function TaxReports() {
             <div className="space-y-3 mb-6">
               <div className="flex justify-between py-2 border-b border-[#ede9e2]">
                 <span>Total Revenue</span>
-                <span className="font-mono font-bold">{fmtPKR(data.income_tax.revenue)}</span>
+                <span className="font-mono font-bold">{fmt(data.income_tax.revenue)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-[#ede9e2]">
                 <span>Less: Business Expenses</span>
-                <span className="font-mono font-bold">({fmtPKR(data.income_tax.expenses)})</span>
+                <span className="font-mono font-bold">({fmt(data.income_tax.expenses)})</span>
               </div>
               <div className="flex justify-between py-3 border-t-2 border-[#1a1814] font-semibold text-lg">
                 <span>Taxable Income</span>
-                <span className="font-mono text-[#b8943f]">{fmtPKR(data.income_tax.taxable_income)}</span>
+                <span className="font-mono text-[#b8943f]">{fmt(data.income_tax.taxable_income)}</span>
               </div>
             </div>
 
@@ -130,7 +131,7 @@ export default function TaxReports() {
               </div>
               <div className="flex justify-between pt-3 border-t border-[#ede9e2] font-semibold text-lg">
                 <span>Estimated Income Tax</span>
-                <span className="font-mono text-red-600">{fmtPKR(data.income_tax.estimated_tax)}</span>
+                <span className="font-mono text-red-600">{fmt(data.income_tax.estimated_tax)}</span>
               </div>
             </div>
 
