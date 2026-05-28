@@ -4,7 +4,7 @@ a full calendar year.
 Idempotent — if a demo tenant already exists, the script reuses it and
 skips entities that are already present. Safe to re-run.
 
-Data coverage (v2 — post-sprint upgrade):
+Data coverage (v3 — Sprint 7–12 improvement roadmap):
   • All dates within the past 12 months (365-day rolling window)
   • 100 invoices + 100 bills per tenant, evenly spread month-by-month
   • Every model-specific COA account exercised (4010/4020/5100/5200/5030 etc.)
@@ -12,6 +12,9 @@ Data coverage (v2 — post-sprint upgrade):
   • Payment terms randomly assigned to customers, vendors, invoices, bills
   • notes / internal_memo fields populated with realistic text
   • 60+ manual JVs covering all expense / revenue / balance-sheet accounts
+  • Credit notes (G-02), fixed assets + depreciation (G-05), monthly budgets
+    (G-10), purchase orders incl. convert-to-bill (G-06), analytic accounts
+    (G-07), and deferred-revenue schedules for services tenants (G-08)
 
 Usage:
     PYTHONPATH=. uv run python -m scripts.seed_demo
@@ -35,12 +38,13 @@ from sqlmodel import Session, select
 from auth import get_password_hash
 from db import engine, seed_data
 from models import (
-    Account, AuditLog, BankAccount, BomHeader, BomLine, Bill, BillLine,
-    BillPayment, Customer, CustomerRatePlan, ExchangeRate, GRNLine,
-    GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine, PaymentAllocation,
-    PaymentReceived, PaymentTerm, Product, ProductionOrder, RatePlan,
-    RecurringTemplate, SequenceCounter, StockLocation, TaxCode, Tenant, User,
-    Vendor,
+    Account, AnalyticAccount, AuditLog, BankAccount, BomHeader, BomLine, Bill,
+    BillLine, BillPayment, Budget, CreditNote, CreditNoteLine, Customer,
+    CustomerRatePlan, DeferredRevenueSchedule, DepreciationEntry, ExchangeRate,
+    FixedAsset, GRNLine, GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine,
+    PaymentAllocation, PaymentReceived, PaymentTerm, Product, ProductionOrder,
+    PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate,
+    SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor,
 )
 from models_telecom import (
     FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
@@ -1420,6 +1424,254 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
     s.flush()
 
 
+# ── Improvement-roadmap modules (Sprint 7–12) ─────────────────────────────────
+
+
+def _seed_credit_notes(s: Session, user: User, invoices: list, count: int = 6) -> None:
+    """G-02: issue credit notes against a handful of posted invoices.
+    Posts Dr Revenue / Cr AR — the reverse of an invoice."""
+    tid = user.tenant_id
+    if s.exec(select(CreditNote).where(CreditNote.tenant_id == tid)).first():
+        return
+    ar = _account(s, tid, "1100")
+    rev = _account(s, tid, "4000")
+    if not ar or not rev or not invoices:
+        return
+
+    # Credit a sample of invoices (returns / price adjustments)
+    sample = [inv for inv in invoices if inv.customer_id][:count]
+    reasons = [
+        "Return — defective goods", "Price adjustment — discount agreed",
+        "Short shipment credit", "Goods returned — wrong item",
+        "Volume rebate", "Quality complaint settlement",
+    ]
+    cn_dates = _spread_dates(len(sample), days_ago=300, min_days_ago=5)
+    for i, inv in enumerate(sample):
+        # Credit ~30% of the invoice subtotal
+        amt = money(D(inv.subtotal) * D("0.30"))
+        if amt <= ZERO:
+            continue
+        number = next_number(s, tid, "credit_note", "CN")
+        cn = CreditNote(
+            tenant_id=tid, number=number, invoice_id=inv.id,
+            customer_id=inv.customer_id, customer_name=inv.customer_name,
+            issue_date=cn_dates[i], description=reasons[i % len(reasons)],
+            subtotal=amt, gst_amount=ZERO, total=amt,
+            currency=inv.currency, exchange_rate=D(inv.exchange_rate),
+            status="posted", ar_account_id=ar.id, revenue_account_id=rev.id,
+        )
+        s.add(cn); s.flush()
+        s.add(CreditNoteLine(
+            credit_note_id=cn.id, description=reasons[i % len(reasons)],
+            qty=D(1), unit="ea", rate=amt, amount=amt,
+        ))
+        txn = post_transaction(
+            s, user, date=cn_dates[i],
+            description=f"Credit Note {number}",
+            entries=[
+                EntryInput(account_id=rev.id, debit=amt),
+                EntryInput(account_id=ar.id, credit=amt),
+            ],
+            audit_entity_type="credit_note",
+            audit_detail={"cn_number": number},
+        )
+        cn.transaction_id = txn.id
+        s.add(cn)
+
+
+def _seed_fixed_assets(s: Session, user: User) -> None:
+    """G-05: register fixed assets and post one month of depreciation each."""
+    tid = user.tenant_id
+    if s.exec(select(FixedAsset).where(FixedAsset.tenant_id == tid)).first():
+        return
+    asset_acc = _account(s, tid, "1010")   # bank stands in for the asset cost account
+    accum = _account(s, tid, "1090")
+    depr_exp = _account(s, tid, "5050")
+    if not asset_acc or not accum or not depr_exp:
+        return
+
+    assets = [
+        ("Office Laptops (fleet)", "FA-001", D(120000), D(0), 36),
+        ("Delivery Vehicle",       "FA-002", D(2400000), D(200000), 60),
+        ("Office Furniture",       "FA-003", D(350000), D(20000), 120),
+        ("Production Machinery",   "FA-004", D(1800000), D(150000), 84),
+    ]
+    acq = (date.today() - timedelta(days=90)).isoformat()
+    from services.depreciation import compute_depreciation
+    for name, code, cost, salvage, life in assets:
+        asset = FixedAsset(
+            tenant_id=tid, name=name, code=code,
+            asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
+            depr_expense_account_id=depr_exp.id, acquisition_date=acq,
+            acquisition_cost=cost, salvage_value=salvage,
+            useful_life_months=life, method="straight_line",
+            accumulated_depreciation=ZERO, book_value=cost,
+        )
+        s.add(asset); s.flush()
+        # Post one month of depreciation
+        charge = compute_depreciation(cost, salvage, life, ZERO, "straight_line")
+        if charge <= ZERO:
+            continue
+        txn = post_transaction(
+            s, user, date=date.today().isoformat(),
+            description=f"Depreciation — {name}",
+            entries=[
+                EntryInput(account_id=depr_exp.id, debit=charge),
+                EntryInput(account_id=accum.id, credit=charge),
+            ],
+            audit_entity_type="fixed_asset",
+            audit_detail={"asset": code},
+        )
+        s.add(DepreciationEntry(
+            tenant_id=tid, asset_id=asset.id,
+            depreciation_date=date.today().isoformat(),
+            depreciation_amount=charge, transaction_id=txn.id,
+        ))
+        asset.accumulated_depreciation = charge
+        asset.book_value = money(cost - charge)
+        asset.last_depreciation_date = date.today().isoformat()
+        s.add(asset)
+
+
+def _seed_budgets(s: Session, tenant_id: int) -> None:
+    """G-10: monthly budgets for each expense account, current fiscal year."""
+    if s.exec(select(Budget).where(Budget.tenant_id == tenant_id)).first():
+        return
+    year = date.today().year
+    expense_accs = s.exec(
+        select(Account).where(
+            Account.tenant_id == tenant_id, Account.type == "Expense"
+        )
+    ).all()
+    for acc in expense_accs:
+        base = D(random.randint(5000, 40000))
+        for month in range(1, 13):
+            s.add(Budget(
+                tenant_id=tenant_id, account_id=acc.id, fiscal_year=year,
+                period_month=month, amount=money(base + D(month * 100)),
+                label=f"Annual Budget {year}",
+            ))
+
+
+def _seed_purchase_orders(s: Session, user: User, vendors: list,
+                          products: list, count: int = 8) -> None:
+    """G-06: draft/approved purchase orders; convert a few to bills."""
+    tid = user.tenant_id
+    if s.exec(select(PurchaseOrder).where(PurchaseOrder.tenant_id == tid)).first():
+        return
+    if not vendors or not products:
+        return
+    ap = _account(s, tid, "2000")
+    exp = _account(s, tid, "5000")
+    if not ap or not exp:
+        return
+
+    po_dates = _spread_dates(count, days_ago=200, min_days_ago=10)
+    for i in range(count):
+        vendor = vendors[i % len(vendors)]
+        number = next_number(s, tid, "purchase_order", "PO")
+        # 1–3 lines
+        n_lines = random.randint(1, 3)
+        lines = []
+        subtotal = ZERO
+        for _ in range(n_lines):
+            p = random.choice(products)
+            qty = D(random.randint(5, 50))
+            rate = D(p.default_rate or random.randint(10, 200))
+            amt = money(qty * rate)
+            subtotal += amt
+            lines.append((p, qty, rate, amt))
+        # Half approved+billed, half left as draft/approved
+        status = ["draft", "approved", "billed"][i % 3]
+        po = PurchaseOrder(
+            tenant_id=tid, number=number, vendor_id=vendor.id,
+            vendor_name=vendor.name, order_date=po_dates[i],
+            expected_date=_due_date(po_dates[i], 14),
+            description=f"Procurement order from {vendor.name}",
+            subtotal=money(subtotal), total=money(subtotal), status=status,
+        )
+        s.add(po); s.flush()
+        for p, qty, rate, amt in lines:
+            s.add(PurchaseOrderLine(
+                po_id=po.id, product_id=p.id, description=p.name,
+                qty=qty, unit=p.unit, rate=rate, amount=amt,
+            ))
+        # Convert "billed" POs to an actual bill + GL
+        if status == "billed":
+            bill_number = next_number(s, tid, "bill", "BILL")
+            bill = Bill(
+                tenant_id=tid, number=bill_number, vendor_id=vendor.id,
+                vendor_name=vendor.name, bill_date=_due_date(po_dates[i], 14),
+                due_date=_due_date(po_dates[i], 44),
+                description=f"From PO {number}", subtotal=money(subtotal),
+                gst_rate=ZERO, gst_amount=ZERO, total=money(subtotal),
+                status="posted", ap_account_id=ap.id, expense_account_id=exp.id,
+            )
+            s.add(bill); s.flush()
+            for p, qty, rate, amt in lines:
+                s.add(BillLine(
+                    bill_id=bill.id, product_id=p.id, description=p.name,
+                    qty=qty, unit=p.unit, rate=rate, amount=amt,
+                ))
+            txn = post_transaction(
+                s, user, date=bill.bill_date,
+                description=f"Bill from PO {number}",
+                entries=[
+                    EntryInput(account_id=exp.id, debit=money(subtotal)),
+                    EntryInput(account_id=ap.id, credit=money(subtotal)),
+                ],
+                audit_entity_type="bill",
+                audit_detail={"bill_number": bill_number, "po_number": number},
+            )
+            bill.transaction_id = txn.id
+            po.bill_id = bill.id
+            s.add(bill); s.add(po)
+
+
+def _seed_analytic_accounts(s: Session, tenant_id: int) -> None:
+    """G-07: cost centers / projects / departments for segment reporting."""
+    if s.exec(select(AnalyticAccount).where(AnalyticAccount.tenant_id == tenant_id)).first():
+        return
+    dims = [
+        ("CC-SALES", "Sales Department", "department"),
+        ("CC-OPS",   "Operations",       "department"),
+        ("CC-ADMIN", "Administration",   "department"),
+        ("PRJ-A",    "Project Alpha",    "project"),
+        ("PRJ-B",    "Project Beta",     "project"),
+        ("CC-NORTH", "North Region",     "cost_center"),
+        ("CC-SOUTH", "South Region",     "cost_center"),
+    ]
+    for code, name, typ in dims:
+        s.add(AnalyticAccount(
+            tenant_id=tenant_id, code=code, name=name, type=typ, is_active=True,
+        ))
+
+
+def _seed_deferred_revenue(s: Session, user: User, invoices: list, count: int = 4) -> None:
+    """G-08: deferred revenue schedules for service/subscription invoices."""
+    tid = user.tenant_id
+    if s.exec(select(DeferredRevenueSchedule).where(DeferredRevenueSchedule.tenant_id == tid)).first():
+        return
+    deferred_acc = _account(s, tid, "2300")
+    rev = _account(s, tid, "4020") or _account(s, tid, "4010") or _account(s, tid, "4000")
+    if not deferred_acc or not rev or not invoices:
+        return
+
+    sample = [inv for inv in invoices if inv.customer_id][:count]
+    for inv in sample:
+        total = money(D(inv.subtotal))
+        if total <= ZERO:
+            continue
+        start = inv.issue_date
+        end = _due_date(start, 365)  # recognise over 12 months
+        s.add(DeferredRevenueSchedule(
+            tenant_id=tid, invoice_id=inv.id, total_amount=total,
+            recognised_amount=ZERO, start_date=start, end_date=end,
+            frequency="monthly", next_recognition_date=start, status="active",
+            deferred_revenue_account_id=deferred_acc.id, revenue_account_id=rev.id,
+        ))
+
+
 # ── Driver ────────────────────────────────────────────────────────────────────
 
 
@@ -1474,6 +1726,20 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _seed_recurring_templates(s, tenant_id)
         s.commit()
 
+        # ── Improvement-roadmap modules (Sprint 7–12) ──
+        _seed_analytic_accounts(s, tenant_id)
+        _seed_budgets(s, tenant_id)
+        s.commit()
+        _seed_fixed_assets(s, user)
+        s.commit()
+        _seed_credit_notes(s, user, invoices)
+        s.commit()
+        _seed_purchase_orders(s, user, vendors, all_products)
+        s.commit()
+        if business_model == "services":
+            _seed_deferred_revenue(s, user, invoices)
+            s.commit()
+
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
             s.commit()
@@ -1499,6 +1765,12 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             "rate_plans":   len(s.exec(select(RatePlan).where(RatePlan.tenant_id == tenant_id)).all()),
             "grns":         len(s.exec(select(GoodsReceiptNote).where(GoodsReceiptNote.tenant_id == tenant_id)).all()),
             "production_orders": len(s.exec(select(ProductionOrder).where(ProductionOrder.tenant_id == tenant_id)).all()),
+            "credit_notes": len(s.exec(select(CreditNote).where(CreditNote.tenant_id == tenant_id)).all()),
+            "fixed_assets": len(s.exec(select(FixedAsset).where(FixedAsset.tenant_id == tenant_id)).all()),
+            "budgets":      len(s.exec(select(Budget).where(Budget.tenant_id == tenant_id)).all()),
+            "purchase_orders": len(s.exec(select(PurchaseOrder).where(PurchaseOrder.tenant_id == tenant_id)).all()),
+            "analytic_accounts": len(s.exec(select(AnalyticAccount).where(AnalyticAccount.tenant_id == tenant_id)).all()),
+            "deferred_schedules": len(s.exec(select(DeferredRevenueSchedule).where(DeferredRevenueSchedule.tenant_id == tenant_id)).all()),
         }
 
 
