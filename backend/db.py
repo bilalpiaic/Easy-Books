@@ -116,19 +116,21 @@ def get_tenant_session(tenant_id: int):
 
 _COA_COMMON: list[tuple[str, str, str, bool]] = [
     # Universal backbone — present in every model
-    ("1000", "Cash in Hand",        "Asset",     False),
-    ("1010", "Bank",                "Asset",     False),
-    ("1100", "Accounts Receivable", "Asset",     False),
-    ("2000", "Accounts Payable",    "Liability", False),
-    ("2200", "GST Payable (Output)","Liability", False),
-    ("3000", "Owner Capital",       "Equity",    False),
-    ("3010", "Drawings",            "Equity",    False),
-    ("3100", "Retained Earnings",   "Equity",    False),
-    ("4000", "Sales Revenue",       "Revenue",   False),
-    ("4900", "Other Income",        "Revenue",   False),
-    ("5000", "General Expenses",    "Expense",   False),
-    ("5050", "Depreciation Expense","Expense",   False),
-    ("5900", "Other Expenses",      "Expense",   False),
+    ("1000", "Cash in Hand",           "Asset",     False),
+    ("1010", "Bank",                   "Asset",     False),
+    ("1090", "Accumulated Depreciation","Asset",    False),  # contra-asset (IAS 16)
+    ("1100", "Accounts Receivable",    "Asset",     False),
+    ("2000", "Accounts Payable",       "Liability", False),
+    ("2200", "GST Payable (Output)",   "Liability", False),
+    ("3000", "Owner Capital",          "Equity",    False),
+    ("3010", "Drawings",               "Equity",    False),
+    ("3100", "Retained Earnings",      "Equity",    False),
+    ("4000", "Sales Revenue",          "Revenue",   False),
+    ("4900", "Other Income",           "Revenue",   False),
+    ("4901", "Unrealised FX Gain/Loss","Revenue",   False),  # IAS 21.23
+    ("5000", "General Expenses",       "Expense",   False),
+    ("5050", "Depreciation Expense",   "Expense",   False),
+    ("5900", "Other Expenses",         "Expense",   False),
 ]
 
 # Service-style add-ons: time-based revenue + deferred revenue

@@ -673,6 +673,43 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class FixedAsset(SQLModel, table=True):
+    """Long-lived asset with systematic depreciation. IAS 16 / IAS 38."""
+    __table_args__ = (
+        CheckConstraint(
+            "method IN ('straight_line','reducing_balance')",
+            name="ck_fixed_asset_method",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    code: Optional[str] = None
+    asset_account_id: int = Field(foreign_key="account.id")
+    accum_depr_account_id: int = Field(foreign_key="account.id")
+    depr_expense_account_id: int = Field(foreign_key="account.id")
+    acquisition_date: str
+    acquisition_cost: Money = money_col()
+    salvage_value: Money = money_col()
+    useful_life_months: int
+    method: str = Field(default="straight_line")
+    accumulated_depreciation: Money = money_col()
+    book_value: Money = money_col()
+    is_disposed: bool = Field(default=False)
+    last_depreciation_date: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DepreciationEntry(SQLModel, table=True):
+    """One row per depreciation run on a fixed asset."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    asset_id: int = Field(foreign_key="fixedasset.id")
+    depreciation_date: str
+    depreciation_amount: Money = money_col()
+    transaction_id: int = Field(foreign_key="transaction.id")
+
+
 class CreditNote(SQLModel, table=True):
     """Document reducing a customer's AR balance. Posted as Dr Revenue / Cr AR.
     ISA 240 — issued instead of editing a posted invoice.

@@ -63,6 +63,7 @@ const NAV: NavItem[] = [
   { label: "Balance Sheet",    href: "/balance",           icon: PieChart,         section: "Reports" },
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
+  { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
   { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
