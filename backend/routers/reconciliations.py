@@ -8,6 +8,7 @@ from sqlmodel import select
 from models import (
     BankAccount, JournalEntry, Reconciliation, ReconciliationLine, Transaction,
 )
+from services.money import D, ZERO
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep
 
@@ -138,6 +139,29 @@ def close_reconciliation(session: SessionDep, user: WriteUserDep, rec_id: int):
     ).first()
     if not rec:
         raise HTTPException(404, "Not found")
+
+    # IAS 7.48 — reconciliation must balance before close.
+    # Sum matched JE amounts (debit − credit for each bank entry).
+    matched_lines = session.exec(
+        select(ReconciliationLine).where(
+            ReconciliationLine.reconciliation_id == rec_id,
+            ReconciliationLine.is_matched == True,  # noqa: E712
+        )
+    ).all()
+    matched_total = ZERO
+    for rl in matched_lines:
+        je = session.get(JournalEntry, rl.journal_entry_id)
+        if je:
+            matched_total += D(je.debit) - D(je.credit)
+
+    difference = D(str(rec.statement_balance)) - matched_total
+    if abs(difference) >= D("0.01"):
+        raise HTTPException(
+            422,
+            f"Cannot close: unreconciled difference of {difference:.2f}. "
+            "Post an adjustment entry (bank fee, interest) and match it first.",
+        )
+
     rec.status = "closed"
     session.add(rec)
     session.commit()
