@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import DepreciationEntry, FixedAsset
+from models import Account, DepreciationEntry, FixedAsset
 from routers.common import SessionDep, WriteUserDep, log_audit
 from services.depreciation import compute_depreciation
 from services.money import D, money
@@ -63,6 +63,14 @@ def get_asset(session: SessionDep, user: WriteUserDep, asset_id: int):
 def create_asset(session: SessionDep, user: WriteUserDep, body: AssetCreate):
     if body.method not in ("straight_line", "reducing_balance"):
         raise HTTPException(400, "method must be 'straight_line' or 'reducing_balance'")
+
+    # Verify all three account IDs belong to this tenant (IDOR protection)
+    for aid in (body.asset_account_id, body.accum_depr_account_id, body.depr_expense_account_id):
+        acc = session.exec(
+            select(Account).where(Account.id == aid, Account.tenant_id == user.tenant_id)
+        ).first()
+        if not acc:
+            raise HTTPException(400, f"Account {aid} not found for this tenant")
 
     asset = FixedAsset(
         tenant_id=user.tenant_id,

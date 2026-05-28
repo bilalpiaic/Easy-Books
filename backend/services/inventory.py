@@ -173,10 +173,11 @@ def consume_stock(
     qty: Decimal,
 ) -> Decimal:
     """
-    Relieve stock for a sale. Returns total COGS (qty × current avg cost).
+    Relieve stock for a sale. Returns total COGS.
 
-    For Weighted-Average we charge COGS at the running average and proportionally
-    decrement layer remainders so reports still show plausible per-layer balances.
+    Cost method is read from Tenant.cost_method (IAS 2.25):
+    - wavg (default): charge COGS at the running weighted-average cost.
+    - fifo: charge COGS at each layer's own unit_cost (first-in first-out).
     """
     qty = D(qty)
     if qty <= 0:
@@ -192,15 +193,14 @@ def consume_stock(
     if not prod or prod.product_type != "stock":
         return ZERO
 
+    # Determine cost method from tenant setting
+    from models import Tenant as _Tenant
+    _tenant = session.get(_Tenant, tenant_id)
+    _cost_method = getattr(_tenant, "cost_method", "wavg") if _tenant else "wavg"
+
     avg_cost = D(prod.avg_cost)
-    cogs = money(qty * avg_cost)
 
-    prod.stock_qty = D(prod.stock_qty) - qty
-    session.add(prod)
-
-    # Deplete layers FIFO so layer-remaining totals match prod.stock_qty.
-    # (Cost charge is still WAvg above; layer depletion is just bookkeeping.)
-    remaining = qty
+    # Fetch layers first (needed for both FIFO and WAvg layer depletion)
     layers = session.exec(
         select(InventoryLayer)
         .where(
@@ -210,6 +210,26 @@ def consume_stock(
         )
         .order_by(InventoryLayer.id.asc())
     ).all()
+
+    if _cost_method == "fifo":
+        # Accumulate COGS layer by layer at each layer's unit_cost
+        fifo_cogs = ZERO
+        fifo_remaining = qty
+        for _lyr in layers:
+            if fifo_remaining <= ZERO:
+                break
+            _take = min(D(_lyr.qty_remaining), fifo_remaining)
+            fifo_cogs += money(_take * D(_lyr.unit_cost))
+            fifo_remaining -= _take
+        cogs = fifo_cogs
+    else:
+        cogs = money(qty * avg_cost)
+
+    prod.stock_qty = D(prod.stock_qty) - qty
+    session.add(prod)
+
+    # Deplete layers FIFO (layers already fetched above for cost calculation).
+    remaining = qty
     consumed_from_location_id: Optional[int] = None
     consumed_lot_no: Optional[str] = None
     for layer in layers:

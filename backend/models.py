@@ -32,6 +32,10 @@ class Tenant(SQLModel, table=True):
             "business_model IN ('simple','services','trader','manufacturing','telecom_franchise')",
             name="ck_tenant_business_model",
         ),
+        CheckConstraint(
+            "cost_method IN ('wavg','fifo')",
+            name="ck_tenant_cost_method",
+        ),
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
@@ -41,6 +45,8 @@ class Tenant(SQLModel, table=True):
     # at signup but persisted so it can be edited later (e.g. a 'simple' tenant
     # can enable the 'inventory' module without becoming a 'trader').
     enabled_modules: str = Field(default="[]")
+    # IAS 2.25: FIFO or weighted-average; applied consistently to all products.
+    cost_method: str = Field(default="wavg")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     users: List["User"] = Relationship(back_populates="tenant")

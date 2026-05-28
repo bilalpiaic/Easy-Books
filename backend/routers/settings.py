@@ -48,6 +48,8 @@ class SettingsUpdate(BaseModel):
     bill_number_format: Optional[str] = None
     # Onboarding
     onboarding_dismissed: Optional[str] = None
+    # IAS 2.25: inventory cost method — "wavg" or "fifo"
+    cost_method: Optional[str] = None
 
 
 @router.get("")
@@ -59,6 +61,17 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
 @router.patch("")
 def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdate):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+
+    # cost_method is stored on Tenant, not in the KV settings table
+    if "cost_method" in updates:
+        cm = updates.pop("cost_method")
+        if cm not in ("wavg", "fifo"):
+            raise HTTPException(400, "cost_method must be 'wavg' or 'fifo'")
+        tenant = session.get(Tenant, user.tenant_id)
+        if tenant:
+            tenant.cost_method = cm
+            session.add(tenant)
+
     for key, value in updates.items():
         row = session.exec(
             select(Settings).where(Settings.tenant_id == user.tenant_id, Settings.key == key)
