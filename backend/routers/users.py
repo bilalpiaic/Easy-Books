@@ -12,6 +12,7 @@ Role guard rules:
 """
 from __future__ import annotations
 
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
@@ -21,7 +22,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import func, select
 
 from auth import get_password_hash
-from models import User, UserInvite
+from models import Tenant, User, UserInvite
 
 from .common import AdminUserDep, SessionDep
 
@@ -249,6 +250,24 @@ def create_invite(data: InviteCreate, session: SessionDep, actor: AdminUserDep):
     session.add(invite)
     session.commit()
     session.refresh(invite)
+
+    # Send invite email if SMTP is configured
+    from services.email import send_email
+    frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
+    invite_url = f"{frontend_origin}/accept-invite?token={token}"
+    tenant = session.get(Tenant, actor.tenant_id)
+    company = tenant.name if tenant else "Easy-Books"
+    send_email(
+        to=email,
+        subject=f"You're invited to join {company} on Easy-Books",
+        html_body=(
+            f"<p>Hi,</p>"
+            f"<p>You've been invited to join <strong>{company}</strong> on Easy-Books as {data.role}.</p>"
+            f"<p><a href='{invite_url}'>Accept your invitation</a></p>"
+            f"<p>This link expires in {_INVITE_TTL_DAYS} days.</p>"
+        ),
+    )
+
     # Frontend composes the absolute URL; we return the relative accept path.
     return {
         "id": invite.id, "email": invite.email, "role": invite.role,

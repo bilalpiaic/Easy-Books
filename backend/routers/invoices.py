@@ -571,7 +571,41 @@ def update_invoice_status(
     )
     session.commit()
     session.refresh(inv)
+
+    # Send email notification when invoice is marked "sent"
+    if status == "sent":
+        _send_invoice_notification(session, inv)
+
     return inv
+
+
+def _send_invoice_notification(session, inv: Invoice) -> None:
+    """Email the customer a notification when an invoice is sent."""
+    from services.email import send_email
+    # Check email_notifications setting
+    settings_rows = session.exec(
+        select(Settings).where(Settings.tenant_id == inv.tenant_id)
+    ).all()
+    settings_map = {s.key: s.value for s in settings_rows}
+    if settings_map.get("email_notifications") != "true":
+        return
+    if not inv.customer_id:
+        return
+    cust = session.get(Customer, inv.customer_id)
+    if not cust or not getattr(cust, "email", None):
+        return
+    company = settings_map.get("company_name", "Your supplier")
+    send_email(
+        to=cust.email,
+        subject=f"Invoice {inv.number} from {company}",
+        html_body=(
+            f"<p>Dear {cust.name},</p>"
+            f"<p>Please find invoice <strong>{inv.number}</strong> for "
+            f"{inv.currency} {float(inv.total):,.2f} due by {inv.due_date}.</p>"
+            f"<p>Thank you for your business.</p>"
+            f"<p><em>{company}</em></p>"
+        ),
+    )
 
 
 # ── Bulk actions ─────────────────────────────────────────────────────────────
