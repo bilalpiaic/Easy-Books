@@ -168,6 +168,8 @@ class JournalEntryBase(SQLModel):
     account_id: int = Field(foreign_key="account.id")
     debit: Money = money_col()
     credit: Money = money_col()
+    # Optional cost-center / project tag for segment P&L (IAS 1 management commentary)
+    analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
 
 
 class JournalEntry(JournalEntryBase, table=True):
@@ -677,6 +679,23 @@ class PaymentAllocation(SQLModel, table=True):
     bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
     amount: Money = money_col()
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AnalyticAccount(SQLModel, table=True):
+    """Cost center / project / department dimension for segment P&L. IAS 1."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="unique_analytic_code_per_tenant"),
+        CheckConstraint(
+            "type IN ('cost_center','project','department')",
+            name="ck_analytic_type",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str
+    name: str
+    type: str = Field(default="cost_center")
+    is_active: bool = Field(default=True)
 
 
 class PurchaseOrder(SQLModel, table=True):

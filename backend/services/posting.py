@@ -39,9 +39,15 @@ class EntryInput:
     account_id: int
     debit: Decimal = ZERO
     credit: Decimal = ZERO
+    analytic_account_id: Optional[int] = None
 
     def normalised(self) -> "EntryInput":
-        return EntryInput(account_id=self.account_id, debit=D(self.debit), credit=D(self.credit))
+        return EntryInput(
+            account_id=self.account_id,
+            debit=D(self.debit),
+            credit=D(self.credit),
+            analytic_account_id=self.analytic_account_id,
+        )
 
 
 class PostingError(HTTPException):
@@ -150,6 +156,7 @@ def post_transaction(
                 account_id=e.account_id,
                 debit=e.debit,
                 credit=e.credit,
+                analytic_account_id=e.analytic_account_id,
             )
         )
 

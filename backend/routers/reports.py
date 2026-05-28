@@ -742,6 +742,43 @@ def tax_summary(
     }
 
 
+# ── Analytic P&L ─────────────────────────────────────────────────────────────
+
+
+@router.get("/analytic-pl")
+def get_analytic_pl(
+    session: SessionDep, user: CurrentUserDep,
+    analytic_account_id: int,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+):
+    """P&L filtered to a single analytic dimension (cost center / project)."""
+    q = (
+        session.query(
+            Account.name,
+            Account.type,
+            Account.code,
+            func.sum(JournalEntry.debit).label("dr"),
+            func.sum(JournalEntry.credit).label("cr"),
+        )
+        .join(JournalEntry, JournalEntry.account_id == Account.id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .filter(
+            Transaction.tenant_id == user.tenant_id,
+            JournalEntry.analytic_account_id == analytic_account_id,
+            Account.type.in_(["Revenue", "Expense"]),
+        )
+    )
+    if start and end:
+        q = q.filter(Transaction.date >= start, Transaction.date <= end)
+    rows = q.group_by(Account.id).order_by(Account.type.desc(), Account.code).all()
+    return [
+        {"name": r.name, "code": r.code, "type": r.type,
+         "total_debit": r.dr, "total_credit": r.cr}
+        for r in rows
+    ]
+
+
 # ── Budget vs Actual ──────────────────────────────────────────────────────────
 
 
