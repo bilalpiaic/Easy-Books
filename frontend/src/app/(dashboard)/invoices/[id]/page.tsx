@@ -2,8 +2,9 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, ChevronRight } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, ChevronRight, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { getAuthHeader } from "@/lib/auth"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
@@ -108,6 +109,25 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           >
             <Printer className="w-4 h-4" /> Print
           </Link>
+          <button
+            onClick={async () => {
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+              const res = await fetch(`${apiUrl}/api/invoices/${inv.id}/pdf`, {
+                headers: getAuthHeader() as HeadersInit,
+              })
+              if (!res.ok) return alert("PDF generation failed")
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement("a")
+              a.href = url
+              a.download = `${inv.number}.pdf`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]"
+          >
+            <Download className="w-4 h-4" /> PDF
+          </button>
           {inv.transaction_id && inv.status !== "reversed" && (
             <button
               onClick={reverse}

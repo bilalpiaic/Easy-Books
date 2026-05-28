@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
 
@@ -627,3 +628,35 @@ def bulk_invoice_action(session: SessionDep, user: WriteUserDep, body: BulkInvoi
 
     session.commit()
     return {"affected": affected, "errors": errors}
+
+
+@router.get("/api/invoices/{invoice_id}/pdf")
+def download_invoice_pdf(session: SessionDep, user: CurrentUserDep, invoice_id: int):
+    """Generate and return a PDF for the given invoice. G-14 server-side PDF."""
+    inv = session.exec(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+
+    lines = session.exec(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == invoice_id)
+    ).all()
+
+    settings_rows = session.exec(
+        select(Settings).where(Settings.tenant_id == user.tenant_id)
+    ).all()
+    settings_map = {s.key: s.value for s in settings_rows}
+
+    from services.pdf import render_invoice_pdf
+    pdf_bytes = render_invoice_pdf(
+        invoice=inv.model_dump(),
+        lines=[ln.model_dump() for ln in lines],
+        company_name=settings_map.get("company_name", ""),
+        tagline=settings_map.get("business_tagline", ""),
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{inv.number}.pdf"'},
+    )

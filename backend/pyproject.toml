@@ -15,6 +15,8 @@ dependencies = [
     "psycopg2-binary>=2.9.9",
     "supabase>=2.0.0",
     "alembic>=1.18.4",
+    "weasyprint>=68.1",
+    "jinja2>=3.1.6",
 ]
 
 [dependency-groups]
