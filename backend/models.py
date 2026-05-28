@@ -348,6 +348,9 @@ class Product(SQLModel, table=True):
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     cogs_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     is_active: bool = Field(default=True)
+    # IFRS 15: if True, invoice lines for this product post to Deferred Revenue (2300)
+    is_deferred: bool = Field(default=False)
+    recognition_months: int = Field(default=12)
 
 
 class BomHeader(SQLModel, table=True):
@@ -678,6 +681,27 @@ class PaymentAllocation(SQLModel, table=True):
     invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
     bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
     amount: Money = money_col()
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DeferredRevenueSchedule(SQLModel, table=True):
+    """Tracks revenue recognition over time for deferred invoices. IFRS 15.31."""
+    __table_args__ = (
+        CheckConstraint("frequency IN ('monthly','quarterly','yearly')", name="ck_deferred_freq"),
+        CheckConstraint("status IN ('active','completed','cancelled')", name="ck_deferred_status"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    invoice_id: int = Field(foreign_key="invoice.id")
+    total_amount: Money = money_col()
+    recognised_amount: Money = money_col()
+    start_date: str
+    end_date: str
+    frequency: str = Field(default="monthly")
+    next_recognition_date: str
+    status: str = Field(default="active")
+    deferred_revenue_account_id: int = Field(foreign_key="account.id")
+    revenue_account_id: int = Field(foreign_key="account.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
