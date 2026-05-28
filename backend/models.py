@@ -673,6 +673,49 @@ class PaymentAllocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class CreditNote(SQLModel, table=True):
+    """Document reducing a customer's AR balance. Posted as Dr Revenue / Cr AR.
+    ISA 240 — issued instead of editing a posted invoice.
+    """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_cn_number_per_tenant"),
+        CheckConstraint(
+            "status IN ('draft','posted','applied')",
+            name="ck_cn_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    customer_name: Optional[str] = None
+    issue_date: str
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    subtotal: Money = money_col()
+    gst_amount: Money = money_col()
+    total: Money = money_col()
+    currency: str = Field(default="PKR")
+    exchange_rate: Money = money_col(default=Decimal("1"))
+    status: str = Field(default="draft")
+    ar_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CreditNoteLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    credit_note_id: int = Field(foreign_key="creditnote.id", ondelete="CASCADE")
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    description: str
+    qty: Money = money_col(default=Decimal("1"))
+    unit: Optional[str] = None
+    rate: Money = money_col()
+    amount: Money = money_col()
+
+
 class LoginAttempt(SQLModel, table=True):
     """One row per /login attempt. Used by the per-IP throttle so the count
     is shared across uvicorn workers and survives restarts (vs. an in-process

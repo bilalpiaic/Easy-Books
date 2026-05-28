@@ -9,7 +9,8 @@ import {
   Percent, Settings, X, Package, ChevronRight, GitBranch, HelpCircle,
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
-  ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
+  ScrollText, Tablet, UserCircle, UsersRound, RefreshCw, ReceiptX,
+  Building2, ShoppingCart, Tag, DollarSign,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { label: "General Ledger",   href: "/ledger",            icon: BookOpen,         section: "Ledger" },
   { label: "Chart of Accounts",href: "/coa",               icon: TableProperties,  section: "Ledger" },
   { label: "Invoices",         href: "/invoices",          icon: FileSignature,    section: "Receivable" },
+  { label: "Credit Notes",     href: "/credit-notes",      icon: ReceiptX,         section: "Receivable" },
   { label: "Customers",        href: "/customers",         icon: Users,            section: "Receivable" },
   { label: "Payments Received",href: "/payments-received", icon: ArrowDownLeft,    section: "Receivable" },
   { label: "Bills",            href: "/bills",             icon: Receipt,          section: "Payable" },
