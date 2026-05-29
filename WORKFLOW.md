@@ -1383,9 +1383,61 @@ Auto-seeded on signup. 22 accounts across the five standard types:
 
 All migrations are idempotent (check inspector before `create_table` / `add_column`), so they can safely be re-run on a fresh-baseline DB. In dev (`SCHEMA_BOOTSTRAP=create_all`) new tables are auto-created; new columns on existing tables are added with a one-shot `ALTER TABLE` (SQLite-safe).
 
+| `0014_credit_notes` | G-02 | `CreditNote`, `CreditNoteLine` |
+| `0015_fixed_assets` | G-05 | `FixedAsset`, `DepreciationEntry` |
+| `0016_tenant_cost_method` | G-09 | `Tenant.cost_method` (`wavg`/`fifo`) |
+| `0017_budget` | G-10 | `Budget` |
+| `0018_analytic_accounts` | G-07 | `AnalyticAccount`, `JournalEntry.analytic_account_id` |
+| `0019_deferred_revenue` | G-08 | `DeferredRevenueSchedule`, `Product.is_deferred/recognition_months` |
+| `0019b_purchase_orders` | G-06 | `PurchaseOrder`, `PurchaseOrderLine` |
+| `0019c_invoice_payment_link` | G-12 | `Invoice.payment_link_url/payment_link_status` |
+
 ---
 
-> **Last updated:** 2026-05-24
-> **Branch:** `saas-transition-foundation`
+## NEW TRANSACTION CYCLES (Sprint 7–12)
+
+These cycles route through the same central `services/posting.py` writer, so every one is balanced and audit-traceable.
+
+### Credit Note (ISA 240)
+```
+Issue CN  →  Dr 4000 Sales Revenue / Cr 1100 AR   (reverse of an invoice)
+            CN-NNNN sequence · optional link to original invoice · status draft→posted→applied
+```
+
+### Fixed Asset Depreciation (IAS 16)
+```
+Register asset (cost, salvage, useful life, method)
+Run depreciation per period  →  Dr 5050 Depreciation Expense / Cr 1090 Accumulated Depreciation
+Book value = cost − accumulated; stops at salvage value
+```
+
+### Purchase Order → Bill (IAS 2.11)
+```
+Raise PO (PO-NNNN)  →  Approve (admin+)  →  Convert to Bill (BILL-NNNN)
+On convert:  Dr Expense / Cr 2000 Accounts Payable   (po.bill_id linked, status=billed)
+```
+
+### Deferred Revenue (IFRS 15) — services
+```
+Invoice deferred item  →  Dr 1100 AR / Cr 2300 Deferred Revenue
+Run recognition / period  →  Dr 2300 Deferred Revenue / Cr 4020 Revenue
+```
+
+### FX Revaluation (IAS 21.23)
+```
+Period end: outstanding × (closing_rate − original_rate)
+Gain:  Dr 1100 AR / Cr 4901 Unrealised FX Gain-Loss
+Loss:  Dr 4901 / Cr 1100 AR
+```
+
+### Tenant-aware guidance
+`/guide` and `/workflow` read `tenant.business_model` from `/api/auth/me` and show only the cycles
+relevant to that model (inventory & purchase orders for stock-keeping models, deferred revenue for
+services, production for manufacturing, tracker/RSO for telecom). See USER_GUIDE §18 for the matrix.
+
+---
+
+> **Last updated:** 2026-05-29
+> **Branch:** `main`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

@@ -24,6 +24,8 @@
 14. [Team & User Management](#14-team--user-management)
 15. [Keyboard Shortcuts & UX Tips](#15-keyboard-shortcuts--ux-tips)
 16. [Best Practices & FAQ](#16-best-practices--faq)
+17. [New Modules & Compliance Features (Sprint 7–12)](#17-new-modules--compliance-features-sprint-712)
+18. [Tenant-Specific Guides](#18-tenant-specific-guides)
 
 ---
 
@@ -631,4 +633,89 @@ A: Go to Recurring → New Recurring. Set frequency to `monthly`, next_run to th
 A: **Reverse** posts a mirror JV (accounting-correct, full audit trail). **Void** is an administrative mark that suppresses the document without touching the GL — use only for documents that were never paid or sent.
 
 **Q: Can I export data?**  
-A: Yes — most list pages have an **Export CSV** button. The audit log also has CSV export. Invoice/bill print pages print to PDF via the browser.
+A: Yes — most list pages have an **Export CSV** button. The audit log also has CSV export. Invoices can be downloaded as a **server-generated PDF** (Download PDF button on the invoice detail), and print pages also print to PDF via the browser.
+
+---
+
+## 17. NEW MODULES & COMPLIANCE FEATURES (Sprint 7–12)
+
+These features were added to align Easy-Books with IAS/IFRS and reach parity with Odoo, QuickBooks, and Manager.io.
+
+### 17.1 Credit Notes (ISA 240)
+
+Reduce a customer's balance without editing a posted invoice.
+- **Credit Notes** (Receivable section) → **New Credit Note**
+- Select customer, optionally link the original invoice, enter line items
+- Posts **Dr 4000 Sales Revenue / Cr 1100 Accounts Receivable** — the reverse of an invoice
+- Uses a separate `CN-` number sequence; status `draft → posted → applied`
+
+### 17.2 Fixed Assets & Depreciation (IAS 16)
+
+- **Fixed Assets** (Reports section) → **New Asset**
+- Enter acquisition cost, salvage value, useful life (months), and method (straight-line or reducing-balance)
+- Click **Run Depreciation** each period → posts **Dr 5050 Depreciation Expense / Cr 1090 Accumulated Depreciation**
+- Book value updates automatically and depreciation stops at salvage value
+
+### 17.3 Purchase Orders (IAS 2.11)
+
+Pre-approval workflow for purchases (shown for Trader / Manufacturing / Telecom models).
+- Raise a PO with vendor + line items → **Approve** (admin+) → **Convert to Bill** when goods arrive
+- Conversion creates a `BILL-` document and posts **Dr Expense / Cr 2000 Accounts Payable**
+
+### 17.4 Analytic Accounts / Cost Centers (IAS 1)
+
+- **Analytic Accounts** — create cost-centers, projects, or departments
+- Tag journal/invoice/bill lines with an analytic account (optional everywhere)
+- **Reports → Analytic P&L** shows revenue and expenses for a single dimension
+
+### 17.5 Deferred Revenue (IFRS 15) — Services model
+
+- Flag a product as deferred with a recognition period
+- Invoicing posts to **2300 Deferred Revenue** instead of Revenue
+- **Run Recognition** each period moves a slice **Dr 2300 Deferred Revenue / Cr Revenue**
+
+### 17.6 Budgets & Variance (IAS 1)
+
+- **Budgets** — set monthly amounts per account for the fiscal year
+- **Budget vs Actual** report shows budget, actual, variance, and variance % (colour-coded)
+
+### 17.7 FIFO Inventory Option (IAS 2.25)
+
+- **Settings → Inventory Cost Method** — choose Weighted-Average (default) or FIFO
+- Tenant-wide for IAS 2 consistency; FIFO charges COGS from each layer's own unit cost
+
+### 17.8 Comparative Periods (IAS 1.38)
+
+- On the **Income Statement** and **Balance Sheet**, tick **Compare with prior period**
+- A second column shows the prior period side-by-side
+
+### 17.9 FX Revaluation (IAS 21.23)
+
+- Revalues open foreign-currency receivables to the closing rate at period end
+- Posts the unrealised gain/loss to **4901 Unrealised FX Gain/Loss**
+
+### 17.10 Bank Reconciliation Zero-Difference (IAS 7.48)
+
+- A reconciliation can no longer be closed while a difference remains — post an adjustment (bank fee, interest) and match it first.
+
+### 17.11 Online Payment Links & Email
+
+- **Payment Link** button on an invoice creates a Stripe Checkout session; the webhook marks the invoice paid automatically (requires `STRIPE_SECRET_KEY`)
+- Marking an invoice **Sent** emails the customer, and team invites are emailed (requires SMTP env vars; silently skipped if unset)
+
+---
+
+## 18. TENANT-SPECIFIC GUIDES
+
+The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) now adapt to your **business model** — you only see the sections relevant to how your business operates:
+
+| Section | Simple | Services | Trader | Manufacturing | Telecom |
+|---------|:------:|:--------:|:------:|:-------------:|:-------:|
+| Invoicing, Billing, Credit Notes, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Products & Inventory, Purchase Orders | — | — | ✓ | ✓ | ✓ |
+| Deferred Revenue | — | ✓ | — | — | — |
+| Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — |
+| Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ |
+
+The model is read from your tenant at login; switching business model (admin API) re-tailors both pages automatically.

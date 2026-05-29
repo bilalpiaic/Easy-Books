@@ -10,6 +10,18 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 
 ## What's in the box
 
+### New in Sprint 7–12 (IAS/IFRS + product-parity roadmap)
+- **Credit Notes** (ISA 240) — adjust posted invoices without breaking the audit trail; separate `CN-` sequence, posts Dr Revenue / Cr AR.
+- **Fixed Assets & Depreciation** (IAS 16) — asset register with straight-line and reducing-balance methods; per-period depreciation posting.
+- **Purchase Orders** (IAS 2.11) — raise → approve → convert-to-bill, a lightweight 3-way match (Trader/Manufacturing/Telecom).
+- **Analytic accounts / cost centers** (IAS 1) — optional segment dimension on GL lines + Analytic P&L report.
+- **Deferred revenue** (IFRS 15) — recognition schedules for service/subscription billing.
+- **Budgets vs Actual** (IAS 1) — monthly per-account budgets with variance reporting.
+- **FIFO option** (IAS 2.25) — tenant-level choice of Weighted-Average or FIFO cost flow.
+- **Comparative-period** P&L and Balance Sheet (IAS 1.38); **FX revaluation** of open AR (IAS 21.23); **bank-rec zero-difference** enforcement (IAS 7.48).
+- **Server-side PDF** invoices (WeasyPrint), **Stripe** payment links, **SMTP email** notifications, and **Alembic** migrations.
+- **Tenant-aware guide & workflow** — each business model sees only the sections relevant to its features.
+
 ### Accounting
 - **Double-entry, exact** — Decimal money throughout (`NUMERIC(18,4)`, banker's rounding). The central `services/posting.py` is the *only* code path that creates `JournalEntry` rows; it refuses unbalanced JVs, negative amounts, both-sided rows, empty rows, and writes into locked periods.
 - **Weighted-Average inventory** — IAS 2 / ASC 330 compliant. Each receipt appends an `InventoryLayer`; sales relieve at the running WAvg cost, FIFO-deplete layers, and post a separate COGS sub-JV.
@@ -253,14 +265,14 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 | Sprint 5 | Onboarding checklist · Audit log tabs (timeline, by-user, by-entity, CSV export) · Document number format with year/month tokens |
 | Sprint 6 | Browser tab `<title>` · "Back to list" breadcrumbs on all detail pages · Keyboard shortcut `N` for New · Empty-state CTAs on all list pages |
 | Seed upgrade | 100 invoices/bills per tenant · Full 365-day date scatter · All COA accounts covered · Bank accounts · Payment terms · Notes/memos on all documents |
+| Sprint 7–12 | Bank-rec zero-difference · Credit Notes · Comparative P&L/Balance Sheet · Multi-currency UI · Fixed Assets + depreciation · Purchase Orders · Analytic accounts · Deferred revenue · FIFO option · Budgets vs Actual · Stripe links · Alembic · Server-side PDF · FX revaluation · SMTP email · tenant-aware guide/workflow · demo seeding for all new modules |
 
-**Backend test suite:** 128 tests pass (`PYTHONPATH=. uv run pytest -q`)
+**Backend test suite:** 139 tests pass (`PYTHONPATH=. uv run pytest -q`)
 
 **Not yet shipped:**
-- FX revaluation at period end (unrealised gain/loss on open AR/AP)
-- Multi-currency on payments
-- Production-order reversal helper
-- Email send / PDF server-side generation (browser print-to-PDF works)
+- Multi-currency on payments (invoice currency is snapshot at issue)
+- Production-order reversal helper, partial delivery, scrap write-off
+- Payroll module (IAS 19) — manual JV only today
 - E2E tests (Playwright)
 
 ---

@@ -57,11 +57,11 @@ npm install && node server.js    # runs on root package.json
 | `models_telecom.py` | 23 `tc_*` tables for the Telecom Franchise business model |
 | `db.py` | Engine creation, startup seeding (default tenant + CoA + admin user + 5 demo tenants) |
 | `auth.py` | JWT encoding/decoding, bcrypt password hashing |
-| `routers/` | 29 domain routers (accounts, invoices, bills, payments, users, telecom, reports, …) |
-| `services/` | Pure-logic modules — `posting.py` is the only GL writer |
+| `routers/` | 35 domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …) |
+| `services/` | Pure-logic modules — `posting.py` is the only GL writer; also `depreciation.py`, `pdf.py`, `email.py` |
 | `scripts/seed_demo.py` | Idempotent rich mock-data seeder (50+ per entity type) |
 
-**Database:** SQLite (`backend/database.db`) in dev; PostgreSQL via `DATABASE_URL` in production. Schema is created via `SQLModel.metadata.create_all()` — **no Alembic migrations**; schema changes to existing DBs require manual `ALTER TABLE`.
+**Database:** SQLite (`backend/database.db`) in dev; PostgreSQL via `DATABASE_URL` in production. Dev still bootstraps via `SQLModel.metadata.create_all()`, but **Alembic migrations are now the source of truth** for schema changes (`backend/alembic/versions/`, revisions through 0019). New columns/tables: add to `models.py`, then `uv run alembic revision --autogenerate -m "..."` and `uv run alembic upgrade head`. **SQLite caveat:** Alembic can't `ADD CONSTRAINT` via ALTER — generated migrations adding FKs need the FK line removed and an existence guard added (see migrations 0016/0017 for the pattern). New tables get a `bind.dialect.has_table(...)` guard so they coexist with `create_all()`.
 
 **Seeding:** On startup, `db.py` creates:
 - A default `Tenant`, seeds a Chart of Accounts, and optionally creates an admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars
@@ -147,7 +147,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - **Tenant isolation** — always filter by `tenant_id`; missing this silently leaks cross-tenant data.
 - **Debit/credit balance** — validate totals before any transaction commit.
 - **JWT payload** — must include both `sub` and `tenant_id`; auth middleware depends on both fields.
-- **No migration tool** — `create_all()` only adds new tables; it does not alter existing ones. For columns added to existing tables, use `ALTER TABLE` directly on the SQLite file (see `dev.sh` history for examples).
+- **Migrations via Alembic** — for schema changes run `uv run alembic revision --autogenerate` then `uv run alembic upgrade head`. `create_all()` still runs in dev for zero-setup boot, so new-table migrations must guard with `bind.dialect.has_table(...)`. SQLite cannot `ADD CONSTRAINT`, so strip auto-generated FK lines on ALTER (app-level tenant checks enforce integrity).
 - **WSL2 npm issue** — `dev.sh` resolves the Linux node binary automatically; never invoke Windows `npm` inside WSL2 paths.
 
 ---

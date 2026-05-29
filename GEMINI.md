@@ -30,7 +30,7 @@ Five business models are supported, each with a tailored Chart of Accounts and a
 | Icons | `lucide-react` only |
 | Charts | `react-chartjs-2` |
 
-**No Alembic.** Schema changes to existing databases require manual `ALTER TABLE`. Delete `backend/database.db` to get a fresh seeded DB.
+**Alembic migrations** are the source of truth (`backend/alembic/versions/`, through 0019). Dev still uses `create_all()` for zero-setup boot, so new-table migrations guard with `bind.dialect.has_table(...)` and SQLite FK ADD-CONSTRAINT lines are stripped (app-level tenant checks enforce integrity). Delete `backend/database.db` to get a fresh seeded DB.
 
 ---
 
@@ -44,7 +44,7 @@ Five business models are supported, each with a tailored Chart of Accounts and a
 │   ├── models_telecom.py    # 23 tc_* tables for telecom_franchise
 │   ├── db.py                # Engine, create_all, seed 5 demo tenants + CoA
 │   ├── auth.py              # JWT + bcrypt
-│   ├── routers/             # 29 domain routers
+│   ├── routers/             # 35 domain routers (+ credit_notes, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue)
 │   ├── services/
 │   │   ├── posting.py       # THE only GL writer — enforces all invariants
 │   │   ├── inventory.py     # Weighted-Average cost, FIFO layer relief

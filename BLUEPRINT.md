@@ -976,6 +976,30 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 | 6.4 | Keyboard shortcut `N` for New on all list pages | ✅ Shipped |
 | Seed | Demo data upgrade: 100 invoices, 100 bills, full-year spread | ✅ Shipped |
 
+### Sprint 7–12 Shipped ✅ (Improvement Roadmap — IAS/IFRS + product parity)
+
+| Gap | Feature | Standard | Backend | Frontend |
+|-----|---------|----------|---------|----------|
+| G-01 | Bank reconciliation **zero-difference** enforcement on close | IAS 7.48 | `routers/reconciliations.py` | recon page |
+| G-02 | **Credit Notes** (`CN-` sequence; Dr Revenue / Cr AR) | ISA 240 | `routers/credit_notes.py` | `/credit-notes` |
+| G-03 | **Comparative period** columns on P&L + Balance Sheet | IAS 1.38 | `routers/reports.py` | `/pl`, `/balance` |
+| G-04 | **Multi-currency** wired to invoice/bill forms + `useFmt()` | IAS 21.21 | (already present) | invoices, bills, all pages |
+| G-05 | **Fixed Assets** register + straight-line / reducing-balance depreciation | IAS 16 | `routers/assets.py`, `services/depreciation.py` | `/assets` |
+| G-06 | **Purchase Orders** with approve + convert-to-bill | IAS 2.11 | `routers/purchase_orders.py` | (guide/workflow) |
+| G-07 | **Analytic accounts** (cost-center/project P&L) | IAS 1 | `routers/analytic_accounts.py` | (guide/workflow) |
+| G-08 | **Deferred revenue** recognition schedule | IFRS 15.31 | `routers/deferred_revenue.py` | (services model) |
+| G-09 | **FIFO** inventory cost flow (tenant-level) | IAS 2.25 | `services/inventory.py` | Settings toggle |
+| G-10 | **Budget vs Actual** variance report | IAS 1 | `routers/budgets.py` | (guide/workflow) |
+| G-12 | **Stripe** Checkout payment links + webhook | — | `routers/invoices.py`, `main.py` | invoice detail |
+| G-13 | **Alembic** migrations adopted (replaces ad-hoc `create_all`) | — | `alembic/versions/` (0014–0019) | — |
+| G-14 | **Server-side PDF** (WeasyPrint + Jinja2) | — | `services/pdf.py`, `templates/invoice.html` | invoice detail |
+| G-15 | **FX revaluation** at period end (unrealised gain/loss → `4901`) | IAS 21.23 | `routers/reports.py` | — |
+| G-16 | **Email** notifications (SMTP) — invoice send + team invite | — | `services/email.py` | — |
+
+New common-CoA accounts: **1090** Accumulated Depreciation (contra-asset), **4901** Unrealised FX Gain/Loss.
+Tenant gains a **`cost_method`** field (`wavg`/`fifo`). The **guide and workflow pages are now
+tenant-model-aware** — each business model sees only the sections relevant to its features.
+
 ### Still Pending
 
 **Manufacturing track (V2 follow-ups)**
@@ -987,18 +1011,13 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 - **By-product handling** with separate cost allocation.
 
 **Core platform**
-- **FX revaluation** at period end (unrealised gain/loss on open AR/AP via `services/fx.py`).
 - **Multi-currency on payments** (currently invoice currency is snapshot at issue; payments assumed in base currency).
 - **Daily overdue sweep cron** (`Invoice.status = 'overdue'` is written on each list fetch but not via a scheduled task).
-- **Email send** (SMTP/SendGrid) and **payment-link integration** (Stripe / Razorpay).
-- **Server-side PDF generation** via WeasyPrint (browser print-to-PDF currently works; server-side adds download button).
 - **E2E tests** (Playwright) — login, signup wizard, full PO lifecycle in the UI.
-- **Currency selector** in the invoice/bill forms (currently uses base currency).
-- **IFRS 15 Deferred Revenue** (requires `DeliveryEvent` model and recognition schedule).
+- **Payroll module** (IAS 19) — currently manual JV only.
 
 **Developer ergonomics**
 - **Storybook** for guidance components + form patterns.
-- **Alembic migrations** to replace `create_all()` for production schema management.
 
 ---
 
