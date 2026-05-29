@@ -536,16 +536,23 @@ function PeriodCloseFlow() {
       <HFlow>
         <StepBox title="Period open" impact="JVs post freely" accent="blue" />
         <Arrow />
-        <StepBox title="POST /periods/{id}/close" impact="admin role required" accent="gold" />
+        <StepBox title="Preview" gl="net income → Retained Earnings" impact="GET /periods/{id}/close-preview" accent="gold" />
         <Arrow />
-        <StepBox title="Closing JV posts" gl="Rev → Retained Earnings · Exp → Retained Earnings" accent="purple" />
-        <Arrow />
-        <StepBox title="Period locked" impact="materialised balances cached" accent="teal" />
+        <StepBox title="Soft Close" impact="monthly/quarterly — lock + snapshot, P&L NOT zeroed" accent="teal" />
+        <StepBox title="Year-End Close" gl="Rev/Exp → Retained Earnings" impact="annual — posts closing JV + lock" accent="purple" />
       </HFlow>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+        <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-teal-700 mb-2">Soft Close (monthly / quarterly)</p>
+          <p className="text-xs text-teal-800 leading-relaxed">
+            Locks the period and snapshots balances. <strong>P&amp;L is not zeroed</strong>, so within-year
+            income statements stay cumulative. Balance-sheet accounts carry forward live from the GL —
+            no opening-balance journal.
+          </p>
+        </div>
         <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-purple-700 mb-2">Closing JV (example)</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-purple-700 mb-2">Year-End Close JV (example)</p>
           <div className="space-y-1 font-mono text-xs text-purple-800">
             <div className="flex justify-between"><span>Dr Sales Revenue</span><span>10,000</span></div>
             <div className="flex justify-between pl-4"><span>Cr Cost of Goods Sold</span><span>4,000</span></div>
@@ -553,18 +560,11 @@ function PeriodCloseFlow() {
             <div className="flex justify-between pl-4"><span>Cr Retained Earnings</span><span>5,000</span></div>
           </div>
         </div>
-        <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-teal-700 mb-2">AccountBalance rows</p>
-          <p className="text-xs text-teal-800 leading-relaxed">
-            One row per account that posted in the period. Future trial-balance reads against
-            this period read from the cache — O(accounts), not O(JEs).
-          </p>
-        </div>
       </div>
 
       <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-xs text-amber-800">
-        <span className="font-bold">Reopen:</span> POST /periods/{`{id}`}/reopen drops the cache and unlocks.
-        The closing JV stays unless you reverse it separately.
+        <span className="font-bold">Reopen:</span> POST /periods/{`{id}`}/reopen unlocks and drops the snapshot.
+        A year-end reopen also reverses the closing JV so Retained Earnings is restored.
       </div>
     </div>
   )

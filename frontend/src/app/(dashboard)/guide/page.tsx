@@ -923,37 +923,41 @@ function PeriodClosePanel() {
   return (
     <div>
       <p className="text-sm text-[#1a1814]/70 leading-relaxed">
-        Closing a period freezes the books for that range and rolls Revenue/Expense balances
-        into Retained Earnings. The system also materialises per-account balances into
-        <code className="font-mono text-[11px]">AccountBalance</code> rows so trial-balance
-        reads against the closed period are O(accounts) instead of O(journal_entries).
+        The <strong>Period Close</strong> page (Reports → Period Close) closes accounting periods at the
+        cadence you need. Create a period with the <strong>Monthly</strong>, <strong>Quarterly</strong>,
+        or <strong>Fiscal-Year</strong> presets, then choose how to close it. Closing snapshots per-account
+        balances into <code className="font-mono text-[11px]">AccountBalance</code> rows so trial-balance
+        reads against the closed period stay fast.
       </p>
 
-      <SectionHeading>Lifecycle</SectionHeading>
+      <SectionHeading>Two close modes (IAS 1)</SectionHeading>
       <StepList steps={[
-        "Create the period — Periods → New, set start and end dates.",
-        "Operate normally during the period.",
-        "When ready to close, POST /api/periods/{id}/close (admin role required).",
-        "Server posts the closing JV: Dr Revenue / Cr Expense / Cr-or-Dr Retained Earnings for the net income.",
-        "Period.is_locked flips to true — no JV can post into this range any more.",
-        "AccountBalance rows are written for every account that posted in the period.",
+        "Soft Close (monthly / quarterly): locks the period and snapshots balances, but does NOT zero P&L. Within-year income statements stay cumulative and comparable. Use for management period-ends.",
+        "Year-End Close: posts the closing JV — Dr Revenue / Cr Expense / Cr-or-Dr Retained Earnings (net income → 3100) — then locks. Use only at fiscal year-end.",
+        "Preview first: the page shows the net income that will roll into Retained Earnings before you commit.",
       ]} />
+
+      <SectionHeading>Carry-forward</SectionHeading>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        Balance-sheet (permanent) accounts <strong>carry forward automatically</strong> — Easy-Books computes
+        every balance live from the all-time ledger, so the next period opens at the prior closing balance.
+        No opening-balance journal is posted.
+      </p>
 
       <SectionHeading>Reopening</SectionHeading>
       <StepList steps={[
-        "POST /api/periods/{id}/reopen unlocks the period and deletes its AccountBalance rows.",
-        "Future reads aggregate live again.",
-        "The closing JV stays in place — if you also need to undo the retained-earnings rollover, reverse that JV separately.",
+        "Reopen unlocks the period and deletes its AccountBalance snapshot; reads aggregate live again.",
+        "A year-end reopen also reverses the closing JV so Retained Earnings is restored.",
       ]} />
 
       <TipCallout>
-        <strong>What if I backdate a JV into a closed period?</strong> The central posting
-        service refuses with 400 — the date check happens before any DB writes.
+        <strong>Backdating into a closed period?</strong> The central posting service refuses with 400 —
+        the period-lock check runs before any DB write, for both soft and year-end closes.
       </TipCallout>
 
       <MistakeCallout>
-        <p>Closing a period before all month-end adjustments are posted — you&apos;d have to reopen to fix it.</p>
-        <p>Reversing the closing JV manually before reopening — the period is still locked, so the reversal will 400.</p>
+        <p>Running a Year-End Close monthly — that zeroes P&L every month and breaks within-year comparatives. Use Soft Close for sub-annual periods.</p>
+        <p>Closing before month-end adjustments are posted — you&apos;d have to reopen to fix it.</p>
       </MistakeCallout>
     </div>
   )
