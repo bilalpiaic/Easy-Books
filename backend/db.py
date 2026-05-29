@@ -24,9 +24,8 @@ else:
             "DATABASE_URL environment variable must be set in production. "
             "SQLite fallback is not supported for serverless deployments."
         )
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    sqlite_file_name = os.path.join(BASE_DIR, "database.db")
-    sqlite_url = f"sqlite:///{sqlite_file_name}"
+    from local_config import sqlite_path
+    sqlite_url = f"sqlite:///{sqlite_path()}"
     engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 def create_db_and_tables():

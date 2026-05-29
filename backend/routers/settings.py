@@ -17,7 +17,8 @@ from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
+from local_config import uploads_dir
+UPLOADS_DIR = uploads_dir()
 
 
 class SettingsUpdate(BaseModel):
