@@ -852,6 +852,57 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* Backup & Restore (local / on-premise installs) */}
+      <div className="bg-white border border-[#ede9e2] rounded-2xl p-6 space-y-3">
+        <h2 className="text-lg font-serif text-[#1a1814]">Backup &amp; Restore</h2>
+        <p className="text-xs text-[#1a1814]/60">
+          Download a full copy of your data (database + uploads), or restore from a backup.
+          Available on on-premise (SQLite) installs.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={async () => {
+              const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+              const res = await fetch(`${base}/api/backup/download`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+              })
+              if (!res.ok) { alert("Backup is only available on local SQLite installs."); return }
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement("a")
+              a.href = url; a.download = "easybooks-backup.zip"; a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all"
+          >
+            Download Backup
+          </button>
+          <label className="px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold cursor-pointer hover:bg-[#f6f3ee]">
+            Restore from Backup…
+            <input
+              type="file"
+              accept=".zip"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0]; if (!f) return
+                if (!confirm("Restore will overwrite current data. Continue?")) return
+                const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+                const fd = new FormData(); fd.append("file", f)
+                const res = await fetch(`${base}/api/backup/restore`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+                  body: fd,
+                })
+                alert(res.ok
+                  ? "Restored. Restart the app to load the restored data."
+                  : "Restore failed — check the file is a valid Easy-Books backup.")
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
       <div className="flex justify-end gap-3">
         <button
           onClick={() => setForm(ctxSettings)}
