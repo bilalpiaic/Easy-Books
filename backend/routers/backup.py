@@ -57,13 +57,31 @@ def restore_backup(session: SessionDep, user: AdminUserDep, file: UploadFile = F
     if "database.db" not in names:
         raise HTTPException(400, "Backup is missing database.db.")
 
+    base = data_dir().resolve()
+
+    def _safe_target(name: str) -> Path:
+        """Resolve an entry to a path guaranteed to stay inside the data dir
+        (Zip Slip guard). Rejects absolute paths and `..` traversal."""
+        if name.startswith("/") or ".." in Path(name).parts:
+            raise HTTPException(400, "Backup contains an unsafe path.")
+        target = (base / name).resolve()
+        try:
+            target.relative_to(base)
+        except ValueError:
+            raise HTTPException(400, "Backup contains an unsafe path.")
+        return target
+
+    # Validate every entry up-front before writing anything.
+    entries = [n for n in names if not n.endswith("/")]
+    safe = {n: _safe_target(n) for n in entries
+            if n == "database.db" or n.startswith("uploads/")}
+
     db_path = Path(sqlite_path())
     if db_path.exists():
         db_path.replace(db_path.with_suffix(".db.bak"))
-    (data_dir() / "database.db").write_bytes(zf.read("database.db"))
-    for n in names:
-        if n.startswith("uploads/") and not n.endswith("/"):
-            target = data_dir() / n
+    safe["database.db"].write_bytes(zf.read("database.db"))
+    for n, target in safe.items():
+        if n.startswith("uploads/"):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(zf.read(n))
 

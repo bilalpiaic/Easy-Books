@@ -66,3 +66,26 @@ def test_backup_download_returns_zip(monkeypatch):
     assert r.headers["content-type"] == "application/zip"
     assert r.content[:2] == b"PK"  # zip magic
     app.dependency_overrides.clear()
+
+
+def test_restore_rejects_zip_slip(monkeypatch):
+    """A backup containing a traversal path must be rejected (Zip Slip guard)."""
+    import io, zipfile
+    from fastapi.testclient import TestClient
+    from main import app
+    from tests.test_improvements import _mk_engine, _get_session_override, _signup_and_login
+    from db import get_session
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    c = TestClient(app)
+    auth = _signup_and_login(c, "owner@slip.test", "SlipCo")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("database.db", b"x")
+        z.writestr("uploads/../../evil.txt", b"pwned")
+    buf.seek(0)
+    r = c.post("/api/backup/restore", headers=auth,
+               files={"file": ("backup.zip", buf.read(), "application/zip")})
+    assert r.status_code == 400, r.text
+    assert "unsafe path" in r.json()["detail"].lower()
+    app.dependency_overrides.clear()
