@@ -5,6 +5,7 @@ import { Plus, Eye, EyeOff, Trash2, Printer } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import DocLink from '@/components/DocLink'
 
 interface BankAccount {
   id: number
@@ -38,6 +39,7 @@ export default function BankAccounts() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [coaAccounts, setCoaAccounts] = useState<CoaAccount[]>([])
+  const [coaMap, setCoaMap] = useState<Record<number, { code: string; name: string }>>({})
 
   const load = () => {
     setLoading(true)
@@ -48,6 +50,17 @@ export default function BankAccounts() {
   }
 
   useEffect(load, [])
+
+  // Resolve coa_account_id → {code,name} so each bank card links to its ledger.
+  useEffect(() => {
+    apiFetch<{ items: CoaAccount[] }>('/api/accounts?limit=500')
+      .then(d => {
+        const m: Record<number, { code: string; name: string }> = {}
+        d.items.forEach(a => { m[a.id] = { code: a.code, name: a.name } })
+        setCoaMap(m)
+      })
+      .catch(() => {})
+  }, [])
 
   const openAdd = () => {
     apiFetch<{ total: number; items: CoaAccount[] }>('/api/accounts?limit=500')
@@ -162,6 +175,11 @@ export default function BankAccounts() {
               <p className={`text-2xl font-bold mt-1 ${ba.balance >= 0 ? 'text-[#b8943f]' : 'text-red-600'}`}>
                 {hideBalance ? '••••••' : fmt(ba.balance)}
               </p>
+              {ba.coa_account_id && coaMap[ba.coa_account_id] && (
+                <DocLink type="account" id={coaMap[ba.coa_account_id].code}
+                  label={`View ledger: ${coaMap[ba.coa_account_id].code} ${coaMap[ba.coa_account_id].name} →`}
+                  className="text-xs mt-1 inline-block text-[#b8943f]" />
+              )}
             </div>
           </div>
         ))}

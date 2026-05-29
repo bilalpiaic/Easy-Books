@@ -5,6 +5,7 @@ import { Plus, Receipt } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useSettings } from "@/context/SettingsContext"
+import DocLink from "@/components/DocLink"
 
 interface CreditNote {
   id: number
@@ -170,7 +171,7 @@ export default function CreditNotesPage() {
               </tr>
             ) : items.map(cn => (
               <tr key={cn.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="px-4 py-3 font-mono text-[#b8943f] font-bold">{cn.number}</td>
+                <td className="px-4 py-3 font-mono font-bold"><DocLink type="credit_note" id={cn.id} label={cn.number} className="text-[#b8943f]" /></td>
                 <td className="px-4 py-3 text-[#1a1814]/70">{cn.customer_name ?? '—'}</td>
                 <td className="px-4 py-3 text-[#1a1814]/70">{cn.issue_date}</td>
                 <td className="px-4 py-3 font-mono">{fmt(cn.total)}</td>

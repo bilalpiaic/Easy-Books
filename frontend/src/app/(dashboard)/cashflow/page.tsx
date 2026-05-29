@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
+import DocLink from '@/components/DocLink'
 
 interface CashFlowData {
   period: { start: string; end: string }
@@ -27,11 +28,13 @@ function defaultRange() {
   return { start: from.toISOString().split('T')[0], end: to.toISOString().split('T')[0] }
 }
 
-function Row({ label, value, indent = false, bold = false }: { label: string; value: number; indent?: boolean; bold?: boolean }) {
+function Row({ label, value, indent = false, bold = false, accountName }: { label: string; value: number; indent?: boolean; bold?: boolean; accountName?: string }) {
   const fmt = useFmt()
   return (
     <div className={`flex justify-between py-2 ${bold ? 'border-t border-[#ede9e2] font-semibold' : ''}`}>
-      <span className={indent ? 'ml-6 text-sm text-black/70' : ''}>{label}</span>
+      {accountName
+        ? <DocLink type="account" id={accountName} label={label} className={indent ? 'ml-6 text-sm' : ''} />
+        : <span className={indent ? 'ml-6 text-sm text-black/70' : ''}>{label}</span>}
       <span className={`font-mono ${bold ? 'text-lg' : 'text-sm'} ${value < 0 ? 'text-red-600' : ''}`}>{fmt(value)}</span>
     </div>
   )
@@ -95,7 +98,7 @@ export default function CashFlow() {
             {data.investing_items.length === 0 ? (
               <p className="text-sm text-black/40 mb-3">No fixed asset movements</p>
             ) : data.investing_items.map((item, i) => (
-              <Row key={i} label={item.name} value={item.amount} indent />
+              <Row key={i} label={item.name} value={item.amount} indent accountName={item.name} />
             ))}
             <Row label="Net Cash from Investing" value={data.investing_cash} bold />
           </div>
@@ -106,7 +109,7 @@ export default function CashFlow() {
             {data.financing_items.length === 0 ? (
               <p className="text-sm text-black/40 mb-3">No financing movements</p>
             ) : data.financing_items.map((item, i) => (
-              <Row key={i} label={item.name} value={item.amount} indent />
+              <Row key={i} label={item.name} value={item.amount} indent accountName={item.name} />
             ))}
             <Row label="Net Cash from Financing" value={data.financing_cash} bold />
           </div>

@@ -78,11 +78,13 @@ interface TileProps {
   label: string
   value: string
   hint?: string
+  /** When set, the tile becomes a link (e.g. to the account's ledger). */
+  href?: string
 }
 
-export function Tile({ icon: Icon, label, value, hint }: TileProps) {
-  return (
-    <div className="bg-white border border-[#ede9e2] rounded-xl px-4 py-3 flex items-center gap-3">
+export function Tile({ icon: Icon, label, value, hint, href }: TileProps) {
+  const inner = (
+    <>
       <div className="w-10 h-10 rounded-lg bg-[#faf6ec] border border-[#b8943f]/30 flex items-center justify-center shrink-0">
         <Icon className="w-5 h-5 text-[#b8943f]" />
       </div>
@@ -91,8 +93,15 @@ export function Tile({ icon: Icon, label, value, hint }: TileProps) {
         <div className="text-lg font-serif font-bold text-[#1a1814] truncate">{value}</div>
         {hint && <div className="text-[10px] text-[#1a1814]/45 truncate">{hint}</div>}
       </div>
-    </div>
+    </>
   )
+  const cls = "bg-white border border-[#ede9e2] rounded-xl px-4 py-3 flex items-center gap-3"
+  if (href) {
+    return (
+      <a href={href} className={`${cls} hover:border-[#b8943f]/60 transition-colors`}>{inner}</a>
+    )
+  }
+  return <div className={cls}>{inner}</div>
 }
 
 export function Section({ title, children, action }: {

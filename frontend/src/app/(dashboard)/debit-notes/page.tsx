@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Plus, Undo2 } from "lucide-react"
+import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 
@@ -134,7 +135,7 @@ export default function DebitNotesPage() {
               </td></tr>
             ) : items.map(dn => (
               <tr key={dn.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="px-4 py-3 font-mono text-[#b8943f] font-bold">{dn.number}</td>
+                <td className="px-4 py-3 font-mono font-bold"><DocLink type="debit_note" id={dn.id} label={dn.number} className="text-[#b8943f]" /></td>
                 <td className="px-4 py-3 text-[#1a1814]/70">{dn.vendor_name ?? '—'}</td>
                 <td className="px-4 py-3 text-[#1a1814]/70">{dn.issue_date}</td>
                 <td className="px-4 py-3 font-mono">{fmt(dn.total)}</td>

@@ -10,7 +10,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, ShoppingCart, Tag, DollarSign, Undo2,
+  Building2, ShoppingCart, Tag, DollarSign, Undo2, CalendarCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -66,6 +66,7 @@ const NAV: NavItem[] = [
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
+  { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
   { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },

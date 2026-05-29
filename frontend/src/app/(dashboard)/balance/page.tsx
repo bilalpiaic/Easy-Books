@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { fmtAmount } from "@/lib/utils"
 import { useSettings } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
+import DocLink from "@/components/DocLink"
 
 interface BalanceItem {
   code: string
@@ -42,7 +43,9 @@ function BalanceSection({
       <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">{title}</h3>
       {items.map(item => (
         <div key={item.code} className="flex justify-between text-sm">
-          <span className={item.code === "RE-CUR" ? "text-[#1a1814] font-medium italic" : "text-[#1a1814]/60"}>{item.name}</span>
+          {item.code === "RE-CUR"
+            ? <span className="text-[#1a1814] font-medium italic">{item.name}</span>
+            : <DocLink type="account" id={item.code} label={item.name} className="text-[#1a1814]/60" />}
           <div className="flex gap-8">
             <span className="font-mono">{fmt(item.balance)}</span>
             {showCmp && <span className="font-mono text-[#1a1814]/35">{fmt(cmpBal(item.code))}</span>}

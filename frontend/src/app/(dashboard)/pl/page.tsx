@@ -7,6 +7,7 @@ import { fmtAmount } from "@/lib/utils"
 import { useSettings } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
+import DocLink from "@/components/DocLink"
 
 interface PnLItem {
   name: string
@@ -142,7 +143,7 @@ export default function PnLPage() {
           ) : (
             revenueItems.map(item => (
               <div key={item.name} className="flex justify-between text-sm">
-                <span className="text-[#1a1814]/60">{item.name}</span>
+                <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
                 <div className="flex gap-8">
                   <span className="font-mono">{fmt(item.total_credit - item.total_debit)}</span>
                   {comparison && (
@@ -172,7 +173,7 @@ export default function PnLPage() {
           ) : (
             expenseItems.map(item => (
               <div key={item.name} className="flex justify-between text-sm">
-                <span className="text-[#1a1814]/60">{item.name}</span>
+                <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
                 <div className="flex gap-8">
                   <span className="font-mono">({fmt(item.total_debit - item.total_credit)})</span>
                   {comparison && (

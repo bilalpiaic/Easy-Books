@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import DocLink from '@/components/DocLink'
 
 interface RecurringEntry {
   account_id: number
@@ -225,7 +226,14 @@ export default function RecurringPage() {
                 <td className="px-6 py-4">
                   <p className="font-medium">{t.name}</p>
                   {t.description && <p className="text-xs text-black/50 mt-0.5">{t.description}</p>}
-                  <p className="text-xs text-black/40 mt-0.5">{t.entries.length} line(s)</p>
+                  <p className="text-xs text-black/40 mt-0.5 flex flex-wrap gap-x-2">
+                    {t.entries.map((e, i) => {
+                      const acc = accounts.find(a => a.id === e.account_id)
+                      return acc
+                        ? <DocLink key={i} type="account" id={acc.code} label={`${acc.code} ${acc.name}`} className="text-xs text-black/45" />
+                        : <span key={i}>line {i + 1}</span>
+                    })}
+                  </p>
                 </td>
                 <td className="px-6 py-4">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-blue-100 text-blue-700">

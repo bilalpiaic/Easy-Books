@@ -14,6 +14,9 @@ export type DocKind =
   | "vendor"
   | "account"
   | "product"
+  | "credit_note"
+  | "debit_note"
+  | "fixed_asset"
 
 interface DocLinkProps {
   type: DocKind
@@ -39,6 +42,9 @@ function hrefFor(type: DocKind, id: number | string): string {
     case "vendor":           return `/vendors/${id}/ledger`
     case "account":          return `/ledger?account=${encodeURIComponent(String(id))}`
     case "product":          return `/products/${id}/stock-card`
+    case "credit_note":      return `/credit-notes/${id}`
+    case "debit_note":       return `/debit-notes/${id}`
+    case "fixed_asset":      return `/assets/${id}`
   }
 }
 

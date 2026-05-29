@@ -68,16 +68,16 @@ export default function TelecomDashboardPage() {
 
       <Section title="Tracker & Load float">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Tile icon={Wallet} label="Tracker deposit" value={money(data?.tracker.deposit_balance)} hint="Acct 1210" />
-          <Tile icon={Coins} label="Load float (MSR)" value={money(data?.tracker.load_float)} hint="Acct 1211" />
-          <Tile icon={Network} label="RSO load receivable" value={money(data?.tracker.rso_load_receivable)} hint="Acct 1212" />
-          <Tile icon={Network} label="Retail load receivable" value={money(data?.tracker.retail_load_receivable)} hint="Acct 1213" />
+          <Tile icon={Wallet} label="Tracker deposit" value={money(data?.tracker.deposit_balance)} hint="Acct 1210" href="/ledger?account=1210" />
+          <Tile icon={Coins} label="Load float (MSR)" value={money(data?.tracker.load_float)} hint="Acct 1211" href="/ledger?account=1211" />
+          <Tile icon={Network} label="RSO load receivable" value={money(data?.tracker.rso_load_receivable)} hint="Acct 1212" href="/ledger?account=1212" />
+          <Tile icon={Network} label="Retail load receivable" value={money(data?.tracker.retail_load_receivable)} hint="Acct 1213" href="/ledger?account=1213" />
         </div>
       </Section>
 
       <Section title="Channel & receivables">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Tile icon={Percent} label="Commission receivable" value={money(data?.commissions.receivable)} hint="Acct 1110" />
+          <Tile icon={Percent} label="Commission receivable" value={money(data?.commissions.receivable)} hint="Acct 1110" href="/ledger?account=1110" />
           <Tile icon={Network} label="RSO agents" value={data ? String(data.rso.agent_count) : "—"} hint={`Stock rec. ${money(data?.rso.stock_receivable)}`} />
           <Tile icon={Banknote} label="Mobile money float" value={money(data?.mobile_money.float_asset)} hint={`Liability ${money(data?.mobile_money.float_liability)}`} />
           <Tile icon={Smartphone} label="SIMs available" value={data ? String(data.sim.available) : "—"} hint={`${data?.sim.total_activated ?? 0} / ${data?.sim.total_received ?? 0} activated`} />

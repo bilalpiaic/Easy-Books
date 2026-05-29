@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Plus, Building2, Play } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import DocLink from "@/components/DocLink"
 
 interface FixedAsset {
   id: number
@@ -154,7 +155,7 @@ export default function AssetsPage() {
               </tr>
             ) : items.map(a => (
               <tr key={a.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="px-4 py-3 font-medium text-[#1a1814]">{a.name}{a.code && <span className="ml-2 text-xs text-[#1a1814]/40">{a.code}</span>}</td>
+                <td className="px-4 py-3 font-medium"><DocLink type="fixed_asset" id={a.id} label={a.name} className="font-medium" />{a.code && <span className="ml-2 text-xs text-[#1a1814]/40">{a.code}</span>}</td>
                 <td className="px-4 py-3 text-[#1a1814]/60">{a.acquisition_date}</td>
                 <td className="px-4 py-3 font-mono">{fmt(a.acquisition_cost)}</td>
                 <td className="px-4 py-3 font-mono text-red-500">({fmt(a.accumulated_depreciation)})</td>
