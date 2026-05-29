@@ -1455,6 +1455,17 @@ Record:  Dr 1260 Advances to Vendors / Cr 1010 Bank
 Apply:   Dr 2000 AP / Cr 1260 Advances to Vendors  (settles a bill)
 ```
 
+### Period Close (IAS 1)  — POST /api/periods/{id}/close?mode=soft|year_end
+```
+mode=soft (monthly/quarterly):  lock period + snapshot AccountBalance.
+                                P&L is NOT zeroed (within-year P&L stays cumulative).
+mode=year_end:                  Dr Revenue / Cr Expense / Cr-or-Dr Retained Earnings
+                                (net income → 3100), then lock + snapshot.
+Balance-sheet accounts carry forward automatically — balances are computed live
+from the all-time GL, so the next period opens at the prior closing balance
+(no opening-balance JV). GET /api/periods/{id}/close-preview shows net income first.
+```
+
 ### Tenant-aware guidance
 `/guide` and `/workflow` read `tenant.business_model` from `/api/auth/me` and show only the cycles
 relevant to that model (inventory & purchase orders for stock-keeping models, deferred revenue for

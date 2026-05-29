@@ -1014,6 +1014,12 @@ New common-CoA accounts (Sprint 7–12): **1090** Accumulated Depreciation (cont
 Tenant gains a **`cost_method`** field (`wavg`/`fifo`). The **guide and workflow pages are now
 tenant-model-aware** — each business model sees only the sections relevant to its features.
 
+### Sprint 14 Shipped ✅ (Drill-down links + Periodic Closing)
+
+- **Period Close modes** — `POST /api/periods/{id}/close?mode=soft|year_end`. `soft` locks + snapshots `AccountBalance` (P&L not zeroed — for monthly/quarterly); `year_end` posts the P&L→Retained-Earnings closing JV then locks (IAS 1). `GET /api/periods/{id}/close-preview` returns net income before posting. New **Period Close** page (Reports) with Monthly/Quarterly/Yearly presets. Balance-sheet accounts carry forward via live-from-GL continuity (no opening JV).
+- **Drill-down links** — `DocLink` gains `credit_note` / `debit_note` / `fixed_asset` kinds. New detail pages: `assets/[id]` (Fixed Assets Register with depreciation schedule), `debit-notes/[id]`, `credit-notes/[id]`. Account rows on P&L / Balance Sheet / Cash Flow / Bank Accounts / Telecom tiles / Recurring lines now link to the General Ledger (ISA 230/315).
+- **Seeding fix** — `_ensure_coa()` convergently adds missing common-backbone accounts to existing demo tenants, so customer/vendor advances (and assets/FX) seed correctly on re-run.
+
 ### Still Pending
 
 **Manufacturing track (V2 follow-ups)**

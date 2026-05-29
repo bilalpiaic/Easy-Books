@@ -272,8 +272,9 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 | Seed upgrade | 100 invoices/bills per tenant · Full 365-day date scatter · All COA accounts covered · Bank accounts · Payment terms · Notes/memos on all documents |
 | Sprint 7–12 | Bank-rec zero-difference · Credit Notes · Comparative P&L/Balance Sheet · Multi-currency UI · Fixed Assets + depreciation · Purchase Orders · Analytic accounts · Deferred revenue · FIFO option · Budgets vs Actual · Stripe links · Alembic · Server-side PDF · FX revaluation · SMTP email · tenant-aware guide/workflow · demo seeding for all new modules |
 | Sprint 13 | Sales Returns (Credit Note + restock) · Purchase Returns (Debit Notes) · Customer & Vendor Advances (record + apply) · CoA 1260/2310 · demo seeding |
+| Sprint 14 | Periodic Closing (soft lock vs year-end P&L→RE, with preview) · drill-down links across reports/bank/telecom/recurring · Fixed Assets Register + Credit/Debit Note detail pages · convergent CoA top-up fixes advances seeding |
 
-**Backend test suite:** 143 tests pass (`PYTHONPATH=. uv run pytest -q`)
+**Backend test suite:** 145 tests pass (`PYTHONPATH=. uv run pytest -q`)
 
 **Not yet shipped:**
 - Multi-currency on payments (invoice currency is snapshot at issue)

@@ -725,6 +725,20 @@ Go to **Advances** to record and apply prepayments:
 - **To Vendors** — record (**Dr 1260 Advances to Vendors / Cr Bank**), then *Apply to bill* (**Dr AP / Cr 1260**)
 - Each advance shows its remaining balance and can be applied across multiple documents; applying updates the invoice/bill status automatically
 
+### 17.15 Period Close (Reports → Period Close)
+
+Close accounting periods at the cadence you need:
+- **Create a period** with the Monthly / Quarterly / Fiscal-Year presets (fiscal start comes from your Settings).
+- **Soft Close** (use for months/quarters) — locks the period against further edits and snapshots balances, but does **not** zero P&L. Within-year income statements stay cumulative and comparable.
+- **Year-End Close** — posts the closing journal **Dr Revenue / Cr Expense / Cr-or-Dr Retained Earnings** (net income → RE) and locks. Use only at fiscal year-end.
+- **Preview** shows the net income that will roll into Retained Earnings before you commit.
+- Balance-sheet accounts **carry forward automatically** — Easy-Books computes balances live from the all-time ledger, so the new period opens with the prior closing balances (no opening-balance journal needed). IAS 1.
+- **Reopen** unlocks a period (year-end reopen also reverses the closing JV).
+
+### 17.16 Drill-down everywhere
+
+Account names, document numbers, and balances are clickable throughout: P&L / Balance Sheet / Cash Flow account rows, Bank Accounts, Telecom KPI tiles, and Recurring template lines all open the **General Ledger** for that account; Fixed Assets open a **Fixed Assets Register** with the full depreciation schedule; Credit/Debit Notes open their detail with links back to the source invoice/bill (ISA 230/315 audit trail).
+
 ---
 
 ## 18. TENANT-SPECIFIC GUIDES
@@ -734,7 +748,7 @@ The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) 
 | Section | Simple | Services | Trader | Manufacturing | Telecom |
 |---------|:------:|:--------:|:------:|:-------------:|:-------:|
 | Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ |
 | Deferred Revenue | — | ✓ | — | — | — |
 | Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — |
