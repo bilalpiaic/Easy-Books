@@ -52,7 +52,28 @@ entirely). A small launcher starts it and opens the default browser.
 - **Cons:** "open your browser to localhost" is less polished; static-export route refactor is real work.
 - **Effort:** Low–Medium. **Best for a v1/pilot or technically comfortable users.**
 
-#### Running it today (`run-local.sh`)
+#### One-click install & run (recommended — auto-installs prerequisites)
+The repo ships a bootstrap that **installs everything it needs and launches the app** — the user does
+not need Python or Node pre-installed (one-time internet connection required to fetch them):
+
+- **Windows:** double-click **`install-and-run.bat`**.
+- **macOS / Linux:** run **`./install-and-run.sh`** (first time: `chmod +x install-and-run.sh`).
+
+What it does automatically: installs **uv** (which also provisions Python 3.12), uses your system
+**Node.js** or downloads a **local portable Node** into `./.node` (no system install, no admin),
+installs backend deps, builds the frontend, then opens **http://127.0.0.1:3000**. Re-run any time;
+pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh build. First run takes a few minutes
+(downloads + build); later runs start in seconds.
+
+Data lives in `EB_DATA_DIR` (default `~/.easy-books` / `%USERPROFILE%\.easy-books`); the install
+starts **empty** (no demo data) and the first signup becomes the owner.
+
+> **Note:** the `.sh` is tested on Linux/macOS. The Windows `.bat`/`.ps1` mirror the same logic and
+> use PowerShell-5.1-compatible constructs; validate on a real Windows box before distribution. The
+> fully prerequisite-free **double-click `.exe`** (no internet fetch, bundled runtimes) is **Phase 2**
+> (Tauri/Electron + PyInstaller).
+
+#### Lower-level launcher (`run-local.sh`, assumes deps already installed)
 Phase 0 ships a launcher that runs both servers bound to `127.0.0.1`:
 ```bash
 # One-time build
