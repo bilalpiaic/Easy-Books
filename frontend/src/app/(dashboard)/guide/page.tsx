@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { apiFetch } from "@/lib/api"
 import {
   ChevronRight, BookOpen, LogIn, BarChart3, FileSignature,
   Receipt, Package, PenLine, TrendingUp, Upload,
@@ -12,23 +13,37 @@ import {
 
 // ── Tab definition ────────────────────────────────────────────────────────────
 
+// Business models — used to tailor which guide sections each tenant sees.
+type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
+
 interface Tab {
   id: string
   label: string
   icon: React.ElementType
   shortLabel: string
+  /** If set, the tab only shows for these business models. Omitted = universal. */
+  forModels?: BusinessModel[]
 }
+
+// Inventory-tracking models (stock, procurement, COGS apply)
+const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise"]
 
 const TABS: Tab[] = [
   { id: "getting-started",  label: "Getting Started",        icon: LogIn,           shortLabel: "Start"    },
   { id: "coa",              label: "Chart of Accounts",      icon: BarChart3,       shortLabel: "COA"      },
   { id: "invoicing",        label: "Invoicing",              icon: FileSignature,   shortLabel: "Invoices" },
   { id: "billing",          label: "Billing",                icon: Receipt,         shortLabel: "Bills"    },
-  { id: "products",         label: "Products & Inventory",   icon: Package,         shortLabel: "Products" },
+  { id: "credit-notes",     label: "Credit Notes",           icon: Receipt,         shortLabel: "Credits"  },
+  { id: "products",         label: "Products & Inventory",   icon: Package,         shortLabel: "Products", forModels: INVENTORY_MODELS },
+  { id: "purchase-orders",  label: "Purchase Orders",        icon: ListChecks,      shortLabel: "PO",       forModels: INVENTORY_MODELS },
   { id: "payments",         label: "Payments & Allocations", icon: CheckCircle,     shortLabel: "Pay"      },
   { id: "journal",          label: "Journal Entries",        icon: PenLine,         shortLabel: "Journal"  },
+  { id: "analytic",         label: "Cost Centers",           icon: BarChart3,       shortLabel: "Analytic" },
+  { id: "fixed-assets",     label: "Fixed Assets",           icon: Landmark,        shortLabel: "Assets"   },
+  { id: "deferred-revenue", label: "Deferred Revenue",       icon: Calendar,        shortLabel: "Deferred", forModels: ["services"] },
   { id: "tax-codes",        label: "Tax Codes",              icon: Percent,         shortLabel: "Tax"      },
   { id: "currency",         label: "Multi-Currency",         icon: Globe,           shortLabel: "FX"       },
+  { id: "budgets",          label: "Budgets",                icon: TrendingUp,      shortLabel: "Budget"   },
   { id: "recurring",        label: "Recurring Entries",      icon: Repeat,          shortLabel: "Recur"    },
   { id: "bank-imports",     label: "Bank Imports",           icon: Landmark,        shortLabel: "Bank"     },
   { id: "period-close",     label: "Period Close",           icon: Calendar,        shortLabel: "Close"    },
@@ -37,8 +52,8 @@ const TABS: Tab[] = [
   { id: "reports",          label: "Financial Reports",      icon: TrendingUp,      shortLabel: "Reports"  },
   { id: "sub-ledgers",      label: "Sub-Ledgers & Drill-Down", icon: Link2,         shortLabel: "Drill"    },
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
-  { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg"      },
-  { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom"  },
+  { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg",      forModels: ["manufacturing"] },
+  { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom",  forModels: ["telecom_franchise"] },
   { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
   { id: "tips-shortcuts",   label: "Tips & Shortcuts",        icon: Keyboard,       shortLabel: "Tips"     },
 ]
@@ -1612,6 +1627,144 @@ function TipsShortcutsPanel() {
   )
 }
 
+// ── New-module panels (Sprint 7–12 improvement roadmap) ──────────────────────
+
+function CreditNotesPanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>What Credit Notes Do</SectionHeading>
+      <p>
+        A credit note reduces what a customer owes you — for returns, price adjustments, or rebates.
+        Instead of editing a posted invoice (which would break your audit trail), you issue a credit
+        note that posts its own reversing entry. This satisfies <strong>ISA 240</strong> document integrity.
+      </p>
+      <StepList steps={[
+        "Go to Credit Notes → New Credit Note (in the Receivable section)",
+        "Select the customer, and optionally link the original invoice",
+        "Enter the reason (e.g. 'Return — defective goods') and line items",
+        "Issue — a CN-NNNN number is assigned and the GL posts automatically",
+      ]} />
+      <SectionHeading>GL Posting</SectionHeading>
+      <p>
+        Dr <CodeBadge>4000 Sales Revenue</CodeBadge> / Cr <CodeBadge>1100 Accounts Receivable</CodeBadge> —
+        the exact reverse of an invoice, reducing both revenue and the receivable balance.
+      </p>
+      <TipCallout>
+        Credit notes use a separate <CodeBadge>CN-</CodeBadge> number sequence so they never clash with
+        invoice numbers and stay easy to spot in the AR sub-ledger.
+      </TipCallout>
+    </div>
+  )
+}
+
+function PurchaseOrdersPanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>Purchase Order Workflow</SectionHeading>
+      <p>
+        Purchase orders add a pre-approval step before money is committed. Raise a PO, get it approved,
+        then convert it to a bill once goods arrive — a lightweight 3-way-match control (<strong>IAS 2.11</strong>).
+      </p>
+      <StepList steps={[
+        "Go to Purchase Orders → New Purchase Order",
+        "Select the vendor and add line items (product, qty, rate)",
+        "Save as draft, then Approve (admin+) once authorised",
+        "When goods arrive, click Convert to Bill — a BILL-NNNN is created and the GL posts Dr Expense / Cr Accounts Payable",
+      ]} />
+      <TipCallout>
+        Purchase orders are shown for Trader, Manufacturing, and Telecom Franchise models — the ones that
+        routinely procure stock or devices.
+      </TipCallout>
+    </div>
+  )
+}
+
+function AnalyticPanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>Cost Centers, Projects & Departments</SectionHeading>
+      <p>
+        Analytic accounts are an optional second dimension you can tag onto journal lines, invoice lines,
+        and bill lines — letting you report profitability by department, project, or region without
+        cluttering your Chart of Accounts (<strong>IAS 1</strong> management commentary).
+      </p>
+      <StepList steps={[
+        "Go to Analytic Accounts and create dimensions (e.g. 'North Region', 'Project Alpha')",
+        "When posting a journal entry or invoice, tag the relevant line with an analytic account",
+        "Open Reports → Analytic P&L and pick a dimension to see revenue and expenses for just that segment",
+      ]} />
+      <TipCallout>
+        Analytic tagging is always optional — existing workflows are unaffected if you never use it.
+      </TipCallout>
+    </div>
+  )
+}
+
+function FixedAssetsPanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>Fixed Asset Register & Depreciation</SectionHeading>
+      <p>
+        Track long-lived assets (laptops, vehicles, machinery) and depreciate them systematically over
+        their useful life per <strong>IAS 16</strong>. Easy-Books supports straight-line and reducing-balance methods.
+      </p>
+      <StepList steps={[
+        "Go to Fixed Assets → New Asset",
+        "Enter cost, salvage value, useful life (months), and depreciation method",
+        "Pick the asset, accumulated-depreciation (1090), and depreciation-expense (5050) GL accounts",
+        "Each period, click Run Depreciation — it posts Dr 5050 Depreciation Expense / Cr 1090 Accumulated Depreciation",
+      ]} />
+      <TipCallout>
+        Book value is recalculated after every run and depreciation stops automatically once the asset
+        reaches its salvage value.
+      </TipCallout>
+    </div>
+  )
+}
+
+function DeferredRevenuePanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>Deferred Revenue Recognition (IFRS 15)</SectionHeading>
+      <p>
+        When you invoice a customer for a service delivered over time (e.g. an annual support contract),
+        the cash arrives up front but the revenue must be recognised as you satisfy the obligation.
+        Deferred revenue schedules automate this (<strong>IFRS 15.31</strong>).
+      </p>
+      <StepList steps={[
+        "Flag a product as deferred (with a recognition period in months)",
+        "Invoicing that product posts to Deferred Revenue (2300) instead of Revenue",
+        "Each period, run recognition — it moves a slice from Dr 2300 Deferred Revenue / Cr Revenue",
+        "View active schedules and their recognised-to-date balances under Deferred Revenue",
+      ]} />
+      <TipCallout>
+        This section applies to the Services model, where subscription and retainer billing is common.
+      </TipCallout>
+    </div>
+  )
+}
+
+function BudgetsPanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>Budgets & Variance Analysis</SectionHeading>
+      <p>
+        Set a monthly budget per account and compare it against actual GL activity to spot overspend
+        early — standard management-accounting practice under <strong>IAS 1</strong>.
+      </p>
+      <StepList steps={[
+        "Go to Budgets and enter monthly amounts per expense (or revenue) account for the fiscal year",
+        "Open Budget vs Actual to see budget, actual, variance, and variance % side by side",
+        "Variances are colour-coded — over-budget in red, under-budget in green",
+      ]} />
+      <TipCallout>
+        Multi-currency reports and the comparative-period columns on the P&L and Balance Sheet pair well
+        with budgeting for a full management-review pack.
+      </TipCallout>
+    </div>
+  )
+}
+
 // ── Panel map ─────────────────────────────────────────────────────────────────
 
 const PANEL_MAP: Record<string, React.ReactNode> = {
@@ -1619,11 +1772,17 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "coa":             <CoaPanel />,
   "invoicing":       <InvoicingPanel />,
   "billing":         <BillingPanel />,
+  "credit-notes":    <CreditNotesPanel />,
   "products":        <ProductsPanel />,
+  "purchase-orders": <PurchaseOrdersPanel />,
   "payments":        <PaymentsPanel />,
   "journal":         <JournalPanel />,
+  "analytic":        <AnalyticPanel />,
+  "fixed-assets":    <FixedAssetsPanel />,
+  "deferred-revenue": <DeferredRevenuePanel />,
   "tax-codes":       <TaxCodesPanel />,
   "currency":        <CurrencyPanel />,
+  "budgets":         <BudgetsPanel />,
   "recurring":       <RecurringPanel />,
   "bank-imports":    <BankImportsPanel />,
   "period-close":    <PeriodClosePanel />,
@@ -1642,8 +1801,30 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
 
 export default function GuidePage() {
   const [activeTab, setActiveTab] = useState<string>("getting-started")
+  const [businessModel, setBusinessModel] = useState<BusinessModel | null>(null)
 
-  const activeTabDef = TABS.find(t => t.id === activeTab)!
+  // Fetch the tenant's business model so the guide only shows relevant sections.
+  useEffect(() => {
+    apiFetch<{ tenant?: { business_model?: BusinessModel } }>("/api/auth/me")
+      .then(d => setBusinessModel(d.tenant?.business_model ?? "simple"))
+      .catch(() => setBusinessModel("simple"))
+  }, [])
+
+  // Until we know the model, show universal tabs only (avoids a flash of
+  // model-specific content that then disappears).
+  const visibleTabs = TABS.filter(
+    t => !t.forModels || (businessModel != null && t.forModels.includes(businessModel))
+  )
+
+  // If the active tab gets filtered out (model resolved after mount), fall back.
+  useEffect(() => {
+    if (businessModel && !visibleTabs.some(t => t.id === activeTab)) {
+      setActiveTab("getting-started")
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessModel])
+
+  const activeTabDef = visibleTabs.find(t => t.id === activeTab) ?? visibleTabs[0]
   const ActiveIcon = activeTabDef.icon
 
   return (
@@ -1672,7 +1853,7 @@ export default function GuidePage() {
       <div className="bg-white border border-[#ede9e2] rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto border-b border-[#ede9e2]">
           <div className="flex min-w-max">
-            {TABS.map(tab => {
+            {visibleTabs.map(tab => {
               const Icon = tab.icon
               const isActive = tab.id === activeTab
               return (
@@ -1703,7 +1884,7 @@ export default function GuidePage() {
 
         {/* Panel content */}
         <div className="p-5">
-          {PANEL_MAP[activeTab]}
+          {PANEL_MAP[activeTabDef.id]}
         </div>
       </div>
 
@@ -1711,9 +1892,9 @@ export default function GuidePage() {
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         {/* Previous / Next tab navigation */}
         {(() => {
-          const idx = TABS.findIndex(t => t.id === activeTab)
-          const prev = idx > 0 ? TABS[idx - 1] : null
-          const next = idx < TABS.length - 1 ? TABS[idx + 1] : null
+          const idx = visibleTabs.findIndex(t => t.id === activeTabDef.id)
+          const prev = idx > 0 ? visibleTabs[idx - 1] : null
+          const next = idx < visibleTabs.length - 1 ? visibleTabs[idx + 1] : null
           return (
             <>
               <div>

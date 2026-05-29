@@ -1,7 +1,12 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio } from "lucide-react"
+import { apiFetch } from "@/lib/api"
+
+type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
+const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise"]
 
 // ── Primitive building blocks ────────────────────────────────────────────────
 
@@ -765,8 +770,95 @@ function TelecomFranchiseFlow() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// ── New-module flows (Sprint 7–12 improvement roadmap) ───────────────────────
+
+function CreditNoteFlow() {
+  return (
+    <div className="min-w-[480px]">
+      <HFlow>
+        <StepBox title="Issue Credit Note" impact="Return / adjustment / rebate" accent="gold" />
+        <Arrow />
+        <StepBox title="Link Invoice (opt.)" impact="CN-NNNN number assigned" accent="blue" />
+        <Arrow />
+        <StepBox title="Post Reversing JV" gl="Dr 4000 Revenue / Cr 1100 AR" impact="Reduces revenue + receivable" accent="green" />
+        <Arrow />
+        <StepBox title="AR Sub-Ledger" impact="Customer balance drops" accent="teal" />
+      </HFlow>
+      <p className="mt-4 text-xs text-[#1a1814]/55 leading-relaxed">
+        Credit notes preserve the audit trail (ISA 240) — posted invoices are never edited; adjustments
+        flow through a separate CN- document that posts the exact reverse entry.
+      </p>
+    </div>
+  )
+}
+
+function FixedAssetFlow() {
+  return (
+    <div className="min-w-[480px]">
+      <HFlow>
+        <StepBox title="Register Asset" impact="Cost, salvage, useful life" accent="blue" />
+        <Arrow />
+        <StepBox title="Choose Method" impact="Straight-line / reducing-balance" accent="gold" />
+        <Arrow />
+        <StepBox title="Run Depreciation" gl="Dr 5050 Depr Exp / Cr 1090 Accum Depr" impact="Per period (IAS 16)" accent="green" />
+        <Arrow />
+        <StepBox title="Book Value Updates" impact="Stops at salvage value" accent="purple" />
+      </HFlow>
+    </div>
+  )
+}
+
+function PurchaseOrderConvertFlow() {
+  return (
+    <div className="min-w-[480px]">
+      <HFlow>
+        <StepBox title="Raise PO" impact="PO-NNNN, vendor + lines" accent="gold" />
+        <Arrow />
+        <StepBox title="Approve" impact="Admin+ authorises" accent="blue" />
+        <Arrow />
+        <StepBox title="Goods Arrive" impact="Convert to Bill" accent="orange" />
+        <Arrow />
+        <StepBox title="Bill Posted" gl="Dr Expense / Cr 2000 AP" impact="BILL-NNNN linked to PO" accent="green" />
+      </HFlow>
+      <p className="mt-4 text-xs text-[#1a1814]/55 leading-relaxed">
+        A lightweight 3-way-match control (IAS 2.11): the PO records intent, approval authorises spend,
+        and conversion creates the payable only when goods are received.
+      </p>
+    </div>
+  )
+}
+
+function DeferredRevenueFlow() {
+  return (
+    <div className="min-w-[480px]">
+      <HFlow>
+        <StepBox title="Invoice Deferred Item" gl="Dr 1100 AR / Cr 2300 Deferred Rev" impact="Cash up front, revenue held" accent="gold" />
+        <Arrow />
+        <StepBox title="Recognition Schedule" impact="Spread over N months" accent="blue" />
+        <Arrow />
+        <StepBox title="Run Recognition" gl="Dr 2300 Deferred Rev / Cr 4020 Revenue" impact="Per period (IFRS 15.31)" accent="green" />
+        <Arrow />
+        <StepBox title="Schedule Completes" impact="Fully recognised" accent="purple" />
+      </HFlow>
+    </div>
+  )
+}
+
 export default function WorkflowPage() {
   const handlePrint = () => window.print()
+  const [businessModel, setBusinessModel] = useState<BusinessModel | null>(null)
+
+  // Fetch the tenant's business model so only the relevant cycles are shown.
+  useEffect(() => {
+    apiFetch<{ tenant?: { business_model?: BusinessModel } }>("/api/auth/me")
+      .then(d => setBusinessModel(d.tenant?.business_model ?? "simple"))
+      .catch(() => setBusinessModel("simple"))
+  }, [])
+
+  const isInventory = businessModel != null && INVENTORY_MODELS.includes(businessModel)
+  const isManufacturing = businessModel === "manufacturing"
+  const isTelecom = businessModel === "telecom_franchise"
+  const isServices = businessModel === "services"
 
   return (
     <div className="space-y-6">
@@ -839,15 +931,17 @@ export default function WorkflowPage() {
         <FinancialStatementFlow />
       </SectionCard>
 
-      {/* 5 — Inventory Flow */}
-      <SectionCard
-        icon={Package}
-        title="Inventory Flow"
-        subtitle="Weighted-average cost (IAS 2)"
-        iconColor="text-teal-600"
-      >
-        <InventoryFlow />
-      </SectionCard>
+      {/* 5 — Inventory Flow (inventory-tracking models only) */}
+      {isInventory && (
+        <SectionCard
+          icon={Package}
+          title="Inventory Flow"
+          subtitle="Weighted-average or FIFO cost (IAS 2)"
+          iconColor="text-teal-600"
+        >
+          <InventoryFlow />
+        </SectionCard>
+      )}
 
       {/* 6 — Payment Allocations */}
       <SectionCard
@@ -899,25 +993,73 @@ export default function WorkflowPage() {
         <DrillDownFlow />
       </SectionCard>
 
-      {/* 11 — Production Order Lifecycle (V2) */}
+      {/* 11 — Production Order Lifecycle (V2) — manufacturing only */}
+      {isManufacturing && (
+        <SectionCard
+          icon={Factory}
+          title="Production Order Lifecycle (V2)"
+          subtitle="GRN → start → complete → deliver → bill"
+          iconColor="text-pink-600"
+        >
+          <ProductionOrderFlow />
+        </SectionCard>
+      )}
+
+      {/* 12 — Telecom Franchise Lifecycle (V3) — telecom only */}
+      {isTelecom && (
+        <SectionCard
+          icon={Radio}
+          title="Telecom Franchise Lifecycle (V3)"
+          subtitle="Tracker deposit → load (3% uplift) → MSR→RSO→Retail → collect → activate → settle"
+          iconColor="text-teal-600"
+        >
+          <TelecomFranchiseFlow />
+        </SectionCard>
+      )}
+
+      {/* 13 — Credit Note flow (all models) */}
       <SectionCard
-        icon={Factory}
-        title="Production Order Lifecycle (V2)"
-        subtitle="GRN → start → complete → deliver → bill"
-        iconColor="text-pink-600"
+        icon={RefreshCw}
+        title="Credit Note Flow"
+        subtitle="Reverse a sale without editing the invoice (ISA 240)"
+        iconColor="text-green-600"
       >
-        <ProductionOrderFlow />
+        <CreditNoteFlow />
       </SectionCard>
 
-      {/* 12 — Telecom Franchise Lifecycle (V3) */}
+      {/* 14 — Fixed Asset Depreciation (all models) */}
       <SectionCard
-        icon={Radio}
-        title="Telecom Franchise Lifecycle (V3)"
-        subtitle="Tracker deposit → load (3% uplift) → MSR→RSO→Retail → collect → activate → settle"
-        iconColor="text-teal-600"
+        icon={Calendar}
+        title="Fixed Asset Depreciation"
+        subtitle="Systematic depreciation over useful life (IAS 16)"
+        iconColor="text-purple-600"
       >
-        <TelecomFranchiseFlow />
+        <FixedAssetFlow />
       </SectionCard>
+
+      {/* 15 — Purchase Order → Bill (inventory models) */}
+      {isInventory && (
+        <SectionCard
+          icon={CheckCircle}
+          title="Purchase Order → Bill"
+          subtitle="Pre-approval and 3-way match (IAS 2.11)"
+          iconColor="text-orange-600"
+        >
+          <PurchaseOrderConvertFlow />
+        </SectionCard>
+      )}
+
+      {/* 16 — Deferred Revenue (services only) */}
+      {isServices && (
+        <SectionCard
+          icon={Calendar}
+          title="Deferred Revenue Recognition"
+          subtitle="Recognise revenue as obligations are satisfied (IFRS 15)"
+          iconColor="text-blue-600"
+        >
+          <DeferredRevenueFlow />
+        </SectionCard>
+      )}
 
       {/* Footer note */}
       <div className="bg-[#f6f3ee] border border-[#ede9e2] rounded-xl px-5 py-4 text-xs text-[#1a1814]/60 leading-relaxed print:hidden">
