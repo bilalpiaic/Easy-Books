@@ -292,6 +292,14 @@ def _revenue_pool(s: Session, tid: int, model: str) -> list[Account]:
 def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int) -> User:
     u = s.exec(select(User).where(User.email == email)).first()
     if u:
+        # Convergent reseed: always restore the canonical demo credentials so a
+        # drifted password / must_change flag never leaves a demo account locked
+        # out. (Idempotency must guarantee correct STATE, not just existence.)
+        u.hashed_password = get_password_hash(DEMO_PASSWORD)
+        u.is_active = True
+        if hasattr(u, "must_change_password"):
+            u.must_change_password = False
+        s.add(u); s.flush()
         return u
     u = User(
         email=email,
@@ -1958,8 +1966,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             s.add(tenant); s.commit(); s.refresh(tenant)
             tenant_id = tenant.id
             seed_data(tenant_id, session=s)
-            _get_or_make_user(s, email, "Demo User", tenant_id)
 
+        # Always (re)assert the demo credentials — convergent so a drifted
+        # password or must_change flag never locks the demo account out.
+        _get_or_make_user(s, email, "Demo User", tenant_id)
         s.commit()
 
         user = s.exec(select(User).where(User.email == email)).first()
