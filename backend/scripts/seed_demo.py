@@ -36,7 +36,7 @@ from typing import Optional
 from sqlmodel import Session, select
 
 from auth import get_password_hash
-from db import engine, seed_data
+from db import _coa_for, engine, seed_data
 from models import (
     Account, AnalyticAccount, AuditLog, BankAccount, BomHeader, BomLine, Bill,
     BillLine, BillPayment, Budget, CreditNote, CreditNoteLine, Customer,
@@ -316,6 +316,26 @@ def _account(s: Session, tenant_id: int, code: str) -> Optional[Account]:
     return s.exec(
         select(Account).where(Account.tenant_id == tenant_id, Account.code == code)
     ).first()
+
+
+def _ensure_coa(s: Session, tenant_id: int, model: str) -> None:
+    """Convergent CoA top-up: insert any accounts from the model's template that
+    this tenant is missing. Existing demo tenants pre-date newer backbone
+    accounts (1090/4901 from Sprint 7-12, 1260/2310 from Sprint 13), so without
+    this the advance/asset/FX seeders silently skip. Idempotent (by code)."""
+    existing = {
+        a.code for a in s.exec(
+            select(Account).where(Account.tenant_id == tenant_id)
+        ).all()
+    }
+    added = False
+    for code, name, atype, is_memo in _coa_for(model):
+        if code not in existing:
+            s.add(Account(code=code, name=name, type=atype,
+                          is_memo=is_memo, tenant_id=tenant_id))
+            added = True
+    if added:
+        s.flush()
 
 
 def _seed_customers(s: Session, tenant_id: int) -> list[Customer]:
@@ -1966,6 +1986,12 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             s.add(tenant); s.commit(); s.refresh(tenant)
             tenant_id = tenant.id
             seed_data(tenant_id, session=s)
+
+        # Top up any CoA accounts this tenant is missing (newer backbone
+        # accounts only reach new tenants otherwise) — must precede the
+        # advance/asset seeders that depend on 1260/2310/1090/4901.
+        _ensure_coa(s, tenant_id, business_model)
+        s.commit()
 
         # Always (re)assert the demo credentials — convergent so a drifted
         # password or must_change flag never locks the demo account out.

@@ -617,3 +617,94 @@ def test_vendor_advance_record_and_apply():
     dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
     assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
     app.dependency_overrides.clear()
+
+
+# ── Periodic Closing (Sprint 14) ──────────────────────────────────────────────
+
+def _post_jv(client, auth, date, lines):
+    """Post a manual JV. lines = [(account_id, debit, credit)]."""
+    return client.post("/api/transactions", headers=auth, json={
+        "date": date, "description": "test jv",
+        "entries": [{"account_id": a, "debit": d, "credit": c} for a, d, c in lines],
+    })
+
+
+def _acct(client, auth, code):
+    items = client.get("/api/accounts?limit=500", headers=auth).json()["items"]
+    return next(a["id"] for a in items if a["code"] == code)
+
+
+def _tb_net(client, auth, code):
+    """Return debit-credit net for an account code from the trial balance."""
+    tb = client.get("/api/reports/trial-balance", headers=auth).json()
+    row = next((r for r in tb if r["code"] == code), None)
+    if not row:
+        return 0.0
+    return float(row["total_debit"]) - float(row["total_credit"])
+
+
+def test_soft_close_locks_without_zeroing_pl():
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    client = TestClient(app)
+    auth = _signup_and_login(client, "pc-soft@co.test", "PCsoft")
+
+    cash = _acct(client, auth, "1000")
+    rev = _acct(client, auth, "4000")
+    # Revenue of 1000 inside the period (Dr Cash / Cr Revenue)
+    _post_jv(client, auth, "2026-01-10", [(cash, 1000, 0), (rev, 0, 1000)])
+
+    period = client.post("/api/periods", headers=auth, json={
+        "name": "Jan 2026", "period_start": "2026-01-01", "period_end": "2026-01-31",
+    }).json()
+
+    r = client.post(f"/api/periods/{period['id']}/close?mode=soft", headers=auth)
+    assert r.status_code == 200, r.text
+    assert r.json()["entries_posted"] == 0  # no closing JV on a soft close
+
+    # Period is locked: posting into the range is rejected
+    blocked = _post_jv(client, auth, "2026-01-20", [(cash, 50, 0), (rev, 0, 50)])
+    assert blocked.status_code >= 400
+
+    # Revenue NOT zeroed — still shows the 1000 credit (net = -1000 debit-credit)
+    assert abs(_tb_net(client, auth, "4000") - (-1000.0)) < 0.01
+    # Retained Earnings untouched
+    assert abs(_tb_net(client, auth, "3100")) < 0.01
+    app.dependency_overrides.clear()
+
+
+def test_year_end_close_zeros_pl_to_retained_earnings():
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    client = TestClient(app)
+    auth = _signup_and_login(client, "pc-ye@co.test", "PCye")
+
+    cash = _acct(client, auth, "1000")
+    rev = _acct(client, auth, "4000")
+    exp = _acct(client, auth, "5000")
+    # Revenue 1000, expense 400 → net income 600
+    _post_jv(client, auth, "2026-02-10", [(cash, 1000, 0), (rev, 0, 1000)])
+    _post_jv(client, auth, "2026-02-15", [(exp, 400, 0), (cash, 0, 400)])
+
+    period = client.post("/api/periods", headers=auth, json={
+        "name": "FY2026", "period_start": "2026-01-01", "period_end": "2026-12-31",
+    }).json()
+
+    # Preview first
+    pv = client.get(f"/api/periods/{period['id']}/close-preview", headers=auth).json()
+    assert abs(float(pv["net_income"]) - 600.0) < 0.01
+
+    r = client.post(f"/api/periods/{period['id']}/close?mode=year_end", headers=auth)
+    assert r.status_code == 200, r.text
+    assert abs(float(r.json()["net_income"]) - 600.0) < 0.01
+
+    # P&L zeroed
+    assert abs(_tb_net(client, auth, "4000")) < 0.01
+    assert abs(_tb_net(client, auth, "5000")) < 0.01
+    # Retained Earnings credited 600 (credit-normal → net debit-credit = -600)
+    assert abs(_tb_net(client, auth, "3100") - (-600.0)) < 0.01
+
+    # Trial balance still balances
+    tb = client.get("/api/reports/trial-balance", headers=auth).json()
+    assert _sum_decimal(tb, "total_debit") == _sum_decimal(tb, "total_credit")
+    app.dependency_overrides.clear()

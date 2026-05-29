@@ -72,33 +72,14 @@ def delete_period(session: SessionDep, user: WriteUserDep, period_id: int):
     session.commit()
 
 
-@router.post("/{period_id}/close")
-def close_period(session: SessionDep, user: WriteUserDep, period_id: int):
-    """Period-end close: zero out Revenue/Expense into Retained Earnings,
-    then lock the period.
-
-    Posts one closing JV:
-      Dr Revenue (sum of net credits on Revenue accts)
-      Cr Expense (sum of net debits on Expense accts)
-      Cr/Dr Retained Earnings for the difference (net income/loss)
-
-    Idempotent in spirit: a second call on an already-locked period 400s.
-    """
-    p = session.exec(
-        select(AccountingPeriod).where(
-            AccountingPeriod.id == period_id,
-            AccountingPeriod.tenant_id == user.tenant_id,
-        )
-    ).first()
-    if not p:
-        raise HTTPException(404, "Period not found")
-    if p.is_locked:
-        raise HTTPException(400, "Period already closed/locked")
-
-    # Aggregate net balance per income-statement account in [start, end]
+def _pl_net_income(session, user, p) -> tuple[list, "Decimal"]:
+    """Aggregate Revenue/Expense in [start, end]; return (rows, net_income).
+    net_income > 0 = profit (credit to RE), < 0 = loss."""
     rows = session.exec(
         select(
             Account.id,
+            Account.code,
+            Account.name,
             Account.type,
             func.coalesce(func.sum(JournalEntry.debit), 0).label("dr"),
             func.coalesce(func.sum(JournalEntry.credit), 0).label("cr"),
@@ -113,50 +94,18 @@ def close_period(session: SessionDep, user: WriteUserDep, period_id: int):
         )
         .group_by(Account.id, Account.type)
     ).all()
-
-    entries: list[EntryInput] = []
-    net = ZERO  # positive = net income (credit to RE), negative = net loss
+    net = ZERO
     for r in rows:
-        dr = D(r.dr)
-        cr = D(r.cr)
         if r.type == "Revenue":
-            # Revenue normal balance is credit; close by Dr Revenue.
-            amount = cr - dr
-            if amount > 0:
-                entries.append(EntryInput(account_id=r.id, debit=money(amount)))
-                net += amount
-        else:  # Expense
-            # Expense normal balance is debit; close by Cr Expense.
-            amount = dr - cr
-            if amount > 0:
-                entries.append(EntryInput(account_id=r.id, credit=money(amount)))
-                net -= amount
+            net += D(r.cr) - D(r.dr)
+        else:
+            net -= D(r.dr) - D(r.cr)
+    return rows, net
 
-    if entries:
-        re_acc = get_or_create_account(
-            session, user.tenant_id, "3100", "Retained Earnings", "Equity"
-        )
-        if net > 0:
-            entries.append(EntryInput(account_id=re_acc.id, credit=money(net)))
-        elif net < 0:
-            entries.append(EntryInput(account_id=re_acc.id, debit=money(-net)))
-        # else: zero — skip, no JV needed
-        if net != 0:
-            post_transaction(
-                session, user,
-                date=p.period_end,
-                description=f"Period-end close: {p.period_start} → {p.period_end}",
-                entries=entries,
-                audit_entity_type="period",
-                audit_detail={"period_id": p.id, "net_income": str(net)},
-            )
 
-    p.is_locked = True
-    session.add(p)
-
-    # Materialise per-account balances for fast trial-balance reads against
-    # this closed period. Re-run includes the closing JV we just posted so
-    # the rollover is reflected. Skip rows where both totals are zero.
+def _snapshot_balances(session, user, p) -> None:
+    """Materialise per-account balances for the period so locked-period reads
+    are fast. Includes any closing JV already posted. Skips all-zero rows."""
     snapshot = session.exec(
         select(
             Account.id.label("account_id"),
@@ -177,18 +126,114 @@ def close_period(session: SessionDep, user: WriteUserDep, period_id: int):
             continue
         session.add(
             AccountBalance(
-                tenant_id=user.tenant_id,
-                period_id=p.id,
-                account_id=row.account_id,
-                debit_total=money(row.dr),
-                credit_total=money(row.cr),
+                tenant_id=user.tenant_id, period_id=p.id, account_id=row.account_id,
+                debit_total=money(row.dr), credit_total=money(row.cr),
             )
         )
 
-    log_audit(session, user, "CLOSE", "period", p.id, {"net_income": str(net)})
+
+@router.get("/{period_id}/close-preview")
+def close_preview(session: SessionDep, user: CurrentUserDep, period_id: int):
+    """Preview the P&L → Retained Earnings impact of a year-end close, without
+    posting anything. Lets the UI show net income before the user commits."""
+    p = session.exec(
+        select(AccountingPeriod).where(
+            AccountingPeriod.id == period_id,
+            AccountingPeriod.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not p:
+        raise HTTPException(404, "Period not found")
+    rows, net = _pl_net_income(session, user, p)
+    revenue = sum((D(r.cr) - D(r.dr) for r in rows if r.type == "Revenue"), ZERO)
+    expense = sum((D(r.dr) - D(r.cr) for r in rows if r.type == "Expense"), ZERO)
+    return {
+        "period": {"start": p.period_start, "end": p.period_end, "name": p.name},
+        "revenue_total": str(money(revenue)),
+        "expense_total": str(money(expense)),
+        "net_income": str(money(net)),
+        "by_account": [
+            {
+                "code": r.code, "name": r.name, "type": r.type,
+                "amount": str(money((D(r.cr) - D(r.dr)) if r.type == "Revenue"
+                                    else (D(r.dr) - D(r.cr)))),
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.post("/{period_id}/close")
+def close_period(
+    session: SessionDep, user: WriteUserDep, period_id: int,
+    mode: str = "year_end",
+):
+    """Close a period.
+
+    mode="year_end" (default): post the P&L → Retained Earnings closing JV,
+        snapshot balances, and lock. Use at fiscal year-end.
+    mode="soft": lock + snapshot balances only — P&L is NOT zeroed, so
+        within-year income statements stay cumulative and comparable. Use for
+        monthly/quarterly management closes. Balance-sheet accounts carry
+        forward automatically (live-from-GL continuity).
+    """
+    if mode not in ("year_end", "soft"):
+        raise HTTPException(400, "mode must be 'year_end' or 'soft'")
+
+    p = session.exec(
+        select(AccountingPeriod).where(
+            AccountingPeriod.id == period_id,
+            AccountingPeriod.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not p:
+        raise HTTPException(404, "Period not found")
+    if p.is_locked:
+        raise HTTPException(400, "Period already closed/locked")
+
+    net = ZERO
+    entries_posted = 0
+
+    if mode == "year_end":
+        rows, net = _pl_net_income(session, user, p)
+        entries: list[EntryInput] = []
+        for r in rows:
+            if r.type == "Revenue":
+                amount = D(r.cr) - D(r.dr)
+                if amount > 0:
+                    entries.append(EntryInput(account_id=r.id, debit=money(amount)))
+            else:  # Expense
+                amount = D(r.dr) - D(r.cr)
+                if amount > 0:
+                    entries.append(EntryInput(account_id=r.id, credit=money(amount)))
+        if entries and net != 0:
+            re_acc = get_or_create_account(
+                session, user.tenant_id, "3100", "Retained Earnings", "Equity"
+            )
+            if net > 0:
+                entries.append(EntryInput(account_id=re_acc.id, credit=money(net)))
+            else:
+                entries.append(EntryInput(account_id=re_acc.id, debit=money(-net)))
+            post_transaction(
+                session, user,
+                date=p.period_end,
+                description=f"Year-end close: {p.period_start} → {p.period_end}",
+                entries=entries,
+                audit_entity_type="period",
+                audit_detail={"period_id": p.id, "net_income": str(net)},
+            )
+            entries_posted = len(entries)
+
+    p.is_locked = True
+    session.add(p)
+    _snapshot_balances(session, user, p)
+
+    log_audit(session, user, "CLOSE", "period", p.id,
+              {"mode": mode, "net_income": str(net)})
     session.commit()
     session.refresh(p)
-    return {"period": p, "net_income": str(net), "entries_posted": len(entries)}
+    return {"period": p, "mode": mode, "net_income": str(net),
+            "entries_posted": entries_posted}
 
 
 @router.post("/{period_id}/reopen")
