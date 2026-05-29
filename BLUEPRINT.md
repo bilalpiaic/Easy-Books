@@ -996,7 +996,21 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 | G-15 | **FX revaluation** at period end (unrealised gain/loss → `4901`) | IAS 21.23 | `routers/reports.py` | — |
 | G-16 | **Email** notifications (SMTP) — invoice send + team invite | — | `services/email.py` | — |
 
-New common-CoA accounts: **1090** Accumulated Depreciation (contra-asset), **4901** Unrealised FX Gain/Loss.
+### Sprint 13 Shipped ✅ (Returns & Advances)
+
+| Feature | Standard | Backend | Frontend | GL |
+|---------|----------|---------|----------|----|
+| **Sales Return** (enhanced Credit Note: restock + COGS reversal + GST output) | IAS 2 / ISA 240 | `routers/credit_notes.py`, `services/inventory.py::reverse_consumption` | `/credit-notes` | Dr Revenue (+Dr GST) / Cr AR · Dr Inventory / Cr COGS |
+| **Purchase Return** (Debit Note, bill-linked, original cost) | IAS 2.11 | `routers/debit_notes.py`, `services/inventory.py::return_to_vendor` | `/debit-notes` | Dr AP / Cr Inventory (+ Cr GST Input) |
+| **Advance from Customer** (record + apply) | — | `routers/advances.py` | `/advances` | Dr Bank / Cr 2310 → apply Dr 2310 / Cr AR |
+| **Advance to Vendor** (record + apply) | — | `routers/advances.py` | `/advances` | Dr 1260 / Cr Bank → apply Dr AP / Cr 1260 |
+
+New common-CoA accounts: **1260** Advances to Vendors (Asset), **2310** Customer Advances (Liability).
+New tables: `DebitNote`, `DebitNoteLine`, `CustomerAdvance`, `VendorAdvance` (Alembic 0020). Advances
+apply through the existing `PaymentReceived`/`BillPayment` + `PaymentAllocation` path so invoice/bill
+status derives automatically.
+
+New common-CoA accounts (Sprint 7–12): **1090** Accumulated Depreciation (contra-asset), **4901** Unrealised FX Gain/Loss.
 Tenant gains a **`cost_method`** field (`wavg`/`fifo`). The **guide and workflow pages are now
 tenant-model-aware** — each business model sees only the sections relevant to its features.
 

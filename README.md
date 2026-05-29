@@ -10,6 +10,11 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 
 ## What's in the box
 
+### New in Sprint 13 (Returns & Advances)
+- **Sales Returns** — a Credit Note with a stock line restocks inventory and reverses COGS (Dr Inventory / Cr COGS) on top of Dr Revenue / Cr AR (IAS 2 / ISA 240).
+- **Purchase Returns** — Debit Notes linked to the original bill return stock at its original cost; Dr AP / Cr Inventory (+ Cr GST Input), IAS 2.11.
+- **Advances** — record customer prepayments (Cr 2310) and vendor prepayments (Dr 1260), then apply them against invoices/bills through the normal allocation flow so document status updates automatically.
+
 ### New in Sprint 7–12 (IAS/IFRS + product-parity roadmap)
 - **Credit Notes** (ISA 240) — adjust posted invoices without breaking the audit trail; separate `CN-` sequence, posts Dr Revenue / Cr AR.
 - **Fixed Assets & Depreciation** (IAS 16) — asset register with straight-line and reducing-balance methods; per-period depreciation posting.
@@ -266,8 +271,9 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 | Sprint 6 | Browser tab `<title>` · "Back to list" breadcrumbs on all detail pages · Keyboard shortcut `N` for New · Empty-state CTAs on all list pages |
 | Seed upgrade | 100 invoices/bills per tenant · Full 365-day date scatter · All COA accounts covered · Bank accounts · Payment terms · Notes/memos on all documents |
 | Sprint 7–12 | Bank-rec zero-difference · Credit Notes · Comparative P&L/Balance Sheet · Multi-currency UI · Fixed Assets + depreciation · Purchase Orders · Analytic accounts · Deferred revenue · FIFO option · Budgets vs Actual · Stripe links · Alembic · Server-side PDF · FX revaluation · SMTP email · tenant-aware guide/workflow · demo seeding for all new modules |
+| Sprint 13 | Sales Returns (Credit Note + restock) · Purchase Returns (Debit Notes) · Customer & Vendor Advances (record + apply) · CoA 1260/2310 · demo seeding |
 
-**Backend test suite:** 139 tests pass (`PYTHONPATH=. uv run pytest -q`)
+**Backend test suite:** 143 tests pass (`PYTHONPATH=. uv run pytest -q`)
 
 **Not yet shipped:**
 - Multi-currency on payments (invoice currency is snapshot at issue)

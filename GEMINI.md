@@ -44,7 +44,7 @@ Five business models are supported, each with a tailored Chart of Accounts and a
 │   ├── models_telecom.py    # 23 tc_* tables for telecom_franchise
 │   ├── db.py                # Engine, create_all, seed 5 demo tenants + CoA
 │   ├── auth.py              # JWT + bcrypt
-│   ├── routers/             # 35 domain routers (+ credit_notes, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue)
+│   ├── routers/             # 37 domain routers (+ credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue)
 │   ├── services/
 │   │   ├── posting.py       # THE only GL writer — enforces all invariants
 │   │   ├── inventory.py     # Weighted-Average cost, FIFO layer relief

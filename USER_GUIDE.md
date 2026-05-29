@@ -703,6 +703,28 @@ Pre-approval workflow for purchases (shown for Trader / Manufacturing / Telecom 
 - **Payment Link** button on an invoice creates a Stripe Checkout session; the webhook marks the invoice paid automatically (requires `STRIPE_SECRET_KEY`)
 - Marking an invoice **Sent** emails the customer, and team invites are emailed (requires SMTP env vars; silently skipped if unset)
 
+### 17.12 Sales Returns (Credit Notes with stock)
+
+A **Credit Note** can double as a sales return. On the Credit Note form, pick a **stock product** on a line:
+- The value side posts **Dr Sales Revenue (+ Dr GST Payable) / Cr Accounts Receivable**
+- The stock side restocks inventory and posts **Dr Inventory / Cr COGS** — quantity *and* value return to stock (IAS 2)
+- Enter a **GST to reverse** amount to unwind output tax on the return
+
+### 17.13 Purchase Returns (Debit Notes)
+
+Go to **Debit Notes** (Payable section) to return goods to a vendor:
+- Select the vendor, then the **original bill** the goods came from
+- Enter the returned quantity per line; stock is removed at the bill's **original layer cost**
+- Posts **Dr Accounts Payable / Cr Inventory (+ Cr GST Input)** — reduces both the payable and inventory
+- The return must not exceed the un-sold quantity remaining from that bill
+
+### 17.14 Customer & Vendor Advances
+
+Go to **Advances** to record and apply prepayments:
+- **From Customers** — record (**Dr Bank / Cr 2310 Customer Advances**), then *Apply to invoice* (**Dr 2310 / Cr AR**)
+- **To Vendors** — record (**Dr 1260 Advances to Vendors / Cr Bank**), then *Apply to bill* (**Dr AP / Cr 1260**)
+- Each advance shows its remaining balance and can be applied across multiple documents; applying updates the invoice/bill status automatically
+
 ---
 
 ## 18. TENANT-SPECIFIC GUIDES
@@ -711,9 +733,9 @@ The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) 
 
 | Section | Simple | Services | Trader | Manufacturing | Telecom |
 |---------|:------:|:--------:|:------:|:-------------:|:-------:|
-| Invoicing, Billing, Credit Notes, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Products & Inventory, Purchase Orders | — | — | ✓ | ✓ | ✓ |
+| Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ |
 | Deferred Revenue | — | ✓ | — | — | — |
 | Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — |
 | Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ |

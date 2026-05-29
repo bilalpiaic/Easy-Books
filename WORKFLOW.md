@@ -1391,6 +1391,7 @@ All migrations are idempotent (check inspector before `create_table` / `add_colu
 | `0019_deferred_revenue` | G-08 | `DeferredRevenueSchedule`, `Product.is_deferred/recognition_months` |
 | `0019b_purchase_orders` | G-06 | `PurchaseOrder`, `PurchaseOrderLine` |
 | `0019c_invoice_payment_link` | G-12 | `Invoice.payment_link_url/payment_link_status` |
+| `0020_returns_and_advances` | S13 | `DebitNote`, `DebitNoteLine`, `CustomerAdvance`, `VendorAdvance`; CoA `1260`/`2310` |
 
 ---
 
@@ -1428,6 +1429,30 @@ Run recognition / period  →  Dr 2300 Deferred Revenue / Cr 4020 Revenue
 Period end: outstanding × (closing_rate − original_rate)
 Gain:  Dr 1100 AR / Cr 4901 Unrealised FX Gain-Loss
 Loss:  Dr 4901 / Cr 1100 AR
+```
+
+### Sales Return (enhanced Credit Note, IAS 2 / ISA 240)
+```
+Value:    Dr 4000 Revenue (+ Dr 2200 GST) / Cr 1100 AR
+Restock:  Dr 1200 Inventory / Cr 5010 COGS  (Q × avg_cost)  + stock_qty += Q
+```
+
+### Purchase Return (Debit Note vs original bill, IAS 2.11)
+```
+Dr 2000 AP / Cr 1200 Inventory (at original layer cost) + Cr 1250 GST Input
+stock_qty -= Q   (return_to_vendor; capped at the bill's remaining layer qty)
+```
+
+### Customer Advance (prepayment received)
+```
+Record:  Dr 1010 Bank / Cr 2310 Customer Advances
+Apply:   Dr 2310 Customer Advances / Cr 1100 AR   (settles an invoice)
+```
+
+### Vendor Advance (prepayment paid)
+```
+Record:  Dr 1260 Advances to Vendors / Cr 1010 Bank
+Apply:   Dr 2000 AP / Cr 1260 Advances to Vendors  (settles a bill)
 ```
 
 ### Tenant-aware guidance

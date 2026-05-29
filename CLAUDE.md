@@ -57,7 +57,7 @@ npm install && node server.js    # runs on root package.json
 | `models_telecom.py` | 23 `tc_*` tables for the Telecom Franchise business model |
 | `db.py` | Engine creation, startup seeding (default tenant + CoA + admin user + 5 demo tenants) |
 | `auth.py` | JWT encoding/decoding, bcrypt password hashing |
-| `routers/` | 35 domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …) |
+| `routers/` | 37 domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …) |
 | `services/` | Pure-logic modules — `posting.py` is the only GL writer; also `depreciation.py`, `pdf.py`, `email.py` |
 | `scripts/seed_demo.py` | Idempotent rich mock-data seeder (50+ per entity type) |
 
