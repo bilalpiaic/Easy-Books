@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Account, CreditNote, CreditNoteLine, Customer, Invoice
+from models import Account, CreditNote, CreditNoteLine, Customer, Invoice, Product
 from routers.common import (
     SessionDep,
     WriteUserDep,
@@ -14,6 +14,7 @@ from routers.common import (
     log_audit,
     next_number,
 )
+from services.inventory import reverse_consumption
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
@@ -40,6 +41,8 @@ class CNCreate(BaseModel):
     revenue_account_id: Optional[int] = None
     currency: str = "PKR"
     exchange_rate: Decimal = Decimal("1")
+    gst_amount: Decimal = Decimal("0")   # GST-output to reverse (sales return)
+    restock: bool = True                 # restock stock-product lines (sales return)
 
 
 @router.get("")
@@ -89,7 +92,8 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
             raise HTTPException(400, "Customer not found for this tenant")
 
     subtotal = money(sum(D(ln.qty) * D(ln.rate) for ln in body.lines))
-    total = subtotal  # CN totals do not add new tax
+    gst = money(D(str(body.gst_amount)))   # GST-output to reverse (sales return)
+    total = money(subtotal + gst)
 
     number = next_number(session, user.tenant_id, "credit_note", "CN")
 
@@ -103,7 +107,7 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
         description=body.description,
         notes=body.notes,
         subtotal=subtotal,
-        gst_amount=ZERO,
+        gst_amount=gst,
         total=total,
         currency=body.currency,
         exchange_rate=D(str(body.exchange_rate)),
@@ -125,8 +129,10 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
             )
         )
 
-    # GL posting: Cr AR (reduces receivable), Dr Revenue (reduces revenue)
+    # GL posting (value side): Dr Revenue (+ Dr GST Payable) / Cr AR
     fx = D(str(body.exchange_rate))
+    subtotal_base = money(subtotal * fx)
+    gst_base = money(gst * fx)
     total_base = money(total * fx)
 
     if body.ar_account_id:
@@ -147,15 +153,22 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
     else:
         rev_acc = get_or_create_account(session, user.tenant_id, "4000", "Sales Revenue", "Revenue")
 
+    entries = [
+        EntryInput(account_id=rev_acc.id, debit=subtotal_base),   # reduce revenue
+    ]
+    if gst_base > ZERO:
+        gst_acc = get_or_create_account(
+            session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
+        )
+        entries.append(EntryInput(account_id=gst_acc.id, debit=gst_base))  # reverse output GST
+    entries.append(EntryInput(account_id=ar_acc.id, credit=total_base))    # reduce AR
+
     txn = post_transaction(
         session,
         user,
         date=body.issue_date,
         description=body.description or f"Credit Note {number}",
-        entries=[
-            EntryInput(account_id=rev_acc.id, debit=total_base),   # reduce revenue
-            EntryInput(account_id=ar_acc.id, credit=total_base),   # reduce AR
-        ],
+        entries=entries,
         audit_entity_type="credit_note",
         audit_detail={"cn_number": number, "total": str(total)},
     )
@@ -165,6 +178,49 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
     cn.revenue_account_id = rev_acc.id
     cn.status = "posted"
     session.add(cn)
+
+    # Sales-return restock: for each stock-product line, restore inventory and
+    # reverse COGS with a separate sub-JV (mirror of the COGS sub-JV on invoices).
+    if body.restock:
+        total_cogs = ZERO
+        for ln in body.lines:
+            if not ln.product_id:
+                continue
+            prod = session.exec(
+                select(Product).where(
+                    Product.id == ln.product_id, Product.tenant_id == user.tenant_id
+                )
+            ).first()
+            if not prod or prod.product_type != "stock":
+                continue
+            qty = D(ln.qty)
+            cogs = money(qty * D(prod.avg_cost))
+            if cogs <= ZERO:
+                continue
+            reverse_consumption(
+                session, tenant_id=user.tenant_id,
+                product_id=ln.product_id, qty=qty, cogs_total=cogs,
+            )
+            total_cogs += cogs
+        if total_cogs > ZERO:
+            inv_acc = get_or_create_account(
+                session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
+            )
+            cogs_acc = get_or_create_account(
+                session, user.tenant_id, "5010", "Cost of Goods Sold", "Expense"
+            )
+            post_transaction(
+                session, user,
+                date=body.issue_date,
+                description=f"Sales return restock for {number}",
+                entries=[
+                    EntryInput(account_id=inv_acc.id, debit=total_cogs),   # stock back in
+                    EntryInput(account_id=cogs_acc.id, credit=total_cogs), # reverse COGS
+                ],
+                audit_entity_type="credit_note",
+                audit_detail={"cn_number": number, "cogs_reversed": str(total_cogs)},
+            )
+
     log_audit(session, user, "CREATE", "credit_note", cn.id, {"number": number})
     session.commit()
     session.refresh(cn)

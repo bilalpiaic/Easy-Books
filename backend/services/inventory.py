@@ -346,3 +346,104 @@ def reverse_consumption(
         unit_cost=unit_cost,
         source_doc="REVERSAL",
     )
+
+
+def return_to_vendor(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    qty: Decimal,
+    source_doc: str,
+) -> Decimal:
+    """Purchase Return: remove `qty` of a product from the layers created by the
+    original bill (`source_doc == bill.number`), at those layers' original cost.
+
+    Returns the total cost removed (used as the GL inventory credit). Reduces
+    `Product.stock_qty` and recomputes `avg_cost` from the remaining layers.
+
+    Raises InventoryError if the bill's layers no longer hold enough remaining
+    quantity to cover the return (e.g. already sold under WAvg/FIFO).
+    """
+    qty = D(qty)
+    if qty <= 0:
+        return ZERO
+
+    layers = session.exec(
+        select(InventoryLayer)
+        .where(
+            InventoryLayer.tenant_id == tenant_id,
+            InventoryLayer.product_id == product_id,
+            InventoryLayer.source_doc == source_doc,
+            InventoryLayer.qty_remaining > 0,
+        )
+        .order_by(InventoryLayer.id.asc())
+    ).all()
+
+    available = sum((D(l.qty_remaining) for l in layers), start=ZERO)
+    if available < qty:
+        raise InventoryError(
+            f"Cannot return {qty} of product {product_id}: only {available} "
+            f"remain from bill {source_doc} (rest already consumed)."
+        )
+
+    prod = session.exec(
+        select(Product)
+        .where(Product.id == product_id, Product.tenant_id == tenant_id)
+        .with_for_update()
+    ).first()
+    if not prod:
+        raise InventoryError(f"Product {product_id} not found")
+
+    remaining_to_remove = qty
+    cost_removed = ZERO
+    from_loc: Optional[int] = None
+    lot: Optional[str] = None
+    for layer in layers:
+        if remaining_to_remove <= 0:
+            break
+        take = min(D(layer.qty_remaining), remaining_to_remove)
+        layer.qty_remaining = D(layer.qty_remaining) - take
+        cost_removed += money(take * D(layer.unit_cost))
+        remaining_to_remove -= take
+        session.add(layer)
+        if from_loc is None:
+            from_loc = layer.location_id
+            lot = layer.lot_no
+
+    prod.stock_qty = D(prod.stock_qty) - qty
+    session.add(prod)
+    session.flush()
+
+    # Recompute avg_cost from whatever layers remain for this product.
+    remaining = session.exec(
+        select(InventoryLayer).where(
+            InventoryLayer.tenant_id == tenant_id,
+            InventoryLayer.product_id == prod.id,
+            InventoryLayer.qty_remaining > 0,
+        )
+    ).all()
+    total_qty = sum((D(l.qty_remaining) for l in remaining), start=ZERO)
+    if total_qty > 0:
+        weighted = sum(
+            (D(l.qty_remaining) * D(l.unit_cost) for l in remaining), start=ZERO
+        )
+        prod.avg_cost = money(weighted / total_qty)
+    else:
+        prod.avg_cost = ZERO
+    session.add(prod)
+
+    record_movement(
+        session,
+        tenant_id=tenant_id,
+        product_id=product_id,
+        direction="ADJUSTMENT",
+        qty=qty,
+        from_location_id=from_loc or _default_own_location(session, tenant_id),
+        lot_no=lot,
+        unit_cost=money(cost_removed / qty) if qty > 0 else ZERO,
+        source_doc_type="debit_note",
+        posted_to_gl=True,
+        notes=f"Purchase return against {source_doc}",
+    )
+    return money(cost_removed)

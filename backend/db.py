@@ -120,8 +120,10 @@ _COA_COMMON: list[tuple[str, str, str, bool]] = [
     ("1010", "Bank",                   "Asset",     False),
     ("1090", "Accumulated Depreciation","Asset",    False),  # contra-asset (IAS 16)
     ("1100", "Accounts Receivable",    "Asset",     False),
+    ("1260", "Advances to Vendors",    "Asset",     False),  # prepayments to suppliers
     ("2000", "Accounts Payable",       "Liability", False),
     ("2200", "GST Payable (Output)",   "Liability", False),
+    ("2310", "Customer Advances",      "Liability", False),  # prepayments from customers
     ("3000", "Owner Capital",          "Equity",    False),
     ("3010", "Drawings",               "Equity",    False),
     ("3100", "Retained Earnings",      "Equity",    False),
@@ -316,7 +318,8 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
         # Seed document-number counters so the at-runtime path never has to
         # INSERT — concurrent POSTs can then serialise on SELECT FOR UPDATE
         # without racing on the unique constraint.
-        base_counters = ["invoice", "bill", "grn", "po", "credit_note", "purchase_order"]
+        base_counters = ["invoice", "bill", "grn", "po", "credit_note", "purchase_order",
+                         "debit_note", "customer_advance", "vendor_advance"]
         telecom_counters = ["tracker_txn", "load_transfer", "sim_sale", "rso_collection", "fca"]
         counter_names = base_counters + (telecom_counters if model == "telecom_franchise" else [])
         for name in counter_names:

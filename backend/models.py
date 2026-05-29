@@ -860,6 +860,89 @@ class CreditNoteLine(SQLModel, table=True):
     amount: Money = money_col()
 
 
+class DebitNote(SQLModel, table=True):
+    """Purchase Return — reduces a vendor payable for goods returned. Linked to
+    the original bill so stock is reversed at its original cost. Posts
+    Dr AP / Cr Inventory (+ Cr GST Input)."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_dn_number_per_tenant"),
+        CheckConstraint("status IN ('draft','posted','applied')", name="ck_dn_status"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    bill_id: int = Field(foreign_key="bill.id")            # required — original bill
+    vendor_id: Optional[int] = Field(default=None, foreign_key="vendor.id")
+    vendor_name: Optional[str] = None
+    issue_date: str
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    subtotal: Money = money_col()
+    gst_amount: Money = money_col()
+    total: Money = money_col()
+    currency: str = Field(default="PKR")
+    exchange_rate: Money = money_col(default=Decimal("1"))
+    status: str = Field(default="draft")
+    ap_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DebitNoteLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    debit_note_id: int = Field(foreign_key="debitnote.id", ondelete="CASCADE")
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    description: str
+    qty: Money = money_col(default=Decimal("1"))
+    unit: Optional[str] = None
+    rate: Money = money_col()
+    amount: Money = money_col()
+
+
+class CustomerAdvance(SQLModel, table=True):
+    """Advance received from a customer (prepayment). Posts Dr Bank / Cr 2310.
+    Applied later against an invoice via the payments machinery."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_cadv_number_per_tenant"),
+        CheckConstraint("status IN ('open','partial','applied')", name="ck_cadv_status"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    customer_id: int = Field(foreign_key="customer.id")
+    date: str
+    amount: Money = money_col()
+    applied_amount: Money = money_col()
+    cash_account_id: int = Field(foreign_key="account.id")        # bank/cash received into
+    advance_account_id: int = Field(foreign_key="account.id")     # 2310 Customer Advances
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    status: str = Field(default="open")
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class VendorAdvance(SQLModel, table=True):
+    """Advance paid to a vendor (prepayment). Posts Dr 1260 / Cr Bank.
+    Applied later against a bill via the payments machinery."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_vadv_number_per_tenant"),
+        CheckConstraint("status IN ('open','partial','applied')", name="ck_vadv_status"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    vendor_id: int = Field(foreign_key="vendor.id")
+    date: str
+    amount: Money = money_col()
+    applied_amount: Money = money_col()
+    cash_account_id: int = Field(foreign_key="account.id")        # bank/cash paid out of
+    advance_account_id: int = Field(foreign_key="account.id")     # 1260 Advances to Vendors
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    status: str = Field(default="open")
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class LoginAttempt(SQLModel, table=True):
     """One row per /login attempt. Used by the per-IP throttle so the count
     is shared across uvicorn workers and survives restarts (vs. an in-process

@@ -460,3 +460,160 @@ def test_fx_revaluation_posts_gain():
     assert body.get("entries_count", 0) > 0, f"Expected entries, got: {body}"
 
     app.dependency_overrides.clear()
+
+
+# ── Returns & Advances (Sprint 13) ────────────────────────────────────────────
+
+def _make_stock_product(client, auth, name="Widget", rate=100):
+    r = client.post("/api/products", headers=auth,
+                    json={"name": name, "product_type": "stock", "default_rate": rate})
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def _stock_qty(client, auth, pid):
+    """Read a product's current stock_qty from the list endpoint."""
+    items = client.get("/api/products?limit=200", headers=auth).json()["items"]
+    p = next(x for x in items if x["id"] == pid)
+    return float(p["stock_qty"])
+
+
+def test_sales_return_restocks_and_reverses_cogs():
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    client = TestClient(app)
+    auth = _signup_and_login(client, "ret-sr@co.test", "SRCo")
+
+    pid = _make_stock_product(client, auth, "Widget", 100)
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Supplier"}).json()
+    cust = client.post("/api/customers", headers=auth, json={"name": "Buyer"}).json()
+
+    # Buy 10 @ 20 → stock in
+    client.post("/api/bills", headers=auth, json={
+        "vendor_id": vendor["id"], "bill_date": "2026-01-01", "due_date": "2026-01-31",
+        "gst_rate": 0, "lines": [{"product_id": pid, "description": "Widget", "qty": 10, "rate": 20}],
+    })
+    # Sell 4 @ 100 → stock out + COGS
+    inv = client.post("/api/invoices", headers=auth, json={
+        "customer_id": cust["id"], "issue_date": "2026-01-10", "due_date": "2026-01-31",
+        "gst_rate": 0, "lines": [{"product_id": pid, "description": "Widget", "qty": 4, "rate": 100}],
+    }).json()
+
+    assert abs(_stock_qty(client, auth, pid) - 6.0) < 0.01  # 10 - 4
+
+    # Sales return: credit note with the stock line (qty 2)
+    r = client.post("/api/credit-notes", headers=auth, json={
+        "invoice_id": inv["id"], "customer_id": cust["id"], "issue_date": "2026-01-15",
+        "description": "Sales return", "restock": True,
+        "lines": [{"product_id": pid, "description": "Widget", "qty": 2, "rate": 100}],
+    })
+    assert r.status_code == 201, r.text
+
+    # Stock should rise back to 8 (6 + 2 returned)
+    assert abs(_stock_qty(client, auth, pid) - 8.0) < 0.01
+
+    # Trial balance must stay balanced
+    tb = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
+    app.dependency_overrides.clear()
+
+
+def test_purchase_return_reduces_stock_and_ap():
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    client = TestClient(app)
+    auth = _signup_and_login(client, "ret-pr@co.test", "PRCo")
+
+    pid = _make_stock_product(client, auth, "Gadget", 50)
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Supplier"}).json()
+
+    bill = client.post("/api/bills", headers=auth, json={
+        "vendor_id": vendor["id"], "bill_date": "2026-02-01", "due_date": "2026-02-28",
+        "gst_rate": 0, "lines": [{"product_id": pid, "description": "Gadget", "qty": 20, "rate": 30}],
+    }).json()
+
+    assert abs(_stock_qty(client, auth, pid) - 20.0) < 0.01
+
+    # Return 5 units to the vendor
+    r = client.post("/api/debit-notes", headers=auth, json={
+        "bill_id": bill["id"], "vendor_id": vendor["id"], "issue_date": "2026-02-10",
+        "description": "Damaged goods returned",
+        "lines": [{"product_id": pid, "description": "Gadget", "qty": 5, "rate": 30}],
+    })
+    assert r.status_code == 201, r.text
+    assert r.json()["number"].startswith("DN-")
+
+    assert abs(_stock_qty(client, auth, pid) - 15.0) < 0.01  # 20 - 5
+
+    tb = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
+    app.dependency_overrides.clear()
+
+
+def test_customer_advance_record_and_apply():
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    client = TestClient(app)
+    auth = _signup_and_login(client, "adv-c@co.test", "AdvCCo")
+
+    cust = client.post("/api/customers", headers=auth, json={"name": "Prepayer"}).json()
+    # Record advance of 1000
+    r = client.post("/api/advances/customer", headers=auth, json={
+        "party_id": cust["id"], "date": "2026-03-01", "amount": 1000,
+    })
+    assert r.status_code == 201, r.text
+    adv_id = r.json()["id"]
+    assert r.json()["number"].startswith("CADV-")
+
+    # Create an invoice for 600
+    inv = client.post("/api/invoices", headers=auth, json={
+        "customer_id": cust["id"], "issue_date": "2026-03-05", "due_date": "2026-03-31",
+        "gst_rate": 0, "lines": [{"description": "Service", "qty": 1, "rate": 600}],
+    }).json()
+
+    # Apply 600 of the advance to the invoice
+    r = client.post(f"/api/advances/customer/{adv_id}/apply", headers=auth,
+                    json={"target_id": inv["id"], "amount": 600})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert abs(float(body["remaining"]) - 400.0) < 0.01
+    assert body["invoice_status"] == "paid"
+
+    tb = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
+    app.dependency_overrides.clear()
+
+
+def test_vendor_advance_record_and_apply():
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    client = TestClient(app)
+    auth = _signup_and_login(client, "adv-v@co.test", "AdvVCo")
+
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Prepaid Supplier"}).json()
+    r = client.post("/api/advances/vendor", headers=auth, json={
+        "party_id": vendor["id"], "date": "2026-03-01", "amount": 800,
+    })
+    assert r.status_code == 201, r.text
+    adv_id = r.json()["id"]
+    assert r.json()["number"].startswith("VADV-")
+
+    bill = client.post("/api/bills", headers=auth, json={
+        "vendor_id": vendor["id"], "bill_date": "2026-03-05", "due_date": "2026-04-05",
+        "gst_rate": 0, "lines": [{"description": "Materials", "qty": 1, "rate": 500}],
+    }).json()
+
+    r = client.post(f"/api/advances/vendor/{adv_id}/apply", headers=auth,
+                    json={"target_id": bill["id"], "amount": 500})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert abs(float(body["remaining"]) - 300.0) < 0.01
+    assert body["bill_status"] == "paid"
+
+    tb = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
+    app.dependency_overrides.clear()
