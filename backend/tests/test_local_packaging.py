@@ -1,5 +1,19 @@
-"""Phase 0 — local packaging: per-install secret, SEED_DEMO toggle, backup."""
+"""Phase 0 — local packaging: per-install secret, SEED_DEMO toggle, backup.
+
+The first two tests reload shared modules (local_config / auth / db) to
+re-trigger import-time behaviour. They restore baseline module state at the
+end so the file is order-independent regardless of which test runs next.
+"""
 import importlib
+
+
+def _restore_baseline():
+    """Reload local_config / auth / db under the (now-restored) real env so
+    later tests see baseline module globals (engine, SECRET_KEY)."""
+    import local_config, auth, db
+    importlib.reload(local_config)
+    importlib.reload(auth)
+    importlib.reload(db)
 
 
 def test_secret_is_persisted_per_install(tmp_path, monkeypatch):
@@ -16,6 +30,8 @@ def test_secret_is_persisted_per_install(tmp_path, monkeypatch):
     # Reload again → same persisted key (tokens survive restarts)
     importlib.reload(auth)
     assert auth.SECRET_KEY == key1
+    monkeypatch.undo()
+    _restore_baseline()
 
 
 def test_seed_demo_off_creates_no_demo_users(tmp_path, monkeypatch):
@@ -32,3 +48,21 @@ def test_seed_demo_off_creates_no_demo_users(tmp_path, monkeypatch):
     with Session(dbmod.engine) as s:
         demos = s.exec(select(User).where(User.email.like("demo.%"))).all()
     assert demos == []
+    monkeypatch.undo()
+    _restore_baseline()
+
+
+def test_backup_download_returns_zip(monkeypatch):
+    from fastapi.testclient import TestClient
+    from main import app
+    from tests.test_improvements import _mk_engine, _get_session_override, _signup_and_login
+    from db import get_session
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    c = TestClient(app)
+    auth = _signup_and_login(c, "owner@bk.test", "BkCo")  # first signup = owner
+    r = c.get("/api/backup/download", headers=auth)
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"] == "application/zip"
+    assert r.content[:2] == b"PK"  # zip magic
+    app.dependency_overrides.clear()

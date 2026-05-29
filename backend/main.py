@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from db import create_db_and_tables
 from routers import (
     accounts, advances, aging, analytic_accounts, assets, attachments, audit,
-    auth, bank_accounts, bank_imports, bills, bom, budgets, credit_notes,
+    auth, backup, bank_accounts, bank_imports, bills, bom, budgets, credit_notes,
     customers, debit_notes, deferred_revenue, exchange_rates, grn, imports,
     invoices, manufacturing_reports, payment_terms, payments, periods,
     production_orders, products, purchase_orders, rate_plans, reconciliations,
@@ -89,6 +89,7 @@ _ROUTERS = [
     deferred_revenue.router,
     debit_notes.router,
     advances.router,
+    backup.router,
 ]
 
 for r in _ROUTERS:
