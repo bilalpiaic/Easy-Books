@@ -40,11 +40,12 @@ from db import engine, seed_data
 from models import (
     Account, AnalyticAccount, AuditLog, BankAccount, BomHeader, BomLine, Bill,
     BillLine, BillPayment, Budget, CreditNote, CreditNoteLine, Customer,
-    CustomerRatePlan, DeferredRevenueSchedule, DepreciationEntry, ExchangeRate,
-    FixedAsset, GRNLine, GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine,
+    CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
+    DeferredRevenueSchedule, DepreciationEntry, ExchangeRate, FixedAsset,
+    GRNLine, GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine,
     PaymentAllocation, PaymentReceived, PaymentTerm, Product, ProductionOrder,
     PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate,
-    SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor,
+    SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor, VendorAdvance,
 )
 from models_telecom import (
     FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
@@ -55,7 +56,10 @@ from services.franchise_posting import (
     post_commission_accrual, post_franchise_fee_amortisation,
     post_franchise_fee_capitalisation,
 )
-from services.inventory import consume_stock, record_movement, record_purchase
+from services.inventory import (
+    InventoryError, consume_stock, record_movement, record_purchase,
+    return_to_vendor, reverse_consumption,
+)
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services.tracker_posting import (
@@ -1672,6 +1676,268 @@ def _seed_deferred_revenue(s: Session, user: User, invoices: list, count: int = 
         ))
 
 
+# ── Returns & Advances (Sprint 13) ────────────────────────────────────────────
+
+
+def _seed_sales_returns(s: Session, user: User, invoices: list, count: int = 4) -> None:
+    """Credit-note a few invoices, restocking stock lines (sales return).
+
+    Distinct from `_seed_credit_notes` (financial-only CNs) — guarded by the
+    'Sales return' description so both coexist idempotently.
+    """
+    tid = user.tenant_id
+    if s.exec(
+        select(CreditNote).where(
+            CreditNote.tenant_id == tid, CreditNote.description == "Sales return"
+        )
+    ).first():
+        return
+    ar = _account(s, tid, "1100")
+    rev = _account(s, tid, "4000")
+    inv_acc = _account(s, tid, "1200") or _account(s, tid, "1202")
+    cogs_acc = _account(s, tid, "5010")
+    if not ar or not rev or not invoices:
+        return
+
+    sample = [inv for inv in invoices if inv.customer_id][:count]
+    for inv in sample:
+        lines = s.exec(select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)).all()
+        if not lines:
+            continue
+        ln = lines[0]
+        ret_qty = D(ln.qty) / D(2) if D(ln.qty) >= 2 else D(ln.qty)
+        if ret_qty <= 0:
+            continue
+        amt = money(ret_qty * D(ln.rate))
+        number = next_number(s, tid, "credit_note", "CN")
+        cn = CreditNote(
+            tenant_id=tid, number=number, invoice_id=inv.id, customer_id=inv.customer_id,
+            customer_name=inv.customer_name, issue_date=inv.issue_date,
+            description="Sales return", subtotal=amt, gst_amount=ZERO, total=amt,
+            currency=inv.currency, exchange_rate=D(inv.exchange_rate), status="posted",
+            ar_account_id=ar.id, revenue_account_id=rev.id,
+        )
+        s.add(cn); s.flush()
+        s.add(CreditNoteLine(
+            credit_note_id=cn.id, product_id=ln.product_id, description=ln.description,
+            qty=ret_qty, unit=ln.unit, rate=D(ln.rate), amount=amt,
+        ))
+        txn = post_transaction(
+            s, user, date=inv.issue_date, description=f"Credit Note {number}",
+            entries=[
+                EntryInput(account_id=rev.id, debit=amt),
+                EntryInput(account_id=ar.id, credit=amt),
+            ],
+            audit_entity_type="credit_note", audit_detail={"cn_number": number},
+        )
+        cn.transaction_id = txn.id
+        s.add(cn)
+        # Restock if the line is a stock product
+        if ln.product_id and inv_acc and cogs_acc:
+            prod = s.get(Product, ln.product_id)
+            if prod and prod.product_type == "stock":
+                cogs = money(ret_qty * D(prod.avg_cost))
+                if cogs > ZERO:
+                    reverse_consumption(s, tenant_id=tid, product_id=ln.product_id,
+                                        qty=ret_qty, cogs_total=cogs)
+                    post_transaction(
+                        s, user, date=inv.issue_date,
+                        description=f"Sales return restock for {number}",
+                        entries=[
+                            EntryInput(account_id=inv_acc.id, debit=cogs),
+                            EntryInput(account_id=cogs_acc.id, credit=cogs),
+                        ],
+                        audit_entity_type="credit_note",
+                        audit_detail={"cn_number": number, "cogs": str(cogs)},
+                    )
+
+
+def _seed_purchase_returns(s: Session, user: User, bills: list, count: int = 3) -> None:
+    """Debit-note a few stock bills (purchase return at original cost)."""
+    tid = user.tenant_id
+    if s.exec(select(DebitNote).where(DebitNote.tenant_id == tid)).first():
+        return
+    ap = _account(s, tid, "2000")
+    inv_acc = _account(s, tid, "1200") or _account(s, tid, "1202")
+    if not ap or not inv_acc or not bills:
+        return
+
+    done = 0
+    for bill in bills:
+        if done >= count:
+            break
+        lines = s.exec(select(BillLine).where(BillLine.bill_id == bill.id)).all()
+        stock_lines = []
+        for ln in lines:
+            if ln.product_id:
+                prod = s.get(Product, ln.product_id)
+                if prod and prod.product_type == "stock":
+                    stock_lines.append((ln, prod))
+        if not stock_lines:
+            continue
+
+        ln, prod = stock_lines[0]
+        ret_qty = D(ln.qty) / D(4) if D(ln.qty) >= 4 else D(1)
+        try:
+            cost_removed = return_to_vendor(
+                s, tenant_id=tid, product_id=ln.product_id, qty=ret_qty,
+                source_doc=bill.number,
+            )
+        except InventoryError:
+            continue
+        if cost_removed <= ZERO:
+            continue
+        number = next_number(s, tid, "debit_note", "DN")
+        dn = DebitNote(
+            tenant_id=tid, number=number, bill_id=bill.id, vendor_id=bill.vendor_id,
+            vendor_name=bill.vendor_name, issue_date=bill.bill_date,
+            description="Purchase return", subtotal=cost_removed, gst_amount=ZERO,
+            total=cost_removed, currency="USD", exchange_rate=D(1), status="posted",
+            ap_account_id=ap.id,
+        )
+        s.add(dn); s.flush()
+        s.add(DebitNoteLine(
+            debit_note_id=dn.id, product_id=ln.product_id, description=ln.description,
+            qty=ret_qty, unit=ln.unit, rate=D(ln.rate), amount=cost_removed,
+        ))
+        txn = post_transaction(
+            s, user, date=bill.bill_date,
+            description=f"Debit Note {number} (return vs {bill.number})",
+            entries=[
+                EntryInput(account_id=ap.id, debit=cost_removed),
+                EntryInput(account_id=inv_acc.id, credit=cost_removed),
+            ],
+            audit_entity_type="debit_note", audit_detail={"dn_number": number},
+        )
+        dn.transaction_id = txn.id
+        s.add(dn)
+        done += 1
+
+
+def _seed_customer_advances(s: Session, user: User, customers: list, invoices: list,
+                            count: int = 4) -> None:
+    """Record customer advances; partially apply some to invoices."""
+    tid = user.tenant_id
+    if s.exec(select(CustomerAdvance).where(CustomerAdvance.tenant_id == tid)).first():
+        return
+    bank = _account(s, tid, "1010") or _account(s, tid, "1000")
+    adv_acc = _account(s, tid, "2310")
+    ar = _account(s, tid, "1100")
+    if not bank or not adv_acc or not customers:
+        return
+
+    adv_dates = _spread_dates(count, days_ago=250, min_days_ago=10)
+    open_invoices = [i for i in invoices if i.customer_id]
+    for idx in range(min(count, len(customers))):
+        cust = customers[idx]
+        amount = money(D(random.randint(500, 3000)))
+        number = next_number(s, tid, "customer_advance", "CADV")
+        txn = post_transaction(
+            s, user, date=adv_dates[idx],
+            description=f"Customer advance {number} — {cust.name}",
+            entries=[
+                EntryInput(account_id=bank.id, debit=amount),
+                EntryInput(account_id=adv_acc.id, credit=amount),
+            ],
+            audit_entity_type="customer_advance", audit_detail={"number": number},
+        )
+        adv = CustomerAdvance(
+            tenant_id=tid, number=number, customer_id=cust.id, date=adv_dates[idx],
+            amount=amount, applied_amount=ZERO, cash_account_id=bank.id,
+            advance_account_id=adv_acc.id, transaction_id=txn.id, status="open",
+        )
+        s.add(adv); s.flush()
+        # Apply ~half to one of this customer's invoices, if any
+        target = next((i for i in open_invoices if i.customer_id == cust.id), None)
+        if target and ar:
+            apply_amt = money(min(amount / D(2), D(target.total)))
+            if apply_amt > ZERO:
+                ptxn = post_transaction(
+                    s, user, date=target.issue_date,
+                    description=f"Apply advance {number} to {target.number}",
+                    entries=[
+                        EntryInput(account_id=adv_acc.id, debit=apply_amt),
+                        EntryInput(account_id=ar.id, credit=apply_amt),
+                    ],
+                    audit_entity_type="payment_received",
+                    audit_detail={"advance": number, "invoice": target.number},
+                )
+                pmt = PaymentReceived(
+                    tenant_id=tid, invoice_id=target.id, customer_name=target.customer_name,
+                    payment_date=target.issue_date, amount=apply_amt, method="advance",
+                    reference=number, cash_account_id=adv_acc.id, transaction_id=ptxn.id,
+                )
+                s.add(pmt); s.flush()
+                s.add(PaymentAllocation(
+                    tenant_id=tid, payment_received_id=pmt.id, invoice_id=target.id,
+                    amount=apply_amt,
+                ))
+                adv.applied_amount = apply_amt
+                adv.status = "partial"
+                s.add(adv)
+
+
+def _seed_vendor_advances(s: Session, user: User, vendors: list, bills: list,
+                          count: int = 4) -> None:
+    """Record vendor advances; partially apply some to bills."""
+    tid = user.tenant_id
+    if s.exec(select(VendorAdvance).where(VendorAdvance.tenant_id == tid)).first():
+        return
+    bank = _account(s, tid, "1010") or _account(s, tid, "1000")
+    adv_acc = _account(s, tid, "1260")
+    ap = _account(s, tid, "2000")
+    if not bank or not adv_acc or not vendors:
+        return
+
+    adv_dates = _spread_dates(count, days_ago=250, min_days_ago=10)
+    for idx in range(min(count, len(vendors))):
+        vendor = vendors[idx]
+        amount = money(D(random.randint(500, 3000)))
+        number = next_number(s, tid, "vendor_advance", "VADV")
+        txn = post_transaction(
+            s, user, date=adv_dates[idx],
+            description=f"Vendor advance {number} — {vendor.name}",
+            entries=[
+                EntryInput(account_id=adv_acc.id, debit=amount),
+                EntryInput(account_id=bank.id, credit=amount),
+            ],
+            audit_entity_type="vendor_advance", audit_detail={"number": number},
+        )
+        adv = VendorAdvance(
+            tenant_id=tid, number=number, vendor_id=vendor.id, date=adv_dates[idx],
+            amount=amount, applied_amount=ZERO, cash_account_id=bank.id,
+            advance_account_id=adv_acc.id, transaction_id=txn.id, status="open",
+        )
+        s.add(adv); s.flush()
+        target = next((b for b in bills if b.vendor_id == vendor.id), None)
+        if target and ap:
+            apply_amt = money(min(amount / D(2), D(target.total)))
+            if apply_amt > ZERO:
+                ptxn = post_transaction(
+                    s, user, date=target.bill_date,
+                    description=f"Apply advance {number} to {target.number}",
+                    entries=[
+                        EntryInput(account_id=ap.id, debit=apply_amt),
+                        EntryInput(account_id=adv_acc.id, credit=apply_amt),
+                    ],
+                    audit_entity_type="bill_payment",
+                    audit_detail={"advance": number, "bill": target.number},
+                )
+                pmt = BillPayment(
+                    tenant_id=tid, bill_id=target.id, vendor_name=target.vendor_name,
+                    payment_date=target.bill_date, amount=apply_amt, method="advance",
+                    reference=number, cash_account_id=adv_acc.id, transaction_id=ptxn.id,
+                )
+                s.add(pmt); s.flush()
+                s.add(PaymentAllocation(
+                    tenant_id=tid, bill_payment_id=pmt.id, bill_id=target.id,
+                    amount=apply_amt,
+                ))
+                adv.applied_amount = apply_amt
+                adv.status = "partial"
+                s.add(adv)
+
+
 # ── Driver ────────────────────────────────────────────────────────────────────
 
 
@@ -1740,6 +2006,15 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             _seed_deferred_revenue(s, user, invoices)
             s.commit()
 
+        # ── Returns & Advances (Sprint 13) ──
+        _seed_sales_returns(s, user, invoices)
+        s.commit()
+        _seed_purchase_returns(s, user, bills)
+        s.commit()
+        _seed_customer_advances(s, user, customers, invoices)
+        _seed_vendor_advances(s, user, vendors, bills)
+        s.commit()
+
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
             s.commit()
@@ -1771,6 +2046,9 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             "purchase_orders": len(s.exec(select(PurchaseOrder).where(PurchaseOrder.tenant_id == tenant_id)).all()),
             "analytic_accounts": len(s.exec(select(AnalyticAccount).where(AnalyticAccount.tenant_id == tenant_id)).all()),
             "deferred_schedules": len(s.exec(select(DeferredRevenueSchedule).where(DeferredRevenueSchedule.tenant_id == tenant_id)).all()),
+            "debit_notes": len(s.exec(select(DebitNote).where(DebitNote.tenant_id == tenant_id)).all()),
+            "customer_advances": len(s.exec(select(CustomerAdvance).where(CustomerAdvance.tenant_id == tenant_id)).all()),
+            "vendor_advances": len(s.exec(select(VendorAdvance).where(VendorAdvance.tenant_id == tenant_id)).all()),
         }
 
 
