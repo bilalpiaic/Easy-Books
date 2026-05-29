@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle for local/on-premise packaging (Phase 0).
+  output: "standalone",
   turbopack: {
     root: __dirname,
   },
