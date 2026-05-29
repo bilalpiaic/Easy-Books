@@ -5,6 +5,7 @@ re-trigger import-time behaviour. They restore baseline module state at the
 end so the file is order-independent regardless of which test runs next.
 """
 import importlib
+import os
 
 
 def _restore_baseline():
@@ -26,7 +27,11 @@ def test_secret_is_persisted_per_install(tmp_path, monkeypatch):
     importlib.reload(auth)
     key1 = auth.SECRET_KEY
     assert key1 and key1 != "super-secret-key-change-in-prod"
-    assert (tmp_path / ".secret.key").exists()
+    key_file = tmp_path / ".secret.key"
+    assert key_file.exists()
+    if os.name == "posix":
+        import stat
+        assert stat.S_IMODE(key_file.stat().st_mode) == 0o600
     # Reload again → same persisted key (tokens survive restarts)
     importlib.reload(auth)
     assert auth.SECRET_KEY == key1
