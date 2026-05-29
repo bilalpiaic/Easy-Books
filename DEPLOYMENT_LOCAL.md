@@ -52,6 +52,23 @@ entirely). A small launcher starts it and opens the default browser.
 - **Cons:** "open your browser to localhost" is less polished; static-export route refactor is real work.
 - **Effort:** Low–Medium. **Best for a v1/pilot or technically comfortable users.**
 
+#### Zero-to-running in one line (clones the repo for you)
+For a brand-new PC where the user hasn't even cloned the repo, `bootstrap` clones it (to
+`~/Easy-Books` / `%USERPROFILE%\Easy-Books`, overridable) and then runs the installer:
+
+- **macOS / Linux** (Terminal):
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/bilalpiaic/Easy-Books/main/bootstrap.sh | bash
+  ```
+  Custom location: `curl -fsSL …/bootstrap.sh | bash -s -- /path/to/folder` (or set `EB_INSTALL_DIR`).
+- **Windows** — double-click **`bootstrap.bat`** (download just that one file), or in PowerShell:
+  ```powershell
+  irm https://raw.githubusercontent.com/bilalpiaic/Easy-Books/main/bootstrap.ps1 | iex
+  ```
+
+`bootstrap` uses **git clone** when git is present, and falls back to downloading the source ZIP when
+it isn't — then hands off to the one-click installer below. Re-running updates the copy (`git pull`).
+
 #### One-click install & run (recommended — auto-installs prerequisites)
 The repo ships a bootstrap that **installs everything it needs and launches the app** — the user does
 not need Python or Node pre-installed (one-time internet connection required to fetch them):
