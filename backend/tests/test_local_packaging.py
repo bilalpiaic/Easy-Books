@@ -16,3 +16,19 @@ def test_secret_is_persisted_per_install(tmp_path, monkeypatch):
     # Reload again → same persisted key (tokens survive restarts)
     importlib.reload(auth)
     assert auth.SECRET_KEY == key1
+
+
+def test_seed_demo_off_creates_no_demo_users(tmp_path, monkeypatch):
+    monkeypatch.setenv("EB_DATA_DIR", str(tmp_path / "x"))
+    monkeypatch.setenv("SEED_DEMO", "false")
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    import local_config, db as dbmod
+    importlib.reload(local_config)
+    importlib.reload(dbmod)
+    dbmod.create_db_and_tables()
+    from sqlmodel import Session, select
+    from models import User
+    with Session(dbmod.engine) as s:
+        demos = s.exec(select(User).where(User.email.like("demo.%"))).all()
+    assert demos == []

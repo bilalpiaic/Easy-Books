@@ -69,35 +69,37 @@ def create_db_and_tables():
                 session.add(admin_user)
                 session.commit()
 
-        # Seed 4 demo tenants with pre-loaded data
-        demo_configs = [
-            ("demo.simple@easy-books.app", "simple", "Demo - Simple", "Demo User"),
-            ("demo.services@easy-books.app", "services", "Demo - Services", "Demo User"),
-            ("demo.trader@easy-books.app", "trader", "Demo - Trader", "Demo User"),
-            ("demo.manufacturing@easy-books.app", "manufacturing", "Demo - Manufacturing", "Demo User"),
-            ("demo.telecom@easy-books.app", "telecom_franchise", "Demo - Telecom Franchise", "Demo User"),
-        ]
-        demo_password_hash = get_password_hash("demo1234")
+        # Demo tenants are for the hosted demo only. Packaged/local installs set
+        # SEED_DEMO=false and start empty (the first signup creates the owner).
+        if os.environ.get("SEED_DEMO", "true").lower() == "true":
+            demo_configs = [
+                ("demo.simple@easy-books.app", "simple", "Demo - Simple", "Demo User"),
+                ("demo.services@easy-books.app", "services", "Demo - Services", "Demo User"),
+                ("demo.trader@easy-books.app", "trader", "Demo - Trader", "Demo User"),
+                ("demo.manufacturing@easy-books.app", "manufacturing", "Demo - Manufacturing", "Demo User"),
+                ("demo.telecom@easy-books.app", "telecom_franchise", "Demo - Telecom Franchise", "Demo User"),
+            ]
+            demo_password_hash = get_password_hash("demo1234")
 
-        for email, model, company, full_name in demo_configs:
-            demo_user = session.exec(select(User).where(User.email == email)).first()
-            if not demo_user:
-                demo_tenant = Tenant(name=company, business_model=model)
-                session.add(demo_tenant)
-                session.commit()
-                session.refresh(demo_tenant)
+            for email, model, company, full_name in demo_configs:
+                demo_user = session.exec(select(User).where(User.email == email)).first()
+                if not demo_user:
+                    demo_tenant = Tenant(name=company, business_model=model)
+                    session.add(demo_tenant)
+                    session.commit()
+                    session.refresh(demo_tenant)
 
-                seed_data(demo_tenant.id, session=session)
+                    seed_data(demo_tenant.id, session=session)
 
-                demo_user = User(
-                    email=email,
-                    hashed_password=demo_password_hash,
-                    full_name=full_name,
-                    tenant_id=demo_tenant.id,
-                    role="owner",
-                )
-                session.add(demo_user)
-                session.commit()
+                    demo_user = User(
+                        email=email,
+                        hashed_password=demo_password_hash,
+                        full_name=full_name,
+                        tenant_id=demo_tenant.id,
+                        role="owner",
+                    )
+                    session.add(demo_user)
+                    session.commit()
 
 def get_session():
     with Session(engine) as session:
