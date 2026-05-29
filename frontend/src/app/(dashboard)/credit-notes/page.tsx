@@ -18,6 +18,7 @@ interface CreditNote {
 
 interface Customer { id: number; name: string }
 interface Invoice { id: number; number: string; total: number }
+interface Product { id: number; name: string; product_type: string }
 
 interface CNForm {
   invoice_id: string
@@ -25,7 +26,8 @@ interface CNForm {
   customer_name: string
   issue_date: string
   description: string
-  lines: Array<{ description: string; qty: string; rate: string }>
+  gst_amount: string
+  lines: Array<{ product_id: string; description: string; qty: string; rate: string }>
 }
 
 const emptyForm: CNForm = {
@@ -34,7 +36,8 @@ const emptyForm: CNForm = {
   customer_name: '',
   issue_date: new Date().toISOString().split('T')[0],
   description: '',
-  lines: [{ description: '', qty: '1', rate: '0' }],
+  gst_amount: '0',
+  lines: [{ product_id: '', description: '', qty: '1', rate: '0' }],
 }
 
 const statusColors: Record<string, string> = {
@@ -53,6 +56,7 @@ export default function CreditNotesPage() {
   const [form, setForm] = useState<CNForm>(emptyForm)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
@@ -68,17 +72,19 @@ export default function CreditNotesPage() {
   async function openModal() {
     setForm(emptyForm)
     setFormError('')
-    const [custData, invData] = await Promise.all([
+    const [custData, invData, prodData] = await Promise.all([
       apiFetch<{ items: Customer[] }>('/api/customers?limit=200'),
       apiFetch<{ items: Invoice[] }>('/api/invoices?limit=200&status=posted,partial,sent'),
+      apiFetch<{ items: Product[] }>('/api/products?limit=200'),
     ])
     setCustomers(custData.items ?? [])
     setInvoices(invData.items ?? [])
+    setProducts(prodData.items ?? [])
     setModalOpen(true)
   }
 
   function addLine() {
-    setForm(f => ({ ...f, lines: [...f.lines, { description: '', qty: '1', rate: '0' }] }))
+    setForm(f => ({ ...f, lines: [...f.lines, { product_id: '', description: '', qty: '1', rate: '0' }] }))
   }
 
   function removeLine(i: number) {
@@ -111,7 +117,9 @@ export default function CreditNotesPage() {
           customer_name: form.customer_name || null,
           issue_date: form.issue_date,
           description: form.description || null,
+          gst_amount: parseFloat(form.gst_amount) || 0,
           lines: form.lines.map(l => ({
+            product_id: l.product_id ? parseInt(l.product_id) : null,
             description: l.description,
             qty: parseFloat(l.qty) || 1,
             rate: parseFloat(l.rate) || 0,
@@ -223,18 +231,30 @@ export default function CreditNotesPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Lines</label>
+                <p className="text-[10px] text-black/40 mb-2">Pick a stock product to also restock inventory + reverse COGS (sales return).</p>
                 <div className="space-y-2">
                   {form.lines.map((l, i) => (
                     <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <select value={l.product_id}
+                        onChange={e => {
+                          const pid = e.target.value
+                          const p = products.find(x => String(x.id) === pid)
+                          updateLine(i, 'product_id', pid)
+                          if (p && !form.lines[i].description) updateLine(i, 'description', p.name)
+                        }}
+                        className="col-span-3 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-xs outline-none focus:ring-1 focus:ring-[#b8943f]">
+                        <option value="">(no product)</option>
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.product_type === 'stock' ? ' ⬡' : ''}</option>)}
+                      </select>
                       <input value={l.description} onChange={e => updateLine(i, 'description', e.target.value)}
                         placeholder="Description"
-                        className="col-span-6 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm outline-none focus:ring-1 focus:ring-[#b8943f]" />
+                        className="col-span-4 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm outline-none focus:ring-1 focus:ring-[#b8943f]" />
                       <input type="number" value={l.qty} onChange={e => updateLine(i, 'qty', e.target.value)}
                         placeholder="Qty" min="0"
                         className="col-span-2 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[#b8943f]" />
                       <input type="number" value={l.rate} onChange={e => updateLine(i, 'rate', e.target.value)}
                         placeholder="Rate" min="0"
-                        className="col-span-3 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[#b8943f]" />
+                        className="col-span-2 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[#b8943f]" />
                       <button onClick={() => removeLine(i)} disabled={form.lines.length === 1}
                         className="col-span-1 text-red-400 hover:text-red-600 disabled:opacity-20 text-lg leading-none">×</button>
                     </div>
@@ -242,12 +262,19 @@ export default function CreditNotesPage() {
                 </div>
                 <button onClick={addLine} className="mt-2 text-xs text-[#b8943f] underline">+ Add line</button>
               </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">GST to reverse</label>
+                <input type="number" min="0" value={form.gst_amount}
+                  onChange={e => setForm(f => ({ ...f, gst_amount: e.target.value }))}
+                  className="w-32 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[#b8943f]" />
+                <span className="text-[10px] text-black/40">optional — reverses output GST on a sales return</span>
+              </div>
               <div className="flex justify-between font-bold text-sm border-t border-[#ede9e2] pt-3">
                 <span>Total Credit</span>
-                <span className="font-mono text-red-600">({fmt(subtotal)})</span>
+                <span className="font-mono text-red-600">({fmt(subtotal + (parseFloat(form.gst_amount) || 0))})</span>
               </div>
               <p className="text-xs text-black/40 italic">
-                GL: Dr Sales Revenue / Cr Accounts Receivable — reduces both revenue and AR.
+                GL: Dr Sales Revenue (+ Dr GST Payable) / Cr Accounts Receivable. Stock lines also Dr Inventory / Cr COGS and restock.
               </p>
               {formError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>}
               <button onClick={handleSave} disabled={saving}

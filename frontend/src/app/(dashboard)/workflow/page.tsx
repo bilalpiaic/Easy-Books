@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 
 type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
@@ -844,6 +844,50 @@ function DeferredRevenueFlow() {
   )
 }
 
+function PurchaseReturnFlow() {
+  return (
+    <div className="min-w-[480px]">
+      <HFlow>
+        <StepBox title="Return goods" impact="Select vendor + original bill" accent="gold" />
+        <Arrow />
+        <StepBox title="Debit Note (DN-)" impact="Returned qty per line" accent="blue" />
+        <Arrow />
+        <StepBox title="Reduce stock" gl="at original layer cost" impact="Product.stock_qty falls" accent="orange" />
+        <Arrow />
+        <StepBox title="Post GL" gl="Dr 2000 AP / Cr 1200 Inv (+ Cr 1250 GST)" impact="Payable + inventory fall" accent="green" />
+      </HFlow>
+    </div>
+  )
+}
+
+function CustomerAdvanceFlow() {
+  return (
+    <div className="min-w-[480px]">
+      <HFlow>
+        <StepBox title="Receive advance" gl="Dr Bank / Cr 2310 Customer Advances" impact="Prepayment (liability)" accent="gold" />
+        <Arrow />
+        <StepBox title="Invoice later" impact="Normal AR invoice" accent="blue" />
+        <Arrow />
+        <StepBox title="Apply advance" gl="Dr 2310 / Cr 1100 AR" impact="Invoice settled" accent="green" />
+      </HFlow>
+    </div>
+  )
+}
+
+function VendorAdvanceFlow() {
+  return (
+    <div className="min-w-[480px]">
+      <HFlow>
+        <StepBox title="Pay advance" gl="Dr 1260 Advances to Vendors / Cr Bank" impact="Prepayment (asset)" accent="gold" />
+        <Arrow />
+        <StepBox title="Bill later" impact="Normal AP bill" accent="blue" />
+        <Arrow />
+        <StepBox title="Apply advance" gl="Dr 2000 AP / Cr 1260" impact="Bill settled" accent="green" />
+      </HFlow>
+    </div>
+  )
+}
+
 export default function WorkflowPage() {
   const handlePrint = () => window.print()
   const [businessModel, setBusinessModel] = useState<BusinessModel | null>(null)
@@ -1060,6 +1104,38 @@ export default function WorkflowPage() {
           <DeferredRevenueFlow />
         </SectionCard>
       )}
+
+      {/* 17 — Purchase Return (inventory models) */}
+      {isInventory && (
+        <SectionCard
+          icon={Undo2}
+          title="Purchase Return (Debit Note)"
+          subtitle="Return goods to a vendor at original cost (IAS 2.11)"
+          iconColor="text-orange-600"
+        >
+          <PurchaseReturnFlow />
+        </SectionCard>
+      )}
+
+      {/* 18 — Customer Advance (all models) */}
+      <SectionCard
+        icon={Wallet}
+        title="Customer Advance"
+        subtitle="Prepayment received, applied to an invoice later"
+        iconColor="text-green-600"
+      >
+        <CustomerAdvanceFlow />
+      </SectionCard>
+
+      {/* 19 — Vendor Advance (all models) */}
+      <SectionCard
+        icon={Wallet}
+        title="Vendor Advance"
+        subtitle="Prepayment paid, applied to a bill later"
+        iconColor="text-orange-600"
+      >
+        <VendorAdvanceFlow />
+      </SectionCard>
 
       {/* Footer note */}
       <div className="bg-[#f6f3ee] border border-[#ede9e2] rounded-xl px-5 py-4 text-xs text-[#1a1814]/60 leading-relaxed print:hidden">

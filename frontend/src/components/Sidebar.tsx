@@ -10,7 +10,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, ShoppingCart, Tag, DollarSign,
+  Building2, ShoppingCart, Tag, DollarSign, Undo2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -37,7 +37,9 @@ const NAV: NavItem[] = [
   { label: "Credit Notes",     href: "/credit-notes",      icon: Receipt,          section: "Receivable" },
   { label: "Customers",        href: "/customers",         icon: Users,            section: "Receivable" },
   { label: "Payments Received",href: "/payments-received", icon: ArrowDownLeft,    section: "Receivable" },
+  { label: "Advances Received",href: "/advances",          icon: Wallet,           section: "Receivable" },
   { label: "Bills",            href: "/bills",             icon: Receipt,          section: "Payable" },
+  { label: "Debit Notes",      href: "/debit-notes",       icon: Undo2,            section: "Payable" },
   { label: "Vendors",          href: "/vendors",           icon: Truck,            section: "Payable" },
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
   { label: "Products",         href: "/products",          icon: Package,          section: "Payable" },

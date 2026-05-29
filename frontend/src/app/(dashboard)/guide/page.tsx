@@ -33,7 +33,9 @@ const TABS: Tab[] = [
   { id: "coa",              label: "Chart of Accounts",      icon: BarChart3,       shortLabel: "COA"      },
   { id: "invoicing",        label: "Invoicing",              icon: FileSignature,   shortLabel: "Invoices" },
   { id: "billing",          label: "Billing",                icon: Receipt,         shortLabel: "Bills"    },
-  { id: "credit-notes",     label: "Credit Notes",           icon: Receipt,         shortLabel: "Credits"  },
+  { id: "credit-notes",     label: "Credit Notes / Sales Returns", icon: Receipt,   shortLabel: "Credits"  },
+  { id: "debit-notes",      label: "Purchase Returns",       icon: Receipt,         shortLabel: "Returns",  forModels: INVENTORY_MODELS },
+  { id: "advances",         label: "Advances",               icon: TrendingUp,      shortLabel: "Advances" },
   { id: "products",         label: "Products & Inventory",   icon: Package,         shortLabel: "Products", forModels: INVENTORY_MODELS },
   { id: "purchase-orders",  label: "Purchase Orders",        icon: ListChecks,      shortLabel: "PO",       forModels: INVENTORY_MODELS },
   { id: "payments",         label: "Payments & Allocations", icon: CheckCircle,     shortLabel: "Pay"      },
@@ -1627,6 +1629,63 @@ function TipsShortcutsPanel() {
   )
 }
 
+// ── Returns & Advances panels (Sprint 13) ────────────────────────────────────
+
+function DebitNotesPanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>Purchase Returns (Debit Notes)</SectionHeading>
+      <p>
+        When you return goods to a vendor, a Debit Note reverses the purchase: it reduces what you owe
+        the vendor and removes the stock at its original cost (<strong>IAS 2.11</strong>).
+      </p>
+      <StepList steps={[
+        "Go to Debit Notes (Payable section) → New Debit Note",
+        "Select the vendor, then the original bill the goods came from",
+        "Enter the returned quantity per line (and any GST to reverse)",
+        "Post — a DN-NNNN is created and the GL posts automatically",
+      ]} />
+      <SectionHeading>GL Posting</SectionHeading>
+      <p>
+        Dr <CodeBadge>2000 Accounts Payable</CodeBadge> / Cr <CodeBadge>1200 Inventory</CodeBadge>
+        (at the original layer cost) + Cr <CodeBadge>1250 GST Input</CodeBadge>. Stock quantity drops
+        by the returned amount.
+      </p>
+      <TipCallout>
+        The return draws from the original bill&apos;s inventory layer, so it must still hold enough
+        un-sold quantity — otherwise the post is rejected with a clear message.
+      </TipCallout>
+    </div>
+  )
+}
+
+function AdvancesPanel() {
+  return (
+    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+      <SectionHeading>Customer & Vendor Advances</SectionHeading>
+      <p>
+        Advances are prepayments — cash that moves before an invoice or bill exists. Record the advance,
+        then apply it against a document later; the application settles the invoice/bill through the
+        normal payment-allocation flow.
+      </p>
+      <SectionHeading>From Customers (prepayment received)</SectionHeading>
+      <StepList steps={[
+        "Advances → From Customers → Record Customer Advance (Dr Bank / Cr 2310 Customer Advances)",
+        "Later, click Apply to invoice — Dr 2310 / Cr Accounts Receivable settles the invoice",
+      ]} />
+      <SectionHeading>To Vendors (prepayment paid)</SectionHeading>
+      <StepList steps={[
+        "Advances → To Vendors → Record Vendor Advance (Dr 1260 Advances to Vendors / Cr Bank)",
+        "Later, click Apply to bill — Dr Accounts Payable / Cr 1260 settles the bill",
+      ]} />
+      <TipCallout>
+        Each advance tracks its remaining balance, so you can apply it across several documents until
+        it is fully used.
+      </TipCallout>
+    </div>
+  )
+}
+
 // ── New-module panels (Sprint 7–12 improvement roadmap) ──────────────────────
 
 function CreditNotesPanel() {
@@ -1773,6 +1832,8 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "invoicing":       <InvoicingPanel />,
   "billing":         <BillingPanel />,
   "credit-notes":    <CreditNotesPanel />,
+  "debit-notes":     <DebitNotesPanel />,
+  "advances":        <AdvancesPanel />,
   "products":        <ProductsPanel />,
   "purchase-orders": <PurchaseOrdersPanel />,
   "payments":        <PaymentsPanel />,
