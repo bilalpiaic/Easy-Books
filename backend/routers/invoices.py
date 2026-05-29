@@ -581,6 +581,7 @@ def update_invoice_status(
 
 def _send_invoice_notification(session, inv: Invoice) -> None:
     """Email the customer a notification when an invoice is sent."""
+    import html
     from services.email import send_email
     # Check email_notifications setting
     settings_rows = session.exec(
@@ -595,15 +596,22 @@ def _send_invoice_notification(session, inv: Invoice) -> None:
     if not cust or not getattr(cust, "email", None):
         return
     company = settings_map.get("company_name", "Your supplier")
+    # Escape every interpolated value — these are tenant/customer-controlled
+    # strings going into an HTML email body (XSS / HTML-injection guard).
+    name_s = html.escape(cust.name or "")
+    number_s = html.escape(inv.number)
+    currency_s = html.escape(inv.currency or "")
+    due_s = html.escape(inv.due_date or "")
+    company_s = html.escape(company)
     send_email(
         to=cust.email,
-        subject=f"Invoice {inv.number} from {company}",
+        subject=f"Invoice {number_s} from {company_s}",
         html_body=(
-            f"<p>Dear {cust.name},</p>"
-            f"<p>Please find invoice <strong>{inv.number}</strong> for "
-            f"{inv.currency} {float(inv.total):,.2f} due by {inv.due_date}.</p>"
+            f"<p>Dear {name_s},</p>"
+            f"<p>Please find invoice <strong>{number_s}</strong> for "
+            f"{currency_s} {float(inv.total):,.2f} due by {due_s}.</p>"
             f"<p>Thank you for your business.</p>"
-            f"<p><em>{company}</em></p>"
+            f"<p><em>{company_s}</em></p>"
         ),
     )
 

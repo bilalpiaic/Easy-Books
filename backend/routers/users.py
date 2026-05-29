@@ -252,18 +252,23 @@ def create_invite(data: InviteCreate, session: SessionDep, actor: AdminUserDep):
     session.refresh(invite)
 
     # Send invite email if SMTP is configured
+    import html
     from services.email import send_email
     frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
     invite_url = f"{frontend_origin}/accept-invite?token={token}"
     tenant = session.get(Tenant, actor.tenant_id)
     company = tenant.name if tenant else "Easy-Books"
+    # Escape interpolated values before building the HTML email body.
+    company_s = html.escape(company)
+    role_s = html.escape(data.role)
+    url_s = html.escape(invite_url, quote=True)
     send_email(
         to=email,
-        subject=f"You're invited to join {company} on Easy-Books",
+        subject=f"You're invited to join {company_s} on Easy-Books",
         html_body=(
             f"<p>Hi,</p>"
-            f"<p>You've been invited to join <strong>{company}</strong> on Easy-Books as {data.role}.</p>"
-            f"<p><a href='{invite_url}'>Accept your invitation</a></p>"
+            f"<p>You've been invited to join <strong>{company_s}</strong> on Easy-Books as {role_s}.</p>"
+            f"<p><a href='{url_s}'>Accept your invitation</a></p>"
             f"<p>This link expires in {_INVITE_TTL_DAYS} days.</p>"
         ),
     )
