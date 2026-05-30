@@ -65,6 +65,7 @@ if ($Rebuild -or -not (Test-Path $server)) {
 # --- 5. Launch (both servers, localhost only) --------------------------------
 if (-not $env:EB_DATA_DIR) { $env:EB_DATA_DIR = Join-Path $env:USERPROFILE '.easy-books' }
 if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'true' }    # seed demo tenants so the advertised demo logins work (override with SEED_DEMO=false for an empty start)
+if (-not $env:FRONTEND_ORIGIN) { $env:FRONTEND_ORIGIN = 'http://localhost:3000,http://127.0.0.1:3000' }  # allow both hosts so the browser is not CORS-blocked
 if (-not $env:APP_ENV)     { $env:APP_ENV     = 'local' }
 New-Item -ItemType Directory -Force -Path $env:EB_DATA_DIR | Out-Null
 
