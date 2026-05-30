@@ -158,3 +158,55 @@ the others rather than replacing them. **Effort:** Low.
 
 > The architecture is already ~80% local-ready: the frontend never does server-side data fetching and
 > SQLite is a first-class backend. The highest-leverage early decision is **Node-or-no-Node**.
+
+---
+
+## Phase 2 — Bundled Desktop Installer (build & release)
+
+Phase 2 packages Path A as a **double-click installer** (Windows `.exe`/NSIS, macOS `.dmg`)
+that bundles every runtime — the end user installs like any app, with **no Python, Node, git,
+internet-to-fetch-source, or terminal**. An **Electron** shell supervises two bundled sidecars:
+the FastAPI backend as a **PyInstaller** one-dir binary and the **Next.js `standalone`** server
+run by a **bundled Node**, both on `127.0.0.1`. On launch the shell sets `EB_DATA_DIR` to the
+per-user OS app-data dir and runs **`alembic upgrade head`** so user data migrates safely across
+versions (unlike dev's `create_all`, this delivers new *columns* to upgraded installs).
+
+### What ships in the repo (OS-agnostic, Tasks 1–4 — done)
+| File | Role |
+|---|---|
+| `backend/run_packaged.py` | Packaged entrypoint: `alembic upgrade head` → serve uvicorn on 127.0.0.1:8000 |
+| `backend/easybooks-backend.spec` | PyInstaller one-dir spec (ships `alembic.ini` + `alembic/` + `templates/` as data) |
+| `desktop/main.js` | Electron main: spawn + health-wait + supervise sidecars; sets `EB_DATA_DIR`, `SEED_DEMO=false` |
+| `desktop/preload.js` | Hardened preload (contextIsolation, no node in renderer) |
+| `desktop/package.json` | Electron + electron-builder + electron-updater; `dist` → `electron-builder.yml` |
+| `desktop/scripts/prepare-resources.sh` / `.ps1` | Build backend + Next standalone + fetch portable Node → stage `desktop/resources/{backend,frontend,node}` |
+
+Verified on Linux: the PyInstaller bundle boots, runs the full migration chain from an empty DB,
+and serves `GET /docs → 200`. Build artifacts (`backend/build`, `backend/dist`, `desktop/resources`,
+`desktop/dist`, `desktop/node_modules`) are gitignored.
+
+### Building the installers (Tasks 5–9 — on the target OS)
+electron-builder does **not** cross-compile signed installers, so each installer is built on its
+own OS. Prerequisites per build host: Node + Python/`uv`; macOS also needs Xcode Command-Line Tools.
+
+```bash
+# Windows build host → dist/Easy-Books Setup <ver>.exe
+./desktop/scripts/prepare-resources.ps1 ; cd desktop && npm install && npm run dist
+
+# macOS build host → dist/Easy-Books-<ver>.dmg
+./desktop/scripts/prepare-resources.sh  ; cd desktop && npm install && npm run dist
+```
+
+`npm run dist` reads `desktop/electron-builder.yml` (Task 5): NSIS for Windows, dmg for macOS,
+`extraResources` copying `resources/{backend,frontend,node}`, and a GitHub `publish` feed.
+
+### Code signing & notarization (certs are external — never commit them)
+Supply credentials via environment variables on the build host only:
+- **Windows:** `CSC_LINK` (path or base64 of the `.pfx`) + `CSC_KEY_PASSWORD` → electron-builder signs the NSIS installer.
+- **macOS:** `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID`, with `notarize: true`, plus a Developer ID Application cert in the keychain → electron-builder notarizes and staples during `dist`.
+
+### Release & auto-update
+Publish the installers to GitHub Releases; electron-builder uploads the `latest.yml` /
+`latest-mac.yml` feeds that `electron-updater` (`autoUpdater.checkForUpdatesAndNotify()`) reads on
+next launch. **Upgrade guarantee:** installing a newer version over an older one re-runs
+`alembic upgrade head` on launch, preserving the user's `EB_DATA_DIR` data.
