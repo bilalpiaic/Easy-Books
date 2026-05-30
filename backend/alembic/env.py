@@ -23,7 +23,12 @@ config = context.config
 
 # Resolve DATABASE_URL the same way db.py does — including the Heroku-style
 # `postgres://` → `postgresql://` rewrite that some Postgres providers still emit.
-db_url = os.environ.get("DATABASE_URL") or "sqlite:///database.db"
+db_url = os.environ.get("DATABASE_URL")
+if not db_url:
+    # No DATABASE_URL → SQLite. Target the SAME path the app uses (honours
+    # EB_DATA_DIR for local/packaged installs) instead of a stray cwd file.
+    from local_config import sqlite_path
+    db_url = f"sqlite:///{sqlite_path()}"
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 config.set_main_option("sqlalchemy.url", db_url)

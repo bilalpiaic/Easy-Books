@@ -32,3 +32,7 @@ frontend/.env.local
 .DS_Store
 *.log
 .node/
+
+# Per-install JWT secret — generated per machine, never commit
+.secret.key
+backend/.secret.key
