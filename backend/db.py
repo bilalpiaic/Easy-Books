@@ -80,6 +80,7 @@ def create_db_and_tables():
                 ("demo.telecom@easy-books.app", "telecom_franchise", "Demo - Telecom Franchise", "Demo User"),
             ]
             demo_password_hash = get_password_hash("demo1234")
+            created = 0
 
             for email, model, company, full_name in demo_configs:
                 demo_user = session.exec(select(User).where(User.email == email)).first()
@@ -100,6 +101,24 @@ def create_db_and_tables():
                     )
                     session.add(demo_user)
                     session.commit()
+                    created += 1
+
+            total = len(
+                session.exec(
+                    select(User).where(User.email.in_([c[0] for c in demo_configs]))
+                ).all()
+            )
+            print(
+                f"[seed] SEED_DEMO=true: {created} demo account(s) created this boot, "
+                f"{total} present (login demo.simple@easy-books.app / demo1234)",
+                flush=True,
+            )
+        else:
+            print(
+                "[seed] SEED_DEMO=false: starting empty "
+                "(no demo accounts; the first signup becomes the owner)",
+                flush=True,
+            )
 
 def get_session():
     with Session(engine) as session:

@@ -71,6 +71,12 @@ export SEED_DEMO="${SEED_DEMO:-true}"      # seed demo tenants so the advertised
 export APP_ENV="${APP_ENV:-local}"
 mkdir -p "$EB_DATA_DIR"
 
+# Free ports from any previous run so the fresh backend (with seeding) binds.
+for port in 8000 3000; do
+  pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
+  [ -n "$pids" ] && kill $pids 2>/dev/null || true
+done
+
 log "Starting Easy-Books — data folder: $EB_DATA_DIR"
 ( cd backend && PYTHONPATH=. uv run uvicorn main:app --host 127.0.0.1 --port 8000 ) &
 BACK=$!

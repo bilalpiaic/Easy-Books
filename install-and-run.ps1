@@ -68,16 +68,33 @@ if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'true' }    # seed demo tenants 
 if (-not $env:APP_ENV)     { $env:APP_ENV     = 'local' }
 New-Item -ItemType Directory -Force -Path $env:EB_DATA_DIR | Out-Null
 
+# Free ports from any previous run so the fresh backend (with seeding) actually binds.
+foreach ($port in 8000, 3000) {
+  try {
+    Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
+      ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+  } catch { }
+}
+
 Log "Starting Easy-Books - data folder: $env:EB_DATA_DIR"
+$backLog = Join-Path $env:EB_DATA_DIR 'backend.log'
+$backErr = Join-Path $env:EB_DATA_DIR 'backend.err.log'
 $back = Start-Process -PassThru -WindowStyle Hidden -WorkingDirectory (Join-Path $Root 'backend') `
-  -FilePath 'cmd.exe' -ArgumentList '/c','set "PYTHONPATH=." && uv run uvicorn main:app --host 127.0.0.1 --port 8000'
+  -FilePath 'cmd.exe' -ArgumentList '/c','set "PYTHONPATH=." && uv run uvicorn main:app --host 127.0.0.1 --port 8000' `
+  -RedirectStandardOutput $backLog -RedirectStandardError $backErr
 
 # Child inherits these (PowerShell 5.1 has no Start-Process -Environment).
 $env:PORT = '3000'; $env:HOSTNAME = '127.0.0.1'
 $front = Start-Process -PassThru -WindowStyle Hidden -WorkingDirectory (Join-Path $Root 'frontend') `
   -FilePath $NodeExe -ArgumentList '.next\standalone\server.js'
 
-Start-Sleep -Seconds 4
+Start-Sleep -Seconds 6
+foreach ($f in $backLog, $backErr) {
+  if (Test-Path $f) {
+    Get-Content $f | Select-String -SimpleMatch '[seed]' | Select-Object -Last 1 |
+      ForEach-Object { Write-Host $_.Line -ForegroundColor Cyan }
+  }
+}
 Start-Process 'http://127.0.0.1:3000'
 Write-Host "`nEasy-Books is running at  http://127.0.0.1:3000   (close this window to stop)" -ForegroundColor Green
 try { Wait-Process -Id $back.Id, $front.Id }
