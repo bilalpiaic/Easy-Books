@@ -36,3 +36,10 @@ frontend/.env.local
 # Per-install JWT secret — generated per machine, never commit
 .secret.key
 backend/.secret.key
+
+# Desktop packaging (Phase 2) — build artifacts
+backend/build/
+backend/dist/
+desktop/resources/
+desktop/dist/
+desktop/node_modules/
