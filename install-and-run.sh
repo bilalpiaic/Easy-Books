@@ -67,7 +67,7 @@ fi
 
 # ── 5. Launch (both servers, localhost only) ──────────────────────────────────
 export EB_DATA_DIR="${EB_DATA_DIR:-$HOME/.easy-books}"
-export SEED_DEMO="${SEED_DEMO:-false}"     # fresh install boots empty
+export SEED_DEMO="${SEED_DEMO:-true}"      # seed demo tenants so the advertised demo logins work (override with SEED_DEMO=false for an empty start)
 export APP_ENV="${APP_ENV:-local}"
 mkdir -p "$EB_DATA_DIR"
 
