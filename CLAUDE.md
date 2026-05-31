@@ -53,11 +53,13 @@ npm install && node server.js    # runs on root package.json
 | File | Purpose |
 |------|---------|
 | `main.py` | FastAPI bootstrap — middleware wiring and router mounts (~80 lines) |
-| `models.py` | SQLModel table + schema definitions |
+| `models.py` | SQLModel table + schema definitions (includes `ProductCategory` for the 2-level product taxonomy) |
 | `models_telecom.py` | 23 `tc_*` tables for the Telecom Franchise business model |
 | `db.py` | Engine creation, startup seeding (default tenant + CoA + admin user + 5 demo tenants) |
 | `auth.py` | JWT encoding/decoding, bcrypt password hashing |
-| `routers/` | 37 domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …) |
+| `routers/` | 37+ domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …) |
+| `routers/admin.py` | Demo-data management: seed all 5 demo tenants on demand / purge them (admin+). Backs the **Settings → Sample / Demo Data** card. |
+| `routers/product_categories.py` | `ProductCategory` CRUD — 2-level taxonomy (parent category → sub-category). Delete blocked while sub-categories or products exist. |
 | `services/` | Pure-logic modules — `posting.py` is the only GL writer; also `depreciation.py`, `pdf.py`, `email.py` |
 | `scripts/seed_demo.py` | Idempotent rich mock-data seeder (50+ per entity type) |
 
@@ -65,19 +67,31 @@ npm install && node server.js    # runs on root package.json
 
 **Seeding:** On startup, `db.py` creates:
 - A default `Tenant`, seeds a Chart of Accounts, and optionally creates an admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars
-- Five pre-seeded demo tenants (one per business model) with placeholder users for immediate testing
+- Five pre-seeded demo tenants (one per business model) with placeholder users for immediate testing (dev/cloud only — standalone installs start clean)
 - Delete `backend/database.db` to reset to seeded state
 
-**Demo Tenants (auto-created on first run):**
-| Email | Model | Password |
-|-------|-------|----------|
-| `demo.simple@easy-books.app` | Simple | `demo1234` |
-| `demo.services@easy-books.app` | Services | `demo1234` |
-| `demo.trader@easy-books.app` | Trader | `demo1234` |
-| `demo.manufacturing@easy-books.app` | Manufacturing | `demo1234` |
-| `demo.telecom@easy-books.app` | Telecom Franchise | `demo1234` |
+**Script installers run `alembic upgrade head` on every launch** (`install-and-run.*` and `run_packaged.py`) so updating to a newer version migrates the existing database forward in place — new columns/tables are added, existing data preserved.
 
-Demo tenants are auto-populated with **50+ customers, vendors, invoices, bills, and journal entries per tenant** each time `dev.sh` runs (idempotent — skips rows that already exist). To run the seeder manually:
+**Update scripts:** `update.sh` (macOS/Linux), `update.bat` / `update.ps1` (Windows) — `git pull` then re-run `install-and-run.*`. Data directory (`~/.easy-books` / `%USERPROFILE%\.easy-books`) is never touched.
+
+**Demo Tenants:**
+
+| Context | Behaviour |
+|---------|-----------|
+| Dev / cloud (`dev.sh`) | Auto-created on first run; auto-populated with 50+ records per tenant each time `dev.sh` runs |
+| Standalone install (script or desktop) | Boots clean — no demo companies. Load on demand via **Settings → Sample / Demo Data → Load demo companies**. |
+
+All five demo tenants use password `demo1234`:
+
+| Email | Model |
+|-------|-------|
+| `demo.simple@easy-books.app` | Simple |
+| `demo.services@easy-books.app` | Services |
+| `demo.trader@easy-books.app` | Trader |
+| `demo.manufacturing@easy-books.app` | Manufacturing |
+| `demo.telecom@easy-books.app` | Telecom Franchise |
+
+To run the rich mock-data seeder manually:
 ```bash
 cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 ```

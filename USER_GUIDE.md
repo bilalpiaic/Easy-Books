@@ -51,7 +51,28 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 - Manufacturing tenant: 50 BoMs, 50 GRNs, 50 production orders, 50 rate plans
 - Telecom tenant: full RSO chain, SIM activations, FCA events, franchise agreement
 
-### 1.2 Create Your Own Business
+### 1.2 Sample / Demo Data (standalone installs)
+
+Standalone installs (script or desktop) boot **clean** — no demo companies are created automatically. To load the five demo companies for evaluation or training:
+
+1. Go to **Settings → Sample / Demo Data**
+2. Click **Load demo companies**
+
+This creates five isolated demo tenants (one per business model). Each logs in with password `demo1234`:
+
+| Email | Business Model |
+|-------|---------------|
+| `demo.simple@easy-books.app` | Simple |
+| `demo.services@easy-books.app` | Services |
+| `demo.trader@easy-books.app` | Trader |
+| `demo.manufacturing@easy-books.app` | Manufacturing |
+| `demo.telecom@easy-books.app` | Telecom Franchise |
+
+Demo companies are completely separate from your own company's data. To remove them, click **Remove demo companies** on the same Settings card. (Admin/owner only.)
+
+> **Cloud / dev installs** — demo tenants are pre-seeded automatically; the Settings card is not required.
+
+### 1.3 Create Your Own Business (signup)
 
 1. Go to `/signup`
 2. Enter: full name, email, password (≥ 8 characters), company name
@@ -328,18 +349,30 @@ Go to **Products** → **+ Add Product** (or press `N`):
 - Sale price / cost price
 - Reorder level — rows highlighted amber when `stock_qty ≤ reorder_level`
 
-### 7.2 Low-Stock Filter
+### 7.2 Product Categories
+
+Stock products support a **2-level taxonomy**: a parent category (e.g., "Electronics") and a sub-category under it (e.g., "Accessories"). Go to **Products → Categories** (`/products/categories`) to manage them:
+
+- **+ Add Category** — creates a top-level (parent) category
+- **+ Add Sub-category** — creates a category under an existing parent
+- **Delete** — blocked while a category still has sub-categories or products assigned to it
+
+New tenants receive a small starter set of generic categories (editable in-app at any time).
+
+**On the product form** (`/products/new` or edit), use the parent → sub-category picker to assign a category. The **Products list** has a category filter dropdown so you can view all products in a given category or sub-category.
+
+### 7.4 Low-Stock Filter
 
 Click the **Low Stock** badge on the dashboard or add `?low_stock=true` to the products URL to filter the list to items at or below reorder level.
 
-### 7.3 Stock Card
+### 7.5 Stock Card
 
 Click a product → **Stock Card** (`/products/:id/stock-card`):
 - Chronological list of all receipts and issues
 - Running quantity and Weighted-Average cost per event
 - Current stock value = qty × WAvg cost
 
-### 7.4 COGS posting
+### 7.6 COGS posting
 
 When an invoice includes stock items, the system automatically posts a COGS sub-JV:
 ```
@@ -397,9 +430,11 @@ All reports are **live from the GL** — always current, no batch jobs.
 | Vendor Ledger | `/vendors/:id/ledger` | ISA 230 |
 | Stock Card | `/products/:id/stock-card` | IAS 2.36(d) |
 
-### 9.1 Dashboard KPIs
+### 9.1 Dashboard Quick Actions & KPIs
 
-The dashboard shows:
+**Quick Actions** is a horizontal toolbar displayed at the **top of the Dashboard** (directly below the page title). It provides one-click shortcuts to the most common workflows — New Invoice, New Bill, Record Payment, New Journal Entry, and more — without navigating away from the overview.
+
+The dashboard also shows the following KPIs:
 - **Net Profit** — revenue minus expenses YTD
 - **Cash & Bank** — sum of all bank/cash GL accounts
 - **AR Outstanding** — total unpaid invoices

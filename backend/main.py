@@ -18,13 +18,13 @@ from fastapi.staticfiles import StaticFiles
 
 from db import create_db_and_tables
 from routers import (
-    accounts, advances, aging, analytic_accounts, assets, attachments, audit,
-    auth, backup, bank_accounts, bank_imports, bills, bom, budgets, credit_notes,
-    customers, debit_notes, deferred_revenue, exchange_rates, grn, imports,
-    invoices, manufacturing_reports, payment_terms, payments, periods,
-    production_orders, products, purchase_orders, rate_plans, reconciliations,
-    recurring, reports, settings, stock_locations, subledger, tax_codes,
-    telecom, telecom_reports, transactions, users, vendors,
+    accounts, admin, advances, aging, analytic_accounts, assets, attachments,
+    audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets,
+    credit_notes, customers, debit_notes, deferred_revenue, exchange_rates, grn,
+    imports, invoices, manufacturing_reports, payment_terms, payments, periods,
+    product_categories, production_orders, products, purchase_orders, rate_plans,
+    reconciliations, recurring, reports, settings, stock_locations, subledger,
+    tax_codes, telecom, telecom_reports, transactions, users, vendors,
 )
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
@@ -67,7 +67,7 @@ app.add_middleware(
 # surface.
 _ROUTERS = [
     auth.router, settings.router, accounts.router, customers.router,
-    vendors.router, products.router, aging.router, invoices.router, bills.router,
+    vendors.router, products.router, product_categories.router, aging.router, invoices.router, bills.router,
     payments.router, payment_terms.router, bank_accounts.router,
     reconciliations.router, periods.router, audit.router,
     transactions.router, reports.router, imports.router,
@@ -90,6 +90,7 @@ _ROUTERS = [
     debit_notes.router,
     advances.router,
     backup.router,
+    admin.router,
 ]
 
 for r in _ROUTERS:

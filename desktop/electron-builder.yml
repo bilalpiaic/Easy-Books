@@ -1,0 +1,20 @@
+appId: app.easybooks.desktop
+productName: Easy-Books
+directories: { output: dist, buildResources: build }
+files: ["main.js", "preload.js", "package.json"]
+extraResources:
+  - { from: resources/backend,  to: backend }
+  - { from: resources/frontend, to: frontend }
+  - { from: resources/node,     to: node }
+win:
+  target: [{ target: nsis, arch: [x64] }]
+  icon: build/icon.ico
+nsis: { oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true }
+mac:
+  target: [{ target: dmg, arch: [x64, arm64] }]
+  icon: build/icon.icns
+  category: public.app-category.finance
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  notarize: true
+publish: [{ provider: github, owner: bilalpiaic, repo: Easy-Books }]

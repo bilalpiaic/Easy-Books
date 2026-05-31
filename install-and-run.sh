@@ -68,15 +68,22 @@ fi
 # ── 5. Launch (both servers, localhost only) ──────────────────────────────────
 export EB_DATA_DIR="${EB_DATA_DIR:-$HOME/.easy-books}"
 export FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}"  # allow both hosts so the browser is not CORS-blocked
-export SEED_DEMO="${SEED_DEMO:-true}"      # seed demo tenants so the advertised demo logins work (override with SEED_DEMO=false for an empty start)
+export SEED_DEMO="${SEED_DEMO:-false}"      # clean install; load demo data on demand from Settings - Sample Data
 export APP_ENV="${APP_ENV:-local}"
 mkdir -p "$EB_DATA_DIR"
 
-# Free ports from any previous run so the fresh backend (with seeding) binds.
+# Free ports from any previous run so the fresh backend binds — and so no stale
+# process holds the SQLite file lock when we migrate next.
 for port in 8000 3000; do
   pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
   [ -n "$pids" ] && kill $pids 2>/dev/null || true
 done
+
+# Migrate the user's DB forward so updates apply new columns (not just tables).
+# Fail loud rather than start the app on a half-migrated schema.
+log "Applying database migrations…"
+( cd backend && PYTHONPATH=. uv run alembic upgrade head ) \
+  || die "Database migration failed — your data is unchanged. See the error above."
 
 log "Starting Easy-Books — data folder: $EB_DATA_DIR"
 ( cd backend && PYTHONPATH=. uv run uvicorn main:app --host 127.0.0.1 --port 8000 ) &

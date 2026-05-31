@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, Hash, Wallet,
   ArrowDownLeft, ArrowUpRight, Clock,
   Package, AlertTriangle, FileSignature,
-  Receipt, ChevronRight, Banknote, CalendarClock,
+  Receipt, Banknote, CalendarClock,
 } from "lucide-react"
 import {
   Chart as ChartJS,
@@ -77,6 +77,15 @@ const ONBOARDING_STEPS = [
   { key: "payment_terms",   label: "Set up payment terms",    href: "/settings#payment-terms" },
   { key: "first_invoice",   label: "Create your first invoice", href: "/invoices" },
   { key: "first_bill",      label: "Record your first bill",  href: "/bills" },
+]
+
+const QUICK_ACTIONS = [
+  { label: "New Invoice",    href: "/invoices", icon: FileSignature, color: "text-green-600" },
+  { label: "New Bill",       href: "/bills",    icon: Receipt,       color: "text-orange-600" },
+  { label: "New Entry",      href: "/entry",    icon: Hash,          color: "text-blue-600" },
+  { label: "Products",       href: "/products", icon: Package,       color: "text-purple-600" },
+  { label: "Workflow Guide", href: "/workflow", icon: TrendingUp,    color: "text-[#b8943f]" },
+  { label: "User Guide",     href: "/guide",    icon: Wallet,        color: "text-[#1a1814]" },
 ]
 
 export default function Dashboard() {
@@ -222,6 +231,18 @@ export default function Dashboard() {
         <div className="bg-white border border-[#ede9e2] rounded-xl px-3 py-2 shadow-sm">
           <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
         </div>
+      </div>
+
+      {/* Quick Actions — top toolbar */}
+      <div className="bg-white border border-[#ede9e2] rounded-xl shadow-sm px-3 py-2 flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/45 mr-1">Quick Actions</span>
+        {QUICK_ACTIONS.map(({ label, href, icon: Icon, color }) => (
+          <Link key={href} href={href}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-transparent hover:bg-[#faf8f4] hover:border-[#b8943f]/30 transition-all">
+            <Icon className={`w-4 h-4 ${color}`} />
+            <span className="text-sm font-medium text-[#1a1814]/80">{label}</span>
+          </Link>
+        ))}
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -384,32 +405,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Quick links + Recent transactions ───────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Quick actions */}
-        <div className="bg-white rounded-xl border border-[#ede9e2] shadow-sm p-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55 mb-3">Quick Actions</p>
-          <div className="space-y-2">
-            {[
-              { label: "New Invoice",  href: "/invoices",  icon: FileSignature, color: "text-green-600" },
-              { label: "New Bill",     href: "/bills",     icon: Receipt,       color: "text-orange-600" },
-              { label: "New Entry",    href: "/entry",     icon: Hash,          color: "text-blue-600" },
-              { label: "Products",     href: "/products",  icon: Package,       color: "text-purple-600" },
-              { label: "Workflow Guide", href: "/workflow", icon: TrendingUp,   color: "text-[#b8943f]" },
-              { label: "User Guide",   href: "/guide",     icon: Wallet,        color: "text-[#1a1814]" },
-            ].map(({ label, href, icon: Icon, color }) => (
-              <Link key={href} href={href}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-[#faf8f4] hover:border-[#b8943f]/30 border border-transparent transition-all group">
-                <Icon className={`w-4 h-4 ${color} flex-shrink-0`} />
-                <span className="text-sm font-medium text-[#1a1814]/80 group-hover:text-[#1a1814]">{label}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-[#1a1814]/20 ml-auto group-hover:text-[#b8943f]" />
-              </Link>
-            ))}
-          </div>
-        </div>
-
+      {/* ── Recent transactions (full width) ─────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4">
         {/* Recent transactions */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#ede9e2] shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-[#ede9e2] shadow-sm overflow-hidden">
           <div className="px-5 py-3.5 border-b border-[#ede9e2] flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">Recent Transactions</p>
             <Link href="/journal" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View all →</Link>

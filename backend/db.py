@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
-from models import Account, PaymentTerm, SequenceCounter, Settings, StockLocation
+from models import Account, PaymentTerm, ProductCategory, SequenceCounter, Settings, StockLocation
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -414,6 +414,22 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             ).first()
             if not exists:
                 s.add(PaymentTerm(tenant_id=tenant_id, code=code, name=name, days=days))
+
+        # Starter product categories (parent → sub). Generic defaults; users
+        # edit them in-app. Seeded once per tenant (skipped if any exist).
+        STARTER_CATEGORIES = {
+            "trader":            {"Goods": ["General", "Imported"]},
+            "manufacturing":     {"Raw Materials": ["Metals", "Consumables"],
+                                  "Finished Goods": ["Standard"]},
+            "telecom_franchise": {"SIM": ["Prepaid", "Postpaid"],
+                                  "Devices": ["Handsets", "Accessories"]},
+        }
+        if not s.exec(select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)).first():
+            for parent_name, subs in STARTER_CATEGORIES.get(model, {}).items():
+                parent = ProductCategory(tenant_id=tenant_id, name=parent_name)
+                s.add(parent); s.flush()
+                for sub in subs:
+                    s.add(ProductCategory(tenant_id=tenant_id, name=sub, parent_id=parent.id))
 
         s.commit()
 

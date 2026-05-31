@@ -25,8 +25,11 @@ interface Product {
   stock_account_id: number | null
   revenue_account_id: number | null
   cogs_account_id: number | null
+  category_id: number | null
   is_active: boolean
 }
+
+interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
 
 interface Account {
   id: number
@@ -45,6 +48,7 @@ interface FormState {
   stock_account_id: string
   revenue_account_id: string
   cogs_account_id: string
+  category_id: string
 }
 
 const UNITS = ['pcs', 'kg', 'mtr', 'hrs', 'ltr', 'box', 'doz']
@@ -54,6 +58,7 @@ const emptyForm: FormState = {
   code: '', name: '', unit: 'pcs', product_type: 'service',
   default_rate: '0', reorder_level: '0',
   stock_account_id: '', revenue_account_id: '', cogs_account_id: '',
+  category_id: '',
 }
 
 function stockBadge(p: Product) {
@@ -73,9 +78,12 @@ function ProductsInner() {
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [categories, setCategories] = useState<Cat[]>([])
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [formParentCat, setFormParentCat] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -95,6 +103,7 @@ function ProductsInner() {
     const params = new URLSearchParams({ skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
     if (search) params.set('search', search)
     if (lowStockOnly) params.set('low_stock', 'true')
+    if (categoryFilter) params.set('category_id', categoryFilter)
     apiFetch<{ total: number; items: Product[] }>(`/api/products?${params}`)
       .then(d => { setProducts(d.items); setTotal(d.total) })
       .catch(() => {})
@@ -105,12 +114,15 @@ function ProductsInner() {
     apiFetch<{ items: Account[] }>('/api/accounts?limit=500')
       .then(d => setAccounts(d.items))
       .catch(() => {})
+    apiFetch<Cat[]>('/api/product-categories')
+      .then(setCategories)
+      .catch(() => {})
   }, [])
 
-  useEffect(() => { setPage(1) }, [search, lowStockOnly])
-  useEffect(load, [page, search, lowStockOnly])
+  useEffect(() => { setPage(1) }, [search, lowStockOnly, categoryFilter])
+  useEffect(load, [page, search, lowStockOnly, categoryFilter])
 
-  const openAdd = () => { setEditProduct(null); setForm(emptyForm); setFormError(''); setModalOpen(true) }
+  const openAdd = () => { setEditProduct(null); setForm(emptyForm); setFormParentCat(''); setFormError(''); setModalOpen(true) }
 
   useEffect(() => {
     const h = () => openAdd()
@@ -121,6 +133,28 @@ function ProductsInner() {
 
   const openEdit = (p: Product) => {
     setEditProduct(p)
+    // Resolve which parent/sub the product's category_id maps to
+    let initParentCat = ''
+    let initCategoryId = ''
+    if (p.category_id != null) {
+      // Check if category_id is a top-level parent
+      const asParent = categories.find(c => c.id === p.category_id)
+      if (asParent) {
+        initParentCat = String(asParent.id)
+        initCategoryId = String(p.category_id)
+      } else {
+        // It's a sub-category — find which parent owns it
+        for (const parent of categories) {
+          const sub = (parent.children ?? []).find(s => s.id === p.category_id)
+          if (sub) {
+            initParentCat = String(parent.id)
+            initCategoryId = String(p.category_id)
+            break
+          }
+        }
+      }
+    }
+    setFormParentCat(initParentCat)
     setForm({
       code: p.code ?? '',
       name: p.name,
@@ -131,6 +165,7 @@ function ProductsInner() {
       stock_account_id: p.stock_account_id ? String(p.stock_account_id) : '',
       revenue_account_id: p.revenue_account_id ? String(p.revenue_account_id) : '',
       cogs_account_id: p.cogs_account_id ? String(p.cogs_account_id) : '',
+      category_id: initCategoryId,
     })
     setFormError('')
     setModalOpen(true)
@@ -150,6 +185,7 @@ function ProductsInner() {
         stock_account_id: form.stock_account_id ? parseInt(form.stock_account_id) : null,
         revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
         cogs_account_id: form.cogs_account_id ? parseInt(form.cogs_account_id) : null,
+        category_id: form.category_id ? Number(form.category_id) : null,
       }
       if (editProduct) {
         await apiFetch(`/api/products/${editProduct.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -178,6 +214,19 @@ function ProductsInner() {
   const assetAccounts = accounts.filter(a => a.type === 'Asset')
   const revenueAccounts = accounts.filter(a => a.type === 'Revenue')
   const expenseAccounts = accounts.filter(a => a.type === 'Expense')
+
+  // For the two-step category picker in the form
+  const selectedParentCat = categories.find(c => String(c.id) === formParentCat)
+  const subCategories = selectedParentCat?.children ?? []
+
+  // Flat list of all categories for the list filter
+  const allCatsFlat: { id: number; label: string }[] = []
+  for (const p of categories) {
+    allCatsFlat.push({ id: p.id, label: p.name })
+    for (const s of (p.children ?? [])) {
+      allCatsFlat.push({ id: s.id, label: `${p.name} › ${s.name}` })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -232,8 +281,8 @@ function ProductsInner() {
         </div>
       </div>
 
-      <div className="flex gap-3">
-        <div className="relative flex-1">
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
           <input
             type="text" placeholder="Search products..."
@@ -241,6 +290,16 @@ function ProductsInner() {
             className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
           />
         </div>
+        {allCatsFlat.length > 0 && (
+          <select
+            value={categoryFilter}
+            onChange={e => setCategoryFilter(e.target.value)}
+            className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f] bg-white"
+          >
+            <option value="">All Categories</option>
+            {allCatsFlat.map(c => <option key={c.id} value={String(c.id)}>{c.label}</option>)}
+          </select>
+        )}
         <button
           onClick={() => setLowStockOnly(v => !v)}
           className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${lowStockOnly ? 'bg-amber-100 border-amber-300 text-amber-700' : 'border-[#ede9e2] hover:bg-[#f6f3ee] text-black/70'}`}
@@ -379,6 +438,38 @@ function ProductsInner() {
                   ))}
                 </div>
               </div>
+              {categories.length > 0 && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Category</label>
+                    <select
+                      value={formParentCat}
+                      onChange={e => {
+                        setFormParentCat(e.target.value)
+                        // When parent changes, default category_id to the parent itself (or clear)
+                        setForm(p => ({ ...p, category_id: e.target.value }))
+                      }}
+                      className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                    >
+                      <option value="">— None —</option>
+                      {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  {subCategories.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Sub-category</label>
+                      <select
+                        value={form.category_id}
+                        onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))}
+                        className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                      >
+                        <option value={formParentCat}>— (parent only) —</option>
+                        {subCategories.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Default Rate</label>

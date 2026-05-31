@@ -4,6 +4,7 @@ import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
+import VersionBadge from '@/components/VersionBadge'
 
 interface PaymentTerm {
   id: number
@@ -903,6 +904,47 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Sample / Demo Data (evaluation) */}
+      <section className="bg-white border border-[#ede9e2] rounded-xl p-5 space-y-3">
+        <h2 className="text-lg font-serif text-[#1a1814]">Sample / Demo Data</h2>
+        <p className="text-sm text-[#1a1814]/60">
+          Create 5 ready-made demo companies (one per business model) so you can explore Easy-Books
+          with realistic data. They are <strong>separate</strong> from your own company and log in with
+          <code className="mx-1 px-1 bg-[#f6f3ee] rounded">demo1234</code>
+          (e.g. <code>demo.simple@easy-books.app</code>). Remove them any time.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="px-4 py-2 rounded-lg bg-[#b8943f] text-white text-sm font-medium hover:bg-[#a07f33] disabled:opacity-50"
+            onClick={async (e) => {
+              const btn = e.currentTarget; btn.disabled = true
+              try {
+                const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+                const res = await fetch(`${base}/api/admin/demo/seed`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+                })
+                alert(res.ok
+                  ? "Demo companies loaded. Log out and sign in with demo1234 to explore them."
+                  : "Could not load demo data (admin only).")
+              } finally { btn.disabled = false }
+            }}
+          >Load demo companies</button>
+          <button
+            className="px-4 py-2 rounded-lg border border-[#ede9e2] text-sm font-medium hover:bg-[#faf8f4]"
+            onClick={async () => {
+              if (!confirm("Remove all 5 demo companies and their data? Your own company is not affected.")) return
+              const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+              const res = await fetch(`${base}/api/admin/demo/seed`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+              })
+              alert(res.ok ? "Demo companies removed." : "Could not remove demo data (admin only).")
+            }}
+          >Remove demo companies</button>
+        </div>
+      </section>
+
       <div className="flex justify-end gap-3">
         <button
           onClick={() => setForm(ctxSettings)}
@@ -918,6 +960,10 @@ export default function SettingsPage() {
           <Save className="w-4 h-4" />
           {saving ? "Saving..." : "Save Settings"}
         </button>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <VersionBadge />
       </div>
     </div>
   )

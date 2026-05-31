@@ -1,8 +1,13 @@
 import type { NextConfig } from "next";
+import { createRequire } from "module";
+
+const _require = createRequire(import.meta.url);
+const { version } = _require("./package.json") as { version: string };
 
 const nextConfig: NextConfig = {
   // Self-contained server bundle for local/on-premise packaging (Phase 0).
   output: "standalone",
+  env: { NEXT_PUBLIC_APP_VERSION: version },
   turbopack: {
     root: __dirname,
   },

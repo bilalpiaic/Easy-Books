@@ -64,18 +64,28 @@ if ($Rebuild -or -not (Test-Path $server)) {
 
 # --- 5. Launch (both servers, localhost only) --------------------------------
 if (-not $env:EB_DATA_DIR) { $env:EB_DATA_DIR = Join-Path $env:USERPROFILE '.easy-books' }
-if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'true' }    # seed demo tenants so the advertised demo logins work (override with SEED_DEMO=false for an empty start)
+if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'false' }   # clean install; load demo data on demand from Settings - Sample Data
 if (-not $env:FRONTEND_ORIGIN) { $env:FRONTEND_ORIGIN = 'http://localhost:3000,http://127.0.0.1:3000' }  # allow both hosts so the browser is not CORS-blocked
 if (-not $env:APP_ENV)     { $env:APP_ENV     = 'local' }
 New-Item -ItemType Directory -Force -Path $env:EB_DATA_DIR | Out-Null
 
-# Free ports from any previous run so the fresh backend (with seeding) actually binds.
+# Free ports from any previous run so the fresh backend binds — and so no stale
+# process holds the SQLite file lock when we migrate next.
 foreach ($port in 8000, 3000) {
   try {
     Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
       ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
   } catch { }
 }
+
+# Migrate the user's DB forward so updates apply new columns (not just tables).
+# Fail loud rather than start the app on a half-migrated schema.
+Log 'Applying database migrations...'
+Push-Location backend
+uv run alembic upgrade head
+$migrateCode = $LASTEXITCODE
+Pop-Location
+if ($migrateCode -ne 0) { throw 'Database migration failed - your data is unchanged. See the error above.' }
 
 Log "Starting Easy-Books - data folder: $env:EB_DATA_DIR"
 $backLog = Join-Path $env:EB_DATA_DIR 'backend.log'

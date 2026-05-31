@@ -274,7 +274,9 @@ Easy-Books implements the following international accounting standards and best 
 
 ### Demo Tenant Initialization
 
-On first database run, Easy-Books auto-creates 5 pre-seeded demo tenants (one per business model). `dev.sh` also seeds each with 50+ records per entity type:
+**Standalone installs (script or desktop)** boot clean — no demo companies are created automatically. To load demo data for evaluation, go to **Settings → Sample / Demo Data → Load demo companies**. This creates the five demo tenants on demand; "Remove demo companies" tears them down. (Admin/owner only.)
+
+**Dev / cloud installs** (`dev.sh` / hosted): Easy-Books auto-creates 5 pre-seeded demo tenants (one per business model) on first database run. `dev.sh` also seeds each with 50+ records per entity type:
 
 | Tenant | Email | Model | Use Case |
 |---|---|---|---|
@@ -467,6 +469,8 @@ Side effects:
 ---
 
 ### 4.3 INVENTORY (Weighted-Average)
+
+**Before creating stock products**, set up your product categories at **Products → Categories** (`/products/categories`). Categories are a 2-level hierarchy (parent → sub-category); new tenants get a starter set per business model. Assign a category on the product add/edit form; filter the products list by category.
 
 Inventory is cross-cutting — it rides on top of Bills (inflow) and Invoices (outflow). Only `Product.product_type == 'stock'` products participate; services bypass.
 
