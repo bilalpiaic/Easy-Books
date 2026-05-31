@@ -336,9 +336,23 @@ class AuditLog(SQLModel, table=True):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ProductCategory(SQLModel, table=True):
+    """A 2-level product taxonomy. parent_id NULL → a top-level category;
+    parent_id set → a sub-category. Depth is capped at 2 by the router."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "parent_id", "name", name="unique_category_name_per_parent"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    parent_id: Optional[int] = Field(default=None, foreign_key="productcategory.id", index=True)
+    is_active: bool = Field(default=True)
+
+
 class Product(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    category_id: Optional[int] = Field(default=None, foreign_key="productcategory.id", index=True)
     code: Optional[str] = None
     name: str
     unit: str = Field(default="pcs")
