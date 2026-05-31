@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog } = require("electron")
+const { autoUpdater } = require("electron-updater")
 const { spawn } = require("child_process")
 const path = require("path")
 const http = require("http")
@@ -55,7 +56,12 @@ async function createWindow() {
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) { app.quit() } else {
   app.on("second-instance", () => { if (win) { win.show(); win.focus() } })
-  app.whenReady().then(() => { startSidecars(); createWindow() })
+  app.whenReady().then(() => {
+    startSidecars(); createWindow()
+    // Check GitHub Releases for a newer version and notify the user. Inert
+    // until a release feed exists (see electron-builder.yml `publish`).
+    try { autoUpdater.checkForUpdatesAndNotify() } catch (_) {}
+  })
 }
 
 function killSidecars() {
