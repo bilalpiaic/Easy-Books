@@ -37,3 +37,14 @@ def test_categories_are_tenant_isolated(client, admin_headers):
     # Tenant 2 sees an empty list and cannot delete tenant 1's category.
     assert client.get("/api/product-categories", headers=h2).json() == []
     assert client.delete(f"/api/product-categories/{cat['id']}", headers=h2).status_code == 404
+
+
+def test_product_can_be_assigned_a_category(client, admin_headers):
+    h = admin_headers
+    cat = client.post("/api/product-categories", json={"name": "Goods"}, headers=h).json()
+    p = client.post("/api/products", json={"name": "Widget", "product_type": "stock",
+                                           "category_id": cat["id"]}, headers=h).json()
+    assert p.get("category_id") == cat["id"]
+    listed = client.get(f"/api/products?category_id={cat['id']}", headers=h).json()
+    items = listed if isinstance(listed, list) else listed.get("items", listed)
+    assert any(x["id"] == p["id"] for x in items)
