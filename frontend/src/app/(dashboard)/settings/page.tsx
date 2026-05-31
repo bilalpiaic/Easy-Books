@@ -4,6 +4,7 @@ import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
+import VersionBadge from '@/components/VersionBadge'
 
 interface PaymentTerm {
   id: number
@@ -959,6 +960,10 @@ export default function SettingsPage() {
           <Save className="w-4 h-4" />
           {saving ? "Saving..." : "Save Settings"}
         </button>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <VersionBadge />
       </div>
     </div>
   )
