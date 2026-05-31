@@ -210,3 +210,53 @@ Publish the installers to GitHub Releases; electron-builder uploads the `latest.
 `latest-mac.yml` feeds that `electron-updater` (`autoUpdater.checkForUpdatesAndNotify()`) reads on
 next launch. **Upgrade guarantee:** installing a newer version over an older one re-runs
 `alembic upgrade head` on launch, preserving the user's `EB_DATA_DIR` data.
+
+> **Maintainer note (prerequisites for a clean release):**
+> - A published GitHub Release with the installer assets is required before `electron-updater` can serve updates.
+> - A code-signing certificate is optional but recommended: without one, Windows SmartScreen will show an "Unknown publisher" warning on first install. Supply the cert via `CSC_LINK` / `CSC_KEY_PASSWORD` on the build host only — **never commit certs or credentials to the repo.**
+
+---
+
+## Updating Easy-Books & Your Data
+
+### Where your data lives
+
+User data — the SQLite database, uploaded files, and the per-install secret key — is stored **outside** the app folder in a dedicated data directory:
+
+| Platform | Default location |
+|---|---|
+| macOS / Linux | `~/.easy-books` (or `$EB_DATA_DIR`) |
+| Windows | `%USERPROFILE%\.easy-books` (or `%EB_DATA_DIR%`) |
+| Desktop (Electron) | OS `userData` dir set by Electron at launch |
+
+Reinstalling or updating app files **never touches this directory**. Your accounts, invoices, settings, and uploaded documents are safe across updates.
+
+### How updates migrate your database
+
+Both install paths run `alembic upgrade head` on every launch:
+
+- **Script installers** (`install-and-run.sh` / `install-and-run.bat` / `install-and-run.ps1`) — run Alembic before starting the servers. New columns and tables are added to your existing database; no data is wiped.
+- **Desktop app** (`backend/run_packaged.py`) — runs Alembic before uvicorn starts, same guarantee.
+
+This means pulling a newer version of Easy-Books and re-running the installer migrates your database **in place** — existing rows are preserved and new schema features are available immediately.
+
+### Updating a script install
+
+```bash
+# macOS / Linux
+./update.sh
+
+# Windows — choose one:
+update.bat                  # double-click in Explorer
+.\update.ps1               # PowerShell
+```
+
+`update.sh` / `update.bat` / `update.ps1` each: `git pull` the latest code, then call `install-and-run.*` (which rebuilds the frontend if needed, runs Alembic, and relaunches). The `EB_DATA_DIR` data directory is never touched.
+
+### Updating the desktop app
+
+The desktop app uses `electron-updater` and **checks for a new release on every launch**. When an update is available you will be prompted to restart and apply it. The update re-runs `alembic upgrade head` on the next launch.
+
+### Back up first
+
+Before any major update, go to **Settings → Backup & Restore** and download a backup zip (database + uploads). This is the recommended safeguard in case you ever need to roll back.
