@@ -274,9 +274,7 @@ Easy-Books implements the following international accounting standards and best 
 
 ### Demo Tenant Initialization
 
-**Standalone script installs** (`install-and-run.*`) **auto-load the 5 demo companies on first install** (`SEED_DEMO=true` default). The installer runs `scripts.autoseed_demo` after `alembic upgrade head`; the step is guarded and skips once demo data is present, and skips entirely when `SEED_DEMO=false`. Log in immediately with `demo1234` — no signup required. Set `SEED_DEMO=false` for a clean install with no demo data.
-
-**Desktop (Electron)** sets `SEED_DEMO=false` and boots clean; use **Settings → Sample / Demo Data** to load on demand.
+**Both standalone script installs** (`install-and-run.*`) **and the desktop (Electron) app auto-load the 5 demo companies on first install** (`SEED_DEMO=true` default). Both run `scripts.autoseed_demo` after `alembic upgrade head`; the guard skips if any user already exists, so **updating an existing install is migrate-only — no demo data is added**. Set `SEED_DEMO=false` for a clean install with no demo data. Log in immediately with `demo1234` — no signup required.
 
 **Settings → Sample / Demo Data** lets you **Load** or **Remove** the demo companies at any time on any install type. (Admin/owner only.)
 

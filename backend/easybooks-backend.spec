@@ -28,6 +28,7 @@ hiddenimports = (
     + collect_submodules("alembic")       # config/command + script runtime
     + collect_submodules("routers")
     + collect_submodules("services")
+    + collect_submodules("scripts")       # seed_demo + autoseed_demo (first-run demo load)
     + collect_submodules("weasyprint")    # PDF engine (native libs via contrib hook)
     + [
         "models",

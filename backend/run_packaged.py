@@ -27,9 +27,18 @@ def migrate() -> None:
 
 def main() -> None:
     os.environ.setdefault("APP_ENV", "local")
-    os.environ.setdefault("SEED_DEMO", "false")
+    os.environ.setdefault("SEED_DEMO", "true")  # auto-load demo on first install; SEED_DEMO=false for a clean install
     os.environ.setdefault("SCHEMA_BOOTSTRAP", "alembic")  # lifespan skips create_all
     migrate()
+    # First-run only: load the demo companies BEFORE serving. autoseed is guarded
+    # (skips once any user exists) so updates never re-seed; running it before
+    # uvicorn.run means the heavy writes happen with no concurrent request
+    # traffic, avoiding SQLite lock contention.
+    from scripts.autoseed_demo import main as autoseed_demo
+    try:
+        autoseed_demo()
+    except Exception as exc:  # a demo-seed hiccup must never stop the app starting
+        print(f"[autoseed] demo load failed (non-fatal): {exc}", flush=True)
     import uvicorn
     from main import app
     uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("PORT", "8000")))

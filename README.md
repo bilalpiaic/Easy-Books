@@ -145,9 +145,11 @@ npm run dev
 | `demo.manufacturing@easy-books.app` | Manufacturing / value-addition |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 
-The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded and skips once data is present). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
+The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 
-The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time. The **desktop (Electron) app** sets `SEED_DEMO=false` by default and uses the Settings card for on-demand loading.
+The **desktop (Electron) app** also auto-loads the 5 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
+
+The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time.
 
 Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across the past 365 days.
 
@@ -172,7 +174,7 @@ Both install paths run `alembic upgrade head` before starting the servers:
 - **Script installers** (`install-and-run.sh` / `install-and-run.bat`) — migrate before boot
 - **Desktop app** — `backend/run_packaged.py` migrates before uvicorn starts
 
-Your schema is updated in place; existing rows are preserved and new features are available immediately after an update.
+Your schema is updated in place; existing rows are preserved and new features are available immediately after an update. The auto-seed guard (`scripts/autoseed_demo.py`) skips if any user is already present, so **updating an existing install never injects demo data** — only a brand-new empty database triggers the one-time demo load.
 
 ### Updating a script install
 

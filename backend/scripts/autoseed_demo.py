@@ -38,8 +38,12 @@ def main() -> None:
     from models import User
 
     with Session(db.engine) as session:
-        if session.exec(select(User).where(User.email == DEMO_PROBE)).first():
-            print("[autoseed] demo data already present — skipping", flush=True)
+        # Only a brand-new install (no users yet) is auto-seeded. autoseed runs
+        # before any boot-seeding, so a fresh DB has zero users here; the moment
+        # any user exists (a real signup or a prior demo load) this is an
+        # existing install → skip, so updating never injects demo data.
+        if session.exec(select(User)).first():
+            print("[autoseed] existing install (users present) — skipping demo load", flush=True)
             return
 
     print("[autoseed] first run: loading demo companies (~20-30s)…", flush=True)
