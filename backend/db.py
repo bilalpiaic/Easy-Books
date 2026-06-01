@@ -69,8 +69,10 @@ def create_db_and_tables():
                 session.add(admin_user)
                 session.commit()
 
-        # Demo tenants are for the hosted demo only. Packaged/local installs set
-        # SEED_DEMO=false and start empty (the first signup creates the owner).
+        # SEED_DEMO=true seeds the demo *login* tenants here (empty — CoA only).
+        # The standalone installers run scripts.autoseed_demo first to fully
+        # populate them (so this block then no-ops); the desktop build sets
+        # SEED_DEMO=false (load on demand via Settings → Sample / Demo Data).
         if os.environ.get("SEED_DEMO", "true").lower() == "true":
             demo_configs = [
                 ("demo.simple@easy-books.app", "simple", "Demo - Simple", "Demo User"),

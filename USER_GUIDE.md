@@ -53,12 +53,7 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 
 ### 1.2 Sample / Demo Data (standalone installs)
 
-Standalone installs (script or desktop) boot **clean** — no demo companies are created automatically. To load the five demo companies for evaluation or training:
-
-1. Go to **Settings → Sample / Demo Data**
-2. Click **Load demo companies**
-
-This creates five isolated demo tenants (one per business model). Each logs in with password `demo1234`:
+**Standalone script installs** (`install-and-run.bat` / `.sh`) come **pre-loaded with the 5 demo companies on first install** — log straight in with password `demo1234`, no setup required:
 
 | Email | Business Model |
 |-------|---------------|
@@ -68,8 +63,11 @@ This creates five isolated demo tenants (one per business model). Each logs in w
 | `demo.manufacturing@easy-books.app` | Manufacturing |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 
-Demo companies are completely separate from your own company's data. To remove them, click **Remove demo companies** on the same Settings card. (Admin/owner only.)
+The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer.
 
+The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the demo companies at any time, regardless of how the app was first installed. (Admin/owner only.)
+
+> **Desktop (Electron) app** — boots clean (`SEED_DEMO=false`); use the Settings card to load demo companies on demand.
 > **Cloud / dev installs** — demo tenants are pre-seeded automatically; the Settings card is not required.
 
 ### 1.3 Create Your Own Business (signup)

@@ -1,4 +1,5 @@
 """P3 tests: tax codes, payment allocations, period close, recurring."""
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -217,13 +218,22 @@ def test_recurring_run_due_posts_and_advances(client: TestClient):
         )
         rent = r.json()
 
+    # Dates relative to today so the test is stable across month boundaries:
+    # first-of-this-month is always <= today (posts once), and the template then
+    # advances to first-of-next-month, which is always > today (re-run no-ops).
+    this_month = date.today().replace(day=1)
+    next_month = (
+        this_month.replace(year=this_month.year + 1, month=1)
+        if this_month.month == 12
+        else this_month.replace(month=this_month.month + 1)
+    )
     r = client.post(
         "/api/recurring",
         headers=auth,
         json={
             "name": "Monthly office rent",
             "frequency": "monthly",
-            "next_run": "2026-05-01",
+            "next_run": this_month.isoformat(),
             "entries": [
                 {"account_id": rent["id"], "debit": 500, "credit": 0},
                 {"account_id": cash["id"], "debit": 0, "credit": 500},
@@ -241,7 +251,7 @@ def test_recurring_run_due_posts_and_advances(client: TestClient):
     r2 = client.post("/api/recurring/run-due", headers=auth)
     assert r2.json()["posted"] == 0
 
-    # And next_run should now be 2026-06-01
+    # And next_run should now be first-of-next-month, last_run first-of-this-month
     items = client.get("/api/recurring", headers=auth).json()
-    assert items[0]["next_run"] == "2026-06-01"
-    assert items[0]["last_run"] == "2026-05-01"
+    assert items[0]["next_run"] == next_month.isoformat()
+    assert items[0]["last_run"] == this_month.isoformat()

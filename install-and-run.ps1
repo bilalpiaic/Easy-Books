@@ -54,17 +54,25 @@ Push-Location backend; uv sync; Pop-Location
 
 # --- 4. Frontend build (skipped if already built; -Rebuild forces it) --------
 $server = 'frontend\.next\standalone\server.js'
-if ($Rebuild -or -not (Test-Path $server)) {
-  Log 'Building the app (first run can take a few minutes)...'
+# Rebuild when forced, when there's no build yet, OR when the code has moved on
+# since the last build (so a git pull / update always recompiles the UI — a
+# stale bundle must never hide new features).
+$builtMarker = 'frontend\.next\.built-commit'
+$headCommit  = (git rev-parse HEAD 2>$null)
+$builtCommit = if (Test-Path $builtMarker) { (Get-Content $builtMarker -ErrorAction SilentlyContinue) } else { '' }
+$stale = $headCommit -and ($headCommit -ne $builtCommit)
+if ($Rebuild -or -not (Test-Path $server) -or $stale) {
+  Log 'Building the app (first run or update can take a few minutes)...'
   Push-Location frontend; npm install; npx next build; Pop-Location
   # Next 'standalone' does not copy these - required for the server to serve them.
   Copy-Item 'frontend\.next\static' 'frontend\.next\standalone\.next\static' -Recurse -Force
   Copy-Item 'frontend\public'       'frontend\.next\standalone\public'       -Recurse -Force
+  if ($headCommit) { Set-Content -Path $builtMarker -Value $headCommit }
 }
 
 # --- 5. Launch (both servers, localhost only) --------------------------------
 if (-not $env:EB_DATA_DIR) { $env:EB_DATA_DIR = Join-Path $env:USERPROFILE '.easy-books' }
-if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'false' }   # clean install; load demo data on demand from Settings - Sample Data
+if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'true' }    # auto-load full demo data on first install; set SEED_DEMO=false for a clean install
 if (-not $env:FRONTEND_ORIGIN) { $env:FRONTEND_ORIGIN = 'http://localhost:3000,http://127.0.0.1:3000' }  # allow both hosts so the browser is not CORS-blocked
 if (-not $env:APP_ENV)     { $env:APP_ENV     = 'local' }
 New-Item -ItemType Directory -Force -Path $env:EB_DATA_DIR | Out-Null
@@ -86,6 +94,14 @@ uv run alembic upgrade head
 $migrateCode = $LASTEXITCODE
 Pop-Location
 if ($migrateCode -ne 0) { throw 'Database migration failed - your data is unchanged. See the error above.' }
+
+# First-run demo data: load the 5 fully-populated demo companies so the demo
+# logins work immediately. Idempotent (skips once present); skipped entirely
+# when SEED_DEMO=false. ~20-30s on first install only.
+Log 'Loading demo data (first run only; set SEED_DEMO=false to skip)...'
+Push-Location backend
+cmd /c 'set "PYTHONPATH=." && uv run python -m scripts.autoseed_demo'
+Pop-Location
 
 Log "Starting Easy-Books - data folder: $env:EB_DATA_DIR"
 $backLog = Join-Path $env:EB_DATA_DIR 'backend.log'
