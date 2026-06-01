@@ -28,6 +28,18 @@ uv run pyinstaller easybooks-backend.spec
 Pop-Location
 Copy-Item -Recurse (Join-Path $Root "backend/dist/easybooks-backend") (Join-Path $Res "backend")
 
+# Stop any running Easy-Books instance first — its frontend server (port 3000)
+# keeps frontend\.next\standalone open, so `next build` fails with EBUSY trying
+# to overwrite it. (Also free 8000 in case the backend is running.)
+foreach ($port in 8000, 3000) {
+  try {
+    Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
+      ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+  } catch { }
+}
+# Belt-and-suspenders: drop a stale standalone dir if it lingers after the kill.
+Remove-Item -Recurse -Force (Join-Path $Root "frontend/.next/standalone") -ErrorAction SilentlyContinue
+
 # Frontend standalone
 Push-Location (Join-Path $Root "frontend")
 npm install

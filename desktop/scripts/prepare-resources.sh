@@ -19,6 +19,14 @@ fi
 # Backend binary
 ( cd "$ROOT/backend" && uv run pyinstaller easybooks-backend.spec )
 cp -r "$ROOT/backend/dist/easybooks-backend" "$RES/backend"
+# Stop any running Easy-Books instance first — its frontend server (port 3000)
+# keeps frontend/.next/standalone open, so `next build` fails with EBUSY.
+for port in 8000 3000; do
+  pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
+  [ -n "$pids" ] && kill $pids 2>/dev/null || true
+done
+rm -rf "$ROOT/frontend/.next/standalone"
+
 # Frontend standalone
 ( cd "$ROOT/frontend" && npm install && npx next build )
 cp -r "$ROOT/frontend/.next/static"  "$ROOT/frontend/.next/standalone/.next/static"
