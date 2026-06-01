@@ -187,16 +187,24 @@ and serves `GET /docs → 200`. Build artifacts (`backend/build`, `backend/dist`
 electron-builder does **not** cross-compile signed installers, so each installer is built on its
 own OS. Prerequisites per build host: Node + Python/`uv`; macOS also needs Xcode Command-Line Tools.
 
-```bash
-# Windows build host → dist/Easy-Books Setup <ver>.exe
-./desktop/scripts/prepare-resources.ps1 ; cd desktop && npm install && npm run dist
+One command per OS — `build-all` finds Node itself (no `npm` on PATH needed), stops any running
+instance, stages resources, then packages:
 
-# macOS build host → dist/Easy-Books-<ver>.dmg
-./desktop/scripts/prepare-resources.sh  ; cd desktop && npm install && npm run dist
+```powershell
+# Windows build host → desktop\dist\Easy-Books Setup <ver>.exe  (+ win-unpacked\)
+powershell -ExecutionPolicy Bypass -File desktop\build-all.ps1
+```
+```bash
+# macOS / Linux build host → desktop/dist/Easy-Books-<ver>.dmg (mac) / .AppImage (linux)
+./desktop/build-all.sh
 ```
 
-`npm run dist` reads `desktop/electron-builder.yml` (Task 5): NSIS for Windows, dmg for macOS,
-`extraResources` copying `resources/{backend,frontend,node}`, and a GitHub `publish` feed.
+Fast repackage after a `main.js` / `electron-builder.yml`-only change (reuses staged resources,
+skips the backend/frontend rebuild): add `-SkipStaging` (PowerShell) or `--skip-staging` (bash).
+
+`build-all` runs `prepare-resources.*` then `npm run dist`, which reads `desktop/electron-builder.yml`:
+NSIS for Windows, dmg for macOS, `extraResources` copying `resources/{backend,frontend,node}`, and a
+GitHub `publish` feed.
 
 ### Code signing & notarization (certs are external — never commit them)
 Supply credentials via environment variables on the build host only:
@@ -212,6 +220,32 @@ next launch. **Upgrade guarantee:** installing a newer version over an older one
 > **Maintainer note (prerequisites for a clean release):**
 > - A published GitHub Release with the installer assets is required before `electron-updater` can serve updates.
 > - A code-signing certificate is optional but recommended: without one, Windows SmartScreen will show an "Unknown publisher" warning on first install. Supply the cert via `CSC_LINK` / `CSC_KEY_PASSWORD` on the build host only — **never commit certs or credentials to the repo.**
+
+### Shipping to end users (runbook)
+
+1. **Build** (Windows, full build — no `-SkipStaging`):
+   `powershell -ExecutionPolicy Bypass -File desktop\build-all.ps1`
+2. **Ship one file:** `desktop\dist\Easy-Books Setup <ver>.exe` — the NSIS installer (~250 MB). It
+   bundles Python, Node, and the app, so the user needs **no** prerequisites. Do **not** distribute
+   the `win-unpacked\` folder (that's for local testing). For auto-update, also publish `latest.yml`
+   and the `…Setup….exe.blockmap` alongside it on the GitHub Release.
+3. **The user** double-clicks the Setup → (unsigned build → Windows SmartScreen "unknown publisher"
+   → *More info → Run anyway*) → installs → launches from the Start menu. First launch shows the
+   ~30 s "Starting up…" splash (one-time seed), then it's ready. Their data lives in
+   `%APPDATA%\Easy-Books` and survives updates/reinstalls.
+4. **Updates:** if you publish GitHub Releases, installed apps auto-update on next launch; otherwise
+   the user runs a newer `Setup.exe` over the old one. Either way data is preserved —
+   `alembic upgrade head` runs on launch.
+
+**Decide before shipping widely:**
+
+- **Trial vs production build.** The default build auto-loads 5 demo companies on first run (great
+  for trials/evaluation). For real users, set `SEED_DEMO=false` in `desktop/main.js` and rebuild so
+  they start clean — demo data is still loadable any time from **Settings → Sample / Demo Data**.
+- **Code signing** removes the SmartScreen "unknown publisher" warning (see the section above);
+  without a cert, document the *More info → Run anyway* step for users.
+- **Invoice PDF export** needs the GTK runtime, which isn't bundled — PDF download fails on a clean
+  machine unless GTK is installed (the rest of the app is unaffected).
 
 ---
 
