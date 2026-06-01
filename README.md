@@ -93,7 +93,7 @@ Your data lives **outside** the app folder:
 | macOS / Linux | `~/.easy-books` (override: `EB_DATA_DIR`) |
 | Windows | `%USERPROFILE%\.easy-books` (override: `%EB_DATA_DIR%`) |
 
-A fresh install boots **empty** — no demo data. Sign up to create the first owner account. See [§ Demo / sample data](#demo--sample-data) to load sample companies on demand.
+On first install the 5 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
 
 Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a source update.
 
@@ -135,11 +135,7 @@ npm run dev
 
 ## Demo / sample data
 
-**Standalone installs** boot **clean** — no demo data is loaded automatically. To explore the app with pre-populated books:
-
-1. Log into your owner account and go to **Settings → Sample / Demo Data**.
-2. Click **Load demo companies** — this creates five ready-made tenants.
-3. Log out and sign in as one of the demo accounts (password `demo1234` for all):
+**Standalone script installs** (`install-and-run.bat` / `.sh`) **auto-load the 5 demo companies on first install** — sign in immediately with password `demo1234`, no signup required:
 
 | Email | Business model |
 |---|---|
@@ -149,7 +145,11 @@ npm run dev
 | `demo.manufacturing@easy-books.app` | Manufacturing / value-addition |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 
-Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across the past 365 days. Remove them any time from the same settings card.
+The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded and skips once data is present). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
+
+The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time. The **desktop (Electron) app** sets `SEED_DEMO=false` by default and uses the Settings card for on-demand loading.
+
+Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across the past 365 days.
 
 In **developer mode**, `dev.sh` seeds these tenants automatically on every run. To seed manually:
 
@@ -184,7 +184,7 @@ Your schema is updated in place; existing rows are preserved and new features ar
 update.bat          # double-click in Explorer
 ```
 
-`update.sh` / `update.bat` runs `git pull` then calls the installer to rebuild and relaunch.
+`update.sh` / `update.bat` runs `git pull` then calls the installer to rebuild and relaunch. The installer also **auto-rebuilds the frontend whenever the code has changed** since the last build (tracked via `frontend/.next/.built-commit`), so a plain re-run after any `git pull` always serves the latest UI — no stale builds.
 
 ### Updating the desktop app
 

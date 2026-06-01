@@ -82,8 +82,7 @@ installs backend deps, builds the frontend, then opens **http://127.0.0.1:3000**
 pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh build. First run takes a few minutes
 (downloads + build); later runs start in seconds.
 
-Data lives in `EB_DATA_DIR` (default `~/.easy-books` / `%USERPROFILE%\.easy-books`); the install
-starts **empty** (no demo data) and the first signup becomes the owner.
+Data lives in `EB_DATA_DIR` (default `~/.easy-books` / `%USERPROFILE%\.easy-books`). On first install the 5 demo companies are **auto-loaded** (takes ~20–30 s; guarded — only runs once). Log in immediately with `demo1234`. Set `SEED_DEMO=false` before running for a clean install with no demo data. The first signup creates your own owner account.
 
 > **Note:** the `.sh` is tested on Linux/macOS. The Windows `.bat`/`.ps1` mirror the same logic and
 > use PowerShell-5.1-compatible constructs; validate on a real Windows box before distribution. The
@@ -105,7 +104,7 @@ cp -r frontend/public        frontend/.next/standalone/public
 # Override location/behaviour:  EB_DATA_DIR=/srv/easybooks SEED_DEMO=false ./run-local.sh
 ```
 - **`EB_DATA_DIR`** — where the SQLite DB, uploads, and per-install secret (`.secret.key`) live.
-- **`SEED_DEMO=false`** (default in the launcher) — fresh install boots empty; the first signup becomes the owner.
+- **`SEED_DEMO=false`** — skip auto-loading demo data; fresh install boots empty and the first signup becomes the owner. (The one-click installers default to `SEED_DEMO=true`; `run-local.sh` defaults to `false`.)
 - Data is backed up/restored from **Settings → Backup & Restore** (zip of DB + uploads).
 
 ### Path C — On-prem Docker Compose ("Server edition")
@@ -127,8 +126,7 @@ the others rather than replacing them. **Effort:** Low.
 - **Data location & backup:** SQLite file + uploads in the OS app-data dir
   (`%APPDATA%`, `~/Library/Application Support`, `~/.local/share`). Add in-app **Backup / Restore**
   (zip the `.db` + uploads); CSV export already exists.
-- **First-run setup:** auto-generate & persist `JWT_SECRET_KEY`; run `alembic upgrade head`; boot with
-  **no demo tenants**; create the first owner via the existing signup wizard.
+- **First-run setup:** auto-generate & persist `JWT_SECRET_KEY`; run `alembic upgrade head`; run `scripts.autoseed_demo` (loads 5 demo companies on first install when `SEED_DEMO=true`, the default for script installers; desktop sets `SEED_DEMO=false`); create your own owner via the signup wizard.
 - **Licensing (commercial lever):** offline **signed license file** — Ed25519 signature over
   `{customer, edition, seats, expiry}` verified against an embedded public key. Trial = time-limited
   license auto-issued on install. Editions map to the existing `enabled_modules`
@@ -251,7 +249,7 @@ update.bat                  # double-click in Explorer
 .\update.ps1               # PowerShell
 ```
 
-`update.sh` / `update.bat` / `update.ps1` each: `git pull` the latest code, then call `install-and-run.*` (which rebuilds the frontend if needed, runs Alembic, and relaunches). The `EB_DATA_DIR` data directory is never touched.
+`update.sh` / `update.bat` / `update.ps1` each: `git pull` the latest code, then call `install-and-run.*` (which runs Alembic, relaunches, and **auto-rebuilds the frontend whenever the code has changed** since the last build, tracked via `frontend/.next/.built-commit` vs `git rev-parse HEAD`). A plain re-run after any code change therefore always serves the latest UI. The `EB_DATA_DIR` data directory is never touched.
 
 ### Updating the desktop app
 

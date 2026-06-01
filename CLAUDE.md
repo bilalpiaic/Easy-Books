@@ -62,6 +62,7 @@ npm install && node server.js    # runs on root package.json
 | `routers/product_categories.py` | `ProductCategory` CRUD — 2-level taxonomy (parent category → sub-category). Delete blocked while sub-categories or products exist. |
 | `services/` | Pure-logic modules — `posting.py` is the only GL writer; also `depreciation.py`, `pdf.py`, `email.py` |
 | `scripts/seed_demo.py` | Idempotent rich mock-data seeder (50+ per entity type) |
+| `scripts/autoseed_demo.py` | First-run demo loader: calls `seed_demo` once on first install, then skips; no-ops when `SEED_DEMO=false` |
 
 **Database:** SQLite (`backend/database.db`) in dev; PostgreSQL via `DATABASE_URL` in production. Dev still bootstraps via `SQLModel.metadata.create_all()`, but **Alembic migrations are now the source of truth** for schema changes (`backend/alembic/versions/`, revisions through 0019). New columns/tables: add to `models.py`, then `uv run alembic revision --autogenerate -m "..."` and `uv run alembic upgrade head`. **SQLite caveat:** Alembic can't `ADD CONSTRAINT` via ALTER — generated migrations adding FKs need the FK line removed and an existence guard added (see migrations 0016/0017 for the pattern). New tables get a `bind.dialect.has_table(...)` guard so they coexist with `create_all()`.
 
@@ -72,6 +73,8 @@ npm install && node server.js    # runs on root package.json
 
 **Script installers run `alembic upgrade head` on every launch** (`install-and-run.*` and `run_packaged.py`) so updating to a newer version migrates the existing database forward in place — new columns/tables are added, existing data preserved.
 
+**Installers auto-rebuild the frontend** when the current `git rev-parse HEAD` differs from the hash recorded in `frontend/.next/.built-commit`. This means any code update (via `update.sh`/`update.bat` or a plain re-run after a `git pull`) will recompile the UI — a stale build can never hide new features. Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a rebuild regardless.
+
 **Update scripts:** `update.sh` (macOS/Linux), `update.bat` / `update.ps1` (Windows) — `git pull` then re-run `install-and-run.*`. Data directory (`~/.easy-books` / `%USERPROFILE%\.easy-books`) is never touched.
 
 **Demo Tenants:**
@@ -79,7 +82,10 @@ npm install && node server.js    # runs on root package.json
 | Context | Behaviour |
 |---------|-----------|
 | Dev / cloud (`dev.sh`) | Auto-created on first run; auto-populated with 50+ records per tenant each time `dev.sh` runs |
-| Standalone install (script or desktop) | Boots clean — no demo companies. Load on demand via **Settings → Sample / Demo Data → Load demo companies**. |
+| Standalone *script* installers (`install-and-run.*`) | **Auto-load** the 5 fully-populated demo companies on first install (`SEED_DEMO=true` default, ~20–30 s one-time). Set `SEED_DEMO=false` for a clean install with no demo data. Mechanism: after `alembic upgrade head`, the installer runs `scripts.autoseed_demo` (guarded — skips once demo data is present, skips entirely when `SEED_DEMO=false`). |
+| Desktop (Electron) | `SEED_DEMO=false` — boots clean; load demo data on demand via **Settings → Sample / Demo Data**. |
+
+Demo data is also loadable/removable at any time via **Settings → Sample / Demo Data** regardless of install type.
 
 All five demo tenants use password `demo1234`:
 
