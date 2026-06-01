@@ -1,6 +1,9 @@
 appId: app.easybooks.desktop
 productName: Easy-Books
 directories: { output: dist, buildResources: build }
+# App icon is optional: drop a 512x512 `build/icon.png` and electron-builder
+# auto-generates the .ico/.icns. Without it, the default Electron icon is used
+# (so `npm run dist` works out of the box, unbranded).
 files: ["main.js", "preload.js", "package.json"]
 extraResources:
   - { from: resources/backend,  to: backend }
@@ -8,11 +11,9 @@ extraResources:
   - { from: resources/node,     to: node }
 win:
   target: [{ target: nsis, arch: [x64] }]
-  icon: build/icon.ico
 nsis: { oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true }
 mac:
   target: [{ target: dmg, arch: [x64, arm64] }]
-  icon: build/icon.icns
   category: public.app-category.finance
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
