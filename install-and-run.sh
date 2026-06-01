@@ -57,18 +57,25 @@ log "Installing backend dependencies…"
 ( cd backend && uv sync )
 
 # ── 4. Frontend build (skipped if already built; --rebuild forces it) ─────────
-if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ]; then
-  log "Building the app (first run can take a few minutes)…"
+# Rebuild when forced, when there's no build yet, OR when the code has moved on
+# since the last build (so a git pull / update always recompiles the UI — a
+# stale bundle must never hide new features).
+HEAD_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)"
+BUILT_COMMIT="$(cat frontend/.next/.built-commit 2>/dev/null || true)"
+if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ] \
+   || { [ -n "$HEAD_COMMIT" ] && [ "$HEAD_COMMIT" != "$BUILT_COMMIT" ]; }; then
+  log "Building the app (first run or update can take a few minutes)…"
   ( cd frontend && npm install && npx next build )
   # Next 'standalone' does not copy these — required for the server to serve them.
   cp -r frontend/.next/static  frontend/.next/standalone/.next/static
   cp -r frontend/public        frontend/.next/standalone/public
+  [ -n "$HEAD_COMMIT" ] && echo "$HEAD_COMMIT" > frontend/.next/.built-commit
 fi
 
 # ── 5. Launch (both servers, localhost only) ──────────────────────────────────
 export EB_DATA_DIR="${EB_DATA_DIR:-$HOME/.easy-books}"
 export FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}"  # allow both hosts so the browser is not CORS-blocked
-export SEED_DEMO="${SEED_DEMO:-false}"      # clean install; load demo data on demand from Settings - Sample Data
+export SEED_DEMO="${SEED_DEMO:-true}"       # auto-load full demo data on first install; set SEED_DEMO=false for a clean install
 export APP_ENV="${APP_ENV:-local}"
 mkdir -p "$EB_DATA_DIR"
 
@@ -84,6 +91,13 @@ done
 log "Applying database migrations…"
 ( cd backend && PYTHONPATH=. uv run alembic upgrade head ) \
   || die "Database migration failed — your data is unchanged. See the error above."
+
+# First-run demo data: load the 5 fully-populated demo companies so the demo
+# logins work immediately. Idempotent (skips once present); skipped entirely
+# when SEED_DEMO=false. ~20-30s on first install only.
+log "Loading demo data (first run only; set SEED_DEMO=false to skip)…"
+( cd backend && PYTHONPATH=. uv run python -m scripts.autoseed_demo ) \
+  || echo "  (demo seeding skipped/failed — non-fatal; the app still starts)"
 
 log "Starting Easy-Books — data folder: $EB_DATA_DIR"
 ( cd backend && PYTHONPATH=. uv run uvicorn main:app --host 127.0.0.1 --port 8000 ) &
