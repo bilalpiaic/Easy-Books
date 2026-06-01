@@ -62,13 +62,13 @@ npm install && node server.js    # runs on root package.json
 | `routers/product_categories.py` | `ProductCategory` CRUD — 2-level taxonomy (parent category → sub-category). Delete blocked while sub-categories or products exist. |
 | `services/` | Pure-logic modules — `posting.py` is the only GL writer; also `depreciation.py`, `pdf.py`, `email.py` |
 | `scripts/seed_demo.py` | Idempotent rich mock-data seeder (50+ per entity type) |
-| `scripts/autoseed_demo.py` | First-run demo loader: calls `seed_demo` once on first install, then skips; no-ops when `SEED_DEMO=false` |
+| `scripts/autoseed_demo.py` | First-run demo loader: skips if any user already exists (brand-new empty DB only); no-ops when `SEED_DEMO=false` |
 
 **Database:** SQLite (`backend/database.db`) in dev; PostgreSQL via `DATABASE_URL` in production. Dev still bootstraps via `SQLModel.metadata.create_all()`, but **Alembic migrations are now the source of truth** for schema changes (`backend/alembic/versions/`, revisions through 0019). New columns/tables: add to `models.py`, then `uv run alembic revision --autogenerate -m "..."` and `uv run alembic upgrade head`. **SQLite caveat:** Alembic can't `ADD CONSTRAINT` via ALTER — generated migrations adding FKs need the FK line removed and an existence guard added (see migrations 0016/0017 for the pattern). New tables get a `bind.dialect.has_table(...)` guard so they coexist with `create_all()`.
 
 **Seeding:** On startup, `db.py` creates:
 - A default `Tenant`, seeds a Chart of Accounts, and optionally creates an admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars
-- Five pre-seeded demo tenants (one per business model) with placeholder users for immediate testing (dev/cloud only — standalone installs start clean)
+- Five pre-seeded demo tenants (one per business model) with placeholder users for immediate testing
 - Delete `backend/database.db` to reset to seeded state
 
 **Script installers run `alembic upgrade head` on every launch** (`install-and-run.*` and `run_packaged.py`) so updating to a newer version migrates the existing database forward in place — new columns/tables are added, existing data preserved.
@@ -82,8 +82,8 @@ npm install && node server.js    # runs on root package.json
 | Context | Behaviour |
 |---------|-----------|
 | Dev / cloud (`dev.sh`) | Auto-created on first run; auto-populated with 50+ records per tenant each time `dev.sh` runs |
-| Standalone *script* installers (`install-and-run.*`) | **Auto-load** the 5 fully-populated demo companies on first install (`SEED_DEMO=true` default, ~20–30 s one-time). Set `SEED_DEMO=false` for a clean install with no demo data. Mechanism: after `alembic upgrade head`, the installer runs `scripts.autoseed_demo` (guarded — skips once demo data is present, skips entirely when `SEED_DEMO=false`). |
-| Desktop (Electron) | `SEED_DEMO=false` — boots clean; load demo data on demand via **Settings → Sample / Demo Data**. |
+| Standalone *script* installers (`install-and-run.*`) | **Auto-load** the 5 fully-populated demo companies on first install (`SEED_DEMO=true` default, ~20–30 s one-time). Set `SEED_DEMO=false` for a clean install with no demo data. Mechanism: after `alembic upgrade head`, the installer runs `scripts.autoseed_demo` (guarded — any user already present → skip; also skips when `SEED_DEMO=false`). Updating an existing install is **migrate-only** — no demo data is added. |
+| Desktop (Electron) | **Also auto-loads** the 5 demo companies on first install (`SEED_DEMO=true` default; `run_packaged.py` runs the guarded auto-seed before serving; the Electron shell shows a "Starting up… first-time setup may take ~30 seconds" splash during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install. Updating an existing install is **migrate-only** — no demo data is added. |
 
 Demo data is also loadable/removable at any time via **Settings → Sample / Demo Data** regardless of install type.
 

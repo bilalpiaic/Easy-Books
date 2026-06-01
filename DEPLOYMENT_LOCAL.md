@@ -82,7 +82,7 @@ installs backend deps, builds the frontend, then opens **http://127.0.0.1:3000**
 pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh build. First run takes a few minutes
 (downloads + build); later runs start in seconds.
 
-Data lives in `EB_DATA_DIR` (default `~/.easy-books` / `%USERPROFILE%\.easy-books`). On first install the 5 demo companies are **auto-loaded** (takes ~20–30 s; guarded — only runs once). Log in immediately with `demo1234`. Set `SEED_DEMO=false` before running for a clean install with no demo data. The first signup creates your own owner account.
+Data lives in `EB_DATA_DIR` (default `~/.easy-books` / `%USERPROFILE%\.easy-books`). On first install the 5 demo companies are **auto-loaded** (takes ~20–30 s; guarded — fires only on a brand-new empty DB; updating an existing install is migrate-only and no demo data is added). Log in immediately with `demo1234`. Set `SEED_DEMO=false` before running for a clean install with no demo data. The first signup creates your own owner account.
 
 > **Note:** the `.sh` is tested on Linux/macOS. The Windows `.bat`/`.ps1` mirror the same logic and
 > use PowerShell-5.1-compatible constructs; validate on a real Windows box before distribution. The
@@ -126,7 +126,7 @@ the others rather than replacing them. **Effort:** Low.
 - **Data location & backup:** SQLite file + uploads in the OS app-data dir
   (`%APPDATA%`, `~/Library/Application Support`, `~/.local/share`). Add in-app **Backup / Restore**
   (zip the `.db` + uploads); CSV export already exists.
-- **First-run setup:** auto-generate & persist `JWT_SECRET_KEY`; run `alembic upgrade head`; run `scripts.autoseed_demo` (loads 5 demo companies on first install when `SEED_DEMO=true`, the default for script installers; desktop sets `SEED_DEMO=false`); create your own owner via the signup wizard.
+- **First-run setup:** auto-generate & persist `JWT_SECRET_KEY`; run `alembic upgrade head`; run `scripts.autoseed_demo` (loads 5 demo companies on a brand-new empty DB when `SEED_DEMO=true`, the default for both script installers and the desktop app; guard skips if any user exists, so updating an existing install is migrate-only — no demo data added; set `SEED_DEMO=false` for a clean install); create your own owner via the signup wizard.
 - **Licensing (commercial lever):** offline **signed license file** — Ed25519 signature over
   `{customer, edition, seats, expiry}` verified against an embedded public key. Trial = time-limited
   license auto-issued on install. Editions map to the existing `enabled_modules`
@@ -174,7 +174,7 @@ versions (unlike dev's `create_all`, this delivers new *columns* to upgraded ins
 |---|---|
 | `backend/run_packaged.py` | Packaged entrypoint: `alembic upgrade head` → serve uvicorn on 127.0.0.1:8000 |
 | `backend/easybooks-backend.spec` | PyInstaller one-dir spec (ships `alembic.ini` + `alembic/` + `templates/` as data) |
-| `desktop/main.js` | Electron main: spawn + health-wait + supervise sidecars; sets `EB_DATA_DIR`, `SEED_DEMO=false` |
+| `desktop/main.js` | Electron main: spawn + health-wait + supervise sidecars; sets `EB_DATA_DIR`; defaults `SEED_DEMO=true` so the guarded auto-seed runs on first install (set `SEED_DEMO=false` for a clean install); shows a "Starting up… first-time setup may take ~30 seconds" splash during the one-time seed |
 | `desktop/preload.js` | Hardened preload (contextIsolation, no node in renderer) |
 | `desktop/package.json` | Electron + electron-builder + electron-updater; `dist` → `electron-builder.yml` |
 | `desktop/scripts/prepare-resources.sh` / `.ps1` | Build backend + Next standalone + fetch portable Node → stage `desktop/resources/{backend,frontend,node}` |

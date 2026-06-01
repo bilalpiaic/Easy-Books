@@ -51,9 +51,9 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 - Manufacturing tenant: 50 BoMs, 50 GRNs, 50 production orders, 50 rate plans
 - Telecom tenant: full RSO chain, SIM activations, FCA events, franchise agreement
 
-### 1.2 Sample / Demo Data (standalone installs)
+### 1.2 Sample / Demo Data (standalone and desktop installs)
 
-**Standalone script installs** (`install-and-run.bat` / `.sh`) come **pre-loaded with the 5 demo companies on first install** — log straight in with password `demo1234`, no setup required:
+**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 5 demo companies on first install** — log straight in with password `demo1234`, no setup required:
 
 | Email | Business Model |
 |-------|---------------|
@@ -63,11 +63,10 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 | `demo.manufacturing@easy-books.app` | Manufacturing |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 
-The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer.
+The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. **Updating an existing install does not add demo data** — the database is migrated forward in place and your data is left untouched. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer or launching the desktop app.
 
 The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the demo companies at any time, regardless of how the app was first installed. (Admin/owner only.)
 
-> **Desktop (Electron) app** — boots clean (`SEED_DEMO=false`); use the Settings card to load demo companies on demand.
 > **Cloud / dev installs** — demo tenants are pre-seeded automatically; the Settings card is not required.
 
 ### 1.3 Create Your Own Business (signup)
