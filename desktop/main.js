@@ -16,8 +16,12 @@ function startSidecars() {
   const env = {
     ...process.env,
     EB_DATA_DIR: app.getPath("userData"),
-    SEED_DEMO: "false",
+    SEED_DEMO: "true",  // auto-load demo on first launch; run_packaged seeds only an empty DB
     APP_ENV: "local",
+    // The window loads http://127.0.0.1:3000 and the UI calls http://localhost:8000,
+    // so the backend must allow BOTH origins or the browser CORS-blocks every API
+    // call (signup/login fail with "Failed to fetch").
+    FRONTEND_ORIGIN: "http://127.0.0.1:3000,http://localhost:3000",
     PORT: String(BACKEND_PORT),
   }
   backend = spawn(exe(path.join(resDir(), "backend", "easybooks-backend")), [], { env })
