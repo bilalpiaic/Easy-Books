@@ -38,13 +38,26 @@ function waitForServer(port, tries = 60) {
   })
 }
 
+const SPLASH = "data:text/html;charset=utf-8," + encodeURIComponent(
+  `<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,Segoe UI,Arial;background:#f6f3ee;color:#1a1814">
+   <div style="text-align:center">
+     <div style="font:600 22px/1.2 Georgia,serif">Easy-Books</div>
+     <div style="margin-top:10px;font-size:13px;color:#1a1814aa">Starting up… first-time setup may take ~30 seconds.</div>
+   </div></body>`
+)
+
 async function createWindow() {
   win = new BrowserWindow({
     width: 1280, height: 840, show: false,
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false },
   })
   win.once("ready-to-show", () => win.show())
+  // Show a splash immediately, then wait for BOTH sidecars before loading the
+  // app — never show the UI before the API is ready. The backend may run a
+  // one-time demo seed on first launch (~20-30s), so allow a generous window.
+  await win.loadURL(SPLASH)
   try {
+    await waitForServer(BACKEND_PORT, 360)   // up to ~3 min, covers first-run seeding
     await waitForServer(FRONTEND_PORT)
     await win.loadURL(`http://127.0.0.1:${FRONTEND_PORT}`)
   } catch (e) {

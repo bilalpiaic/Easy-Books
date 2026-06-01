@@ -14,15 +14,16 @@ import scripts.autoseed_demo as autoseed
 from models import Tenant, User
 
 
-def _make_demo_user(engine) -> None:
+def _make_user(engine, email: str = "owner@acme.test") -> None:
+    """Create one tenant + user, marking the DB as a non-empty (existing) install."""
     with Session(engine) as s:
-        t = Tenant(name="Demo Simple Co.", business_model="simple")
+        t = Tenant(name="Acme", business_model="simple")
         s.add(t)
         s.commit()
         s.refresh(t)
         s.add(User(
-            email=autoseed.DEMO_PROBE, hashed_password="x",
-            full_name="Demo", tenant_id=t.id, role="owner",
+            email=email, hashed_password="x",
+            full_name="Owner", tenant_id=t.id, role="owner",
         ))
         s.commit()
 
@@ -39,11 +40,13 @@ def test_skips_when_seed_demo_off(client, monkeypatch):
         assert s.exec(select(User).where(User.email == autoseed.DEMO_PROBE)).first() is None
 
 
-def test_skips_when_already_present(client, monkeypatch):
+def test_skips_when_any_user_exists(client, monkeypatch):
     monkeypatch.setenv("SEED_DEMO", "true")
-    _make_demo_user(_db_module.engine)
+    # A real (non-demo) user means this is an existing install — must NOT seed,
+    # so updating never injects demo companies into a user's own books.
+    _make_user(_db_module.engine, email="owner@acme.test")
     monkeypatch.setattr("scripts.seed_demo.seed_all_demos", _boom)
-    autoseed.main()  # demo present → must skip WITHOUT calling the seeder
+    autoseed.main()  # existing user present → skip without calling the seeder
 
 
 def test_seeds_when_enabled_and_empty(client, monkeypatch):
