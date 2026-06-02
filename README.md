@@ -31,9 +31,11 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Per-document notes (customer-facing) and internal memo (staff-only)
 
 **Inventory & stock**
-- 2-level product categories; low-stock threshold with dashboard alert and list filter
+- 2-level product categories (parent → sub-category) seeded per business model; assign on product form, filter in list
+- **On hand: N** shown on invoice/bill line items; optional **Block overselling** setting prevents negative stock on sales (`block_negative_stock`, default off — purchases are never blocked)
 - Per-product stock card with running qty and value; drill-down from every GL line
 - Stock reserved/available tracking on sales; COGS sub-JV posted at shipment
+- Dedicated **Inventory** sidebar section: Products, Product Categories, Product Ledger, Inventory Performance
 
 **Banking**
 - Bank account balances derived live from the GL
@@ -41,9 +43,13 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Per-period bank reconciliation with line matching and lock-on-close
 
 **Reports (all live from the GL)**
-- Trial Balance, General Ledger, Income Statement, Balance Sheet, Cash Flow (indirect)
+- Trial Balance, General Ledger (with **Opening / Closing Balance** on date-filtered views), Income Statement, Balance Sheet, Cash Flow (indirect)
 - Comparative-period P&L and Balance Sheet (IAS 1.38)
-- AR/AP Aging (5 buckets), Customer/Vendor sub-ledgers, Stock Card
+- **AR Aging** & **AP Aging** — dedicated pages (`/aging/receivable`, `/aging/payable`) with Current/1–30/31–60/61–90/90+ buckets and drill-down to the customer/vendor ledger
+- **Product Ledger** (`/products/ledger`) — stock movements + running qty per product, single-store or consolidated
+- **Inventory Performance** (`/inventory/performance`) — on-hand qty, on-hand value, low-stock flag, last movement, units sold + COGS
+- **Customer Performance** (`/customer-performance`) — revenue, invoice count, outstanding AR, avg days-to-pay, ranked
+- Customer/Vendor sub-ledgers, Stock Card
 - Tax Summary (GST output/input), Analytic P&L (cost-centre dimension)
 - Budget vs Actual with monthly per-account variance
 
@@ -57,6 +63,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Company profile: name, tagline, address, logo — all printed via `PrintHeader`
 - Document number formats with `{prefix}`, `{YYYY}`, `{MM}`, `{seq:04d}` tokens and live preview
 - Default GL accounts per tenant (AR, AP, Revenue, COGS overrides)
+- **Check for Updates** — compares running version to the latest GitHub release; on the desktop app downloads + installs via `electron-updater` (Restart to apply); on script installs shows the `update.bat`/`update.sh` command; data preserved in both paths
 - Onboarding checklist, audit log (timeline / by-user / by-entity, CSV export)
 
 **Multi-tenant SaaS**
