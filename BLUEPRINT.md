@@ -248,10 +248,13 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 
 | Table | Notes |
 |---|---|
-| `product` | `code?`, `name`, `unit`, `product_type` (`stock` ⊕ `service`), `default_rate`, `stock_qty`, `avg_cost` (WAvg), `reorder_level`, default GL FKs |
+| `product` | `code?`, `name`, `unit`, `product_type` (`stock` ⊕ `service`), `default_rate`, `stock_qty`, `avg_cost` (WAvg), `reorder_level`, **`category_id?`** (FK → `productcategory`), default GL FKs |
+| `productcategory` | 2-level taxonomy: `name`, `parent_id?` (self-FK; `null` = top-level category). Delete blocked while subcategories or assigned products exist. Tenant-scoped. |
 | `stocklocation` (V2.2) | `code`, `name`, `type` (`own/customer_custodial/wip` CHECK), `is_active`. Unique `(tenant_id, code)` |
 | `inventorylayer` | One row per receipt; `product_id`, **`location_id?`** (V2.2), **`owner_customer_id?`** (V2.2 — set for custodial layers), **`lot_no?`**, `qty_received`, `qty_remaining`, `unit_cost`, `source_doc` |
 | `stockmovement` (V2.2) | Event log; `direction` ∈ {`RECEIPT, CUSTODIAL_RECEIPT, ISSUE, CUSTODIAL_ISSUE, COMPLETION, CUSTODIAL_COMPLETION, DELIVERY, SHIPMENT, ADJUSTMENT`} (CHECK), qty>0 (CHECK), from/to location, lot, owner, unit_cost, total_cost, source_doc_type/id, transaction_id, `posted_to_gl` (False for custodial-only movements), notes |
+
+**Over-sell guard:** tenant setting `block_negative_stock` (default `false`). When `true`, `consume_stock(block_negative=True)` raises HTTP 400 if a sale would drive `stock_qty < 0`. Purchases (`record_purchase`) are never blocked.
 
 ### 5.4 Manufacturing (V2.3 + V2.4)
 
@@ -371,6 +374,7 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
   - `financial_statement_date` — reporting period preference
   - `invoice_prefix` / `bill_prefix` — document numbering prefixes
   - `email_notifications` — notification preference
+  - `block_negative_stock` — when `true`, sales that would drive stock below 0 are rejected (HTTP 400)
 - `PATCH /` — upsert KV pairs (all fields optional, only provided fields updated).
 - `PATCH /business-model` *(admin)* — switches model, adds missing CoA accounts.
 - `PATCH /modules` *(admin)* — overrides `enabled_modules` independently.
@@ -380,6 +384,7 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 
 ### Customers / Vendors / Products (`/api/customers`, `/api/vendors`, `/api/products`)
 - CRUD. `Product.type` ∈ `stock|service`; stock products carry running `avg_cost` + `stock_qty`.
+- `/api/product-categories` — CRUD for the 2-level taxonomy (parent → sub-category). `DELETE /{id}` returns 400 while any subcategory or product is assigned.
 
 ### Invoices (`/api/invoices`)
 - `POST /` — creates Invoice + lines + posts JE (Dr AR / Cr Revenue + Cr GST). If a line has `product_id` referencing a stock product, also relieves stock at WAvg and posts a separate COGS sub-JV.
@@ -476,7 +481,11 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - `GET /customer-custody` — per-(customer, product) custody view + unreleased declared values.
 
 ### Reports (`/api/reports`)
-- `/journal`, `/ledger`, `/trial-balance`, `/income-statement`, `/balance-sheet`, `/cash-flow`, `/tax-summary`, `/dashboard`, `/aging`.
+- `/journal`, `/trial-balance`, `/income-statement`, `/balance-sheet`, `/cash-flow`, `/tax-summary`, `/dashboard`, `/aging`.
+- `/ledger?account_id=…&start=…&end=…` — running balance per row; when `start`/`end` supplied also returns `opening_balance` (net of all JEs before `start`) and `closing_balance` (`opening + Σdebits − Σcredits`), following per-account-type sign convention.
+- `/product-ledger?product_id=…&start=…&end=…` — stock movements + running qty; supports per-location or consolidated view.
+- `/inventory-performance` — on-hand qty/value, low-stock, slow-movers, units sold + COGS.
+- `/customer-performance` — revenue, invoice count, outstanding AR, avg days-to-pay per customer.
 
 ### Sub-ledgers (drill-down layer)
 - `GET /api/customers/{id}/ledger?start=…&end=…` — per-customer AR sub-ledger. Opening balance, period activity (date, JV no., document, qty_out, Dr, Cr, running balance), closing balance. Aggregates `JournalEntry` rows that touch AR (`account.code = 1100`) where the source `Invoice` or `PaymentReceived` belongs to the customer. Maps to **IFRS 7.7** "information that enables users to evaluate the significance of financial instruments".
@@ -488,6 +497,9 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 
 ### Imports (`/api/imports`)
 - CSV upload for Products, Customers, Vendors, Accounts. Validates required columns; row-level error reporting.
+
+### Admin (`/api/admin`)
+- `POST /demo/seed` *(admin+)* — load all 5 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
 
 ---
 
@@ -735,14 +747,17 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 | Endpoint | Source | Notes |
 |---|---|---|
 | `GET /api/reports/journal` | `Transaction` + `JournalEntry` | Date-range + skip/limit |
-| `GET /api/reports/ledger?account_id=…` | `JournalEntry` | Running balance per row |
+| `GET /api/reports/ledger?account_id=…&start=…&end=…` | `JournalEntry` | Running balance per row; `start`/`end` params add `opening_balance` (net of pre-period JEs) + `closing_balance` (`opening + Σdr − Σcr`, sign follows account-type convention) |
 | `GET /api/reports/trial-balance` | `JournalEntry` (live) or `AccountBalance` (locked periods) | Excludes `is_memo` from totals |
 | `GET /api/reports/income-statement` | Revenue + Expense accounts | Closed periods exclude reversed JVs |
 | `GET /api/reports/balance-sheet` | Asset/Liability/Equity accounts | Memo accounts shown in separate Custodial section |
 | `GET /api/reports/cash-flow` | Indirect method | Operating activities derived from net income + non-cash adjustments |
 | `GET /api/reports/tax-summary` | GST output + input + income-tax estimate | Per-period |
-| `GET /api/reports/aging` | Invoice/Bill + PaymentAllocation | **Outstanding** balance (net of partial payments), aged bucket |
+| `GET /api/reports/aging` | Invoice/Bill + PaymentAllocation | **Outstanding** balance (net of partial payments), aged bucket; AR/AP aging pages drill into customer/vendor sub-ledger |
 | `GET /api/reports/dashboard` | Aggregates | KPI tiles |
+| `GET /api/reports/product-ledger` | `StockMovement` | Stock movements + running qty; per-location or consolidated |
+| `GET /api/reports/inventory-performance` | `Product` + `StockMovement` + `InventoryLayer` | On-hand qty/value, low-stock, slow-movers, units sold + COGS |
+| `GET /api/reports/customer-performance` | `Invoice` + `PaymentReceived` | Revenue, invoice count, outstanding AR, avg days-to-pay per customer |
 | `GET /api/manufacturing/dashboard` | ProductionOrder + InventoryLayer | Pipeline + WIP/FG/custodial |
 | `GET /api/manufacturing/wip-aging` | ProductionOrder | Days since `started_at` |
 | `GET /api/manufacturing/production-summary` | ProductionOrder | By state |
