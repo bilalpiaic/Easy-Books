@@ -41,7 +41,10 @@ backend/
 │   ├── auth.py          # signup, login, logout, /me, profile, accept-invite
 │   ├── users.py         # team management (admin+): create/invite/role/activate
 │   ├── invoices.py  bills.py  payments.py
-│   ├── reports.py  telecom_reports.py  manufacturing_reports.py
+│   ├── reports.py       # GL + report endpoints (see below)
+│   ├── admin.py         # Demo-data seed/purge (admin+) — backs Settings → Sample/Demo Data
+│   ├── product_categories.py  # ProductCategory CRUD — 2-level taxonomy (parent → sub-category)
+│   ├── telecom_reports.py  manufacturing_reports.py
 │   ├── telecom.py       # 40+ telecom franchise endpoints
 │   └── …
 ├── services/
@@ -60,10 +63,37 @@ backend/
 
 ## Schema management
 
-There is **no Alembic**. `SQLModel.metadata.create_all()` runs on every startup and creates missing tables. It does **not** alter existing tables. For columns added to an existing table, either:
+**Alembic migrations are the source of truth** (`backend/alembic/versions/`, revisions through 0019). `SQLModel.metadata.create_all()` still runs on every startup so a fresh checkout boots without a migration step, but all schema changes must go through Alembic:
 
-- Run `ALTER TABLE <table> ADD COLUMN <col> <type> DEFAULT <default>;` on the SQLite file
-- Or delete `backend/database.db` to get a fresh seeded database
+```bash
+# Add a column or table
+# 1. Update models.py
+# 2. Generate the migration
+uv run alembic revision --autogenerate -m "describe your change"
+# 3. Apply it
+uv run alembic upgrade head
+```
+
+**SQLite caveats:**
+- Alembic cannot `ADD CONSTRAINT` via ALTER — strip auto-generated FK lines from migrations that alter existing tables (see migrations 0016/0017 for the pattern; app-level tenant checks enforce integrity)
+- New-table migrations must guard with `bind.dialect.has_table(...)` so they coexist with `create_all()`
+
+The standalone installers (`install-and-run.*`) and `run_packaged.py` run `alembic upgrade head` on every launch, so updating to a newer release migrates the existing database forward in place — existing data is preserved.
+
+To reset to a fully seeded state, delete `backend/database.db`.
+
+## Key models and report endpoints
+
+**`models.py`** includes `ProductCategory` — a 2-level taxonomy (parent category → sub-category). Deleting a category is blocked while sub-categories or products reference it.
+
+**`routers/reports.py`** exposes:
+
+| Endpoint | Notes |
+|---|---|
+| `GET /api/reports/ledger` | General Ledger — when `start`/`end` date params are supplied returns **Opening Balance** (net of all JEs before `start`) and **Closing Balance** (`opening + Σdebits − Σcredits`) per account |
+| `GET /api/reports/product-ledger` | Per-product stock movement ledger |
+| `GET /api/reports/inventory-performance` | Inventory performance summary |
+| `GET /api/reports/customer-performance` | Customer revenue and payment performance |
 
 ## Environment variables
 
