@@ -968,3 +968,45 @@ def run_fx_revaluation(
     )
     session.commit()
     return {"jv_number": txn.jv_number, "entries_count": len(all_entries)}
+
+
+# ── Product Ledger (by store or consolidated) ────────────────────────────────
+
+_IN_DIRECTIONS = {"RECEIPT", "CUSTODIAL_RECEIPT", "COMPLETION", "CUSTODIAL_COMPLETION"}
+
+
+@router.get("/product-ledger")
+def product_ledger(
+    session: SessionDep, user: CurrentUserDep,
+    product_id: int, location_id: Optional[int] = None,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    from models import StockMovement
+    q = select(StockMovement).where(
+        StockMovement.tenant_id == user.tenant_id,
+        StockMovement.product_id == product_id,
+    )
+    if location_id is not None:
+        q = q.where(
+            (StockMovement.from_location_id == location_id)
+            | (StockMovement.to_location_id == location_id)
+        )
+    rows = session.exec(q.order_by(StockMovement.occurred_at, StockMovement.id)).all()
+    running = ZERO
+    items = []
+    for m in rows:
+        d = m.occurred_at.date().isoformat() if hasattr(m.occurred_at, "date") else str(m.occurred_at)[:10]
+        if start and d < start:
+            continue
+        if end and d > end:
+            continue
+        sign = 1 if m.direction in _IN_DIRECTIONS else -1
+        running += sign * D(m.qty)
+        items.append({
+            "date": d, "direction": m.direction,
+            "qty_in": D(m.qty) if sign > 0 else ZERO,
+            "qty_out": D(m.qty) if sign < 0 else ZERO,
+            "running_qty": running, "unit_cost": m.unit_cost,
+            "source": m.source_doc_type or "",
+        })
+    return {"product_id": product_id, "location_id": location_id, "items": items}
