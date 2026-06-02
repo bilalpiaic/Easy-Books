@@ -431,53 +431,79 @@ def get_ledger(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
     search: Optional[str] = None,
-    account_id: Optional[int] = None,
-    account_code: Optional[str] = None,
+    account_id: Optional[int] = None, account_code: Optional[str] = None,
     skip: int = 0, limit: int = 50,
 ):
+    from collections import defaultdict
+    acc_q = select(Account).where(Account.tenant_id == user.tenant_id)
+    if account_id:
+        acc_q = acc_q.where(Account.id == account_id)
+    elif account_code:
+        acc_q = acc_q.where(Account.code == account_code)
+    elif search:
+        acc_q = acc_q.where(Account.name.ilike(f"%{search}%"))
+    scope = {a.id: a for a in session.exec(acc_q).all()}
+    if not scope:
+        return {"total": 0, "items": []}
+
+    def signed(atype, debit, credit):
+        d, c = D(debit), D(credit)
+        return (d - c) if atype in ("Asset", "Expense") else (c - d)
+
+    opening: dict = defaultdict(lambda: ZERO)
+    if start:
+        for acc_id, debit, credit in (
+            session.query(JournalEntry.account_id, JournalEntry.debit, JournalEntry.credit)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .filter(Transaction.tenant_id == user.tenant_id,
+                    Transaction.date < start,
+                    JournalEntry.account_id.in_(list(scope.keys())))
+            .all()
+        ):
+            opening[acc_id] += signed(scope[acc_id].type, debit, credit)
+
     q = (
-        session.query(Account, Transaction, JournalEntry)
-        .join(JournalEntry, JournalEntry.account_id == Account.id)
+        session.query(Transaction, JournalEntry)
         .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-        .filter(Transaction.tenant_id == user.tenant_id)
+        .filter(Transaction.tenant_id == user.tenant_id,
+                JournalEntry.account_id.in_(list(scope.keys())))
     )
     if start:
         q = q.filter(Transaction.date >= start)
     if end:
         q = q.filter(Transaction.date <= end)
-    if account_id:
-        q = q.filter(Account.id == account_id)
-    elif account_code:
-        q = q.filter(Account.code == account_code)
-    elif search:
-        q = q.filter(Account.name.ilike(f"%{search}%"))
+    inrange = q.order_by(JournalEntry.account_id, Transaction.date, Transaction.id).all()
 
-    rows = q.order_by(Account.code, Transaction.date, Transaction.id).all()
     accounts: dict = {}
-    for account, tx, je in rows:
-        if account.id not in accounts:
-            accounts[account.id] = {
-                "code": account.code, "name": account.name, "type": account.type,
-                "entries": [], "running_balance": ZERO,
+
+    def ensure(acc_id):
+        if acc_id not in accounts:
+            a = scope[acc_id]
+            accounts[acc_id] = {
+                "id": a.id, "code": a.code, "name": a.name, "type": a.type,
+                "opening_balance": opening[acc_id], "entries": [],
+                "running_balance": opening[acc_id],
             }
-        running = accounts[account.id]["running_balance"]
-        if account.type in ("Asset", "Expense"):
-            running += D(je.debit) - D(je.credit)
-        else:
-            running += D(je.credit) - D(je.debit)
-        accounts[account.id]["running_balance"] = running
-        accounts[account.id]["entries"].append({
-            "date": tx.date,
-            "transaction_id": tx.id,
-            "jv_number": tx.jv_number,
-            "description": tx.description or "",
-            "debit": je.debit,
-            "credit": je.credit,
-            "balance": running,
+        return accounts[acc_id]
+
+    for acc_id, bal in opening.items():
+        if bal != ZERO:
+            ensure(acc_id)
+    for tx, je in inrange:
+        rec = ensure(je.account_id)
+        rec["running_balance"] += signed(rec["type"], je.debit, je.credit)
+        rec["entries"].append({
+            "date": tx.date, "transaction_id": tx.id, "jv_number": tx.jv_number,
+            "description": tx.description or "", "debit": je.debit,
+            "credit": je.credit, "balance": rec["running_balance"],
         })
 
-    all_accounts = list(accounts.values())
-    return {"total": len(all_accounts), "items": all_accounts[skip : skip + limit]}
+    items = []
+    for rec in accounts.values():
+        rec["closing_balance"] = rec["running_balance"]
+        items.append(rec)
+    items.sort(key=lambda r: r["code"])
+    return {"total": len(items), "items": items[skip: skip + limit]}
 
 
 # ── Balance sheet ────────────────────────────────────────────────────────────
