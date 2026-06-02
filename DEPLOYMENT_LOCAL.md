@@ -221,6 +221,22 @@ next launch. **Upgrade guarantee:** installing a newer version over an older one
 > - A published GitHub Release with the installer assets is required before `electron-updater` can serve updates.
 > - A code-signing certificate is optional but recommended: without one, Windows SmartScreen will show an "Unknown publisher" warning on first install. Supply the cert via `CSC_LINK` / `CSC_KEY_PASSWORD` on the build host only — **never commit certs or credentials to the repo.**
 
+### Publishing a release (one command — so the in-app update goes live)
+
+The release **must** be built + published on the target OS (electron-builder can't cross-compile and the backend is a platform-specific PyInstaller binary). `build-all` has a `-Publish` (PowerShell) / `--publish` (bash) flag that runs `electron-builder --publish always` — it builds the installer **and** uploads it + `latest.yml` (the manifest `electron-updater` reads) to a GitHub Release.
+
+1. **Bump the version** so it registers as an update for existing installs: set the same `version` in **`desktop/package.json`** (the electron-updater release version) **and** `frontend/package.json` (the in-app version badge / Update-modal "current"). They must match the release tag.
+2. **On the target OS** (Windows for the `.exe`), set a token with `repo` scope and publish:
+   ```powershell
+   $env:GH_TOKEN = (gh auth token)          # or a PAT with repo scope
+   powershell -ExecutionPolicy Bypass -File desktop\build-all.ps1 -Publish
+   ```
+   ```bash
+   export GH_TOKEN=$(gh auth token)
+   ./desktop/build-all.sh --publish
+   ```
+3. electron-builder creates a **draft** GitHub Release (its default) with `Easy-Books Setup <ver>.exe` + `latest.yml` + `.exe.blockmap`. **Review it on GitHub and click "Publish release"** — the moment it's published (repo is public), installed apps see the update: on launch (`checkForUpdatesAndNotify`) and via **Settings → Check for Updates**. (To skip the manual step, set `releaseType: release` in `electron-builder.yml`'s `publish` block — less safe for a first release.)
+
 ### Shipping to end users (runbook)
 
 1. **Build** (Windows, full build — no `-SkipStaging`):
