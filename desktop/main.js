@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog } = require("electron")
+const { app, BrowserWindow, dialog, ipcMain } = require("electron")
 const { autoUpdater } = require("electron-updater")
 const { spawn } = require("child_process")
 const path = require("path")
@@ -70,11 +70,27 @@ async function createWindow() {
   }
 }
 
+function wireAutoUpdater() {
+  const send = (status) => { try { if (win) win.webContents.send("eb:update-status", status) } catch (_) {} }
+  autoUpdater.on("checking-for-update", () => send({ state: "checking" }))
+  autoUpdater.on("update-available",    (i) => send({ state: "available", version: i && i.version }))
+  autoUpdater.on("update-not-available",() => send({ state: "none" }))
+  autoUpdater.on("error",               (e) => send({ state: "error", message: String(e) }))
+  autoUpdater.on("download-progress",   (p) => send({ state: "downloading", percent: Math.round(p.percent || 0) }))
+  autoUpdater.on("update-downloaded",   (i) => send({ state: "downloaded", version: i && i.version }))
+  ipcMain.handle("eb:check-for-updates", async () => {
+    try { await autoUpdater.checkForUpdates(); return { ok: true } }
+    catch (e) { return { ok: false, error: String(e) } }
+  })
+  ipcMain.handle("eb:install-update", () => { try { autoUpdater.quitAndInstall() } catch (_) {} })
+}
+
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) { app.quit() } else {
   app.on("second-instance", () => { if (win) { win.show(); win.focus() } })
   app.whenReady().then(() => {
     startSidecars(); createWindow()
+    wireAutoUpdater()
     // Check GitHub Releases for a newer version and notify the user. Inert
     // until a release feed exists (see electron-builder.yml `publish`).
     try { autoUpdater.checkForUpdatesAndNotify() } catch (_) {}

@@ -1,10 +1,11 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2, Upload, CalendarDays, BookOpen } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2, Upload, CalendarDays, BookOpen, RefreshCw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import VersionBadge from '@/components/VersionBadge'
+import UpdateModal from '@/components/UpdateModal'
 
 interface PaymentTerm {
   id: number
@@ -62,6 +63,7 @@ export default function SettingsPage() {
   const [addingTerm, setAddingTerm] = useState(false)
   const [termSaving, setTermSaving] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [updateModalOpen, setUpdateModalOpen] = useState(false)
 
   useEffect(() => { setForm(ctxSettings) }, [ctxSettings])
 
@@ -978,9 +980,20 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex items-center justify-end gap-4 pt-2">
+        <button
+          onClick={() => setUpdateModalOpen(true)}
+          className="flex items-center gap-1.5 text-[11px] text-[#1a1814]/50 hover:text-[#b8943f] transition-colors"
+        >
+          <RefreshCw className="w-3 h-3" />
+          Check for Updates
+        </button>
         <VersionBadge />
       </div>
+
+      {updateModalOpen && (
+        <UpdateModal onClose={() => setUpdateModalOpen(false)} />
+      )}
     </div>
   )
 }
