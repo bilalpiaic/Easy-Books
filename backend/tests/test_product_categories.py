@@ -34,8 +34,12 @@ def test_categories_are_tenant_isolated(client, admin_headers):
     }).json()["access_token"]
     h2 = {"Authorization": f"Bearer {tok2}"}
 
-    # Tenant 2 sees an empty list and cannot delete tenant 1's category.
-    assert client.get("/api/product-categories", headers=h2).json() == []
+    # Tenant 2 may have its own starter categories, but never tenant 1's —
+    # and cannot delete tenant 1's category.
+    tree2 = client.get("/api/product-categories", headers=h2).json()
+    ids2 = {c["id"] for c in tree2} | {s["id"] for c in tree2 for s in c.get("children", [])}
+    assert cat["id"] not in ids2
+    assert not any(c["name"] == "OnlyTenant1" for c in tree2)
     assert client.delete(f"/api/product-categories/{cat['id']}", headers=h2).status_code == 404
 
 

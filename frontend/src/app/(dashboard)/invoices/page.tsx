@@ -40,7 +40,7 @@ interface AgingBuckets {
 
 interface Customer { id: number; name: string }
 interface Account { id: number; code: string; name: string; type: string }
-interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string }
+interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number }
 interface PaymentTerm { id: number; code: string; name: string; days: number }
 
 interface InvoiceForm {
@@ -630,7 +630,7 @@ function InvoicesInner() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
-                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax />
+                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell />
               </div>
 
               <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">

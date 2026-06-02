@@ -1,10 +1,11 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2, Upload, CalendarDays, BookOpen } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, ClipboardList, Building2, Upload, CalendarDays, BookOpen, RefreshCw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import VersionBadge from '@/components/VersionBadge'
+import UpdateModal from '@/components/UpdateModal'
 
 interface PaymentTerm {
   id: number
@@ -62,6 +63,7 @@ export default function SettingsPage() {
   const [addingTerm, setAddingTerm] = useState(false)
   const [termSaving, setTermSaving] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [updateModalOpen, setUpdateModalOpen] = useState(false)
 
   useEffect(() => { setForm(ctxSettings) }, [ctxSettings])
 
@@ -623,6 +625,22 @@ export default function SettingsPage() {
             <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#b8943f]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#b8943f]"></div>
           </label>
         </div>
+
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-[#ede9e2]">
+          <div>
+            <h3 className="font-semibold text-black">Block overselling (prevent negative stock on sales)</h3>
+            <p className="text-sm text-black/65 mt-1">When on, a sale that would drive a stock product below zero is rejected with an error. When off, the sale is allowed and stock goes negative (warn-only).</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+            <input
+              type="checkbox"
+              checked={form.block_negative_stock === "true"}
+              onChange={e => handleChange('block_negative_stock', e.target.checked ? "true" : "false")}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#b8943f]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#b8943f]"></div>
+          </label>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">
@@ -962,9 +980,20 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex items-center justify-end gap-4 pt-2">
+        <button
+          onClick={() => setUpdateModalOpen(true)}
+          className="flex items-center gap-1.5 text-[11px] text-[#1a1814]/50 hover:text-[#b8943f] transition-colors"
+        >
+          <RefreshCw className="w-3 h-3" />
+          Check for Updates
+        </button>
         <VersionBadge />
       </div>
+
+      {updateModalOpen && (
+        <UpdateModal onClose={() => setUpdateModalOpen(false)} />
+      )}
     </div>
   )
 }

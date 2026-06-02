@@ -20,6 +20,7 @@ interface Product {
   unit: string
   default_rate: number
   product_type: string
+  stock_qty?: number
 }
 
 export interface TaxCodeOption {
@@ -37,6 +38,10 @@ interface Props {
   taxCodes?: TaxCodeOption[]
   showTax?: boolean
   readOnly?: boolean
+  /** When true, show on-hand qty for stock products and flag oversells */
+  showStockHint?: boolean
+  /** When true, show an amber warning when qty exceeds on-hand (invoices only) */
+  warnOversell?: boolean
 }
 
 const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
@@ -45,7 +50,7 @@ function emptyLine(): LineItem {
   return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0, tax_code_id: null }
 }
 
-export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false }: Props) {
+export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false }: Props) {
   const fmt = useFmt()
   const update = (idx: number, patch: Partial<LineItem>) => {
     const updated = lines.map((l, i) => {
@@ -142,12 +147,30 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                 {readOnly ? (
                   <span className="block text-center font-mono">{line.qty}</span>
                 ) : (
-                  <input
-                    type="number" min="0" step="0.001"
-                    value={line.qty}
-                    onChange={e => update(idx, { qty: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-center bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
-                  />
+                  <div>
+                    <input
+                      type="number" min="0" step="0.001"
+                      value={line.qty}
+                      onChange={e => update(idx, { qty: parseFloat(e.target.value) || 0 })}
+                      className="w-full text-center bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
+                    />
+                    {showStockHint && (() => {
+                      const prod = line.product_id ? products.find(p => p.id === line.product_id) : null
+                      if (!prod || prod.product_type !== "stock") return null
+                      const onHand = prod.stock_qty ?? 0
+                      const oversell = warnOversell && line.qty > onHand
+                      return (
+                        <div className="text-[10px] mt-0.5 text-center">
+                          <span className={oversell ? "text-amber-600 font-semibold" : "text-black/45"}>
+                            On hand: {onHand}
+                          </span>
+                          {oversell && (
+                            <span className="block text-amber-600 font-semibold">exceeds on-hand</span>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
                 )}
               </td>
               <td className="px-3 py-2">

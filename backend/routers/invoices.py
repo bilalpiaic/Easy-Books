@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from models import Account, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
 from services.fx import rate_to_base
-from services.inventory import consume_stock
+from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 
@@ -231,50 +231,64 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     session.add(invoice)
     session.flush()
 
+    # Read block_negative_stock setting for this tenant once before the line loop.
+    _blk_row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == user.tenant_id,
+            Settings.key == "block_negative_stock",
+        )
+    ).first()
+    block_negative = bool(_blk_row and (_blk_row.value or "").lower() == "true")
+
     # Persist line items; for stock lines, relieve inventory at WAvg cost and
     # accumulate total COGS so we can post one Dr COGS / Cr Inventory JV.
     # For lines with tax_code_id, accumulate per-GL tax amounts.
     total_cogs = ZERO
     per_gl_tax: dict[int, Decimal] = {}  # gl_account_id → total_tax for per-line mode
-    for line_data in body.lines:
-        amount = money(D(line_data.qty) * D(line_data.rate))
-        line_tax_code_id = line_data.tax_code_id
-        if line_tax_code_id:
-            tc = session.exec(
-                select(TaxCode).where(
-                    TaxCode.id == line_tax_code_id,
-                    TaxCode.tenant_id == user.tenant_id,
-                )
-            ).first()
-            if tc:
-                line_tax = money(amount * tc.rate / D("100"))
-                per_gl_tax[tc.gl_account_id] = per_gl_tax.get(tc.gl_account_id, ZERO) + line_tax
-        session.add(
-            InvoiceLine(
-                invoice_id=invoice.id,
-                product_id=line_data.product_id,
-                description=line_data.description,
-                qty=D(line_data.qty),
-                unit=line_data.unit,
-                rate=D(line_data.rate),
-                amount=amount,
-                tax_code_id=line_tax_code_id,
-            )
-        )
-        if line_data.product_id:
-            prod = session.exec(
-                select(Product).where(
-                    Product.id == line_data.product_id,
-                    Product.tenant_id == user.tenant_id,
-                )
-            ).first()
-            if prod and prod.product_type == "stock":
-                total_cogs += consume_stock(
-                    session,
-                    tenant_id=user.tenant_id,
-                    product_id=prod.id,
+    try:
+        for line_data in body.lines:
+            amount = money(D(line_data.qty) * D(line_data.rate))
+            line_tax_code_id = line_data.tax_code_id
+            if line_tax_code_id:
+                tc = session.exec(
+                    select(TaxCode).where(
+                        TaxCode.id == line_tax_code_id,
+                        TaxCode.tenant_id == user.tenant_id,
+                    )
+                ).first()
+                if tc:
+                    line_tax = money(amount * tc.rate / D("100"))
+                    per_gl_tax[tc.gl_account_id] = per_gl_tax.get(tc.gl_account_id, ZERO) + line_tax
+            session.add(
+                InvoiceLine(
+                    invoice_id=invoice.id,
+                    product_id=line_data.product_id,
+                    description=line_data.description,
                     qty=D(line_data.qty),
+                    unit=line_data.unit,
+                    rate=D(line_data.rate),
+                    amount=amount,
+                    tax_code_id=line_tax_code_id,
                 )
+            )
+            if line_data.product_id:
+                prod = session.exec(
+                    select(Product).where(
+                        Product.id == line_data.product_id,
+                        Product.tenant_id == user.tenant_id,
+                    )
+                ).first()
+                if prod and prod.product_type == "stock":
+                    total_cogs += consume_stock(
+                        session,
+                        tenant_id=user.tenant_id,
+                        product_id=prod.id,
+                        qty=D(line_data.qty),
+                        block_negative=block_negative,
+                    )
+    except InventoryError as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
     # If per-line taxes were collected, override the header gst_amount.
     use_per_line_tax = bool(per_gl_tax)

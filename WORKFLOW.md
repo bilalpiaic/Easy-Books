@@ -385,7 +385,10 @@ Revenue is recognised on invoice issue; partial payments tracked separately per 
 | 1 | Add customer | `/customers` | `POST /api/customers` | `Customer` | — | **IAS 1** |
 | 2 | Issue invoice | `/invoices` | `POST /api/invoices` | `Invoice` + lines + `Transaction` + JEs (+ COGS sub-JV for stock) | **Dr AR · Cr Revenue · Cr GST Output** | **IFRS 15** |
 | 3 | Receive payment | `/payments-received` | `POST /api/payments-received` | `PaymentReceived` + `Transaction` + JEs + `PaymentAllocation[]` | **Dr Cash/Bank · Cr AR** | **IAS 32** |
-| 4 | View aging | `/invoices` (aging panel) | `GET /api/invoices/aging` | — | Buckets net of allocations | **IAS 1.99** |
+| 4 | View AR aging | `/aging/receivable` | `GET /api/invoices/aging` | — | Current/1–30/31–60/61–90/90+ buckets net of allocations; drill-down to customer ledger | **IAS 1.99** |
+| 5 | Customer performance | `/customer-performance` | `GET /api/reports/customer-performance` | — | Revenue, invoice count, outstanding AR, avg days-to-pay per customer | **IAS 1** |
+
+**On-hand display:** invoice line items show **On hand: N** for stock products, sourced live from `Product.stock_qty`, so you see available quantity at the point of entry.
 
 **Invoice GL — service sale, 1000 + 17% GST, base currency:**
 ```
@@ -472,7 +475,9 @@ Side effects:
 
 ### 4.3 INVENTORY (Weighted-Average)
 
-**Before creating stock products**, set up your product categories at **Products → Categories** (`/products/categories`). Categories are a 2-level hierarchy (parent → sub-category); new tenants get a starter set per business model. Assign a category on the product add/edit form; filter the products list by category.
+**Inventory sidebar section:** the navigation sidebar surfaces a dedicated **Inventory** section containing: **Products**, **Product Categories** (`/products/categories`), **Product Ledger** (`/products/ledger`), and **Inventory Performance** (`/inventory/performance`).
+
+**Before creating stock products**, set up your product categories at **Inventory → Product Categories** (`/products/categories`). Categories are a 2-level hierarchy (parent → sub-category); new tenants get a starter set seeded for their business model. Assign a category on the product add/edit form; filter the products list by category.
 
 Inventory is cross-cutting — it rides on top of Bills (inflow) and Invoices (outflow). Only `Product.product_type == 'stock'` products participate; services bypass.
 
@@ -492,6 +497,12 @@ Inventory is cross-cutting — it rides on top of Bills (inflow) and Invoices (o
 │   Product.stock_qty -= qty                                       │
 │   Returns cogs → posted as Dr COGS / Cr Inventory in a SEPARATE  │
 │   JV so reversal of the sale doesn't accidentally untangle COGS  │
+│                                                                  │
+│ Over-sell guard: consume_stock(block_negative=True) raises a     │
+│ 400 error if the sale would drive stock_qty below 0.  Enabled    │
+│ when the tenant setting `block_negative_stock=true` (default     │
+│ false). Purchases call record_purchase() — never blocked.        │
+│ Toggle at Settings → Inventory → Block overselling.             │
 │                                                                  │
 │ Concurrency: Product row is SELECTed FOR UPDATE on both paths so │
 │ two simultaneous sales can't oversell on Postgres.               │
@@ -1059,14 +1070,19 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 | Report | Endpoint | What it computes |
 |---|---|---|
 | Journal | `GET /api/reports/journal` | Flat list of JEs ↔ Transaction ↔ Account, paginated, filterable |
-| Ledger | `GET /api/reports/ledger?account_id=…` | JEs grouped by account, running balance per row |
+| Ledger | `GET /api/reports/ledger?account_id=…&start=…&end=…` | JEs grouped by account, running balance per row; when date-filtered shows **Opening Balance** (pre-period net) and **Closing Balance** (`opening + debits − credits`, sign per account type) |
 | Trial Balance | `GET /api/reports/trial-balance?start=…&end=…` | `SUM(debit), SUM(credit)` per account; verifies ∑Dr = ∑Cr |
 | Income Statement | `GET /api/reports/income-statement` | Revenue (4xxx) − Expense (5xxx) for date range |
 | Balance Sheet | `GET /api/reports/balance-sheet` | Assets = Liabilities + Equity (incl. current-period retained earnings) |
 | Cash Flow | `GET /api/reports/cash-flow` | Indirect method: Net Income + non-cash + Δ working capital |
 | Tax Summary | `GET /api/reports/tax-summary` | Output GST (2200) − Input GST (1250) = Net GST Payable; income-tax slab estimate |
-| AR Aging | `GET /api/invoices/aging` | Buckets 0–30/31–60/61–90/90+ of **outstanding** (gross − sum(allocations)) |
-| AP Aging | `GET /api/bills/aging` | Same for bills |
+| AR Aging | `GET /api/invoices/aging` | Buckets Current/1–30/31–60/61–90/90+ of **outstanding** (gross − sum(allocations)); items include `customer_id` for drill-down |
+| AP Aging | `GET /api/bills/aging` | Same for bills; items include `vendor_id` for drill-down |
+| AR Aging page | `/aging/receivable` | Dedicated AR Aging report with drill-down to customer ledger |
+| AP Aging page | `/aging/payable` | Dedicated AP Aging report with drill-down to vendor ledger |
+| Product Ledger | `GET /api/reports/product-ledger` | Stock movements + running quantity per product; filter by store or **Consolidated** |
+| Inventory Performance | `GET /api/reports/inventory-performance` | Per product: on-hand qty + value (qty × avg cost), low-stock flag, last-movement date, units sold + COGS over a period |
+| Customer Performance | `GET /api/reports/customer-performance` | Per customer: revenue, invoice count, outstanding AR, avg days-to-pay; ranked |
 | Dashboard KPIs | `GET /api/reports/dashboard` | Revenue, expense, AR/AP outstanding (net of allocations), overdue counts, low stock |
 | Dashboard charts | `GET /api/reports/dashboard/charts?months=12` | 12-month series for chart components |
 
@@ -1169,6 +1185,9 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/tax-summary` | GST + income-tax slabs |
 | GET | `/api/reports/dashboard` | KPIs (outstanding net of allocations) |
 | GET | `/api/reports/dashboard/charts?months=12` | Chart series |
+| GET | `/api/reports/product-ledger?product_id=…&store=…` | Stock movements + running qty; `store=all` for consolidated view |
+| GET | `/api/reports/inventory-performance?start=…&end=…` | Per-product on-hand qty/value, low-stock flag, last movement, units sold + COGS |
+| GET | `/api/reports/customer-performance?start=…&end=…` | Per-customer revenue, invoice count, outstanding AR, avg days-to-pay |
 | GET | `/api/customers/{id}/ledger?start=…&end=…` | AR sub-ledger — opening, period activity (qty_out + Dr/Cr), running balance, closing (§5.7.2) |
 | GET | `/api/vendors/{id}/ledger?start=…&end=…` | AP sub-ledger — credit-normal (positive = owed) |
 | GET | `/api/products/{id}/stock-card?start=…&end=…` | StockMovement-driven qty + value card (IAS 2.36(d) reading) |
@@ -1476,6 +1495,24 @@ from the all-time GL, so the next period opens at the prior closing balance
 `/guide` and `/workflow` read `tenant.business_model` from `/api/auth/me` and show only the cycles
 relevant to that model (inventory & purchase orders for stock-keeping models, deferred revenue for
 services, production for manufacturing, tracker/RSO for telecom). See USER_GUIDE §18 for the matrix.
+
+---
+
+---
+
+## IN-APP UPDATE CHECK
+
+**Settings → Check for Updates** compares the running version to the latest GitHub release.
+
+| Install type | Behaviour |
+|---|---|
+| **Desktop (Electron)** | `electron-updater` downloads and installs the new release in the background. A **Restart to apply** prompt appears when ready. `alembic upgrade head` runs on the next launch — data preserved. |
+| **Script install** (`install-and-run.*`) | The modal shows the `update.bat` / `update.sh` command. Running it does `git pull` then re-invokes the installer (which rebuilds the frontend and runs migrations). Data in `~/.easy-books` is never touched. |
+
+The feature is wired via:
+- `desktop/preload.js` — exposes `window.easybooks.checkForUpdates()` / `onUpdateAvailable(cb)` / `onUpdateDownloaded(cb)` / `installUpdate()` over the context bridge
+- `desktop/main.js` `wireAutoUpdater()` — configures `autoUpdater` to check the GitHub releases feed and emit IPC events consumed by the renderer
+- `frontend/src/components/UpdateModal.tsx` — the settings-page modal that calls these bridge methods (and falls back to showing the CLI command on non-Electron installs)
 
 ---
 

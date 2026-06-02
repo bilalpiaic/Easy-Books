@@ -431,53 +431,79 @@ def get_ledger(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
     search: Optional[str] = None,
-    account_id: Optional[int] = None,
-    account_code: Optional[str] = None,
+    account_id: Optional[int] = None, account_code: Optional[str] = None,
     skip: int = 0, limit: int = 50,
 ):
+    from collections import defaultdict
+    acc_q = select(Account).where(Account.tenant_id == user.tenant_id)
+    if account_id:
+        acc_q = acc_q.where(Account.id == account_id)
+    elif account_code:
+        acc_q = acc_q.where(Account.code == account_code)
+    elif search:
+        acc_q = acc_q.where(Account.name.ilike(f"%{search}%"))
+    scope = {a.id: a for a in session.exec(acc_q).all()}
+    if not scope:
+        return {"total": 0, "items": []}
+
+    def signed(atype, debit, credit):
+        d, c = D(debit), D(credit)
+        return (d - c) if atype in ("Asset", "Expense") else (c - d)
+
+    opening: dict = defaultdict(lambda: ZERO)
+    if start:
+        for acc_id, debit, credit in (
+            session.query(JournalEntry.account_id, JournalEntry.debit, JournalEntry.credit)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .filter(Transaction.tenant_id == user.tenant_id,
+                    Transaction.date < start,
+                    JournalEntry.account_id.in_(list(scope.keys())))
+            .all()
+        ):
+            opening[acc_id] += signed(scope[acc_id].type, debit, credit)
+
     q = (
-        session.query(Account, Transaction, JournalEntry)
-        .join(JournalEntry, JournalEntry.account_id == Account.id)
+        session.query(Transaction, JournalEntry)
         .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-        .filter(Transaction.tenant_id == user.tenant_id)
+        .filter(Transaction.tenant_id == user.tenant_id,
+                JournalEntry.account_id.in_(list(scope.keys())))
     )
     if start:
         q = q.filter(Transaction.date >= start)
     if end:
         q = q.filter(Transaction.date <= end)
-    if account_id:
-        q = q.filter(Account.id == account_id)
-    elif account_code:
-        q = q.filter(Account.code == account_code)
-    elif search:
-        q = q.filter(Account.name.ilike(f"%{search}%"))
+    inrange = q.order_by(JournalEntry.account_id, Transaction.date, Transaction.id).all()
 
-    rows = q.order_by(Account.code, Transaction.date, Transaction.id).all()
     accounts: dict = {}
-    for account, tx, je in rows:
-        if account.id not in accounts:
-            accounts[account.id] = {
-                "code": account.code, "name": account.name, "type": account.type,
-                "entries": [], "running_balance": ZERO,
+
+    def ensure(acc_id):
+        if acc_id not in accounts:
+            a = scope[acc_id]
+            accounts[acc_id] = {
+                "id": a.id, "code": a.code, "name": a.name, "type": a.type,
+                "opening_balance": opening[acc_id], "entries": [],
+                "running_balance": opening[acc_id],
             }
-        running = accounts[account.id]["running_balance"]
-        if account.type in ("Asset", "Expense"):
-            running += D(je.debit) - D(je.credit)
-        else:
-            running += D(je.credit) - D(je.debit)
-        accounts[account.id]["running_balance"] = running
-        accounts[account.id]["entries"].append({
-            "date": tx.date,
-            "transaction_id": tx.id,
-            "jv_number": tx.jv_number,
-            "description": tx.description or "",
-            "debit": je.debit,
-            "credit": je.credit,
-            "balance": running,
+        return accounts[acc_id]
+
+    for acc_id, bal in opening.items():
+        if bal != ZERO:
+            ensure(acc_id)
+    for tx, je in inrange:
+        rec = ensure(je.account_id)
+        rec["running_balance"] += signed(rec["type"], je.debit, je.credit)
+        rec["entries"].append({
+            "date": tx.date, "transaction_id": tx.id, "jv_number": tx.jv_number,
+            "description": tx.description or "", "debit": je.debit,
+            "credit": je.credit, "balance": rec["running_balance"],
         })
 
-    all_accounts = list(accounts.values())
-    return {"total": len(all_accounts), "items": all_accounts[skip : skip + limit]}
+    items = []
+    for rec in accounts.values():
+        rec["closing_balance"] = rec["running_balance"]
+        items.append(rec)
+    items.sort(key=lambda r: r["code"])
+    return {"total": len(items), "items": items[skip: skip + limit]}
 
 
 # ── Balance sheet ────────────────────────────────────────────────────────────
@@ -942,3 +968,135 @@ def run_fx_revaluation(
     )
     session.commit()
     return {"jv_number": txn.jv_number, "entries_count": len(all_entries)}
+
+
+# ── Product Ledger (by store or consolidated) ────────────────────────────────
+
+_IN_DIRECTIONS = {"RECEIPT", "CUSTODIAL_RECEIPT", "COMPLETION", "CUSTODIAL_COMPLETION"}
+
+
+@router.get("/product-ledger")
+def product_ledger(
+    session: SessionDep, user: CurrentUserDep,
+    product_id: int, location_id: Optional[int] = None,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    from models import StockMovement
+    q = select(StockMovement).where(
+        StockMovement.tenant_id == user.tenant_id,
+        StockMovement.product_id == product_id,
+    )
+    if location_id is not None:
+        q = q.where(
+            (StockMovement.from_location_id == location_id)
+            | (StockMovement.to_location_id == location_id)
+        )
+    rows = session.exec(q.order_by(StockMovement.occurred_at, StockMovement.id)).all()
+    running = ZERO
+    items = []
+    for m in rows:
+        d = m.occurred_at.date().isoformat() if hasattr(m.occurred_at, "date") else str(m.occurred_at)[:10]
+        if start and d < start:
+            continue
+        if end and d > end:
+            continue
+        sign = 1 if m.direction in _IN_DIRECTIONS else -1
+        running += sign * D(m.qty)
+        items.append({
+            "date": d, "direction": m.direction,
+            "qty_in": D(m.qty) if sign > 0 else ZERO,
+            "qty_out": D(m.qty) if sign < 0 else ZERO,
+            "running_qty": running, "unit_cost": m.unit_cost,
+            "source": m.source_doc_type or "",
+        })
+    return {"product_id": product_id, "location_id": location_id, "items": items}
+
+
+# ── Inventory Performance ─────────────────────────────────────────────────────
+
+
+@router.get("/inventory-performance")
+def inventory_performance(
+    session: SessionDep, user: CurrentUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    from models import StockMovement
+    prods = session.exec(
+        select(Product).where(Product.tenant_id == user.tenant_id,
+                              Product.product_type == "stock")
+    ).all()
+    out = []
+    for p in prods:
+        mv = session.exec(
+            select(StockMovement).where(
+                StockMovement.tenant_id == user.tenant_id,
+                StockMovement.product_id == p.id,
+            ).order_by(StockMovement.occurred_at.desc())
+        ).all()
+        last = mv[0].occurred_at.date().isoformat() if mv else None
+        units_sold = sum(
+            (D(m.qty) for m in mv
+             if m.direction in ("SHIPMENT", "DELIVERY", "ISSUE")
+             and (not start or m.occurred_at.date().isoformat() >= start)
+             and (not end or m.occurred_at.date().isoformat() <= end)),
+            start=ZERO,
+        )
+        out.append({
+            "id": p.id, "name": p.name, "code": p.code,
+            "on_hand": D(p.stock_qty), "avg_cost": D(p.avg_cost),
+            "stock_value": money(D(p.stock_qty) * D(p.avg_cost)),
+            "reorder_level": D(p.reorder_level),
+            "low_stock": D(p.stock_qty) <= D(p.reorder_level),
+            "last_movement": last, "units_sold": units_sold,
+            "cogs": money(units_sold * D(p.avg_cost)),
+        })
+    out.sort(key=lambda r: r["stock_value"], reverse=True)
+    return {"items": out}
+
+
+# ── Customer Performance ──────────────────────────────────────────────────────
+
+
+@router.get("/customer-performance")
+def customer_performance(
+    session: SessionDep, user: CurrentUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    from models import Invoice, PaymentAllocation, PaymentReceived
+    from datetime import date as _date
+    q = select(Invoice).where(Invoice.tenant_id == user.tenant_id)
+    if start:
+        q = q.where(Invoice.issue_date >= start)
+    if end:
+        q = q.where(Invoice.issue_date <= end)
+    invoices = session.exec(q).all()
+    agg: dict = {}
+    for inv in invoices:
+        a = agg.setdefault(inv.customer_name or "—", {
+            "name": inv.customer_name or "—", "revenue": ZERO,
+            "invoice_count": 0, "outstanding": ZERO, "_days": [],
+        })
+        a["revenue"] += D(inv.total)
+        a["invoice_count"] += 1
+        allocated = session.exec(
+            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
+            .where(PaymentAllocation.invoice_id == inv.id)
+        ).first()
+        allocated = D(allocated if not isinstance(allocated, (tuple, list)) else allocated[0])
+        a["outstanding"] += max(D(inv.total) - allocated, ZERO)
+        if allocated >= D(inv.total) and D(inv.total) > 0:
+            last_pay = session.exec(
+                select(PaymentReceived.payment_date)
+                .join(PaymentAllocation, PaymentAllocation.payment_received_id == PaymentReceived.id)
+                .where(PaymentAllocation.invoice_id == inv.id)
+                .order_by(PaymentReceived.payment_date.desc())
+            ).first()
+            if last_pay:
+                a["_days"].append((_date.fromisoformat(last_pay) - _date.fromisoformat(inv.issue_date)).days)
+    out = []
+    for a in agg.values():
+        days = a.pop("_days")
+        a["avg_days_to_pay"] = round(sum(days) / len(days), 1) if days else None
+        out.append(a)
+    out.sort(key=lambda r: r["revenue"], reverse=True)
+    return {"items": out}

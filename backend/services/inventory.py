@@ -171,6 +171,7 @@ def consume_stock(
     tenant_id: int,
     product_id: int,
     qty: Decimal,
+    block_negative: bool = False,
 ) -> Decimal:
     """
     Relieve stock for a sale. Returns total COGS.
@@ -178,6 +179,9 @@ def consume_stock(
     Cost method is read from Tenant.cost_method (IAS 2.25):
     - wavg (default): charge COGS at the running weighted-average cost.
     - fifo: charge COGS at each layer's own unit_cost (first-in first-out).
+
+    If block_negative is True, raises InventoryError before any mutation
+    when the sale would drive stock below zero.
     """
     qty = D(qty)
     if qty <= 0:
@@ -192,6 +196,12 @@ def consume_stock(
     ).first()
     if not prod or prod.product_type != "stock":
         return ZERO
+
+    if block_negative and D(prod.stock_qty) < qty:
+        raise InventoryError(
+            f"Insufficient stock for {prod.name}: on hand {money(prod.stock_qty)}, "
+            f"sale {money(qty)}"
+        )
 
     # Determine cost method from tenant setting
     from models import Tenant as _Tenant

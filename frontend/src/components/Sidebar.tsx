@@ -10,7 +10,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, ShoppingCart, Tag, DollarSign, Undo2, CalendarCheck,
+  Building2, ShoppingCart, Tag, DollarSign, Undo2, CalendarCheck, Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -42,7 +42,10 @@ const NAV: NavItem[] = [
   { label: "Debit Notes",      href: "/debit-notes",       icon: Undo2,            section: "Payable" },
   { label: "Vendors",          href: "/vendors",           icon: Truck,            section: "Payable" },
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
-  { label: "Products",         href: "/products",          icon: Package,          section: "Payable" },
+  { label: "Products",          href: "/products",            icon: Package,          section: "Inventory" },
+  { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory" },
+  { label: "Product Ledger",    href: "/products/ledger",    icon: BookOpen,         section: "Inventory" },
+  { label: "Inventory Report",  href: "/inventory/performance", icon: PieChart,      section: "Inventory" },
   { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing", forModel: "manufacturing" },
   { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing", forModel: "manufacturing" },
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
@@ -67,6 +70,9 @@ const NAV: NavItem[] = [
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
+  { label: "AR Aging",         href: "/aging/receivable",  icon: Clock,            section: "Reports" },
+  { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Reports" },
+  { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp,   section: "Reports" },
   { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
@@ -74,13 +80,14 @@ const NAV: NavItem[] = [
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
 ]
 
-const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Manufacturing","Telecom","Banking","Reports","System"]
+const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","System"]
 
 const SECTION_COLORS: Record<string, string> = {
   Overview:      "text-[#ffd966]",
   Ledger:        "text-blue-400",
   Receivable:    "text-green-400",
   Payable:       "text-orange-400",
+  Inventory:     "text-amber-400",
   Manufacturing: "text-pink-400",
   Telecom:       "text-teal-400",
   Banking:       "text-purple-400",

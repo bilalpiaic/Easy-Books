@@ -198,7 +198,7 @@ The system assigns the next JV number from the tenant's sequence counter.
 ### 3.4 General Ledger & Journal
 
 - **Journal** (`/journal`) — all posted transactions with date, JV number, description, total. Click any row to see its lines and source documents.
-- **General Ledger** (`/ledger`) — all accounts with running balance. Filter by account and date range.
+- **General Ledger** (`/ledger`) — all accounts with running balance. Filter by account and date range. When a **date range** is applied, the ledger shows an **Opening Balance** (the net balance of that account from all activity before the start date) and a **Closing Balance** (`Opening + debits − credits` for the period, following each account's normal-balance convention). Without a date filter the ledger shows the all-time running balance.
 - **Journal Entry detail** (`/journal/:id`) — lines with account codes hyperlinked to their ledger, source-document links (invoice, bill, payment).
 
 ---
@@ -336,7 +336,15 @@ Dr 2000  Accounts Payable   1,170.00
 
 **Compliance:** IAS 2.19 — Inventory valued at **Weighted-Average cost**.
 
-### 7.1 Add a Product
+### 7.1 Inventory Section
+
+The sidebar has a dedicated **Inventory** section containing:
+- **Products** — full product catalogue with category filter
+- **Product Categories** (`/products/categories`) — 2-level category manager
+- **Product Ledger** (`/products/ledger`) — stock movements per product with running quantity
+- **Inventory Performance** (`/inventory/performance`) — on-hand value, low-stock flag, COGS, and sales stats per product
+
+### 7.2 Add a Product
 
 Go to **Products** → **+ Add Product** (or press `N`):
 - SKU (unique per tenant)
@@ -345,18 +353,25 @@ Go to **Products** → **+ Add Product** (or press `N`):
 - Unit (ea, kg, m, hr, etc.)
 - Sale price / cost price
 - Reorder level — rows highlighted amber when `stock_qty ≤ reorder_level`
+- **Category** — pick a parent then a sub-category from the 2-level picker
 
-### 7.2 Product Categories
+### 7.3 Product Categories
 
-Stock products support a **2-level taxonomy**: a parent category (e.g., "Electronics") and a sub-category under it (e.g., "Accessories"). Go to **Products → Categories** (`/products/categories`) to manage them:
+Stock products support a **2-level taxonomy**: a parent category (e.g., "Electronics") and a sub-category under it (e.g., "Accessories"). Go to **Inventory → Product Categories** (`/products/categories`) to manage them:
 
 - **+ Add Category** — creates a top-level (parent) category
 - **+ Add Sub-category** — creates a category under an existing parent
 - **Delete** — blocked while a category still has sub-categories or products assigned to it
 
-New tenants receive a small starter set of generic categories (editable in-app at any time).
+New tenants receive a small starter set of generic categories seeded for their business model (editable in-app at any time).
 
 **On the product form** (`/products/new` or edit), use the parent → sub-category picker to assign a category. The **Products list** has a category filter dropdown so you can view all products in a given category or sub-category.
+
+### 7.3a On-hand Display & Block Overselling
+
+Invoice and bill line items show **On hand: N** next to stock products so you can see available quantity while entering a sale.
+
+**Settings → Inventory → Block overselling (prevent negative stock on sales)** (`block_negative_stock`, default **off**): when turned on, a sale that would drive a product's stock below zero is rejected with a clear error. Purchases are never blocked regardless of this setting. Turn this on if you want strict stock discipline; leave it off for flexibility (e.g., when you ship before recording a purchase).
 
 ### 7.4 Low-Stock Filter
 
@@ -420,12 +435,31 @@ All reports are **live from the GL** — always current, no batch jobs.
 | Balance Sheet | `/balance` | IAS 1.54 |
 | Cash Flow | `/cashflow` | IAS 7.20 |
 | Tax Summary (GST) | `/tax` | Local tax law |
-| AR Aging | `/invoices` (bottom panel) | IAS 1.60 |
-| AP Aging | `/bills` (bottom panel) | IAS 1.60 |
+| AR Aging | `/aging/receivable` | IAS 1.60 |
+| AP Aging | `/aging/payable` | IAS 1.60 |
 | General Ledger | `/ledger` | IAS 1.45 |
 | Customer Ledger | `/customers/:id/ledger` | ISA 230 |
 | Vendor Ledger | `/vendors/:id/ledger` | ISA 230 |
 | Stock Card | `/products/:id/stock-card` | IAS 2.36(d) |
+| Customer Performance | `/customer-performance` | IAS 1 |
+| Product Ledger | `/products/ledger` | IAS 2.36(d) |
+| Inventory Performance | `/inventory/performance` | IAS 2.36 |
+
+### 9.2 AR Aging & AP Aging (dedicated pages)
+
+**AR Aging** (`/aging/receivable`) and **AP Aging** (`/aging/payable`) show outstanding balances split into **Current / 1–30 / 31–60 / 61–90 / 90+ days** buckets. Click a customer or vendor row to drill directly to their ledger. (Under **Reports**.)
+
+### 9.3 Product Ledger
+
+**Product Ledger** (`/products/ledger`) shows all stock movements for a selected product with a running quantity after each event. Filter by a single store or choose **Consolidated** to see all stores combined. (Under **Inventory**.)
+
+### 9.4 Inventory Performance
+
+**Inventory Performance** (`/inventory/performance`) provides a per-product summary: on-hand quantity, on-hand value (qty × average cost), a low-stock flag, the date of the last movement, and units sold + COGS over a selected period. (Under **Inventory**.)
+
+### 9.5 Customer Performance
+
+**Customer Performance** (`/customer-performance`) ranks customers by: total revenue billed, number of invoices, outstanding AR balance, and average days to pay. Use this to identify your best-paying and highest-value accounts. (Under **Reports**.)
 
 ### 9.1 Dashboard Quick Actions & KPIs
 
@@ -767,7 +801,16 @@ Close accounting periods at the cadence you need:
 - Balance-sheet accounts **carry forward automatically** — Easy-Books computes balances live from the all-time ledger, so the new period opens with the prior closing balances (no opening-balance journal needed). IAS 1.
 - **Reopen** unlocks a period (year-end reopen also reverses the closing JV).
 
-### 17.16 Drill-down everywhere
+### 17.16 Check for Updates
+
+**Settings → Check for Updates** opens a modal that compares the running version against the latest release on GitHub.
+
+- **Desktop (Electron) app** — if a newer release is available, the update is downloaded and installed automatically via `electron-updater`. Click **Restart to apply** when prompted; your data is preserved.
+- **Script / web installs** — the modal shows the `update.bat` (Windows) or `update.sh` (macOS/Linux) command to run in order to pull and apply the update. Data in `~/.easy-books` is never modified by the update process.
+
+In both cases, the database is migrated forward automatically on the next launch (`alembic upgrade head` runs before the servers start), so existing records and settings are preserved.
+
+### 17.18 Drill-down everywhere
 
 Account names, document numbers, and balances are clickable throughout: P&L / Balance Sheet / Cash Flow account rows, Bank Accounts, Telecom KPI tiles, and Recurring template lines all open the **General Ledger** for that account; Fixed Assets open a **Fixed Assets Register** with the full depreciation schedule; Credit/Debit Notes open their detail with links back to the source invoice/bill (ISA 230/315 audit trail).
 

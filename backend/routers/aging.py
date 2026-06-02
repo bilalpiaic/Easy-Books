@@ -47,6 +47,7 @@ def invoice_aging(session: SessionDep, user: CurrentUserDep):
     rows = session.exec(
         select(
             Invoice.id, Invoice.number, Invoice.customer_name,
+            Invoice.customer_id,
             Invoice.due_date, Invoice.total, Invoice.status,
             func.coalesce(
                 select(func.sum(PaymentAllocation.amount))
@@ -73,6 +74,7 @@ def invoice_aging(session: SessionDep, user: CurrentUserDep):
             "amount": outstanding,
             "days_past": max(0, days_past),
             "bucket": label,
+            "customer_id": r.customer_id,
         })
     return buckets
 
@@ -83,6 +85,7 @@ def bill_aging(session: SessionDep, user: CurrentUserDep):
     rows = session.exec(
         select(
             Bill.id, Bill.number, Bill.vendor_name,
+            Bill.vendor_id,
             Bill.due_date, Bill.total, Bill.status,
             func.coalesce(
                 select(func.sum(PaymentAllocation.amount))
@@ -109,5 +112,6 @@ def bill_aging(session: SessionDep, user: CurrentUserDep):
             "amount": outstanding,
             "days_past": max(0, days_past),
             "bucket": label,
+            "vendor_id": r.vendor_id,
         })
     return buckets

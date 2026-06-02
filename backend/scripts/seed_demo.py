@@ -43,8 +43,8 @@ from models import (
     CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
     DeferredRevenueSchedule, DepreciationEntry, ExchangeRate, FixedAsset,
     GRNLine, GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine,
-    PaymentAllocation, PaymentReceived, PaymentTerm, Product, ProductionOrder,
-    PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate,
+    PaymentAllocation, PaymentReceived, PaymentTerm, Product, ProductCategory,
+    ProductionOrder, PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate,
     SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor, VendorAdvance,
 )
 from models_telecom import (
@@ -318,6 +318,31 @@ def _account(s: Session, tenant_id: int, code: str) -> Optional[Account]:
     ).first()
 
 
+def _ensure_categories(s: Session, tenant_id: int, model: str) -> None:
+    """Convergent category top-up: seed starter ProductCategory rows for tenants
+    that were created before the ProductCategory feature existed. Idempotent —
+    skips entirely if any category already exists for this tenant."""
+    if s.exec(
+        select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)
+    ).first():
+        return
+    STARTER_CATEGORIES: dict[str, dict[str, list[str]]] = {
+        "simple":            {"General": ["Products", "Services"]},
+        "services":          {"Services": ["Consulting", "Recurring"]},
+        "trader":            {"Goods": ["General", "Imported"]},
+        "manufacturing":     {"Raw Materials": ["Metals", "Consumables"],
+                              "Finished Goods": ["Standard"]},
+        "telecom_franchise": {"SIM": ["Prepaid", "Postpaid"],
+                              "Devices": ["Handsets", "Accessories"]},
+    }
+    for parent_name, subs in STARTER_CATEGORIES.get(model, {}).items():
+        parent = ProductCategory(tenant_id=tenant_id, name=parent_name)
+        s.add(parent); s.flush()
+        for sub in subs:
+            s.add(ProductCategory(tenant_id=tenant_id, name=sub, parent_id=parent.id))
+    s.flush()
+
+
 def _ensure_coa(s: Session, tenant_id: int, model: str) -> None:
     """Convergent CoA top-up: insert any accounts from the model's template that
     this tenant is missing. Existing demo tenants pre-date newer backbone
@@ -436,6 +461,27 @@ def _seed_products(
             customer_supplied.append(upsert(code, name, unit, ZERO, "stock"))
         for code, name, unit in FINISHED_GOODS_MFG:
             stock.append(upsert(code, name, unit, D(0), "stock"))
+
+    # Assign categories (idempotent — only sets category_id when currently None)
+    cats = s.exec(
+        select(ProductCategory).where(
+            ProductCategory.tenant_id == tenant_id,
+            ProductCategory.parent_id.is_not(None),
+        ).order_by(ProductCategory.id)
+    ).all()
+    if not cats:
+        cats = s.exec(
+            select(ProductCategory).where(
+                ProductCategory.tenant_id == tenant_id
+            ).order_by(ProductCategory.id)
+        ).all()
+    if cats:
+        prods = s.exec(select(Product).where(Product.tenant_id == tenant_id)).all()
+        for i, prod in enumerate(prods):
+            if prod.category_id is None:
+                prod.category_id = cats[i % len(cats)].id
+                s.add(prod)
+        s.commit()
 
     return services, stock, customer_supplied
 
@@ -1991,6 +2037,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         # accounts only reach new tenants otherwise) — must precede the
         # advance/asset seeders that depend on 1260/2310/1090/4901.
         _ensure_coa(s, tenant_id, business_model)
+        # Seed starter product categories for tenants that pre-date the feature.
+        _ensure_categories(s, tenant_id, business_model)
         s.commit()
 
         # Always (re)assert the demo credentials — convergent so a drifted

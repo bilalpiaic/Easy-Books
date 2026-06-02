@@ -32,6 +32,8 @@ export interface AppSettings {
   // Onboarding
   onboarding_steps: string
   onboarding_dismissed: string
+  // Inventory
+  block_negative_stock: string
 }
 
 const defaults: AppSettings = {
@@ -59,6 +61,7 @@ const defaults: AppSettings = {
   bill_number_format: "",
   onboarding_steps: "",
   onboarding_dismissed: "",
+  block_negative_stock: "false",
 }
 
 interface SettingsContextValue {
