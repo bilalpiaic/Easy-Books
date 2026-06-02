@@ -13,7 +13,7 @@
 # Prereqs (present after running install-and-run.bat): uv (+Python) and Node —
 # this script finds Node itself (system → portable .\.node → download), so you do
 # NOT need npm on your PATH. Signing: unsigned unless CSC_LINK/CSC_KEY_PASSWORD set.
-param([switch]$SkipStaging)
+param([switch]$SkipStaging, [switch]$Publish)
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $Root "..")).Path
@@ -61,9 +61,17 @@ if (-not $SkipStaging) {
 Write-Host "`n[2/3] Installing desktop (Electron) dependencies..." -ForegroundColor Yellow
 npm install
 
-# --- 3/3  Package the installer -----------------------------------------------
-Write-Host "`n[3/3] Building the installer (electron-builder)..." -ForegroundColor Yellow
-npm run dist
+# --- 3/3  Package (and optionally publish) the installer ----------------------
+if ($Publish) {
+  if (-not $env:GH_TOKEN) {
+    throw "Set GH_TOKEN before -Publish, e.g.  `$env:GH_TOKEN = (gh auth token)"
+  }
+  Write-Host "`n[3/3] Building + PUBLISHING to GitHub Releases (electron-builder --publish always)..." -ForegroundColor Yellow
+  npx electron-builder --config electron-builder.yml --publish always
+} else {
+  Write-Host "`n[3/3] Building the installer (electron-builder)..." -ForegroundColor Yellow
+  npm run dist
+}
 
 Write-Host "`nDone. Output in $Root\dist:" -ForegroundColor Green
 Get-ChildItem "$Root\dist" -Filter *.exe -ErrorAction SilentlyContinue |

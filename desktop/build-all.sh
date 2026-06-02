@@ -10,8 +10,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
 REPO_ROOT="$(cd .. && pwd)"
-SKIP_STAGING=0
-[ "${1:-}" = "--skip-staging" ] && SKIP_STAGING=1
+SKIP_STAGING=0; PUBLISH=0
+for a in "$@"; do
+  [ "$a" = "--skip-staging" ] && SKIP_STAGING=1
+  [ "$a" = "--publish" ] && PUBLISH=1
+done
 
 # Ensure Node/npm on PATH (system -> portable ./.node -> download).
 if ! command -v npm >/dev/null 2>&1; then
@@ -44,8 +47,14 @@ fi
 echo "[2/3] Installing desktop (Electron) dependencies..."
 npm install
 
-echo "[3/3] Building the installer (electron-builder)..."
-npm run dist
+if [ "$PUBLISH" -eq 1 ]; then
+  [ -n "${GH_TOKEN:-}" ] || { echo "ERROR: set GH_TOKEN before --publish (e.g. export GH_TOKEN=\$(gh auth token))"; exit 1; }
+  echo "[3/3] Building + PUBLISHING to GitHub Releases (electron-builder --publish always)..."
+  npx electron-builder --config electron-builder.yml --publish always
+else
+  echo "[3/3] Building the installer (electron-builder)..."
+  npm run dist
+fi
 
 echo "Done. Output in $ROOT/dist:"
 ls -1 "$ROOT/dist" 2>/dev/null | grep -E '\.(dmg|AppImage|deb)$' || true
