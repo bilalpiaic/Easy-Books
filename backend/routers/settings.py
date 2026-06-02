@@ -51,6 +51,8 @@ class SettingsUpdate(BaseModel):
     onboarding_dismissed: Optional[str] = None
     # IAS 2.25: inventory cost method — "wavg" or "fifo"
     cost_method: Optional[str] = None
+    # Inventory: block sales that would drive stock negative ("true"/"false")
+    block_negative_stock: Optional[str] = None
 
 
 @router.get("")
