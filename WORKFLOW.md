@@ -59,7 +59,7 @@
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
-| Storage | SQLite (dev) → Postgres (prod) via SQLModel; `create_all()` bootstraps schema — no Alembic |
+| Storage | SQLite (dev) → Postgres (prod) via SQLModel; **Alembic** migrations are the schema source of truth (`create_all()` still bootstraps a fresh dev DB; installers run `alembic upgrade head` on launch) |
 | Reports | Live from `JournalEntry`; closed periods read materialised `AccountBalance` (**ISA 230** audit documentation) |
 | API surface | 80+ endpoints, mounted twice at `/api/*` and `/api/v1/*` |
 
@@ -1324,7 +1324,7 @@ Every call to `services.posting.post_transaction` runs `_check_period_locked(ten
 - **API versioning** — every route at `/api/*` and `/api/v1/*`.
 - **CSRF** double-submit-cookie on cookie-auth path.
 - **DB-backed login throttle** — shared across workers.
-- **Schema bootstrap** — `SQLModel.metadata.create_all()` on startup; no Alembic. New columns on existing tables require manual `ALTER TABLE` or a DB reset.
+- **Schema bootstrap** — **Alembic** migrations are the source of truth (`backend/alembic/versions/`). `create_all()` still runs on startup so a fresh checkout boots without a migration step; the standalone installers + packaged desktop run `alembic upgrade head` on launch, so new columns/tables reach upgraded users non-destructively (no manual `ALTER`/reset). SQLite caveat: strip FK lines on ALTER and guard new tables with `has_table(...)`.
 
 ---
 
