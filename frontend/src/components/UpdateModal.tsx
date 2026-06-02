@@ -43,6 +43,7 @@ function isDesktop() {
 export default function UpdateModal({ onClose }: UpdateModalProps) {
   const [latestVersion, setLatestVersion] = useState<string | null>(null)
   const [fetchError, setFetchError] = useState(false)
+  const [noReleases, setNoReleases] = useState(false)
   const [fetching, setFetching] = useState(true)
 
   // Electron updater state machine
@@ -54,6 +55,11 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
     ;(async () => {
       try {
         const res = await fetch(RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } })
+        // 404 = the repo simply has no published release yet — not an error.
+        if (res.status === 404) {
+          if (!cancelled) setNoReleases(true)
+          return
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = await res.json() as { tag_name?: string }
         if (!cancelled) setLatestVersion(normalise(json.tag_name ?? ''))
@@ -234,6 +240,15 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       )
     }
 
+    if (noReleases) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-black/60">
+          <CheckCircle className="w-4 h-4 text-green-700 flex-shrink-0" />
+          No published release yet — you&apos;re on the current build (v{normalCurrent}).
+        </div>
+      )
+    }
+
     if (updateAvailable) {
       return (
         <div className="space-y-3">
@@ -324,7 +339,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 mb-0.5">Latest</p>
             <p className="font-mono font-bold text-[#b8943f]">
-              {fetching ? '…' : fetchError ? '?' : `v${normalLatest}`}
+              {fetching ? '…' : fetchError ? '?' : noReleases ? 'none yet' : `v${normalLatest}`}
             </p>
           </div>
           {!fetching && !fetchError && updateAvailable && (
