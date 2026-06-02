@@ -361,7 +361,7 @@ function ProductsInner() {
                 <td className="px-6 py-4 font-mono text-xs text-[#b8943f]">
                   {p.code ? <DocLink type="product" id={p.id} label={p.code} className="text-[#b8943f]" /> : '—'}
                 </td>
-                <td className="px-6 py-4 font-medium">
+                <td className="px-6 py-4 font-medium cursor-pointer" title={p.name}>
                   <DocLink type="product" id={p.id} label={p.name} className="font-medium" />
                 </td>
                 <td className="px-6 py-4">

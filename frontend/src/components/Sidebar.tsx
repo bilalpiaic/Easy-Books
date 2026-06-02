@@ -42,7 +42,8 @@ const NAV: NavItem[] = [
   { label: "Debit Notes",      href: "/debit-notes",       icon: Undo2,            section: "Payable" },
   { label: "Vendors",          href: "/vendors",           icon: Truck,            section: "Payable" },
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
-  { label: "Products",         href: "/products",          icon: Package,          section: "Payable" },
+  { label: "Products",          href: "/products",            icon: Package,          section: "Inventory" },
+  { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory" },
   { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing", forModel: "manufacturing" },
   { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing", forModel: "manufacturing" },
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
@@ -74,13 +75,14 @@ const NAV: NavItem[] = [
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
 ]
 
-const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Manufacturing","Telecom","Banking","Reports","System"]
+const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","System"]
 
 const SECTION_COLORS: Record<string, string> = {
   Overview:      "text-[#ffd966]",
   Ledger:        "text-blue-400",
   Receivable:    "text-green-400",
   Payable:       "text-orange-400",
+  Inventory:     "text-amber-400",
   Manufacturing: "text-pink-400",
   Telecom:       "text-teal-400",
   Banking:       "text-purple-400",

@@ -420,6 +420,8 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
         # Starter product categories (parent → sub). Generic defaults; users
         # edit them in-app. Seeded once per tenant (skipped if any exist).
         STARTER_CATEGORIES = {
+            "simple":            {"General": ["Products", "Services"]},
+            "services":          {"Services": ["Consulting", "Recurring"]},
             "trader":            {"Goods": ["General", "Imported"]},
             "manufacturing":     {"Raw Materials": ["Metals", "Consumables"],
                                   "Finished Goods": ["Standard"]},
