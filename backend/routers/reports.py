@@ -1010,3 +1010,93 @@ def product_ledger(
             "source": m.source_doc_type or "",
         })
     return {"product_id": product_id, "location_id": location_id, "items": items}
+
+
+# ── Inventory Performance ─────────────────────────────────────────────────────
+
+
+@router.get("/inventory-performance")
+def inventory_performance(
+    session: SessionDep, user: CurrentUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    from models import StockMovement
+    prods = session.exec(
+        select(Product).where(Product.tenant_id == user.tenant_id,
+                              Product.product_type == "stock")
+    ).all()
+    out = []
+    for p in prods:
+        mv = session.exec(
+            select(StockMovement).where(
+                StockMovement.tenant_id == user.tenant_id,
+                StockMovement.product_id == p.id,
+            ).order_by(StockMovement.occurred_at.desc())
+        ).all()
+        last = mv[0].occurred_at.date().isoformat() if mv else None
+        units_sold = sum(
+            (D(m.qty) for m in mv
+             if m.direction in ("SHIPMENT", "DELIVERY", "ISSUE")
+             and (not start or m.occurred_at.date().isoformat() >= start)
+             and (not end or m.occurred_at.date().isoformat() <= end)),
+            start=ZERO,
+        )
+        out.append({
+            "id": p.id, "name": p.name, "code": p.code,
+            "on_hand": D(p.stock_qty), "avg_cost": D(p.avg_cost),
+            "stock_value": money(D(p.stock_qty) * D(p.avg_cost)),
+            "reorder_level": D(p.reorder_level),
+            "low_stock": D(p.stock_qty) <= D(p.reorder_level),
+            "last_movement": last, "units_sold": units_sold,
+            "cogs": money(units_sold * D(p.avg_cost)),
+        })
+    out.sort(key=lambda r: r["stock_value"], reverse=True)
+    return {"items": out}
+
+
+# ── Customer Performance ──────────────────────────────────────────────────────
+
+
+@router.get("/customer-performance")
+def customer_performance(
+    session: SessionDep, user: CurrentUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    from models import Invoice, PaymentAllocation, PaymentReceived
+    from datetime import date as _date
+    q = select(Invoice).where(Invoice.tenant_id == user.tenant_id)
+    if start:
+        q = q.where(Invoice.issue_date >= start)
+    if end:
+        q = q.where(Invoice.issue_date <= end)
+    invoices = session.exec(q).all()
+    agg: dict = {}
+    for inv in invoices:
+        a = agg.setdefault(inv.customer_name or "—", {
+            "name": inv.customer_name or "—", "revenue": ZERO,
+            "invoice_count": 0, "outstanding": ZERO, "_days": [],
+        })
+        a["revenue"] += D(inv.total)
+        a["invoice_count"] += 1
+        allocated = session.exec(
+            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
+            .where(PaymentAllocation.invoice_id == inv.id)
+        ).first()
+        allocated = D(allocated if not isinstance(allocated, (tuple, list)) else allocated[0])
+        a["outstanding"] += max(D(inv.total) - allocated, ZERO)
+        if allocated >= D(inv.total) and D(inv.total) > 0:
+            last_pay = session.exec(
+                select(PaymentReceived.payment_date)
+                .join(PaymentAllocation, PaymentAllocation.payment_received_id == PaymentReceived.id)
+                .where(PaymentAllocation.invoice_id == inv.id)
+                .order_by(PaymentReceived.payment_date.desc())
+            ).first()
+            if last_pay:
+                a["_days"].append((_date.fromisoformat(last_pay) - _date.fromisoformat(inv.issue_date)).days)
+    out = []
+    for a in agg.values():
+        days = a.pop("_days")
+        a["avg_days_to_pay"] = round(sum(days) / len(days), 1) if days else None
+        out.append(a)
+    out.sort(key=lambda r: r["revenue"], reverse=True)
+    return {"items": out}
