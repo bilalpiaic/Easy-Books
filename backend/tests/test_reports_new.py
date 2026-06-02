@@ -62,3 +62,18 @@ def test_customer_performance_revenue(client, admin_headers):
     row = next(r for r in data["items"] if r["name"] == "Acme")
     assert float(row["revenue"]) == 300.0
     assert row["invoice_count"] == 2
+
+
+# ── E1: Demo seed assigns product categories ─────────────────────────────────
+
+def test_demo_seed_assigns_categories(client, admin_headers):
+    import db as _db_module
+    from sqlmodel import Session, select as _select
+    from models import Product, Tenant
+    from scripts.seed_demo import seed_one_tenant
+    seed_one_tenant("demo.trader@easy-books.app", "Demo Trading Co.", "trader")
+    with Session(_db_module.engine) as s:
+        t = s.exec(_select(Tenant).where(Tenant.name == "Demo Trading Co.")).first()
+        prods = s.exec(_select(Product).where(Product.tenant_id == t.id)).all()
+    assert prods, "demo tenant should have products"
+    assert any(p.category_id is not None for p in prods), "products should be categorised"
