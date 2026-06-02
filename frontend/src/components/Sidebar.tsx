@@ -10,7 +10,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, Pin, PinOff,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, ShoppingCart, Tag, DollarSign, Undo2, CalendarCheck,
+  Building2, ShoppingCart, Tag, DollarSign, Undo2, CalendarCheck, Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -44,6 +44,7 @@ const NAV: NavItem[] = [
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
   { label: "Products",          href: "/products",            icon: Package,          section: "Inventory" },
   { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory" },
+  { label: "Product Ledger",    href: "/products/ledger",    icon: BookOpen,         section: "Inventory" },
   { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing", forModel: "manufacturing" },
   { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing", forModel: "manufacturing" },
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
@@ -68,6 +69,8 @@ const NAV: NavItem[] = [
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
+  { label: "AR Aging",         href: "/aging/receivable",  icon: Clock,            section: "Reports" },
+  { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Reports" },
   { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
