@@ -33,6 +33,8 @@ interface LedgerAccount {
   type: string
   entries: LedgerEntry[]
   running_balance: number
+  opening_balance: number | string
+  closing_balance: number | string
 }
 
 function defaultRange() {
@@ -289,6 +291,11 @@ function LedgerPageInner() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f6f3ee]">
+                <tr className="bg-[#f6f3ee] text-[#1a1814]/70 text-xs font-semibold">
+                  <td className="px-4 py-2" colSpan={3}>Opening Balance</td>
+                  <td className="px-4 py-2 text-right font-mono" colSpan={2} />
+                  <td className="px-4 py-2 text-right font-mono">{fmt(Number(ledgerData.opening_balance))}</td>
+                </tr>
                 {ledgerData.entries.map((entry, idx) => (
                   <tr key={idx} className="hover:bg-[#faf8f4]">
                     <td className="px-4 py-2.5 text-black/60">{entry.date}</td>
@@ -312,6 +319,11 @@ function LedgerPageInner() {
                     </td>
                   </tr>
                 ))}
+                <tr className="bg-[#faf8f4] font-bold text-[#1a1814]">
+                  <td className="px-4 py-2" colSpan={3}>Closing Balance</td>
+                  <td className="px-4 py-2 text-right font-mono" colSpan={2} />
+                  <td className="px-4 py-2 text-right font-mono">{fmt(Number(ledgerData.closing_balance))}</td>
+                </tr>
               </tbody>
               <tfoot className="border-t-2 border-[#1a1814]/10">
                 <tr className="bg-[#faf6ec]">
