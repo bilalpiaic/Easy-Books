@@ -37,6 +37,8 @@ from sqlmodel import Session, select
 
 from auth import get_password_hash
 from db import _coa_for, engine, seed_data
+import json as _json
+
 from models import (
     Account, AnalyticAccount, AuditLog, BankAccount, BomHeader, BomLine, Bill,
     BillLine, BillPayment, Budget, CreditNote, CreditNoteLine, Customer,
@@ -45,7 +47,8 @@ from models import (
     GRNLine, GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine,
     PaymentAllocation, PaymentReceived, PaymentTerm, Product, ProductCategory,
     ProductionOrder, PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate,
-    SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor, VendorAdvance,
+    ReportDefinition, SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor,
+    VendorAdvance,
 )
 from models_telecom import (
     FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
@@ -2015,6 +2018,35 @@ def _seed_vendor_advances(s: Session, user: User, vendors: list, bills: list,
 # ── Driver ────────────────────────────────────────────────────────────────────
 
 
+def _seed_report_definitions(s: Session, tenant_id: int, user: User) -> None:
+    """Seed one starter saved ReportDefinition per demo tenant (idempotent)."""
+    existing = s.exec(
+        select(ReportDefinition).where(
+            ReportDefinition.tenant_id == tenant_id,
+            ReportDefinition.name == "Outstanding Invoices",
+        )
+    ).first()
+    if existing:
+        return
+    s.add(ReportDefinition(
+        tenant_id=tenant_id,
+        name="Outstanding Invoices",
+        source_key="invoices",
+        visibility="shared",
+        owner_id=user.id,
+        config=_json.dumps({
+            "columns": ["number", "customer_name", "due_date", "total"],
+            "filters": [{"field": "status", "op": "in", "value": ["sent", "partial"]}],
+            "sort": [{"field": "due_date", "dir": "asc"}],
+            "group_by": ["customer_name"],
+            "aggregates": [{"field": "total", "fn": "sum"}],
+            "date_range": None,
+        }),
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    ))
+
+
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
@@ -2106,6 +2138,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         if business_model == "telecom_franchise":
             _seed_telecom_franchise(s, user)
             s.commit()
+
+        # ── Starter saved report (Report Builder) ──────────────────────────────
+        _seed_report_definitions(s, tenant_id, user)
+        s.commit()
 
         from models import Transaction
         return {

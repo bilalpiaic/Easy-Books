@@ -461,6 +461,24 @@ All reports are **live from the GL** — always current, no batch jobs.
 
 **Customer Performance** (`/customer-performance`) ranks customers by: total revenue billed, number of invoices, outstanding AR balance, and average days to pay. Use this to identify your best-paying and highest-value accounts. (Under **Reports**.)
 
+### 9.6 Report Builder
+
+**Report Builder** (`/reports/builder`) lets you build ad-hoc reports over any whitelisted data source without writing code. Find it under **Reports → Report Builder** in the sidebar.
+
+**Choosing a source** — use the source dropdown at the top of the page to select the dataset you want to query: Invoices, Bills, Journal Entry Lines, Payments Received, Payments Made, Products, Stock Movements, Customers, or Vendors.
+
+**Picking columns** — click **+ Columns** to open the column chooser and tick the fields you want to see. Your selection is applied immediately.
+
+**Click-to-filter** — click any cell in the results table to add an instant equality filter for that value. Active filters appear as removable chips; combine multiple filters for precise slices.
+
+**Manual filters** — use the filter bar to add more precise conditions: choose a field, an operator (equals, contains, gte, in, between, etc.), and a value. The operator list is automatically restricted to those valid for the field's data type.
+
+**Grouping and totals** — choose a **Group by** field from the picker to collapse rows by that dimension. Money and quantity fields that support aggregation will be summed automatically; the totals row appears in the table footer.
+
+**Saving reports** — click **Saved ▾ → + Save current…**, enter a name, and choose **Private** (visible only to you) or **Shared** (visible to everyone in your organisation). Load any saved report from the same menu; delete reports you own with the ✕ button.
+
+**Exporting** — click **Export ▾** to download the current view as **CSV** or **Excel (XLSX)**. Up to 10 000 rows are exported. Use **Print** to send the on-screen table to your printer or save it as a PDF.
+
 ### 9.1 Dashboard Quick Actions & KPIs
 
 **Quick Actions** is a horizontal toolbar displayed at the **top of the Dashboard** (directly below the page title). It provides one-click shortcuts to the most common workflows — New Invoice, New Bill, Record Payment, New Journal Entry, and more — without navigating away from the overview.

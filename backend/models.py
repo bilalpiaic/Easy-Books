@@ -14,7 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import CheckConstraint, Column, Index, Numeric
+from sqlalchemy import CheckConstraint, Column, Index, JSON, Numeric
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from services.money import Money, ZERO
@@ -1398,6 +1398,18 @@ class TransactionRead(TransactionBase):
 class JournalEntryRead(JournalEntryBase):
     account_name: str
     account_type: str
+
+
+class ReportDefinition(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    source_key: str
+    config: str = Field(sa_column=Column(JSON))   # ReportConfig JSON
+    visibility: str = Field(default="private")    # "private" | "shared"
+    owner_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 # Re-export telecom-franchise tables so SQLModel.metadata.create_all() picks
