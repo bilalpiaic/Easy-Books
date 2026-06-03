@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Plus, Search, Trash2, Download, Package, Printer } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Search, Trash2, Download, Package, Printer, List, FolderTree } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import BulkActionBar from '@/components/BulkActionBar'
@@ -30,6 +31,11 @@ interface Product {
 }
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
+
+interface CoaItem { id: number; code: string | null; name: string; qty: number; avg_rate: number; value: number }
+interface CoaSub { name: string; qty: number; value: number; items: CoaItem[] }
+interface CoaGroup { name: string; qty: number; value: number; subs: CoaSub[] }
+interface CoaData { groups: CoaGroup[]; grand: { qty: number; value: number } }
 
 interface Account {
   id: number
@@ -87,6 +93,20 @@ function ProductsInner() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [view, setView] = useState<'list' | 'tree'>('list')
+  const [coa, setCoa] = useState<CoaData | null>(null)
+  const [coaLoading, setCoaLoading] = useState(false)
+
+  // Fetch the valuation tree the first time the Tree view is opened (and after
+  // catalog edits, since stock qty/value may have changed).
+  useEffect(() => {
+    if (view !== 'tree') return
+    setCoaLoading(true)
+    apiFetch<CoaData>('/api/reports/product-coa')
+      .then(d => setCoa(d))
+      .catch(() => {})
+      .finally(() => setCoaLoading(false))
+  }, [view])
 
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds)
@@ -239,6 +259,22 @@ function ProductsInner() {
           <p className="text-sm text-black/75 mt-1">Manage product catalog and track inventory</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex rounded-lg border border-[#ede9e2] overflow-hidden">
+            <button
+              onClick={() => setView('list')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === 'list' ? 'bg-[#1a1814] text-white' : 'bg-white text-black/60 hover:bg-[#f6f3ee]'}`}
+              title="List view"
+            >
+              <List className="w-4 h-4" /> List
+            </button>
+            <button
+              onClick={() => setView('tree')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === 'tree' ? 'bg-[#1a1814] text-white' : 'bg-white text-black/60 hover:bg-[#f6f3ee]'}`}
+              title="Category valuation tree"
+            >
+              <FolderTree className="w-4 h-4" /> Tree
+            </button>
+          </div>
           <CsvImportButton entity="products" onSuccess={load} />
           <button
             onClick={() => downloadCSV('products.csv', products.map(p => ({
@@ -281,6 +317,7 @@ function ProductsInner() {
         </div>
       </div>
 
+      {view === 'list' && (
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
@@ -307,7 +344,11 @@ function ProductsInner() {
           {lowStockOnly ? 'Low Stock Only ✓' : 'Low Stock Filter'}
         </button>
       </div>
+      )}
 
+      {view === 'tree' && <ProductTree coa={coa} loading={coaLoading} fmt={fmt} />}
+
+      {view === 'list' && (
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
         <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
@@ -392,6 +433,7 @@ function ProductsInner() {
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
+      )}
 
       <BulkActionBar
         count={selectedIds.size}
@@ -520,6 +562,86 @@ function ProductsInner() {
         </div>
       )}
     </div>
+  )
+}
+
+function ProductTree({ coa, loading, fmt }: { coa: CoaData | null; loading: boolean; fmt: (n: number) => string }) {
+  return (
+    <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
+          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+            <tr>
+              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Category / Product</th>
+              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty</th>
+              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Avg Rate</th>
+              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Value</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#ede9e2]">
+            {loading ? (
+              <tr><td colSpan={4} className="px-6 py-10 text-center text-black/50">Loading valuation…</td></tr>
+            ) : !coa || coa.groups.length === 0 ? (
+              <tr><td colSpan={4} className="px-6 py-10 text-center text-black/50">No products found.</td></tr>
+            ) : (
+              coa.groups.map(g => <TreeGroup key={g.name} group={g} fmt={fmt} />)
+            )}
+          </tbody>
+          {!loading && coa && coa.groups.length > 0 && (
+            <tfoot>
+              <tr className="bg-[#1a1814] text-white">
+                <td className="px-6 py-4 font-bold uppercase tracking-widest text-xs">Grand Total</td>
+                <td className="px-6 py-4 text-right font-mono font-bold">{Number(coa.grand.qty).toLocaleString()}</td>
+                <td />
+                <td className="px-6 py-4 text-right font-mono font-bold">{fmt(coa.grand.value)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function TreeGroup({ group, fmt }: { group: CoaGroup; fmt: (n: number) => string }) {
+  return (
+    <>
+      <tr className="bg-[#f6f3ee]/60">
+        <td className="px-6 py-3 font-semibold text-[#1a1814]">{group.name}</td>
+        <td className="px-6 py-3 text-right font-mono text-sm">{Number(group.qty).toLocaleString()}</td>
+        <td />
+        <td className="px-6 py-3 text-right font-mono text-sm font-semibold">{fmt(group.value)}</td>
+      </tr>
+      {group.subs.map(sub => (
+        <TreeSub key={`${group.name}-${sub.name}`} sub={sub} fmt={fmt} />
+      ))}
+    </>
+  )
+}
+
+function TreeSub({ sub, fmt }: { sub: CoaSub; fmt: (n: number) => string }) {
+  return (
+    <>
+      <tr>
+        <td className="px-6 py-2 pl-10 font-medium text-sm text-[#1a1814]/80">{sub.name}</td>
+        <td className="px-6 py-2 text-right font-mono text-xs text-[#1a1814]/70">{Number(sub.qty).toLocaleString()}</td>
+        <td />
+        <td className="px-6 py-2 text-right font-mono text-xs text-[#1a1814]/70">{fmt(sub.value)}</td>
+      </tr>
+      {sub.items.map(it => (
+        <tr key={it.id} className="hover:bg-[#f6f3ee]/50">
+          <td className="px-6 py-2 pl-16 text-sm">
+            <Link href={`/products/ledger?product=${it.id}`} className="text-[#1a1814]/90 hover:text-[#b8943f] hover:underline" title="View product ledger">
+              {it.name}
+            </Link>
+            {it.code && <span className="ml-2 font-mono text-xs text-[#b8943f]">{it.code}</span>}
+          </td>
+          <td className="px-6 py-2 text-right font-mono text-sm">{Number(it.qty).toLocaleString()}</td>
+          <td className="px-6 py-2 text-right font-mono text-sm text-[#1a1814]/70">{fmt(it.avg_rate)}</td>
+          <td className="px-6 py-2 text-right font-mono text-sm">{fmt(it.value)}</td>
+        </tr>
+      ))}
+    </>
   )
 }
 

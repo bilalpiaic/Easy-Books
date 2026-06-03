@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { BookOpen } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -26,6 +27,7 @@ interface LedgerItem {
   running_qty: number
   unit_cost: number
   source: string
+  location: string
 }
 
 interface LedgerData {
@@ -51,13 +53,14 @@ function defaultRange() {
   }
 }
 
-export default function ProductLedgerPage() {
+function ProductLedgerInner() {
   const fmt = useFmt()
   const range = defaultRange()
+  const searchParams = useSearchParams()
 
   const [products, setProducts] = useState<Product[]>([])
   const [locations, setLocations] = useState<StockLocation[]>([])
-  const [productId, setProductId] = useState<string>("")
+  const [productId, setProductId] = useState<string>(searchParams.get("product") ?? "")
   const [locationId, setLocationId] = useState<string>("")
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)
@@ -167,23 +170,24 @@ export default function ProductLedgerPage() {
                 <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty Out</th>
                 <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Running Qty</th>
                 <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Unit Cost</th>
+                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Location</th>
                 <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1a1814]/5">
               {!productId ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/50">
+                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/50">
                     Select a product to view its movement ledger.
                   </td>
                 </tr>
               ) : isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/75">Loading...</td>
+                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/75">Loading...</td>
                 </tr>
               ) : !data || data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/75">
+                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/75">
                     No movements found for the selected filters.
                   </td>
                 </tr>
@@ -208,6 +212,7 @@ export default function ProductLedgerPage() {
                     <td className="px-6 py-4 text-right font-mono text-sm text-[#1a1814]/70">
                       {Number(item.unit_cost) > 0 ? fmt(item.unit_cost) : "—"}
                     </td>
+                    <td className="px-6 py-4 text-sm text-[#1a1814]/70">{item.location || "—"}</td>
                     <td className="px-6 py-4 text-sm text-[#1a1814]/60">{item.source || "—"}</td>
                   </tr>
                 ))
@@ -217,5 +222,13 @@ export default function ProductLedgerPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ProductLedgerPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProductLedgerInner />
+    </Suspense>
   )
 }

@@ -981,7 +981,7 @@ def product_ledger(
     product_id: int, location_id: Optional[int] = None,
     start: Optional[str] = None, end: Optional[str] = None,
 ):
-    from models import StockMovement
+    from models import StockLocation, StockMovement
     q = select(StockMovement).where(
         StockMovement.tenant_id == user.tenant_id,
         StockMovement.product_id == product_id,
@@ -992,6 +992,13 @@ def product_ledger(
             | (StockMovement.to_location_id == location_id)
         )
     rows = session.exec(q.order_by(StockMovement.occurred_at, StockMovement.id)).all()
+    # Resolve location ids → names once (no N+1).
+    loc_names = {
+        loc.id: loc.name
+        for loc in session.exec(
+            select(StockLocation).where(StockLocation.tenant_id == user.tenant_id)
+        ).all()
+    }
     running = ZERO
     items = []
     for m in rows:
@@ -1002,12 +1009,15 @@ def product_ledger(
             continue
         sign = 1 if m.direction in _IN_DIRECTIONS else -1
         running += sign * D(m.qty)
+        # IN movements land at to_location; OUT movements leave from_location.
+        loc_id = m.to_location_id if sign > 0 else m.from_location_id
         items.append({
             "date": d, "direction": m.direction,
             "qty_in": D(m.qty) if sign > 0 else ZERO,
             "qty_out": D(m.qty) if sign < 0 else ZERO,
             "running_qty": running, "unit_cost": m.unit_cost,
             "source": m.source_doc_type or "",
+            "location": loc_names.get(loc_id, "") if loc_id else "",
         })
     return {"product_id": product_id, "location_id": location_id, "items": items}
 
@@ -1052,6 +1062,62 @@ def inventory_performance(
         })
     out.sort(key=lambda r: r["stock_value"], reverse=True)
     return {"items": out}
+
+
+# ── Product COA (category valuation tree) ─────────────────────────────────────
+
+
+@router.get("/product-coa")
+def product_coa(session: SessionDep, user: CurrentUserDep):
+    """Products as a Main → Sub → Item valuation tree: closing qty, avg rate and
+    value, grouped by ProductCategory parent → sub-category → product."""
+    from models import ProductCategory
+
+    cats = session.exec(
+        select(ProductCategory).where(ProductCategory.tenant_id == user.tenant_id)
+    ).all()
+    cat_by_id = {c.id: c for c in cats}
+
+    def main_sub(cat_id):
+        """Resolve a product's category_id to its (Main, Sub) group names."""
+        cat = cat_by_id.get(cat_id)
+        if cat is None:
+            return "Uncategorized", "—"
+        if cat.parent_id is None:
+            return cat.name, "—"          # product sits directly on a parent category
+        parent = cat_by_id.get(cat.parent_id)
+        return (parent.name if parent else "Uncategorized"), cat.name
+
+    prods = session.exec(
+        select(Product).where(Product.tenant_id == user.tenant_id)
+    ).all()
+
+    tree: dict = {}
+    for p in prods:
+        main, sub = main_sub(p.category_id)
+        qty, avg = D(p.stock_qty), D(p.avg_cost)
+        tree.setdefault(main, {}).setdefault(sub, []).append({
+            "id": p.id, "code": p.code, "name": p.name,
+            "qty": qty, "avg_rate": avg, "value": money(qty * avg),
+        })
+
+    groups, grand_qty, grand_value = [], ZERO, ZERO
+    for main_name in sorted(tree):
+        subs, main_qty, main_value = [], ZERO, ZERO
+        for sub_name in sorted(tree[main_name]):
+            items = tree[main_name][sub_name]
+            sub_qty = sum((i["qty"] for i in items), start=ZERO)
+            sub_value = sum((i["value"] for i in items), start=ZERO)
+            subs.append({"name": sub_name, "qty": sub_qty,
+                         "value": sub_value, "items": items})
+            main_qty += sub_qty
+            main_value += sub_value
+        groups.append({"name": main_name, "qty": main_qty,
+                       "value": main_value, "subs": subs})
+        grand_qty += main_qty
+        grand_value += main_value
+
+    return {"groups": groups, "grand": {"qty": grand_qty, "value": grand_value}}
 
 
 # ── Customer Performance ──────────────────────────────────────────────────────
