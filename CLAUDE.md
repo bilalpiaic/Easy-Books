@@ -60,7 +60,7 @@ npm install && node server.js    # runs on root package.json
 | `routers/` | 37+ domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …) |
 | `routers/admin.py` | Demo-data management: seed all 5 demo tenants on demand / purge them (admin+). Backs the **Settings → Sample / Demo Data** card. |
 | `routers/product_categories.py` | `ProductCategory` CRUD — 2-level taxonomy (parent category → sub-category). Delete blocked while sub-categories or products exist. |
-| `routers/reports.py` | Contains the General Ledger endpoint (`/api/reports/ledger`) which returns **Opening Balance** and **Closing Balance** per account when `start`/`end` query params are supplied. Opening = net balance of all JEs before `start`; Closing = `opening + Σdebits − Σcredits` in period (sign follows account-type convention). New endpoints on this branch: `/api/reports/product-ledger`, `/api/reports/inventory-performance`, `/api/reports/customer-performance`. |
+| `routers/reports.py` | Contains the General Ledger endpoint (`/api/reports/ledger`) which returns **Opening Balance** and **Closing Balance** per account when `start`/`end` query params are supplied. Opening = net balance of all JEs before `start`; Closing = `opening + Σdebits − Σcredits` in period (sign follows account-type convention). New endpoints on this branch: `/api/reports/product-ledger` (each movement carries its resolved store `location`), `/api/reports/inventory-performance`, `/api/reports/customer-performance`, and `/api/reports/product-coa` (Main→Sub→Item closing-stock valuation tree grouped by product category, with rolled-up subtotals + an Uncategorized bucket). |
 | `services/` | Pure-logic modules — `posting.py` is the only GL writer; also `depreciation.py`, `pdf.py`, `email.py` |
 | `scripts/seed_demo.py` | Idempotent rich mock-data seeder (50+ per entity type) |
 | `scripts/autoseed_demo.py` | First-run demo loader: skips if any user already exists (brand-new empty DB only); no-ops when `SEED_DEMO=false` |
@@ -128,7 +128,7 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 - Business tagline appears below company name in header and all printed documents
 - All settings are persisted per-tenant via `/api/settings` PATCH endpoint
 
-**Inventory nav section:** the sidebar exposes a dedicated **Inventory** group containing routes for Products, Product Categories (`/products/categories`), Product Ledger (`/products/ledger`), and Inventory Performance (`/inventory/performance`).
+**Inventory nav section:** the sidebar exposes a dedicated **Inventory** group containing routes for Products, Product Categories (`/products/categories`), Product COA (`/products/coa` — Main→Sub→Item closing-stock valuation tree), Product Ledger (`/products/ledger` — has a Location column and accepts `?product=<id>` to pre-select), and Inventory Performance (`/inventory/performance` — product names link into the ledger).
 
 **In-app update check (`desktop/` + `UpdateModal`):**
 - `desktop/preload.js` — exposes `window.easybooks.checkForUpdates()`, `onUpdateAvailable(cb)`, `onUpdateDownloaded(cb)`, and `installUpdate()` to the renderer via Electron's context bridge
