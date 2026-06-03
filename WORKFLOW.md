@@ -1085,6 +1085,7 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 | Customer Performance | `GET /api/reports/customer-performance` | Per customer: revenue, invoice count, outstanding AR, avg days-to-pay; ranked |
 | Dashboard KPIs | `GET /api/reports/dashboard` | Revenue, expense, AR/AP outstanding (net of allocations), overdue counts, low stock |
 | Dashboard charts | `GET /api/reports/dashboard/charts?months=12` | 12-month series for chart components |
+| Report Builder | `POST /api/report-builder/run` | User-configurable ad-hoc report: column chooser, filter predicates, group-by/aggregates, pagination — over any whitelisted source; tenant isolation enforced by the engine |
 
 ---
 

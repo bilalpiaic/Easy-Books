@@ -52,6 +52,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Customer/Vendor sub-ledgers, Stock Card
 - Tax Summary (GST output/input), Analytic P&L (cost-centre dimension)
 - Budget vs Actual with monthly per-account variance
+- **Report Builder** — user-configurable reports (column chooser, click-to-filter, grouping/totals, saved views, CSV/XLSX export)
 
 **Advanced features**
 - Fixed Assets register + straight-line/reducing-balance depreciation (IAS 16)
