@@ -23,8 +23,8 @@ from routers import (
     credit_notes, customers, debit_notes, deferred_revenue, exchange_rates, grn,
     imports, invoices, manufacturing_reports, payment_terms, payments, periods,
     product_categories, production_orders, products, purchase_orders, rate_plans,
-    reconciliations, recurring, reports, settings, stock_locations, subledger,
-    tax_codes, telecom, telecom_reports, transactions, users, vendors,
+    reconciliations, recurring, report_builder, reports, settings, stock_locations,
+    subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
 )
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
@@ -68,6 +68,7 @@ app.add_middleware(
 _ROUTERS = [
     auth.router, settings.router, accounts.router, customers.router,
     vendors.router, products.router, product_categories.router, aging.router, invoices.router, bills.router,
+    report_builder.router,
     payments.router, payment_terms.router, bank_accounts.router,
     reconciliations.router, periods.router, audit.router,
     transactions.router, reports.router, imports.router,

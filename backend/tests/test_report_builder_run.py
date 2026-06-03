@@ -52,3 +52,32 @@ def test_journal_lines_multi_field_same_join_no_duplicate(client: TestClient):
                          config=cfg, page=0, page_size=100)
     assert res.total_count > 0                          # invoice postings produced JE lines
     assert {"account_code", "account_name", "jv_number"} <= set(res.rows[0].keys())
+
+
+def test_sources_lists_invoices(client: TestClient):
+    auth = _auth(client)
+    r = client.get("/api/report-builder/sources", headers=auth)
+    assert r.status_code == 200
+    keys = {s["key"] for s in r.json()}
+    assert "invoices" in keys and "journal_lines" in keys
+    inv = next(s for s in r.json() if s["key"] == "invoices")
+    assert any(f["key"] == "total" and f["type"] == "money" for f in inv["fields"])
+
+
+def test_run_endpoint_returns_rows(client: TestClient):
+    auth = _auth(client)
+    _seed_two_invoices(client, auth)
+    r = client.post("/api/report-builder/run", headers=auth, json={
+        "source_key": "invoices",
+        "config": {"columns": ["number", "total"], "sort": [{"field": "total", "dir": "desc"}]}})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["total_count"] == 2
+    assert body["rows"][0]["total"] == "2000.00"   # desc sort
+
+
+def test_run_unknown_field_is_400(client: TestClient):
+    auth = _auth(client)
+    r = client.post("/api/report-builder/run", headers=auth, json={
+        "source_key": "invoices", "config": {"columns": ["nope"]}})
+    assert r.status_code == 400
