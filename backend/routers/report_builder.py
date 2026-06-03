@@ -148,6 +148,16 @@ def delete_report(rid: int, session: SessionDep, user: CurrentUserDep):
 # Export
 # ---------------------------------------------------------------------------
 
+def _safe_cell(v):
+    """Neutralise CSV/spreadsheet formula injection: a value that opens with a
+    formula trigger is executed when the file is opened in Excel/Sheets, so we
+    prefix it with a single quote to force literal text."""
+    s = "" if v is None else str(v)
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + s
+    return s
+
+
 @router.post("/export")
 def export_report(body: RunBody, session: SessionDep, user: CurrentUserDep,
                   format: str = Query("csv")):
@@ -162,7 +172,7 @@ def export_report(body: RunBody, session: SessionDep, user: CurrentUserDep,
         buf = io.StringIO()
         w = csv.writer(buf); w.writerow(headers)
         for row in res.rows:
-            w.writerow([row.get(h, "") for h in headers])
+            w.writerow([_safe_cell(row.get(h, "")) for h in headers])
         return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={body.source_key}.csv"})
 
@@ -170,7 +180,7 @@ def export_report(body: RunBody, session: SessionDep, user: CurrentUserDep,
         from openpyxl import Workbook
         wb = Workbook(); ws = wb.active; ws.append(headers)
         for row in res.rows:
-            ws.append([row.get(h, "") for h in headers])
+            ws.append([_safe_cell(row.get(h, "")) for h in headers])
         out = io.BytesIO(); wb.save(out); out.seek(0)
         return StreamingResponse(out,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
