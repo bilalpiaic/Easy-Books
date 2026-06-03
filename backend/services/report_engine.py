@@ -70,3 +70,35 @@ def coerce_value(ftype: FieldType, value: Any) -> Any:
     if ftype == FieldType.BOOL:
         return bool(value)
     return str(value)
+
+
+def build_predicate(f: FieldDef, op: str, value: Any):
+    if op not in OPS_BY_TYPE[f.type]:
+        raise ReportError(f"operator {op!r} not allowed on {f.type.value} field {f.key!r}")
+    col = f.column
+    if op == "equals":
+        return col == value
+    if op == "contains":
+        return col.contains(value)
+    if op == "starts_with":
+        return col.startswith(value)
+    if op == "in":
+        vals = value if isinstance(value, list) else [value]
+        return col.in_(vals)
+    if op == "gt":
+        return col > value
+    if op == "gte":
+        return col >= value
+    if op == "lt":
+        return col < value
+    if op == "lte":
+        return col <= value
+    if op == "before":
+        return col < value
+    if op == "after":
+        return col > value
+    if op == "between":
+        if not isinstance(value, list) or len(value) != 2:
+            raise ReportError("between requires exactly two values")
+        return col.between(value[0], value[1])
+    raise ReportError(f"unknown operator {op!r}")
