@@ -195,9 +195,11 @@ def run_report(session: Session, *, tenant_id: int, source_key: str,
     except KeyError as e:
         raise ReportError(f"unknown field {e.args[0]!r}")
 
-    for _f, a in agg_fields:
+    for agg_field, a in agg_fields:
         if a.fn not in _AGG_FN:
             raise ReportError(f"unknown aggregate function {a.fn!r}")
+        if not agg_field.aggregatable:
+            raise ReportError(f"field {a.field!r} is not aggregatable")
 
     date_f = source.field(source.date_field) if (config.date_range and source.date_field) else None
     all_used = sel_fields + filt_fields + grp_fields + [f for f, _ in agg_fields] + \
