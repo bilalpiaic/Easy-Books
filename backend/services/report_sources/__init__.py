@@ -65,10 +65,7 @@ class ReportSource:
     date_field: Optional[str] = None
 
     def field(self, key: str) -> FieldDef:
-        try:
-            return self.fields[key]
-        except KeyError:
-            raise KeyError(key)  # router converts to HTTP 400
+        return self.fields[key]  # KeyError on miss; router converts to HTTP 400
 
 
 def _f(key, label, type_, column, **kw) -> FieldDef:
@@ -86,7 +83,7 @@ INVOICES = ReportSource(
         "issue_date":    _f("issue_date", "Issue Date", FieldType.DATE, Invoice.issue_date),
         "due_date":      _f("due_date", "Due Date", FieldType.DATE, Invoice.due_date),
         "status":        _f("status", "Status", FieldType.ENUM, Invoice.status,
-                            enum_values=["draft", "sent", "posted", "partial", "paid"]),
+                            enum_values=["draft", "sent", "posted", "partial", "paid", "overdue", "void"]),
         "currency":      _f("currency", "Currency", FieldType.TEXT, Invoice.currency),
         "subtotal":      _f("subtotal", "Subtotal", FieldType.MONEY, Invoice.subtotal, aggregatable=True),
         "gst_amount":    _f("gst_amount", "Tax", FieldType.MONEY, Invoice.gst_amount, aggregatable=True),
@@ -103,7 +100,7 @@ BILLS = ReportSource(
         "bill_date":   _f("bill_date", "Bill Date", FieldType.DATE, Bill.bill_date),
         "due_date":    _f("due_date", "Due Date", FieldType.DATE, Bill.due_date),
         "status":      _f("status", "Status", FieldType.ENUM, Bill.status,
-                          enum_values=["draft", "posted", "partial", "paid"]),
+                          enum_values=["draft", "posted", "partial", "paid", "overdue", "void"]),
         "currency":    _f("currency", "Currency", FieldType.TEXT, Bill.currency),
         "subtotal":    _f("subtotal", "Subtotal", FieldType.MONEY, Bill.subtotal, aggregatable=True),
         "gst_amount":  _f("gst_amount", "Tax", FieldType.MONEY, Bill.gst_amount, aggregatable=True),
@@ -123,7 +120,8 @@ JOURNAL_LINES = ReportSource(
                            join=JoinPath(JournalEntry.account_id, Account, Account.id)),
         "account_name": _f("account_name", "Account", FieldType.TEXT, Account.name,
                            join=JoinPath(JournalEntry.account_id, Account, Account.id)),
-        "account_type": _f("account_type", "Type", FieldType.TEXT, Account.type,
+        "account_type": _f("account_type", "Type", FieldType.ENUM, Account.type,
+                           enum_values=["Asset", "Liability", "Equity", "Revenue", "Expense"],
                            join=JoinPath(JournalEntry.account_id, Account, Account.id)),
         "debit":        _f("debit", "Debit", FieldType.MONEY, JournalEntry.debit, aggregatable=True),
         "credit":       _f("credit", "Credit", FieldType.MONEY, JournalEntry.credit, aggregatable=True),
