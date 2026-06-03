@@ -54,7 +54,7 @@ def run(body: RunBody, session: SessionDep, user: CurrentUserDep):
 # ---------------------------------------------------------------------------
 
 def _validate_config(source_key: str, config: ReportConfig):
-    from services.report_engine import build_predicate, coerce_value
+    from services.report_engine import _AGG_FN, build_predicate, coerce_value
     src = REGISTRY.get(source_key)
     if src is None:
         raise HTTPException(400, f"unknown source {source_key!r}")
@@ -65,6 +65,8 @@ def _validate_config(source_key: str, config: ReportConfig):
             f = src.field(c.field)
             build_predicate(f, c.op, coerce_value(f.type, c.value))
         for a in config.aggregates:
+            if a.fn not in _AGG_FN:
+                raise ReportError(f"unknown aggregate function {a.fn!r}")
             if not src.field(a.field).aggregatable:
                 raise ReportError(f"{a.field} is not aggregatable")
         for k in config.group_by:
