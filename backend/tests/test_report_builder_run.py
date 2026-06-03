@@ -36,3 +36,19 @@ def test_run_filters_and_sums(client: TestClient):
     assert res.total_count == 1                       # only the 2000 invoice
     assert res.footers["total"] == "2000.00"
     assert res.rows[0]["total"] == "2000.00"
+
+
+def test_journal_lines_multi_field_same_join_no_duplicate(client: TestClient):
+    """Two fields off the same related table (account_code + account_name, and
+    date + jv_number off transaction) must not emit duplicate JOINs."""
+    auth = _auth(client)
+    _seed_two_invoices(client, auth)   # posting invoices writes journal entries
+    with Session(app.state.engine) as s:
+        from models import User
+        from sqlmodel import select as sel
+        user = s.exec(sel(User)).first()
+        cfg = ReportConfig(columns=["date", "jv_number", "account_code", "account_name", "debit", "credit"])
+        res = run_report(s, tenant_id=user.tenant_id, source_key="journal_lines",
+                         config=cfg, page=0, page_size=100)
+    assert res.total_count > 0                          # invoice postings produced JE lines
+    assert {"account_code", "account_name", "jv_number"} <= set(res.rows[0].keys())

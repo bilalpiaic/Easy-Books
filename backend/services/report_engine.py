@@ -165,10 +165,17 @@ def _apply_date_range(stmt, date_field: FieldDef, dr: DateRange):
 
 
 def _collect_joins(source: ReportSource, fields: list[FieldDef]):
+    # Dedup by the join's structural identity, not the JoinPath object id: each
+    # _f(...) builds a distinct JoinPath, so two fields off the same related
+    # table (e.g. account_code + account_name) would otherwise emit duplicate
+    # JOINs and crash with "ambiguous column name".
     seen, joins = set(), []
     for f in fields:
-        if f.join and id(f.join) not in seen:
-            seen.add(id(f.join))
+        if not f.join:
+            continue
+        key = (id(f.join.local), f.join.target, id(f.join.target_key))
+        if key not in seen:
+            seen.add(key)
             joins.append(f.join)
     return joins
 
@@ -187,6 +194,10 @@ def run_report(session: Session, *, tenant_id: int, source_key: str,
         sort_fields = [(source.field(s.field), s) for s in config.sort]
     except KeyError as e:
         raise ReportError(f"unknown field {e.args[0]!r}")
+
+    for _f, a in agg_fields:
+        if a.fn not in _AGG_FN:
+            raise ReportError(f"unknown aggregate function {a.fn!r}")
 
     date_f = source.field(source.date_field) if (config.date_range and source.date_field) else None
     all_used = sel_fields + filt_fields + grp_fields + [f for f, _ in agg_fields] + \
