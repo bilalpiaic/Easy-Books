@@ -1,14 +1,17 @@
 """User-level dynamic report builder API."""
+import csv
+import io
 from dataclasses import asdict
 from datetime import datetime
 import json as _json
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import select
 
 from models import ReportDefinition
 from routers.common import CurrentUserDep, SessionDep
-from services.report_engine import ReportConfig, ReportError, run_report
+from services.report_engine import MAX_EXPORT_ROWS, ReportConfig, ReportError, run_report
 from services.report_sources import REGISTRY
 
 router = APIRouter(prefix="/api/report-builder", tags=["report-builder"])
@@ -139,3 +142,38 @@ def delete_report(rid: int, session: SessionDep, user: CurrentUserDep):
         raise HTTPException(403, "owner only")
     session.delete(rd); session.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+
+@router.post("/export")
+def export_report(body: RunBody, session: SessionDep, user: CurrentUserDep,
+                  format: str = Query("csv")):
+    try:
+        res = run_report(session, tenant_id=user.tenant_id, source_key=body.source_key,
+                         config=body.config, page=0, page_size=MAX_EXPORT_ROWS)
+    except ReportError as e:
+        raise HTTPException(400, str(e))
+    headers = [c.key for c in res.columns]
+
+    if format == "csv":
+        buf = io.StringIO()
+        w = csv.writer(buf); w.writerow(headers)
+        for row in res.rows:
+            w.writerow([row.get(h, "") for h in headers])
+        return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={body.source_key}.csv"})
+
+    if format == "xlsx":
+        from openpyxl import Workbook
+        wb = Workbook(); ws = wb.active; ws.append(headers)
+        for row in res.rows:
+            ws.append([row.get(h, "") for h in headers])
+        out = io.BytesIO(); wb.save(out); out.seek(0)
+        return StreamingResponse(out,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={body.source_key}.xlsx"})
+
+    raise HTTPException(400, f"unknown format {format!r}")
