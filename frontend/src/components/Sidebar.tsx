@@ -44,6 +44,7 @@ const NAV: NavItem[] = [
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
   { label: "Products",          href: "/products",            icon: Package,          section: "Inventory" },
   { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory" },
+  { label: "Product COA",       href: "/products/coa",        icon: TableProperties,  section: "Inventory" },
   { label: "Product Ledger",    href: "/products/ledger",    icon: BookOpen,         section: "Inventory" },
   { label: "Inventory Report",  href: "/inventory/performance", icon: PieChart,      section: "Inventory" },
   { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing", forModel: "manufacturing" },

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { AlertTriangle, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -207,7 +208,13 @@ export default function InventoryPerformancePage() {
                 sorted.map(item => (
                   <tr key={item.id} className={`hover:bg-[#f6f3ee]/30 transition-colors ${item.low_stock ? "bg-red-50/40" : ""}`}>
                     <td className="px-6 py-4">
-                      <span className="font-medium text-[#1a1814]">{item.name}</span>
+                      <Link
+                        href={`/products/ledger?product=${item.id}`}
+                        className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
+                        title="View product ledger"
+                      >
+                        {item.name}
+                      </Link>
                       {item.code && (
                         <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
                       )}
