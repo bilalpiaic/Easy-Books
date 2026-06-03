@@ -122,6 +122,51 @@ def create_db_and_tables():
                 flush=True,
             )
 
+        # Convergent backfill: tag any product left without a category against
+        # its tenant's sub-categories. Handles products created before the
+        # category feature (or by an older seeder). One-time-effective and a
+        # cheap no-op once every product is tagged.
+        _backfill_untagged_products(session)
+
+def _backfill_untagged_products(session: Session):
+    """Assign every product with no category_id to a sub-category of its tenant
+    (oldest-first, round-robin). Idempotent: skips tenants with no categories,
+    and no-ops entirely once all products are tagged."""
+    from models import Product, ProductCategory
+
+    untagged = session.exec(
+        select(Product).where(Product.category_id.is_(None))
+    ).all()
+    if not untagged:
+        return
+
+    by_tenant: dict[int, list] = {}
+    for p in untagged:
+        by_tenant.setdefault(p.tenant_id, []).append(p)
+
+    tagged = 0
+    for tid, prods in by_tenant.items():
+        subs = session.exec(
+            select(ProductCategory).where(
+                ProductCategory.tenant_id == tid,
+                ProductCategory.parent_id.is_not(None),
+            ).order_by(ProductCategory.id)
+        ).all()
+        cats = subs or session.exec(
+            select(ProductCategory).where(
+                ProductCategory.tenant_id == tid
+            ).order_by(ProductCategory.id)
+        ).all()
+        if not cats:
+            continue  # tenant has no categories to assign to
+        for i, p in enumerate(prods):
+            p.category_id = cats[i % len(cats)].id
+            session.add(p)
+            tagged += 1
+    if tagged:
+        session.commit()
+        print(f"[seed] backfilled category on {tagged} untagged product(s)", flush=True)
+
 def get_session():
     with Session(engine) as session:
         yield session
