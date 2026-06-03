@@ -127,3 +127,87 @@ JOURNAL_LINES = ReportSource(
         "credit":       _f("credit", "Credit", FieldType.MONEY, JournalEntry.credit, aggregatable=True),
     },
 )
+
+PAYMENTS_RECEIVED = ReportSource(
+    key="payments_received", label="Payments Received", model=PaymentReceived, date_field="payment_date",
+    default_columns=["payment_date", "customer_name", "method", "amount"],
+    fields={
+        "payment_date":  _f("payment_date", "Date", FieldType.DATE, PaymentReceived.payment_date),
+        "customer_name": _f("customer_name", "Customer", FieldType.TEXT, PaymentReceived.customer_name),
+        "method":        _f("method", "Method", FieldType.ENUM, PaymentReceived.method,
+                            enum_values=["cash", "bank", "card", "cheque"]),
+        "reference":     _f("reference", "Reference", FieldType.TEXT, PaymentReceived.reference),
+        "amount":        _f("amount", "Amount", FieldType.MONEY, PaymentReceived.amount, aggregatable=True),
+    },
+)
+
+PAYMENTS_MADE = ReportSource(
+    key="payments_made", label="Payments Made", model=BillPayment, date_field="payment_date",
+    default_columns=["payment_date", "vendor_name", "method", "amount"],
+    fields={
+        "payment_date": _f("payment_date", "Date", FieldType.DATE, BillPayment.payment_date),
+        "vendor_name":  _f("vendor_name", "Vendor", FieldType.TEXT, BillPayment.vendor_name),
+        "method":       _f("method", "Method", FieldType.ENUM, BillPayment.method,
+                           enum_values=["cash", "bank", "card", "cheque"]),
+        "reference":    _f("reference", "Reference", FieldType.TEXT, BillPayment.reference),
+        "amount":       _f("amount", "Amount", FieldType.MONEY, BillPayment.amount, aggregatable=True),
+    },
+)
+
+# NOTE: Product has no 'sku' or 'sale_price'/'cost_price' columns.
+# Real attributes: code (str), default_rate (sale price), avg_cost (cost).
+# 'sku' → dropped (no equivalent); 'sale_price' → default_rate; 'cost_price' → avg_cost.
+PRODUCTS = ReportSource(
+    key="products", label="Products", model=Product, date_field=None,
+    default_columns=["code", "name", "stock_qty", "default_rate"],
+    fields={
+        "code":         _f("code", "Code", FieldType.TEXT, Product.code),
+        "name":         _f("name", "Name", FieldType.TEXT, Product.name),
+        "stock_qty":    _f("stock_qty", "On Hand", FieldType.NUMBER, Product.stock_qty, aggregatable=True),
+        "default_rate": _f("default_rate", "Sale Price", FieldType.MONEY, Product.default_rate, aggregatable=True),
+        "avg_cost":     _f("avg_cost", "Avg Cost", FieldType.MONEY, Product.avg_cost, aggregatable=True),
+    },
+)
+
+# NOTE: StockMovement has no 'date' or 'kind' columns.
+# Real attributes: occurred_at (datetime), direction (str).
+# 'date' → occurred_at; 'kind' → direction.
+STOCK_MOVEMENTS = ReportSource(
+    key="stock_movements", label="Stock Movements", model=StockMovement, date_field="occurred_at",
+    default_columns=["occurred_at", "product_id", "direction", "qty", "unit_cost"],
+    fields={
+        "occurred_at": _f("occurred_at", "Date/Time", FieldType.DATE, StockMovement.occurred_at),
+        "product_id":  _f("product_id", "Product ID", FieldType.NUMBER, StockMovement.product_id),
+        "direction":   _f("direction", "Direction", FieldType.ENUM, StockMovement.direction,
+                          enum_values=["RECEIPT", "CUSTODIAL_RECEIPT", "ISSUE", "CUSTODIAL_ISSUE",
+                                       "COMPLETION", "CUSTODIAL_COMPLETION", "DELIVERY", "SHIPMENT",
+                                       "ADJUSTMENT"]),
+        "qty":         _f("qty", "Qty", FieldType.NUMBER, StockMovement.qty, aggregatable=True),
+        "unit_cost":   _f("unit_cost", "Unit Cost", FieldType.MONEY, StockMovement.unit_cost, aggregatable=True),
+    },
+)
+
+CUSTOMERS = ReportSource(
+    key="customers", label="Customers", model=Customer, date_field=None,
+    default_columns=["name", "email", "phone"],
+    fields={
+        "name":  _f("name", "Name", FieldType.TEXT, Customer.name),
+        "email": _f("email", "Email", FieldType.TEXT, Customer.email),
+        "phone": _f("phone", "Phone", FieldType.TEXT, Customer.phone),
+    },
+)
+
+VENDORS = ReportSource(
+    key="vendors", label="Vendors", model=Vendor, date_field=None,
+    default_columns=["name", "email", "phone"],
+    fields={
+        "name":  _f("name", "Name", FieldType.TEXT, Vendor.name),
+        "email": _f("email", "Email", FieldType.TEXT, Vendor.email),
+        "phone": _f("phone", "Phone", FieldType.TEXT, Vendor.phone),
+    },
+)
+
+REGISTRY: dict[str, ReportSource] = {s.key: s for s in (
+    INVOICES, BILLS, JOURNAL_LINES, PAYMENTS_RECEIVED, PAYMENTS_MADE,
+    PRODUCTS, STOCK_MOVEMENTS, CUSTOMERS, VENDORS,
+)}
