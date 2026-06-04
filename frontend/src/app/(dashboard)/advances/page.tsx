@@ -136,9 +136,9 @@ export default function AdvancesPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="ui-td text-center text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={7} className="ui-td py-10 text-center text-[#1a1814]/40 italic">Loading...</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="ui-td text-center">
+              <tr><td colSpan={7} className="ui-td py-16 text-center">
                 <Wallet className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
                 <p className="text-[#1a1814]/50 text-sm">No {tab} advances yet</p>
                 <button onClick={openRecord} className="mt-3 text-[#b8943f] text-sm underline">Record one</button>

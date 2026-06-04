@@ -607,10 +607,10 @@ function TreeGroup({ group, fmt }: { group: CoaGroup; fmt: (n: number) => string
   return (
     <>
       <tr className="bg-[#f6f3ee]/60">
-        <td className="px-6 py-3 font-semibold text-[#1a1814]">{group.name}</td>
-        <td className="px-6 py-3 text-right font-mono text-sm">{Number(group.qty).toLocaleString()}</td>
+        <td className="ui-td font-semibold text-[#1a1814]">{group.name}</td>
+        <td className="ui-td text-right font-mono text-sm">{Number(group.qty).toLocaleString()}</td>
         <td />
-        <td className="px-6 py-3 text-right font-mono text-sm font-semibold">{fmt(group.value)}</td>
+        <td className="ui-td text-right font-mono text-sm font-semibold">{fmt(group.value)}</td>
       </tr>
       {group.subs.map(sub => (
         <TreeSub key={`${group.name}-${sub.name}`} sub={sub} fmt={fmt} />
@@ -623,22 +623,22 @@ function TreeSub({ sub, fmt }: { sub: CoaSub; fmt: (n: number) => string }) {
   return (
     <>
       <tr>
-        <td className="px-6 py-2 pl-10 font-medium text-sm text-[#1a1814]/80">{sub.name}</td>
-        <td className="px-6 py-2 text-right font-mono text-xs text-[#1a1814]/70">{Number(sub.qty).toLocaleString()}</td>
+        <td className="ui-td pl-10 font-medium text-sm text-[#1a1814]/80">{sub.name}</td>
+        <td className="ui-td text-right font-mono text-xs text-[#1a1814]/70">{Number(sub.qty).toLocaleString()}</td>
         <td />
-        <td className="px-6 py-2 text-right font-mono text-xs text-[#1a1814]/70">{fmt(sub.value)}</td>
+        <td className="ui-td text-right font-mono text-xs text-[#1a1814]/70">{fmt(sub.value)}</td>
       </tr>
       {sub.items.map(it => (
         <tr key={it.id} className="hover:bg-[#f6f3ee]/50">
-          <td className="px-6 py-2 pl-16 text-sm">
+          <td className="ui-td pl-16 text-sm">
             <Link href={`/products/ledger?product=${it.id}`} className="text-[#1a1814]/90 hover:text-[#b8943f] hover:underline" title="View product ledger">
               {it.name}
             </Link>
             {it.code && <span className="ml-2 font-mono text-xs text-[#b8943f]">{it.code}</span>}
           </td>
-          <td className="px-6 py-2 text-right font-mono text-sm">{Number(it.qty).toLocaleString()}</td>
-          <td className="px-6 py-2 text-right font-mono text-sm text-[#1a1814]/70">{fmt(it.avg_rate)}</td>
-          <td className="px-6 py-2 text-right font-mono text-sm">{fmt(it.value)}</td>
+          <td className="ui-td text-right font-mono text-sm">{Number(it.qty).toLocaleString()}</td>
+          <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">{fmt(it.avg_rate)}</td>
+          <td className="ui-td text-right font-mono text-sm">{fmt(it.value)}</td>
         </tr>
       ))}
     </>
