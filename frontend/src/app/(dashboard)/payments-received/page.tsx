@@ -225,12 +225,12 @@ export default function PaymentsReceived() {
           <table className="w-full text-sm min-w-[520px]">
             <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Date</th>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Customer</th>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Reference</th>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
-                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
-                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16">Print</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Date</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Customer</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Reference</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16">Print</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
@@ -240,20 +240,20 @@ export default function PaymentsReceived() {
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No payments recorded.</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-[#f6f3ee]/50">
-                  <td className="px-6 py-4 text-black/70">{p.payment_date}</td>
-                  <td className="px-6 py-4 font-medium">
+                  <td className="ui-td text-black/70">{p.payment_date}</td>
+                  <td className="ui-td font-medium">
                     {p.invoice_id && p.customer_name
                       ? <DocLink type="invoice" id={p.invoice_id} label={p.customer_name} />
                       : (p.customer_name ?? '—')}
                   </td>
-                  <td className="px-6 py-4 font-mono text-sm text-black/60">
+                  <td className="ui-td font-mono text-sm text-black/60">
                     {p.invoice_id
                       ? <DocLink type="invoice" id={p.invoice_id} label={p.reference ?? `INV #${p.invoice_id}`} className="text-black/60" />
                       : (p.reference ?? '—')}
                   </td>
-                  <td className="px-6 py-4 capitalize text-black/70">{p.method.replace('_', ' ')}</td>
-                  <td className="px-6 py-4 text-right font-mono font-bold text-green-700">{fmt(p.amount)}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="ui-td capitalize text-black/70">{p.method.replace('_', ' ')}</td>
+                  <td className="ui-td text-right font-mono font-bold text-green-700">{fmt(p.amount)}</td>
+                  <td className="ui-td text-right">
                     <Link
                       href={`/payments-received/${p.id}/print`}
                       title="Print receipt"

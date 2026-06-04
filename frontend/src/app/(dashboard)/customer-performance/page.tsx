@@ -127,12 +127,12 @@ export default function CustomerPerformancePage() {
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">#</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Customer</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Revenue</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Invoices</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Avg Days to Pay</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">#</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Customer</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Revenue</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Invoices</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Avg Days to Pay</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1a1814]/5">
@@ -154,10 +154,10 @@ export default function CustomerPerformancePage() {
                     key={row.name}
                     className={`hover:bg-[#f6f3ee]/30 transition-colors ${rowHighlight(idx)}`}
                   >
-                    <td className="px-6 py-4 text-sm font-bold text-[#1a1814]/40">
+                    <td className="ui-td text-sm font-bold text-[#1a1814]/40">
                       {idx + 1}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="ui-td">
                       <span className="font-medium text-[#1a1814]">{row.name}</span>
                       {idx < 3 && (
                         <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-[#b8943f]">
@@ -165,18 +165,18 @@ export default function CustomerPerformancePage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm font-semibold text-[#1a1814]">
+                    <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
                       {fmt(row.revenue)}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm text-[#1a1814]">
+                    <td className="ui-td text-right text-sm text-[#1a1814]">
                       {row.invoice_count}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm">
+                    <td className="ui-td text-right font-mono text-sm">
                       <span className={row.outstanding > 0 ? "text-red-600 font-semibold" : "text-[#1a1814]/50"}>
                         {row.outstanding > 0 ? fmt(row.outstanding) : "—"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right text-sm text-[#1a1814]/70">
+                    <td className="ui-td text-right text-sm text-[#1a1814]/70">
                       {row.avg_days_to_pay != null ? `${row.avg_days_to_pay} days` : "—"}
                     </td>
                   </tr>

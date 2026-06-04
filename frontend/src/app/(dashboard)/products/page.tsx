@@ -361,14 +361,14 @@ function ProductsInner() {
                   onChange={e => setSelectedIds(e.target.checked ? new Set(products.map(p => p.id)) : new Set())}
                 />
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Unit</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Default Rate</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Stock Qty</th>
-              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
-              <th className="px-6 py-4" />
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Unit</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Default Rate</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Stock Qty</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
+              <th className="ui-th" />
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -399,28 +399,28 @@ function ProductsInner() {
                     })}
                   />
                 </td>
-                <td className="px-6 py-4 font-mono text-xs text-[#b8943f]">
+                <td className="ui-td font-mono text-xs text-[#b8943f]">
                   {p.code ? <DocLink type="product" id={p.id} label={p.code} className="text-[#b8943f]" /> : '—'}
                 </td>
-                <td className="px-6 py-4 font-medium cursor-pointer" title={p.name}>
+                <td className="ui-td font-medium cursor-pointer" title={p.name}>
                   <DocLink type="product" id={p.id} label={p.name} className="font-medium" />
                 </td>
-                <td className="px-6 py-4">
+                <td className="ui-td">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.product_type === 'stock' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
                     {p.product_type}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-black/60">{p.unit}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmt(p.default_rate)}</td>
-                <td className="px-6 py-4 text-right">
+                <td className="ui-td text-black/60">{p.unit}</td>
+                <td className="ui-td text-right font-mono">{fmt(p.default_rate)}</td>
+                <td className="ui-td text-right">
                   {p.product_type === 'stock' ? (
                     <span className="font-mono">{p.stock_qty.toLocaleString()} {p.unit}</span>
                   ) : (
                     <span className="text-black/30">—</span>
                   )}
                 </td>
-                <td className="px-6 py-4 text-center">{stockBadge(p)}</td>
-                <td className="px-6 py-4 flex items-center gap-3">
+                <td className="ui-td text-center">{stockBadge(p)}</td>
+                <td className="ui-td flex items-center gap-3">
                   <button onClick={() => openEdit(p)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
@@ -572,10 +572,10 @@ function ProductTree({ coa, loading, fmt }: { coa: CoaData | null; loading: bool
         <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Category / Product</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Avg Rate</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Value</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Category / Product</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Avg Rate</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Value</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -590,10 +590,10 @@ function ProductTree({ coa, loading, fmt }: { coa: CoaData | null; loading: bool
           {!loading && coa && coa.groups.length > 0 && (
             <tfoot>
               <tr className="bg-[#1a1814] text-white">
-                <td className="px-6 py-4 font-bold uppercase tracking-widest text-xs">Grand Total</td>
-                <td className="px-6 py-4 text-right font-mono font-bold">{Number(coa.grand.qty).toLocaleString()}</td>
+                <td className="ui-td font-bold uppercase tracking-widest text-xs">Grand Total</td>
+                <td className="ui-td text-right font-mono font-bold">{Number(coa.grand.qty).toLocaleString()}</td>
                 <td />
-                <td className="px-6 py-4 text-right font-mono font-bold">{fmt(coa.grand.value)}</td>
+                <td className="ui-td text-right font-mono font-bold">{fmt(coa.grand.value)}</td>
               </tr>
             </tfoot>
           )}
