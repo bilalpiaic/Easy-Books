@@ -53,6 +53,8 @@ class SettingsUpdate(BaseModel):
     cost_method: Optional[str] = None
     # Inventory: block sales that would drive stock negative ("true"/"false")
     block_negative_stock: Optional[str] = None
+    # UI density preference ("comfortable" or "compact")
+    ui_density: Optional[str] = None
 
 
 @router.get("")
