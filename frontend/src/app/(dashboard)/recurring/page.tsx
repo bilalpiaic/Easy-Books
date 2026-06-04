@@ -199,12 +199,12 @@ export default function RecurringPage() {
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Frequency</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Next Run</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Last Run</th>
-              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
-              <th className="px-6 py-4" />
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Frequency</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Next Run</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Last Run</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
+              <th className="ui-th" />
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -223,7 +223,7 @@ export default function RecurringPage() {
               </tr>
             ) : templates.map(t => (
               <tr key={t.id} className={`hover:bg-[#f6f3ee]/50 ${!t.is_active ? 'opacity-50' : ''}`}>
-                <td className="px-6 py-4">
+                <td className="ui-td">
                   <p className="font-medium">{t.name}</p>
                   {t.description && <p className="text-xs text-black/50 mt-0.5">{t.description}</p>}
                   <p className="text-xs text-black/40 mt-0.5 flex flex-wrap gap-x-2">
@@ -235,16 +235,16 @@ export default function RecurringPage() {
                     })}
                   </p>
                 </td>
-                <td className="px-6 py-4">
+                <td className="ui-td">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-blue-100 text-blue-700">
                     {FREQ_LABELS[t.frequency] ?? t.frequency}
                   </span>
                 </td>
-                <td className={`px-6 py-4 font-mono text-sm ${now && new Date(t.next_run) <= now && t.is_active ? 'text-red-600 font-bold' : 'text-black/70'}`}>
+                <td className={`ui-td font-mono text-sm ${now && new Date(t.next_run) <= now && t.is_active ? 'text-red-600 font-bold' : 'text-black/70'}`}>
                   {t.next_run}
                 </td>
-                <td className="px-6 py-4 font-mono text-sm text-black/50">{t.last_run ?? '—'}</td>
-                <td className="px-6 py-4 text-center">
+                <td className="ui-td font-mono text-sm text-black/50">{t.last_run ?? '—'}</td>
+                <td className="ui-td text-center">
                   <button
                     onClick={() => handleToggle(t)}
                     title={t.is_active ? 'Deactivate' : 'Activate'}
@@ -255,7 +255,7 @@ export default function RecurringPage() {
                       : <><ToggleLeft className="w-5 h-5 text-black/30" /><span className="text-black/40">Inactive</span></>}
                   </button>
                 </td>
-                <td className="px-6 py-4">
+                <td className="ui-td">
                   <button onClick={() => handleDelete(t)} className="text-red-400 hover:text-red-600">
                     <Trash2 className="w-4 h-4" />
                   </button>
