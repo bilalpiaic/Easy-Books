@@ -154,16 +154,16 @@ export default function CreditNotesPage() {
           <thead className="bg-[#f6f3ee]">
             <tr>
               {['Number', 'Customer', 'Date', 'Total', 'Status'].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
+                <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="text-center py-10 text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={5} className="ui-td text-center text-[#1a1814]/40 italic">Loading...</td></tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-16">
+                <td colSpan={5} className="ui-td text-center">
                   <Receipt className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
                   <p className="text-[#1a1814]/50 text-sm">No credit notes yet</p>
                   <button onClick={openModal} className="mt-3 text-[#b8943f] text-sm underline">Issue your first credit note</button>
@@ -171,11 +171,11 @@ export default function CreditNotesPage() {
               </tr>
             ) : items.map(cn => (
               <tr key={cn.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="px-4 py-3 font-mono font-bold"><DocLink type="credit_note" id={cn.id} label={cn.number} className="text-[#b8943f]" /></td>
-                <td className="px-4 py-3 text-[#1a1814]/70">{cn.customer_name ?? '—'}</td>
-                <td className="px-4 py-3 text-[#1a1814]/70">{cn.issue_date}</td>
-                <td className="px-4 py-3 font-mono">{fmt(cn.total)}</td>
-                <td className="px-4 py-3">
+                <td className="ui-td font-mono font-bold"><DocLink type="credit_note" id={cn.id} label={cn.number} className="text-[#b8943f]" /></td>
+                <td className="ui-td text-[#1a1814]/70">{cn.customer_name ?? '—'}</td>
+                <td className="ui-td text-[#1a1814]/70">{cn.issue_date}</td>
+                <td className="ui-td font-mono">{fmt(cn.total)}</td>
+                <td className="ui-td">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[cn.status] ?? 'bg-gray-100 text-gray-600'}`}>
                     {cn.status}
                   </span>

@@ -121,25 +121,25 @@ export default function DebitNotesPage() {
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee]">
             <tr>{['Number', 'Vendor', 'Date', 'Total', 'Status'].map(h => (
-              <th key={h} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
+              <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
             ))}</tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="text-center py-10 text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={5} className="ui-td text-center text-[#1a1814]/40 italic">Loading...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-16">
+              <tr><td colSpan={5} className="ui-td text-center">
                 <Undo2 className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
                 <p className="text-[#1a1814]/50 text-sm">No debit notes yet</p>
                 <button onClick={openModal} className="mt-3 text-[#b8943f] text-sm underline">Record your first purchase return</button>
               </td></tr>
             ) : items.map(dn => (
               <tr key={dn.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="px-4 py-3 font-mono font-bold"><DocLink type="debit_note" id={dn.id} label={dn.number} className="text-[#b8943f]" /></td>
-                <td className="px-4 py-3 text-[#1a1814]/70">{dn.vendor_name ?? '—'}</td>
-                <td className="px-4 py-3 text-[#1a1814]/70">{dn.issue_date}</td>
-                <td className="px-4 py-3 font-mono">{fmt(dn.total)}</td>
-                <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[dn.status] ?? 'bg-gray-100 text-gray-600'}`}>{dn.status}</span></td>
+                <td className="ui-td font-mono font-bold"><DocLink type="debit_note" id={dn.id} label={dn.number} className="text-[#b8943f]" /></td>
+                <td className="ui-td text-[#1a1814]/70">{dn.vendor_name ?? '—'}</td>
+                <td className="ui-td text-[#1a1814]/70">{dn.issue_date}</td>
+                <td className="ui-td font-mono">{fmt(dn.total)}</td>
+                <td className="ui-td"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[dn.status] ?? 'bg-gray-100 text-gray-600'}`}>{dn.status}</span></td>
               </tr>
             ))}
           </tbody>

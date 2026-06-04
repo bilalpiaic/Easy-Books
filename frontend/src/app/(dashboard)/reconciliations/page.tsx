@@ -237,23 +237,23 @@ export default function Reconciliations() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-[#f6f3ee]">
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-black/60">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-black/60">Description</th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-black/60">Debit</th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-black/60">Credit</th>
-                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-widest text-black/60">Clear</th>
+                    <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Date</th>
+                    <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Description</th>
+                    <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Debit</th>
+                    <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Credit</th>
+                    <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Clear</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ede9e2]">
                   {detail.lines.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-6 text-center text-black/40">No GL entries for this period/account.</td></tr>
+                    <tr><td colSpan={5} className="ui-td text-center text-black/40">No GL entries for this period/account.</td></tr>
                   ) : detail.lines.map(ln => (
                     <tr key={ln.id} className={ln.is_matched ? 'bg-green-50/60' : ''}>
-                      <td className="px-4 py-3 text-black/60">{ln.date}</td>
-                      <td className="px-4 py-3 max-w-xs truncate">{ln.description}</td>
-                      <td className="px-4 py-3 text-right font-mono">{ln.debit > 0 ? fmt(ln.debit) : '—'}</td>
-                      <td className="px-4 py-3 text-right font-mono">{ln.credit > 0 ? fmt(ln.credit) : '—'}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="ui-td text-black/60">{ln.date}</td>
+                      <td className="ui-td max-w-xs truncate">{ln.description}</td>
+                      <td className="ui-td text-right font-mono">{ln.debit > 0 ? fmt(ln.debit) : '—'}</td>
+                      <td className="ui-td text-right font-mono">{ln.credit > 0 ? fmt(ln.credit) : '—'}</td>
+                      <td className="ui-td text-center">
                         <button onClick={() => toggleLine(detail.id, ln.id, !ln.is_matched)}>
                           {ln.is_matched
                             ? <CheckCircle className="w-5 h-5 text-green-600 mx-auto" />
