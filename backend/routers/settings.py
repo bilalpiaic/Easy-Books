@@ -78,6 +78,11 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
             tenant.cost_method = cm
             session.add(tenant)
 
+    if "ui_density" in updates:
+        ud = updates["ui_density"]
+        if ud not in ("comfortable", "compact"):
+            raise HTTPException(400, "ui_density must be 'comfortable' or 'compact'")
+
     # Keep Tenant.base_currency in sync with the "currency" KV setting
     if "currency" in updates and tenant:
         tenant.base_currency = updates["currency"]

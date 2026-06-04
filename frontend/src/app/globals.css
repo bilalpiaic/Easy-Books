@@ -27,6 +27,8 @@ html[data-density="compact"] {
 .ui-td { padding: var(--ui-cell-py) var(--ui-cell-px); }
 .ui-card { padding: var(--ui-card-pad); }
 .ui-field { padding: var(--ui-control-py) var(--ui-control-px); }
+.ui-table { width: 100%; }
+.ui-section { gap: var(--ui-section-gap); }
 
 body {
   background: var(--background);
