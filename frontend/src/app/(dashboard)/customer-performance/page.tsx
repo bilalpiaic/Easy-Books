@@ -186,12 +186,12 @@ export default function CustomerPerformancePage() {
             {!isLoading && sorted.length > 0 && (
               <tfoot>
                 <tr className="bg-[#1a1814] text-white">
-                  <td className="px-6 py-5 font-bold uppercase tracking-widest text-xs" colSpan={2}>
+                  <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={2}>
                     Total
                   </td>
-                  <td className="px-6 py-5 text-right font-mono font-bold">{fmt(totalRevenue)}</td>
-                  <td className="px-6 py-5 text-right font-mono font-bold">{totalInvoices}</td>
-                  <td className="px-6 py-5 text-right font-mono font-bold">{fmt(totalOutstanding)}</td>
+                  <td className="ui-td text-right font-mono font-bold">{fmt(totalRevenue)}</td>
+                  <td className="ui-td text-right font-mono font-bold">{totalInvoices}</td>
+                  <td className="ui-td text-right font-mono font-bold">{fmt(totalOutstanding)}</td>
                   <td />
                 </tr>
               </tfoot>
