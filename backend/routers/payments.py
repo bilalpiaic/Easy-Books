@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from models import (
-    Account, Bill, BillPayment, Customer, Invoice, PaymentAllocation, PaymentReceived,
+    Account, Bill, BillPayment, Customer, Invoice, PaymentAllocation, PaymentReceived, Vendor,
 )
 from services.money import D, money
 from services.posting import EntryInput, post_transaction
@@ -219,6 +219,7 @@ def create_payment_received(
 
 class BillPaymentCreate(BaseModel):
     bill_id: Optional[int] = None  # legacy single-bill shortcut
+    vendor_id: Optional[int] = None
     vendor_name: Optional[str] = None
     payment_date: str
     amount: Decimal
@@ -280,6 +281,17 @@ def create_bill_payment(
 ):
     amount = money(body.amount)
     vname = body.vendor_name
+
+    if body.vendor_id is not None:
+        vend = session.exec(
+            select(Vendor).where(
+                Vendor.id == body.vendor_id,
+                Vendor.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not vend:
+            raise HTTPException(404, "Vendor not found")
+        vname = vend.name
 
     allocations: List[AllocationLine] = list(body.allocations)
     if body.bill_id and not allocations:

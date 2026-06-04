@@ -41,7 +41,7 @@ interface AllocationRow {
 }
 
 interface PayForm {
-  vendor_name: string
+  vendor_id: string
   payment_date: string
   amount: string
   method: string
@@ -50,7 +50,7 @@ interface PayForm {
 }
 
 const emptyForm: PayForm = {
-  vendor_name: '', payment_date: new Date().toISOString().split('T')[0],
+  vendor_id: '', payment_date: new Date().toISOString().split('T')[0],
   amount: '', method: 'bank_transfer', reference: '', cash_account_id: '',
 }
 
@@ -70,6 +70,7 @@ export default function BillPayments() {
   const [openBills, setOpenBills]   = useState<OpenBill[]>([])
   const [allocations, setAllocations] = useState<AllocationRow[]>([])
   const [accounts, setAccounts]     = useState<Account[]>([])
+  const [vendors, setVendors]       = useState<{ id: number; name: string }[]>([])
 
   const load = () => {
     setLoading(true)
@@ -81,6 +82,12 @@ export default function BillPayments() {
   }
 
   useEffect(load, [page])
+
+  useEffect(() => {
+    apiFetch<{ items: { id: number; name: string }[] }>('/api/vendors?limit=500')
+      .then(d => setVendors(d.items))
+      .catch(() => {})
+  }, [])
 
   const openModal = async () => {
     try {
@@ -131,7 +138,7 @@ export default function BillPayments() {
     setSaving(true); setFormError('')
     try {
       const body: Record<string, unknown> = {
-        vendor_name: form.vendor_name || null,
+        vendor_id: form.vendor_id ? Number(form.vendor_id) : null,
         payment_date: form.payment_date,
         amount: paymentAmount,
         method: form.method,
@@ -282,9 +289,16 @@ export default function BillPayments() {
               {/* Header fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor Name</label>
-                  <input value={form.vendor_name} onChange={e => setForm(p => ({ ...p, vendor_name: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor *</label>
+                  <select
+                    required
+                    value={form.vendor_id}
+                    onChange={e => setForm(p => ({ ...p, vendor_id: e.target.value }))}
+                    className="ui-field w-full bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                  >
+                    <option value="">— Select vendor —</option>
+                    {vendors.map(v => <option key={v.id} value={String(v.id)}>{v.name}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Date</label>
@@ -396,7 +410,7 @@ export default function BillPayments() {
               <p className="text-xs text-black/50">GL posting: Dr Accounts Payable / Cr Cash/Bank</p>
               <div className="flex justify-end gap-3 pt-2">
                 <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                <button onClick={handleSave} disabled={!form.vendor_id || saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
                   {saving ? 'Saving...' : 'Record Payment'}
                 </button>
               </div>
