@@ -282,12 +282,12 @@ function LedgerPageInner() {
             <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Date</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">JV #</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Balance</th>
+                  <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Date</th>
+                  <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">JV #</th>
+                  <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
+                  <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit</th>
+                  <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit</th>
+                  <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f6f3ee]">
@@ -327,16 +327,16 @@ function LedgerPageInner() {
               </tbody>
               <tfoot className="border-t-2 border-[#1a1814]/10">
                 <tr className="bg-[#faf6ec]">
-                  <td colSpan={3} className="px-4 py-3 text-xs font-bold text-[#1a1814]/55 uppercase tracking-widest">
+                  <td colSpan={3} className="ui-td text-xs font-bold text-[#1a1814]/55 uppercase tracking-widest">
                     {ledgerData.entries.length} transaction{ledgerData.entries.length !== 1 ? "s" : ""}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold">
+                  <td className="ui-td text-right font-mono font-bold">
                     {fmt(ledgerData.entries.reduce((s, e) => s + (e.debit || 0), 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold">
+                  <td className="ui-td text-right font-mono font-bold">
                     {fmt(ledgerData.entries.reduce((s, e) => s + (e.credit || 0), 0))}
                   </td>
-                  <td className={`px-4 py-3 text-right font-mono font-bold ${closing < 0 ? "text-red-600" : ""}`}>
+                  <td className={`ui-td text-right font-mono font-bold ${closing < 0 ? "text-red-600" : ""}`}>
                     {fmt(closing)}
                   </td>
                 </tr>

@@ -181,12 +181,12 @@ export default function Customers() {
                   onChange={e => setSelectedIds(e.target.checked ? new Set(customers.map(c => c.id)) : new Set())}
                 />
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Name</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Email</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Phone</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75">Opening Bal.</th>
-              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/75">Status</th>
-              <th className="px-6 py-4"></th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Name</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Email</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Phone</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">Opening Bal.</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/75">Status</th>
+              <th className="ui-th"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -217,18 +217,18 @@ export default function Customers() {
                     })}
                   />
                 </td>
-                <td className="px-6 py-4 font-medium">
+                <td className="ui-td font-medium">
                   <DocLink type="customer" id={c.id} label={c.name} className="font-medium" />
                 </td>
-                <td className="px-6 py-4 text-black/70">{c.email ?? '—'}</td>
-                <td className="px-6 py-4 text-black/70">{c.phone ?? '—'}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmt(c.opening_balance)}</td>
-                <td className="px-6 py-4 text-center">
+                <td className="ui-td text-black/70">{c.email ?? '—'}</td>
+                <td className="ui-td text-black/70">{c.phone ?? '—'}</td>
+                <td className="ui-td text-right font-mono">{fmt(c.opening_balance)}</td>
+                <td className="ui-td text-center">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                     {c.is_active ? 'active' : 'inactive'}
                   </span>
                 </td>
-                <td className="px-6 py-4 flex items-center gap-3">
+                <td className="ui-td flex items-center gap-3">
                   <button onClick={() => openEdit(c)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(c)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
