@@ -10,6 +10,24 @@
   --foreground: #1a1814;
 }
 
+/* ── Density tokens ── */
+:root {
+  --ui-cell-px: 1rem;      --ui-cell-py: 0.55rem;
+  --ui-head-py: 0.55rem;   --ui-section-gap: 1.25rem;
+  --ui-card-pad: 1.25rem;  --ui-control-py: 0.55rem;  --ui-control-px: 0.9rem;
+}
+html[data-density="compact"] {
+  --ui-cell-px: 0.7rem;    --ui-cell-py: 0.32rem;
+  --ui-head-py: 0.38rem;   --ui-section-gap: 0.85rem;
+  --ui-card-pad: 0.9rem;   --ui-control-py: 0.4rem;   --ui-control-px: 0.7rem;
+}
+
+/* ── Density semantic classes (screen) ── */
+.ui-th { padding: var(--ui-head-py) var(--ui-cell-px); }
+.ui-td { padding: var(--ui-cell-py) var(--ui-cell-px); }
+.ui-card { padding: var(--ui-card-pad); }
+.ui-field { padding: var(--ui-control-py) var(--ui-control-px); }
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -163,7 +181,7 @@ body {
   table, th, td {
     border-color: #ccc !important;
   }
-  th {
+  th, .ui-th {
     background: #f3f3ed !important;
     color: #1a1814 !important;
     font-weight: 700;
@@ -173,7 +191,7 @@ body {
     padding: 5pt 6pt !important;
     border-bottom: 1pt solid #999 !important;
   }
-  td { padding: 4pt 6pt !important; }
+  td, .ui-td { padding: 4pt 6pt !important; }
   tr:nth-child(even) td { background: #fafaf7 !important; }
 
   /* ── Branded header (PrintHeader component) ─────────────────── */
