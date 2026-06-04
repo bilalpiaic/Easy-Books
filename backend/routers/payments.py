@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from models import (
-    Account, Bill, BillPayment, Invoice, PaymentAllocation, PaymentReceived,
+    Account, Bill, BillPayment, Customer, Invoice, PaymentAllocation, PaymentReceived,
 )
 from services.money import D, money
 from services.posting import EntryInput, post_transaction
@@ -34,6 +34,7 @@ class AllocationLine(BaseModel):
 
 class PaymentReceivedCreate(BaseModel):
     invoice_id: Optional[int] = None  # legacy single-invoice shortcut
+    customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     payment_date: str
     amount: Decimal
@@ -124,6 +125,17 @@ def create_payment_received(
 ):
     amount = money(body.amount)
     cname = body.customer_name
+
+    if body.customer_id is not None:
+        cust = session.exec(
+            select(Customer).where(
+                Customer.id == body.customer_id,
+                Customer.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not cust:
+            raise HTTPException(404, "Customer not found")
+        cname = cust.name
 
     # Resolve allocations: either explicit body.allocations or the legacy
     # single-invoice shortcut (invoice_id + amount).
