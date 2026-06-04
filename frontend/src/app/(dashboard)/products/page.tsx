@@ -452,12 +452,12 @@ function ProductsInner() {
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Code</label>
                   <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
                     placeholder="e.g. SKU-001"
-                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Unit</label>
                   <select value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
-                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]">
+                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]">
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
@@ -466,7 +466,7 @@ function ProductsInner() {
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Name *</label>
                 <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                   placeholder="Product name"
-                  className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                  className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-2">Type</label>
@@ -491,7 +491,7 @@ function ProductsInner() {
                         // When parent changes, default category_id to the parent itself (or clear)
                         setForm(p => ({ ...p, category_id: e.target.value }))
                       }}
-                      className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
                     >
                       <option value="">— None —</option>
                       {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
@@ -503,7 +503,7 @@ function ProductsInner() {
                       <select
                         value={form.category_id}
                         onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))}
-                        className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                        className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
                       >
                         <option value={formParentCat}>— (parent only) —</option>
                         {subCategories.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
@@ -517,14 +517,14 @@ function ProductsInner() {
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Default Rate</label>
                   <input type="number" min="0" step="0.01" value={form.default_rate}
                     onChange={e => setForm(p => ({ ...p, default_rate: e.target.value }))}
-                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
                 </div>
                 {isStock && (
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Reorder Level</label>
                     <input type="number" min="0" step="0.001" value={form.reorder_level}
                       onChange={e => setForm(p => ({ ...p, reorder_level: e.target.value }))}
-                      className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
                   </div>
                 )}
               </div>

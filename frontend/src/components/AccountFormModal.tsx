@@ -77,7 +77,7 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
               value={code}
               onChange={e => setCode(e.target.value)}
               placeholder="e.g. 1010"
-              className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
             />
           </div>
           <div>
@@ -86,7 +86,7 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Cash in Hand"
-              className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
             />
           </div>
           {allAccounts.length > 0 && (
@@ -95,7 +95,7 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
               <select
                 value={parentId}
                 onChange={e => setParentId(e.target.value)}
-                className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
               >
                 <option value="">— No parent (top-level) —</option>
                 {allAccounts.filter(a => a.id !== account?.id).map(a => (
@@ -109,7 +109,7 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
             <select
               value={type}
               onChange={e => setType(e.target.value)}
-              className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
             >
               {ACCOUNT_TYPES.map(t => <option key={t}>{t}</option>)}
             </select>

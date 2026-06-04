@@ -259,7 +259,7 @@ export default function Vendors() {
                   <input
                     value={form[field]}
                     onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
                     placeholder={field === 'name' ? 'Vendor name' : ''}
                   />
                 </div>
@@ -270,7 +270,7 @@ export default function Vendors() {
                   type="number" step="0.01"
                   value={form.opening_balance}
                   onChange={e => setForm(p => ({ ...p, opening_balance: e.target.value }))}
-                  className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                  className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
                 />
               </div>
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
