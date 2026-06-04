@@ -151,40 +151,40 @@ export default function InventoryPerformancePage() {
             <thead>
               <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
                 <th
-                  className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 cursor-pointer select-none"
+                  className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 cursor-pointer select-none"
                   onClick={() => toggleSort("name")}
                 >
                   Product<SortIndicator k="name" />
                 </th>
                 <th
-                  className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                  className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
                   onClick={() => toggleSort("on_hand")}
                 >
                   On Hand<SortIndicator k="on_hand" />
                 </th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
                   Avg Cost
                 </th>
                 <th
-                  className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                  className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
                   onClick={() => toggleSort("stock_value")}
                 >
                   Stock Value<SortIndicator k="stock_value" />
                 </th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-center">
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-center">
                   Status
                 </th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
                   Last Movement
                 </th>
                 <th
-                  className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                  className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
                   onClick={() => toggleSort("units_sold")}
                 >
                   Units Sold<SortIndicator k="units_sold" />
                 </th>
                 <th
-                  className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                  className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
                   onClick={() => toggleSort("cogs")}
                 >
                   COGS<SortIndicator k="cogs" />
@@ -207,7 +207,7 @@ export default function InventoryPerformancePage() {
               ) : (
                 sorted.map(item => (
                   <tr key={item.id} className={`hover:bg-[#f6f3ee]/30 transition-colors ${item.low_stock ? "bg-red-50/40" : ""}`}>
-                    <td className="px-6 py-4">
+                    <td className="ui-td">
                       <Link
                         href={`/products/ledger?product=${item.id}`}
                         className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
@@ -219,16 +219,16 @@ export default function InventoryPerformancePage() {
                         <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-[#1a1814]">
+                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
                       {Number(item.on_hand).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-[#1a1814]/70">
+                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
                       {fmt(item.avg_cost)}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm font-semibold text-[#1a1814]">
+                    <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
                       {fmt(item.stock_value)}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="ui-td text-center">
                       {item.low_stock ? (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
                           <AlertTriangle className="w-3 h-3" />
@@ -240,13 +240,13 @@ export default function InventoryPerformancePage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm text-[#1a1814]/60">
+                    <td className="ui-td text-right text-sm text-[#1a1814]/60">
                       {item.last_movement ?? "—"}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-[#1a1814]">
+                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
                       {Number(item.units_sold).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-[#1a1814]">
+                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
                       {fmt(item.cogs)}
                     </td>
                   </tr>
@@ -256,12 +256,12 @@ export default function InventoryPerformancePage() {
             {!isLoading && sorted.length > 0 && (
               <tfoot>
                 <tr className="bg-[#1a1814] text-white">
-                  <td className="px-6 py-5 font-bold uppercase tracking-widest text-xs" colSpan={3}>
+                  <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={3}>
                     Total
                   </td>
-                  <td className="px-6 py-5 text-right font-mono font-bold">{fmt(totalValue)}</td>
+                  <td className="ui-td text-right font-mono font-bold">{fmt(totalValue)}</td>
                   <td colSpan={3} />
-                  <td className="px-6 py-5 text-right font-mono font-bold">{fmt(totalCogs)}</td>
+                  <td className="ui-td text-right font-mono font-bold">{fmt(totalCogs)}</td>
                 </tr>
               </tfoot>
             )}

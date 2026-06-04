@@ -395,7 +395,7 @@ function InvoicesInner() {
                 <SortableHeader label="Due Date"   field="due_date"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Total"      field="total"         sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
                 <SortableHeader label="Status"     field="status"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
-                <th className="px-6 py-4" />
+                <th className="ui-th" />
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
@@ -426,23 +426,23 @@ function InvoicesInner() {
                       })}
                     />
                   </td>
-                  <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
+                  <td className="ui-td font-mono font-bold text-[#b8943f]">
                     <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[#b8943f] font-bold" />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="ui-td">
                     {inv.customer_id && inv.customer_name
                       ? <DocLink type="customer" id={inv.customer_id} label={inv.customer_name} />
                       : (inv.customer_name ?? '—')}
                   </td>
-                  <td className="px-6 py-4 text-black/70">{inv.issue_date}</td>
-                  <td className={`px-6 py-4 ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{inv.due_date}</td>
-                  <td className="px-6 py-4 text-right font-mono">{fmt(inv.total)}</td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="ui-td text-black/70">{inv.issue_date}</td>
+                  <td className={`ui-td ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{inv.due_date}</td>
+                  <td className="ui-td text-right font-mono">{fmt(inv.total)}</td>
+                  <td className="ui-td text-center">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700'}`}>
                       {inv.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="ui-td">
                     <div className="flex items-center justify-end gap-2">
                       {inv.status === 'draft' && (
                         <button
