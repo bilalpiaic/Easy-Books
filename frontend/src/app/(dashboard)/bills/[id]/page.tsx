@@ -92,13 +92,21 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
       </nav>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
-          {bill.status === "draft" && (
+          {(bill.status === "draft" || bill.status === "received" || bill.status === "overdue") && (
             <Link
               href={`/bills?edit=${bill.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
             >
               <Pencil className="w-4 h-4" /> Edit
             </Link>
+          )}
+          {(bill.status === "paid" || bill.status === "partial") && (
+            <span
+              title="Unallocate payments to edit."
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] text-[#1a1814]/30 rounded-lg text-sm font-bold cursor-not-allowed"
+            >
+              <Pencil className="w-4 h-4" /> Edit
+            </span>
           )}
           <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
             <Printer className="w-4 h-4" /> Print

@@ -103,6 +103,7 @@ function BillsInner() {
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
   const [taxCodes, setTaxCodes]         = useState<TaxCodeOption[]>([])
   const [selectedIds, setSelectedIds]   = useState<Set<number>>(new Set())
+  const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
 
   const handleBulkAction = async (action: string) => {
     const ids = Array.from(selectedIds)
@@ -236,7 +237,7 @@ function BillsInner() {
     const editId = searchParams.get('edit')
     if (editId && bills.length > 0) {
       const bill = bills.find(b => String(b.id) === editId)
-      if (bill && bill.status === 'draft') openEdit(bill)
+      if (bill && (bill.status === 'draft' || bill.status === 'received' || bill.status === 'overdue')) openEdit(bill)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, bills])
@@ -260,6 +261,14 @@ function BillsInner() {
     if (lines.some(l => !l.description.trim()))   { setFormError('All lines must have a description'); return }
     if (!form.bill_date || (!form.due_date && !form.payment_term_id)) {
       setFormError('Bill date required; provide either a due date or a payment term'); return
+    }
+    // For received/overdue bills, require explicit confirmation before saving
+    if (editBill && editBill.status !== 'draft') {
+      if (!confirmPostedEdit) {
+        setConfirmPostedEdit(true)
+        return
+      }
+      setConfirmPostedEdit(false)
     }
     setSaving(true); setFormError('')
     const body = {
@@ -439,7 +448,7 @@ function BillsInner() {
                   </td>
                   <td className="ui-td">
                     <div className="flex items-center justify-end gap-2">
-                      {b.status === 'draft' && (
+                      {(b.status === 'draft' || b.status === 'received' || b.status === 'overdue') && (
                         <button
                           onClick={() => openEdit(b)}
                           className="text-xs px-2 py-1 border border-[#b8943f]/40 text-[#b8943f] rounded hover:bg-[#faf6ec]"
@@ -502,7 +511,7 @@ function BillsInner() {
       {/* Create / Edit Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setModalOpen(false); setConfirmPostedEdit(false) }} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
             <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
               {editBill ? `Edit Bill ${editBill.number}` : 'New Bill'}
@@ -651,12 +660,35 @@ function BillsInner() {
                 </div>
               </div>
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
+              {confirmPostedEdit && (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-sm text-amber-900">
+                  <p className="font-semibold mb-1">Confirm posted-bill edit</p>
+                  <p className="mb-3">This will reverse the original ledger entry and post a correction, keeping the same document number. Continue?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="px-4 py-2 bg-amber-700 text-white rounded-lg font-bold hover:bg-amber-800 disabled:opacity-50 text-xs"
+                    >
+                      {saving ? 'Saving…' : 'Yes, post correction'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmPostedEdit(false)}
+                      className="px-4 py-2 border border-amber-400 text-amber-800 rounded-lg font-bold hover:bg-amber-100 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               <p className="text-xs text-black/50">GL posting: Dr Expense / Dr GST Receivable / Cr Accounts Payable</p>
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Posting...' : (editBill ? 'Save Changes' : 'Post Bill')}
-                </button>
+                <button onClick={() => { setModalOpen(false); setConfirmPostedEdit(false) }} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+                {!confirmPostedEdit && (
+                  <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                    {saving ? 'Posting...' : (editBill ? 'Save Changes' : 'Post Bill')}
+                  </button>
+                )}
               </div>
             </div>
           </div>
