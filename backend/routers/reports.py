@@ -1265,8 +1265,22 @@ def product_performance(
     values at avg_cost, plus GP (sales revenue - COGS) for the window."""
     from models import StockMovement, InvoiceLine
 
-    IN_DIRS = ("RECEIPT", "COMPLETION", "ADJUSTMENT")
+    # Stock-effect of each movement direction. ADD increases on-hand; OUT
+    # decreases it via a sale/issue; RETURN (ADJUSTMENT, produced only by
+    # return_to_vendor) decreases it as a purchase return and so nets against
+    # purchases. Classifying every direction with the correct sign keeps the
+    # identity opening + purchased - sold == closing reconciled with
+    # Product.stock_qty even when vendor returns exist.
+    ADD_DIRS = ("RECEIPT", "COMPLETION")
     OUT_DIRS = ("SHIPMENT", "DELIVERY", "ISSUE")
+    RETURN_DIRS = ("ADJUSTMENT",)
+
+    def signed_effect(direction, qty):
+        if direction in ADD_DIRS:
+            return qty
+        if direction in OUT_DIRS or direction in RETURN_DIRS:
+            return -qty
+        return ZERO
 
     prods = session.exec(
         select(Product).where(Product.tenant_id == user.tenant_id,
@@ -1283,14 +1297,16 @@ def product_performance(
         opening = purchased = sold = ZERO
         for m in mv:
             d = m.occurred_at.date().isoformat()
-            signed = D(m.qty) if m.direction in IN_DIRS else (-D(m.qty) if m.direction in OUT_DIRS else ZERO)
+            qty = D(m.qty)
             if start and d < start:
-                opening += signed
+                opening += signed_effect(m.direction, qty)
             elif (not start or d >= start) and (not end or d <= end):
-                if m.direction in IN_DIRS:
-                    purchased += D(m.qty)
+                if m.direction in ADD_DIRS:
+                    purchased += qty
+                elif m.direction in RETURN_DIRS:
+                    purchased -= qty          # purchase return → net purchases
                 elif m.direction in OUT_DIRS:
-                    sold += D(m.qty)
+                    sold += qty
         avg = D(p.avg_cost)
         closing = opening + purchased - sold
         # sales revenue for the product in window
