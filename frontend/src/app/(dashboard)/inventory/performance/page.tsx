@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { AlertTriangle, Download, Printer } from "lucide-react"
-import { apiFetch } from "@/lib/api"
+import { apiFetch, apiBase } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { getAuthHeader } from "@/lib/auth"
 import { downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
@@ -39,6 +40,15 @@ interface ProductPerfItem {
   revenue: number
 }
 
+interface CategoryGroup {
+  name: string
+  total_closing_qty: number
+  total_closing_value: number
+  total_gp: number
+  total_revenue: number
+  items: ProductPerfItem[]
+}
+
 function defaultRange() {
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
@@ -52,6 +62,21 @@ type SortKey = "stock_value" | "on_hand" | "units_sold" | "cogs" | "name"
 type PerfSortKey = "closing_value" | "opening_qty" | "purchased_qty" | "sold_qty" | "gp" | "name"
 type Tab = "stock" | "movement"
 
+/** Download the server-side export (formula-safe) for the movement tab. */
+async function downloadPerfExport(format: "csv" | "xlsx", start: string, end: string) {
+  const res = await fetch(
+    `${apiBase}/api/reports/product-performance/export?format=${format}&start=${start}&end=${end}`,
+    { headers: { ...getAuthHeader() } as HeadersInit },
+  )
+  if (!res.ok) return
+  const blob = await res.blob()
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = `product-performance-${start}-${end}.${format}`
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
 export default function InventoryPerformancePage() {
   const fmt = useFmt()
 
@@ -63,10 +88,15 @@ export default function InventoryPerformancePage() {
   const [perfData, setPerfData] = useState<ProductPerfItem[]>([])
   const [isLoadingPerf, setIsLoadingPerf] = useState(true)
 
+  // Category-grouped view state
+  const [groupData, setGroupData] = useState<CategoryGroup[]>([])
+  const [isLoadingGroup, setIsLoadingGroup] = useState(false)
+
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)
   const [tab, setTab] = useState<Tab>("stock")
+  const [groupByCategory, setGroupByCategory] = useState(false)
 
   // Stock sort
   const [sortKey, setSortKey] = useState<SortKey>("stock_value")
@@ -86,7 +116,7 @@ export default function InventoryPerformancePage() {
       .catch(() => setIsLoadingStock(false))
   }, [start, end])
 
-  // Load product-performance (movement) data
+  // Load product-performance (movement) data — flat
   useEffect(() => {
     setIsLoadingPerf(true)
     apiFetch<{ items: ProductPerfItem[] }>(
@@ -95,6 +125,17 @@ export default function InventoryPerformancePage() {
       .then(d => { setPerfData(d.items); setIsLoadingPerf(false) })
       .catch(() => setIsLoadingPerf(false))
   }, [start, end])
+
+  // Load grouped data when category grouping is toggled on
+  useEffect(() => {
+    if (!groupByCategory) return
+    setIsLoadingGroup(true)
+    apiFetch<{ groups: CategoryGroup[] }>(
+      `/api/reports/product-performance?start=${start}&end=${end}&group_by=category`
+    )
+      .then(d => { setGroupData(d.groups); setIsLoadingGroup(false) })
+      .catch(() => setIsLoadingGroup(false))
+  }, [start, end, groupByCategory])
 
   // ── Sort helpers ────────────────────────────────────────────────────────────
   const sorted = [...data].sort((a, b) => {
@@ -147,6 +188,7 @@ export default function InventoryPerformancePage() {
           <p className="text-[#1a1814]/60">Stock valuation, movement analysis and low-stock alerts</p>
         </div>
         <div className="flex gap-3">
+          {/* Print button — always visible */}
           <button
             onClick={() => window.print()}
             className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
@@ -154,43 +196,53 @@ export default function InventoryPerformancePage() {
           >
             <Printer className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => {
-              if (tab === "stock") {
-                downloadCSV(`inventory-performance-${start}-${end}.csv`,
-                  sorted.map(r => ({
-                    Name: r.name, Code: r.code ?? "",
-                    "On Hand": r.on_hand, "Avg Cost": r.avg_cost,
-                    "Stock Value": r.stock_value, "Reorder Level": r.reorder_level,
-                    "Low Stock": r.low_stock ? "Yes" : "No",
-                    "Last Movement": r.last_movement ?? "",
-                    "Units Sold": r.units_sold, "COGS": r.cogs,
-                  }))
-                )
-              } else {
-                downloadCSV(`product-movement-${start}-${end}.csv`,
-                  perfSorted.map(r => ({
-                    Name: r.name, Code: r.code ?? "",
-                    "Opening Qty": r.opening_qty, "Opening Value": r.opening_value,
-                    "Purchased Qty": r.purchased_qty, "Sold Qty (Net)": r.sold_qty,
-                    "Closing Qty": r.closing_qty, "Closing Value": r.closing_value,
-                    "Revenue": r.revenue, "GP": r.gp,
-                  }))
-                )
-              }
-            }}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
-            title="Export CSV"
-          >
-            <Download className="w-5 h-5" />
-          </button>
+
+          {tab === "stock" ? (
+            /* Stock tab: client-side CSV download */
+            <button
+              onClick={() => downloadCSV(`inventory-performance-${start}-${end}.csv`,
+                sorted.map(r => ({
+                  Name: r.name, Code: r.code ?? "",
+                  "On Hand": r.on_hand, "Avg Cost": r.avg_cost,
+                  "Stock Value": r.stock_value, "Reorder Level": r.reorder_level,
+                  "Low Stock": r.low_stock ? "Yes" : "No",
+                  "Last Movement": r.last_movement ?? "",
+                  "Units Sold": r.units_sold, "COGS": r.cogs,
+                }))
+              )}
+              className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+              title="Export CSV"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+          ) : (
+            /* Movement tab: server-side export (formula-safe) */
+            <>
+              <button
+                onClick={() => downloadPerfExport("csv", start, end)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-sm font-medium text-[#1a1814]/70"
+                title="Export CSV"
+              >
+                <Download className="w-4 h-4" />
+                CSV
+              </button>
+              <button
+                onClick={() => downloadPerfExport("xlsx", start, end)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-sm font-medium text-[#1a1814]/70"
+                title="Export XLSX"
+              >
+                <Download className="w-4 h-4" />
+                XLSX
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Period picker + tab toggle */}
       <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl print:hidden space-y-4">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <button
             onClick={() => setTab("stock")}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "stock" ? "bg-[#1a1814] text-white" : "bg-[#f6f3ee] text-[#1a1814]/70 hover:bg-[#ede9e2]"}`}
@@ -203,6 +255,17 @@ export default function InventoryPerformancePage() {
           >
             Period Movement
           </button>
+          {tab === "movement" && (
+            <label className="ml-auto flex items-center gap-2 text-sm text-[#1a1814]/70 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={groupByCategory}
+                onChange={e => setGroupByCategory(e.target.checked)}
+                className="accent-[#b8943f]"
+              />
+              Group by category
+            </label>
+          )}
         </div>
       </div>
 
@@ -388,97 +451,161 @@ export default function InventoryPerformancePage() {
                   <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
                     <th
                       className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 cursor-pointer select-none"
-                      onClick={() => togglePerfSort("name")}
+                      onClick={() => !groupByCategory && togglePerfSort("name")}
                     >
-                      Product{perfSortIndicator("name")}
+                      Product{!groupByCategory && perfSortIndicator("name")}
                     </th>
                     <th
                       className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
-                      onClick={() => togglePerfSort("opening_qty")}
+                      onClick={() => !groupByCategory && togglePerfSort("opening_qty")}
                     >
-                      Opening Qty{perfSortIndicator("opening_qty")}
+                      Opening Qty{!groupByCategory && perfSortIndicator("opening_qty")}
                     </th>
                     <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
                       Opening Value
                     </th>
                     <th
                       className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
-                      onClick={() => togglePerfSort("purchased_qty")}
+                      onClick={() => !groupByCategory && togglePerfSort("purchased_qty")}
                     >
-                      Purchased{perfSortIndicator("purchased_qty")}
+                      Purchased{!groupByCategory && perfSortIndicator("purchased_qty")}
                     </th>
                     <th
                       className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
-                      onClick={() => togglePerfSort("sold_qty")}
+                      onClick={() => !groupByCategory && togglePerfSort("sold_qty")}
                     >
-                      Sold (Net){perfSortIndicator("sold_qty")}
+                      Sold (Net){!groupByCategory && perfSortIndicator("sold_qty")}
                     </th>
                     <th
                       className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
-                      onClick={() => togglePerfSort("gp")}
+                      onClick={() => !groupByCategory && togglePerfSort("gp")}
                     >
-                      GP{perfSortIndicator("gp")}
+                      GP{!groupByCategory && perfSortIndicator("gp")}
                     </th>
                     <th
                       className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
-                      onClick={() => togglePerfSort("closing_value")}
+                      onClick={() => !groupByCategory && togglePerfSort("closing_value")}
                     >
-                      Closing Qty / Value{perfSortIndicator("closing_value")}
+                      Closing Qty / Value{!groupByCategory && perfSortIndicator("closing_value")}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1a1814]/5">
-                  {isLoadingPerf ? (
+                  {(isLoadingPerf || (groupByCategory && isLoadingGroup)) ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/60">
                         Loading movement data…
                       </td>
                     </tr>
-                  ) : perfSorted.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/60">
-                        No stock products found.
-                      </td>
-                    </tr>
-                  ) : (
-                    perfSorted.map(item => (
-                      <tr key={item.product_id} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                        <td className="ui-td">
-                          <Link
-                            href={`/products/ledger?product=${item.product_id}`}
-                            className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
-                            title="View product ledger"
-                          >
-                            {item.name}
-                          </Link>
-                          {item.code && (
-                            <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
-                          )}
-                        </td>
-                        <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
-                          {Number(item.opening_qty).toLocaleString()}
-                        </td>
-                        <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
-                          {fmt(item.opening_value)}
-                        </td>
-                        <td className="ui-td text-right font-mono text-sm text-green-700">
-                          +{Number(item.purchased_qty).toLocaleString()}
-                        </td>
-                        <td className="ui-td text-right font-mono text-sm text-red-600">
-                          {item.sold_qty > 0 ? `-${Number(item.sold_qty).toLocaleString()}` : "—"}
-                        </td>
-                        <td className={`ui-td text-right font-mono text-sm font-semibold ${item.gp >= 0 ? "text-green-700" : "text-red-600"}`}>
-                          {fmt(item.gp)}
-                        </td>
-                        <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
-                          {Number(item.closing_qty).toLocaleString()}
-                          <span className="ml-1 text-[#1a1814]/50 font-normal">({fmt(item.closing_value)})</span>
+                  ) : groupByCategory ? (
+                    /* ── Grouped by category view ──────────────────────────── */
+                    groupData.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/60">
+                          No stock products found.
                         </td>
                       </tr>
-                    ))
+                    ) : (
+                      groupData.flatMap(group => [
+                        /* Category subtotal row */
+                        <tr key={`grp-${group.name}`} className="bg-[#f6f3ee] border-t-2 border-[#1a1814]/10">
+                          <td className="ui-td font-bold text-[#1a1814] text-sm" colSpan={5}>
+                            {group.name}
+                          </td>
+                          <td className={`ui-td text-right font-mono text-sm font-bold ${group.total_gp >= 0 ? "text-green-700" : "text-red-600"}`}>
+                            {fmt(group.total_gp)}
+                          </td>
+                          <td className="ui-td text-right font-mono text-sm font-bold text-[#1a1814]">
+                            {Number(group.total_closing_qty).toLocaleString()}
+                            <span className="ml-1 text-[#1a1814]/50 font-normal">({fmt(group.total_closing_value)})</span>
+                          </td>
+                        </tr>,
+                        /* Product rows within category */
+                        ...group.items.map(item => (
+                          <tr key={item.product_id} className="hover:bg-[#f6f3ee]/30 transition-colors">
+                            <td className="ui-td pl-8">
+                              <Link
+                                href={`/products/ledger?product=${item.product_id}`}
+                                className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
+                                title="View product ledger"
+                              >
+                                {item.name}
+                              </Link>
+                              {item.code && (
+                                <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
+                              )}
+                            </td>
+                            <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
+                              {Number(item.opening_qty).toLocaleString()}
+                            </td>
+                            <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
+                              {fmt(item.opening_value)}
+                            </td>
+                            <td className="ui-td text-right font-mono text-sm text-green-700">
+                              +{Number(item.purchased_qty).toLocaleString()}
+                            </td>
+                            <td className="ui-td text-right font-mono text-sm text-red-600">
+                              {item.sold_qty > 0 ? `-${Number(item.sold_qty).toLocaleString()}` : "—"}
+                            </td>
+                            <td className={`ui-td text-right font-mono text-sm font-semibold ${item.gp >= 0 ? "text-green-700" : "text-red-600"}`}>
+                              {fmt(item.gp)}
+                            </td>
+                            <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
+                              {Number(item.closing_qty).toLocaleString()}
+                              <span className="ml-1 text-[#1a1814]/50 font-normal">({fmt(item.closing_value)})</span>
+                            </td>
+                          </tr>
+                        )),
+                      ])
+                    )
+                  ) : (
+                    /* ── Flat view (default) ───────────────────────────────── */
+                    perfSorted.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/60">
+                          No stock products found.
+                        </td>
+                      </tr>
+                    ) : (
+                      perfSorted.map(item => (
+                        <tr key={item.product_id} className="hover:bg-[#f6f3ee]/30 transition-colors">
+                          <td className="ui-td">
+                            <Link
+                              href={`/products/ledger?product=${item.product_id}`}
+                              className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
+                              title="View product ledger"
+                            >
+                              {item.name}
+                            </Link>
+                            {item.code && (
+                              <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
+                            )}
+                          </td>
+                          <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
+                            {Number(item.opening_qty).toLocaleString()}
+                          </td>
+                          <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
+                            {fmt(item.opening_value)}
+                          </td>
+                          <td className="ui-td text-right font-mono text-sm text-green-700">
+                            +{Number(item.purchased_qty).toLocaleString()}
+                          </td>
+                          <td className="ui-td text-right font-mono text-sm text-red-600">
+                            {item.sold_qty > 0 ? `-${Number(item.sold_qty).toLocaleString()}` : "—"}
+                          </td>
+                          <td className={`ui-td text-right font-mono text-sm font-semibold ${item.gp >= 0 ? "text-green-700" : "text-red-600"}`}>
+                            {fmt(item.gp)}
+                          </td>
+                          <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
+                            {Number(item.closing_qty).toLocaleString()}
+                            <span className="ml-1 text-[#1a1814]/50 font-normal">({fmt(item.closing_value)})</span>
+                          </td>
+                        </tr>
+                      ))
+                    )
                   )}
                 </tbody>
-                {!isLoadingPerf && perfSorted.length > 0 && (
+                {!isLoadingPerf && !groupByCategory && perfSorted.length > 0 && (
                   <tfoot>
                     <tr className="bg-[#1a1814] text-white">
                       <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={5}>
