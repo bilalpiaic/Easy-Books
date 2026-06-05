@@ -16,6 +16,22 @@ def _seed(client, h):
     return c, p
 
 
+def _seed_two_invoices(client, h):
+    """Seed 2 invoices with known totals (400 + 600 = 1000, avg 500)."""
+    c = client.post("/api/customers", headers=h, json={"name": "DetailCo"}).json()
+    p = client.post("/api/products", headers=h,
+                    json={"name": "Widget", "product_type": "stock"}).json()
+    client.post("/api/invoices", headers=h, json={
+        "customer_id": c["id"], "issue_date": "2026-03-01",
+        "lines": [{"product_id": p["id"], "description": "Widget", "qty": 4, "rate": 100}],
+    })
+    client.post("/api/invoices", headers=h, json={
+        "customer_id": c["id"], "issue_date": "2026-03-15",
+        "lines": [{"product_id": p["id"], "description": "Widget", "qty": 6, "rate": 100}],
+    })
+    return c, p
+
+
 def test_breakdown_has_monthly_volume_and_gp(client, admin_headers):
     h = admin_headers
     c, p = _seed(client, h)
@@ -36,6 +52,19 @@ def test_breakdown_has_monthly_volume_and_gp(client, admin_headers):
     prod_row = next(r for r in d["products"] if r["product_id"] == p["id"])
     assert prod_row["qty"] == 10
     assert prod_row["revenue"] == 1000
+
+
+def test_totals_include_transaction_count_and_avg_invoice_value(client, admin_headers):
+    """2 invoices of 400 and 600 → transaction_count=2, avg_invoice_value=500."""
+    h = admin_headers
+    c, p = _seed_two_invoices(client, h)
+    data = client.get(
+        f"/api/reports/customer-performance?customer_id={c['id']}"
+        f"&start=2026-01-01&end=2026-12-31", headers=h,
+    ).json()
+    totals = data["detail"]["totals"]
+    assert totals["transaction_count"] == 2
+    assert totals["avg_invoice_value"] == 500.0
 
 
 def test_ranking_still_returned_without_customer_id(client, admin_headers):

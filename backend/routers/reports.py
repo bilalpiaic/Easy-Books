@@ -1243,6 +1243,8 @@ def customer_performance(
                 "revenue": money(entry["revenue"]),
                 "units": float(entry["units"]),
             })
+        transaction_count = len(cust_invoices)
+        avg_invoice_value = money(tot_rev / transaction_count) if transaction_count else 0.0
         detail = {
             "monthly": monthly_list,
             "products": prod_rows,
@@ -1251,6 +1253,8 @@ def customer_performance(
                 "cogs": money(tot_cogs),
                 "gp": money(tot_rev - tot_cogs),
                 "gp_pct": float(round((tot_rev - tot_cogs) / tot_rev * 100, 1)) if tot_rev else 0.0,
+                "transaction_count": transaction_count,
+                "avg_invoice_value": avg_invoice_value,
             },
         }
     return {"items": out, "detail": detail}
