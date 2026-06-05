@@ -1127,6 +1127,7 @@ def product_coa(session: SessionDep, user: CurrentUserDep):
 def customer_performance(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
+    customer_id: Optional[int] = None,
 ):
     from models import Invoice, PaymentAllocation, PaymentReceived
     from datetime import date as _date
@@ -1165,4 +1166,151 @@ def customer_performance(
         a["avg_days_to_pay"] = round(sum(days) / len(days), 1) if days else None
         out.append(a)
     out.sort(key=lambda r: r["revenue"], reverse=True)
+
+    detail = None
+    if customer_id is not None:
+        from models import InvoiceLine, Product, ProductCategory
+        dq = select(Invoice).where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.customer_id == customer_id,
+        )
+        if start:
+            dq = dq.where(Invoice.issue_date >= start)
+        if end:
+            dq = dq.where(Invoice.issue_date <= end)
+        cust_invoices = session.exec(dq).all()
+        inv_ids = [i.id for i in cust_invoices]
+        # avg_cost lookup
+        avg_cost = {p.id: D(p.avg_cost) for p in session.exec(
+            select(Product).where(Product.tenant_id == user.tenant_id)
+        ).all()}
+        monthly: dict = {}
+        products: dict = {}
+        lines = []
+        if inv_ids:
+            lines = session.exec(
+                select(InvoiceLine).where(InvoiceLine.invoice_id.in_(inv_ids))
+            ).all()
+        tot_rev = tot_cogs = ZERO
+        inv_date = {i.id: i.issue_date for i in cust_invoices}
+        for ln in lines:
+            line_rev = D(ln.amount)
+            line_cogs = D(ln.qty) * avg_cost.get(ln.product_id, ZERO)
+            tot_rev += line_rev
+            tot_cogs += line_cogs
+            mk = inv_date[ln.invoice_id][:7]
+            m = monthly.setdefault(mk, {"month": mk, "revenue": ZERO, "units": ZERO})
+            m["revenue"] += line_rev
+            m["units"] += D(ln.qty)
+            pr = products.setdefault(ln.product_id, {
+                "product_id": ln.product_id, "qty": ZERO,
+                "revenue": ZERO, "cogs": ZERO,
+            })
+            pr["qty"] += D(ln.qty)
+            pr["revenue"] += line_rev
+            pr["cogs"] += line_cogs
+        # attach product names + category labels
+        cats = {c.id: c for c in session.exec(
+            select(ProductCategory).where(ProductCategory.tenant_id == user.tenant_id)
+        ).all()}
+
+        def cat_label(cid):
+            c = cats.get(cid)
+            if not c:
+                return "Uncategorized"
+            if c.parent_id is None:
+                return c.name
+            par = cats.get(c.parent_id)
+            return f"{par.name} › {c.name}" if par else c.name
+
+        prod_rows = []
+        for pid, pr in products.items():
+            p = session.get(Product, pid) if pid else None
+            pr["gp"] = money(pr["revenue"] - pr["cogs"])
+            pr["revenue"] = money(pr["revenue"])
+            pr["cogs"] = money(pr["cogs"])
+            pr["qty"] = float(pr["qty"])
+            pr["name"] = p.name if p else "—"
+            pr["category"] = cat_label(p.category_id) if p else "Uncategorized"
+            prod_rows.append(pr)
+        prod_rows.sort(key=lambda r: r["revenue"], reverse=True)
+        # serialise monthly
+        monthly_list = []
+        for k in sorted(monthly):
+            entry = monthly[k]
+            monthly_list.append({
+                "month": entry["month"],
+                "revenue": money(entry["revenue"]),
+                "units": float(entry["units"]),
+            })
+        detail = {
+            "monthly": monthly_list,
+            "products": prod_rows,
+            "totals": {
+                "revenue": money(tot_rev),
+                "cogs": money(tot_cogs),
+                "gp": money(tot_rev - tot_cogs),
+                "gp_pct": float(round((tot_rev - tot_cogs) / tot_rev * 100, 1)) if tot_rev else 0.0,
+            },
+        }
+    return {"items": out, "detail": detail}
+
+
+@router.get("/product-performance")
+def product_performance(
+    session: SessionDep, user: CurrentUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    """Per-product period movement: opening/purchased/sold(net)/closing with
+    values at avg_cost, plus GP (sales revenue - COGS) for the window."""
+    from models import StockMovement, InvoiceLine
+
+    IN_DIRS = ("RECEIPT", "COMPLETION", "ADJUSTMENT")
+    OUT_DIRS = ("SHIPMENT", "DELIVERY", "ISSUE")
+
+    prods = session.exec(
+        select(Product).where(Product.tenant_id == user.tenant_id,
+                              Product.product_type == "stock")
+    ).all()
+    out = []
+    for p in prods:
+        mv = session.exec(
+            select(StockMovement).where(
+                StockMovement.tenant_id == user.tenant_id,
+                StockMovement.product_id == p.id,
+            )
+        ).all()
+        opening = purchased = sold = ZERO
+        for m in mv:
+            d = m.occurred_at.date().isoformat()
+            signed = D(m.qty) if m.direction in IN_DIRS else (-D(m.qty) if m.direction in OUT_DIRS else ZERO)
+            if start and d < start:
+                opening += signed
+            elif (not start or d >= start) and (not end or d <= end):
+                if m.direction in IN_DIRS:
+                    purchased += D(m.qty)
+                elif m.direction in OUT_DIRS:
+                    sold += D(m.qty)
+        avg = D(p.avg_cost)
+        closing = opening + purchased - sold
+        # sales revenue for the product in window
+        rq = (select(func.coalesce(func.sum(InvoiceLine.amount), 0))
+              .join(Invoice, Invoice.id == InvoiceLine.invoice_id)
+              .where(Invoice.tenant_id == user.tenant_id,
+                     InvoiceLine.product_id == p.id))
+        if start:
+            rq = rq.where(Invoice.issue_date >= start)
+        if end:
+            rq = rq.where(Invoice.issue_date <= end)
+        revenue = D(session.exec(rq).first() or 0)
+        cogs = sold * avg
+        out.append({
+            "product_id": p.id, "name": p.name, "code": p.code,
+            "opening_qty": float(opening), "opening_value": money(opening * avg),
+            "purchased_qty": float(purchased),
+            "sold_qty": float(sold),
+            "closing_qty": float(closing), "closing_value": money(closing * avg),
+            "gp": money(revenue - cogs), "revenue": money(revenue),
+        })
+    out.sort(key=lambda r: r["closing_value"], reverse=True)
     return {"items": out}
