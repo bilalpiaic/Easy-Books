@@ -21,6 +21,7 @@ interface Product {
   unit: string
   product_type: string
   default_rate: number
+  avg_cost: number
   stock_qty: number
   reorder_level: number
   stock_account_id: number | null
@@ -247,6 +248,8 @@ function ProductsInner() {
       allCatsFlat.push({ id: s.id, label: `${p.name} › ${s.name}` })
     }
   }
+  const catLabel = (id: number | null) =>
+    id == null ? '—' : (allCatsFlat.find(c => c.id === id)?.label ?? '—')
 
   return (
     <div className="space-y-6">
@@ -278,8 +281,8 @@ function ProductsInner() {
           <CsvImportButton entity="products" onSuccess={load} />
           <button
             onClick={() => downloadCSV('products.csv', products.map(p => ({
-              Code: p.code, Name: p.name, Type: p.product_type, Unit: p.unit,
-              Rate: p.default_rate, 'Stock Qty': p.stock_qty, 'Reorder Level': p.reorder_level,
+              Code: p.code, Name: p.name, Category: catLabel(p.category_id), Type: p.product_type, Unit: p.unit,
+              'Selling Price': p.default_rate, 'Cost Price': p.avg_cost, 'Stock Qty': p.stock_qty, 'Reorder Level': p.reorder_level,
             })))}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
@@ -363,9 +366,11 @@ function ProductsInner() {
               </th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Category</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Unit</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Default Rate</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Selling Price</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Cost Price</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Stock Qty</th>
               <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
               <th className="ui-th" />
@@ -373,10 +378,10 @@ function ProductsInner() {
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {isLoading ? (
-              <SkeletonRow cols={9} />
+              <SkeletonRow cols={11} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-16 text-center">
+                <td colSpan={11} className="px-6 py-16 text-center">
                   <div className="inline-flex flex-col items-center gap-3">
                     <Package className="w-10 h-10 text-black/20" />
                     <p className="text-sm text-black/40 font-medium">No products yet</p>
@@ -405,6 +410,7 @@ function ProductsInner() {
                 <td className="ui-td font-medium cursor-pointer" title={p.name}>
                   <DocLink type="product" id={p.id} label={p.name} className="font-medium" />
                 </td>
+                <td className="ui-td text-black/60 text-xs">{catLabel(p.category_id)}</td>
                 <td className="ui-td">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.product_type === 'stock' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
                     {p.product_type}
@@ -412,6 +418,9 @@ function ProductsInner() {
                 </td>
                 <td className="ui-td text-black/60">{p.unit}</td>
                 <td className="ui-td text-right font-mono">{fmt(p.default_rate)}</td>
+                <td className="ui-td text-right font-mono text-black/70">
+                  {p.product_type === 'stock' ? fmt(p.avg_cost) : <span className="text-black/30">—</span>}
+                </td>
                 <td className="ui-td text-right">
                   {p.product_type === 'stock' ? (
                     <span className="font-mono">{p.stock_qty.toLocaleString()} {p.unit}</span>
@@ -514,7 +523,7 @@ function ProductsInner() {
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Default Rate</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Selling Price</label>
                   <input type="number" min="0" step="0.01" value={form.default_rate}
                     onChange={e => setForm(p => ({ ...p, default_rate: e.target.value }))}
                     className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
