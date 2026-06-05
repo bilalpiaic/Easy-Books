@@ -84,7 +84,7 @@ export default function BillPayments() {
   useEffect(load, [page])
 
   useEffect(() => {
-    apiFetch<{ items: { id: number; name: string }[] }>('/api/vendors?limit=500')
+    apiFetch<{ items: { id: number; name: string }[] }>('/api/vendors?limit=500') // limit=500: covers all parties at current scale; raise if tenants exceed this
       .then(d => setVendors(d.items))
       .catch(() => {})
   }, [])
@@ -133,6 +133,7 @@ export default function BillPayments() {
   const hasAllocations = allocations.some(a => a.checked)
 
   const handleSave = async () => {
+    if (!form.vendor_id) { setFormError('Vendor is required'); return }
     if (!form.amount || paymentAmount <= 0) { setFormError('Amount must be > 0'); return }
     if (!form.payment_date) { setFormError('Date is required'); return }
     setSaving(true); setFormError('')

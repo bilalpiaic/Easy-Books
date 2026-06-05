@@ -84,7 +84,7 @@ export default function PaymentsReceived() {
   useEffect(load, [page])
 
   useEffect(() => {
-    apiFetch<{ items: { id: number; name: string }[] }>('/api/customers?limit=500')
+    apiFetch<{ items: { id: number; name: string }[] }>('/api/customers?limit=500') // limit=500: covers all parties at current scale; raise if tenants exceed this
       .then(d => setCustomers(d.items))
       .catch(() => {})
   }, [])
@@ -136,6 +136,7 @@ export default function PaymentsReceived() {
   const hasAllocations = allocations.some(a => a.checked)
 
   const handleSave = async () => {
+    if (!form.customer_id) { setFormError('Customer is required'); return }
     if (!form.amount || paymentAmount <= 0) { setFormError('Amount must be > 0'); return }
     if (!form.payment_date) { setFormError('Date is required'); return }
     setSaving(true); setFormError('')
