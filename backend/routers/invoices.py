@@ -351,7 +351,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         inv_acc = get_or_create_account(
             session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
         )
-        post_transaction(
+        cogs_txn = post_transaction(
             session, user,
             date=invoice.issue_date,
             description=f"COGS for {invoice.number}",
@@ -362,6 +362,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
             audit_entity_type="invoice",
             audit_detail={"invoice_number": invoice.number, "cogs": str(total_cogs)},
         )
+        invoice.cogs_transaction_id = cogs_txn.id
+        session.add(invoice)
 
     log_audit(
         session, user, "CREATE", "invoice", invoice.id,
@@ -465,6 +467,32 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             old_txn.reversed_by_id = rev_txn.id
             session.add(old_txn)
         inv.transaction_id = None
+
+    # Reverse the original COGS JV (Dr 5010 / Cr 1200) too, so Inventory and
+    # COGS aren't left overstated by the original cost relief. The perpetual
+    # inventory is restored separately below via reverse_consumption; the two
+    # are complementary (GL credit→Inventory mirrors the layer restore).
+    if inv.cogs_transaction_id:
+        old_cogs_txn = session.get(Transaction, inv.cogs_transaction_id)
+        if old_cogs_txn and not old_cogs_txn.is_reversed:
+            old_cogs_entries = session.exec(
+                select(JournalEntry).where(JournalEntry.transaction_id == old_cogs_txn.id)
+            ).all()
+            rev_cogs_txn = post_transaction(
+                session, user,
+                date=str(DateType.today()),
+                description=f"Reversal of {old_cogs_txn.jv_number} (invoice edit COGS)",
+                entries=[
+                    EntryInput(account_id=je.account_id, debit=D(je.credit), credit=D(je.debit))
+                    for je in old_cogs_entries
+                ],
+                audit_entity_type="invoice",
+                audit_detail={"invoice_number": inv.number, "action": "edit_cogs_reversal"},
+            )
+            old_cogs_txn.is_reversed = True
+            old_cogs_txn.reversed_by_id = rev_cogs_txn.id
+            session.add(old_cogs_txn)
+        inv.cogs_transaction_id = None
 
     # Restore stock relieved by the original posting before re-applying lines.
     # We look up movements by (source_doc_type='invoice', source_doc_id=inv.id)
@@ -580,6 +608,29 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     )
     inv.transaction_id = txn.id
     session.add(inv)
+
+    # Re-post the COGS JV for the edited lines (mirrors the create path). Skip
+    # when there are no stock lines so we never post an empty/zero JV.
+    if total_cogs > 0:
+        cogs_acc = get_or_create_account(
+            session, user.tenant_id, "5010", "Cost of Goods Sold", "Expense"
+        )
+        inv_acc = get_or_create_account(
+            session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
+        )
+        cogs_txn = post_transaction(
+            session, user,
+            date=inv.issue_date,
+            description=f"COGS for {inv.number} (edited)",
+            entries=[
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs),
+            ],
+            audit_entity_type="invoice",
+            audit_detail={"invoice_number": inv.number, "cogs": str(total_cogs)},
+        )
+        inv.cogs_transaction_id = cogs_txn.id
+        session.add(inv)
 
     log_audit(
         session, user, "UPDATE", "invoice", inv.id,

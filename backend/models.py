@@ -241,6 +241,9 @@ class Invoice(SQLModel, table=True):
     ar_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    # Separate FK to the COGS JV (Dr 5010 / Cr 1200) posted for stock lines, so
+    # an edit can reverse + re-post it independently of the AR/Revenue JV.
+    cogs_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
     # Stripe payment link fields (G-12)
     payment_link_url: Optional[str] = None
