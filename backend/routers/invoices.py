@@ -518,6 +518,15 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             product_id=pid, qty=qty, cogs_total=cogs,
         )
 
+    # BUG-2 fix: delete the original SHIPMENT movements we just reversed so a
+    # subsequent edit's scan only sees the fresh consumption written below.
+    # reverse_consumption already recorded a REVERSAL receipt + GL, so audit
+    # trail is preserved; leaving these rows would cause a second edit to
+    # double-restore (it would re-match both the original and this edit's rows).
+    for m in orig_moves:
+        session.delete(m)
+    session.flush()
+
     # Delete existing lines
     existing_lines = session.exec(
         select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)
