@@ -53,6 +53,51 @@ def test_last_price_none_when_never_sold(client, admin_headers):
     assert r["scope"] is None
 
 
+def test_last_price_party_name_customer(client, admin_headers):
+    """scope=customer returns party_name equal to that customer's name."""
+    h = admin_headers
+    a = client.post("/api/customers", headers=h, json={"name": "PartyAlpha"}).json()
+    b = client.post("/api/customers", headers=h, json={"name": "PartyBeta"}).json()
+    p = client.post("/api/products", headers=h,
+                    json={"name": "PartyProd", "product_type": "stock"}).json()
+    _make_invoice(client, h, a["id"], p["id"], 150, "2026-04-01")
+    _make_invoice(client, h, b["id"], p["id"], 200, "2026-04-15")
+    # Per-customer for A → scope=customer, party_name=PartyAlpha
+    r = client.get(
+        f"/api/products/{p['id']}/last-price?customer_id={a['id']}&kind=sale",
+        headers=h,
+    ).json()
+    assert r["scope"] == "customer"
+    assert r["party_name"] == "PartyAlpha"
+
+
+def test_last_price_party_name_global_fallback(client, admin_headers):
+    """scope=global returns party_name of whichever customer had the latest sale."""
+    h = admin_headers
+    c_new = client.post("/api/customers", headers=h, json={"name": "FallbackCo"}).json()
+    c_other = client.post("/api/customers", headers=h, json={"name": "OtherCo"}).json()
+    p = client.post("/api/products", headers=h,
+                    json={"name": "FallbackProd", "product_type": "stock"}).json()
+    _make_invoice(client, h, c_other["id"], p["id"], 99, "2026-05-01")
+    # c_new has never bought this product → global fallback → party_name=OtherCo
+    r = client.get(
+        f"/api/products/{p['id']}/last-price?customer_id={c_new['id']}&kind=sale",
+        headers=h,
+    ).json()
+    assert r["scope"] == "global"
+    assert r["party_name"] == "OtherCo"
+
+
+def test_last_price_party_name_none_when_no_history(client, admin_headers):
+    """No sales history → party_name is None."""
+    h = admin_headers
+    p = client.post("/api/products", headers=h,
+                    json={"name": "BrandNew", "product_type": "stock"}).json()
+    r = client.get(f"/api/products/{p['id']}/last-price?kind=sale", headers=h).json()
+    assert r["rate"] is None
+    assert r["party_name"] is None
+
+
 def test_last_price_tenant_isolation(client, admin_headers):
     """Data belonging to tenant 9999 must never leak into the admin user's results."""
     h = admin_headers
