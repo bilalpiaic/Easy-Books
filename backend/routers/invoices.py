@@ -285,6 +285,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
                         product_id=prod.id,
                         qty=D(line_data.qty),
                         block_negative=block_negative,
+                        source_doc_id=invoice.id,
                     )
     except InventoryError as e:
         session.rollback()
@@ -465,6 +466,30 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             session.add(old_txn)
         inv.transaction_id = None
 
+    # Restore stock relieved by the original posting before re-applying lines.
+    # We look up movements by (source_doc_type='invoice', source_doc_id=inv.id)
+    # which are tagged at posting time via consume_stock(..., source_doc_id=inv.id).
+    from models import StockMovement
+    from services.inventory import reverse_consumption
+    orig_moves = session.exec(
+        select(StockMovement).where(
+            StockMovement.tenant_id == user.tenant_id,
+            StockMovement.source_doc_type == "invoice",
+            StockMovement.source_doc_id == inv.id,
+            StockMovement.direction == "SHIPMENT",
+        )
+    ).all()
+    restored: dict[int, list] = {}
+    for m in orig_moves:
+        restored.setdefault(m.product_id, [D("0"), D("0")])
+        restored[m.product_id][0] += D(m.qty)
+        restored[m.product_id][1] += D(m.total_cost)
+    for pid, (qty, cogs) in restored.items():
+        reverse_consumption(
+            session, tenant_id=user.tenant_id,
+            product_id=pid, qty=qty, cogs_total=cogs,
+        )
+
     # Delete existing lines
     existing_lines = session.exec(
         select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)
@@ -517,6 +542,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 total_cogs += consume_stock(
                     session, tenant_id=user.tenant_id,
                     product_id=prod.id, qty=D(line_data.qty),
+                    source_doc_id=inv.id,
                 )
 
     # Re-post GL entries

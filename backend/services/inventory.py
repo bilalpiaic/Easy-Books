@@ -172,6 +172,7 @@ def consume_stock(
     product_id: int,
     qty: Decimal,
     block_negative: bool = False,
+    source_doc_id: Optional[int] = None,
 ) -> Decimal:
     """
     Relieve stock for a sale. Returns total COGS.
@@ -182,6 +183,10 @@ def consume_stock(
 
     If block_negative is True, raises InventoryError before any mutation
     when the sale would drive stock below zero.
+
+    source_doc_id: the Invoice.id so the resulting StockMovement can be
+    looked up by (source_doc_type='invoice', source_doc_id=invoice_id)
+    when reversing on edit.
     """
     qty = D(qty)
     if qty <= 0:
@@ -266,6 +271,7 @@ def consume_stock(
             lot_no=consumed_lot_no,
             unit_cost=avg_cost,
             source_doc_type="invoice",
+            source_doc_id=source_doc_id,
             posted_to_gl=True,
         )
 
