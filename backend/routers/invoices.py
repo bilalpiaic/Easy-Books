@@ -380,7 +380,11 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
 
 @router.put("/api/invoices/{invoice_id}")
 def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, body: InvoiceCreate):
-    """Edit a draft invoice. Raises 403 if the invoice has already been posted."""
+    """Edit a draft or posted (unpaid, open-period) invoice.
+
+    Raises 400 if the invoice has a payment allocated, its date is in a locked
+    period, or it has already been reversed.
+    """
     inv = session.exec(
         select(Invoice).where(
             Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id
@@ -388,8 +392,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     ).first()
     if not inv:
         raise HTTPException(404, "Invoice not found")
-    if inv.status != "draft":
-        raise HTTPException(403, f"Cannot edit invoice with status '{inv.status}'. Only draft invoices can be edited.")
+    from routers._edit_guards import assert_doc_editable
+    assert_doc_editable(session, tenant_id=user.tenant_id, doc=inv, kind="invoice")
 
     # Resolve customer name and default payment term
     cname = body.customer_name
