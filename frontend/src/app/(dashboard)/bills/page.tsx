@@ -587,7 +587,7 @@ function BillsInner() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
-                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint />
+                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint customerId={form.vendor_id ? Number(form.vendor_id) : null} priceKind="purchase" />
               </div>
 
               <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">

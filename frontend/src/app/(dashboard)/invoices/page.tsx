@@ -630,7 +630,7 @@ function InvoicesInner() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
-                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell />
+                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" />
               </div>
 
               <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
