@@ -102,7 +102,7 @@ def product_last_price(
         )
         if scoped:
             q = q.where(party_col == customer_id)
-        return session.exec(q).first()
+        return session.exec(q.limit(1)).first()
 
     if customer_id is not None:
         row = latest(scoped=True)

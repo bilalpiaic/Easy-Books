@@ -38,11 +38,11 @@ export default function CustomerProducts({ params }: { params: Promise<{ id: str
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Product</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Price</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Date</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Total Qty</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Invoices</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Product</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Price</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Date</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Total Qty</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Invoices</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -52,16 +52,16 @@ export default function CustomerProducts({ params }: { params: Promise<{ id: str
               </tr>
             ) : rows.map(r => (
               <tr key={r.product_id} className="hover:bg-[#f6f3ee]/50">
-                <td className="px-6 py-3">
+                <td className="ui-td">
                   <Link href={`/products/ledger?product=${r.product_id}`} className="hover:text-[#b8943f] hover:underline">
                     {r.name}
                   </Link>
                   {r.code && <span className="ml-2 font-mono text-xs text-[#b8943f]">{r.code}</span>}
                 </td>
-                <td className="px-6 py-3 text-right font-mono">{fmt(r.last_rate)}</td>
-                <td className="px-6 py-3 text-right text-black/60">{r.last_date}</td>
-                <td className="px-6 py-3 text-right font-mono">{r.total_qty.toLocaleString()}</td>
-                <td className="px-6 py-3 text-right">{r.invoice_count}</td>
+                <td className="ui-td text-right font-mono">{fmt(r.last_rate)}</td>
+                <td className="ui-td text-right text-black/60">{r.last_date}</td>
+                <td className="ui-td text-right font-mono">{r.total_qty.toLocaleString()}</td>
+                <td className="ui-td text-right">{r.invoice_count}</td>
               </tr>
             ))}
           </tbody>

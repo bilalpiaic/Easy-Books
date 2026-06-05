@@ -126,10 +126,10 @@ def customer_products(session: SessionDep, user: CurrentUserDep, customer_id: in
     for line, issue_date in rows:
         a = agg.setdefault(line.product_id, {
             "product_id": line.product_id, "total_qty": 0.0,
-            "invoice_count": 0, "last_rate": None, "last_date": None,
+            "_invoice_ids": set(), "last_rate": None, "last_date": None,
         })
         a["total_qty"] += float(line.qty)
-        a["invoice_count"] += 1
+        a["_invoice_ids"].add(line.invoice_id)
         a["last_rate"] = float(line.rate)     # rows ascending → last wins
         a["last_date"] = issue_date
 
@@ -143,6 +143,7 @@ def customer_products(session: SessionDep, user: CurrentUserDep, customer_id: in
             names[p.id] = {"name": p.name, "code": p.code}
     items = []
     for pid, a in agg.items():
+        a["invoice_count"] = len(a.pop("_invoice_ids"))
         a.update(names.get(pid, {"name": "—", "code": None}))
         items.append(a)
     items.sort(key=lambda r: r["total_qty"], reverse=True)

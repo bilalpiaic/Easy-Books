@@ -69,7 +69,19 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
     onChange(updated)
   }
 
-  const remove = (idx: number) => onChange(lines.filter((_, i) => i !== idx))
+  const remove = (idx: number) => {
+    onChange(lines.filter((_, i) => i !== idx))
+    setHints(h => {
+      const next: typeof h = {}
+      Object.entries(h).forEach(([k, v]) => {
+        const ki = Number(k)
+        if (ki < idx) next[ki] = v
+        else if (ki > idx) next[ki - 1] = v
+        // ki === idx dropped
+      })
+      return next
+    })
+  }
   const add = () => onChange([...lines, emptyLine()])
 
   const onProductSelect = (idx: number, productId: string) => {

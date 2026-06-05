@@ -1,4 +1,8 @@
 """Last-price lookup: per-customer first, global fallback."""
+from sqlmodel import Session
+
+import db as _db_module
+from models import Customer, Invoice, InvoiceLine, Product
 
 
 def _make_invoice(client, h, customer_id, product_id, rate, date):
@@ -47,3 +51,41 @@ def test_last_price_none_when_never_sold(client, admin_headers):
     r = client.get(f"/api/products/{p['id']}/last-price?kind=sale", headers=h).json()
     assert r["rate"] is None
     assert r["scope"] is None
+
+
+def test_last_price_tenant_isolation(client, admin_headers):
+    """Data belonging to tenant 9999 must never leak into the admin user's results."""
+    h = admin_headers
+    # Create a product in the admin's tenant so we have a valid product_id to query
+    p = client.post("/api/products", headers=h,
+                    json={"name": "IsolatedWidget", "product_type": "stock"}).json()
+    pid = p["id"]
+
+    # Directly insert a foreign-tenant customer, invoice, and invoice line
+    with Session(_db_module.engine) as s:
+        foreign_customer = Customer(
+            tenant_id=9999, name="Foreign Customer",
+        )
+        s.add(foreign_customer)
+        s.flush()
+        foreign_invoice = Invoice(
+            tenant_id=9999, customer_id=foreign_customer.id,
+            number="INV-FOREIGN-001",
+            issue_date="2026-01-15", due_date="2026-01-15",
+            total=999.0, subtotal=999.0, gst_rate=0, gst_amount=0,
+        )
+        s.add(foreign_invoice)
+        s.flush()
+        foreign_line = InvoiceLine(
+            invoice_id=foreign_invoice.id, product_id=pid,
+            description="foreign", qty=1, rate=999.0, amount=999.0,
+        )
+        s.add(foreign_line)
+        s.commit()
+
+    # Admin (different tenant) must NOT see the foreign rate
+    r = client.get(f"/api/products/{pid}/last-price?kind=sale", headers=h).json()
+    assert r["rate"] != 999.0 or r["rate"] is None, (
+        "Foreign tenant's last price must not leak to admin user"
+    )
+    assert r["scope"] is None or r["rate"] != 999.0
