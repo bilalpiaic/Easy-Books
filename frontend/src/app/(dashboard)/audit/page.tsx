@@ -200,21 +200,21 @@ export default function AuditLogPage() {
             <table className="w-full text-sm min-w-[760px]">
               <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">When</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">User</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Action</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Entity</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Detail</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">When</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">User</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Action</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Entity</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Detail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#ede9e2]">
                 {timelinePage.map(e => (
                   <tr key={e.id} className="hover:bg-[#f6f3ee]/50">
-                    <td className="px-6 py-3 text-black/60 whitespace-nowrap">{new Date(e.timestamp).toLocaleString()}</td>
-                    <td className="px-6 py-3 font-medium text-[#1a1814]">{e.user_name}</td>
-                    <td className="px-6 py-3"><ActionBadge action={e.action} /></td>
-                    <td className="px-6 py-3"><EntityCell entry={e} /></td>
-                    <td className="px-6 py-3 text-black/60 max-w-[360px] truncate" title={prettyDetail(e.detail)}>{prettyDetail(e.detail)}</td>
+                    <td className="ui-td text-black/60 whitespace-nowrap">{new Date(e.timestamp).toLocaleString()}</td>
+                    <td className="ui-td font-medium text-[#1a1814]">{e.user_name}</td>
+                    <td className="ui-td"><ActionBadge action={e.action} /></td>
+                    <td className="ui-td"><EntityCell entry={e} /></td>
+                    <td className="ui-td text-black/60 max-w-[360px] truncate" title={prettyDetail(e.detail)}>{prettyDetail(e.detail)}</td>
                   </tr>
                 ))}
               </tbody>

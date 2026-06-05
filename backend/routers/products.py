@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import BillLine, InvoiceLine, Product
+from models import Bill, BillLine, Invoice, InvoiceLine, Product
 from services.money import D, money
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
@@ -75,6 +75,43 @@ def products_stock_summary(session: SessionDep, user: CurrentUserDep):
         }
         for p in items
     ]
+
+
+@router.get("/{product_id}/last-price")
+def product_last_price(
+    session: SessionDep, user: CurrentUserDep, product_id: int,
+    customer_id: Optional[int] = None, kind: str = "sale",
+):
+    """Most recent line rate for a product, scoped to a party with global
+    fallback. kind='sale' uses invoices/customers, 'purchase' uses bills/vendors.
+    Returns {rate, date, scope: 'customer'|'global'|None}."""
+
+    if kind == "purchase":
+        Line, Doc, party_col, date_col = BillLine, Bill, Bill.vendor_id, Bill.bill_date
+        line_doc_fk = BillLine.bill_id
+    else:
+        Line, Doc, party_col, date_col = InvoiceLine, Invoice, Invoice.customer_id, Invoice.issue_date
+        line_doc_fk = InvoiceLine.invoice_id
+
+    def latest(scoped: bool):
+        q = (
+            select(Line.rate, date_col)
+            .join(Doc, Doc.id == line_doc_fk)
+            .where(Doc.tenant_id == user.tenant_id, Line.product_id == product_id)
+            .order_by(date_col.desc(), Doc.id.desc())
+        )
+        if scoped:
+            q = q.where(party_col == customer_id)
+        return session.exec(q.limit(1)).first()
+
+    if customer_id is not None:
+        row = latest(scoped=True)
+        if row:
+            return {"rate": float(row[0]), "date": row[1], "scope": "customer"}
+    row = latest(scoped=False)
+    if row:
+        return {"rate": float(row[0]), "date": row[1], "scope": "global"}
+    return {"rate": None, "date": None, "scope": None}
 
 
 @router.post("", status_code=201)

@@ -53,6 +53,8 @@ class SettingsUpdate(BaseModel):
     cost_method: Optional[str] = None
     # Inventory: block sales that would drive stock negative ("true"/"false")
     block_negative_stock: Optional[str] = None
+    # UI density preference ("comfortable" or "compact")
+    ui_density: Optional[str] = None
 
 
 @router.get("")
@@ -75,6 +77,12 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
         if tenant:
             tenant.cost_method = cm
             session.add(tenant)
+
+    if "ui_density" in updates:
+        ud = updates["ui_density"]
+        if ud not in ("comfortable", "compact"):
+            raise HTTPException(400, "ui_density must be 'comfortable' or 'compact'")
+        # (No pop — ui_density is stored in the KV settings table, not on Tenant)
 
     # Keep Tenant.base_currency in sync with the "currency" KV setting
     if "currency" in updates and tenant:

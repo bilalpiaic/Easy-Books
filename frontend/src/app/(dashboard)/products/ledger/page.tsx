@@ -164,14 +164,14 @@ function ProductLedgerInner() {
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Direction</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty In</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty Out</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Running Qty</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Unit Cost</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Location</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Source</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Direction</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty In</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty Out</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Running Qty</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Unit Cost</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Location</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1a1814]/5">
@@ -194,26 +194,26 @@ function ProductLedgerInner() {
               ) : (
                 data.items.map((item, idx) => (
                   <tr key={idx} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                    <td className="px-6 py-4 text-sm text-[#1a1814]/70">{item.date}</td>
-                    <td className="px-6 py-4">
+                    <td className="ui-td text-sm text-[#1a1814]/70">{item.date}</td>
+                    <td className="ui-td">
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[#b8943f]/10 text-[#b8943f]">
                         {item.direction}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-green-700">
+                    <td className="ui-td text-right font-mono text-sm text-green-700">
                       {Number(item.qty_in) > 0 ? item.qty_in : "—"}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-red-600">
+                    <td className="ui-td text-right font-mono text-sm text-red-600">
                       {Number(item.qty_out) > 0 ? item.qty_out : "—"}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm font-semibold text-[#1a1814]">
+                    <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
                       {item.running_qty}
                     </td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-[#1a1814]/70">
+                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
                       {Number(item.unit_cost) > 0 ? fmt(item.unit_cost) : "—"}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#1a1814]/70">{item.location || "—"}</td>
-                    <td className="px-6 py-4 text-sm text-[#1a1814]/60">{item.source || "—"}</td>
+                    <td className="ui-td text-sm text-[#1a1814]/70">{item.location || "—"}</td>
+                    <td className="ui-td text-sm text-[#1a1814]/60">{item.source || "—"}</td>
                   </tr>
                 ))
               )}

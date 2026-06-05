@@ -74,12 +74,12 @@ export default function APAgingPage() {
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Vendor</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Bill #</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Due Date</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Days Past</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Bucket</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Vendor</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Bill #</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Due Date</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Days Past</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Bucket</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1a1814]/5">
@@ -94,7 +94,7 @@ export default function APAgingPage() {
               ) : (
                 data.items.map(item => (
                   <tr key={item.id} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                    <td className="px-6 py-4 font-medium text-[#1a1814]">
+                    <td className="ui-td font-medium text-[#1a1814]">
                       {item.vendor_id ? (
                         <Link
                           href={`/vendors/${item.vendor_id}/ledger`}
@@ -106,11 +106,11 @@ export default function APAgingPage() {
                         item.name
                       )}
                     </td>
-                    <td className="px-6 py-4 font-mono text-sm text-[#b8943f]">{item.number}</td>
-                    <td className="px-6 py-4 text-sm text-[#1a1814]/70">{item.due_date}</td>
-                    <td className="px-6 py-4 text-right font-mono text-sm text-[#1a1814]/70">{item.days_past}</td>
-                    <td className="px-6 py-4 text-right font-mono text-sm font-semibold">{fmt(item.amount)}</td>
-                    <td className="px-6 py-4">
+                    <td className="ui-td font-mono text-sm text-[#b8943f]">{item.number}</td>
+                    <td className="ui-td text-sm text-[#1a1814]/70">{item.due_date}</td>
+                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">{item.days_past}</td>
+                    <td className="ui-td text-right font-mono text-sm font-semibold">{fmt(item.amount)}</td>
+                    <td className="ui-td">
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[#b8943f]/10 text-[#b8943f]">
                         {item.bucket}
                       </span>

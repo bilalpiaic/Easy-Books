@@ -7,7 +7,7 @@ interface SkeletonRowProps {
 
 function SkeletonCell() {
   return (
-    <td className="px-6 py-4">
+    <td className="ui-td">
       <div className="h-4 bg-[#f0ece4] rounded animate-pulse" />
     </td>
   )

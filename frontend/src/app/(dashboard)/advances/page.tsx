@@ -131,27 +131,27 @@ export default function AdvancesPage() {
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee]">
             <tr>{['Number', 'Date', 'Amount', 'Applied', 'Remaining', 'Status', ''].map((h, i) => (
-              <th key={i} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
+              <th key={i} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
             ))}</tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="text-center py-10 text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={7} className="ui-td py-10 text-center text-[#1a1814]/40 italic">Loading...</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-16">
+              <tr><td colSpan={7} className="ui-td py-16 text-center">
                 <Wallet className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
                 <p className="text-[#1a1814]/50 text-sm">No {tab} advances yet</p>
                 <button onClick={openRecord} className="mt-3 text-[#b8943f] text-sm underline">Record one</button>
               </td></tr>
             ) : rows.map(a => (
               <tr key={a.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="px-4 py-3 font-mono text-[#b8943f] font-bold">{a.number}</td>
-                <td className="px-4 py-3 text-[#1a1814]/70">{a.date}</td>
-                <td className="px-4 py-3 font-mono">{fmt(a.amount)}</td>
-                <td className="px-4 py-3 font-mono text-[#1a1814]/50">{fmt(a.applied_amount)}</td>
-                <td className="px-4 py-3 font-mono font-bold">{fmt(a.remaining)}</td>
-                <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[a.status] ?? 'bg-gray-100'}`}>{a.status}</span></td>
-                <td className="px-4 py-3 text-right">
+                <td className="ui-td font-mono text-[#b8943f] font-bold">{a.number}</td>
+                <td className="ui-td text-[#1a1814]/70">{a.date}</td>
+                <td className="ui-td font-mono">{fmt(a.amount)}</td>
+                <td className="ui-td font-mono text-[#1a1814]/50">{fmt(a.applied_amount)}</td>
+                <td className="ui-td font-mono font-bold">{fmt(a.remaining)}</td>
+                <td className="ui-td"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[a.status] ?? 'bg-gray-100'}`}>{a.status}</span></td>
+                <td className="ui-td text-right">
                   {a.remaining > 0 && (
                     <button onClick={() => openApply(a)} className="text-xs text-[#b8943f] underline">Apply to {docNoun}</button>
                   )}

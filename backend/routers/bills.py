@@ -326,14 +326,18 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
 
 @router.put("/api/bills/{bill_id}")
 def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: BillCreate):
-    """Edit a draft bill. Raises 403 if already posted."""
+    """Edit a draft or posted (unpaid, open-period) bill.
+
+    Raises 400 if the bill has a payment allocated, its date is in a locked
+    period, or it has already been reversed.
+    """
     bill = session.exec(
         select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)
     ).first()
     if not bill:
         raise HTTPException(404, "Bill not found")
-    if bill.status != "draft":
-        raise HTTPException(403, f"Cannot edit bill with status '{bill.status}'. Only draft bills can be edited.")
+    from routers._edit_guards import assert_doc_editable
+    assert_doc_editable(session, tenant_id=user.tenant_id, doc=bill, kind="bill")
 
     vname = body.vendor_name
     term_id = body.payment_term_id
@@ -399,6 +403,12 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
             old_txn.reversed_by_id = rev_txn.id
             session.add(old_txn)
         bill.transaction_id = None
+
+    # Restore stock received by the original posting before re-applying lines.
+    # Bills receive stock via record_purchase keyed on bill.number.
+    # reverse_purchase removes layers by source_doc=bill.number and restores qty.
+    from services.inventory import reverse_purchase
+    reverse_purchase(session, tenant_id=user.tenant_id, source_doc=bill.number)
 
     # Delete existing lines
     for ln in session.exec(select(BillLine).where(BillLine.bill_id == bill.id)).all():

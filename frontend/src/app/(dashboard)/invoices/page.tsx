@@ -105,6 +105,7 @@ function InvoicesInner() {
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
   const [customerBalance, setCustomerBalance] = useState<number | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -219,7 +220,7 @@ function InvoicesInner() {
     const editId = searchParams.get('edit')
     if (editId && invoices.length > 0) {
       const inv = invoices.find(i => String(i.id) === editId)
-      if (inv && inv.status === 'draft') openEdit(inv)
+      if (inv && (inv.status === 'draft' || inv.status === 'sent' || inv.status === 'posted' || inv.status === 'overdue')) openEdit(inv)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, invoices])
@@ -262,6 +263,14 @@ function InvoicesInner() {
     if (lines.some(l => !l.description.trim())) { setFormError('All lines must have a description'); return }
     if (!form.issue_date || (!form.due_date && !form.payment_term_id)) {
       setFormError('Issue date required; provide either a due date or a payment term'); return
+    }
+    // For posted/sent/overdue invoices, require explicit confirmation before saving
+    if (editInvoice && editInvoice.status !== 'draft') {
+      if (!confirmPostedEdit) {
+        setConfirmPostedEdit(true)
+        return
+      }
+      setConfirmPostedEdit(false)
     }
     setSaving(true); setFormError('')
     const body = {
@@ -395,7 +404,7 @@ function InvoicesInner() {
                 <SortableHeader label="Due Date"   field="due_date"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Total"      field="total"         sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
                 <SortableHeader label="Status"     field="status"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
-                <th className="px-6 py-4" />
+                <th className="ui-th" />
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
@@ -426,25 +435,25 @@ function InvoicesInner() {
                       })}
                     />
                   </td>
-                  <td className="px-6 py-4 font-mono font-bold text-[#b8943f]">
+                  <td className="ui-td font-mono font-bold text-[#b8943f]">
                     <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[#b8943f] font-bold" />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="ui-td">
                     {inv.customer_id && inv.customer_name
                       ? <DocLink type="customer" id={inv.customer_id} label={inv.customer_name} />
                       : (inv.customer_name ?? '—')}
                   </td>
-                  <td className="px-6 py-4 text-black/70">{inv.issue_date}</td>
-                  <td className={`px-6 py-4 ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{inv.due_date}</td>
-                  <td className="px-6 py-4 text-right font-mono">{fmt(inv.total)}</td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="ui-td text-black/70">{inv.issue_date}</td>
+                  <td className={`ui-td ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{inv.due_date}</td>
+                  <td className="ui-td text-right font-mono">{fmt(inv.total)}</td>
+                  <td className="ui-td text-center">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700'}`}>
                       {inv.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="ui-td">
                     <div className="flex items-center justify-end gap-2">
-                      {inv.status === 'draft' && (
+                      {(inv.status === 'draft' || inv.status === 'sent' || inv.status === 'posted' || inv.status === 'overdue') && (
                         <button
                           onClick={() => openEdit(inv)}
                           className="text-xs px-2 py-1 border border-[#b8943f]/40 text-[#b8943f] rounded hover:bg-[#faf6ec]"
@@ -533,7 +542,7 @@ function InvoicesInner() {
       {/* Create / Edit Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setModalOpen(false); setConfirmPostedEdit(false) }} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
             <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
               {editInvoice ? `Edit Invoice ${editInvoice.number}` : 'New Invoice'}
@@ -630,7 +639,7 @@ function InvoicesInner() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
-                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell />
+                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" />
               </div>
 
               <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
@@ -695,12 +704,35 @@ function InvoicesInner() {
               </div>
 
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
+              {confirmPostedEdit && (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-sm text-amber-900">
+                  <p className="font-semibold mb-1">Confirm posted-invoice edit</p>
+                  <p className="mb-3">This will reverse the original ledger entry and post a correction, keeping the same document number. Continue?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="px-4 py-2 bg-amber-700 text-white rounded-lg font-bold hover:bg-amber-800 disabled:opacity-50 text-xs"
+                    >
+                      {saving ? 'Saving…' : 'Yes, post correction'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmPostedEdit(false)}
+                      className="px-4 py-2 border border-amber-400 text-amber-800 rounded-lg font-bold hover:bg-amber-100 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               <p className="text-xs text-black/50">GL posting: Dr Accounts Receivable / Cr Revenue / Cr GST Payable</p>
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Saving…' : editInvoice ? 'Save Changes' : 'Post Invoice'}
-                </button>
+                <button onClick={() => { setModalOpen(false); setConfirmPostedEdit(false) }} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+                {!confirmPostedEdit && (
+                  <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                    {saving ? 'Saving…' : editInvoice ? 'Save Changes' : 'Post Invoice'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

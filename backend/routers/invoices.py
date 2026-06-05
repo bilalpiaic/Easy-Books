@@ -285,6 +285,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
                         product_id=prod.id,
                         qty=D(line_data.qty),
                         block_negative=block_negative,
+                        source_doc_id=invoice.id,
                     )
     except InventoryError as e:
         session.rollback()
@@ -350,7 +351,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         inv_acc = get_or_create_account(
             session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
         )
-        post_transaction(
+        cogs_txn = post_transaction(
             session, user,
             date=invoice.issue_date,
             description=f"COGS for {invoice.number}",
@@ -361,6 +362,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
             audit_entity_type="invoice",
             audit_detail={"invoice_number": invoice.number, "cogs": str(total_cogs)},
         )
+        invoice.cogs_transaction_id = cogs_txn.id
+        session.add(invoice)
 
     log_audit(
         session, user, "CREATE", "invoice", invoice.id,
@@ -380,7 +383,11 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
 
 @router.put("/api/invoices/{invoice_id}")
 def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, body: InvoiceCreate):
-    """Edit a draft invoice. Raises 403 if the invoice has already been posted."""
+    """Edit a draft or posted (unpaid, open-period) invoice.
+
+    Raises 400 if the invoice has a payment allocated, its date is in a locked
+    period, or it has already been reversed.
+    """
     inv = session.exec(
         select(Invoice).where(
             Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id
@@ -388,8 +395,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     ).first()
     if not inv:
         raise HTTPException(404, "Invoice not found")
-    if inv.status != "draft":
-        raise HTTPException(403, f"Cannot edit invoice with status '{inv.status}'. Only draft invoices can be edited.")
+    from routers._edit_guards import assert_doc_editable
+    assert_doc_editable(session, tenant_id=user.tenant_id, doc=inv, kind="invoice")
 
     # Resolve customer name and default payment term
     cname = body.customer_name
@@ -461,6 +468,65 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             session.add(old_txn)
         inv.transaction_id = None
 
+    # Reverse the original COGS JV (Dr 5010 / Cr 1200) too, so Inventory and
+    # COGS aren't left overstated by the original cost relief. The perpetual
+    # inventory is restored separately below via reverse_consumption; the two
+    # are complementary (GL credit→Inventory mirrors the layer restore).
+    if inv.cogs_transaction_id:
+        old_cogs_txn = session.get(Transaction, inv.cogs_transaction_id)
+        if old_cogs_txn and not old_cogs_txn.is_reversed:
+            old_cogs_entries = session.exec(
+                select(JournalEntry).where(JournalEntry.transaction_id == old_cogs_txn.id)
+            ).all()
+            rev_cogs_txn = post_transaction(
+                session, user,
+                date=str(DateType.today()),
+                description=f"Reversal of {old_cogs_txn.jv_number} (invoice edit COGS)",
+                entries=[
+                    EntryInput(account_id=je.account_id, debit=D(je.credit), credit=D(je.debit))
+                    for je in old_cogs_entries
+                ],
+                audit_entity_type="invoice",
+                audit_detail={"invoice_number": inv.number, "action": "edit_cogs_reversal"},
+            )
+            old_cogs_txn.is_reversed = True
+            old_cogs_txn.reversed_by_id = rev_cogs_txn.id
+            session.add(old_cogs_txn)
+        inv.cogs_transaction_id = None
+
+    # Restore stock relieved by the original posting before re-applying lines.
+    # We look up movements by (source_doc_type='invoice', source_doc_id=inv.id)
+    # which are tagged at posting time via consume_stock(..., source_doc_id=inv.id).
+    from models import StockMovement
+    from services.inventory import reverse_consumption
+    orig_moves = session.exec(
+        select(StockMovement).where(
+            StockMovement.tenant_id == user.tenant_id,
+            StockMovement.source_doc_type == "invoice",
+            StockMovement.source_doc_id == inv.id,
+            StockMovement.direction == "SHIPMENT",
+        )
+    ).all()
+    restored: dict[int, list] = {}
+    for m in orig_moves:
+        restored.setdefault(m.product_id, [D("0"), D("0")])
+        restored[m.product_id][0] += D(m.qty)
+        restored[m.product_id][1] += D(m.total_cost)
+    for pid, (qty, cogs) in restored.items():
+        reverse_consumption(
+            session, tenant_id=user.tenant_id,
+            product_id=pid, qty=qty, cogs_total=cogs,
+        )
+
+    # BUG-2 fix: delete the original SHIPMENT movements we just reversed so a
+    # subsequent edit's scan only sees the fresh consumption written below.
+    # reverse_consumption already recorded a REVERSAL receipt + GL, so audit
+    # trail is preserved; leaving these rows would cause a second edit to
+    # double-restore (it would re-match both the original and this edit's rows).
+    for m in orig_moves:
+        session.delete(m)
+    session.flush()
+
     # Delete existing lines
     existing_lines = session.exec(
         select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)
@@ -513,6 +579,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 total_cogs += consume_stock(
                     session, tenant_id=user.tenant_id,
                     product_id=prod.id, qty=D(line_data.qty),
+                    source_doc_id=inv.id,
                 )
 
     # Re-post GL entries
@@ -550,6 +617,29 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     )
     inv.transaction_id = txn.id
     session.add(inv)
+
+    # Re-post the COGS JV for the edited lines (mirrors the create path). Skip
+    # when there are no stock lines so we never post an empty/zero JV.
+    if total_cogs > 0:
+        cogs_acc = get_or_create_account(
+            session, user.tenant_id, "5010", "Cost of Goods Sold", "Expense"
+        )
+        inv_acc = get_or_create_account(
+            session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
+        )
+        cogs_txn = post_transaction(
+            session, user,
+            date=inv.issue_date,
+            description=f"COGS for {inv.number} (edited)",
+            entries=[
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs),
+            ],
+            audit_entity_type="invoice",
+            audit_detail={"invoice_number": inv.number, "cogs": str(total_cogs)},
+        )
+        inv.cogs_transaction_id = cogs_txn.id
+        session.add(inv)
 
     log_audit(
         session, user, "UPDATE", "invoice", inv.id,

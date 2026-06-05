@@ -615,6 +615,18 @@ export default function SettingsPage() {
             <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#b8943f]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#b8943f]"></div>
           </label>
         </div>
+
+        <div className="pt-4 mt-4 border-t border-[#ede9e2]">
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Display Density</label>
+          <select
+            value={form.ui_density}
+            onChange={e => handleChange('ui_density', e.target.value)}
+            className="ui-field w-full bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+          >
+            <option value="comfortable">Comfortable</option>
+            <option value="compact">Compact</option>
+          </select>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">

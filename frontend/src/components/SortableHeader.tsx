@@ -25,7 +25,7 @@ export default function SortableHeader({ label, field, sortBy, sortDir, onSort, 
   return (
     <th
       onClick={toggle}
-      className={`cursor-pointer select-none group px-6 py-4 text-xs font-bold uppercase tracking-widest text-black/75 ${className}`}
+      className={`cursor-pointer select-none group ui-th text-xs font-bold uppercase tracking-widest text-black/75 ${className}`}
     >
       <span className="inline-flex items-center gap-1">
         {label}

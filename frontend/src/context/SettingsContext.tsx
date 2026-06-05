@@ -34,6 +34,8 @@ export interface AppSettings {
   onboarding_dismissed: string
   // Inventory
   block_negative_stock: string
+  // UI density
+  ui_density: string
 }
 
 const defaults: AppSettings = {
@@ -62,6 +64,7 @@ const defaults: AppSettings = {
   onboarding_steps: "",
   onboarding_dismissed: "",
   block_negative_stock: "false",
+  ui_density: "comfortable",
 }
 
 interface SettingsContextValue {
@@ -84,6 +87,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(reload, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.density =
+      settings.ui_density === "compact" ? "compact" : "comfortable"
+  }, [settings.ui_density])
 
   return (
     <SettingsContext.Provider value={{ settings, reload }}>

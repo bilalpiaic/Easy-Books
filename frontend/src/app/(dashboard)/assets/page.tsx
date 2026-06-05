@@ -138,16 +138,16 @@ export default function AssetsPage() {
           <thead className="bg-[#f6f3ee]">
             <tr>
               {['Name', 'Date', 'Cost', 'Accum. Depr', 'Book Value', 'Method', 'Depreciate'].map(h => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
+                <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="text-center py-10 text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={7} className="ui-td text-center text-[#1a1814]/40 italic">Loading...</td></tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-16">
+                <td colSpan={7} className="ui-td text-center">
                   <Building2 className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
                   <p className="text-[#1a1814]/50 text-sm">No fixed assets yet</p>
                   <button onClick={openModal} className="mt-3 text-[#b8943f] text-sm underline">Register your first asset</button>
@@ -155,13 +155,13 @@ export default function AssetsPage() {
               </tr>
             ) : items.map(a => (
               <tr key={a.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="px-4 py-3 font-medium"><DocLink type="fixed_asset" id={a.id} label={a.name} className="font-medium" />{a.code && <span className="ml-2 text-xs text-[#1a1814]/40">{a.code}</span>}</td>
-                <td className="px-4 py-3 text-[#1a1814]/60">{a.acquisition_date}</td>
-                <td className="px-4 py-3 font-mono">{fmt(a.acquisition_cost)}</td>
-                <td className="px-4 py-3 font-mono text-red-500">({fmt(a.accumulated_depreciation)})</td>
-                <td className="px-4 py-3 font-mono font-bold">{fmt(a.book_value)}</td>
-                <td className="px-4 py-3 text-xs text-[#1a1814]/50 capitalize">{a.method.replace('_', ' ')}</td>
-                <td className="px-4 py-3">
+                <td className="ui-td font-medium"><DocLink type="fixed_asset" id={a.id} label={a.name} className="font-medium" />{a.code && <span className="ml-2 text-xs text-[#1a1814]/40">{a.code}</span>}</td>
+                <td className="ui-td text-[#1a1814]/60">{a.acquisition_date}</td>
+                <td className="ui-td font-mono">{fmt(a.acquisition_cost)}</td>
+                <td className="ui-td font-mono text-red-500">({fmt(a.accumulated_depreciation)})</td>
+                <td className="ui-td font-mono font-bold">{fmt(a.book_value)}</td>
+                <td className="ui-td text-xs text-[#1a1814]/50 capitalize">{a.method.replace('_', ' ')}</td>
+                <td className="ui-td">
                   {deprTarget === a.id ? (
                     <div className="flex items-center gap-2">
                       <input type="date" value={deprDate} onChange={e => setDeprDate(e.target.value)}

@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { Trash2, Plus } from "lucide-react"
+import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 
 export interface LineItem {
@@ -42,6 +44,10 @@ interface Props {
   showStockHint?: boolean
   /** When true, show an amber warning when qty exceeds on-hand (invoices only) */
   warnOversell?: boolean
+  /** Customer or vendor id — used to fetch per-party last price hint */
+  customerId?: number | null
+  /** 'sale' uses invoices, 'purchase' uses bills */
+  priceKind?: 'sale' | 'purchase'
 }
 
 const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
@@ -50,8 +56,9 @@ function emptyLine(): LineItem {
   return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0, tax_code_id: null }
 }
 
-export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false }: Props) {
+export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false, customerId = null, priceKind = 'sale' }: Props) {
   const fmt = useFmt()
+  const [hints, setHints] = useState<Record<number, { rate: number; date: string; scope: string } | null>>({})
   const update = (idx: number, patch: Partial<LineItem>) => {
     const updated = lines.map((l, i) => {
       if (i !== idx) return l
@@ -62,12 +69,25 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
     onChange(updated)
   }
 
-  const remove = (idx: number) => onChange(lines.filter((_, i) => i !== idx))
+  const remove = (idx: number) => {
+    onChange(lines.filter((_, i) => i !== idx))
+    setHints(h => {
+      const next: typeof h = {}
+      Object.entries(h).forEach(([k, v]) => {
+        const ki = Number(k)
+        if (ki < idx) next[ki] = v
+        else if (ki > idx) next[ki - 1] = v
+        // ki === idx dropped
+      })
+      return next
+    })
+  }
   const add = () => onChange([...lines, emptyLine()])
 
   const onProductSelect = (idx: number, productId: string) => {
     if (!productId) {
       update(idx, { product_id: null })
+      setHints(h => ({ ...h, [idx]: null }))
       return
     }
     const prod = products.find(p => p.id === Number(productId))
@@ -78,6 +98,13 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
         ? { ...l, product_id: prod.id, description: prod.name, unit: prod.unit, rate: prod.default_rate, amount }
         : l
     ))
+    // Fetch last-price hint for this product + party
+    const qs = new URLSearchParams({ kind: priceKind })
+    if (customerId) qs.set('customer_id', String(customerId))
+    apiFetch<{ rate: number | null; date: string | null; scope: string | null }>(
+      `/api/products/${prod.id}/last-price?${qs}`
+    ).then(r => setHints(h => ({ ...h, [idx]: r.rate != null ? { rate: r.rate, date: r.date!, scope: r.scope! } : null })))
+     .catch(() => {})
   }
 
   const subtotal = lines.reduce((s, l) => s + l.amount, 0)
@@ -190,12 +217,23 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                 {readOnly ? (
                   <span className="block text-right font-mono">{fmt(line.rate)}</span>
                 ) : (
-                  <input
-                    type="number" min="0" step="0.01"
-                    value={line.rate}
-                    onChange={e => update(idx, { rate: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
-                  />
+                  <>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={line.rate}
+                      onChange={e => update(idx, { rate: parseFloat(e.target.value) || 0 })}
+                      className="w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
+                    />
+                    {hints[idx] && hints[idx]!.rate !== line.rate && (
+                      <button type="button"
+                        onClick={() => update(idx, { rate: hints[idx]!.rate, amount: Math.round(line.qty * hints[idx]!.rate * 100) / 100 })}
+                        className="block mt-1 text-[10px] text-[#b8943f] hover:underline"
+                        title={`Last ${priceKind === 'purchase' ? 'bought' : 'sold'} (${hints[idx]!.scope}) on ${hints[idx]!.date}`}
+                      >
+                        Last: {fmt(hints[idx]!.rate)} — Use
+                      </button>
+                    )}
+                  </>
                 )}
               </td>
               {hasTax && (

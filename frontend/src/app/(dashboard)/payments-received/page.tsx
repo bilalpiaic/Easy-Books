@@ -41,7 +41,7 @@ interface AllocationRow {
 }
 
 interface PayForm {
-  customer_name: string
+  customer_id: string
   payment_date: string
   amount: string
   method: string
@@ -50,7 +50,7 @@ interface PayForm {
 }
 
 const emptyForm: PayForm = {
-  customer_name: '', payment_date: new Date().toISOString().split('T')[0],
+  customer_id: '', payment_date: new Date().toISOString().split('T')[0],
   amount: '', method: 'cash', reference: '', cash_account_id: '',
 }
 
@@ -70,6 +70,7 @@ export default function PaymentsReceived() {
   const [openInvoices, setOpenInvoices] = useState<OpenInvoice[]>([])
   const [allocations, setAllocations] = useState<AllocationRow[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [customers, setCustomers] = useState<{ id: number; name: string }[]>([])
 
   const load = () => {
     setLoading(true)
@@ -81,6 +82,12 @@ export default function PaymentsReceived() {
   }
 
   useEffect(load, [page])
+
+  useEffect(() => {
+    apiFetch<{ items: { id: number; name: string }[] }>('/api/customers?limit=500') // limit=500: covers all parties at current scale; raise if tenants exceed this
+      .then(d => setCustomers(d.items))
+      .catch(() => {})
+  }, [])
 
   const openModal = async () => {
     try {
@@ -129,12 +136,13 @@ export default function PaymentsReceived() {
   const hasAllocations = allocations.some(a => a.checked)
 
   const handleSave = async () => {
+    if (!form.customer_id) { setFormError('Customer is required'); return }
     if (!form.amount || paymentAmount <= 0) { setFormError('Amount must be > 0'); return }
     if (!form.payment_date) { setFormError('Date is required'); return }
     setSaving(true); setFormError('')
     try {
       const body: Record<string, unknown> = {
-        customer_name: form.customer_name || null,
+        customer_id: form.customer_id ? Number(form.customer_id) : null,
         payment_date: form.payment_date,
         amount: paymentAmount,
         method: form.method,
@@ -225,12 +233,12 @@ export default function PaymentsReceived() {
           <table className="w-full text-sm min-w-[520px]">
             <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Date</th>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Customer</th>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Reference</th>
-                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
-                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
-                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16">Print</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Date</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Customer</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Reference</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16">Print</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
@@ -240,20 +248,20 @@ export default function PaymentsReceived() {
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No payments recorded.</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-[#f6f3ee]/50">
-                  <td className="px-6 py-4 text-black/70">{p.payment_date}</td>
-                  <td className="px-6 py-4 font-medium">
+                  <td className="ui-td text-black/70">{p.payment_date}</td>
+                  <td className="ui-td font-medium">
                     {p.invoice_id && p.customer_name
                       ? <DocLink type="invoice" id={p.invoice_id} label={p.customer_name} />
                       : (p.customer_name ?? '—')}
                   </td>
-                  <td className="px-6 py-4 font-mono text-sm text-black/60">
+                  <td className="ui-td font-mono text-sm text-black/60">
                     {p.invoice_id
                       ? <DocLink type="invoice" id={p.invoice_id} label={p.reference ?? `INV #${p.invoice_id}`} className="text-black/60" />
                       : (p.reference ?? '—')}
                   </td>
-                  <td className="px-6 py-4 capitalize text-black/70">{p.method.replace('_', ' ')}</td>
-                  <td className="px-6 py-4 text-right font-mono font-bold text-green-700">{fmt(p.amount)}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="ui-td capitalize text-black/70">{p.method.replace('_', ' ')}</td>
+                  <td className="ui-td text-right font-mono font-bold text-green-700">{fmt(p.amount)}</td>
+                  <td className="ui-td text-right">
                     <Link
                       href={`/payments-received/${p.id}/print`}
                       title="Print receipt"
@@ -282,9 +290,16 @@ export default function PaymentsReceived() {
               {/* Header fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer Name</label>
-                  <input value={form.customer_name} onChange={e => setForm(p => ({ ...p, customer_name: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer *</label>
+                  <select
+                    required
+                    value={form.customer_id}
+                    onChange={e => setForm(p => ({ ...p, customer_id: e.target.value }))}
+                    className="ui-field w-full bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                  >
+                    <option value="">— Select customer —</option>
+                    {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Date</label>
@@ -396,7 +411,7 @@ export default function PaymentsReceived() {
               <p className="text-xs text-black/50">GL posting: Dr Cash/Bank / Cr Accounts Receivable</p>
               <div className="flex justify-end gap-3 pt-2">
                 <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                <button onClick={handleSave} disabled={!form.customer_id || saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
                   {saving ? 'Saving...' : 'Record Payment'}
                 </button>
               </div>

@@ -127,27 +127,27 @@ export default function PeriodClosePage() {
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee]">
             <tr>{["Period", "Range", "Status", "Actions"].map(h => (
-              <th key={h} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
+              <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
             ))}</tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} className="text-center py-10 text-[#1a1814]/40 italic">Loading…</td></tr>
+              <tr><td colSpan={4} className="ui-td py-10 text-center text-[#1a1814]/40 italic">Loading…</td></tr>
             ) : periods.length === 0 ? (
-              <tr><td colSpan={4} className="text-center py-16">
+              <tr><td colSpan={4} className="ui-td py-16 text-center">
                 <CalendarCheck className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
                 <p className="text-[#1a1814]/50 text-sm">No periods yet — create one with a preset above.</p>
               </td></tr>
             ) : periods.map(p => (
               <tr key={p.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/40">
-                <td className="px-4 py-3 font-medium">{p.name ?? "—"}</td>
-                <td className="px-4 py-3 text-[#1a1814]/60 font-mono text-xs">{p.period_start} → {p.period_end}</td>
-                <td className="px-4 py-3">
+                <td className="ui-td font-medium">{p.name ?? "—"}</td>
+                <td className="ui-td text-[#1a1814]/60 font-mono text-xs">{p.period_start} → {p.period_end}</td>
+                <td className="ui-td">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.is_locked ? "bg-gray-200 text-gray-700" : "bg-green-100 text-green-700"}`}>
                     {p.is_locked ? "Locked" : "Open"}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="ui-td">
                   <div className="flex items-center gap-3 text-xs">
                     {!p.is_locked && <>
                       <button onClick={() => showPreview(p)} className="flex items-center gap-1 text-[#b8943f] hover:underline"><Eye size={12} /> Preview</button>

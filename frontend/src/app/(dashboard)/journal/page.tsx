@@ -105,12 +105,12 @@ export default function JournalPage() {
         <table className="w-full text-left min-w-[640px]">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">JV #</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account &amp; Description</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
-              <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75"></th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">JV #</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account &amp; Description</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
@@ -125,8 +125,8 @@ export default function JournalPage() {
                   if (isFirstLine) seenTxns.add(entry.transaction_id)
                   return (
                     <tr key={idx} className={`hover:bg-[#f6f3ee]/50 transition-colors ${entry.is_reversed ? 'opacity-60' : ''}`}>
-                      <td className="px-6 py-5 text-sm">{entry.date}</td>
-                      <td className="px-6 py-5">
+                      <td className="ui-td text-sm">{entry.date}</td>
+                      <td className="ui-td">
                         <Link href={`/journal/${entry.transaction_id}`} className="font-mono text-xs font-bold text-[#b8943f] hover:underline">
                           {entry.jv_number}
                         </Link>
@@ -134,16 +134,16 @@ export default function JournalPage() {
                           <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase rounded-full">Reversed</span>
                         )}
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="ui-td">
                         <Link href={`/ledger?account=${encodeURIComponent(entry.account_name)}`}
                           className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors">
                           {entry.account_name}
                         </Link>
                         <div className="text-xs text-[#1a1814]/75">{entry.description}</div>
                       </td>
-                      <td className="px-6 py-5 text-right font-mono text-sm">{entry.debit > 0 ? fmt(entry.debit) : "-"}</td>
-                      <td className="px-6 py-5 text-right font-mono text-sm">{entry.credit > 0 ? fmt(entry.credit) : "-"}</td>
-                      <td className="px-6 py-5">
+                      <td className="ui-td text-right font-mono text-sm">{entry.debit > 0 ? fmt(entry.debit) : "-"}</td>
+                      <td className="ui-td text-right font-mono text-sm">{entry.credit > 0 ? fmt(entry.credit) : "-"}</td>
+                      <td className="ui-td">
                         {isFirstLine && (
                           <div className="flex items-center gap-1.5">
                             <Link

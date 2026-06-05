@@ -21,6 +21,7 @@ interface Product {
   unit: string
   product_type: string
   default_rate: number
+  avg_cost: number
   stock_qty: number
   reorder_level: number
   stock_account_id: number | null
@@ -247,6 +248,8 @@ function ProductsInner() {
       allCatsFlat.push({ id: s.id, label: `${p.name} › ${s.name}` })
     }
   }
+  const catLabel = (id: number | null) =>
+    id == null ? '—' : (allCatsFlat.find(c => c.id === id)?.label ?? '—')
 
   return (
     <div className="space-y-6">
@@ -278,8 +281,8 @@ function ProductsInner() {
           <CsvImportButton entity="products" onSuccess={load} />
           <button
             onClick={() => downloadCSV('products.csv', products.map(p => ({
-              Code: p.code, Name: p.name, Type: p.product_type, Unit: p.unit,
-              Rate: p.default_rate, 'Stock Qty': p.stock_qty, 'Reorder Level': p.reorder_level,
+              Code: p.code, Name: p.name, Category: catLabel(p.category_id), Type: p.product_type, Unit: p.unit,
+              'Selling Price': p.default_rate, 'Cost Price': p.avg_cost, 'Stock Qty': p.stock_qty, 'Reorder Level': p.reorder_level,
             })))}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
@@ -361,22 +364,24 @@ function ProductsInner() {
                   onChange={e => setSelectedIds(e.target.checked ? new Set(products.map(p => p.id)) : new Set())}
                 />
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Unit</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Default Rate</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Stock Qty</th>
-              <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
-              <th className="px-6 py-4" />
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Category</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Unit</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Selling Price</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Cost Price</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Stock Qty</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
+              <th className="ui-th" />
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {isLoading ? (
-              <SkeletonRow cols={9} />
+              <SkeletonRow cols={11} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-16 text-center">
+                <td colSpan={11} className="px-6 py-16 text-center">
                   <div className="inline-flex flex-col items-center gap-3">
                     <Package className="w-10 h-10 text-black/20" />
                     <p className="text-sm text-black/40 font-medium">No products yet</p>
@@ -399,28 +404,32 @@ function ProductsInner() {
                     })}
                   />
                 </td>
-                <td className="px-6 py-4 font-mono text-xs text-[#b8943f]">
+                <td className="ui-td font-mono text-xs text-[#b8943f]">
                   {p.code ? <DocLink type="product" id={p.id} label={p.code} className="text-[#b8943f]" /> : '—'}
                 </td>
-                <td className="px-6 py-4 font-medium cursor-pointer" title={p.name}>
+                <td className="ui-td font-medium cursor-pointer" title={p.name}>
                   <DocLink type="product" id={p.id} label={p.name} className="font-medium" />
                 </td>
-                <td className="px-6 py-4">
+                <td className="ui-td text-black/60 text-xs">{catLabel(p.category_id)}</td>
+                <td className="ui-td">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.product_type === 'stock' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
                     {p.product_type}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-black/60">{p.unit}</td>
-                <td className="px-6 py-4 text-right font-mono">{fmt(p.default_rate)}</td>
-                <td className="px-6 py-4 text-right">
+                <td className="ui-td text-black/60">{p.unit}</td>
+                <td className="ui-td text-right font-mono">{fmt(p.default_rate)}</td>
+                <td className="ui-td text-right font-mono text-black/70">
+                  {p.product_type === 'stock' ? fmt(p.avg_cost) : <span className="text-black/30">—</span>}
+                </td>
+                <td className="ui-td text-right">
                   {p.product_type === 'stock' ? (
                     <span className="font-mono">{p.stock_qty.toLocaleString()} {p.unit}</span>
                   ) : (
                     <span className="text-black/30">—</span>
                   )}
                 </td>
-                <td className="px-6 py-4 text-center">{stockBadge(p)}</td>
-                <td className="px-6 py-4 flex items-center gap-3">
+                <td className="ui-td text-center">{stockBadge(p)}</td>
+                <td className="ui-td flex items-center gap-3">
                   <button onClick={() => openEdit(p)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
@@ -452,12 +461,12 @@ function ProductsInner() {
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Code</label>
                   <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
                     placeholder="e.g. SKU-001"
-                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Unit</label>
                   <select value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
-                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]">
+                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]">
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
@@ -466,7 +475,7 @@ function ProductsInner() {
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Name *</label>
                 <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                   placeholder="Product name"
-                  className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                  className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-2">Type</label>
@@ -491,7 +500,7 @@ function ProductsInner() {
                         // When parent changes, default category_id to the parent itself (or clear)
                         setForm(p => ({ ...p, category_id: e.target.value }))
                       }}
-                      className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
                     >
                       <option value="">— None —</option>
                       {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
@@ -503,7 +512,7 @@ function ProductsInner() {
                       <select
                         value={form.category_id}
                         onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))}
-                        className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                        className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
                       >
                         <option value={formParentCat}>— (parent only) —</option>
                         {subCategories.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
@@ -514,17 +523,17 @@ function ProductsInner() {
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Default Rate</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Selling Price</label>
                   <input type="number" min="0" step="0.01" value={form.default_rate}
                     onChange={e => setForm(p => ({ ...p, default_rate: e.target.value }))}
-                    className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
                 </div>
                 {isStock && (
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Reorder Level</label>
                     <input type="number" min="0" step="0.001" value={form.reorder_level}
                       onChange={e => setForm(p => ({ ...p, reorder_level: e.target.value }))}
-                      className="w-full px-4 py-3 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
                   </div>
                 )}
               </div>
@@ -572,10 +581,10 @@ function ProductTree({ coa, loading, fmt }: { coa: CoaData | null; loading: bool
         <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-widest text-black/60">Category / Product</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Avg Rate</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-black/60">Value</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Category / Product</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Avg Rate</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Value</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -590,10 +599,10 @@ function ProductTree({ coa, loading, fmt }: { coa: CoaData | null; loading: bool
           {!loading && coa && coa.groups.length > 0 && (
             <tfoot>
               <tr className="bg-[#1a1814] text-white">
-                <td className="px-6 py-4 font-bold uppercase tracking-widest text-xs">Grand Total</td>
-                <td className="px-6 py-4 text-right font-mono font-bold">{Number(coa.grand.qty).toLocaleString()}</td>
+                <td className="ui-td font-bold uppercase tracking-widest text-xs">Grand Total</td>
+                <td className="ui-td text-right font-mono font-bold">{Number(coa.grand.qty).toLocaleString()}</td>
                 <td />
-                <td className="px-6 py-4 text-right font-mono font-bold">{fmt(coa.grand.value)}</td>
+                <td className="ui-td text-right font-mono font-bold">{fmt(coa.grand.value)}</td>
               </tr>
             </tfoot>
           )}
@@ -607,10 +616,10 @@ function TreeGroup({ group, fmt }: { group: CoaGroup; fmt: (n: number) => string
   return (
     <>
       <tr className="bg-[#f6f3ee]/60">
-        <td className="px-6 py-3 font-semibold text-[#1a1814]">{group.name}</td>
-        <td className="px-6 py-3 text-right font-mono text-sm">{Number(group.qty).toLocaleString()}</td>
+        <td className="ui-td font-semibold text-[#1a1814]">{group.name}</td>
+        <td className="ui-td text-right font-mono text-sm">{Number(group.qty).toLocaleString()}</td>
         <td />
-        <td className="px-6 py-3 text-right font-mono text-sm font-semibold">{fmt(group.value)}</td>
+        <td className="ui-td text-right font-mono text-sm font-semibold">{fmt(group.value)}</td>
       </tr>
       {group.subs.map(sub => (
         <TreeSub key={`${group.name}-${sub.name}`} sub={sub} fmt={fmt} />
@@ -623,22 +632,22 @@ function TreeSub({ sub, fmt }: { sub: CoaSub; fmt: (n: number) => string }) {
   return (
     <>
       <tr>
-        <td className="px-6 py-2 pl-10 font-medium text-sm text-[#1a1814]/80">{sub.name}</td>
-        <td className="px-6 py-2 text-right font-mono text-xs text-[#1a1814]/70">{Number(sub.qty).toLocaleString()}</td>
+        <td className="ui-td pl-10 font-medium text-sm text-[#1a1814]/80">{sub.name}</td>
+        <td className="ui-td text-right font-mono text-xs text-[#1a1814]/70">{Number(sub.qty).toLocaleString()}</td>
         <td />
-        <td className="px-6 py-2 text-right font-mono text-xs text-[#1a1814]/70">{fmt(sub.value)}</td>
+        <td className="ui-td text-right font-mono text-xs text-[#1a1814]/70">{fmt(sub.value)}</td>
       </tr>
       {sub.items.map(it => (
         <tr key={it.id} className="hover:bg-[#f6f3ee]/50">
-          <td className="px-6 py-2 pl-16 text-sm">
+          <td className="ui-td pl-16 text-sm">
             <Link href={`/products/ledger?product=${it.id}`} className="text-[#1a1814]/90 hover:text-[#b8943f] hover:underline" title="View product ledger">
               {it.name}
             </Link>
             {it.code && <span className="ml-2 font-mono text-xs text-[#b8943f]">{it.code}</span>}
           </td>
-          <td className="px-6 py-2 text-right font-mono text-sm">{Number(it.qty).toLocaleString()}</td>
-          <td className="px-6 py-2 text-right font-mono text-sm text-[#1a1814]/70">{fmt(it.avg_rate)}</td>
-          <td className="px-6 py-2 text-right font-mono text-sm">{fmt(it.value)}</td>
+          <td className="ui-td text-right font-mono text-sm">{Number(it.qty).toLocaleString()}</td>
+          <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">{fmt(it.avg_rate)}</td>
+          <td className="ui-td text-right font-mono text-sm">{fmt(it.value)}</td>
         </tr>
       ))}
     </>
