@@ -30,6 +30,8 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 def get_journal_report(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
+    voucher_type: Optional[str] = None,
+    voucher_number: Optional[str] = None,
     skip: int = 0, limit: int = 100,
 ):
     q = (
@@ -42,6 +44,10 @@ def get_journal_report(
         q = q.where(Transaction.date >= start)
     if end:
         q = q.where(Transaction.date <= end)
+    if voucher_type:
+        q = q.where(Transaction.voucher_type == voucher_type)
+    if voucher_number:
+        q = q.where(Transaction.jv_number.ilike(f"%{voucher_number}%"))
     q = q.order_by(Transaction.date.desc(), Transaction.id.desc())
     rows = session.exec(q).all()
     return {
@@ -51,6 +57,8 @@ def get_journal_report(
                 "id": tx.id,
                 "transaction_id": tx.id,
                 "jv_number": tx.jv_number,
+                "voucher_type": tx.voucher_type,
+                "legacy_jv_number": tx.legacy_jv_number,
                 "date": tx.date,
                 "description": tx.description,
                 "account_name": acc.name,
@@ -494,6 +502,7 @@ def get_ledger(
         rec["running_balance"] += signed(rec["type"], je.debit, je.credit)
         rec["entries"].append({
             "date": tx.date, "transaction_id": tx.id, "jv_number": tx.jv_number,
+            "voucher_type": tx.voucher_type,
             "description": tx.description or "", "debit": je.debit,
             "credit": je.credit, "balance": rec["running_balance"],
         })
