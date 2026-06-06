@@ -159,7 +159,8 @@ def create_transaction(
 
 def _reverse_one(session, user, txn: Transaction) -> Transaction:
     """Post the mirror JV for a single transaction and mark it reversed.
-    Does NOT unwind derived state — the caller does that."""
+    Does NOT unwind derived state — the caller does that.
+    The reversal inherits the original transaction's voucher_type."""
     rev = post_transaction(
         session, user,
         date=str(DateType.today()),
@@ -170,6 +171,7 @@ def _reverse_one(session, user, txn: Transaction) -> Transaction:
         ],
         audit_entity_type="transaction",
         audit_detail={"original_jv": txn.jv_number},
+        voucher_type=txn.voucher_type,
     )
     txn.is_reversed = True
     txn.reversed_by_id = rev.id

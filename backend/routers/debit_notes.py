@@ -176,6 +176,7 @@ def create_debit_note(session: SessionDep, user: WriteUserDep, body: DNCreate):
         entries=entries,
         audit_entity_type="debit_note",
         audit_detail={"dn_number": number, "bill": bill.number},
+        voucher_type="DN",
     )
     dn.transaction_id = txn.id
     dn.ap_account_id = ap_acc.id

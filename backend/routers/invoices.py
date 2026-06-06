@@ -15,6 +15,7 @@ from services.fx import rate_to_base
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
+from services.vouchers import classify_cash_account
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
@@ -338,6 +339,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         entries=entries,
         audit_entity_type="invoice",
         audit_detail={"invoice_number": invoice.number, "total": str(total)},
+        voucher_type="SL",
     )
     invoice.transaction_id = txn.id
     session.add(invoice)
@@ -361,6 +363,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
             ],
             audit_entity_type="invoice",
             audit_detail={"invoice_number": invoice.number, "cogs": str(total_cogs)},
+            voucher_type="JV",
         )
         invoice.cogs_transaction_id = cogs_txn.id
         session.add(invoice)
@@ -462,6 +465,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 ],
                 audit_entity_type="invoice",
                 audit_detail={"invoice_number": inv.number, "action": "edit_reversal"},
+                voucher_type=old_txn.voucher_type,
             )
             old_txn.is_reversed = True
             old_txn.reversed_by_id = rev_txn.id
@@ -488,6 +492,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 ],
                 audit_entity_type="invoice",
                 audit_detail={"invoice_number": inv.number, "action": "edit_cogs_reversal"},
+                voucher_type=old_cogs_txn.voucher_type,
             )
             old_cogs_txn.is_reversed = True
             old_cogs_txn.reversed_by_id = rev_cogs_txn.id
@@ -614,6 +619,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         entries=entries,
         audit_entity_type="invoice",
         audit_detail={"invoice_number": inv.number, "total": str(total)},
+        voucher_type="SL",
     )
     inv.transaction_id = txn.id
     session.add(inv)
@@ -637,6 +643,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             ],
             audit_entity_type="invoice",
             audit_detail={"invoice_number": inv.number, "cogs": str(total_cogs)},
+            voucher_type="JV",
         )
         inv.cogs_transaction_id = cogs_txn.id
         session.add(inv)

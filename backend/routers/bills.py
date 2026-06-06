@@ -307,6 +307,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         entries=entries,
         audit_entity_type="bill",
         audit_detail={"bill_number": bill.number, "total": str(total)},
+        voucher_type="PR",
     )
     bill.transaction_id = txn.id
     session.add(bill)
@@ -398,6 +399,7 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
                 ],
                 audit_entity_type="bill",
                 audit_detail={"bill_number": bill.number, "action": "edit_reversal"},
+                voucher_type=old_txn.voucher_type,
             )
             old_txn.is_reversed = True
             old_txn.reversed_by_id = rev_txn.id
@@ -497,6 +499,7 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
         entries=entries,
         audit_entity_type="bill",
         audit_detail={"bill_number": bill.number, "total": str(total)},
+        voucher_type="PR",
     )
     bill.transaction_id = txn.id
     session.add(bill)

@@ -17,6 +17,7 @@ from models import (
 )
 from services.money import D, money
 from services.posting import EntryInput, post_transaction
+from services.vouchers import classify_cash_account
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account
 
@@ -163,6 +164,10 @@ def create_payment_received(
         session, user.tenant_id, "1100", "Accounts Receivable", "Asset"
     )
 
+    receipt_type = (
+        "BR" if classify_cash_account(session, user.tenant_id, cash_acc.id) == "bank"
+        else "CR"
+    )
     txn = post_transaction(
         session, user,
         date=body.payment_date,
@@ -175,6 +180,7 @@ def create_payment_received(
         payment_method=body.method,
         audit_entity_type="payment_received",
         audit_detail={"amount": str(amount), "invoice_id": body.invoice_id},
+        voucher_type=receipt_type,
     )
 
     pmt = PaymentReceived(
@@ -314,6 +320,10 @@ def create_bill_payment(
         session, user.tenant_id, "2000", "Accounts Payable", "Liability"
     )
 
+    payment_type = (
+        "BP" if classify_cash_account(session, user.tenant_id, cash_acc.id) == "bank"
+        else "CP"
+    )
     txn = post_transaction(
         session, user,
         date=body.payment_date,
@@ -326,6 +336,7 @@ def create_bill_payment(
         payment_method=body.method,
         audit_entity_type="bill_payment",
         audit_detail={"amount": str(amount), "bill_id": body.bill_id},
+        voucher_type=payment_type,
     )
 
     bp = BillPayment(
