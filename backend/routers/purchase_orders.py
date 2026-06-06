@@ -203,6 +203,7 @@ def convert_to_bill(session: SessionDep, user: WriteUserDep, po_id: int, body: B
         date=body.bill_date,
         description=f"Bill from PO {po.number}",
         entries=entries,
+        voucher_type="PR",
         audit_entity_type="bill",
         audit_detail={"bill_number": bill_number, "po_number": po.number},
     )

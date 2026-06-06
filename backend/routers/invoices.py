@@ -15,7 +15,6 @@ from services.fx import rate_to_base
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
-from services.vouchers import classify_cash_account
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
