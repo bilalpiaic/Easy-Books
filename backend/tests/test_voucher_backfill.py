@@ -13,7 +13,7 @@ invariants.
 import re
 
 import db as _db_module
-from models import BankAccount, Bill, CreditNote, DebitNote, Invoice, PaymentReceived, BillPayment, SequenceCounter, Transaction
+from models import BankAccount, Bill, CreditNote, DebitNote, Invoice, PaymentReceived, BillPayment, SequenceCounter, Settings, Transaction
 from services.voucher_backfill import backfill_vouchers
 from services.vouchers import voucher_number
 from sqlmodel import Session, select
@@ -460,4 +460,103 @@ def test_backfill_reversal_inherits_parent_type(client, admin_headers):
         )
         assert rev_txn.jv_number.startswith("SL-"), (
             f"Reversal jv_number should start SL-, got {rev_txn.jv_number!r}"
+        )
+
+
+def test_backfill_safe_after_live_post(client, admin_headers):
+    """Calling backfill_vouchers AFTER go-live must not corrupt live data.
+
+    Scenario (the exact bug the done-marker guards against):
+      1. Seed pre-migration invoices.
+      2. Run backfill_vouchers (first run) → renumbers + writes done-marker.
+      3. Post a NEW invoice AFTER backfill (live, legacy_jv_number = NULL).
+      4. Call backfill_vouchers AGAIN.
+
+    Expected: no exception; live invoice is UNCHANGED (same jv_number,
+    legacy_jv_number still NULL, voucher_type still "SL"); backfilled rows
+    are also unchanged.
+    """
+    h = admin_headers
+    cust, _, svc_prod, _ = _setup(client, h)
+
+    # ── Step 1: pre-migration invoice ────────────────────────────────────────
+    pre_r = client.post("/api/invoices", headers=h, json={
+        "customer_id": cust["id"],
+        "issue_date": "2026-05-01",
+        "gst_rate": 0,
+        "lines": [{"product_id": svc_prod["id"], "description": "pre-backfill", "qty": 1, "rate": 100}],
+    })
+    assert pre_r.status_code == 201, pre_r.text
+    pre_txn_id = pre_r.json()["transaction_id"]
+
+    with Session(_db_module.engine) as session:
+        tenant_id = _get_txn(session, pre_txn_id).tenant_id
+
+    # ── Step 2: first backfill ────────────────────────────────────────────────
+    with Session(_db_module.engine) as session:
+        backfill_vouchers(session, tenant_id)
+        session.commit()
+
+    # Capture state of the backfilled transaction
+    with Session(_db_module.engine) as session:
+        pre_snap = _get_txn(session, pre_txn_id)
+        pre_snap_jv = pre_snap.jv_number
+        pre_snap_legacy = pre_snap.legacy_jv_number
+        pre_snap_type = pre_snap.voucher_type
+        # Done-marker must exist now
+        marker = session.exec(
+            select(Settings).where(
+                Settings.tenant_id == tenant_id,
+                Settings.key == "voucher_backfill_done",
+            )
+        ).first()
+        assert marker is not None, "Done-marker missing after first backfill"
+        assert marker.value == "true"
+
+    # ── Step 3: post a NEW live invoice (legacy_jv_number = NULL after post) ──
+    live_r = client.post("/api/invoices", headers=h, json={
+        "customer_id": cust["id"],
+        "issue_date": "2026-05-10",
+        "gst_rate": 0,
+        "lines": [{"product_id": svc_prod["id"], "description": "live post-backfill", "qty": 1, "rate": 120}],
+    })
+    assert live_r.status_code == 201, live_r.text
+    live_txn_id = live_r.json()["transaction_id"]
+
+    # Capture live transaction state immediately after posting
+    with Session(_db_module.engine) as session:
+        live_snap = _get_txn(session, live_txn_id)
+        live_snap_jv = live_snap.jv_number
+        live_snap_legacy = live_snap.legacy_jv_number  # should be NULL
+        live_snap_type = live_snap.voucher_type          # should be "SL"
+
+    # ── Step 4: second backfill — must be a no-op ─────────────────────────────
+    with Session(_db_module.engine) as session:
+        # Must not raise (no IntegrityError from duplicate jv_number)
+        backfill_vouchers(session, tenant_id)
+        session.commit()
+
+    # ── Step 5: assert live invoice UNCHANGED ────────────────────────────────
+    with Session(_db_module.engine) as session:
+        live_after = _get_txn(session, live_txn_id)
+        assert live_after.jv_number == live_snap_jv, (
+            f"Live invoice jv_number was corrupted: was {live_snap_jv!r}, now {live_after.jv_number!r}"
+        )
+        assert live_after.legacy_jv_number is None, (
+            f"Live invoice should have legacy_jv_number=NULL, got {live_after.legacy_jv_number!r}"
+        )
+        assert live_after.voucher_type == live_snap_type, (
+            f"Live invoice voucher_type changed: was {live_snap_type!r}, now {live_after.voucher_type!r}"
+        )
+
+        # Assert backfilled rows are also unchanged
+        pre_after = _get_txn(session, pre_txn_id)
+        assert pre_after.jv_number == pre_snap_jv, (
+            f"Backfilled invoice jv_number changed on second run: was {pre_snap_jv!r}, now {pre_after.jv_number!r}"
+        )
+        assert pre_after.legacy_jv_number == pre_snap_legacy, (
+            f"Backfilled invoice legacy changed on second run"
+        )
+        assert pre_after.voucher_type == pre_snap_type, (
+            f"Backfilled invoice voucher_type changed on second run"
         )

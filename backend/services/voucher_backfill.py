@@ -3,7 +3,10 @@ and renumbers existing transactions per type.
 
 Algorithm
 ---------
-1. Build ``{txn_id: vtype}`` from every source-document back-reference within
+1. Check for a per-tenant done-marker (``Settings(key="voucher_backfill_done",
+   value="true")``).  If present → return immediately (no-op).
+
+2. Build ``{txn_id: vtype}`` from every source-document back-reference within
    the tenant.  The inference table (spec §Backfill):
 
    Source                          Inferred type
@@ -19,10 +22,11 @@ Algorithm
      txn's reversed_by_id)
    Anything unmatched              JV
 
-2. Skip rows where ``legacy_jv_number IS NOT NULL`` (already backfilled)
-   → idempotency on re-runs.
+3. Select rows where ``legacy_jv_number IS NULL`` for the actual first-run
+   processing (correct for the first run; the outer done-marker prevents
+   re-processing post-migration live transactions on any subsequent call).
 
-3. Two-pass renumber to stay within the UNIQUE(tenant_id, jv_number) constraint:
+4. Two-pass renumber to stay within the UNIQUE(tenant_id, jv_number) constraint:
    - Pass A: set ``jv_number = f"__MIG__{txn.id}"``,
              ``legacy_jv_number = old jv_number``,
              ``voucher_type = inferred``.  flush().
@@ -31,11 +35,23 @@ Algorithm
              (NOT ``next_number``, so numbering is deterministic and restartable).
              flush().
 
-4. Seed ``SequenceCounter`` for every type touched: set
+5. Seed ``SequenceCounter`` for every type touched: set
    ``next_value = max_assigned_seq + 1`` (create if missing; raise if already
    lower) so post-migration ``voucher_number()`` continues the series.
 
+6. Write the per-tenant done-marker so subsequent calls are no-ops.
+
 Caller is responsible for committing the session.
+
+Idempotency guarantee
+---------------------
+``backfill_vouchers`` is intrinsically idempotent via the per-tenant
+``Settings(key="voucher_backfill_done", value="true")`` row written at the
+end of the first successful run.  Any call after the first — whether triggered
+by a re-run migration, a scheduled job, or direct invocation — returns
+immediately without reading or touching any Transaction rows.  This prevents
+live post-migration transactions (which also have ``legacy_jv_number IS NULL``)
+from being wrongly renumbered on a second call.
 """
 from __future__ import annotations
 
@@ -51,17 +67,33 @@ from models import (
     Invoice,
     PaymentReceived,
     SequenceCounter,
+    Settings,
     Transaction,
 )
 from services.vouchers import classify_cash_account
+
+_DONE_MARKER_KEY = "voucher_backfill_done"
 
 
 def backfill_vouchers(session: Session, tenant_id: int) -> None:
     """Infer, backfill, and renumber voucher types for a single tenant.
 
-    Safe to call multiple times — rows with ``legacy_jv_number IS NOT NULL``
-    are considered already processed and are not touched.
+    Idempotent via a per-tenant done-marker stored in
+    ``Settings(key="voucher_backfill_done", value="true")``.  Once the marker
+    exists the function returns immediately, leaving all data untouched.  This
+    ensures that live transactions posted after the initial migration (which
+    also have ``legacy_jv_number IS NULL``) are never wrongly re-processed on
+    a second call.
     """
+    # ── 0. Done-marker guard ─────────────────────────────────────────────────
+    done_row: Optional[Settings] = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == tenant_id,
+            Settings.key == _DONE_MARKER_KEY,
+        )
+    ).first()
+    if done_row is not None and done_row.value == "true":
+        return  # already completed; no-op regardless of new NULL rows
     # ── 1. Build {txn_id → vtype} from source back-refs ──────────────────────
 
     type_map: dict[int, str] = {}
@@ -158,7 +190,16 @@ def backfill_vouchers(session: Session, tenant_id: int) -> None:
     ).all()
 
     if not to_process:
-        return  # fully idempotent — nothing left to do
+        # Nothing to backfill — write the done-marker anyway so future calls
+        # are guarded by the outer check (not by the volatile NULL-row scan).
+        if done_row is None:
+            session.add(Settings(
+                tenant_id=tenant_id,
+                key=_DONE_MARKER_KEY,
+                value="true",
+            ))
+        session.flush()
+        return
 
     # ── 4. Pass A: temp-rename → store legacy; set voucher_type ──────────────
     for txn in to_process:
@@ -208,5 +249,21 @@ def backfill_vouchers(session: Session, tenant_id: int) -> None:
             if row.next_value < desired_next:
                 row.next_value = desired_next
                 session.add(row)
+
+    session.flush()
+
+    # ── 7. Write per-tenant done-marker ──────────────────────────────────────
+    # Any subsequent call to backfill_vouchers() will see this row and return
+    # immediately, preventing live post-migration transactions from being
+    # wrongly re-processed.
+    if done_row is None:
+        session.add(Settings(
+            tenant_id=tenant_id,
+            key=_DONE_MARKER_KEY,
+            value="true",
+        ))
+    else:
+        done_row.value = "true"
+        session.add(done_row)
 
     session.flush()
