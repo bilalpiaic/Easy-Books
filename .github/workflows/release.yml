@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Easy-Books — Release build & publish (DRAFT)
+#
+# Triggered when a version tag (vX.Y.Z) is pushed. Builds the desktop installers
+# on macOS and Windows and PUBLISHES them to the matching GitHub Release, including
+# electron-builder's `latest.yml` / `latest-mac.yml` metadata — which is what the
+# in-app desktop auto-updater (electron-updater) reads.
+#
+# ── STATUS: DRAFT — not yet validated in CI. Before relying on it: ────────────
+#   1. The Release for the tag should exist (this workflow's electron-builder
+#      `--publish always` will create/attach to it). For source-only releases you
+#      can still `gh release create vX.Y.Z` manually.
+#   2. macOS signing + notarization: electron-builder.yml has `notarize: true` and
+#      `hardenedRuntime: true`, so the macOS job REQUIRES an Apple Developer ID
+#      certificate and these repo secrets:
+#        CSC_LINK (base64 .p12), CSC_KEY_PASSWORD, APPLE_ID,
+#        APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+#      Without them the macOS job fails at notarization. For UNSIGNED dev builds,
+#      set `notarize: false` (and drop `hardenedRuntime`) in electron-builder.yml,
+#      or guard those keys behind an env flag.
+#   3. Windows code signing is optional (unsigned nsis builds fine; users see a
+#      SmartScreen warning). Add CSC_LINK/CSC_KEY_PASSWORD secrets to sign.
+#   4. The v2.3.0 tag already exists and predates this workflow, so it will NOT
+#      run for v2.3.0 — only for tags pushed AFTER this file lands on `main`.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+permissions:
+  contents: write          # needed to publish/attach release assets
+
+jobs:
+  desktop:
+    name: Build & publish (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            script: ./desktop/build-all.sh --publish
+            shell: bash
+          - os: windows-latest
+            script: ./desktop/build-all.ps1 -Publish
+            shell: pwsh
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history + tags for versioning
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.18.1"
+
+      # PyInstaller (a backend dev dependency) + backend env, so
+      # prepare-resources' `uv run pyinstaller` works.
+      - name: Sync backend env
+        working-directory: backend
+        run: uv sync
+
+      - name: Build & publish desktop installer
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.script }}
+        env:
+          # electron-builder `--publish always` uses GH_TOKEN to attach assets +
+          # latest*.yml to the GitHub Release for this tag.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ── macOS signing / notarization (set these secrets to enable) ──
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
