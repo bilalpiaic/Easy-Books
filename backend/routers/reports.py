@@ -826,115 +826,122 @@ def get_balance_sheet(
 def cash_flow_statement(
     session: SessionDep, user: CurrentUserDep,
     start: str = Query(default=""), end: str = Query(default=""),
+    compare_start: Optional[str] = None, compare_end: Optional[str] = None,
 ):
     if not start:
         start = f"{DateType.today().year}-01-01"
     if not end:
         end = str(DateType.today())
 
-    accounts = session.exec(
-        select(Account).where(Account.tenant_id == user.tenant_id)
-    ).all()
-
-    def acct_net(acct: Account) -> Decimal:
-        entries = session.exec(
-            select(JournalEntry)
-            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-            .where(
-                JournalEntry.account_id == acct.id,
-                JournalEntry.tenant_id == user.tenant_id,
-                Transaction.date >= start,
-                Transaction.date <= end,
-            )
+    def _compute(s: str, e: str) -> dict:
+        accounts = session.exec(
+            select(Account).where(Account.tenant_id == user.tenant_id)
         ).all()
-        if acct.type in ("Asset", "Expense"):
-            return sum((D(e.debit) - D(e.credit) for e in entries), ZERO)
-        return sum((D(e.credit) - D(e.debit) for e in entries), ZERO)
 
-    net_income = sum((acct_net(a) for a in accounts if a.type == "Revenue"), ZERO) - sum(
-        (acct_net(a) for a in accounts if a.type == "Expense"), ZERO
-    )
-    ar_change = sum(
-        (acct_net(a) for a in accounts if "receivable" in a.name.lower() or a.code == "1100"),
-        ZERO,
-    )
-    ap_change = sum(
-        (acct_net(a) for a in accounts if "payable" in a.name.lower() or a.code == "2000"),
-        ZERO,
-    )
-    operating_cash = net_income - ar_change + ap_change
+        def acct_net(acct: Account) -> Decimal:
+            entries = session.exec(
+                select(JournalEntry)
+                .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+                .where(
+                    JournalEntry.account_id == acct.id,
+                    JournalEntry.tenant_id == user.tenant_id,
+                    Transaction.date >= s,
+                    Transaction.date <= e,
+                )
+            ).all()
+            if acct.type in ("Asset", "Expense"):
+                return sum((D(entry.debit) - D(entry.credit) for entry in entries), ZERO)
+            return sum((D(entry.credit) - D(entry.debit) for entry in entries), ZERO)
 
-    def is_fixed_asset(a: Account) -> bool:
-        n = a.name.lower()
-        return a.type == "Asset" and not any(
-            x in n for x in ["cash", "bank", "receivable", "advance", "gst", "inventory"]
+        net_income = sum((acct_net(a) for a in accounts if a.type == "Revenue"), ZERO) - sum(
+            (acct_net(a) for a in accounts if a.type == "Expense"), ZERO
         )
+        ar_change = sum(
+            (acct_net(a) for a in accounts if "receivable" in a.name.lower() or a.code == "1100"),
+            ZERO,
+        )
+        ap_change = sum(
+            (acct_net(a) for a in accounts if "payable" in a.name.lower() or a.code == "2000"),
+            ZERO,
+        )
+        operating_cash = net_income - ar_change + ap_change
 
-    investing_items = []
-    investing_cash = ZERO
-    for a in accounts:
-        if is_fixed_asset(a):
-            mv = acct_net(a)
-            if mv != 0:
-                investing_items.append({"name": a.name, "amount": -mv})
-                investing_cash -= mv
-
-    def is_financing(a: Account) -> bool:
-        if a.type == "Equity":
-            return True
-        if a.type == "Liability":
+        def is_fixed_asset(a: Account) -> bool:
             n = a.name.lower()
-            return not any(x in n for x in ["payable", "gst", "advance"])
-        return False
-
-    financing_items = []
-    financing_cash = ZERO
-    for a in accounts:
-        if is_financing(a):
-            mv = acct_net(a)
-            if mv != 0:
-                financing_items.append({"name": a.name, "amount": mv})
-                financing_cash += mv
-
-    cash_accounts = [a for a in accounts if "cash" in a.name.lower() or "bank" in a.name.lower()]
-
-    def balance_at(a: Account, as_of: str) -> Decimal:
-        entries = session.exec(
-            select(JournalEntry)
-            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-            .where(
-                JournalEntry.account_id == a.id,
-                JournalEntry.tenant_id == user.tenant_id,
-                Transaction.date <= as_of,
+            return a.type == "Asset" and not any(
+                x in n for x in ["cash", "bank", "receivable", "advance", "gst", "inventory"]
             )
-        ).all()
-        if a.type in ("Asset", "Expense"):
-            return sum((D(e.debit) - D(e.credit) for e in entries), ZERO)
-        return sum((D(e.credit) - D(e.debit) for e in entries), ZERO)
 
-    try:
-        start_dt = DateType.fromisoformat(start)
-        day_before = str(start_dt - timedelta(days=1))
-    except Exception:
-        day_before = start
+        investing_items = []
+        investing_cash = ZERO
+        for a in accounts:
+            if is_fixed_asset(a):
+                mv = acct_net(a)
+                if mv != 0:
+                    investing_items.append({"name": a.name, "amount": -mv})
+                    investing_cash -= mv
 
-    beginning_balance = sum((balance_at(a, day_before) for a in cash_accounts), ZERO)
-    ending_balance = sum((balance_at(a, end) for a in cash_accounts), ZERO)
-    net_cash_change = operating_cash + investing_cash + financing_cash
+        def is_financing(a: Account) -> bool:
+            if a.type == "Equity":
+                return True
+            if a.type == "Liability":
+                n = a.name.lower()
+                return not any(x in n for x in ["payable", "gst", "advance"])
+            return False
 
-    return {
-        "period": {"start": start, "end": end},
-        "net_income": net_income,
-        "operating_adjustments": {"ar_change": ar_change, "ap_change": ap_change},
-        "operating_cash": operating_cash,
-        "investing_items": investing_items,
-        "investing_cash": investing_cash,
-        "financing_items": financing_items,
-        "financing_cash": financing_cash,
-        "net_cash_change": net_cash_change,
-        "beginning_balance": beginning_balance,
-        "ending_balance": ending_balance,
-    }
+        financing_items = []
+        financing_cash = ZERO
+        for a in accounts:
+            if is_financing(a):
+                mv = acct_net(a)
+                if mv != 0:
+                    financing_items.append({"name": a.name, "amount": mv})
+                    financing_cash += mv
+
+        cash_accounts = [a for a in accounts if "cash" in a.name.lower() or "bank" in a.name.lower()]
+
+        def balance_at(a: Account, as_of: str) -> Decimal:
+            entries = session.exec(
+                select(JournalEntry)
+                .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+                .where(
+                    JournalEntry.account_id == a.id,
+                    JournalEntry.tenant_id == user.tenant_id,
+                    Transaction.date <= as_of,
+                )
+            ).all()
+            if a.type in ("Asset", "Expense"):
+                return sum((D(entry.debit) - D(entry.credit) for entry in entries), ZERO)
+            return sum((D(entry.credit) - D(entry.debit) for entry in entries), ZERO)
+
+        try:
+            start_dt = DateType.fromisoformat(s)
+            day_before = str(start_dt - timedelta(days=1))
+        except Exception:
+            day_before = s
+
+        beginning_balance = sum((balance_at(a, day_before) for a in cash_accounts), ZERO)
+        ending_balance = sum((balance_at(a, e) for a in cash_accounts), ZERO)
+        net_cash_change = operating_cash + investing_cash + financing_cash
+
+        return {
+            "period": {"start": s, "end": e},
+            "net_income": net_income,
+            "operating_adjustments": {"ar_change": ar_change, "ap_change": ap_change},
+            "operating_cash": operating_cash,
+            "investing_items": investing_items,
+            "investing_cash": investing_cash,
+            "financing_items": financing_items,
+            "financing_cash": financing_cash,
+            "net_cash_change": net_cash_change,
+            "beginning_balance": beginning_balance,
+            "ending_balance": ending_balance,
+        }
+
+    current = _compute(start, end)
+    if compare_start and compare_end:
+        return {"current": current, "comparison": _compute(compare_start, compare_end)}
+    return current
 
 
 # ── Tax summary ──────────────────────────────────────────────────────────────
