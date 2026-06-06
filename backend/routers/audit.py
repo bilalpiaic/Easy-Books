@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/audit-log", tags=["audit"])
 def get_audit_log(
     session: SessionDep, user: CurrentUserDep,
     entity_type: Optional[str] = None,
+    entity_id: Optional[int] = None,
     user_id: Optional[int] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
@@ -27,6 +28,8 @@ def get_audit_log(
     )
     if entity_type:
         q = q.where(AuditLog.entity_type.ilike(f"%{entity_type}%"))
+    if entity_id is not None:
+        q = q.where(AuditLog.entity_id == entity_id)
     if user_id:
         q = q.where(AuditLog.user_id == user_id)
     if date_from:
@@ -35,11 +38,15 @@ def get_audit_log(
         q = q.where(AuditLog.timestamp <= date_to + "T23:59:59")
     q = q.order_by(AuditLog.timestamp.desc())
 
-    total_q = (
-        select(func.count())
-        .select_from(AuditLog)
-        .where(AuditLog.tenant_id == user.tenant_id)
+    total_q = select(func.count()).select_from(AuditLog).where(
+        AuditLog.tenant_id == user.tenant_id
     )
+    if entity_type:
+        total_q = total_q.where(AuditLog.entity_type.ilike(f"%{entity_type}%"))
+    if entity_id is not None:
+        total_q = total_q.where(AuditLog.entity_id == entity_id)
+    if user_id:
+        total_q = total_q.where(AuditLog.user_id == user_id)
     total = session.exec(total_q).one()
     rows = session.exec(q.offset(skip).limit(limit)).all()
     return {
