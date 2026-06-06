@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, Suspense } from "react"
+import React, { useEffect, useState, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ChevronRight, ChevronDown, BookOpen, Printer, Download, Layers, List } from "lucide-react"
@@ -60,7 +60,7 @@ interface SubledgerResult {
 }
 
 /** Which control param a GL account maps to */
-type ControlType = "ar" | "ap" | "bank"
+type ControlType = "ar" | "ap"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -74,14 +74,14 @@ function defaultRange() {
  * Identify the control type for an account, if any.
  * AR  → code "1100" or name "Accounts Receivable"
  * AP  → code "2000" or name "Accounts Payable"
- * Bank → any code starting with "10" (matches backend logic at reports.py:703)
+ * Bank accounts (code starts with "10") are listed individually in the flat ledger
+ * and do not need expansion — they return null.
  */
 function getControlType(account: LedgerAccount | Account): ControlType | null {
   const code = account.code ?? ""
   const name = (account.name ?? "").toLowerCase()
   if (code === "1100" || name === "accounts receivable") return "ar"
   if (code === "2000" || name === "accounts payable") return "ap"
-  if (code.startsWith("10")) return "bank"
   return null
 }
 
@@ -115,21 +115,21 @@ function SubledgerRows({ control, start, end, fmt, onLoaded, cached }: ExpandedR
   if (loading) {
     return (
       <tr>
-        <td colSpan={5} className="ui-td pl-10 text-xs text-[#1a1814]/40 italic">Loading…</td>
+        <td colSpan={6} className="ui-td pl-10 text-xs text-[#1a1814]/40 italic">Loading…</td>
       </tr>
     )
   }
   if (error || !data) {
     return (
       <tr>
-        <td colSpan={5} className="ui-td pl-10 text-xs text-red-500">{error ?? "No data"}</td>
+        <td colSpan={6} className="ui-td pl-10 text-xs text-red-500">{error ?? "No data"}</td>
       </tr>
     )
   }
   if (data.items.length === 0) {
     return (
       <tr>
-        <td colSpan={5} className="ui-td pl-10 text-xs text-[#1a1814]/40 italic">No sub-entities found in this period.</td>
+        <td colSpan={6} className="ui-td pl-10 text-xs text-[#1a1814]/40 italic">No sub-entities found in this period.</td>
       </tr>
     )
   }
@@ -138,6 +138,7 @@ function SubledgerRows({ control, start, end, fmt, onLoaded, cached }: ExpandedR
     <>
       {/* Sub-entity header */}
       <tr className="bg-[#faf6ec]">
+        <th className="ui-th" />
         <th className="ui-th pl-10 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Name</th>
         <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Opening</th>
         <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Debit</th>
@@ -146,6 +147,7 @@ function SubledgerRows({ control, start, end, fmt, onLoaded, cached }: ExpandedR
       </tr>
       {data.items.map(item => (
         <tr key={item.id} className="bg-[#fdfcfa] hover:bg-[#faf8f4]">
+          <td className="ui-td" />
           <td className="ui-td pl-10">
             <Link
               href={item.link}
@@ -164,8 +166,9 @@ function SubledgerRows({ control, start, end, fmt, onLoaded, cached }: ExpandedR
       ))}
       {/* Sub-total row */}
       <tr className="bg-[#f6f3ee] font-semibold text-[#1a1814]">
+        <td className="ui-td" />
         <td className="ui-td pl-10 text-xs text-[#1a1814]/55 uppercase tracking-widest">
-          {data.items.length} sub-{control === "ar" ? "customer" : control === "ap" ? "vendor" : "account"}{data.items.length !== 1 ? "s" : ""}
+          {data.items.length} sub-{control === "ar" ? "customer" : "vendor"}{data.items.length !== 1 ? "s" : ""}
         </td>
         <td className="ui-td text-right font-mono text-sm" />
         <td className="ui-td text-right font-mono text-sm" />
@@ -226,9 +229,8 @@ function AllAccountsTable({ allLedger, start, end, fmt, subledgerCache, onSubled
                 : null
 
               return (
-                <>
+                <React.Fragment key={acc.code}>
                   <tr
-                    key={acc.code}
                     className={`hover:bg-[#faf8f4] ${ctrl ? "cursor-pointer" : ""}`}
                     onClick={ctrl ? () => toggle(ctrl) : undefined}
                   >
@@ -271,7 +273,7 @@ function AllAccountsTable({ allLedger, start, end, fmt, subledgerCache, onSubled
                       onLoaded={onSubledgerLoaded}
                     />
                   )}
-                </>
+                </React.Fragment>
               )
             })}
           </tbody>
@@ -384,7 +386,7 @@ function LedgerPageInner() {
             <p className="text-xs text-[#1a1814]/55">
               {view === "consolidated"
                 ? "Select an account to view its transaction history with running balance"
-                : "All accounts — expand AR / AP / Bank rows to see per-entity breakdowns"}
+                : "All accounts — expand AR / AP rows to see per-entity breakdowns"}
             </p>
           </div>
         </div>
@@ -666,7 +668,7 @@ function LedgerPageInner() {
           {!allLedgerLoading && allLedger.length > 0 && (
             <>
               <p className="text-xs text-[#1a1814]/50 mb-3 print:hidden">
-                Accounts with activity in the period. Click on <span className="font-semibold text-[#b8943f]">AR / AP / Bank</span> rows to expand per-entity breakdowns.
+                Accounts with activity in the period. Click on <span className="font-semibold text-[#b8943f]">AR / AP</span> rows to expand per-entity breakdowns.
               </p>
               <AllAccountsTable
                 allLedger={allLedger}
