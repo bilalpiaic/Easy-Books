@@ -129,8 +129,8 @@ export default function PnLPage() {
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-12">
         {comparison && (
           <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
-            <span>{start.slice(0, 4)}</span>
-            <span className="text-[#1a1814]/30">{cmpStart.slice(0, 4)}</span>
+            <span className="w-36 text-right">Current Period</span>
+            <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
           </div>
         )}
 
@@ -145,9 +145,9 @@ export default function PnLPage() {
               <div key={item.name} className="flex justify-between text-sm">
                 <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
                 <div className="flex gap-8">
-                  <span className="font-mono">{fmt(item.total_credit - item.total_debit)}</span>
+                  <span className="font-mono w-36 text-right">{fmt(item.total_credit - item.total_debit)}</span>
                   {comparison && (
-                    <span className="font-mono text-[#1a1814]/35">{fmt(cmpAmount(item.name, "Revenue"))}</span>
+                    <span className="font-mono w-36 text-right text-[#1a1814]/35">{fmt(cmpAmount(item.name, "Revenue"))}</span>
                   )}
                 </div>
               </div>
@@ -156,9 +156,9 @@ export default function PnLPage() {
           <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
             <span className="text-[#1a1814]">Total Revenue</span>
             <div className="flex gap-8">
-              <span className="font-mono underline decoration-double underline-offset-4">{fmt(totalRevenue)}</span>
+              <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(totalRevenue)}</span>
               {comparison && (
-                <span className="font-mono underline decoration-double underline-offset-4 text-[#1a1814]/35">{fmt(cmpTotalRevenue)}</span>
+                <span className="font-mono w-36 text-right underline decoration-double underline-offset-4 text-[#1a1814]/35">{fmt(cmpTotalRevenue)}</span>
               )}
             </div>
           </div>
@@ -175,9 +175,9 @@ export default function PnLPage() {
               <div key={item.name} className="flex justify-between text-sm">
                 <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
                 <div className="flex gap-8">
-                  <span className="font-mono">({fmt(item.total_debit - item.total_credit)})</span>
+                  <span className="font-mono w-36 text-right">({fmt(item.total_debit - item.total_credit)})</span>
                   {comparison && (
-                    <span className="font-mono text-[#1a1814]/35">({fmt(cmpAmount(item.name, "Expense"))})</span>
+                    <span className="font-mono w-36 text-right text-[#1a1814]/35">({fmt(cmpAmount(item.name, "Expense"))})</span>
                   )}
                 </div>
               </div>
@@ -186,9 +186,9 @@ export default function PnLPage() {
           <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold text-red-600">
             <span>Total Operating Expenses</span>
             <div className="flex gap-8">
-              <span className="font-mono">({fmt(totalExpense)})</span>
+              <span className="font-mono w-36 text-right">({fmt(totalExpense)})</span>
               {comparison && (
-                <span className="font-mono text-red-300">({fmt(cmpTotalExpense)})</span>
+                <span className="font-mono w-36 text-right text-red-300">({fmt(cmpTotalExpense)})</span>
               )}
             </div>
           </div>
@@ -202,11 +202,11 @@ export default function PnLPage() {
             </p>
           </div>
           <div className="flex gap-8 items-end">
-            <div className={`text-3xl font-serif ${netIncome >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-3xl font-serif w-36 text-right ${netIncome >= 0 ? "text-green-600" : "text-red-600"}`}>
               {netIncome < 0 && "("}{fmt(Math.abs(netIncome))}{netIncome < 0 && ")"}
             </div>
             {comparison && (
-              <div className={`text-xl font-serif ${cmpNetIncome >= 0 ? "text-green-300" : "text-red-300"}`}>
+              <div className={`text-xl font-serif w-36 text-right ${cmpNetIncome >= 0 ? "text-green-300" : "text-red-300"}`}>
                 {cmpNetIncome < 0 && "("}{fmt(Math.abs(cmpNetIncome))}{cmpNetIncome < 0 && ")"}
               </div>
             )}
