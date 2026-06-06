@@ -1,7 +1,8 @@
 """Opening + Purchased - Sold = Closing, from StockMovement."""
+import io
 from sqlmodel import Session
 import db as _db_module
-from models import StockMovement, Product, Invoice, InvoiceLine
+from models import StockMovement, Product, Invoice, InvoiceLine, ProductCategory
 from datetime import datetime
 
 
@@ -120,3 +121,140 @@ def test_empty_period_and_no_movement(client, admin_headers):
     rq = next(r for r in data["items"] if r["product_id"] == q["id"])
     assert rq["opening_qty"] == 0 and rq["purchased_qty"] == 0
     assert rq["sold_qty"] == 0 and rq["closing_qty"] == 0 and rq["gp"] == 0
+
+
+# ── Export tests ──────────────────────────────────────────────────────────────
+
+def _seed_export_product(client, admin_headers):
+    """Create a stock product with a RECEIPT and sell movement + invoice line.
+    Returns (headers, product_id, tenant_id)."""
+    h = admin_headers
+    p = client.post("/api/products", headers=h,
+                    json={"name": "ExportWidget", "product_type": "stock",
+                          "code": "EW-001"}).json()
+    with Session(_db_module.engine) as s:
+        tid = s.get(Product, p["id"]).tenant_id
+    _set_avg_cost(p["id"], 10)
+    _mv(tid, p["id"], "RECEIPT", 50, "2026-01-05T10:00", unit_cost=10)
+    _mv(tid, p["id"], "SHIPMENT", 10, "2026-01-20T10:00")
+    _add_invoice_line(tid, p["id"], qty=10, rate=25, issue_date="2026-01-20",
+                      number="EXP-INV-1")
+    return h, p["id"], tid
+
+
+def test_product_performance_export_csv(client, admin_headers):
+    """GET /export?format=csv returns 200, attachment header, non-empty body
+    with the column headers and the seeded product name."""
+    h, pid, _ = _seed_export_product(client, admin_headers)
+    r = client.get(
+        "/api/reports/product-performance/export?format=csv&start=2026-01-01&end=2026-01-31",
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    cd = r.headers.get("content-disposition", "")
+    assert "attachment" in cd
+    body = r.text
+    assert len(body) > 0
+    # column headers present
+    assert "Opening Qty" in body
+    assert "Closing Qty" in body
+    assert "GP" in body
+    # seeded product name present
+    assert "ExportWidget" in body
+
+
+def test_product_performance_export_xlsx(client, admin_headers):
+    """GET /export?format=xlsx returns 200, attachment header, non-empty body."""
+    h, pid, _ = _seed_export_product(client, admin_headers)
+    r = client.get(
+        "/api/reports/product-performance/export?format=xlsx&start=2026-01-01&end=2026-01-31",
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    cd = r.headers.get("content-disposition", "")
+    assert "attachment" in cd
+    assert len(r.content) > 0
+    # XLSX magic bytes (PK zip header)
+    assert r.content[:2] == b"PK"
+
+
+def test_product_performance_export_formula_safe(client, admin_headers):
+    """A product whose name starts with '=' is neutralised in CSV output."""
+    h = admin_headers
+    p = client.post("/api/products", headers=h,
+                    json={"name": "=cmd()", "product_type": "stock"}).json()
+    with Session(_db_module.engine) as s:
+        tid = s.get(Product, p["id"]).tenant_id
+    _mv(tid, p["id"], "RECEIPT", 5, "2026-01-05T10:00")
+    r = client.get(
+        "/api/reports/product-performance/export?format=csv&start=2026-01-01&end=2026-01-31",
+        headers=h,
+    )
+    assert r.status_code == 200
+    # The neutralised form (prefixed with single-quote) should be present in
+    # the CSV body, meaning the raw formula trigger was escaped.
+    assert "'=cmd()" in r.text
+    # No CSV row should begin a field with the bare formula trigger =cmd()\n or =cmd(),
+    # i.e. it must not appear as the very start of a field (after newline or comma).
+    import re
+    assert not re.search(r'(?:^|,)=cmd\(\)', r.text, re.MULTILINE)
+
+
+# ── Category grouping tests ───────────────────────────────────────────────────
+
+def _make_category(tenant_id, name, parent_id=None):
+    with Session(_db_module.engine) as s:
+        cat = ProductCategory(tenant_id=tenant_id, name=name, parent_id=parent_id)
+        s.add(cat)
+        s.commit()
+        s.refresh(cat)
+        return cat.id
+
+
+def test_product_performance_group_by_category(client, admin_headers):
+    """group_by=category returns subtotal rows that reconcile to flat totals."""
+    h = admin_headers
+    # create two products in different categories
+    p1 = client.post("/api/products", headers=h,
+                     json={"name": "ProdA", "product_type": "stock"}).json()
+    p2 = client.post("/api/products", headers=h,
+                     json={"name": "ProdB", "product_type": "stock"}).json()
+    with Session(_db_module.engine) as s:
+        prod1 = s.get(Product, p1["id"])
+        prod2 = s.get(Product, p2["id"])
+        tid = prod1.tenant_id
+        cat_id = _make_category(tid, "Electronics")
+        # assign categories
+        prod1.category_id = cat_id
+        prod2.category_id = cat_id
+        s.add(prod1); s.add(prod2); s.commit()
+    _set_avg_cost(p1["id"], 5)
+    _set_avg_cost(p2["id"], 10)
+    _mv(tid, p1["id"], "RECEIPT", 20, "2026-01-05T10:00", unit_cost=5)
+    _mv(tid, p2["id"], "RECEIPT", 10, "2026-01-05T10:00", unit_cost=10)
+    _mv(tid, p1["id"], "SHIPMENT", 5, "2026-01-20T10:00")
+    _mv(tid, p2["id"], "SHIPMENT", 3, "2026-01-20T10:00")
+    _add_invoice_line(tid, p1["id"], qty=5, rate=15, issue_date="2026-01-20", number="GRP-INV-1")
+    _add_invoice_line(tid, p2["id"], qty=3, rate=30, issue_date="2026-01-20", number="GRP-INV-2")
+
+    # flat totals
+    flat = client.get(
+        "/api/reports/product-performance?start=2026-01-01&end=2026-01-31",
+        headers=h,
+    ).json()
+    flat_rows = [r for r in flat["items"] if r["product_id"] in (p1["id"], p2["id"])]
+    flat_total_gp = sum(r["gp"] for r in flat_rows)
+    flat_total_closing = sum(r["closing_qty"] for r in flat_rows)
+
+    # grouped response
+    grp = client.get(
+        "/api/reports/product-performance?start=2026-01-01&end=2026-01-31&group_by=category",
+        headers=h,
+    ).json()
+    assert "groups" in grp, "grouped response must have 'groups' key"
+    # find the Electronics group
+    elec = next((g for g in grp["groups"] if g["name"] == "Electronics"), None)
+    assert elec is not None, "Electronics group not found"
+    # subtotals reconcile
+    assert abs(elec["total_gp"] - flat_total_gp) < 0.01
+    assert abs(elec["total_closing_qty"] - flat_total_closing) < 0.01

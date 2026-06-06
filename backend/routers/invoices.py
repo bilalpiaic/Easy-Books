@@ -398,6 +398,21 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     from routers._edit_guards import assert_doc_editable
     assert_doc_editable(session, tenant_id=user.tenant_id, doc=inv, kind="invoice")
 
+    # Snapshot prior header + totals for audit diff (before any mutations).
+    # Normalize monetary values via money() so before/after use the same format.
+    _snap_inv = {
+        "customer_name": inv.customer_name,
+        "issue_date": str(inv.issue_date) if inv.issue_date else None,
+        "due_date": str(inv.due_date) if inv.due_date else None,
+        "subtotal": str(money(inv.subtotal)),
+        "gst_amount": str(money(inv.gst_amount)),
+        "total": str(money(inv.total)),
+        "currency": inv.currency,
+        "line_count": len(session.exec(
+            select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)
+        ).all()),
+    }
+
     # Resolve customer name and default payment term
     cname = body.customer_name
     term_id = body.payment_term_id
@@ -641,9 +656,25 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         inv.cogs_transaction_id = cogs_txn.id
         session.add(inv)
 
+    # Compute after-snapshot for diff (session.flush() already updated inv fields).
+    _snap_inv_after = {
+        "customer_name": inv.customer_name,
+        "issue_date": str(inv.issue_date) if inv.issue_date else None,
+        "due_date": str(inv.due_date) if inv.due_date else None,
+        "subtotal": str(subtotal),
+        "gst_amount": str(gst_amount),
+        "total": str(total),
+        "currency": doc_currency,
+        "line_count": len(body.lines),
+    }
+    _changes = {
+        field: {"before": _snap_inv[field], "after": _snap_inv_after[field]}
+        for field in _snap_inv
+        if str(_snap_inv[field]) != str(_snap_inv_after[field])
+    }
     log_audit(
         session, user, "UPDATE", "invoice", inv.id,
-        {"number": inv.number, "total": str(total)},
+        {"number": inv.number, "total": str(total), "changes": _changes},
     )
     session.commit()
     session.refresh(inv)

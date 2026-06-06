@@ -11,6 +11,7 @@ from sqlmodel import select
 
 from models import ReportDefinition
 from routers.common import CurrentUserDep, SessionDep
+from services.export_utils import safe_cell as _safe_cell
 from services.report_engine import MAX_EXPORT_ROWS, ReportConfig, ReportError, run_report
 from services.report_sources import REGISTRY
 
@@ -147,16 +148,6 @@ def delete_report(rid: int, session: SessionDep, user: CurrentUserDep):
 # ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
-
-def _safe_cell(v):
-    """Neutralise CSV/spreadsheet formula injection: a value that opens with a
-    formula trigger is executed when the file is opened in Excel/Sheets, so we
-    prefix it with a single quote to force literal text."""
-    s = "" if v is None else str(v)
-    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
-        return "'" + s
-    return s
-
 
 @router.post("/export")
 def export_report(body: RunBody, session: SessionDep, user: CurrentUserDep,

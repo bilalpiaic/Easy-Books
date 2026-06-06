@@ -58,7 +58,7 @@ function emptyLine(): LineItem {
 
 export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false, customerId = null, priceKind = 'sale' }: Props) {
   const fmt = useFmt()
-  const [hints, setHints] = useState<Record<number, { rate: number; date: string; scope: string } | null>>({})
+  const [hints, setHints] = useState<Record<number, { rate: number; date: string; scope: string; party_name: string | null } | null>>({})
   const update = (idx: number, patch: Partial<LineItem>) => {
     const updated = lines.map((l, i) => {
       if (i !== idx) return l
@@ -101,9 +101,9 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
     // Fetch last-price hint for this product + party
     const qs = new URLSearchParams({ kind: priceKind })
     if (customerId) qs.set('customer_id', String(customerId))
-    apiFetch<{ rate: number | null; date: string | null; scope: string | null }>(
+    apiFetch<{ rate: number | null; date: string | null; scope: string | null; party_name: string | null }>(
       `/api/products/${prod.id}/last-price?${qs}`
-    ).then(r => setHints(h => ({ ...h, [idx]: r.rate != null ? { rate: r.rate, date: r.date!, scope: r.scope! } : null })))
+    ).then(r => setHints(h => ({ ...h, [idx]: r.rate != null ? { rate: r.rate, date: r.date!, scope: r.scope!, party_name: r.party_name ?? null } : null })))
      .catch(() => {})
   }
 
@@ -228,9 +228,9 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                       <button type="button"
                         onClick={() => update(idx, { rate: hints[idx]!.rate, amount: Math.round(line.qty * hints[idx]!.rate * 100) / 100 })}
                         className="block mt-1 text-[10px] text-[#b8943f] hover:underline"
-                        title={`Last ${priceKind === 'purchase' ? 'bought' : 'sold'} (${hints[idx]!.scope}) on ${hints[idx]!.date}`}
+                        title={`Last ${priceKind === 'purchase' ? 'bought' : 'sold'} (${hints[idx]!.scope})`}
                       >
-                        Last: {fmt(hints[idx]!.rate)} — Use
+                        Last: {fmt(hints[idx]!.rate)}{hints[idx]!.party_name ? ` — ${hints[idx]!.party_name}` : ""} · {hints[idx]!.date} — Use
                       </button>
                     )}
                   </>

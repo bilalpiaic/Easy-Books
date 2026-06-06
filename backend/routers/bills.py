@@ -339,6 +339,21 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     from routers._edit_guards import assert_doc_editable
     assert_doc_editable(session, tenant_id=user.tenant_id, doc=bill, kind="bill")
 
+    # Snapshot prior header + totals for audit diff (before any mutations).
+    # Normalize monetary values via money() so before/after use the same format.
+    _snap_bill = {
+        "vendor_name": bill.vendor_name,
+        "bill_date": str(bill.bill_date) if bill.bill_date else None,
+        "due_date": str(bill.due_date) if bill.due_date else None,
+        "subtotal": str(money(bill.subtotal)),
+        "gst_amount": str(money(bill.gst_amount)),
+        "total": str(money(bill.total)),
+        "currency": bill.currency,
+        "line_count": len(session.exec(
+            select(BillLine).where(BillLine.bill_id == bill.id)
+        ).all()),
+    }
+
     vname = body.vendor_name
     term_id = body.payment_term_id
     if body.vendor_id:
@@ -501,7 +516,23 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     bill.transaction_id = txn.id
     session.add(bill)
 
-    log_audit(session, user, "UPDATE", "bill", bill.id, {"number": bill.number, "total": str(total)})
+    # Compute after-snapshot for diff (bill fields updated above via session.add/flush).
+    _snap_bill_after = {
+        "vendor_name": bill.vendor_name,
+        "bill_date": str(bill.bill_date) if bill.bill_date else None,
+        "due_date": str(bill.due_date) if bill.due_date else None,
+        "subtotal": str(subtotal),
+        "gst_amount": str(gst_amount),
+        "total": str(total),
+        "currency": doc_currency,
+        "line_count": len(body.lines),
+    }
+    _changes = {
+        field: {"before": _snap_bill[field], "after": _snap_bill_after[field]}
+        for field in _snap_bill
+        if str(_snap_bill[field]) != str(_snap_bill_after[field])
+    }
+    log_audit(session, user, "UPDATE", "bill", bill.id, {"number": bill.number, "total": str(total), "changes": _changes})
     session.commit()
     session.refresh(bill)
 

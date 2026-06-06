@@ -44,6 +44,8 @@ interface DetailTotals {
   cogs: number
   gp: number
   gp_pct: number
+  transaction_count: number
+  avg_invoice_value: number
 }
 
 interface CustomerDetail {
@@ -195,7 +197,7 @@ export default function CustomerPerformancePage() {
       {selectedCustomerId !== "" && detail && (
         <div className="space-y-6 mb-8">
           {/* KPI cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
               <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Revenue</p>
               <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(detail.totals.revenue)}</p>
@@ -215,6 +217,14 @@ export default function CustomerPerformancePage() {
               <p className={`text-2xl font-mono font-semibold ${detail.totals.gp_pct >= 0 ? "text-green-700" : "text-red-600"}`}>
                 {detail.totals.gp_pct.toFixed(1)}%
               </p>
+            </div>
+            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
+              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1"># Invoices</p>
+              <p className="text-2xl font-mono font-semibold text-[#1a1814]">{detail.totals.transaction_count}</p>
+            </div>
+            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
+              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Avg Invoice Value</p>
+              <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(detail.totals.avg_invoice_value)}</p>
             </div>
           </div>
 

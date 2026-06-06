@@ -2,10 +2,25 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, Receipt, Pencil, ChevronRight } from "lucide-react"
+import { Printer, RotateCcw, Receipt, Pencil, ChevronRight, History } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+
+interface AuditEntry {
+  id: number
+  action: string
+  entity_type: string
+  entity_id: number
+  detail: string | null
+  timestamp: string
+  user_name: string
+  user_id: number
+}
+
+interface ChangeMap {
+  [field: string]: { before: string | number | null; after: string | number | null }
+}
 
 interface BillLine {
   id: number
@@ -54,14 +69,20 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy]   = useState(false)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
+  const [history, setHistory] = useState<AuditEntry[]>([])
 
   const load = () =>
     apiFetch<Bill>(`/api/bills/${id}`)
       .then(setBill)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
 
+  const loadHistory = () =>
+    apiFetch<{ items: AuditEntry[] }>(`/api/audit-log?entity_type=bill&entity_id=${id}&limit=50`)
+      .then(data => setHistory(data.items.filter(r => r.action === "UPDATE")))
+      .catch(() => {/* non-critical; silently ignore */})
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [id])
+  useEffect(() => { load(); loadHistory() }, [id])
 
   const reverse = async () => {
     if (!bill?.transaction_id) {
@@ -219,6 +240,58 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <AttachmentPreviewPane att={selectedAtt} />
         </div>
       </section>
+
+      {/* Change History */}
+      {history.length > 0 && (
+        <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden print:hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#faf6ec] border-b border-[#ede9e2]">
+            <History className="w-4 h-4 text-[#b8943f]" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Change History</span>
+          </div>
+          <div className="divide-y divide-[#ede9e2]">
+            {history.map(entry => {
+              let changes: ChangeMap = {}
+              try {
+                const detail = JSON.parse(entry.detail ?? "{}")
+                changes = (detail.changes ?? {}) as ChangeMap
+              } catch {
+                // ignore malformed detail
+              }
+              const changedFields = Object.entries(changes)
+              return (
+                <div key={entry.id} className="px-4 py-3 text-sm">
+                  <p className="text-[#1a1814]/65 text-xs mb-1">
+                    Edited by <span className="font-semibold text-[#1a1814]">{entry.user_name}</span>
+                    {" "}on {new Date(entry.timestamp).toLocaleString()}
+                  </p>
+                  {changedFields.length > 0 ? (
+                    <table className="ui-table text-xs mt-1">
+                      <thead>
+                        <tr>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 w-32">Field</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Before</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">After</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#ede9e2]/60">
+                        {changedFields.map(([field, val]) => (
+                          <tr key={field}>
+                            <td className="ui-td font-medium text-[#1a1814]/70 capitalize">{field.replace(/_/g, " ")}</td>
+                            <td className="ui-td font-mono text-red-700/80">{String(val.before ?? "—")}</td>
+                            <td className="ui-td font-mono text-emerald-700">{String(val.after ?? "—")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-xs text-[#1a1814]/40 italic">No header fields changed.</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

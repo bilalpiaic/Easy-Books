@@ -9,13 +9,14 @@ from datetime import date as DateType, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
 from models import (
     Account, Bill, Budget, Customer, Invoice, JournalEntry, PaymentAllocation,
     Product, Transaction,
 )
+from services.export_utils import stream_csv, stream_xlsx
 from services.money import D, ZERO, money
 
 from .common import CurrentUserDep, SessionDep
@@ -1483,6 +1484,8 @@ def customer_performance(
                 "revenue": money(entry["revenue"]),
                 "units": float(entry["units"]),
             })
+        transaction_count = len(cust_invoices)
+        avg_invoice_value = money(tot_rev / transaction_count) if transaction_count else 0.0
         detail = {
             "monthly": monthly_list,
             "products": prod_rows,
@@ -1491,46 +1494,56 @@ def customer_performance(
                 "cogs": money(tot_cogs),
                 "gp": money(tot_rev - tot_cogs),
                 "gp_pct": float(round((tot_rev - tot_cogs) / tot_rev * 100, 1)) if tot_rev else 0.0,
+                "transaction_count": transaction_count,
+                "avg_invoice_value": avg_invoice_value,
             },
         }
     return {"items": out, "detail": detail}
 
 
-@router.get("/product-performance")
-def product_performance(
-    session: SessionDep, user: CurrentUserDep,
-    start: Optional[str] = None, end: Optional[str] = None,
-):
-    """Per-product period movement: opening/purchased/sold(net)/closing with
-    values at avg_cost, plus GP (sales revenue - COGS) for the window."""
+# ── Product Performance shared helpers ────────────────────────────────────────
+# Direction classification for product-performance and its export endpoint.
+# Keeping these at module level avoids redefining them inside every request.
+_PP_ADD_DIRS = ("RECEIPT", "COMPLETION")
+_PP_OUT_DIRS = ("SHIPMENT", "DELIVERY", "ISSUE")
+_PP_RETURN_DIRS = ("ADJUSTMENT",)
+
+# Export column headers — single source of truth used by both the JSON and
+# export endpoints so they never drift.
+_PP_EXPORT_HEADERS = [
+    "Product", "Code",
+    "Opening Qty", "Opening Value",
+    "Purchased Qty", "Sold Qty",
+    "Closing Qty", "Closing Value",
+    "Revenue", "GP",
+]
+
+
+def _pp_signed_effect(direction, qty):
+    """Return the signed qty effect of a stock movement direction."""
+    if direction in _PP_ADD_DIRS:
+        return qty
+    if direction in _PP_OUT_DIRS or direction in _PP_RETURN_DIRS:
+        return -qty
+    return ZERO
+
+
+def _pp_compute_rows(session, tenant_id: int, start: Optional[str], end: Optional[str]) -> list[dict]:
+    """Shared per-product computation used by both the JSON and export endpoints.
+
+    Returns a list of row dicts (sorted by closing_value desc).
+    """
     from models import StockMovement, InvoiceLine
 
-    # Stock-effect of each movement direction. ADD increases on-hand; OUT
-    # decreases it via a sale/issue; RETURN (ADJUSTMENT, produced only by
-    # return_to_vendor) decreases it as a purchase return and so nets against
-    # purchases. Classifying every direction with the correct sign keeps the
-    # identity opening + purchased - sold == closing reconciled with
-    # Product.stock_qty even when vendor returns exist.
-    ADD_DIRS = ("RECEIPT", "COMPLETION")
-    OUT_DIRS = ("SHIPMENT", "DELIVERY", "ISSUE")
-    RETURN_DIRS = ("ADJUSTMENT",)
-
-    def signed_effect(direction, qty):
-        if direction in ADD_DIRS:
-            return qty
-        if direction in OUT_DIRS or direction in RETURN_DIRS:
-            return -qty
-        return ZERO
-
     prods = session.exec(
-        select(Product).where(Product.tenant_id == user.tenant_id,
+        select(Product).where(Product.tenant_id == tenant_id,
                               Product.product_type == "stock")
     ).all()
     out = []
     for p in prods:
         mv = session.exec(
             select(StockMovement).where(
-                StockMovement.tenant_id == user.tenant_id,
+                StockMovement.tenant_id == tenant_id,
                 StockMovement.product_id == p.id,
             )
         ).all()
@@ -1539,20 +1552,20 @@ def product_performance(
             d = m.occurred_at.date().isoformat()
             qty = D(m.qty)
             if start and d < start:
-                opening += signed_effect(m.direction, qty)
+                opening += _pp_signed_effect(m.direction, qty)
             elif (not start or d >= start) and (not end or d <= end):
-                if m.direction in ADD_DIRS:
+                if m.direction in _PP_ADD_DIRS:
                     purchased += qty
-                elif m.direction in RETURN_DIRS:
+                elif m.direction in _PP_RETURN_DIRS:
                     purchased -= qty          # purchase return → net purchases
-                elif m.direction in OUT_DIRS:
+                elif m.direction in _PP_OUT_DIRS:
                     sold += qty
         avg = D(p.avg_cost)
         closing = opening + purchased - sold
         # sales revenue for the product in window
         rq = (select(func.coalesce(func.sum(InvoiceLine.amount), 0))
               .join(Invoice, Invoice.id == InvoiceLine.invoice_id)
-              .where(Invoice.tenant_id == user.tenant_id,
+              .where(Invoice.tenant_id == tenant_id,
                      InvoiceLine.product_id == p.id))
         if start:
             rq = rq.where(Invoice.issue_date >= start)
@@ -1562,6 +1575,7 @@ def product_performance(
         cogs = sold * avg
         out.append({
             "product_id": p.id, "name": p.name, "code": p.code,
+            "category_id": p.category_id,
             "opening_qty": float(opening), "opening_value": money(opening * avg),
             "purchased_qty": float(purchased),
             "sold_qty": float(sold),
@@ -1569,4 +1583,117 @@ def product_performance(
             "gp": money(revenue - cogs), "revenue": money(revenue),
         })
     out.sort(key=lambda r: r["closing_value"], reverse=True)
-    return {"items": out}
+    return out
+
+
+def _cat_label(cats: dict, cat_id) -> str:
+    """Resolve a category_id to a 'Parent › Child' (or 'Parent') label.
+
+    Shared by customer_performance, product-coa and product-performance
+    category grouping.  Returns 'Uncategorized' when no match.
+    """
+    c = cats.get(cat_id)
+    if not c:
+        return "Uncategorized"
+    if c.parent_id is None:
+        return c.name
+    par = cats.get(c.parent_id)
+    return f"{par.name} › {c.name}" if par else c.name
+
+
+@router.get("/product-performance")
+def product_performance(
+    session: SessionDep, user: CurrentUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+    group_by: Optional[str] = None,
+):
+    """Per-product period movement: opening/purchased/sold(net)/closing with
+    values at avg_cost, plus GP (sales revenue - COGS) for the window.
+
+    Pass ``group_by=category`` to receive rows grouped by product category
+    with per-category subtotals.  The flat list remains the default.
+    """
+    rows = _pp_compute_rows(session, user.tenant_id, start, end)
+
+    if group_by == "category":
+        from models import ProductCategory
+        cats = {c.id: c for c in session.exec(
+            select(ProductCategory).where(ProductCategory.tenant_id == user.tenant_id)
+        ).all()}
+
+        # Accumulate with Decimal arithmetic then convert to float for JSON
+        _acc: dict = {}
+        for row in rows:
+            label = _cat_label(cats, row["category_id"])
+            if label not in _acc:
+                _acc[label] = {
+                    "total_closing_qty": ZERO,
+                    "total_closing_value": ZERO,
+                    "total_gp": ZERO,
+                    "total_revenue": ZERO,
+                    "items": [],
+                }
+            _acc[label]["total_closing_qty"] += D(str(row["closing_qty"]))
+            _acc[label]["total_closing_value"] += D(str(row["closing_value"]))
+            _acc[label]["total_gp"] += D(str(row["gp"]))
+            _acc[label]["total_revenue"] += D(str(row["revenue"]))
+            # strip internal category_id from the item rows
+            _acc[label]["items"].append({k: v for k, v in row.items() if k != "category_id"})
+
+        group_list = []
+        for label, g in sorted(_acc.items(), key=lambda kv: kv[1]["total_closing_value"], reverse=True):
+            group_list.append({
+                "name": label,
+                "total_closing_qty": float(g["total_closing_qty"]),
+                "total_closing_value": float(g["total_closing_value"]),
+                "total_gp": float(g["total_gp"]),
+                "total_revenue": float(g["total_revenue"]),
+                "items": g["items"],
+            })
+        return {"groups": group_list}
+
+    # flat (default) — strip internal category_id
+    flat = [{k: v for k, v in r.items() if k != "category_id"} for r in rows]
+    return {"items": flat}
+
+
+# ── Product Performance Export ────────────────────────────────────────────────
+
+@router.get("/product-performance/export")
+def product_performance_export(
+    session: SessionDep, user: CurrentUserDep,
+    format: str = Query("csv"),
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    """Stream a CSV or XLSX download of the product-performance report.
+
+    Uses the same per-product row computation as the JSON endpoint (DRY via
+    ``_pp_compute_rows``).  Cell values are formula-injection-safe via
+    ``services.export_utils.safe_cell``.
+    """
+    if format not in ("csv", "xlsx"):
+        raise HTTPException(400, f"unknown format {format!r} — use csv or xlsx")
+
+    rows = _pp_compute_rows(session, user.tenant_id, start, end)
+
+    # Map internal row keys → export column order
+    def _to_export(r: dict) -> dict:
+        return {
+            "Product": r["name"],
+            "Code": r["code"] or "",
+            "Opening Qty": r["opening_qty"],
+            "Opening Value": r["opening_value"],
+            "Purchased Qty": r["purchased_qty"],
+            "Sold Qty": r["sold_qty"],
+            "Closing Qty": r["closing_qty"],
+            "Closing Value": r["closing_value"],
+            "Revenue": r["revenue"],
+            "GP": r["gp"],
+        }
+
+    export_rows = [_to_export(r) for r in rows]
+    fname_base = f"product-performance-{start or 'all'}-{end or 'all'}"
+
+    if format == "csv":
+        return stream_csv(export_rows, _PP_EXPORT_HEADERS, f"{fname_base}.csv")
+    return stream_xlsx(export_rows, _PP_EXPORT_HEADERS, f"{fname_base}.xlsx")
