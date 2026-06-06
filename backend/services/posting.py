@@ -31,6 +31,7 @@ from sqlmodel import Session, select
 
 from models import AccountingPeriod, Account, AuditLog, JournalEntry, Transaction, User
 from services.money import D, ZERO
+from services.vouchers import voucher_number
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,7 @@ def post_transaction(
     notes: Optional[str] = None,
     audit_detail: Optional[dict] = None,
     audit_entity_type: str = "transaction",
+    voucher_type: str = "JV",
 ) -> Transaction:
     """
     Create a Transaction header plus its journal entries, atomically with the caller's session.
@@ -136,6 +138,7 @@ def post_transaction(
     txn = Transaction(
         tenant_id=user.tenant_id,
         jv_number="__TMP__",
+        voucher_type=voucher_type,
         date=date,
         description=description,
         reference=reference,
@@ -145,7 +148,7 @@ def post_transaction(
     )
     session.add(txn)
     session.flush()
-    txn.jv_number = f"JV-{txn.id:05d}"
+    txn.jv_number = voucher_number(session, user.tenant_id, voucher_type)
     session.add(txn)
 
     for e in norm:

@@ -155,6 +155,8 @@ class Transaction(TransactionBase, table=True):
     __table_args__ = (UniqueConstraint("tenant_id", "jv_number", name="unique_jv_number_per_tenant"),)
     id: Optional[int] = Field(default=None, primary_key=True)
     jv_number: str = Field(index=True)
+    voucher_type: str = Field(default="JV", index=True)
+    legacy_jv_number: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_reversed: bool = Field(default=False)
     reversed_by_id: Optional[int] = Field(default=None)
