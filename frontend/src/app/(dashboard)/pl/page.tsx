@@ -103,7 +103,7 @@ export default function PnLPage() {
         </button>
       </div>
 
-      <div className="mb-4 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3">
+      <div className="mb-4 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
         <label className="flex items-center gap-2 text-sm text-[#1a1814]/70 cursor-pointer">
           <input

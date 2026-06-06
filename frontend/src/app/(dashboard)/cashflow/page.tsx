@@ -47,12 +47,11 @@ interface RowProps {
   showCmp: boolean
   indent?: boolean
   bold?: boolean
-  large?: boolean
   accountName?: string
   fmt: (n: number) => string
 }
 
-function Row({ label, current, comparison, showCmp, indent = false, bold = false, large = false, accountName, fmt }: RowProps) {
+function Row({ label, current, comparison, showCmp, indent = false, bold = false, accountName, fmt }: RowProps) {
   const curColor = current < 0 ? 'text-red-600' : ''
   const cmpColor = (comparison ?? 0) < 0 ? 'text-red-300' : 'text-[#1a1814]/35'
   return (
@@ -61,11 +60,11 @@ function Row({ label, current, comparison, showCmp, indent = false, bold = false
         ? <DocLink type="account" id={accountName} label={label} className={`${indent ? 'ml-6 ' : ''}text-sm`} />
         : <span className={`${indent ? 'ml-6 ' : ''}${bold ? 'font-semibold' : 'text-sm text-black/70'}`}>{label}</span>}
       <div className="flex gap-8">
-        <span className={`font-mono text-right w-36 inline-block ${bold ? (large ? 'text-lg font-bold' : 'font-semibold') : 'text-sm'} ${curColor}`}>
+        <span className={`font-mono text-right w-36 inline-block ${bold ? 'font-semibold' : 'text-sm'} ${curColor}`}>
           {fmt(current)}
         </span>
         {showCmp && (
-          <span className={`font-mono text-right w-36 inline-block ${bold ? (large ? 'text-lg font-bold' : 'font-semibold') : 'text-sm'} ${cmpColor}`}>
+          <span className={`font-mono text-right w-36 inline-block ${bold ? 'font-semibold' : 'text-sm'} ${cmpColor}`}>
             {fmt(comparison ?? 0)}
           </span>
         )}

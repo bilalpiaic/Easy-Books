@@ -122,7 +122,7 @@ export default function BalanceSheetPage() {
         </button>
       </div>
 
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3">
+      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs font-bold uppercase tracking-widest text-black/50">As of</span>
           <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)}
