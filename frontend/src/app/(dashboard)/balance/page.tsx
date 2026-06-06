@@ -47,16 +47,16 @@ function BalanceSection({
             ? <span className="text-[#1a1814] font-medium italic">{item.name}</span>
             : <DocLink type="account" id={item.code} label={item.name} className="text-[#1a1814]/60" />}
           <div className="flex gap-8">
-            <span className="font-mono">{fmt(item.balance)}</span>
-            {showCmp && <span className="font-mono text-[#1a1814]/35">{fmt(cmpBal(item.code))}</span>}
+            <span className="font-mono w-36 text-right">{fmt(item.balance)}</span>
+            {showCmp && <span className="font-mono w-36 text-right text-[#1a1814]/35">{fmt(cmpBal(item.code))}</span>}
           </div>
         </div>
       ))}
       <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
         <span className="text-[#1a1814]">{totalLabel}</span>
         <div className="flex gap-8">
-          <span className="font-mono underline decoration-double underline-offset-4">{fmt(total)}</span>
-          {showCmp && <span className="font-mono underline decoration-double underline-offset-4 text-[#1a1814]/35">{fmt(cmpTotal)}</span>}
+          <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(total)}</span>
+          {showCmp && <span className="font-mono w-36 text-right underline decoration-double underline-offset-4 text-[#1a1814]/35">{fmt(cmpTotal)}</span>}
         </div>
       </div>
     </section>
@@ -122,7 +122,7 @@ export default function BalanceSheetPage() {
         </button>
       </div>
 
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3">
+      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs font-bold uppercase tracking-widest text-black/50">As of</span>
           <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)}
@@ -147,8 +147,8 @@ export default function BalanceSheetPage() {
         <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-12">
           {comparison && (
             <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
-              <span>{asOf}</span>
-              <span className="text-[#1a1814]/30">{cmpEnd}</span>
+              <span className="w-36 text-right">Current Period</span>
+              <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
             </div>
           )}
 
@@ -167,9 +167,9 @@ export default function BalanceSheetPage() {
           <section className="pt-8 border-t-2 border-[#1a1814] flex justify-between items-center bg-[#f6f3ee]/30 -mx-10 px-10 py-6">
             <h2 className="text-xl font-serif text-[#1a1814]">Total Liabilities &amp; Equity</h2>
             <div className="flex gap-8">
-              <div className="text-2xl font-serif text-[#1a1814]">{fmt(totalLE)}</div>
+              <div className="text-2xl font-serif w-36 text-right text-[#1a1814]">{fmt(totalLE)}</div>
               {comparison && (
-                <div className="text-xl font-serif text-[#1a1814]/35">{fmt(cmpTotalLiabilities + cmpTotalEquity)}</div>
+                <div className="text-xl font-serif w-36 text-right text-[#1a1814]/35">{fmt(cmpTotalLiabilities + cmpTotalEquity)}</div>
               )}
             </div>
           </section>

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { useFmt } from '@/context/SettingsContext'
+import { fmtAmount } from '@/lib/utils'
+import { useSettings } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
@@ -22,37 +23,98 @@ interface CashFlowData {
   ending_balance: number
 }
 
+interface CashFlowResponse {
+  current?: CashFlowData
+  comparison?: CashFlowData
+}
+
 function defaultRange() {
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split('T')[0], end: to.toISOString().split('T')[0] }
 }
 
-function Row({ label, value, indent = false, bold = false, accountName }: { label: string; value: number; indent?: boolean; bold?: boolean; accountName?: string }) {
-  const fmt = useFmt()
+function priorYearRange(start: string, end: string) {
+  const priorStart = `${parseInt(start.slice(0, 4)) - 1}${start.slice(4)}`
+  const priorEnd   = `${parseInt(end.slice(0, 4)) - 1}${end.slice(4)}`
+  return { priorStart, priorEnd }
+}
+
+interface RowProps {
+  label: string
+  current: number
+  comparison?: number | null
+  showCmp: boolean
+  indent?: boolean
+  bold?: boolean
+  accountName?: string
+  fmt: (n: number) => string
+}
+
+function Row({ label, current, comparison, showCmp, indent = false, bold = false, accountName, fmt }: RowProps) {
+  const curColor = current < 0 ? 'text-red-600' : ''
+  const cmpColor = (comparison ?? 0) < 0 ? 'text-red-300' : 'text-[#1a1814]/35'
   return (
-    <div className={`flex justify-between py-2 ${bold ? 'border-t border-[#ede9e2] font-semibold' : ''}`}>
+    <div className={`flex justify-between py-2 ${bold ? 'border-t border-[#ede9e2]' : ''}`}>
       {accountName
-        ? <DocLink type="account" id={accountName} label={label} className={indent ? 'ml-6 text-sm' : ''} />
-        : <span className={indent ? 'ml-6 text-sm text-black/70' : ''}>{label}</span>}
-      <span className={`font-mono ${bold ? 'text-lg' : 'text-sm'} ${value < 0 ? 'text-red-600' : ''}`}>{fmt(value)}</span>
+        ? <DocLink type="account" id={accountName} label={label} className={`${indent ? 'ml-6 ' : ''}text-sm`} />
+        : <span className={`${indent ? 'ml-6 ' : ''}${bold ? 'font-semibold' : 'text-sm text-black/70'}`}>{label}</span>}
+      <div className="flex gap-8">
+        <span className={`font-mono text-right w-36 inline-block ${bold ? 'font-semibold' : 'text-sm'} ${curColor}`}>
+          {fmt(current)}
+        </span>
+        {showCmp && (
+          <span className={`font-mono text-right w-36 inline-block ${bold ? 'font-semibold' : 'text-sm'} ${cmpColor}`}>
+            {fmt(comparison ?? 0)}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
 
 export default function CashFlow() {
-  const fmt = useFmt()
+  const { settings } = useSettings()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)
   const [data, setData] = useState<CashFlowData | null>(null)
+  const [comparison, setComparison] = useState<CashFlowData | null>(null)
+  const [compareMode, setCompareMode] = useState(false)
+  const { priorStart, priorEnd } = priorYearRange(start, end)
+  const [cmpStart, setCmpStart] = useState(priorStart)
+  const [cmpEnd, setCmpEnd] = useState(priorEnd)
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+
+  const fmt = (n: number) => fmtAmount(n, settings.currency)
 
   useEffect(() => {
-    apiFetch<CashFlowData>(`/api/reports/cash-flow?start=${start}&end=${end}`)
-      .then(setData)
-      .catch(err => setError((err as Error).message))
-  }, [start, end])
+    setIsLoading(true)
+    setError('')
+    const params = new URLSearchParams({ start, end })
+    if (compareMode) {
+      params.set('compare_start', cmpStart)
+      params.set('compare_end', cmpEnd)
+    }
+    apiFetch<CashFlowData | CashFlowResponse>(`/api/reports/cash-flow?${params}`)
+      .then(res => {
+        if (compareMode && res && typeof res === 'object' && 'current' in res) {
+          setData((res as CashFlowResponse).current ?? null)
+          setComparison((res as CashFlowResponse).comparison ?? null)
+        } else {
+          setData(res as CashFlowData)
+          setComparison(null)
+        }
+        setIsLoading(false)
+      })
+      .catch(err => {
+        setError((err as Error).message)
+        setIsLoading(false)
+      })
+  }, [start, end, compareMode, cmpStart, cmpEnd])
+
+  const showCmp = !!comparison
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -62,73 +124,130 @@ export default function CashFlow() {
           <h1 className="text-3xl font-serif font-medium">Cash Flow Statement</h1>
           <p className="text-sm text-black/75 mt-1">Sources and uses of cash — Indirect Method</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-white border border-[#ede9e2] rounded-xl">
-            <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
+        <button onClick={() => window.print()} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
+          <Printer className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="mb-4 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
+        <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
+        <label className="flex items-center gap-2 text-sm text-[#1a1814]/70 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={compareMode}
+            onChange={e => setCompareMode(e.target.checked)}
+            className="rounded"
+          />
+          Compare with prior period
+        </label>
+        {compareMode && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-[#1a1814]/50">Prior period:</span>
+            <input type="date" value={cmpStart} onChange={e => setCmpStart(e.target.value)}
+                   className="border border-[#ede9e2] rounded px-2 py-1 text-sm" />
+            <span className="text-[#1a1814]/50">to</span>
+            <input type="date" value={cmpEnd} onChange={e => setCmpEnd(e.target.value)}
+                   className="border border-[#ede9e2] rounded px-2 py-1 text-sm" />
           </div>
-          <button onClick={() => window.print()} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
-            <Printer className="w-5 h-5" />
-          </button>
-        </div>
+        )}
       </div>
 
       {error && <div className="text-red-600 font-semibold">{error}</div>}
 
-      {!data ? (
+      {isLoading ? (
         <div className="text-center py-12 text-black/40">Loading...</div>
+      ) : !data ? (
+        <div className="text-center py-12 text-black/40">No data available.</div>
       ) : (
-        <div className="bg-white rounded-xl border border-[#ede9e2] p-8 space-y-8">
+        <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-8">
           <div className="text-center pb-6 border-b border-[#ede9e2]">
             <h2 className="text-xl font-serif font-medium mb-1">Statement of Cash Flows</h2>
             <p className="text-xs text-black/60 mt-1">{data.period.start} — {data.period.end}</p>
           </div>
 
+          {/* Column headers */}
+          {showCmp && (
+            <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
+              <span className="w-36 text-right">Current Period</span>
+              <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
+            </div>
+          )}
+
           {/* Operating */}
           <div>
-            <h3 className="text-base font-semibold mb-3 pb-2 border-b border-[#ede9e2]">Operating Activities</h3>
-            <Row label="Net Income" value={data.net_income} />
-            <Row label="Decrease (Increase) in Accounts Receivable" value={-data.operating_adjustments.ar_change} indent />
-            <Row label="Increase (Decrease) in Accounts Payable" value={data.operating_adjustments.ap_change} indent />
-            <Row label="Net Cash from Operations" value={data.operating_cash} bold />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2 mb-3">Operating Activities</h3>
+            <Row label="Net Income" current={data.net_income} comparison={comparison?.net_income} showCmp={showCmp} fmt={fmt} />
+            <Row label="Decrease (Increase) in Accounts Receivable" current={-data.operating_adjustments.ar_change} comparison={comparison ? -comparison.operating_adjustments.ar_change : null} showCmp={showCmp} indent fmt={fmt} />
+            <Row label="Increase (Decrease) in Accounts Payable" current={data.operating_adjustments.ap_change} comparison={comparison?.operating_adjustments.ap_change} showCmp={showCmp} indent fmt={fmt} />
+            <Row label="Net Cash from Operations" current={data.operating_cash} comparison={comparison?.operating_cash} showCmp={showCmp} bold fmt={fmt} />
           </div>
 
           {/* Investing */}
           <div>
-            <h3 className="text-base font-semibold mb-3 pb-2 border-b border-[#ede9e2]">Investing Activities</h3>
-            {data.investing_items.length === 0 ? (
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2 mb-3">Investing Activities</h3>
+            {data.investing_items.length === 0 && !showCmp ? (
               <p className="text-sm text-black/40 mb-3">No fixed asset movements</p>
             ) : data.investing_items.map((item, i) => (
-              <Row key={i} label={item.name} value={item.amount} indent accountName={item.name} />
+              <Row key={i} label={item.name} current={item.amount}
+                comparison={comparison?.investing_items.find(ci => ci.name === item.name)?.amount ?? null}
+                showCmp={showCmp} indent accountName={item.name} fmt={fmt} />
             ))}
-            <Row label="Net Cash from Investing" value={data.investing_cash} bold />
+            {showCmp && comparison && comparison.investing_items.filter(ci => !data.investing_items.find(di => di.name === ci.name)).map((item, i) => (
+              <Row key={`cmp-only-inv-${i}`} label={item.name} current={0} comparison={item.amount}
+                showCmp={showCmp} indent accountName={item.name} fmt={fmt} />
+            ))}
+            <Row label="Net Cash from Investing" current={data.investing_cash} comparison={comparison?.investing_cash} showCmp={showCmp} bold fmt={fmt} />
           </div>
 
           {/* Financing */}
           <div>
-            <h3 className="text-base font-semibold mb-3 pb-2 border-b border-[#ede9e2]">Financing Activities</h3>
-            {data.financing_items.length === 0 ? (
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2 mb-3">Financing Activities</h3>
+            {data.financing_items.length === 0 && !showCmp ? (
               <p className="text-sm text-black/40 mb-3">No financing movements</p>
             ) : data.financing_items.map((item, i) => (
-              <Row key={i} label={item.name} value={item.amount} indent accountName={item.name} />
+              <Row key={i} label={item.name} current={item.amount}
+                comparison={comparison?.financing_items.find(ci => ci.name === item.name)?.amount ?? null}
+                showCmp={showCmp} indent accountName={item.name} fmt={fmt} />
             ))}
-            <Row label="Net Cash from Financing" value={data.financing_cash} bold />
+            {showCmp && comparison && comparison.financing_items.filter(ci => !data.financing_items.find(di => di.name === ci.name)).map((item, i) => (
+              <Row key={`cmp-only-fin-${i}`} label={item.name} current={0} comparison={item.amount}
+                showCmp={showCmp} indent accountName={item.name} fmt={fmt} />
+            ))}
+            <Row label="Net Cash from Financing" current={data.financing_cash} comparison={comparison?.financing_cash} showCmp={showCmp} bold fmt={fmt} />
           </div>
 
           {/* Summary */}
           <div className="bg-[#f6f3ee] p-6 rounded-xl space-y-3">
             <div className="flex justify-between pb-3 border-b border-[#ede9e2]">
               <span className="font-semibold">Net Change in Cash</span>
-              <span className={`font-mono font-bold text-lg ${data.net_cash_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {data.net_cash_change >= 0 ? '+' : ''}{fmt(data.net_cash_change)}
-              </span>
+              <div className="flex gap-8">
+                <span className={`font-mono text-right w-36 inline-block font-bold text-lg ${data.net_cash_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {data.net_cash_change >= 0 ? '+' : ''}{fmt(data.net_cash_change)}
+                </span>
+                {showCmp && comparison && (
+                  <span className={`font-mono text-right w-36 inline-block font-bold text-lg ${(comparison.net_cash_change ?? 0) >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                    {(comparison.net_cash_change ?? 0) >= 0 ? '+' : ''}{fmt(comparison.net_cash_change ?? 0)}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex justify-between text-sm">
               <span>Beginning Cash Balance</span>
-              <span className="font-mono">{fmt(data.beginning_balance)}</span>
+              <div className="flex gap-8">
+                <span className="font-mono text-right w-36 inline-block">{fmt(data.beginning_balance)}</span>
+                {showCmp && comparison && (
+                  <span className="font-mono text-right w-36 inline-block text-[#1a1814]/35">{fmt(comparison.beginning_balance)}</span>
+                )}
+              </div>
             </div>
             <div className="flex justify-between text-lg font-bold border-t border-[#ede9e2] pt-3">
               <span>Ending Cash Balance</span>
-              <span className="font-mono text-[#b8943f]">{fmt(data.ending_balance)}</span>
+              <div className="flex gap-8">
+                <span className="font-mono text-right w-36 inline-block text-[#b8943f]">{fmt(data.ending_balance)}</span>
+                {showCmp && comparison && (
+                  <span className="font-mono text-right w-36 inline-block text-[#b8943f]/40">{fmt(comparison.ending_balance)}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
