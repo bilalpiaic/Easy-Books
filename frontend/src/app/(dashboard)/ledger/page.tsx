@@ -7,6 +7,7 @@ import { ChevronRight, ChevronDown, BookOpen, Printer, Download, Layers, List } 
 import { downloadCSV } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -23,6 +24,7 @@ interface LedgerEntry {
   date: string
   transaction_id: number
   jv_number: string
+  voucher_type: string
   description: string
   debit: number
   credit: number
@@ -597,12 +599,22 @@ function LedgerPageInner() {
                       <tr key={idx} className="hover:bg-[#faf8f4]">
                         <td className="px-4 py-2.5 text-black/60">{entry.date}</td>
                         <td className="px-4 py-2.5">
-                          <Link
-                            href={`/journal/${entry.transaction_id}`}
-                            className="font-mono text-xs text-[#b8943f] hover:underline underline-offset-2"
-                          >
-                            {entry.jv_number}
-                          </Link>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link
+                              href={`/journal/${entry.transaction_id}`}
+                              className="font-mono text-xs text-[#b8943f] hover:underline underline-offset-2"
+                            >
+                              {entry.jv_number}
+                            </Link>
+                            {entry.voucher_type && (
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${voucherTypeBadgeClass(entry.voucher_type)}`}
+                                title={VOUCHER_TYPES[entry.voucher_type] ?? entry.voucher_type}
+                              >
+                                {entry.voucher_type}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-2.5 text-black/65 max-w-xs truncate">{entry.description}</td>
                         <td className="px-4 py-2.5 text-right font-mono text-sm">

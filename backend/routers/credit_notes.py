@@ -171,6 +171,7 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
         entries=entries,
         audit_entity_type="credit_note",
         audit_detail={"cn_number": number, "total": str(total)},
+        voucher_type="CN",
     )
 
     cn.transaction_id = txn.id
