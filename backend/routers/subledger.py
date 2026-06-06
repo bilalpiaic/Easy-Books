@@ -29,6 +29,159 @@ from .common import CurrentUserDep, SessionDep
 router = APIRouter(tags=["sub-ledger"])
 
 
+# ── Shared party-movement helpers ─────────────────────────────────────────────
+
+
+def ar_party_movement(session, tenant_id: int, customer, start: Optional[str], end: Optional[str]) -> dict:
+    """Return {opening, debit, credit, closing} for one customer's AR over the window.
+
+    - opening = customer.opening_balance + Σ invoice totals before `start`
+                - Σ payments applied to this customer's invoices before `start`
+    - debit   = Σ invoice totals in [start, end]
+    - credit  = Σ payments applied to this customer's invoices in [start, end]
+    - closing = opening + debit - credit
+
+    AR is debit-normal (Asset). A positive closing means the customer owes money.
+    This is a pure computation with no HTTP side-effects.
+    """
+    invoices = session.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.customer_id == customer.id,
+        ).order_by(Invoice.issue_date, Invoice.id)
+    ).all()
+    payments = session.exec(
+        select(PaymentReceived).where(
+            PaymentReceived.tenant_id == tenant_id,
+        ).order_by(PaymentReceived.payment_date, PaymentReceived.id)
+    ).all()
+    customer_invoice_ids = {i.id for i in invoices}
+
+    # ── Opening balance (before start) ──────────────────────────────────────
+    opening = D(customer.opening_balance)
+    pre_invoices = [i for i in invoices if start and i.issue_date < start]
+    opening += sum(
+        (_to_base(D(i.total), D(i.exchange_rate)) for i in pre_invoices),
+        start=ZERO,
+    )
+    for p in payments:
+        if not (start and p.payment_date < start):
+            continue
+        applied = _payment_applied_to_invoices(session, tenant_id, p, customer_invoice_ids)
+        opening -= applied
+
+    # ── Period debit (invoices in window) ────────────────────────────────────
+    period_dr = ZERO
+    for i in invoices:
+        if not _in_range(i.issue_date, start, end):
+            continue
+        period_dr += _to_base(D(i.total), D(i.exchange_rate))
+
+    # ── Period credit (payments in window) ───────────────────────────────────
+    period_cr = ZERO
+    for p in payments:
+        if not _in_range(p.payment_date, start, end):
+            continue
+        period_cr += _payment_applied_to_invoices(session, tenant_id, p, customer_invoice_ids)
+
+    closing = opening + period_dr - period_cr
+    return {
+        "opening": money(opening),
+        "debit": money(period_dr),
+        "credit": money(period_cr),
+        "closing": money(closing),
+    }
+
+
+def ap_party_movement(session, tenant_id: int, vendor, start: Optional[str], end: Optional[str]) -> dict:
+    """Return {opening, debit, credit, closing} for one vendor's AP over the window.
+
+    AP is credit-normal (Liability): a positive closing means money owed to vendor.
+    - opening = vendor.opening_balance + Σ bill totals before `start`
+                - Σ payments applied to this vendor's bills before `start`
+    - credit  = Σ bill totals in [start, end]   (bills increase AP liability → credit)
+    - debit   = Σ payments applied to this vendor's bills in [start, end]  (payments reduce AP → debit)
+    - closing = opening + credit - debit
+
+    Sign convention matches vendor_ledger: running += credit - debit.
+    """
+    bills = session.exec(
+        select(Bill).where(
+            Bill.tenant_id == tenant_id,
+            Bill.vendor_id == vendor.id,
+        ).order_by(Bill.bill_date, Bill.id)
+    ).all()
+    payments = session.exec(
+        select(BillPayment).where(
+            BillPayment.tenant_id == tenant_id,
+        ).order_by(BillPayment.payment_date, BillPayment.id)
+    ).all()
+    vendor_bill_ids = {b.id for b in bills}
+
+    # ── Opening balance (before start) ──────────────────────────────────────
+    opening = D(vendor.opening_balance)
+    for b in bills:
+        if start and b.bill_date < start:
+            opening += _to_base(D(b.total), D(b.exchange_rate))
+    for p in payments:
+        if not (start and p.payment_date < start):
+            continue
+        applied = _bill_payment_applied_to_vendor(session, tenant_id, p, vendor_bill_ids)
+        opening -= applied
+
+    # ── Period credit (bills in window) ─────────────────────────────────────
+    period_cr = ZERO
+    for b in bills:
+        if not _in_range(b.bill_date, start, end):
+            continue
+        period_cr += _to_base(D(b.total), D(b.exchange_rate))
+
+    # ── Period debit (payments in window) ────────────────────────────────────
+    period_dr = ZERO
+    for p in payments:
+        if not _in_range(p.payment_date, start, end):
+            continue
+        period_dr += _bill_payment_applied_to_vendor(session, tenant_id, p, vendor_bill_ids)
+
+    closing = opening + period_cr - period_dr
+    return {
+        "opening": money(opening),
+        "debit": money(period_dr),
+        "credit": money(period_cr),
+        "closing": money(closing),
+    }
+
+
+def _payment_applied_to_invoices(
+    session, tenant_id: int, p: "PaymentReceived", invoice_ids: set
+) -> Decimal:
+    """Sum of payment amount applied to the given invoice ids."""
+    if p.invoice_id and p.invoice_id in invoice_ids:
+        return D(p.amount)
+    allocs = session.exec(
+        select(PaymentAllocation).where(
+            PaymentAllocation.tenant_id == tenant_id,
+            PaymentAllocation.payment_received_id == p.id,
+        )
+    ).all()
+    return sum((D(a.amount) for a in allocs if a.invoice_id in invoice_ids), start=ZERO)
+
+
+def _bill_payment_applied_to_vendor(
+    session, tenant_id: int, p: "BillPayment", bill_ids: set
+) -> Decimal:
+    """Sum of bill-payment amount applied to the given bill ids."""
+    if p.bill_id and p.bill_id in bill_ids:
+        return D(p.amount)
+    allocs = session.exec(
+        select(PaymentAllocation).where(
+            PaymentAllocation.tenant_id == tenant_id,
+            PaymentAllocation.bill_payment_id == p.id,
+        )
+    ).all()
+    return sum((D(a.amount) for a in allocs if a.bill_id in bill_ids), start=ZERO)
+
+
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 

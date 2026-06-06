@@ -506,6 +506,246 @@ def get_ledger(
     return {"total": len(items), "items": items[skip: skip + limit]}
 
 
+# ── Sub-ledger GL view ────────────────────────────────────────────────────────
+
+
+def _account_gl_movement(session, tenant_id: int, account: Account, start: Optional[str], end: Optional[str]) -> dict:
+    """Return {opening, debit, credit, closing} for one GL account over the window.
+
+    Uses the same signed-balance convention as get_ledger:
+      signed = (Dr - Cr) for Asset/Expense accounts (debit-normal)
+             = (Cr - Dr) for Liability/Equity/Revenue accounts (credit-normal)
+    """
+    def _signed(atype, dr, cr):
+        d, c = D(dr), D(cr)
+        return (d - c) if atype in ("Asset", "Expense") else (c - d)
+
+    # Opening: all entries before start
+    opening = ZERO
+    if start:
+        rows = (
+            session.query(JournalEntry.debit, JournalEntry.credit)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .filter(
+                Transaction.tenant_id == tenant_id,
+                JournalEntry.account_id == account.id,
+                Transaction.date < start,
+            )
+            .all()
+        )
+        for dr, cr in rows:
+            opening += _signed(account.type, dr, cr)
+
+    # Period entries
+    q = (
+        session.query(JournalEntry.debit, JournalEntry.credit)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .filter(
+            Transaction.tenant_id == tenant_id,
+            JournalEntry.account_id == account.id,
+        )
+    )
+    if start:
+        q = q.filter(Transaction.date >= start)
+    if end:
+        q = q.filter(Transaction.date <= end)
+
+    period_dr = ZERO
+    period_cr = ZERO
+    for dr, cr in q.all():
+        period_dr += D(dr)
+        period_cr += D(cr)
+
+    if account.type in ("Asset", "Expense"):
+        period_net = period_dr - period_cr
+    else:
+        period_net = period_cr - period_dr
+
+    closing = opening + period_net
+    return {
+        "opening": money(opening),
+        "debit": money(period_dr),
+        "credit": money(period_cr),
+        "closing": money(closing),
+    }
+
+
+@router.get("/ledger/subledger")
+def ledger_subledger(
+    session: SessionDep, user: CurrentUserDep,
+    control: str,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+):
+    """Sub-ledger summary for a control account.
+
+    Returns per-entity breakdowns (customers / vendors / GL accounts) that
+    reconcile to the control account's GL closing balance.
+
+    ?control=ar   → per-customer AR (control = default_ar_account / 1100)
+    ?control=ap   → per-vendor AP (control = default_ap_account / 2000)
+    ?control=bank → per cash/bank GL account (Asset codes starting with "10")
+
+    Response shape:
+      {
+        "control": {id, code, name},
+        "items": [{id, name, link, opening, debit, credit, closing}, ...],
+        "control_balance": Decimal,
+        "sub_total": Decimal,
+        "reconciles": bool,
+      }
+
+    Reconciliation note (AR/AP): Customer.opening_balance and
+    Vendor.opening_balance are setup-time snapshots NOT automatically journalised
+    to the control account. If a party has a non-zero opening_balance that was
+    never posted as a JE (Dr 1100 / Cr Opening Balance Equity), then sub_total
+    will differ from control_balance by that amount, and reconciles == False.
+    The documented fix is to post a matching JE at tenant setup.
+    """
+    from routers.common import get_default_account
+    from routers.subledger import ar_party_movement, ap_party_movement
+    from models import BankAccount, Customer, Vendor
+
+    if control == "ar":
+        # Resolve control account
+        ctrl_acc = get_default_account(
+            session, user.tenant_id,
+            "default_ar_account", "1100", "Accounts Receivable", "Asset",
+        )
+
+        # All customers with any AR activity: invoices, payments, or opening_balance
+        customers = session.exec(
+            select(Customer).where(Customer.tenant_id == user.tenant_id)
+        ).all()
+
+        items = []
+        for cust in customers:
+            mv = ar_party_movement(session, user.tenant_id, cust, start, end)
+            # Include if there's any balance or activity
+            if mv["opening"] == ZERO and mv["debit"] == ZERO and mv["credit"] == ZERO:
+                continue
+            items.append({
+                "id": cust.id,
+                "name": cust.name,
+                "link": f"/customers/{cust.id}/ledger",
+                "opening": float(mv["opening"]),
+                "debit": float(mv["debit"]),
+                "credit": float(mv["credit"]),
+                "closing": float(mv["closing"]),
+            })
+
+        ctrl_mv = _account_gl_movement(session, user.tenant_id, ctrl_acc, start, end)
+        # ctrl_mv["closing"] uses signed convention: Asset = Dr-Cr (debit-normal)
+        control_balance = float(ctrl_mv["closing"])
+        sub_total = sum(i["closing"] for i in items)
+        return {
+            "control": {"id": ctrl_acc.id, "code": ctrl_acc.code, "name": ctrl_acc.name},
+            "items": sorted(items, key=lambda r: r["name"]),
+            "control_balance": control_balance,
+            "sub_total": sub_total,
+            "reconciles": abs(sub_total - control_balance) < 0.01,
+        }
+
+    elif control == "ap":
+        # Resolve control account
+        ctrl_acc = get_default_account(
+            session, user.tenant_id,
+            "default_ap_account", "2000", "Accounts Payable", "Liability",
+        )
+
+        vendors = session.exec(
+            select(Vendor).where(Vendor.tenant_id == user.tenant_id)
+        ).all()
+
+        items = []
+        for v in vendors:
+            mv = ap_party_movement(session, user.tenant_id, v, start, end)
+            if mv["opening"] == ZERO and mv["debit"] == ZERO and mv["credit"] == ZERO:
+                continue
+            items.append({
+                "id": v.id,
+                "name": v.name,
+                "link": f"/vendors/{v.id}/ledger",
+                "opening": float(mv["opening"]),
+                "debit": float(mv["debit"]),
+                "credit": float(mv["credit"]),
+                "closing": float(mv["closing"]),
+            })
+
+        ctrl_mv = _account_gl_movement(session, user.tenant_id, ctrl_acc, start, end)
+        # AP is Liability (credit-normal): closing = opening + credit - debit
+        # _account_gl_movement already handles sign convention, so:
+        # opening is (Cr - Dr) before start; closing = opening + (Cr - Dr) in period
+        # But we stored period_dr and period_cr raw. For Liability:
+        # net in period = period_cr - period_dr
+        # closing = opening + net
+        # Use ctrl_mv["closing"] directly since _account_gl_movement handles sign
+        control_balance = float(ctrl_mv["closing"])
+        sub_total = sum(i["closing"] for i in items)
+        return {
+            "control": {"id": ctrl_acc.id, "code": ctrl_acc.code, "name": ctrl_acc.name},
+            "items": sorted(items, key=lambda r: r["name"]),
+            "control_balance": control_balance,
+            "sub_total": sub_total,
+            "reconciles": abs(sub_total - control_balance) < 0.01,
+        }
+
+    elif control == "bank":
+        # Identify cash/bank GL accounts: Asset accounts with code starting "10",
+        # UNION any BankAccount.coa_account_id for the tenant.
+        # This matches the "Cash & Bank balance" logic at reports.py:214 which uses
+        # Account.code.like("10%") to sum all 10xx accounts.
+        bank_accounts_by_id: dict = {}
+        for acc in session.exec(
+            select(Account).where(
+                Account.tenant_id == user.tenant_id,
+                Account.type == "Asset",
+                Account.code.like("10%"),
+            )
+        ).all():
+            bank_accounts_by_id[acc.id] = acc
+
+        # Also include any explicit BankAccount.coa_account_id links
+        for ba in session.exec(
+            select(BankAccount).where(BankAccount.tenant_id == user.tenant_id)
+        ).all():
+            if ba.coa_account_id and ba.coa_account_id not in bank_accounts_by_id:
+                acc = session.get(Account, ba.coa_account_id)
+                if acc and acc.tenant_id == user.tenant_id:
+                    bank_accounts_by_id[acc.id] = acc
+
+        items = []
+        for acc in bank_accounts_by_id.values():
+            mv = _account_gl_movement(session, user.tenant_id, acc, start, end)
+            if mv["opening"] == ZERO and mv["debit"] == ZERO and mv["credit"] == ZERO:
+                continue
+            items.append({
+                "id": acc.id,
+                "name": acc.name,
+                "link": f"/ledger?account_id={acc.id}",
+                "opening": float(mv["opening"]),
+                "debit": float(mv["debit"]),
+                "credit": float(mv["credit"]),
+                "closing": float(mv["closing"]),
+            })
+
+        sub_total = sum(i["closing"] for i in items)
+        # For bank, control_balance = Σ of the individual accounts' closings
+        # (they ARE the control group — no single aggregating control account)
+        control_balance = sub_total
+        return {
+            "control": {"id": None, "code": "10xx", "name": "Cash & Bank"},
+            "items": sorted(items, key=lambda r: r["name"]),
+            "control_balance": control_balance,
+            "sub_total": sub_total,
+            "reconciles": True,  # by construction: sub_total == control_balance
+        }
+
+    else:
+        from fastapi import HTTPException
+        raise HTTPException(400, f"Unknown control type: {control!r}. Use ar, ap, or bank.")
+
+
 # ── Balance sheet ────────────────────────────────────────────────────────────
 
 
