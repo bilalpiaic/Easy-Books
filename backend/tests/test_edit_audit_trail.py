@@ -214,3 +214,31 @@ def test_bill_edit_records_changes_in_audit_log(client, admin_headers):
     # Audit row has user_id and timestamp
     assert row["user_id"] is not None
     assert row["timestamp"] is not None
+
+
+# ── audit-log count honours date filters ──────────────────────────────────────
+
+def test_audit_log_total_respects_date_filters(client, admin_headers):
+    """The reported `total` must apply the same date_from/date_to filters as the
+    returned rows — otherwise pagination over-reports."""
+    h = admin_headers
+    c = _create_customer(client, h)
+    p = _create_product(client, h)
+    inv = _post_invoice(client, h, c["id"], p["id"])
+    client.put(f"/api/invoices/{inv['id']}", headers=h, json={
+        "customer_id": c["id"], "issue_date": "2026-03-01", "gst_rate": 0,
+        "lines": [{"product_id": p["id"], "description": "x", "qty": 3, "rate": 120}],
+    })
+
+    # Unfiltered: there is at least one audit row.
+    unfiltered = client.get("/api/audit-log?limit=50", headers=h).json()
+    assert unfiltered["total"] >= 1
+    assert unfiltered["total"] == len(unfiltered["items"])
+
+    # All rows are timestamped "now" (2026); a date_to in the distant past must
+    # filter everything out — total AND items both zero.
+    filtered = client.get(
+        "/api/audit-log?date_to=2020-01-01&limit=50", headers=h,
+    ).json()
+    assert filtered["items"] == []
+    assert filtered["total"] == 0

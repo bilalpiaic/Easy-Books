@@ -322,20 +322,20 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     {" "}on {new Date(entry.timestamp).toLocaleString()}
                   </p>
                   {changedFields.length > 0 ? (
-                    <table className="w-full text-xs mt-1">
+                    <table className="ui-table text-xs mt-1">
                       <thead>
                         <tr>
-                          <th className="text-left py-1 pr-3 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 w-32">Field</th>
-                          <th className="text-left py-1 pr-3 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Before</th>
-                          <th className="text-left py-1 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">After</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 w-32">Field</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Before</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">After</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#ede9e2]/60">
                         {changedFields.map(([field, val]) => (
                           <tr key={field}>
-                            <td className="py-1 pr-3 font-medium text-[#1a1814]/70 capitalize">{field.replace(/_/g, " ")}</td>
-                            <td className="py-1 pr-3 font-mono text-red-700/80">{String(val.before ?? "—")}</td>
-                            <td className="py-1 font-mono text-emerald-700">{String(val.after ?? "—")}</td>
+                            <td className="ui-td font-medium text-[#1a1814]/70 capitalize">{field.replace(/_/g, " ")}</td>
+                            <td className="ui-td font-mono text-red-700/80">{String(val.before ?? "—")}</td>
+                            <td className="ui-td font-mono text-emerald-700">{String(val.after ?? "—")}</td>
                           </tr>
                         ))}
                       </tbody>
