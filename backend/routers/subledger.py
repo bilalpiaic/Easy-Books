@@ -258,7 +258,9 @@ def customer_ledger(
     if not cust:
         raise HTTPException(404, "Customer not found")
 
-    opening = D(cust.opening_balance)
+    # Opening balance and period aggregates via shared helper (single source of truth)
+    movement = ar_party_movement(session, user.tenant_id, cust, start, end)
+    period_opening = D(movement["opening"])
 
     invoices = session.exec(
         select(Invoice).where(
@@ -274,30 +276,6 @@ def customer_ledger(
 
     # Build raw event list
     events: list[dict] = []
-
-    # Pre-compute opening balance: sum invoices < start - sum payments < start
-    pre_invoices = [i for i in invoices if start and i.issue_date < start]
-    pre_payments_amount = ZERO
-    for p in payments:
-        if not (start and p.payment_date < start):
-            continue
-        if p.invoice_id and any(i.customer_id == customer_id and i.id == p.invoice_id for i in invoices):
-            pre_payments_amount += D(p.amount)
-        else:
-            allocs = session.exec(
-                select(PaymentAllocation).where(
-                    PaymentAllocation.tenant_id == user.tenant_id,
-                    PaymentAllocation.payment_received_id == p.id,
-                )
-            ).all()
-            for a in allocs:
-                if a.invoice_id and any(i.id == a.invoice_id for i in invoices):
-                    pre_payments_amount += D(a.amount)
-
-    period_opening = opening + sum(
-        (_to_base(D(i.total), D(i.exchange_rate)) for i in pre_invoices),
-        start=ZERO,
-    ) - pre_payments_amount
 
     # In-period invoices
     for inv in invoices:
@@ -409,7 +387,10 @@ def vendor_ledger(
     if not v:
         raise HTTPException(404, "Vendor not found")
 
-    opening = D(v.opening_balance)
+    # Opening balance and period aggregates via shared helper (single source of truth)
+    movement = ap_party_movement(session, user.tenant_id, v, start, end)
+    period_opening = D(movement["opening"])
+
     bills = session.exec(
         select(Bill).where(
             Bill.tenant_id == user.tenant_id, Bill.vendor_id == vendor_id,
@@ -420,31 +401,7 @@ def vendor_ledger(
             BillPayment.tenant_id == user.tenant_id,
         ).order_by(BillPayment.payment_date, BillPayment.id)
     ).all()
-
-    pre_bills_total = ZERO
-    for b in bills:
-        if start and b.bill_date < start:
-            pre_bills_total += _to_base(D(b.total), D(b.exchange_rate))
-
-    pre_payments_total = ZERO
     bill_ids_for_vendor = {b.id for b in bills}
-    for p in payments:
-        if not (start and p.payment_date < start):
-            continue
-        if p.bill_id and p.bill_id in bill_ids_for_vendor:
-            pre_payments_total += D(p.amount)
-        else:
-            allocs = session.exec(
-                select(PaymentAllocation).where(
-                    PaymentAllocation.tenant_id == user.tenant_id,
-                    PaymentAllocation.bill_payment_id == p.id,
-                )
-            ).all()
-            for a in allocs:
-                if a.bill_id and a.bill_id in bill_ids_for_vendor:
-                    pre_payments_total += D(a.amount)
-
-    period_opening = opening + pre_bills_total - pre_payments_total
 
     events: list[dict] = []
     for b in bills:
