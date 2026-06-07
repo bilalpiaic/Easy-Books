@@ -80,3 +80,63 @@ def resolve_deferred_account(session: Session, tenant_id: int) -> Account:
         session, tenant_id, "default_deferred_revenue_account",
         "2300", "Deferred Revenue", "Liability",
     )
+
+
+def create_schedules(session: Session, user, invoice, plan: DeferralPlan) -> list:
+    """One DeferredRevenueSchedule per deferred line, all sharing invoice.id.
+    Amounts are base currency. Revenue recognises to the product's revenue
+    account (fallback 4000)."""
+    deferred_acc = resolve_deferred_account(session, user.tenant_id)
+    default_rev = None
+    rows = []
+    for spec in plan.deferred_lines:
+        rev_id = spec.revenue_account_id
+        if rev_id is None:
+            if default_rev is None:
+                from routers.common import get_default_account
+                default_rev = get_default_account(
+                    session, user.tenant_id, "default_revenue_account",
+                    "4000", "Sales Revenue", "Revenue",
+                )
+            rev_id = default_rev.id
+        sch = DeferredRevenueSchedule(
+            tenant_id=user.tenant_id,
+            invoice_id=invoice.id,
+            total_amount=spec.net_base,
+            recognised_amount=ZERO,
+            start_date=invoice.issue_date,
+            end_date=_add_months(invoice.issue_date, spec.recognition_months),
+            frequency="monthly",
+            next_recognition_date=invoice.issue_date,
+            status="active",
+            deferred_revenue_account_id=deferred_acc.id,
+            revenue_account_id=rev_id,
+        )
+        session.add(sch)
+        rows.append(sch)
+    session.flush()
+    return rows
+
+
+def has_any_recognition(session: Session, tenant_id: int, invoice_id: int) -> bool:
+    """True if any schedule for the invoice has recognised revenue."""
+    rows = session.exec(
+        select(DeferredRevenueSchedule).where(
+            DeferredRevenueSchedule.tenant_id == tenant_id,
+            DeferredRevenueSchedule.invoice_id == invoice_id,
+        )
+    ).all()
+    return any(D(r.recognised_amount) > ZERO for r in rows)
+
+
+def reverse_schedules(session: Session, tenant_id: int, invoice_id: int) -> None:
+    """Delete the invoice's (un-recognized) schedule rows ahead of a rebuild."""
+    rows = session.exec(
+        select(DeferredRevenueSchedule).where(
+            DeferredRevenueSchedule.tenant_id == tenant_id,
+            DeferredRevenueSchedule.invoice_id == invoice_id,
+        )
+    ).all()
+    for r in rows:
+        session.delete(r)
+    session.flush()

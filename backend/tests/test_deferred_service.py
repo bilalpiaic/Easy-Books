@@ -3,10 +3,10 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 import db as _db_module
-from models import Product, Tenant
+from models import Account, DeferredRevenueSchedule, Product, Tenant
 from services.money import ZERO, money
 
 
@@ -120,3 +120,55 @@ def test_resolve_deferred_account_defaults_to_2300(dsession):
     acc = resolve_deferred_account(dsession, tenant_id=1)
     assert acc.code == "2300"
     assert acc.type == "Liability"
+
+
+def _add_account(s, code, typ="Liability"):
+    a = Account(tenant_id=1, code=code, name=code, type=typ)
+    s.add(a); s.commit(); s.refresh(a)
+    return a
+
+
+def test_create_schedules_one_row_per_deferred_line(dsession):
+    from types import SimpleNamespace
+    from services.deferred import plan_deferral, create_schedules, LineDeferral, DeferralPlan
+    from models import DeferredRevenueSchedule
+    s = dsession
+    _add_account(s, "2300")
+    rev = _add_account(s, "4000", "Revenue")
+    plan = DeferralPlan(
+        deferred_lines=[LineDeferral(net_base=money(Decimal("120")), recognition_months=12, revenue_account_id=rev.id)],
+        deferred_net_base=money(Decimal("120")),
+    )
+    inv = SimpleNamespace(id=99, issue_date="2026-03-01")
+    user = SimpleNamespace(tenant_id=1)
+    rows = create_schedules(s, user, inv, plan)
+    assert len(rows) == 1
+    sch = s.exec(select(DeferredRevenueSchedule).where(DeferredRevenueSchedule.invoice_id == 99)).all()
+    assert len(sch) == 1
+    assert sch[0].total_amount == money(Decimal("120"))
+    assert sch[0].start_date == "2026-03-01"
+    assert sch[0].end_date == "2027-03-01"
+    assert sch[0].revenue_account_id == rev.id
+    assert sch[0].status == "active"
+
+
+def test_has_any_recognition_and_reverse(dsession):
+    from services.deferred import has_any_recognition, reverse_schedules
+    from models import DeferredRevenueSchedule
+    s = dsession
+    a23 = _add_account(s, "2300"); a40 = _add_account(s, "4000", "Revenue")
+    s.add(DeferredRevenueSchedule(
+        tenant_id=1, invoice_id=99, total_amount=money(Decimal("120")),
+        recognised_amount=ZERO, start_date="2026-03-01", end_date="2027-03-01",
+        frequency="monthly", next_recognition_date="2026-03-01", status="active",
+        deferred_revenue_account_id=a23.id, revenue_account_id=a40.id,
+    ))
+    s.commit()
+    assert has_any_recognition(s, 1, 99) is False
+    # Recognise part of it
+    row = s.exec(select(DeferredRevenueSchedule).where(DeferredRevenueSchedule.invoice_id == 99)).first()
+    row.recognised_amount = money(Decimal("10")); s.add(row); s.commit()
+    assert has_any_recognition(s, 1, 99) is True
+    # reverse_schedules deletes rows for the invoice
+    reverse_schedules(s, 1, 99); s.commit()
+    assert s.exec(select(DeferredRevenueSchedule).where(DeferredRevenueSchedule.invoice_id == 99)).all() == []
