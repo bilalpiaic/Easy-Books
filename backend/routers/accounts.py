@@ -17,6 +17,8 @@ class AccountCreate(BaseModel):
     name: str
     type: str
     parent_id: Optional[int] = None
+    is_group: bool = False
+    is_active: bool = True
 
 
 class AccountUpdate(BaseModel):
@@ -24,6 +26,8 @@ class AccountUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[str] = None
     parent_id: Optional[int] = None
+    is_group: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 @router.post("")
@@ -38,6 +42,7 @@ def create_account(session: SessionDep, user: WriteUserDep, data: AccountCreate)
     account = Account(
         code=data.code, name=data.name, type=data.type,
         parent_id=data.parent_id, tenant_id=user.tenant_id,
+        is_group=data.is_group, is_active=data.is_active,
     )
     session.add(account)
     session.flush()
@@ -62,6 +67,11 @@ def update_account(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     for field in ("code", "name", "type", "parent_id"):
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(account, field, val)
+    # Boolean fields need explicit None check (False is a valid value)
+    for field in ("is_group", "is_active"):
         val = getattr(data, field, None)
         if val is not None:
             setattr(account, field, val)

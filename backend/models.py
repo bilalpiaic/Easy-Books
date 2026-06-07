@@ -127,6 +127,11 @@ class Account(SQLModel, table=True):
     # Goods Liability) are excluded from formal A=L+E totals on the balance
     # sheet and shown in a separate "Memorandum / Custodial" section.
     is_memo: bool = Field(default=False)
+    # Group/header accounts are control nodes — never postable.
+    # Existing rows default to is_group=False (postable) via the Alembic migration.
+    is_group: bool = Field(default=False, index=True)
+    # Inactive accounts are excluded from new postings.
+    is_active: bool = Field(default=True)
 
     tenant: Tenant = Relationship(back_populates="accounts")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="account")
