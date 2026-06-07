@@ -30,6 +30,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from models import AccountingPeriod, Account, AuditLog, JournalEntry, Transaction, User
+from services.accounts import assert_account_postable
 from services.money import D, ZERO
 from services.vouchers import voucher_number
 
@@ -103,11 +104,14 @@ def _check_accounts_belong_to_tenant(
     session: Session, tenant_id: int, account_ids: Iterable[int]
 ) -> None:
     ids = list({int(i) for i in account_ids})
-    rows = session.exec(
-        select(Account.id).where(Account.id.in_(ids), Account.tenant_id == tenant_id)
+    accounts = session.exec(
+        select(Account).where(Account.id.in_(ids), Account.tenant_id == tenant_id)
     ).all()
-    if len(rows) != len(ids):
+    if len(accounts) != len(ids):
         raise PostingError("One or more entries reference an account not in your tenant.")
+    # Enforce posting control: only active, non-group, leaf accounts may be posted to.
+    for account in accounts:
+        assert_account_postable(session, tenant_id, account)
 
 
 def post_transaction(
