@@ -8,7 +8,8 @@ _Last reviewed: 2026-06-07 (against `main` @ v2.4.0)_
 |-------|--------|
 | ✅ **Done & closed** | #43 (Financial Reporting/Inventory/Sales-Purchase, 7 sections), #44 (Voucher Series, Phase 1+2), #45 (Consolidated/Sub-Ledger GL), #50 (Selling/Cost Price), #51 (Posted-doc editing) |
 | 🟡 **Partially done (open)** | #53 (Multi-Level COA — **Phase 1 shipped v2.4.0**; Phase 2 remaining), #52 (COA/Dashboard/UX bundle — §1/§2/§5 redirected to #53/#41/#40; net-new §3/§4/§6 remaining) |
-| 🔴 **Not started (open)** | #40, #41, #42, #47, #48 |
+| 🔴 **Not started (open)** | #40, #41, #42 |
+| 🚀 **In review (PR open)** | #48 (`block_negative_stock` on posted-edit — PR #54), #47 (deferred-revenue origination — this branch) |
 
 Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → **v2.4.0**.
 
@@ -16,12 +17,11 @@ Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → **v2.4.0**.
 
 ## Remaining work — concrete plans
 
-### 1. #47 + #48 — Posted-edit hardening (mini-batch) · effort **S** · priority **Med**
-Two small follow-ups from the posted-edit feature; do together (one branch/PR).
+### 1. #48 + #47 — Posted-edit hardening + deferred revenue · **shipped to PRs**
+Originally scoped as one "mini-batch"; split once #47 turned out to be a net-new feature, not hardening.
 
-- **#48 — `block_negative_stock` on edit.** `create_invoice` reads the setting and passes `block_negative=` to `consume_stock` (`invoices.py:234-241,287`); `update_invoice`'s re-consume omits it. **Fix:** mirror that read + pass in `update_invoice`. Test: tenant with the setting on, edit a posted invoice to a qty exceeding stock → 400. **Effort XS.**
-- **#47 — Deferred-revenue rebuild on edit.** When a posted `is_deferred` invoice is edited, reverse/rebuild its deferral schedule. **Approach:** in `update_invoice`, if `is_deferred`, void the existing `DeferredRevenueSchedule` + un-recognised entries (see `routers/deferred_revenue.py`) and rebuild from the edited lines; **block if any period already recognised** (policy: like block-if-paid). Tests: edit pre-recognition rebuilds; edit post-recognition blocked. **Effort S-M.**
-- **Deps:** posted-edit (done). **No design needed** beyond the recognised-period policy.
+- **#48 — `block_negative_stock` on edit.** ✅ **Done (PR #54).** `update_invoice`'s re-consume now mirrors `create_invoice`: reads the setting, passes `block_negative=`, and wraps the loop in `try/except InventoryError → rollback + 400`.
+- **#47 — Deferred-revenue origination.** ✅ **Done (this branch).** Premise was re-scoped: invoices never created deferral schedules (no `Invoice.is_deferred`; only the seeder built schedules). Built the missing origination: `services/deferred.py` (`plan_deferral`/`resolve_deferred_account`/`create_schedules`/`has_any_recognition`/`reverse_schedules`); `create_invoice` splits net revenue → Deferred Revenue (2300) for `product.is_deferred` lines + builds one schedule per deferred line; `update_invoice` blocks edits once recognised, else reverses+rebuilds; product form exposes the flags; the existing recognition engine is reused unchanged. GST always posts immediately; deferred GL credit is clamped to subtotal so multi-currency invoices balance. Spec + plan under `docs/superpowers/`. **Recognition automation, recognition-preview UI, and partial-period proration remain future scope.**
 
 ### 2. #53 Phase 2 — COA reporting roll-up & drill-down · effort **M-L** · priority **High**
 Continues the multi-level COA foundation (Phase 1 shipped). **Needs its own spec.**
