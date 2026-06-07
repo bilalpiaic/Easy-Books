@@ -72,12 +72,22 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
     return () => { cancelled = true }
   }, [])
 
-  // Register the Electron update-status listener when in desktop mode
+  // Register the Electron update-status listener when in desktop mode, and
+  // auto-run a check on open so the user sees a real result ("up to date" /
+  // "downloading" / "ready") instead of a button that may error when there's
+  // no published release yet. Benign "no release" cases are mapped to "up to
+  // date" by the desktop main process (see wireAutoUpdater).
   useEffect(() => {
     if (!isDesktop()) return
     const unsubscribe = window.easybooks!.onUpdateStatus((status) => {
       setUpdaterStatus(status)
     })
+    setUpdaterStatus({ state: 'checking' })
+    window.easybooks!.checkForUpdates()
+      .then((result) => {
+        if (!result.ok) setUpdaterStatus({ state: 'error', message: result.error ?? 'Unknown error' })
+      })
+      .catch((e) => setUpdaterStatus({ state: 'error', message: String(e) }))
     return unsubscribe
   }, [])
 
@@ -130,7 +140,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
           className="flex items-center gap-2 px-5 py-2.5 bg-[#b8943f] text-white rounded-lg font-medium text-sm hover:bg-[#a07c35] transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
-          Download &amp; Install
+          Check for Updates
         </button>
       )
     }
