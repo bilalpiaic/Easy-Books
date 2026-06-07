@@ -6,9 +6,9 @@ _Last reviewed: 2026-06-07 (against `main` @ v2.4.0)_
 
 | State | Issues |
 |-------|--------|
-| ✅ **Done & closed** | #43 (Financial Reporting/Inventory/Sales-Purchase, 7 sections), #44 (Voucher Series, Phase 1+2), #45 (Consolidated/Sub-Ledger GL), #50 (Selling/Cost Price), #51 (Posted-doc editing) |
+| ✅ **Done & closed** | #43 (Financial Reporting/Inventory/Sales-Purchase, 7 sections), #44 (Voucher Series, Phase 1+2), #45 (Consolidated/Sub-Ledger GL), #50 (Selling/Cost Price), #51 (Posted-doc editing), #48 (posted-edit `block_negative_stock` hardening) |
 | 🟡 **Partially done (open)** | #53 (Multi-Level COA — **Phase 1 shipped v2.4.0**; Phase 2 remaining), #52 (COA/Dashboard/UX bundle — §1/§2/§5 redirected to #53/#41/#40; net-new §3/§4/§6 remaining) |
-| 🔴 **Not started (open)** | #40, #41, #42, #47, #48 |
+| 🔴 **Not started (open)** | #40, #41, #42, #47 (re-scoped → deferred-revenue origination, L, own spec) |
 
 Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → **v2.4.0**.
 
@@ -16,12 +16,13 @@ Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → **v2.4.0**.
 
 ## Remaining work — concrete plans
 
-### 1. #47 + #48 — Posted-edit hardening (mini-batch) · effort **S** · priority **Med**
-Two small follow-ups from the posted-edit feature; do together (one branch/PR).
+### 1. #48 — Posted-edit `block_negative_stock` hardening · effort **XS** · ✅ **DONE**
+`create_invoice` reads the setting and passes `block_negative=` to `consume_stock` (`invoices.py:234-241,287`); `update_invoice`'s re-consume omitted it **and** lacked the `InventoryError → 400` guard. **Fixed:** mirrored the setting read, passed `block_negative=`, and wrapped the re-consume loop in `try/except InventoryError → rollback + 400` (`invoices.py` `update_invoice`). Tests in `tests/test_edit_posted_invoice_negative_stock.py` (oversell-on-edit blocked; within-stock edit still succeeds). Shipped on `feature/issue47-48-posted-edit-hardening`.
 
-- **#48 — `block_negative_stock` on edit.** `create_invoice` reads the setting and passes `block_negative=` to `consume_stock` (`invoices.py:234-241,287`); `update_invoice`'s re-consume omits it. **Fix:** mirror that read + pass in `update_invoice`. Test: tenant with the setting on, edit a posted invoice to a qty exceeding stock → 400. **Effort XS.**
-- **#47 — Deferred-revenue rebuild on edit.** When a posted `is_deferred` invoice is edited, reverse/rebuild its deferral schedule. **Approach:** in `update_invoice`, if `is_deferred`, void the existing `DeferredRevenueSchedule` + un-recognised entries (see `routers/deferred_revenue.py`) and rebuild from the edited lines; **block if any period already recognised** (policy: like block-if-paid). Tests: edit pre-recognition rebuilds; edit post-recognition blocked. **Effort S-M.**
-- **Deps:** posted-edit (done). **No design needed** beyond the recognised-period policy.
+### 1b. #47 — Deferred-revenue **origination** (re-scoped) · effort **L** · priority **Med** · needs own spec
+**Roadmap premise was wrong.** The original entry assumed a posted `is_deferred` *invoice* builds a `DeferredRevenueSchedule` that an edit must rebuild. Verified against code (2026-06-08): `Invoice` has **no** `is_deferred` field (the flag lives on **`Product`**, `models.py:379`, with `recognition_months`); **no router ever creates a schedule** — the only `DeferredRevenueSchedule(...)` construction is in `scripts/seed_demo.py`. `routers/deferred_revenue.py` only **lists** + **runs recognition** on pre-existing rows; `create_invoice` has zero deferred refs. So there is nothing to "rebuild on edit" — the **origination** path was never built.
+- **Real scope (net-new feature):** wire `product.is_deferred` → in `create_invoice`, post deferred lines to Deferred Revenue (2300) instead of revenue + build a `DeferredRevenueSchedule(invoice_id=...)` over `recognition_months`; **then** handle the edit case (reverse/rebuild, block if any period already recognised — policy like block-if-paid). Needs its own brainstorm → spec → plan.
+- **Deps:** posted-edit (done). **Not a hardening task.**
 
 ### 2. #53 Phase 2 — COA reporting roll-up & drill-down · effort **M-L** · priority **High**
 Continues the multi-level COA foundation (Phase 1 shipped). **Needs its own spec.**

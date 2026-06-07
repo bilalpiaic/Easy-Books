@@ -574,32 +574,46 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     session.add(inv)
     session.flush()
 
-    # Insert new lines
+    # Insert new lines. Mirror create_invoice: honor block_negative_stock so an
+    # edit cannot silently drive stock negative when the tenant enabled the guard.
+    _blk_row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == user.tenant_id,
+            Settings.key == "block_negative_stock",
+        )
+    ).first()
+    block_negative = bool(_blk_row and (_blk_row.value or "").lower() == "true")
+
     total_cogs = ZERO
-    for line_data in body.lines:
-        amount = money(D(line_data.qty) * D(line_data.rate))
-        session.add(InvoiceLine(
-            invoice_id=inv.id,
-            product_id=line_data.product_id,
-            description=line_data.description,
-            qty=D(line_data.qty),
-            unit=line_data.unit,
-            rate=D(line_data.rate),
-            amount=amount,
-        ))
-        if line_data.product_id:
-            prod = session.exec(
-                select(Product).where(
-                    Product.id == line_data.product_id,
-                    Product.tenant_id == user.tenant_id,
-                )
-            ).first()
-            if prod and prod.product_type == "stock":
-                total_cogs += consume_stock(
-                    session, tenant_id=user.tenant_id,
-                    product_id=prod.id, qty=D(line_data.qty),
-                    source_doc_id=inv.id,
-                )
+    try:
+        for line_data in body.lines:
+            amount = money(D(line_data.qty) * D(line_data.rate))
+            session.add(InvoiceLine(
+                invoice_id=inv.id,
+                product_id=line_data.product_id,
+                description=line_data.description,
+                qty=D(line_data.qty),
+                unit=line_data.unit,
+                rate=D(line_data.rate),
+                amount=amount,
+            ))
+            if line_data.product_id:
+                prod = session.exec(
+                    select(Product).where(
+                        Product.id == line_data.product_id,
+                        Product.tenant_id == user.tenant_id,
+                    )
+                ).first()
+                if prod and prod.product_type == "stock":
+                    total_cogs += consume_stock(
+                        session, tenant_id=user.tenant_id,
+                        product_id=prod.id, qty=D(line_data.qty),
+                        block_negative=block_negative,
+                        source_doc_id=inv.id,
+                    )
+    except InventoryError as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
     # Re-post GL entries
     ar_acc = (
