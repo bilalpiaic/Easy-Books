@@ -318,17 +318,22 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     gst_base = money(gst_amount * fx_rate)
 
     # Split the net revenue credit between Sales Revenue and Deferred Revenue
-    # (2300) for any is_deferred product lines. revenue_net is derived from
-    # subtotal_base so the split always balances. GST is never deferred.
+    # (2300) for any is_deferred product lines. The deferred GL credit is clamped
+    # to subtotal_base so revenue + deferred always equals subtotal_base exactly:
+    # under a non-unity FX rate the summed per-line deferred net can drift a cent
+    # past the once-rounded subtotal, which would otherwise unbalance the JV.
+    # (The schedule rows keep the per-line net — any sub-cent gap is immaterial.)
+    # GST is never deferred.
     deferral = plan_deferral(session, user.tenant_id, body.lines, fx_rate)
-    revenue_net_base = money(subtotal_base - deferral.deferred_net_base)
+    deferred_credit_base = min(deferral.deferred_net_base, subtotal_base)
+    revenue_net_base = money(subtotal_base - deferred_credit_base)
 
     entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
     if revenue_net_base > ZERO:
         entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base))
-    if deferral.deferred_net_base > ZERO:
+    if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
-        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferral.deferred_net_base))
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base))
 
     if use_per_line_tax and per_gl_tax:
         for gl_id, tax_amt in per_gl_tax.items():
