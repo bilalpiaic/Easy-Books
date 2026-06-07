@@ -57,6 +57,11 @@ def plan_deferral(session: Session, tenant_id: int, lines, fx_rate: Decimal) -> 
         if not prod or not prod.is_deferred:
             continue
         net_base = money(D(ln.qty) * D(ln.rate) * D(fx_rate))
+        # Deferral requires a positive amount. Zero/negative lines deliberately
+        # fall through to immediate revenue: a negative-total schedule would
+        # break the recognition engine (it divides total/months), and negative
+        # invoice lines are not a supported flow here (credit memos use the
+        # separate CreditNote entity, not negative invoice lines).
         if net_base <= ZERO:
             continue
         plan.deferred_lines.append(LineDeferral(

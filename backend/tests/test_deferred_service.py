@@ -104,6 +104,17 @@ def test_plan_deferral_floors_months_at_one(dsession):
     assert plan.deferred_lines[0].recognition_months == 1
 
 
+def test_plan_deferral_applies_fx_rate(dsession):
+    from types import SimpleNamespace
+    from services.deferred import plan_deferral
+    s = dsession
+    pd = _add_product(s, is_deferred=True)
+    lines = [SimpleNamespace(product_id=pd.id, qty=Decimal("2"), rate=Decimal("50"))]  # 100 doc
+    plan = plan_deferral(s, tenant_id=1, lines=lines, fx_rate=Decimal("1.5"))
+    assert plan.deferred_net_base == money(Decimal("150"))   # 100 × 1.5 → base
+    assert plan.deferred_lines[0].net_base == money(Decimal("150"))
+
+
 def test_resolve_deferred_account_defaults_to_2300(dsession):
     from services.deferred import resolve_deferred_account
     acc = resolve_deferred_account(dsession, tenant_id=1)
