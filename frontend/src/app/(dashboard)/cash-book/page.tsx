@@ -74,9 +74,12 @@ export default function CashBookPage() {
             .filter((id): id is number => id !== null)
         )
 
-        // Cash = Asset accounts with code starting "10" NOT linked to a bank account
+        // Cash = Asset accounts that are cash (name contains "cash", e.g. Cash in
+        // Hand / Petty Cash) and NOT linked to a bank account. Using the name
+        // rather than a broad "10xx" code range avoids surfacing other 10xx assets
+        // (e.g. Accumulated Depreciation) in the Cash Book.
         const cash = acctResp.items.filter(
-          a => a.type === "Asset" && a.code.startsWith("10") && !bankCoaIds.has(a.id)
+          a => a.type === "Asset" && a.name.toLowerCase().includes("cash") && !bankCoaIds.has(a.id)
         )
 
         setCashAccounts(cash)
