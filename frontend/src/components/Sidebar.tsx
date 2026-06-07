@@ -63,6 +63,8 @@ const NAV: NavItem[] = [
   { label: "Franchise Admin",  href: "/telecom/franchise",      icon: ScrollText,  section: "Telecom", forModel: "telecom_franchise" },
   { label: "Devices (IMEI)",   href: "/telecom/devices",        icon: Tablet,      section: "Telecom", forModel: "telecom_franchise" },
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
+  { label: "Cash Book",        href: "/cash-book",         icon: Wallet,           section: "Banking" },
+  { label: "Bank Book",        href: "/bank-book",         icon: BookOpen,         section: "Banking" },
   { label: "Reconciliations",  href: "/reconciliations",   icon: CheckCheck,       section: "Banking" },
   { label: "Trial Balance",    href: "/trial-balance",     icon: Scale,            section: "Reports" },
   { label: "Income Statement", href: "/pl",                icon: TrendingUp,       section: "Reports" },

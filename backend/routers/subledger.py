@@ -20,7 +20,8 @@ from sqlmodel import select
 
 from models import (
     Bill, BillLine, BillPayment, Customer, Invoice, InvoiceLine,
-    PaymentAllocation, PaymentReceived, Product, StockMovement, Vendor,
+    PaymentAllocation, PaymentReceived, Product, StockMovement, Transaction,
+    Vendor,
 )
 from services.money import D, ZERO, money
 
@@ -232,6 +233,23 @@ def _in_range(d: str, start: Optional[str], end: Optional[str]) -> bool:
     return True
 
 
+def _voucher_types_for(session, tenant_id: int, txn_ids: "set[int]") -> "dict[int, str]":
+    """Batch-load {transaction_id: voucher_type} for the given transaction ids.
+
+    A single tenant-scoped query is used regardless of how many ids are passed.
+    Returns an empty dict when txn_ids is empty.
+    """
+    if not txn_ids:
+        return {}
+    rows = session.exec(
+        select(Transaction).where(
+            Transaction.id.in_(txn_ids),
+            Transaction.tenant_id == tenant_id,
+        )
+    ).all()
+    return {t.id: t.voucher_type for t in rows}
+
+
 # ── Customer ledger ─────────────────────────────────────────────────────────
 
 
@@ -296,6 +314,7 @@ def customer_ledger(
             "unit": unit,
             "currency": inv.currency,
             "doc_amount": str(D(inv.total)),
+            "_txn_id": inv.transaction_id,
         })
 
     # In-period payments — direct or via allocations targeting this customer's invoices
@@ -331,7 +350,12 @@ def customer_ledger(
             "unit": None,
             "currency": "—",
             "doc_amount": str(applied),
+            "_txn_id": p.transaction_id,
         })
+
+    # Batch-resolve voucher_type for all source-document transactions
+    txn_ids = {e["_txn_id"] for e in events if e.get("_txn_id") is not None}
+    vt_map = _voucher_types_for(session, user.tenant_id, txn_ids)
 
     # Sort chronologically (stable) + compute running balance
     events.sort(key=lambda e: (e["date"], e["doc_id"]))
@@ -340,6 +364,7 @@ def customer_ledger(
     total_cr = ZERO
     total_qty_out = ZERO
     for e in events:
+        e["voucher_type"] = vt_map.get(e.pop("_txn_id"))  # type: ignore[arg-type]
         running += D(e["debit"]) - D(e["credit"])
         e["running_balance"] = str(money(running))
         total_dr += D(e["debit"])
@@ -422,6 +447,7 @@ def vendor_ledger(
             "unit": unit,
             "currency": b.currency,
             "doc_amount": str(D(b.total)),
+            "_txn_id": b.transaction_id,
         })
 
     for p in payments:
@@ -455,7 +481,12 @@ def vendor_ledger(
             "unit": None,
             "currency": "—",
             "doc_amount": str(applied),
+            "_txn_id": p.transaction_id,
         })
+
+    # Batch-resolve voucher_type for all source-document transactions
+    txn_ids = {e["_txn_id"] for e in events if e.get("_txn_id") is not None}
+    vt_map = _voucher_types_for(session, user.tenant_id, txn_ids)
 
     events.sort(key=lambda e: (e["date"], e["doc_id"]))
     # AP is credit-normal: running balance = ΣCr − ΣDr, so a positive number
@@ -465,6 +496,7 @@ def vendor_ledger(
     total_cr = ZERO
     total_qty_in = ZERO
     for e in events:
+        e["voucher_type"] = vt_map.get(e.pop("_txn_id"))  # type: ignore[arg-type]
         running += D(e["credit"]) - D(e["debit"])
         e["running_balance"] = str(money(running))
         total_dr += D(e["debit"])

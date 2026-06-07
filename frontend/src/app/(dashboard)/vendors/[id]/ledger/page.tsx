@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Printer, Truck } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -22,6 +23,7 @@ interface LedgerEntry {
   unit: string | null
   currency: string
   doc_amount: string
+  voucher_type?: string | null
 }
 interface Ledger {
   vendor: { id: number; name: string; email: string | null; phone: string | null; opening_balance: string }
@@ -51,6 +53,7 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
   const [end, setEnd]     = useState(r0.end)
   const [data, setData]   = useState<Ledger | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [voucherFilter, setVoucherFilter] = useState("")
 
   useEffect(() => {
     apiFetch<Ledger>(`/api/vendors/${id}/ledger?start=${start}&end=${end}`)
@@ -62,6 +65,9 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
   if (!data)          return <p className="p-4 text-[#1a1814]/60 text-sm">Loading ledger…</p>
 
   const v = data.vendor
+  const visibleEntries = voucherFilter
+    ? data.entries.filter(e => e.voucher_type === voucherFilter)
+    : data.entries
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
@@ -95,8 +101,32 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:hidden">
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
+        <div className="bg-white border border-[#ede9e2] rounded-xl p-4 space-y-3">
           <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 shrink-0">
+              Voucher Type
+            </label>
+            <select
+              value={voucherFilter}
+              onChange={e => setVoucherFilter(e.target.value)}
+              className="text-sm border border-[#ede9e2] rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-[#b8943f]"
+            >
+              <option value="">All Types</option>
+              {Object.entries(VOUCHER_TYPES).map(([code, label]) => (
+                <option key={code} value={code}>{code} — {label}</option>
+              ))}
+            </select>
+            {voucherFilter && (
+              <button
+                onClick={() => setVoucherFilter("")}
+                className="text-xs text-[#1a1814]/50 hover:text-[#b8943f] transition-colors"
+                title="Clear filter"
+              >
+                ✕ Clear
+              </button>
+            )}
+          </div>
         </div>
         <div className="bg-white border border-[#ede9e2] rounded-xl p-4 grid grid-cols-3 gap-3 text-center">
           <Stat label="Opening" value={fmt(Number(data.opening_balance))} />
@@ -112,6 +142,11 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
       </div>
 
       <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+        {voucherFilter && (
+          <div className="px-3 py-1.5 bg-[#faf6ec] border-b border-[#ede9e2] text-[10px] text-[#1a1814]/55 font-medium">
+            Showing {visibleEntries.length} of {data.entries.length} rows filtered by {VOUCHER_TYPES[voucherFilter] ?? voucherFilter} — balances reflect the full ledger
+          </div>
+        )}
         <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[760px]">
           <thead className="bg-[#faf6ec]">
@@ -130,13 +165,24 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
               <td colSpan={6} className="px-3 py-2 text-[11px] font-bold text-[#1a1814]/55">Opening Balance</td>
               <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.opening_balance))}</td>
             </tr>
-            {data.entries.map((e, i) => {
+            {visibleEntries.map((e, i) => {
               const href = DOC_HREF[e.doc_type]?.(e.doc_id)
+              const vt = e.voucher_type
               return (
                 <tr key={i}>
                   <td className="px-3 py-2 text-[#1a1814]/70">{e.date}</td>
                   <td className="px-3 py-2 font-mono text-xs">
-                    {href ? <Link href={href} className="text-[#b8943f] hover:underline">{e.doc_number}</Link> : e.doc_number}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {href ? <Link href={href} className="text-[#b8943f] hover:underline">{e.doc_number}</Link> : e.doc_number}
+                      {vt && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${voucherTypeBadgeClass(vt)}`}
+                          title={VOUCHER_TYPES[vt] ?? vt}
+                        >
+                          {vt}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-[#1a1814]/80">{e.description}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs">
