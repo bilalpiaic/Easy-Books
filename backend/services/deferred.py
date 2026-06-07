@@ -26,3 +26,52 @@ def _add_months(date_str: str, months: int) -> str:
     month = month % 12 + 1
     day = min(d.day, calendar.monthrange(year, month)[1])
     return date(year, month, day).isoformat()
+
+
+@dataclass
+class LineDeferral:
+    net_base: Decimal
+    recognition_months: int
+    revenue_account_id: int | None
+
+
+@dataclass
+class DeferralPlan:
+    deferred_lines: list[LineDeferral] = field(default_factory=list)
+    deferred_net_base: Decimal = ZERO
+
+
+def plan_deferral(session: Session, tenant_id: int, lines, fx_rate: Decimal) -> DeferralPlan:
+    """Classify lines by product.is_deferred. Returns the deferred per-line specs
+    and their summed net (base currency). Lines with no product, or a
+    non-deferred product, are ignored here (they stay as normal revenue)."""
+    plan = DeferralPlan()
+    for ln in lines:
+        if not getattr(ln, "product_id", None):
+            continue
+        prod = session.exec(
+            select(Product).where(
+                Product.id == ln.product_id, Product.tenant_id == tenant_id
+            )
+        ).first()
+        if not prod or not prod.is_deferred:
+            continue
+        net_base = money(D(ln.qty) * D(ln.rate) * D(fx_rate))
+        if net_base <= ZERO:
+            continue
+        plan.deferred_lines.append(LineDeferral(
+            net_base=net_base,
+            recognition_months=max(1, int(prod.recognition_months or 0)),
+            revenue_account_id=prod.revenue_account_id,
+        ))
+        plan.deferred_net_base = money(plan.deferred_net_base + net_base)
+    return plan
+
+
+def resolve_deferred_account(session: Session, tenant_id: int) -> Account:
+    """Tenant's Deferred Revenue account: settings override → 2300 → auto-create."""
+    from routers.common import get_default_account
+    return get_default_account(
+        session, tenant_id, "default_deferred_revenue_account",
+        "2300", "Deferred Revenue", "Liability",
+    )
