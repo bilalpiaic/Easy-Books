@@ -11,6 +11,7 @@ from sqlmodel import Session, asc, desc, func, select
 from datetime import timedelta
 
 from models import Account, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
+from services.deferred import plan_deferral, resolve_deferred_account, create_schedules
 from services.fx import rate_to_base
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
@@ -316,20 +317,27 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     subtotal_base = money(subtotal * fx_rate)
     gst_base = money(gst_amount * fx_rate)
 
+    # Split the net revenue credit between Sales Revenue and Deferred Revenue
+    # (2300) for any is_deferred product lines. revenue_net is derived from
+    # subtotal_base so the split always balances. GST is never deferred.
+    deferral = plan_deferral(session, user.tenant_id, body.lines, fx_rate)
+    revenue_net_base = money(subtotal_base - deferral.deferred_net_base)
+
     entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
+    if revenue_net_base > ZERO:
+        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base))
+    if deferral.deferred_net_base > ZERO:
+        deferred_acc = resolve_deferred_account(session, user.tenant_id)
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferral.deferred_net_base))
+
     if use_per_line_tax and per_gl_tax:
-        # Post each distinct tax GL account separately.
-        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal_base))
         for gl_id, tax_amt in per_gl_tax.items():
             entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate)))
     elif gst_amount > 0:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal_base))
         entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base))
-    else:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=total_base))
 
     txn = post_transaction(
         session, user,
@@ -342,6 +350,9 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     )
     invoice.transaction_id = txn.id
     session.add(invoice)
+
+    if deferral.deferred_net_base > ZERO:
+        create_schedules(session, user, invoice, deferral)
 
     # Separate JV for COGS so the sale and cost-relief are individually
     # inspectable and a reversal of one doesn't unintentionally undo the other.
