@@ -66,13 +66,12 @@ Interface:
   - Classifies each line: if its product has `is_deferred=True`, record a
     per-line spec `{net_base, recognition_months, revenue_account_id}`
     (`net_base = money(qty * rate * fx_rate)`, `recognition_months =
-    max(1, product.recognition_months)`).
-  - Computes both totals **from the lines it is given** (self-contained — does
-    not depend on the caller's subtotal): `deferred_net_base = Σ net_base of
-    deferred lines`, `revenue_net_base = Σ net_base of non-deferred lines`.
-    Returns the specs list plus `{revenue_net_base, deferred_net_base}`. Caller
-    asserts `revenue_net_base + deferred_net_base == subtotal_base` as a
-    consistency guard.
+    max(1, product.recognition_months)`; skip zero-net lines).
+  - Returns `{deferred_lines: [...], deferred_net_base: Σ deferred net}`. The
+    **caller derives** `revenue_net_base = subtotal_base − deferred_net_base`
+    (not an independent sum) so the split always balances the AR debit
+    regardless of per-line rounding. Non-deferred / product-less lines are
+    ignored here — they remain normal revenue.
 - `resolve_deferred_account(session, tenant_id) -> Account`
   - `get_default_account(session, tenant_id, "default_deferred_revenue_account",
     "2300", "Deferred Revenue", "Liability")`.
