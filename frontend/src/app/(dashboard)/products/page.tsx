@@ -29,6 +29,8 @@ interface Product {
   cogs_account_id: number | null
   category_id: number | null
   is_active: boolean
+  is_deferred: boolean
+  recognition_months: number
 }
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
@@ -56,6 +58,8 @@ interface FormState {
   revenue_account_id: string
   cogs_account_id: string
   category_id: string
+  is_deferred: boolean
+  recognition_months: string
 }
 
 const UNITS = ['pcs', 'kg', 'mtr', 'hrs', 'ltr', 'box', 'doz']
@@ -66,6 +70,7 @@ const emptyForm: FormState = {
   default_rate: '0', reorder_level: '0',
   stock_account_id: '', revenue_account_id: '', cogs_account_id: '',
   category_id: '',
+  is_deferred: false, recognition_months: '12',
 }
 
 function stockBadge(p: Product) {
@@ -187,6 +192,8 @@ function ProductsInner() {
       revenue_account_id: p.revenue_account_id ? String(p.revenue_account_id) : '',
       cogs_account_id: p.cogs_account_id ? String(p.cogs_account_id) : '',
       category_id: initCategoryId,
+      is_deferred: p.is_deferred ?? false,
+      recognition_months: String(p.recognition_months ?? 12),
     })
     setFormError('')
     setModalOpen(true)
@@ -207,6 +214,8 @@ function ProductsInner() {
         revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
         cogs_account_id: form.cogs_account_id ? parseInt(form.cogs_account_id) : null,
         category_id: form.category_id ? Number(form.category_id) : null,
+        is_deferred: form.is_deferred,
+        recognition_months: parseInt(form.recognition_months) || 12,
       }
       if (editProduct) {
         await apiFetch(`/api/products/${editProduct.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -534,6 +543,29 @@ function ProductsInner() {
                     <input type="number" min="0" step="0.001" value={form.reorder_level}
                       onChange={e => setForm(p => ({ ...p, reorder_level: e.target.value }))}
                       className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-[#ede9e2] pt-4 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Deferred Revenue</p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.is_deferred}
+                    onChange={e => setForm(p => ({ ...p, is_deferred: e.target.checked }))}
+                    className="rounded border-[#ede9e2] accent-[#b8943f] w-4 h-4"
+                  />
+                  <span className="text-sm text-[#1a1814]/80">Recognize revenue over time (deferred)</span>
+                </label>
+                {form.is_deferred && (
+                  <div className="w-1/2">
+                    <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Recognition Months</label>
+                    <input
+                      type="number" min="1" step="1"
+                      value={form.recognition_months}
+                      onChange={e => setForm(p => ({ ...p, recognition_months: e.target.value }))}
+                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                    />
                   </div>
                 )}
               </div>
