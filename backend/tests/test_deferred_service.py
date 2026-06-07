@@ -35,3 +35,9 @@ def test_product_update_accepts_deferred_flags(client, admin_headers):
 
     assert updated["is_deferred"] is True
     assert updated["recognition_months"] == 18
+
+
+def test_add_months_advances_date():
+    from services.deferred import _add_months
+    assert _add_months("2026-01-31", 1) == "2026-02-28"   # clamps to month end
+    assert _add_months("2026-03-01", 12) == "2027-03-01"
