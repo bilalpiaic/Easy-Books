@@ -9,6 +9,7 @@ interface Account {
   id: number
   code: string
   name: string
+  postable?: boolean
 }
 
 interface EntryRow {
@@ -31,7 +32,7 @@ export default function NewEntryPage() {
 
   useEffect(() => {
     apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500")
-      .then(d => setAccounts(d.items))
+      .then(d => setAccounts(d.items.filter(a => a.postable !== false)))
       .catch(console.error)
   }, [])
 
