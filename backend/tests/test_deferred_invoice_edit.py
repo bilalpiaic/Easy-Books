@@ -53,6 +53,8 @@ def test_edit_before_recognition_rebuilds_schedule(client, admin_headers):
     # Net 2300 after reversal+repost = 240 (original 120 credit reversed by the
     # main-JV reversal which debits 2300, then new 240 credited).
     assert _net_2300() == 240.0
+    # Fully deferred → Sales Revenue stays zero (revenue_net suppressed).
+    assert _sum_col("4000", "credit") == 0.0
 
 
 def test_edit_after_recognition_is_blocked(client, admin_headers):

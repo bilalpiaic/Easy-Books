@@ -423,7 +423,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         raise HTTPException(
             400,
             "Cannot edit: revenue already recognized for this invoice's deferred "
-            "schedule. Void and reissue instead.",
+            "schedule. Reverse and reissue instead.",
         )
 
     # Snapshot prior header + totals for audit diff (before any mutations).
