@@ -70,17 +70,36 @@ async function createWindow() {
   }
 }
 
+// When the repo has no PRODUCTION release with an update manifest yet,
+// electron-updater throws (no published versions / can't parse the releases
+// feed / missing latest.yml / 404 / 406). That's not a real failure — there's
+// simply nothing to update to. Treat that whole class as "up to date" instead
+// of surfacing a scary error in the UI. Genuine errors (network, etc.) still
+// propagate.
+function isNoReleaseError(err) {
+  const m = String(err).toLowerCase()
+  return (
+    m.includes("no published versions") ||
+    m.includes("unable to find latest version") ||
+    m.includes("please ensure a production release exists") ||
+    m.includes("cannot parse releases feed") ||
+    m.includes("latest.yml") ||          // missing update manifest (incl. latest-mac.yml)
+    m.includes("httperror: 404") ||
+    m.includes("httperror: 406")
+  )
+}
+
 function wireAutoUpdater() {
   const send = (status) => { try { if (win) win.webContents.send("eb:update-status", status) } catch (_) {} }
   autoUpdater.on("checking-for-update", () => send({ state: "checking" }))
   autoUpdater.on("update-available",    (i) => send({ state: "available", version: i && i.version }))
   autoUpdater.on("update-not-available",() => send({ state: "none" }))
-  autoUpdater.on("error",               (e) => send({ state: "error", message: String(e) }))
+  autoUpdater.on("error",               (e) => send(isNoReleaseError(e) ? { state: "none" } : { state: "error", message: String(e) }))
   autoUpdater.on("download-progress",   (p) => send({ state: "downloading", percent: Math.round(p.percent || 0) }))
   autoUpdater.on("update-downloaded",   (i) => send({ state: "downloaded", version: i && i.version }))
   ipcMain.handle("eb:check-for-updates", async () => {
     try { await autoUpdater.checkForUpdates(); return { ok: true } }
-    catch (e) { return { ok: false, error: String(e) } }
+    catch (e) { return isNoReleaseError(e) ? { ok: true } : { ok: false, error: String(e) } }
   })
   ipcMain.handle("eb:install-update", () => { try { autoUpdater.quitAndInstall() } catch (_) {} })
 }
