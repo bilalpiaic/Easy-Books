@@ -126,7 +126,9 @@ def test_roots_and_children_ordered_by_code():
         _acc(3, "1020", "A-Child2", parent_id=2),
         _acc(4, "1010", "A-Child1", parent_id=2),
     ]
-    values = {3: {"balance": Decimal("1")}, 4: {"balance": Decimal("1")}}
+    # 2000 carries a direct balance so it survives pruning (it has no children);
+    # this test is about ordering, not pruning.
+    values = {1: {"balance": Decimal("1")}, 3: {"balance": Decimal("1")}, 4: {"balance": Decimal("1")}}
     tree = build_account_tree(accounts, values, ["balance"])
     assert [r["code"] for r in tree] == ["1000", "2000"]
     assert [c["code"] for c in tree[0]["children"]] == ["1010", "1020"]
