@@ -12,6 +12,8 @@ _Last reviewed: 2026-06-08 (against `main` @ v2.5.0; #47/#48 + #53 Phase 2 merge
 
 Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → v2.4.0 → **v2.5.0** (#47 deferred-revenue origination, #48 posted-edit negative-stock hardening, #53 Phase 2 hierarchical reporting).
 
+**Post-v2.5.0 infrastructure (on `main`):** seeding-layer modernization — the **default Chart of Accounts is now hierarchical for every tenant** (group skeleton + parented leaves in `db.py`), and the demo seed exercises deferred-revenue origination, voucher types, two fiscal years, and multiple users per tenant. **In progress:** documentation regeneration (all `.md` + the in-app guide/workflow pages reconciled to v2.5.0; branch `feature/docs-regen`).
+
 ---
 
 ## Remaining work — concrete plans

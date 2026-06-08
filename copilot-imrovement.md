@@ -1,3 +1,5 @@
+> ⏳ **Historical working notes** (pre-v2.5.0 analysis). Many recommendations have since shipped. For current status see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+
 # Copilot Improvement Plan
 
 ## Goal

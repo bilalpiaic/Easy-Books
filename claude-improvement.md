@@ -1,3 +1,5 @@
+> ⏳ **Historical working notes** (pre-v2.5.0 analysis). Many items here have since shipped — multi-level CoA + hierarchical reporting, deferred-revenue origination, voucher series, posted-edit, comparative/sub-ledger reports. For current status see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+
 # Easy-Books — Realistic Improvement Roadmap
 
 > **Methodology:** This document is grounded in three inputs: (1) a line-by-line audit of the

@@ -1,3 +1,5 @@
+> ⏳ **Historical working notes** (pre-v2.5.0 analysis). Many items here have since shipped. For current status see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+
 # Easy-Books Improvement Roadmap (Phase 2)
 
 This document outlines the strategic plan to elevate Easy-Books from a robust multi-tenant accounting system to a feature-complete ERP competitor (Odoo, QuickBooks, Manager.io) while ensuring full compliance with International Accounting Standards (IFRS/IAS).
