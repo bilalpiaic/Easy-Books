@@ -1,0 +1,115 @@
+"use client"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { apiFetch } from "@/lib/api"
+import { voucherTypeBadgeClass } from "@/lib/voucherTypes"
+
+interface JournalRow {
+  transaction_id: number
+  jv_number: string
+  voucher_type: string
+  date: string
+  description: string
+  account_name: string
+  debit: number
+  credit: number
+  is_reversed: boolean
+}
+
+type ColKey = "voucher" | "vtype" | "date" | "account" | "narration" | "amount"
+
+const ALL_COLUMNS: { key: ColKey; label: string; fixed?: boolean }[] = [
+  { key: "date", label: "Date", fixed: true },
+  { key: "voucher", label: "Voucher No" },
+  { key: "vtype", label: "Type" },
+  { key: "account", label: "Account" },
+  { key: "narration", label: "Narration" },
+  { key: "amount", label: "Amount", fixed: true },
+]
+
+function fmtAmount(n: number): string {
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export default function RecentTransactions() {
+  const [rows, setRows] = useState<JournalRow[] | null>(null)
+
+  useEffect(() => {
+    apiFetch<{ items: JournalRow[] }>("/api/reports/journal?limit=100")
+      .then(res => setRows(res.items ?? []))
+      .catch(() => setRows([]))
+  }, [])
+
+  const visible = ALL_COLUMNS
+
+  return (
+    <div className="bg-white rounded-xl border border-[#ede9e2] shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-[#ede9e2] flex items-center justify-between gap-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">Recent Transactions</p>
+        <Link href="/journal" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View all →</Link>
+      </div>
+      <div className="overflow-x-auto">
+        {rows === null ? (
+          <div className="px-5 py-6 flex flex-col gap-2.5">
+            {[...Array(5)].map((_, i) => <div key={i} className="flex gap-3"><div className="shimmer h-4 w-20 rounded" /><div className="shimmer h-4 w-24 rounded" /><div className="shimmer h-4 flex-1 rounded" /></div>)}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="px-5 py-8 text-center text-[#1a1814]/40 text-sm">No transactions for this period.</div>
+        ) : (
+          <table className="w-full text-left min-w-[560px]">
+            <thead>
+              <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">
+                {visible.map(c => (
+                  <th key={c.key} className={`px-5 py-2.5 ${c.key === "amount" ? "text-right" : ""}`}>{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#ede9e2]">
+              {rows.map((r, i) => (
+                <tr key={`${r.transaction_id}-${i}`} className={`hover:bg-[#faf8f4] transition-colors text-sm ${r.is_reversed ? "opacity-50" : ""}`}>
+                  {visible.map(c => <RowCell key={c.key} col={c.key} row={r} />)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RowCell({ col, row }: { col: ColKey; row: JournalRow }) {
+  switch (col) {
+    case "date":
+      return <td className="px-5 py-3 text-[#1a1814]/55 text-xs whitespace-nowrap">{row.date}</td>
+    case "voucher":
+      return (
+        <td className="px-5 py-3">
+          <Link href={`/journal?jv=${row.jv_number}`}
+            className="font-mono text-[11px] text-[#b8943f] font-semibold hover:underline underline-offset-2 whitespace-nowrap">
+            {row.jv_number}{row.is_reversed && <span className="ml-1 text-[#1a1814]/40">(reversed)</span>}
+          </Link>
+        </td>
+      )
+    case "vtype":
+      return (
+        <td className="px-5 py-3">
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${voucherTypeBadgeClass(row.voucher_type)}`}>{row.voucher_type}</span>
+        </td>
+      )
+    case "account":
+      return <td className="px-5 py-3 text-[#1a1814]/70 text-xs max-w-[160px] truncate">{row.account_name}</td>
+    case "narration":
+      return <td className="px-5 py-3 text-[#1a1814]/80 max-w-[220px] truncate">{row.description}</td>
+    case "amount": {
+      const isDebit = Number(row.debit) > 0
+      const amt = isDebit ? row.debit : row.credit
+      return (
+        <td className="px-5 py-3 text-right tabular-nums whitespace-nowrap">
+          {fmtAmount(amt)}
+          <span className={`ml-1.5 text-[10px] font-bold ${isDebit ? "text-blue-600" : "text-green-600"}`}>{isDebit ? "Dr" : "Cr"}</span>
+        </td>
+      )
+    }
+  }
+}
