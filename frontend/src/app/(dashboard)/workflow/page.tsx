@@ -369,6 +369,19 @@ function FinancialStatementFlow() {
           </div>
         </div>
       </div>
+      <p className="mt-4 text-xs text-[#1a1814]/55 leading-relaxed">
+        Trial Balance, the P&amp;L and the Balance Sheet are <b>hierarchical</b>: accounts roll up under
+        their parent groups with subtotals, and you can expand/collapse any group and click a leaf line to
+        drill into its ledger and on to the underlying voucher. Turn on <b>Compare</b> on the P&amp;L or
+        Balance Sheet for a prior-period column. Every posted transaction carries a <b>voucher type</b>
+        (Sales/Purchase/Receipt/Payment/Journal/Credit-Note/Debit-Note) feeding the Cash &amp; Bank Book.
+      </p>
+      <p className="mt-2 text-xs text-[#1a1814]/55 leading-relaxed">
+        Two variants on the sales cycle: a <b>deferred-revenue</b> product posts <span className="font-mono">Dr A/R · Cr Deferred Revenue (2300)</span>
+        and creates a recognition schedule that releases revenue over time; and a <b>posted invoice can be edited</b> (the
+        original entries are reversed and re-posted) unless it is paid, in a locked period, or — for deferred invoices —
+        already partly recognised.
+      </p>
     </div>
   )
 }
