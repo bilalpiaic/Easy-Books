@@ -22,7 +22,12 @@ def _txns(tid):
         return s.exec(select(Transaction).where(Transaction.tenant_id == tid)).all()
 
 
-def test_seeded_data_spans_two_fiscal_years(client):
+def test_seeded_data_spans_more_than_one_year(client):
+    # Date-independent: the seeded transactions must span >400 days, which the
+    # old 365-day window provably cannot — proving the 2-FY widening took effect
+    # regardless of the calendar date the suite runs on.
     tid = _seed(client, "services")
-    years = {t.date[:4] for t in _txns(tid)}
-    assert len(years) >= 2, f"expected >=2 distinct years, got {sorted(years)}"
+    dates = sorted(t.date for t in _txns(tid))
+    assert dates, "no transactions seeded"
+    span_days = (date.fromisoformat(dates[-1]) - date.fromisoformat(dates[0])).days
+    assert span_days > 400, f"date span only {span_days} days — not multi-year"
