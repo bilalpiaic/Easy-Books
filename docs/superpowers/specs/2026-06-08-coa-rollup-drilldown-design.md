@@ -90,6 +90,21 @@ rows to `values_by_account_id`, loads the tenant's accounts, and returns
 Filters (`start`/`end`/`date`) and sign conventions are unchanged — only the response
 *shape* changes from flat list to nested tree.
 
+**Comparison mode (BS & P&L only):** these endpoints already support a compare period
+(`compare_end` / `compare_start`+`compare_end` → `{current, comparison}` flat lists,
+from #43). Phase 2 leaves comparison mode **untouched**: when compare params are present,
+the endpoint returns the existing flat `{current, comparison}` shape; only the
+single-period response becomes a tree. The frontend renders `<AccountTree>` for the
+single-period view and keeps its existing flat table for compare mode. (TB has no
+comparison mode — it is always a tree.) Treeifying comparison is explicitly out of scope.
+
+**Balance-Sheet synthetic equity node:** the BS endpoint folds net income from
+Revenue/Expense into a single computed Equity line (`code "RE-CUR"`, "Retained Earnings
+(Current Period)") that is **not a real account** (`reports.py:807-813`). After building
+the tree from real Equity accounts, the endpoint appends this synthetic node as a
+top-level Equity node (no `id`, no `children`, not drillable). The tree builder operates
+only on real accounts; the synthetic line is added by the endpoint.
+
 ## §3 · Frontend — reusable `<AccountTree>` component
 
 A recursive row renderer used by all three pages
