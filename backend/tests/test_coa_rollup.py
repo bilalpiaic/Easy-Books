@@ -87,7 +87,8 @@ def test_balance_sheet_comparison_mode_stays_flat(client, admin_headers):
 
 def test_income_statement_single_period_is_tree(client, admin_headers):
     h = admin_headers
-    rg = _acct(client, h, "9400", "Revenue", "Revenue", is_group=True)
+    # Name must not collide with the seeded top-level "Revenue" group (code "4").
+    rg = _acct(client, h, "9400", "Revenue Group (test)", "Revenue", is_group=True)
     sales = _acct(client, h, "9410", "Sales", "Revenue", parent_id=rg["id"])
     cash = _acct(client, h, "9510", "Cash", "Asset")
     exp = _acct(client, h, "9900", "Rent", "Expense")
