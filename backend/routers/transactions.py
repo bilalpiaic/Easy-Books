@@ -151,6 +151,7 @@ def create_transaction(
         party=tx_data.party,
         payment_method=tx_data.payment_method,
         notes=tx_data.notes,
+        voucher_type=tx_data.voucher_type or "JV",
         audit_entity_type="transaction",
     )
     session.commit()

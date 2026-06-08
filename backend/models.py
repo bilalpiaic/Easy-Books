@@ -1396,6 +1396,7 @@ class JournalEntryCreate(JournalEntryBase):
 
 class TransactionCreate(TransactionBase):
     tenant_id: Optional[int] = None  # set by server from JWT
+    voucher_type: str = "JV"         # classification → per-type number series (#52 §4)
     entries: List[JournalEntryCreate]
 
 
