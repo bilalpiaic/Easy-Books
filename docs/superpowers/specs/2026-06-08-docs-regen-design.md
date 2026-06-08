@@ -20,13 +20,19 @@ This is the **docs-regen** sub-project (the seeding-layer sub-project is complet
   `WORKFLOW.md`, `USER_GUIDE.md`, `DEPLOYMENT.md`, `DEPLOYMENT_LOCAL.md`,
   `backend/README.md`, `frontend/README.md`), AI-instruction files (`CLAUDE.md`,
   `GEMINI.md`, `frontend/CLAUDE.md`, `frontend/AGENTS.md`,
-  `.github/copilot-instructions.md`), `docs/ROADMAP.md` (consistency sweep), and the
-  `*-improvement.md` scratch notes (review/refresh-or-mark-historical, lowest priority).
+  `.github/copilot-instructions.md`), `docs/ROADMAP.md` (consistency sweep), the
+  `*-improvement.md` scratch notes (review/refresh-or-mark-historical, lowest priority),
+  **and the in-app documentation pages** `frontend/src/app/(dashboard)/guide/page.tsx`
+  (in-app User Guide, ~2000 lines) and `frontend/src/app/(dashboard)/workflow/page.tsx`
+  (in-app transaction-flow / workflow, ~1150 lines) — these are the in-app equivalents of
+  `USER_GUIDE.md`/`WORKFLOW.md` (documentation prose embedded in JSX) and must stay in
+  sync with the same feature set.
 - **Approach:** **reconcile + fill feature gaps** — preserve each doc's structure and
   accurate content; fix stale/incorrect facts, add coverage for everything shipped since
   2026-06-03, fix contradictions. No full rewrite, no restructuring.
-- **Out:** new doc types, screenshots/diagrams regeneration, translating docs, the
-  in-app guide pages (those are React, not markdown — separate work if needed).
+- **Out:** new doc types, screenshots/diagrams regeneration, translating docs. (The
+  in-app guide/workflow React pages ARE in scope — see Group D — but only their embedded
+  documentation *content* is edited; their component structure/behavior is left intact.)
 
 ## Decisions (locked during brainstorming)
 
@@ -95,14 +101,25 @@ audit log, Alembic migrations, desktop/script installers + in-app update.
 - `claude-improvement.md`, `copilot-imrovement.md`, `gemini-improvement.md` — review;
   refresh if still relevant, else prepend a short "historical working notes" header.
 
+**Group D — in-app documentation pages (React/TSX prose):**
+- `frontend/src/app/(dashboard)/guide/page.tsx` — in-app **User Guide**: reconcile its
+  embedded how-to content to current features (hierarchical reports expand/collapse +
+  drill, deferred-revenue products, voucher types, comparative statements, posted-edit).
+- `frontend/src/app/(dashboard)/workflow/page.tsx` — in-app **transaction-flow /
+  workflow** guide: reconcile the documented flows (sales/purchase/payment cycles,
+  voucher-typed entries, deferred-revenue lifecycle, hierarchical-statement navigation).
+- **Edit only the documentation content** (JSX text/sections); do NOT change the page's
+  component logic, routing, or layout primitives. The page must still compile.
+
 ## §3 · Execution & verification
 
-Per-doc (or small-group) tasks, committed frequently, in order A → B → C. For each doc:
-read it, diff its claims against the §1 inventory and the actual code, apply surgical
+Per-doc (or small-group) tasks, committed frequently, in order A → B → C → D. For each
+doc: read it, diff its claims against the §1 inventory and the actual code, apply surgical
 fixes + gap-fills. **Verification:** a reviewer cross-checks the edited doc's factual
 claims against the codebase (file paths, endpoint shapes, feature behavior, version
 numbers) and flags any claim not backed by code. No prose is invented that the code
-doesn't support.
+doesn't support. **For Group D (TSX pages), additionally run `npm run lint`** and confirm
+no new errors in the edited page — content edits must not break compilation.
 
 ## Success criteria
 
