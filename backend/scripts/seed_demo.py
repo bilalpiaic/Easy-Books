@@ -2179,7 +2179,14 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _get_or_make_user(s, email, "Demo User", tenant_id)
         s.commit()
 
-        user = s.exec(select(User).where(User.email == email)).first()
+        # Multiple actors so the Audit Log shows realistic attribution.
+        base, domain = email.split("@", 1)
+        accountant = _get_or_make_user(s, f"{base}+accountant@{domain}", "Demo Accountant", tenant_id)
+        clerk = _get_or_make_user(s, f"{base}+clerk@{domain}", "Demo Clerk", tenant_id)
+        s.commit()
+        owner = s.exec(select(User).where(User.email == email)).first()
+
+        user = owner
 
         customers = _seed_customers(s, tenant_id)
         vendors   = _seed_vendors(s, tenant_id)
@@ -2195,14 +2202,14 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         payment_terms = _assign_payment_terms(s, tenant_id, customers, vendors)
         s.commit()
 
-        bills    = _seed_bills(s, user, vendors, all_products, business_model,
+        bills    = _seed_bills(s, accountant, vendors, all_products, business_model,
                                payment_terms)
         s.commit()
         invoices = _seed_invoices(s, user, customers, all_products, business_model,
                                   payment_terms)
         s.commit()
         _seed_payments_received(s, user, invoices)
-        _seed_bill_payments(s, user, bills)
+        _seed_bill_payments(s, accountant, bills)
         s.commit()
         _seed_manual_jvs(s, user)
         s.commit()
@@ -2215,7 +2222,7 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
         _seed_fixed_assets(s, user)
         s.commit()
-        _seed_credit_notes(s, user, invoices)
+        _seed_credit_notes(s, clerk, invoices)
         s.commit()
         _seed_purchase_orders(s, user, vendors, all_products)
         s.commit()
@@ -2224,7 +2231,7 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             s.commit()
 
         # ── Returns & Advances (Sprint 13) ──
-        _seed_sales_returns(s, user, invoices)
+        _seed_sales_returns(s, clerk, invoices)
         s.commit()
         _seed_purchase_returns(s, user, bills)
         s.commit()

@@ -57,3 +57,13 @@ def test_seeded_deferred_revenue_is_originated_and_partially_recognised(client):
     assert scheds, "no deferred schedules originated"
     assert any(float(x.recognised_amount) > 0 for x in scheds), "no partial recognition"
     assert credits_2300 > 0, "no Deferred Revenue (2300) credit posted by origination"
+
+
+def test_seeded_tenant_has_multiple_users_with_varied_audit(client):
+    tid = _seed(client, "services")
+    with Session(_db_module.engine) as s:
+        users = s.exec(select(User).where(User.tenant_id == tid)).all()
+        actor_ids = {a.user_id for a in s.exec(
+            select(AuditLog).where(AuditLog.tenant_id == tid)).all()}
+    assert len(users) >= 2, f"expected >=2 users, got {len(users)}"
+    assert len(actor_ids) >= 2, f"audit attributed to {len(actor_ids)} user(s)"
