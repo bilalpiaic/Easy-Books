@@ -16,6 +16,7 @@ from models import (
     Account, Bill, Budget, Customer, Invoice, JournalEntry, PaymentAllocation,
     Product, Transaction,
 )
+from services.account_tree import build_account_tree
 from services.export_utils import stream_csv, stream_xlsx
 from services.money import D, ZERO, money
 
@@ -83,9 +84,7 @@ def get_trial_balance(
 ):
     q = (
         select(
-            Account.code,
-            Account.name,
-            Account.type,
+            Account.id,
             func.sum(JournalEntry.debit).label("total_debit"),
             func.sum(JournalEntry.credit).label("total_credit"),
         )
@@ -99,22 +98,19 @@ def get_trial_balance(
         q = q.where(Transaction.date <= end)
     elif date:
         q = q.where(Transaction.date <= date)
+    rows = session.exec(q.group_by(Account.id)).all()
 
-    rows = session.exec(
-        q.group_by(Account.id)
-        .having((func.sum(JournalEntry.debit) > 0) | (func.sum(JournalEntry.credit) > 0))
-        .order_by(Account.code)
-    ).all()
-    return [
-        {
-            "code": r.code,
-            "name": r.name,
-            "type": r.type,
-            "total_debit": r.total_debit,
-            "total_credit": r.total_credit,
-        }
+    values = {
+        r.id: {"debit": D(r.total_debit or 0), "credit": D(r.total_credit or 0)}
         for r in rows
-    ]
+    }
+    accounts = session.exec(
+        select(Account).where(Account.tenant_id == user.tenant_id)
+    ).all()
+    tree = build_account_tree(accounts, values, ["debit", "credit"])
+    total_debit = sum((v["debit"] for v in values.values()), ZERO)
+    total_credit = sum((v["credit"] for v in values.values()), ZERO)
+    return {"tree": tree, "totals": {"debit": total_debit, "credit": total_credit}}
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────

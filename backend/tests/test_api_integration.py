@@ -118,9 +118,9 @@ def test_full_invoice_to_payment_flow_keeps_trial_balance_balanced(client: TestC
     # Trial balance should balance: ∑Dr == ∑Cr
     r = client.get("/api/reports/trial-balance", headers=auth)
     assert r.status_code == 200, r.text
-    rows = r.json()
-    total_debit = _sum_decimal(rows, "total_debit")
-    total_credit = _sum_decimal(rows, "total_credit")
+    body = r.json()
+    total_debit = Decimal(str(body["totals"]["debit"]))
+    total_credit = Decimal(str(body["totals"]["credit"]))
     assert total_debit == total_credit, f"Dr={total_debit} Cr={total_credit}"
     assert total_debit > 0  # something actually posted
 
@@ -177,8 +177,10 @@ def test_two_tenants_cannot_see_each_others_data(client: TestClient):
 
     r = client.get("/api/reports/trial-balance", headers=auth_b)
     assert r.status_code == 200
-    # Tenant B has no transactions → empty trial balance
-    assert r.json() == []
+    # Tenant B has no transactions → empty trial balance tree
+    body_b = r.json()
+    assert body_b["tree"] == []
+    assert Decimal(str(body_b["totals"]["debit"])) == Decimal("0")
 
 
 # ── Test 3: reversal nets to zero across the GL ──────────────────────────────
@@ -224,9 +226,9 @@ def test_transaction_reversal_nets_to_zero(client: TestClient):
 
     # Trial balance after first JV
     r = client.get("/api/reports/trial-balance", headers=auth)
-    rows_after_post = r.json()
-    assert _sum_decimal(rows_after_post, "total_debit") == Decimal("250")
-    assert _sum_decimal(rows_after_post, "total_credit") == Decimal("250")
+    tb_after_post = r.json()
+    assert Decimal(str(tb_after_post["totals"]["debit"])) == Decimal("250")
+    assert Decimal(str(tb_after_post["totals"]["credit"])) == Decimal("250")
 
     # Reverse it
     r = client.post(f"/api/transactions/{tx_id}/reverse", headers=auth)
@@ -235,9 +237,9 @@ def test_transaction_reversal_nets_to_zero(client: TestClient):
     # After reversal: each account has equal debit AND credit totals,
     # so net (Dr - Cr) per account == 0 and the books are balanced.
     r = client.get("/api/reports/trial-balance", headers=auth)
-    rows_after_rev = r.json()
-    total_debit = _sum_decimal(rows_after_rev, "total_debit")
-    total_credit = _sum_decimal(rows_after_rev, "total_credit")
+    tb_after_rev = r.json()
+    total_debit = Decimal(str(tb_after_rev["totals"]["debit"]))
+    total_credit = Decimal(str(tb_after_rev["totals"]["credit"]))
     assert total_debit == total_credit
     # The cumulative debits include both the post (250) and the reversal's
     # credit-leg-turned-debit (250), so 500 on each side is the expected sum.
