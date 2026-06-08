@@ -12,7 +12,7 @@
 
 **Base:** `main` @ v2.5.0. Branch: `feature/issue52-voucher-lov-entry`. **Run backend tests from `backend/` with `PYTHONPATH=.`.**
 
-**Key fact:** `models.py` `TransactionBase` already has `voucher_type: str = Field(default="JV", index=True)`, so `POST /api/transactions` already deserializes a `voucher_type` in the body — it's just ignored by `create_transaction` today (which calls `post_transaction` without it → always JV).
+**Correction (found during execution):** `voucher_type` lives on the **`Transaction` table model** (`models.py:163`), **not** on `TransactionBase` — so `TransactionCreate` did NOT inherit it, and `tx_data.voucher_type` raised `AttributeError`. Task 1 therefore needs **two** changes: add `voucher_type: str = "JV"` to `TransactionCreate` in `models.py`, *and* thread it through `create_transaction`. (Both are committed.)
 
 ---
 
