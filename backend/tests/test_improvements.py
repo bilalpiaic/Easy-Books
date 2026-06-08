@@ -160,7 +160,8 @@ def test_income_statement_comparison_returns_both_periods():
     app.dependency_overrides.clear()
 
 
-def test_income_statement_without_comparison_returns_flat_list():
+def test_income_statement_without_comparison_returns_tree():
+    # Migrated from flat-list check: single-period now returns {revenue, expenses, totals}
     engine = _mk_engine()
     app.dependency_overrides[get_session] = _get_session_override(engine)
     client = TestClient(app)
@@ -172,7 +173,11 @@ def test_income_statement_without_comparison_returns_flat_list():
         params={"start": "2026-01-01", "end": "2026-03-31"},
     )
     assert r.status_code == 200, r.text
-    assert isinstance(r.json(), list), "Backward compat: should return flat list when no compare params"
+    body = r.json()
+    assert isinstance(body, dict), "Single-period should return hierarchical tree dict"
+    assert set(["revenue", "expenses", "totals"]).issubset(body), (
+        f"Expected revenue/expenses/totals keys, got: {list(body.keys())}"
+    )
 
     app.dependency_overrides.clear()
 

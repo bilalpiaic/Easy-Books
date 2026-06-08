@@ -394,38 +394,60 @@ def get_income_statement(
     start: Optional[str] = None, end: Optional[str] = None,
     compare_start: Optional[str] = None, compare_end: Optional[str] = None,
 ):
-    def _query(s, e):
+    def _leaf_rows(s, e):
         q = (
-            session.query(
-                Account.name,
-                Account.type,
-                Account.code,
+            select(
+                Account.id, Account.code, Account.name, Account.type,
                 func.sum(JournalEntry.debit).label("total_debit"),
                 func.sum(JournalEntry.credit).label("total_credit"),
             )
             .join(JournalEntry, JournalEntry.account_id == Account.id)
             .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-            .filter(Account.type.in_(["Revenue", "Expense"]))
-            .filter(Transaction.tenant_id == user.tenant_id)
+            .where(Account.type.in_(["Revenue", "Expense"]))
+            .where(Transaction.tenant_id == user.tenant_id)
         )
         if s and e:
-            q = q.filter(Transaction.date >= s, Transaction.date <= e)
-        rows = q.group_by(Account.id).order_by(Account.type.desc(), Account.code).all()
-        return [
-            {
-                "name": r.name,
-                "type": r.type,
-                "code": r.code,
-                "total_debit": r.total_debit,
-                "total_credit": r.total_credit,
-            }
-            for r in rows
-        ]
+            q = q.where(Transaction.date >= s, Transaction.date <= e)
+        return session.exec(q.group_by(Account.id)).all()
 
-    current = _query(start, end)
+    def _flat(s, e):
+        # Existing flat shape (comparison mode) — unchanged.
+        out = []
+        for r in _leaf_rows(s, e):
+            out.append({"name": r.name, "type": r.type, "code": r.code,
+                        "total_debit": r.total_debit, "total_credit": r.total_credit})
+        return out
+
     if compare_start and compare_end:
-        return {"current": current, "comparison": _query(compare_start, compare_end)}
-    return current  # backward-compatible flat list
+        return {"current": _flat(start, end), "comparison": _flat(compare_start, compare_end)}
+
+    rows = _leaf_rows(start, end)
+    values = {}
+    for r in rows:
+        debit, credit = D(r.total_debit or 0), D(r.total_credit or 0)
+        amount = (credit - debit) if r.type == "Revenue" else (debit - credit)
+        values[r.id] = {"amount": amount}
+
+    accounts = session.exec(
+        select(Account).where(
+            Account.tenant_id == user.tenant_id,
+            Account.type.in_(["Revenue", "Expense"]),
+        )
+    ).all()
+    rev_accts = [a for a in accounts if a.type == "Revenue"]
+    exp_accts = [a for a in accounts if a.type == "Expense"]
+    revenue = build_account_tree(rev_accts, values, ["amount"])
+    expenses = build_account_tree(exp_accts, values, ["amount"])
+
+    def _tot(nodes):
+        return sum((D(n["amount"]) for n in nodes), ZERO)
+
+    total_rev, total_exp = _tot(revenue), _tot(expenses)
+    return {
+        "revenue": revenue, "expenses": expenses,
+        "totals": {"revenue": total_rev, "expenses": total_exp,
+                   "net_profit": total_rev - total_exp},
+    }
 
 
 # ── General ledger (per-account with running balance) ────────────────────────

@@ -83,3 +83,35 @@ def test_balance_sheet_comparison_mode_stays_flat(client, admin_headers):
     body = r.json()
     assert "current" in body and "comparison" in body      # unchanged flat shape
     assert isinstance(body["current"], list)
+
+
+def test_income_statement_single_period_is_tree(client, admin_headers):
+    h = admin_headers
+    rg = _acct(client, h, "9400", "Revenue", "Revenue", is_group=True)
+    sales = _acct(client, h, "9410", "Sales", "Revenue", parent_id=rg["id"])
+    cash = _acct(client, h, "9510", "Cash", "Asset")
+    exp = _acct(client, h, "9900", "Rent", "Expense")
+    _post(client, h, cash["id"], sales["id"], 200)   # revenue 200
+    _post(client, h, exp["id"], cash["id"], 50)      # expense 50
+
+    r = client.get("/api/reports/income-statement?start=2026-01-01&end=2026-12-31", headers=h)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert set(["revenue", "expenses", "totals"]).issubset(body)
+    assert float(_find(body["revenue"], "9400")["amount"]) == 200.0   # rolled up
+    assert float(body["totals"]["revenue"]) == 200.0
+    assert float(body["totals"]["expenses"]) == 50.0
+    assert float(body["totals"]["net_profit"]) == 150.0
+
+
+def test_income_statement_comparison_mode_stays_flat(client, admin_headers):
+    h = admin_headers
+    sales = _acct(client, h, "9410", "Sales", "Revenue")
+    cash = _acct(client, h, "9510", "Cash", "Asset")
+    _post(client, h, cash["id"], sales["id"], 200)
+    r = client.get("/api/reports/income-statement?start=2026-01-01&end=2026-12-31"
+                   "&compare_start=2025-01-01&compare_end=2025-12-31", headers=h)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "current" in body and "comparison" in body
+    assert isinstance(body["current"], list)
