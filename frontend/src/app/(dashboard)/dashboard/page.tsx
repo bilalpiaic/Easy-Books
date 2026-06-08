@@ -18,6 +18,7 @@ import { Bar, Doughnut, Line } from "react-chartjs-2"
 import { useFmt } from "@/context/SettingsContext"
 import { apiFetch } from "@/lib/api"
 import DateRangePicker from "@/components/DateRangePicker"
+import RecentTransactions from "@/components/RecentTransactions"
 import { useSettings } from "@/context/SettingsContext"
 
 ChartJS.register(
@@ -47,11 +48,8 @@ interface DashboardSummary {
   ap_due_week: number
 }
 
-interface RecentTx { id: number; jv_number: string; date: string; description: string }
-
 interface DashboardData {
   summary: DashboardSummary
-  recent: RecentTx[]
 }
 
 interface ChartData {
@@ -407,46 +405,7 @@ export default function Dashboard() {
 
       {/* ── Recent transactions (full width) ─────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4">
-        {/* Recent transactions */}
-        <div className="bg-white rounded-xl border border-[#ede9e2] shadow-sm overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-[#ede9e2] flex items-center justify-between">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">Recent Transactions</p>
-            <Link href="/journal" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View all →</Link>
-          </div>
-          <div className="overflow-x-auto">
-            {!data ? (
-              <div className="px-5 py-6 flex flex-col gap-2.5">
-                {[...Array(5)].map((_, i) => <div key={i} className="flex gap-3"><div className="shimmer h-4 w-20 rounded" /><div className="shimmer h-4 w-24 rounded" /><div className="shimmer h-4 flex-1 rounded" /></div>)}
-              </div>
-            ) : data.recent.length === 0 ? (
-              <div className="px-5 py-8 text-center text-[#1a1814]/40 text-sm">No transactions for this period.</div>
-            ) : (
-              <table className="w-full text-left min-w-[420px]">
-                <thead>
-                  <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">
-                    <th className="px-5 py-2.5">JV No.</th>
-                    <th className="px-5 py-2.5">Date</th>
-                    <th className="px-5 py-2.5">Description</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
-                  {data.recent.map(tx => (
-                    <tr key={tx.id} className="hover:bg-[#faf8f4] transition-colors text-sm">
-                      <td className="px-5 py-3">
-                        <Link href={`/journal?jv=${tx.jv_number}`}
-                          className="font-mono text-[11px] text-[#b8943f] font-semibold hover:underline underline-offset-2 whitespace-nowrap">
-                          {tx.jv_number}
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3 text-[#1a1814]/55 text-xs whitespace-nowrap">{tx.date}</td>
-                      <td className="px-5 py-3 text-[#1a1814]/80 max-w-[200px] truncate">{tx.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+        <RecentTransactions />
       </div>
     </div>
   )
