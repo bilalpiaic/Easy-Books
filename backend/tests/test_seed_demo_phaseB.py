@@ -67,3 +67,19 @@ def test_seeded_tenant_has_multiple_users_with_varied_audit(client):
             select(AuditLog).where(AuditLog.tenant_id == tid)).all()}
     assert len(users) >= 2, f"expected >=2 users, got {len(users)}"
     assert len(actor_ids) >= 2, f"audit attributed to {len(actor_ids)} user(s)"
+
+
+import pytest
+
+
+@pytest.mark.parametrize("model", ["simple", "services", "trader", "manufacturing", "telecom_franchise"])
+def test_every_segment_seeds_and_trial_balance_balances(client, model):
+    tid = _seed(client, model)
+    from services.money import D
+    with Session(_db_module.engine) as s:
+        rows = s.exec(select(JournalEntry).join(Transaction).where(
+            Transaction.tenant_id == tid)).all()
+        dr = sum(D(r.debit) for r in rows)
+        cr = sum(D(r.credit) for r in rows)
+    assert dr == cr, f"{model}: trial balance off by {dr - cr}"
+    assert len(_txns(tid)) > 0, f"{model}: no transactions seeded"
