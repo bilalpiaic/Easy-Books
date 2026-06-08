@@ -8,13 +8,16 @@ import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
+import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
 
-interface TrialBalanceItem {
-  code: string
-  name: string
-  type: string
-  total_debit: number
-  total_credit: number
+interface TrialBalanceTotals {
+  debit: number
+  credit: number
+}
+
+interface TrialBalanceResponse {
+  tree: TreeNode[]
+  totals: TrialBalanceTotals
 }
 
 function defaultRange() {
@@ -26,9 +29,21 @@ function defaultRange() {
   }
 }
 
+function flatten(nodes: TreeNode[]): TreeNode[] {
+  const result: TreeNode[] = []
+  for (const n of nodes) {
+    result.push(n)
+    if (n.children && n.children.length > 0) {
+      result.push(...flatten(n.children))
+    }
+  }
+  return result
+}
+
 export default function TrialBalancePage() {
   const fmt = useFmt()
-  const [data, setData] = useState<TrialBalanceItem[]>([])
+  const [tree, setTree] = useState<TreeNode[]>([])
+  const [totals, setTotals] = useState<TrialBalanceTotals>({ debit: 0, credit: 0 })
   const [isLoading, setIsLoading] = useState(true)
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
@@ -36,13 +51,14 @@ export default function TrialBalancePage() {
 
   useEffect(() => {
     setIsLoading(true)
-    apiFetch<TrialBalanceItem[]>(`/api/reports/trial-balance?start=${start}&end=${end}`)
-      .then(data => { setData(data); setIsLoading(false) })
+    apiFetch<TrialBalanceResponse>(`/api/reports/trial-balance?start=${start}&end=${end}`)
+      .then(res => { setTree(res.tree ?? []); setTotals(res.totals ?? { debit: 0, credit: 0 }); setIsLoading(false) })
       .catch(() => setIsLoading(false))
   }, [start, end])
 
-  const grandTotalDebit = data.reduce((sum, item) => sum + item.total_debit, 0)
-  const grandTotalCredit = data.reduce((sum, item) => sum + item.total_credit, 0)
+  const grandTotalDebit = totals.debit
+  const grandTotalCredit = totals.credit
+  const hasData = tree.length > 0
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -57,7 +73,7 @@ export default function TrialBalancePage() {
             <Printer className="w-5 h-5" />
           </button>
           <button
-            onClick={() => downloadCSV(`trial-balance-${start}-${end}.csv`, data.map(d => ({ Code: d.code, Name: d.name, Type: d.type, Debit: d.total_debit, Credit: d.total_credit })))}
+            onClick={() => downloadCSV(`trial-balance-${start}-${end}.csv`, flatten(tree).map(d => ({ Code: d.code, Name: d.name, Type: d.type, Debit: d.debit, Credit: d.credit })))}
             className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden"
             title="Export CSV"
           >
@@ -83,37 +99,20 @@ export default function TrialBalancePage() {
           <tbody className="divide-y divide-[#1a1814]/5">
             {isLoading ? (
               <tr><td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/75">Generating report...</td></tr>
-            ) : data.length === 0 ? (
+            ) : !hasData ? (
               <tr><td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/75">No balances found for selected period.</td></tr>
             ) : (
-              data.map(item => (
-                <tr key={item.code} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                  <td className="px-8 py-4">
-                    <Link
-                      href={`/ledger?account=${encodeURIComponent(item.code)}&start=${start}&end=${end}`}
-                      className="font-mono text-xs text-[#b8943f] mr-3 hover:underline underline-offset-2"
-                      title="Open in General Ledger"
-                    >
-                      {item.code}
-                    </Link>
-                    <Link
-                      href={`/ledger?account=${encodeURIComponent(item.code)}&start=${start}&end=${end}`}
-                      className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors"
-                    >
-                      {item.name}
-                    </Link>
-                  </td>
-                  <td className="px-8 py-4 text-right font-mono text-sm">
-                    {item.total_debit > 0 ? fmt(item.total_debit) : "-"}
-                  </td>
-                  <td className="px-8 py-4 text-right font-mono text-sm">
-                    {item.total_credit > 0 ? fmt(item.total_credit) : "-"}
-                  </td>
-                </tr>
-              ))
+              <AccountTreeRows
+                nodes={tree}
+                columns={[{ key: "debit", align: "right" }, { key: "credit", align: "right" }]}
+                renderLeafLabel={(n) => (
+                  <Link href={`/ledger?account=${encodeURIComponent(n.code)}&start=${start}&end=${end}`}
+                        className="hover:text-[#b8943f] hover:underline">{n.name}</Link>
+                )}
+              />
             )}
           </tbody>
-          {!isLoading && data.length > 0 && (
+          {!isLoading && hasData && (
             <tfoot>
               <tr className="bg-[#1a1814] text-white">
                 <td className="px-8 py-5 font-bold uppercase tracking-widest text-xs">Grand Total</td>

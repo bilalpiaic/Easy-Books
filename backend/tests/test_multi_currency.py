@@ -53,6 +53,17 @@ def _sum_dec(rows, key):
     return sum((Decimal(str(r.get(key))) for r in rows if r.get(key) is not None), start=Decimal("0"))
 
 
+def _tb_find(nodes, code):
+    """Recursively find a node by account code in the TB tree."""
+    for n in nodes:
+        if n["code"] == code:
+            return n
+        hit = _tb_find(n.get("children", []), code)
+        if hit:
+            return hit
+    return None
+
+
 def test_exchange_rate_crud(client: TestClient):
     auth = _auth(client)
     r = client.post(
@@ -104,11 +115,12 @@ def test_eur_invoice_posts_at_base_currency_in_gl(client: TestClient):
     assert Decimal(str(inv["total"])) == Decimal("1000")  # document stays in EUR
 
     # Trial balance is in base currency (USD). The AR debit must be 1100.
-    rows = client.get("/api/reports/trial-balance", headers=auth).json()
-    ar_row = next(r for r in rows if r["code"] == "1100")
-    assert Decimal(str(ar_row["total_debit"])) == Decimal("1100")
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    ar_row = _tb_find(tb_body["tree"], "1100")
+    assert ar_row is not None, "AR account (1100) missing from trial balance"
+    assert Decimal(str(ar_row["debit"])) == Decimal("1100")
     # Σdebit == Σcredit (balanced)
-    assert _sum_dec(rows, "total_debit") == _sum_dec(rows, "total_credit")
+    assert Decimal(str(tb_body["totals"]["debit"])) == Decimal(str(tb_body["totals"]["credit"]))
 
 
 def test_invoice_in_base_currency_uses_rate_1(client: TestClient):
@@ -130,9 +142,10 @@ def test_invoice_in_base_currency_uses_rate_1(client: TestClient):
     inv = r.json()
     assert inv["currency"] == "USD"
     assert Decimal(str(inv["exchange_rate"])) == Decimal("1")
-    rows = client.get("/api/reports/trial-balance", headers=auth).json()
-    ar = next(r for r in rows if r["code"] == "1100")
-    assert Decimal(str(ar["total_debit"])) == Decimal("500")
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    ar = _tb_find(tb_body["tree"], "1100")
+    assert ar is not None, "AR account (1100) missing from trial balance"
+    assert Decimal(str(ar["debit"])) == Decimal("500")
 
 
 def test_missing_fx_rate_rejects_invoice(client: TestClient):

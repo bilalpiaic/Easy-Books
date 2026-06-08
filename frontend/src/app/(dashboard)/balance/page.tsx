@@ -7,6 +7,7 @@ import { fmtAmount } from "@/lib/utils"
 import { useSettings } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
+import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
 
 interface BalanceItem {
   code: string
@@ -20,9 +21,51 @@ interface BSResponse {
   comparison?: BalanceItem[]
 }
 
+interface BSTreeResponse {
+  assets: TreeNode[]
+  liabilities: TreeNode[]
+  equity: TreeNode[]
+  totals: { assets: number; liabilities: number; equity: number }
+}
+
 function today() { return new Date().toISOString().split("T")[0] }
 function priorYear(d: string) { return `${parseInt(d.slice(0, 4)) - 1}${d.slice(4)}` }
 
+/** Single-period tree section rendered with AccountTreeRows */
+function TreeSection({
+  title, nodes, total, totalLabel, fmt,
+}: {
+  title: string
+  nodes: TreeNode[]
+  total: number
+  totalLabel: string
+  fmt: (n: number) => string
+}) {
+  return (
+    <section className="space-y-2">
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">{title}</h3>
+      <table className="w-full text-left border-collapse">
+        <tbody className="divide-y divide-[#1a1814]/5">
+          <AccountTreeRows
+            nodes={nodes}
+            columns={[{ key: "balance", align: "right" }]}
+            renderLeafLabel={(n) =>
+              n.id != null
+                ? <DocLink type="account" id={n.code} label={n.name} className="text-[#1a1814]/60" />
+                : <span className="text-[#1a1814] font-medium italic">{n.name}</span>
+            }
+          />
+        </tbody>
+      </table>
+      <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
+        <span className="text-[#1a1814]">{totalLabel}</span>
+        <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(total)}</span>
+      </div>
+    </section>
+  )
+}
+
+/** Comparison-mode section (flat BalanceItem list) — unchanged */
 function BalanceSection({
   title, items, cmpItems, total, cmpTotal, totalLabel, fmt, showCmp,
 }: {
@@ -65,8 +108,17 @@ function BalanceSection({
 
 export default function BalanceSheetPage() {
   const { settings } = useSettings()
+
+  // Flat state for comparison mode (unchanged)
   const [data, setData] = useState<BalanceItem[]>([])
   const [comparison, setComparison] = useState<BalanceItem[] | null>(null)
+
+  // Tree state for single-period mode
+  const [treeAssets, setTreeAssets] = useState<TreeNode[]>([])
+  const [treeLiabilities, setTreeLiabilities] = useState<TreeNode[]>([])
+  const [treeEquity, setTreeEquity] = useState<TreeNode[]>([])
+  const [bsTotals, setBsTotals] = useState<{ assets: number; liabilities: number; equity: number }>({ assets: 0, liabilities: 0, equity: 0 })
+
   const [isLoading, setIsLoading] = useState(true)
   const [asOf, setAsOf] = useState(today())
   const [compareMode, setCompareMode] = useState(false)
@@ -76,11 +128,21 @@ export default function BalanceSheetPage() {
     setIsLoading(true)
     const params = new URLSearchParams({ end: asOf })
     if (compareMode) params.set("compare_end", cmpEnd)
-    apiFetch<BalanceItem[] | BSResponse>(`/api/reports/balance-sheet?${params}`)
+    apiFetch<BalanceItem[] | BSResponse | BSTreeResponse>(`/api/reports/balance-sheet?${params}`)
       .then(res => {
         if (compareMode && res && typeof res === "object" && "current" in res) {
+          // Comparison mode: flat shape — unchanged
           setData((res as BSResponse).current ?? [])
           setComparison((res as BSResponse).comparison ?? null)
+        } else if (!compareMode && res && typeof res === "object" && "assets" in res) {
+          // Single-period mode: new tree shape
+          const tree = res as BSTreeResponse
+          setTreeAssets(tree.assets ?? [])
+          setTreeLiabilities(tree.liabilities ?? [])
+          setTreeEquity(tree.equity ?? [])
+          setBsTotals(tree.totals ?? { assets: 0, liabilities: 0, equity: 0 })
+          setData([])
+          setComparison(null)
         } else {
           setData(Array.isArray(res) ? res : [])
           setComparison(null)
@@ -92,22 +154,29 @@ export default function BalanceSheetPage() {
 
   const fmt = (n: number) => fmtAmount(n, settings.currency)
 
-  const assets      = data.filter(i => i.type === "Asset")
-  const liabilities = data.filter(i => i.type === "Liability")
-  const equity      = data.filter(i => i.type === "Equity")
+  // Comparison-mode derived values (unchanged)
   const cmpAssets      = comparison?.filter(i => i.type === "Asset") ?? []
   const cmpLiabilities = comparison?.filter(i => i.type === "Liability") ?? []
   const cmpEquity      = comparison?.filter(i => i.type === "Equity") ?? []
 
-  const totalAssets      = assets.reduce((s, i) => s + i.balance, 0)
-  const totalLiabilities = liabilities.reduce((s, i) => s + i.balance, 0)
-  const totalEquity      = equity.reduce((s, i) => s + i.balance, 0)
-  const totalLE          = totalLiabilities + totalEquity
-  const isBalanced       = Math.abs(totalAssets - totalLE) <= 0.01
+  const flatAssets      = data.filter(i => i.type === "Asset")
+  const flatLiabilities = data.filter(i => i.type === "Liability")
+  const flatEquity      = data.filter(i => i.type === "Equity")
 
   const cmpTotalAssets      = cmpAssets.reduce((s, i) => s + i.balance, 0)
   const cmpTotalLiabilities = cmpLiabilities.reduce((s, i) => s + i.balance, 0)
   const cmpTotalEquity      = cmpEquity.reduce((s, i) => s + i.balance, 0)
+
+  const flatTotalAssets      = flatAssets.reduce((s, i) => s + i.balance, 0)
+  const flatTotalLiabilities = flatLiabilities.reduce((s, i) => s + i.balance, 0)
+  const flatTotalEquity      = flatEquity.reduce((s, i) => s + i.balance, 0)
+
+  // Totals: tree values in single-period mode, flat values in compare mode
+  const totalAssets      = compareMode ? flatTotalAssets      : bsTotals.assets
+  const totalLiabilities = compareMode ? flatTotalLiabilities : bsTotals.liabilities
+  const totalEquity      = compareMode ? flatTotalEquity      : bsTotals.equity
+  const totalLE          = totalLiabilities + totalEquity
+  const isBalanced       = Math.abs(totalAssets - totalLE) <= 0.01
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -145,30 +214,45 @@ export default function BalanceSheetPage() {
         <div className="text-center py-20 text-[#1a1814]/75">Generating report...</div>
       ) : (
         <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-12">
-          {comparison && (
-            <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
-              <span className="w-36 text-right">Current Period</span>
-              <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
-            </div>
+          {compareMode ? (
+            <>
+              {comparison && (
+                <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
+                  <span className="w-36 text-right">Current Period</span>
+                  <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
+                </div>
+              )}
+
+              <BalanceSection title="Assets" items={flatAssets} cmpItems={cmpAssets}
+                total={flatTotalAssets} cmpTotal={cmpTotalAssets} totalLabel="Total Assets"
+                fmt={fmt} showCmp={!!comparison} />
+
+              <BalanceSection title="Liabilities" items={flatLiabilities} cmpItems={cmpLiabilities}
+                total={flatTotalLiabilities} cmpTotal={cmpTotalLiabilities} totalLabel="Total Liabilities"
+                fmt={fmt} showCmp={!!comparison} />
+
+              <BalanceSection title="Equity" items={flatEquity} cmpItems={cmpEquity}
+                total={flatTotalEquity} cmpTotal={cmpTotalEquity} totalLabel="Total Equity"
+                fmt={fmt} showCmp={!!comparison} />
+            </>
+          ) : (
+            <>
+              <TreeSection title="Assets" nodes={treeAssets}
+                total={bsTotals.assets} totalLabel="Total Assets" fmt={fmt} />
+
+              <TreeSection title="Liabilities" nodes={treeLiabilities}
+                total={bsTotals.liabilities} totalLabel="Total Liabilities" fmt={fmt} />
+
+              <TreeSection title="Equity" nodes={treeEquity}
+                total={bsTotals.equity} totalLabel="Total Equity" fmt={fmt} />
+            </>
           )}
-
-          <BalanceSection title="Assets" items={assets} cmpItems={cmpAssets}
-            total={totalAssets} cmpTotal={cmpTotalAssets} totalLabel="Total Assets"
-            fmt={fmt} showCmp={!!comparison} />
-
-          <BalanceSection title="Liabilities" items={liabilities} cmpItems={cmpLiabilities}
-            total={totalLiabilities} cmpTotal={cmpTotalLiabilities} totalLabel="Total Liabilities"
-            fmt={fmt} showCmp={!!comparison} />
-
-          <BalanceSection title="Equity" items={equity} cmpItems={cmpEquity}
-            total={totalEquity} cmpTotal={cmpTotalEquity} totalLabel="Total Equity"
-            fmt={fmt} showCmp={!!comparison} />
 
           <section className="pt-8 border-t-2 border-[#1a1814] flex justify-between items-center bg-[#f6f3ee]/30 -mx-10 px-10 py-6">
             <h2 className="text-xl font-serif text-[#1a1814]">Total Liabilities &amp; Equity</h2>
             <div className="flex gap-8">
               <div className="text-2xl font-serif w-36 text-right text-[#1a1814]">{fmt(totalLE)}</div>
-              {comparison && (
+              {compareMode && comparison && (
                 <div className="text-xl font-serif w-36 text-right text-[#1a1814]/35">{fmt(cmpTotalLiabilities + cmpTotalEquity)}</div>
               )}
             </div>

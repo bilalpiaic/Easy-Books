@@ -1,15 +1,14 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-07 (against `main` @ v2.4.0)_
+_Last reviewed: 2026-06-08 (against `feature/issue53-phase2-coa-rollup`; #53 Phase 2 shipped)_
 
 ## Status summary
 
 | State | Issues |
 |-------|--------|
 | ✅ **Done & closed** | #43 (Financial Reporting/Inventory/Sales-Purchase, 7 sections), #44 (Voucher Series, Phase 1+2), #45 (Consolidated/Sub-Ledger GL), #50 (Selling/Cost Price), #51 (Posted-doc editing) |
-| 🟡 **Partially done (open)** | #53 (Multi-Level COA — **Phase 1 shipped v2.4.0**; Phase 2 remaining), #52 (COA/Dashboard/UX bundle — §1/§2/§5 redirected to #53/#41/#40; net-new §3/§4/§6 remaining) |
-| 🔴 **Not started (open)** | #40, #41, #42 |
-| 🚀 **In review (PR open)** | #48 (`block_negative_stock` on posted-edit — PR #54), #47 (deferred-revenue origination — this branch) |
+| 🟡 **Partially done (open)** | #53 (Multi-Level COA — **Phase 1 shipped v2.4.0; Phase 2 shipped** — hierarchical roll-up + drill-down for TB/BS/P&L; Cash Flow / dashboard summaries remain as future scope), #52 (COA/Dashboard/UX bundle — §1/§2/§5 redirected to #53/#41/#40; net-new §3/§4/§6 remaining) |
+| 🔴 **Not started (open)** | #40, #41, #42, #47, #48 |
 
 Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → **v2.4.0**.
 
@@ -17,18 +16,17 @@ Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → **v2.4.0**.
 
 ## Remaining work — concrete plans
 
-### 1. #48 + #47 — Posted-edit hardening + deferred revenue · **shipped to PRs**
-Originally scoped as one "mini-batch"; split once #47 turned out to be a net-new feature, not hardening.
+### 1. #47 + #48 — Posted-edit hardening (mini-batch) · effort **S** · priority **Med**
+Two small follow-ups from the posted-edit feature; do together (one branch/PR).
 
-- **#48 — `block_negative_stock` on edit.** ✅ **Done (PR #54).** `update_invoice`'s re-consume now mirrors `create_invoice`: reads the setting, passes `block_negative=`, and wraps the loop in `try/except InventoryError → rollback + 400`.
-- **#47 — Deferred-revenue origination.** ✅ **Done (this branch).** Premise was re-scoped: invoices never created deferral schedules (no `Invoice.is_deferred`; only the seeder built schedules). Built the missing origination: `services/deferred.py` (`plan_deferral`/`resolve_deferred_account`/`create_schedules`/`has_any_recognition`/`reverse_schedules`); `create_invoice` splits net revenue → Deferred Revenue (2300) for `product.is_deferred` lines + builds one schedule per deferred line; `update_invoice` blocks edits once recognised, else reverses+rebuilds; product form exposes the flags; the existing recognition engine is reused unchanged. GST always posts immediately; deferred GL credit is clamped to subtotal so multi-currency invoices balance. Spec + plan under `docs/superpowers/`. **Recognition automation, recognition-preview UI, and partial-period proration remain future scope.**
+- **#48 — `block_negative_stock` on edit.** `create_invoice` reads the setting and passes `block_negative=` to `consume_stock` (`invoices.py:234-241,287`); `update_invoice`'s re-consume omits it. **Fix:** mirror that read + pass in `update_invoice`. Test: tenant with the setting on, edit a posted invoice to a qty exceeding stock → 400. **Effort XS.**
+- **#47 — Deferred-revenue rebuild on edit.** When a posted `is_deferred` invoice is edited, reverse/rebuild its deferral schedule. **Approach:** in `update_invoice`, if `is_deferred`, void the existing `DeferredRevenueSchedule` + un-recognised entries (see `routers/deferred_revenue.py`) and rebuild from the edited lines; **block if any period already recognised** (policy: like block-if-paid). Tests: edit pre-recognition rebuilds; edit post-recognition blocked. **Effort S-M.**
+- **Deps:** posted-edit (done). **No design needed** beyond the recognised-period policy.
 
-### 2. #53 Phase 2 — COA reporting roll-up & drill-down · effort **M-L** · priority **High**
-Continues the multi-level COA foundation (Phase 1 shipped). **Needs its own spec.**
-- **Scope:** parent-subtotal roll-up + expand/collapse in **Trial Balance, Balance Sheet, P&L, Cash Flow, General Ledger**, and dashboard financial summaries; drill statements → ledger → voucher.
-- **Approach (backend):** the report aggregations currently group flat by `Account.id` (`reports.py`). Add hierarchy roll-up: build the parent→child tree, compute parent subtotals (parent = Σ descendant leaves), return a tree-shaped payload. Reconciliation invariant: parent total == Σ children (test it).
-- **Approach (frontend):** render expandable account trees in TB/BS/P&L; the TB→`/ledger`→voucher drill already exists (extend to BS/P&L line items).
-- **Deps:** #53 Phase 1 (done). **Highest-value next step** — builds directly on fresh work.
+### 2. #53 Phase 2 — COA reporting roll-up & drill-down · ✅ **SHIPPED**
+Hierarchical roll-up + drill-down for Trial Balance, Balance Sheet, and P&L.
+- **Shipped:** `GET /api/reports/trial-balance` → `{tree, totals}` (nested tree, parent = Σ children + own, leaf nodes carry `debit`/`credit`); `GET /api/reports/balance-sheet` (single period) → `{assets, liabilities, equity, totals}`; `GET /api/reports/income-statement` (single period) → `{revenue, expenses, totals}`. Comparison-mode responses remain flat `{current, comparison}` (unchanged). `services/account_tree.py` implements the shared roll-up logic. All existing test assertions migrated to new shapes; full suite green (313 tests).
+- **Remaining future scope:** Cash Flow hierarchical roll-up; dashboard financial summaries; frontend expand/collapse tree rendering; drill-down statements → ledger → voucher for BS/P&L lines.
 
 ### 3. #41 (= #52 §2) — Recent Transactions enhancement · effort **S-M** · priority **Med**
 - **Scope:** dashboard Recent Transactions shows full columns (Date · Voucher No · **Voucher Type** · Account · Party · Narration · Amount); user-selectable columns (checkbox, persisted); voucher-type filter; sort by date; quick search; click-to-open.
@@ -61,7 +59,7 @@ Continues the multi-level COA foundation (Phase 1 shipped). **Needs its own spec
 
 ## Recommended sequence
 1. **#47 + #48** posted-edit hardening (S, closes 2 issues, low risk).
-2. **#53 Phase 2** COA reporting roll-up/drill-down (High; continues fresh CoA work).
+2. ~~**#53 Phase 2**~~ ✅ COA reporting roll-up/drill-down — **shipped**.
 3. **#41** Recent Transactions (S-M; reuses voucher journal endpoint).
 4. **#52 §4** Voucher LOV on New Entry (S; leverages #44).
 5. **#40** Full-page forms (M-L UX refactor).
@@ -69,4 +67,4 @@ Continues the multi-level COA foundation (Phase 1 shipped). **Needs its own spec
 7. **#42** Telecom Stock & Issuance table (M; domain).
 8. **#52 §3** Customizable dashboard (L; last).
 
-**Cross-cutting note:** each non-trivial item (esp. #53 Phase 2, #40, #42, #52 §3/§6) gets its own brainstorm → spec → plan → subagent execution, consistent with how v2.2.0–v2.4.0 shipped. The two hardening items (#47/#48) and #52 §4 are small enough to spec lightly.
+**Cross-cutting note:** each non-trivial item (esp. #40, #42, #52 §3/§6) gets its own brainstorm → spec → plan → subagent execution, consistent with how v2.2.0–v2.4.0 shipped. The two hardening items (#47/#48) and #52 §4 are small enough to spec lightly.

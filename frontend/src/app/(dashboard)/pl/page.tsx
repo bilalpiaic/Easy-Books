@@ -8,6 +8,7 @@ import { useSettings } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
+import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
 
 interface PnLItem {
   name: string
@@ -20,6 +21,12 @@ interface PnLItem {
 interface PnLResponse {
   current?: PnLItem[]
   comparison?: PnLItem[]
+}
+
+interface PnLTreeResponse {
+  revenue: TreeNode[]
+  expenses: TreeNode[]
+  totals: { revenue: number; expenses: number; net_profit: number }
 }
 
 function defaultRange() {
@@ -42,6 +49,11 @@ export default function PnLPage() {
   const [data, setData] = useState<PnLItem[]>([])
   const [comparison, setComparison] = useState<PnLItem[] | null>(null)
   const [compareMode, setCompareMode] = useState(false)
+
+  // Tree state for single-period mode
+  const [treeRevenue, setTreeRevenue] = useState<TreeNode[]>([])
+  const [treeExpenses, setTreeExpenses] = useState<TreeNode[]>([])
+  const [plTotals, setPlTotals] = useState<{ revenue: number; expenses: number; net_profit: number }>({ revenue: 0, expenses: 0, net_profit: 0 })
   const { priorStart, priorEnd } = priorYearRange(start, end)
   const [cmpStart, setCmpStart] = useState(priorStart)
   const [cmpEnd, setCmpEnd] = useState(priorEnd)
@@ -54,11 +66,20 @@ export default function PnLPage() {
       params.set("compare_start", cmpStart)
       params.set("compare_end", cmpEnd)
     }
-    apiFetch<PnLItem[] | PnLResponse>(`/api/reports/income-statement?${params}`)
+    apiFetch<PnLItem[] | PnLResponse | PnLTreeResponse>(`/api/reports/income-statement?${params}`)
       .then(res => {
         if (compareMode && res && typeof res === "object" && "current" in res) {
+          // Comparison mode: flat shape — unchanged
           setData((res as PnLResponse).current ?? [])
           setComparison((res as PnLResponse).comparison ?? null)
+        } else if (!compareMode && res && typeof res === "object" && "revenue" in res) {
+          // Single-period mode: new tree shape
+          const tree = res as PnLTreeResponse
+          setTreeRevenue(tree.revenue ?? [])
+          setTreeExpenses(tree.expenses ?? [])
+          setPlTotals(tree.totals ?? { revenue: 0, expenses: 0, net_profit: 0 })
+          setData([])
+          setComparison(null)
         } else {
           setData(Array.isArray(res) ? res : [])
           setComparison(null)
@@ -68,6 +89,7 @@ export default function PnLPage() {
       .catch(() => setIsLoading(false))
   }, [start, end, compareMode, cmpStart, cmpEnd])
 
+  // Comparison-mode derived values (unchanged)
   const revenueItems = data.filter(i => i.type === "Revenue")
   const expenseItems = data.filter(i => i.type === "Expense")
   const totalRevenue = revenueItems.reduce((sum, i) => sum + (i.total_credit - i.total_debit), 0)
@@ -127,91 +149,164 @@ export default function PnLPage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-12">
-        {comparison && (
-          <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
-            <span className="w-36 text-right">Current Period</span>
-            <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
-          </div>
-        )}
-
-        <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Revenue</h3>
-          {isLoading ? (
-            <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
-          ) : revenueItems.length === 0 ? (
-            <div className="text-sm text-[#1a1814]/75 italic">No revenue in selected period.</div>
-          ) : (
-            revenueItems.map(item => (
-              <div key={item.name} className="flex justify-between text-sm">
-                <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
-                <div className="flex gap-8">
-                  <span className="font-mono w-36 text-right">{fmt(item.total_credit - item.total_debit)}</span>
-                  {comparison && (
-                    <span className="font-mono w-36 text-right text-[#1a1814]/35">{fmt(cmpAmount(item.name, "Revenue"))}</span>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-          <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
-            <span className="text-[#1a1814]">Total Revenue</span>
-            <div className="flex gap-8">
-              <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(totalRevenue)}</span>
-              {comparison && (
-                <span className="font-mono w-36 text-right underline decoration-double underline-offset-4 text-[#1a1814]/35">{fmt(cmpTotalRevenue)}</span>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Expenses</h3>
-          {isLoading ? (
-            <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
-          ) : expenseItems.length === 0 ? (
-            <div className="text-sm text-[#1a1814]/75 italic">No expenses in selected period.</div>
-          ) : (
-            expenseItems.map(item => (
-              <div key={item.name} className="flex justify-between text-sm">
-                <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
-                <div className="flex gap-8">
-                  <span className="font-mono w-36 text-right">({fmt(item.total_debit - item.total_credit)})</span>
-                  {comparison && (
-                    <span className="font-mono w-36 text-right text-[#1a1814]/35">({fmt(cmpAmount(item.name, "Expense"))})</span>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-          <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold text-red-600">
-            <span>Total Operating Expenses</span>
-            <div className="flex gap-8">
-              <span className="font-mono w-36 text-right">({fmt(totalExpense)})</span>
-              {comparison && (
-                <span className="font-mono w-36 text-right text-red-300">({fmt(cmpTotalExpense)})</span>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="pt-8 border-t-2 border-[#1a1814] flex justify-between items-end">
-          <div>
-            <h2 className="text-2xl font-serif text-[#1a1814]">Net Income</h2>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75">
-              {start} — {end}
-            </p>
-          </div>
-          <div className="flex gap-8 items-end">
-            <div className={`text-3xl font-serif w-36 text-right ${netIncome >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {netIncome < 0 && "("}{fmt(Math.abs(netIncome))}{netIncome < 0 && ")"}
-            </div>
+        {compareMode ? (
+          <>
             {comparison && (
-              <div className={`text-xl font-serif w-36 text-right ${cmpNetIncome >= 0 ? "text-green-300" : "text-red-300"}`}>
-                {cmpNetIncome < 0 && "("}{fmt(Math.abs(cmpNetIncome))}{cmpNetIncome < 0 && ")"}
+              <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
+                <span className="w-36 text-right">Current Period</span>
+                <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
               </div>
             )}
-          </div>
-        </section>
+
+            <section className="space-y-4">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Revenue</h3>
+              {isLoading ? (
+                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+              ) : revenueItems.length === 0 ? (
+                <div className="text-sm text-[#1a1814]/75 italic">No revenue in selected period.</div>
+              ) : (
+                revenueItems.map(item => (
+                  <div key={item.name} className="flex justify-between text-sm">
+                    <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
+                    <div className="flex gap-8">
+                      <span className="font-mono w-36 text-right">{fmt(item.total_credit - item.total_debit)}</span>
+                      {comparison && (
+                        <span className="font-mono w-36 text-right text-[#1a1814]/35">{fmt(cmpAmount(item.name, "Revenue"))}</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
+                <span className="text-[#1a1814]">Total Revenue</span>
+                <div className="flex gap-8">
+                  <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(totalRevenue)}</span>
+                  {comparison && (
+                    <span className="font-mono w-36 text-right underline decoration-double underline-offset-4 text-[#1a1814]/35">{fmt(cmpTotalRevenue)}</span>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Expenses</h3>
+              {isLoading ? (
+                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+              ) : expenseItems.length === 0 ? (
+                <div className="text-sm text-[#1a1814]/75 italic">No expenses in selected period.</div>
+              ) : (
+                expenseItems.map(item => (
+                  <div key={item.name} className="flex justify-between text-sm">
+                    <DocLink type="account" id={item.name} label={item.name} className="text-[#1a1814]/60" />
+                    <div className="flex gap-8">
+                      <span className="font-mono w-36 text-right">({fmt(item.total_debit - item.total_credit)})</span>
+                      {comparison && (
+                        <span className="font-mono w-36 text-right text-[#1a1814]/35">({fmt(cmpAmount(item.name, "Expense"))})</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold text-red-600">
+                <span>Total Operating Expenses</span>
+                <div className="flex gap-8">
+                  <span className="font-mono w-36 text-right">({fmt(totalExpense)})</span>
+                  {comparison && (
+                    <span className="font-mono w-36 text-right text-red-300">({fmt(cmpTotalExpense)})</span>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="pt-8 border-t-2 border-[#1a1814] flex justify-between items-end">
+              <div>
+                <h2 className="text-2xl font-serif text-[#1a1814]">Net Income</h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75">
+                  {start} — {end}
+                </p>
+              </div>
+              <div className="flex gap-8 items-end">
+                <div className={`text-3xl font-serif w-36 text-right ${netIncome >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {netIncome < 0 && "("}{fmt(Math.abs(netIncome))}{netIncome < 0 && ")"}
+                </div>
+                {comparison && (
+                  <div className={`text-xl font-serif w-36 text-right ${cmpNetIncome >= 0 ? "text-green-300" : "text-red-300"}`}>
+                    {cmpNetIncome < 0 && "("}{fmt(Math.abs(cmpNetIncome))}{cmpNetIncome < 0 && ")"}
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            {/* Single-period tree view */}
+            <section className="space-y-2">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Revenue</h3>
+              {isLoading ? (
+                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+              ) : treeRevenue.length === 0 ? (
+                <div className="text-sm text-[#1a1814]/75 italic">No revenue in selected period.</div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <tbody className="divide-y divide-[#1a1814]/5">
+                    <AccountTreeRows
+                      nodes={treeRevenue}
+                      columns={[{ key: "amount", align: "right" }]}
+                      renderLeafLabel={(n) =>
+                        n.id != null
+                          ? <DocLink type="account" id={n.code} label={n.name} className="text-[#1a1814]/60" />
+                          : <span className="text-[#1a1814] font-medium italic">{n.name}</span>
+                      }
+                    />
+                  </tbody>
+                </table>
+              )}
+              <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
+                <span className="text-[#1a1814]">Total Revenue</span>
+                <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(plTotals.revenue)}</span>
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Expenses</h3>
+              {isLoading ? (
+                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+              ) : treeExpenses.length === 0 ? (
+                <div className="text-sm text-[#1a1814]/75 italic">No expenses in selected period.</div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <tbody className="divide-y divide-[#1a1814]/5">
+                    <AccountTreeRows
+                      nodes={treeExpenses}
+                      columns={[{ key: "amount", align: "right" }]}
+                      renderLeafLabel={(n) =>
+                        n.id != null
+                          ? <DocLink type="account" id={n.code} label={n.name} className="text-[#1a1814]/60" />
+                          : <span className="text-[#1a1814] font-medium italic">{n.name}</span>
+                      }
+                    />
+                  </tbody>
+                </table>
+              )}
+              <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold text-red-600">
+                <span>Total Operating Expenses</span>
+                <span className="font-mono w-36 text-right">({fmt(plTotals.expenses)})</span>
+              </div>
+            </section>
+
+            <section className="pt-8 border-t-2 border-[#1a1814] flex justify-between items-end">
+              <div>
+                <h2 className="text-2xl font-serif text-[#1a1814]">Net Income</h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75">
+                  {start} — {end}
+                </p>
+              </div>
+              <div className={`text-3xl font-serif w-36 text-right ${plTotals.net_profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {plTotals.net_profit < 0 && "("}{fmt(Math.abs(plTotals.net_profit))}{plTotals.net_profit < 0 && ")"}
+              </div>
+            </section>
+          </>
+        )}
       </div>
     </div>
   )
