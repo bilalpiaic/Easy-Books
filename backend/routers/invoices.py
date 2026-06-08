@@ -11,6 +11,10 @@ from sqlmodel import Session, asc, desc, func, select
 from datetime import timedelta
 
 from models import Account, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
+from services.deferred import (
+    plan_deferral, resolve_deferred_account, create_schedules,
+    has_any_recognition, reverse_schedules,
+)
 from services.fx import rate_to_base
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
@@ -316,20 +320,32 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     subtotal_base = money(subtotal * fx_rate)
     gst_base = money(gst_amount * fx_rate)
 
+    # Split the net revenue credit between Sales Revenue and Deferred Revenue
+    # (2300) for any is_deferred product lines. The deferred GL credit is clamped
+    # to subtotal_base so revenue + deferred always equals subtotal_base exactly:
+    # under a non-unity FX rate the summed per-line deferred net can drift a cent
+    # past the once-rounded subtotal, which would otherwise unbalance the JV.
+    # (The schedule rows keep the per-line net — any sub-cent gap is immaterial.)
+    # GST is never deferred.
+    deferral = plan_deferral(session, user.tenant_id, body.lines, fx_rate)
+    deferred_credit_base = min(deferral.deferred_net_base, subtotal_base)
+    revenue_net_base = money(subtotal_base - deferred_credit_base)
+
     entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
+    if revenue_net_base > ZERO:
+        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base))
+    if deferred_credit_base > ZERO:
+        deferred_acc = resolve_deferred_account(session, user.tenant_id)
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base))
+
     if use_per_line_tax and per_gl_tax:
-        # Post each distinct tax GL account separately.
-        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal_base))
         for gl_id, tax_amt in per_gl_tax.items():
             entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate)))
     elif gst_amount > 0:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal_base))
         entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base))
-    else:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=total_base))
 
     txn = post_transaction(
         session, user,
@@ -342,6 +358,9 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     )
     invoice.transaction_id = txn.id
     session.add(invoice)
+
+    if deferral.deferred_net_base > ZERO:
+        create_schedules(session, user, invoice, deferral)
 
     # Separate JV for COGS so the sale and cost-relief are individually
     # inspectable and a reversal of one doesn't unintentionally undo the other.
@@ -399,6 +418,13 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         raise HTTPException(404, "Invoice not found")
     from routers._edit_guards import assert_doc_editable
     assert_doc_editable(session, tenant_id=user.tenant_id, doc=inv, kind="invoice")
+
+    if has_any_recognition(session, user.tenant_id, inv.id):
+        raise HTTPException(
+            400,
+            "Cannot edit: revenue already recognized for this invoice's deferred "
+            "schedule. Reverse and reissue instead.",
+        )
 
     # Snapshot prior header + totals for audit diff (before any mutations).
     # Normalize monetary values via money() so before/after use the same format.
@@ -630,15 +656,24 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     subtotal_base = money(subtotal * fx_rate)
     gst_base = money(gst_amount * fx_rate)
 
+    # Mirror create_invoice: split the net revenue credit between Sales Revenue
+    # and Deferred Revenue (2300). Clamp the deferred credit to subtotal_base so
+    # revenue + deferred == subtotal_base exactly (per-line FX rounding guard).
+    deferral = plan_deferral(session, user.tenant_id, body.lines, fx_rate)
+    deferred_credit_base = min(deferral.deferred_net_base, subtotal_base)
+    revenue_net_base = money(subtotal_base - deferred_credit_base)
+
     entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
-    if gst_amount > 0:
+    if revenue_net_base > ZERO:
+        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base))
+    if deferred_credit_base > ZERO:
+        deferred_acc = resolve_deferred_account(session, user.tenant_id)
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base))
+    if gst_amount > ZERO:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=rev_acc.id, credit=subtotal_base))
         entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base))
-    else:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=total_base))
 
     txn = post_transaction(
         session, user,
@@ -651,6 +686,12 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     )
     inv.transaction_id = txn.id
     session.add(inv)
+
+    # The old deferred credit was reversed with the main-JV reversal above; the
+    # old (un-recognized) schedule rows are stale, so drop and rebuild them.
+    reverse_schedules(session, user.tenant_id, inv.id)
+    if deferral.deferred_net_base > ZERO:
+        create_schedules(session, user, inv, deferral)
 
     # Re-post the COGS JV for the edited lines (mirrors the create path). Skip
     # when there are no stock lines so we never post an empty/zero JV.

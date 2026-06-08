@@ -9,21 +9,11 @@ from sqlmodel import func, select
 
 from models import Account, DeferredRevenueSchedule
 from routers.common import SessionDep, WriteUserDep, get_or_create_account, log_audit
+from services.deferred import _add_months
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
 router = APIRouter(prefix="/api/deferred-revenue", tags=["deferred-revenue"])
-
-
-def _add_months(date_str: str, months: int) -> str:
-    """Advance a YYYY-MM-DD date by approximately `months` months."""
-    d = date.fromisoformat(date_str)
-    month = d.month - 1 + months
-    year = d.year + month // 12
-    month = month % 12 + 1
-    import calendar
-    day = min(d.day, calendar.monthrange(year, month)[1])
-    return date(year, month, day).isoformat()
 
 
 @router.get("")

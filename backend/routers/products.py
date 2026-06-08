@@ -25,6 +25,8 @@ class ProductCreate(BaseModel):
     revenue_account_id: Optional[int] = None
     cogs_account_id: Optional[int] = None
     category_id: Optional[int] = None
+    is_deferred: bool = False
+    recognition_months: int = 12
 
 
 @router.get("")
