@@ -47,3 +47,40 @@ def test_default_coa_rollup_reconciles_and_groups_are_leafless_in_postings(clien
             assert by_id[a.parent_id].is_group is True, f"{a.code} parent is not a group"
     tree = build_account_tree(accts, {}, ["balance"], prune_zero=False)
     assert {n["code"] for n in tree} == {"1", "2", "3", "4", "5"}
+
+
+import pytest
+
+
+@pytest.mark.parametrize("model", ["simple", "services", "trader", "manufacturing", "telecom_franchise"])
+def test_every_model_coa_is_valid_hierarchy(client, model):
+    tid = _signup(client, email=f"owner_{model}@acme.test", model=model)
+    accts = _accounts(tid)
+    by_id = {a.id: a for a in accts}
+    roots = [a for a in accts if a.parent_id is None]
+    assert {r.code for r in roots} == {"1", "2", "3", "4", "5"}
+    for a in accts:
+        if not a.is_group:
+            assert a.parent_id is not None, f"{model}: leaf {a.code} orphaned"
+        if a.parent_id is not None:
+            p = by_id[a.parent_id]
+            assert p.is_group, f"{model}: {a.code} parent {p.code} not a group"
+            assert p.type == a.type, f"{model}: {a.code} type != parent type"
+
+
+def test_posting_to_group_account_rejected(client):
+    tid = _signup(client, email="poster@acme.test", model="simple")
+    tok = client.post("/api/auth/login", data={
+        "username": "poster@acme.test", "password": "pw12345678",
+    }).json()["access_token"]
+    h = {"Authorization": f"Bearer {tok}"}
+    client.cookies.clear()
+    accts = client.get("/api/accounts", headers=h).json()["items"]
+    g1 = next(a for a in accts if a["code"] == "1")
+    leaf = next(a for a in accts if a["code"] == "1000")
+    r = client.post("/api/transactions", headers=h, json={
+        "date": "2026-04-01", "description": "to group",
+        "entries": [{"account_id": g1["id"], "debit": 10, "credit": 0},
+                    {"account_id": leaf["id"], "debit": 0, "credit": 10}],
+    })
+    assert r.status_code == 400, r.text
