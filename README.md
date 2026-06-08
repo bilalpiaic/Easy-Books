@@ -11,7 +11,9 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 ## Feature highlights
 
 **Accounting core**
+- **Multi-level Chart of Accounts** — group/parent accounts with child leaves (the default CoA every tenant gets is hierarchical); posting is restricted to active leaf accounts, and parent balances roll up automatically
 - Double-entry GL with `services/posting.py` as the single, invariant-enforcing write path
+- **Voucher series** — typed vouchers (Sales / Purchase / Receipt / Payment / Journal / Credit-Note / Debit-Note) with per-type numbering, plus Cash Book & Bank Book views
 - Decimal money throughout (`NUMERIC(18,4)`, banker's rounding) — no floating-point drift
 - Weighted-Average inventory costing (IAS 2); optional FIFO per tenant
 - Tax codes catalog with per-line GL posting (output vs input VAT/GST)
@@ -23,7 +25,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Overdue auto-flag on invoice/bill fetch; reversal unwinds allocations and COGS sub-JVs
 
 **AR / AP**
-- Invoicing and bills with draft editing, bulk actions (mark-sent, void, delete)
+- Invoicing and bills with draft editing **and posted-document editing** (reverse-and-repost; blocked once paid; honours the negative-stock guard on edit), bulk actions (mark-sent, void, delete)
 - Sales Returns via Credit Notes (restocks inventory, reverses COGS — IAS 2 / ISA 240)
 - Purchase Returns via Debit Notes (returns stock at original cost — IAS 2.11)
 - Customer & vendor advances; apply against invoices/bills through the allocation flow
@@ -44,6 +46,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 
 **Reports (all live from the GL)**
 - Trial Balance, General Ledger (with **Opening / Closing Balance** on date-filtered views), Income Statement, Balance Sheet, Cash Flow (indirect)
+- **Hierarchical statements** — Trial Balance, Balance Sheet and P&L roll up over the multi-level CoA with parent subtotals, expand/collapse, and click-through drill-down from a leaf line into its ledger and on to the voucher (`services/account_tree.py`)
 - Comparative-period P&L and Balance Sheet (IAS 1.38)
 - **AR Aging** & **AP Aging** — dedicated pages (`/aging/receivable`, `/aging/payable`) with Current/1–30/31–60/61–90/90+ buckets and drill-down to the customer/vendor ledger
 - **Product Ledger** (`/products/ledger`) — stock movements + running qty per product, single-store or consolidated
@@ -57,7 +60,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 **Advanced features**
 - Fixed Assets register + straight-line/reducing-balance depreciation (IAS 16)
 - Purchase Orders (raise → approve → convert-to-bill, 3-way match)
-- Deferred revenue recognition schedules (IFRS 15)
+- Deferred revenue recognition (IFRS 15) — flag a product `is_deferred` and its invoice lines post to Deferred Revenue (2300) and originate a recognition schedule; the recognition run releases revenue over the term, and editing a posted deferred invoice rebuilds the schedule (or is blocked once recognition has begun)
 - Server-side PDF invoices (WeasyPrint); Stripe payment links; SMTP email notifications
 
 **Settings & customisation**
@@ -159,7 +162,7 @@ The **desktop (Electron) app** also auto-loads the 5 demo companies on first ins
 
 The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time.
 
-Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across the past 365 days.
+Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across **two fiscal years** (so comparative reports have a prior period). Transactions carry their correct voucher types, the services tenant demonstrates **deferred-revenue origination with partial recognition**, and each tenant has **multiple users** (owner / accountant / clerk) so the Audit Log shows realistic attribution.
 
 In **developer mode**, `dev.sh` seeds these tenants automatically on every run. To seed manually:
 
