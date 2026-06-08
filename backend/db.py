@@ -175,65 +175,85 @@ def get_tenant_session(tenant_id: int):
     with Session(engine) as session:
         yield session
 
-# Per-business-model Chart of Accounts templates. Each entry is
-# (code, name, type, is_memo). The four lists are designed to overlap on the
-# common backbone (cash, AR, AP, revenue, expense) so reports keep working
-# regardless of which model is chosen. Manufacturing adds the custodial pair
-# 1210/2150 with is_memo=True.
+# Per-business-model Chart of Accounts templates.
+# Groups: (code, name, type) — inserted as is_group=True, parent resolved via _GROUP_PARENT.
+# Leaves: (code, name, type, is_memo, parent_code) — inserted as is_group=False.
+# The four _EXTRA lists layer on top of _COA_COMMON (same de-dup by code).
 
-_COA_COMMON: list[tuple[str, str, str, bool]] = [
-    # Universal backbone — present in every model
-    ("1000", "Cash in Hand",           "Asset",     False),
-    ("1010", "Bank",                   "Asset",     False),
-    ("1090", "Accumulated Depreciation","Asset",    False),  # contra-asset (IAS 16)
-    ("1100", "Accounts Receivable",    "Asset",     False),
-    ("1260", "Advances to Vendors",    "Asset",     False),  # prepayments to suppliers
-    ("2000", "Accounts Payable",       "Liability", False),
-    ("2200", "GST Payable (Output)",   "Liability", False),
-    ("2310", "Customer Advances",      "Liability", False),  # prepayments from customers
-    ("3000", "Owner Capital",          "Equity",    False),
-    ("3010", "Drawings",               "Equity",    False),
-    ("3100", "Retained Earnings",      "Equity",    False),
-    ("4000", "Sales Revenue",          "Revenue",   False),
-    ("4900", "Other Income",           "Revenue",   False),
-    ("4901", "Unrealised FX Gain/Loss","Revenue",   False),  # IAS 21.23
-    ("5000", "General Expenses",       "Expense",   False),
-    ("5050", "Depreciation Expense",   "Expense",   False),
-    ("5900", "Other Expenses",         "Expense",   False),
+_COA_GROUPS: list[tuple[str, str, str]] = [
+    ("1", "Assets", "Asset"),
+    ("11", "Current Assets", "Asset"),
+    ("12", "Non-Current Assets", "Asset"),
+    ("2", "Liabilities", "Liability"),
+    ("21", "Current Liabilities", "Liability"),
+    ("3", "Equity", "Equity"),
+    ("4", "Revenue", "Revenue"),
+    ("41", "Operating Revenue", "Revenue"),
+    ("49", "Other Income", "Revenue"),
+    ("5", "Expenses", "Expense"),
+    ("51", "Cost of Sales", "Expense"),
+    ("52", "Operating Expenses", "Expense"),
+    ("59", "Other Expenses", "Expense"),
+]
+_GROUP_PARENT: dict[str, "str | None"] = {
+    "1": None, "11": "1", "12": "1",
+    "2": None, "21": "2",
+    "3": None,
+    "4": None, "41": "4", "49": "4",
+    "5": None, "51": "5", "52": "5", "59": "5",
+}
+_COA_COMMON: list[tuple[str, str, str, bool, str]] = [
+    ("1000", "Cash in Hand",            "Asset",     False, "11"),
+    ("1010", "Bank",                    "Asset",     False, "11"),
+    ("1090", "Accumulated Depreciation","Asset",     False, "12"),
+    ("1100", "Accounts Receivable",     "Asset",     False, "11"),
+    ("1260", "Advances to Vendors",     "Asset",     False, "11"),
+    ("2000", "Accounts Payable",        "Liability", False, "21"),
+    ("2200", "GST Payable (Output)",    "Liability", False, "21"),
+    ("2310", "Customer Advances",       "Liability", False, "21"),
+    ("3000", "Owner Capital",           "Equity",    False, "3"),
+    ("3010", "Drawings",                "Equity",    False, "3"),
+    ("3100", "Retained Earnings",       "Equity",    False, "3"),
+    ("4000", "Sales Revenue",           "Revenue",   False, "41"),
+    ("4900", "Other Income",            "Revenue",   False, "49"),
+    ("4901", "Unrealised FX Gain/Loss", "Revenue",   False, "49"),
+    ("5000", "General Expenses",        "Expense",   False, "52"),
+    ("5050", "Depreciation Expense",    "Expense",   False, "52"),
+    ("5900", "Other Expenses",          "Expense",   False, "59"),
 ]
 
 # Service-style add-ons: time-based revenue + deferred revenue
-_COA_SERVICES_EXTRA: list[tuple[str, str, str, bool]] = [
-    ("4010", "Consulting Revenue",        "Revenue",   False),
-    ("4020", "Recurring Service Revenue", "Revenue",   False),
-    ("2300", "Deferred Revenue",          "Liability", False),
-    ("5110", "Subcontractor Costs",       "Expense",   False),
+_COA_SERVICES_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    ("4010", "Consulting Revenue",        "Revenue",   False, "41"),
+    ("4020", "Recurring Service Revenue", "Revenue",   False, "41"),
+    ("2300", "Deferred Revenue",          "Liability", False, "21"),
+    ("5110", "Subcontractor Costs",       "Expense",   False, "51"),
 ]
 
 # Trader extras: finished-goods inventory + COGS + input GST
-_COA_TRADER_EXTRA: list[tuple[str, str, str, bool]] = [
-    ("1200", "Finished Goods Inventory", "Asset",   False),
-    ("1250", "GST Receivable (Input)",   "Asset",   False),
-    ("5010", "Cost of Goods Sold",       "Expense", False),
-    ("5020", "Freight In",               "Expense", False),
-    ("5030", "Storage & Handling",       "Expense", False),
-    ("5040", "Inventory Adjustments",    "Expense", False),
+_COA_TRADER_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    ("1200", "Finished Goods Inventory", "Asset",   False, "11"),
+    ("1250", "GST Receivable (Input)",   "Asset",   False, "11"),
+    ("5010", "Cost of Goods Sold",       "Expense", False, "51"),
+    ("5020", "Freight In",               "Expense", False, "51"),
+    ("5030", "Storage & Handling",       "Expense", False, "51"),
+    ("5040", "Inventory Adjustments",    "Expense", False, "51"),
 ]
 
 # Manufacturing extras: raw materials, WIP, custodial pair, labour, overhead
-_COA_MANUFACTURING_EXTRA: list[tuple[str, str, str, bool]] = [
-    ("1200", "Raw Material Inventory",   "Asset",     False),
-    ("1201", "Work-in-Progress",         "Asset",     False),
-    ("1202", "Finished Goods Inventory", "Asset",     False),
-    ("1210", "Customer Goods on Hand",   "Asset",     True),   # memo
-    ("1250", "GST Receivable (Input)",   "Asset",     False),
-    ("2150", "Customer Goods Liability", "Liability", True),   # memo (mirrors 1210)
-    ("4010", "Service Revenue (Value-Add)", "Revenue", False),
-    ("5010", "Cost of Goods Sold",       "Expense",   False),
-    ("5100", "Direct Labour",            "Expense",   False),
-    ("5110", "Subcontractor Costs",      "Expense",   False),
-    ("5200", "Manufacturing Overhead",   "Expense",   False),
-    ("5210", "Indirect Materials",       "Expense",   False),
+_COA_MANUFACTURING_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    ("1200", "Raw Material Inventory",   "Asset",     False, "11"),
+    ("1201", "Work-in-Progress",         "Asset",     False, "11"),
+    ("1202", "Finished Goods Inventory", "Asset",     False, "11"),
+    ("1210", "Customer Goods on Hand",   "Asset",     True,  "11"),
+    ("1250", "GST Receivable (Input)",   "Asset",     False, "11"),
+    ("2150", "Customer Goods Liability", "Liability", True,  "21"),
+    ("4010", "Service Revenue (Value-Add)", "Revenue", False, "41"),
+    ("5010", "Cost of Goods Sold",       "Expense",   False, "51"),
+    ("5100", "Direct Labour",            "Expense",   False, "51"),
+    ("5110", "Subcontractor Costs",      "Expense",   False, "51"),
+    ("5200", "Manufacturing Overhead",   "Expense",   False, "51"),
+    ("5210", "Indirect Materials",       "Expense",   False, "51"),
 ]
 
 # Telecom-Franchise CoA — combines the corrected operational model (Tracker
@@ -242,64 +262,67 @@ _COA_MANUFACTURING_EXTRA: list[tuple[str, str, str, bool]] = [
 # sales, commission accrual workflow, franchise fee amortisation, RSO
 # channel). Codes follow BLUEPRINT.md numbering; descriptions match the
 # §3 (Telecom Extension) and §4 (Corrected) reference tables.
-_COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool]] = [
+_COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool, str]] = [
     # ── Assets ──────────────────────────────────────────────────────────
-    ("1110", "Commission Receivable",         "Asset",     False),
-    ("1120", "RSO Receivables",               "Asset",     False),
-    ("1130", "Postpaid Customer Receivable",  "Asset",     False),
-    ("1200", "SIM Card Inventory",            "Asset",     False),
-    ("1201", "Scratch Card / PIN Inventory",  "Asset",     False),
-    ("1202", "Device Inventory",              "Asset",     False),
-    ("1203", "Bundle Code Inventory",         "Asset",     False),
-    ("1204", "IMSI Inventory",                "Asset",     False),
-    ("1210", "Tracker Deposit Balance",       "Asset",     False),
-    ("1211", "Load Float Asset (MSR SIM)",    "Asset",     False),
-    ("1212", "RSO Load Receivable",           "Asset",     False),
-    ("1213", "Retail Load Receivable",        "Asset",     False),
-    ("1214", "Mobile Money Float Asset",      "Asset",     False),
-    ("1250", "GST Receivable (Input)",        "Asset",     False),
-    ("1300", "Franchise Intangible Asset",    "Asset",     False),
-    ("1301", "Accumulated Amortisation",      "Asset",     False),  # contra
+    ("1110", "Commission Receivable",         "Asset",     False, "11"),
+    ("1120", "RSO Receivables",               "Asset",     False, "11"),
+    ("1130", "Postpaid Customer Receivable",  "Asset",     False, "11"),
+    ("1200", "SIM Card Inventory",            "Asset",     False, "11"),
+    ("1201", "Scratch Card / PIN Inventory",  "Asset",     False, "11"),
+    ("1202", "Device Inventory",              "Asset",     False, "11"),
+    ("1203", "Bundle Code Inventory",         "Asset",     False, "11"),
+    ("1204", "IMSI Inventory",                "Asset",     False, "11"),
+    ("1210", "Tracker Deposit Balance",       "Asset",     False, "11"),
+    ("1211", "Load Float Asset (MSR SIM)",    "Asset",     False, "11"),
+    ("1212", "RSO Load Receivable",           "Asset",     False, "11"),
+    ("1213", "Retail Load Receivable",        "Asset",     False, "11"),
+    ("1214", "Mobile Money Float Asset",      "Asset",     False, "11"),
+    ("1250", "GST Receivable (Input)",        "Asset",     False, "11"),
+    ("1300", "Franchise Intangible Asset",    "Asset",     False, "12"),
+    ("1301", "Accumulated Amortisation",      "Asset",     False, "12"),
     # ── Liabilities ─────────────────────────────────────────────────────
-    ("2010", "Operator Payable",              "Liability", False),
-    ("2100", "Mobile Money Float Liability",  "Liability", False),
-    ("2110", "Postpaid Collections Payable",  "Liability", False),
-    ("2120", "Franchise Royalty Payable",     "Liability", False),
-    ("2300", "Advance from Operator",         "Liability", False),
+    ("2010", "Operator Payable",              "Liability", False, "21"),
+    ("2100", "Mobile Money Float Liability",  "Liability", False, "21"),
+    ("2110", "Postpaid Collections Payable",  "Liability", False, "21"),
+    ("2120", "Franchise Royalty Payable",     "Liability", False, "21"),
+    ("2300", "Advance from Operator",         "Liability", False, "21"),
     # ── Revenue ─────────────────────────────────────────────────────────
-    ("4000", "Airtime / Recharge Revenue",        "Revenue", False),
-    ("4010", "SIM Activation Revenue",            "Revenue", False),
-    ("4020", "Load Uplift Commission (3%)",       "Revenue", False),
-    ("4021", "Commission Income — Recharges",     "Revenue", False),
-    ("4022", "Commission Income — Digital (MM)",  "Revenue", False),
-    ("4023", "Commission Income — Bundles",       "Revenue", False),
-    ("4030", "SIM Sale Revenue",                  "Revenue", False),
-    ("4031", "Device Sales Revenue",              "Revenue", False),
-    ("4040", "Postpaid Billing Revenue",          "Revenue", False),
-    ("4050", "RSO Channel Revenue",               "Revenue", False),
-    ("4060", "FCA Target Commission",             "Revenue", False),
-    ("4061", "Franchise Incentive Income",        "Revenue", False),
+    ("4000", "Airtime / Recharge Revenue",        "Revenue", False, "41"),
+    ("4010", "SIM Activation Revenue",            "Revenue", False, "41"),
+    ("4020", "Load Uplift Commission (3%)",       "Revenue", False, "41"),
+    ("4021", "Commission Income — Recharges",     "Revenue", False, "41"),
+    ("4022", "Commission Income — Digital (MM)",  "Revenue", False, "41"),
+    ("4023", "Commission Income — Bundles",       "Revenue", False, "41"),
+    ("4030", "SIM Sale Revenue",                  "Revenue", False, "41"),
+    ("4031", "Device Sales Revenue",              "Revenue", False, "41"),
+    ("4040", "Postpaid Billing Revenue",          "Revenue", False, "41"),
+    ("4050", "RSO Channel Revenue",               "Revenue", False, "41"),
+    ("4060", "FCA Target Commission",             "Revenue", False, "41"),
+    ("4061", "Franchise Incentive Income",        "Revenue", False, "49"),
     # ── Expenses ────────────────────────────────────────────────────────
-    ("5010", "COGS — Devices",                    "Expense", False),
-    ("5011", "COGS — SIMs",                       "Expense", False),
-    ("5012", "COGS — Scratch Cards",              "Expense", False),
-    ("5020", "RSO Incentives & Commissions",      "Expense", False),
-    ("5021", "Retail Incentives",                 "Expense", False),
-    ("5030", "Franchise Fee Amortisation",        "Expense", False),
-    ("5040", "Franchise Royalty Expense",         "Expense", False),
-    ("5060", "Mobile Money Transaction Costs",    "Expense", False),
-    ("5070", "Tracker / Float Variance",          "Expense", False),
-    ("5080", "Bad Debt — RSO Channel",            "Expense", False),
-    ("5090", "Target Shortfall Penalties",        "Expense", False),
+    ("5010", "COGS — Devices",                    "Expense", False, "51"),
+    ("5011", "COGS — SIMs",                       "Expense", False, "51"),
+    ("5012", "COGS — Scratch Cards",              "Expense", False, "51"),
+    ("5020", "RSO Incentives & Commissions",      "Expense", False, "52"),
+    ("5021", "Retail Incentives",                 "Expense", False, "52"),
+    ("5030", "Franchise Fee Amortisation",        "Expense", False, "52"),
+    ("5040", "Franchise Royalty Expense",         "Expense", False, "52"),
+    ("5060", "Mobile Money Transaction Costs",    "Expense", False, "52"),
+    ("5070", "Tracker / Float Variance",          "Expense", False, "52"),
+    ("5080", "Bad Debt — RSO Channel",            "Expense", False, "52"),
+    ("5090", "Target Shortfall Penalties",        "Expense", False, "52"),
 ]
 
 
-def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
-    """Return the CoA template for a business model. Universal backbone always
-    present; model-specific extras layered on top. Codes are unique within
-    each template (Manufacturing's 1200 overrides Common-Trader's 1200 by
-    keying on code in the dict below)."""
-    by_code: dict[str, tuple[str, str, str, bool]] = {a[0]: a for a in _COA_COMMON}
+def _coa_for(business_model: str):
+    """CoA template: shared group set + universal leaves + model leaves.
+    Returns (code, name, type, is_memo, parent_code, is_group); groups first
+    so parents precede children in the two-pass insert."""
+    groups = [
+        (code, name, gtype, False, _GROUP_PARENT[code], True)
+        for (code, name, gtype) in _COA_GROUPS
+    ]
+    by_code = {a[0]: a for a in _COA_COMMON}
     extra_map = {
         "services":          _COA_SERVICES_EXTRA,
         "trader":            _COA_TRADER_EXTRA,
@@ -308,7 +331,8 @@ def _coa_for(business_model: str) -> list[tuple[str, str, str, bool]]:
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
-    return sorted(by_code.values(), key=lambda r: r[0])
+    leaves = [(c, n, t, m, p, False) for (c, n, t, m, p) in by_code.values()]
+    return sorted(groups, key=lambda r: (len(r[0]), r[0])) + sorted(leaves, key=lambda r: r[0])
 
 
 # Module activation per business model. Module names are conventions used by
@@ -342,13 +366,16 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
 
         if not account_count:
             template = _coa_for(model)
-            s.add_all([
-                Account(
-                    code=code, name=name, type=atype,
-                    is_memo=is_memo, tenant_id=tenant_id,
-                )
-                for code, name, atype, is_memo in template
-            ])
+            created: dict[str, Account] = {}
+            for code, name, atype, is_memo, parent_code, is_group in template:
+                acc = Account(code=code, name=name, type=atype, is_memo=is_memo,
+                              is_group=is_group, tenant_id=tenant_id)
+                s.add(acc)
+                created[code] = acc
+            s.flush()
+            for code, name, atype, is_memo, parent_code, is_group in template:
+                if parent_code:
+                    created[code].parent_id = created[parent_code].id
             s.commit()
 
         settings_count = s.exec(
