@@ -694,6 +694,7 @@ def _seed_bills(
                 entries=entries,
                 audit_entity_type="bill",
                 audit_detail={"number": number, "total": str(total)},
+                voucher_type="PU",
             )
             bill.transaction_id = txn.id
             s.add(bill)
@@ -813,6 +814,7 @@ def _seed_invoices(
                 entries=entries,
                 audit_entity_type="invoice",
                 audit_detail={"number": number, "total": str(total)},
+                voucher_type="SL",
             )
             invoice.transaction_id = txn.id
             s.add(invoice)
@@ -887,6 +889,7 @@ def _seed_payments_received(
             ],
             audit_entity_type="payment",
             audit_detail={"invoice": inv.number, "amount": str(amount)},
+            voucher_type="CR",
         )
         pay.transaction_id = txn.id
         s.add(pay)
@@ -939,6 +942,7 @@ def _seed_bill_payments(
             ],
             audit_entity_type="bill_payment",
             audit_detail={"bill": bill.number, "amount": str(amount)},
+            voucher_type="CP",
         )
         pay.transaction_id = txn.id
         s.add(pay)
@@ -1556,6 +1560,7 @@ def _seed_credit_notes(s: Session, user: User, invoices: list, count: int = 6) -
             ],
             audit_entity_type="credit_note",
             audit_detail={"cn_number": number},
+            voucher_type="CN",
         )
         cn.transaction_id = txn.id
         s.add(cn)
@@ -1886,6 +1891,7 @@ def _seed_purchase_returns(s: Session, user: User, bills: list, count: int = 3) 
                 EntryInput(account_id=inv_acc.id, credit=cost_removed),
             ],
             audit_entity_type="debit_note", audit_detail={"dn_number": number},
+            voucher_type="DN",
         )
         dn.transaction_id = txn.id
         s.add(dn)

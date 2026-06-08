@@ -31,3 +31,11 @@ def test_seeded_data_spans_more_than_one_year(client):
     assert dates, "no transactions seeded"
     span_days = (date.fromisoformat(dates[-1]) - date.fromisoformat(dates[0])).days
     assert span_days > 400, f"date span only {span_days} days — not multi-year"
+
+
+def test_seeded_transactions_carry_document_voucher_types(client):
+    tid = _seed(client, "trader")
+    with Session(_db_module.engine) as s:
+        vtypes = {t.voucher_type for t in s.exec(
+            select(Transaction).where(Transaction.tenant_id == tid)).all()}
+    assert {"SL", "PU", "CR", "CP"}.issubset(vtypes), f"got {sorted(vtypes)}"
