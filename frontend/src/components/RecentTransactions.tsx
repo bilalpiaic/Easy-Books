@@ -37,6 +37,9 @@ export default function RecentTransactions() {
   const STORAGE_KEY = "eb.recentTx.cols"
   const [hidden, setHidden] = useState<Set<ColKey>>(new Set())
   const [menuOpen, setMenuOpen] = useState(false)
+  const [vtypeFilter, setVtypeFilter] = useState<string>("")
+  const [search, setSearch] = useState("")
+  const [newestFirst, setNewestFirst] = useState(true)
 
   useEffect(() => {
     try {
@@ -55,6 +58,13 @@ export default function RecentTransactions() {
   }
 
   const visible = ALL_COLUMNS.filter(c => c.fixed || !hidden.has(c.key))
+
+  const present = Array.from(new Set((rows ?? []).map(r => r.voucher_type))).sort()
+  const q = search.trim().toLowerCase()
+  const shown = (rows ?? [])
+    .filter(r => !vtypeFilter || r.voucher_type === vtypeFilter)
+    .filter(r => !q || r.jv_number.toLowerCase().includes(q) || r.account_name.toLowerCase().includes(q) || (r.description ?? "").toLowerCase().includes(q))
+    .sort((a, b) => newestFirst ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date))
 
   useEffect(() => {
     apiFetch<{ items: JournalRow[] }>("/api/reports/journal?limit=100")
@@ -86,12 +96,29 @@ export default function RecentTransactions() {
           <Link href="/journal" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View all →</Link>
         </div>
       </div>
+      <div className="px-5 py-2.5 border-b border-[#ede9e2] flex flex-wrap items-center gap-2">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search voucher, account, narration…"
+          className="flex-1 min-w-[160px] text-xs border border-[#ede9e2] rounded-lg px-2.5 py-1.5 bg-[#f6f3ee] outline-none focus:ring-2 focus:ring-[#b8943f]"
+        />
+        <select value={vtypeFilter} onChange={e => setVtypeFilter(e.target.value)}
+          className="text-xs border border-[#ede9e2] rounded-lg px-2 py-1.5 bg-[#f6f3ee] outline-none">
+          <option value="">All types</option>
+          {present.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <button onClick={() => setNewestFirst(v => !v)}
+          className="text-xs border border-[#ede9e2] rounded-lg px-2.5 py-1.5 text-[#1a1814]/70 hover:bg-[#faf8f4]">
+          Date {newestFirst ? "↓" : "↑"}
+        </button>
+      </div>
       <div className="overflow-x-auto">
         {rows === null ? (
           <div className="px-5 py-6 flex flex-col gap-2.5">
             {[...Array(5)].map((_, i) => <div key={i} className="flex gap-3"><div className="shimmer h-4 w-20 rounded" /><div className="shimmer h-4 w-24 rounded" /><div className="shimmer h-4 flex-1 rounded" /></div>)}
           </div>
-        ) : rows.length === 0 ? (
+        ) : shown.length === 0 ? (
           <div className="px-5 py-8 text-center text-[#1a1814]/40 text-sm">No transactions for this period.</div>
         ) : (
           <table className="w-full text-left min-w-[560px]">
@@ -103,7 +130,7 @@ export default function RecentTransactions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
-              {rows.map((r, i) => (
+              {shown.map((r, i) => (
                 <tr key={`${r.transaction_id}-${i}`} className={`hover:bg-[#faf8f4] transition-colors text-sm ${r.is_reversed ? "opacity-50" : ""}`}>
                   {visible.map(c => <RowCell key={c.key} col={c.key} row={r} />)}
                 </tr>
