@@ -166,22 +166,32 @@ def update_business_model(
     if not tenant:
         raise HTTPException(404, "Tenant not found")
 
-    # Add any CoA accounts from the new template that don't already exist
+    # Add any CoA accounts from the new template that don't already exist.
+    # _coa_for now yields 6-tuples (incl. parent_code + is_group); wire parents
+    # in a second pass (new leaves reference group parents that already exist).
     desired = _coa_for(model)
-    existing_codes = {
-        a.code for a in session.exec(
+    by_code = {
+        a.code: a for a in session.exec(
             select(Account).where(Account.tenant_id == tenant.id)
         ).all()
     }
     added: list[str] = []
-    for code, name, atype, is_memo in desired:
-        if code in existing_codes:
+    for code, name, atype, is_memo, parent_code, is_group in desired:
+        if code in by_code:
             continue
-        session.add(Account(
+        acc = Account(
             code=code, name=name, type=atype, is_memo=is_memo,
-            tenant_id=tenant.id,
-        ))
+            is_group=is_group, tenant_id=tenant.id,
+        )
+        session.add(acc)
+        by_code[code] = acc
         added.append(code)
+    session.flush()
+    for code, name, atype, is_memo, parent_code, is_group in desired:
+        if parent_code and code in by_code and by_code[code].parent_id is None:
+            parent = by_code.get(parent_code)
+            if parent is not None:
+                by_code[code].parent_id = parent.id
 
     tenant.business_model = model
     tenant.enabled_modules = _json.dumps(MODULES_BY_MODEL.get(model, []))
