@@ -762,31 +762,30 @@ def get_balance_sheet(
     date: Optional[str] = None,
     compare_end: Optional[str] = None,
 ):
-    def _query(s, e, as_of):
+    def _leaf_rows(s, e, as_of):
         q = (
-            session.query(
-                Account.code,
-                Account.name,
-                Account.type,
+            select(
+                Account.id, Account.code, Account.name, Account.type,
                 func.sum(JournalEntry.debit).label("total_debit"),
                 func.sum(JournalEntry.credit).label("total_credit"),
             )
             .join(JournalEntry, JournalEntry.account_id == Account.id)
             .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-            .filter(Transaction.tenant_id == user.tenant_id)
+            .where(Transaction.tenant_id == user.tenant_id)
         )
         if s:
-            q = q.filter(Transaction.date >= s)
+            q = q.where(Transaction.date >= s)
         if e:
-            q = q.filter(Transaction.date <= e)
+            q = q.where(Transaction.date <= e)
         elif as_of:
-            q = q.filter(Transaction.date <= as_of)
-        rows = q.group_by(Account.id).order_by(Account.code).all()
-        items = []
-        net_income = ZERO
-        for r in rows:
-            debit = D(r.total_debit or 0)
-            credit = D(r.total_credit or 0)
+            q = q.where(Transaction.date <= as_of)
+        return session.exec(q.group_by(Account.id)).all()
+
+    def _flat(s, e, as_of):
+        # Existing flat shape (used for comparison mode) — unchanged behaviour.
+        items, net_income = [], ZERO
+        for r in _leaf_rows(s, e, as_of):
+            debit, credit = D(r.total_debit or 0), D(r.total_credit or 0)
             if r.type == "Asset":
                 balance = debit - credit
             elif r.type in ("Liability", "Equity"):
@@ -800,19 +799,54 @@ def get_balance_sheet(
             else:
                 balance = debit - credit
             items.append({"code": r.code, "name": r.name, "type": r.type, "balance": balance})
-        if net_income != 0:
-            items.append({
-                "code": "RE-CUR",
-                "name": "Retained Earnings (Current Period)",
-                "type": "Equity",
-                "balance": net_income,
-            })
+        if net_income != ZERO:
+            items.append({"code": "RE-CUR", "name": "Retained Earnings (Current Period)",
+                          "type": "Equity", "balance": net_income})
         return items
 
-    current = _query(start, end, date)
+    # Comparison mode: keep the existing flat {current, comparison} shape.
     if compare_end:
-        return {"current": current, "comparison": _query(None, compare_end, None)}
-    return current  # backward-compatible flat list
+        return {"current": _flat(start, end, date), "comparison": _flat(None, compare_end, None)}
+
+    # Single period: hierarchical tree per section.
+    rows = _leaf_rows(start, end, date)
+    values, net_income = {}, ZERO
+    for r in rows:
+        debit, credit = D(r.total_debit or 0), D(r.total_credit or 0)
+        if r.type == "Asset":
+            values[r.id] = {"balance": debit - credit}
+        elif r.type in ("Liability", "Equity"):
+            values[r.id] = {"balance": credit - debit}
+        elif r.type == "Revenue":
+            net_income += credit - debit
+        elif r.type == "Expense":
+            net_income -= debit - credit
+
+    accounts = session.exec(
+        select(Account).where(Account.tenant_id == user.tenant_id)
+    ).all()
+    by_type = {t: [a for a in accounts if a.type == t] for t in ("Asset", "Liability", "Equity")}
+
+    def _section(type_name):
+        return build_account_tree(by_type[type_name], values, ["balance"])
+
+    assets = _section("Asset")
+    liabilities = _section("Liability")
+    equity = _section("Equity")
+    if net_income != ZERO:
+        equity.append({
+            "id": None, "code": "RE-CUR", "name": "Retained Earnings (Current Period)",
+            "type": "Equity", "is_group": False, "level": 0,
+            "balance": net_income, "children": [],
+        })
+
+    def _tot(nodes):
+        return sum((D(n["balance"]) for n in nodes), ZERO)
+
+    return {
+        "assets": assets, "liabilities": liabilities, "equity": equity,
+        "totals": {"assets": _tot(assets), "liabilities": _tot(liabilities), "equity": _tot(equity)},
+    }
 
 
 # ── Cash flow (indirect) ─────────────────────────────────────────────────────

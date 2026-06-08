@@ -53,3 +53,33 @@ def test_trial_balance_returns_rolled_up_tree(client, admin_headers):
     assert {c["code"] for c in node["children"]} == {"9510", "9520"}
     # grand totals still balance
     assert float(body["totals"]["debit"]) == float(body["totals"]["credit"])
+
+
+def test_balance_sheet_single_period_is_tree_and_balances(client, admin_headers):
+    h = admin_headers
+    ag = _acct(client, h, "9500", "Current Assets", "Asset", is_group=True)
+    cash = _acct(client, h, "9510", "Cash", "Asset", parent_id=ag["id"])
+    cap = _acct(client, h, "9100", "Capital", "Equity")
+    _post(client, h, cash["id"], cap["id"], 100)
+
+    r = client.get("/api/reports/balance-sheet?date=2026-12-31", headers=h)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert set(["assets", "liabilities", "equity", "totals"]).issubset(body)
+    ag_node = _find(body["assets"], "9500")
+    assert ag_node is not None and float(ag_node["balance"]) == 100.0
+    assert float(_find(body["assets"], "9510")["balance"]) == 100.0
+    # Assets == Liabilities + Equity
+    assert float(body["totals"]["assets"]) == float(body["totals"]["liabilities"]) + float(body["totals"]["equity"])
+
+
+def test_balance_sheet_comparison_mode_stays_flat(client, admin_headers):
+    h = admin_headers
+    cash = _acct(client, h, "9510", "Cash", "Asset")
+    cap = _acct(client, h, "9100", "Capital", "Equity")
+    _post(client, h, cash["id"], cap["id"], 100)
+    r = client.get("/api/reports/balance-sheet?date=2026-12-31&compare_end=2025-12-31", headers=h)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "current" in body and "comparison" in body      # unchanged flat shape
+    assert isinstance(body["current"], list)
