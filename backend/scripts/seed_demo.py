@@ -221,13 +221,13 @@ BILL_MEMO_POOL = [
 # ── Date helpers ──────────────────────────────────────────────────────────────
 
 
-def _spread_dates(count: int, days_ago: int = 365, min_days_ago: int = 3) -> list[str]:
+def _spread_dates(count: int, days_ago: int = 640, min_days_ago: int = 3) -> list[str]:
     """Return `count` ascending ISO date strings spread across the past
-    `days_ago` days with ±3 day jitter so dates are not mechanically even."""
+    `days_ago` days (~21 months -> spans prior + current fiscal year) with +/-3
+    day jitter so dates are not mechanically even."""
     today = date.today()
     dates: list[str] = []
     for i in range(count):
-        # Even spacing across the window
         frac = i / max(count - 1, 1)
         base_days = int(days_ago - frac * (days_ago - min_days_ago))
         jitter = random.randint(-3, 3)
@@ -605,7 +605,7 @@ def _seed_bills(
     if len(existing) >= count:
         return list(existing)
 
-    dates = _spread_dates(count, days_ago=365, min_days_ago=5)
+    dates = _spread_dates(count, days_ago=640, min_days_ago=5)
     bills: list[Bill] = list(existing)
 
     ap = _account(s, tid, "2000")
@@ -714,7 +714,7 @@ def _seed_invoices(
     if len(existing) >= count:
         return list(existing)
 
-    dates = _spread_dates(count, days_ago=365, min_days_ago=5)
+    dates = _spread_dates(count, days_ago=640, min_days_ago=5)
     invoices: list[Invoice] = list(existing)
 
     ar = _account(s, tid, "1100")
