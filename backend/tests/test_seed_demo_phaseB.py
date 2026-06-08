@@ -39,3 +39,21 @@ def test_seeded_transactions_carry_document_voucher_types(client):
         vtypes = {t.voucher_type for t in s.exec(
             select(Transaction).where(Transaction.tenant_id == tid)).all()}
     assert {"SL", "PU", "CR", "CP"}.issubset(vtypes), f"got {sorted(vtypes)}"
+
+
+def test_seeded_deferred_revenue_is_originated_and_partially_recognised(client):
+    tid = _seed(client, "services")
+    with Session(_db_module.engine) as s:
+        scheds = s.exec(select(DeferredRevenueSchedule).where(
+            DeferredRevenueSchedule.tenant_id == tid)).all()
+        acc2300 = s.exec(select(Account).where(
+            Account.tenant_id == tid, Account.code == "2300")).first()
+        credits_2300 = 0.0
+        if acc2300:
+            from services.money import D
+            rows = s.exec(select(JournalEntry).where(
+                JournalEntry.account_id == acc2300.id)).all()
+            credits_2300 = float(sum(D(r.credit) for r in rows))
+    assert scheds, "no deferred schedules originated"
+    assert any(float(x.recognised_amount) > 0 for x in scheds), "no partial recognition"
+    assert credits_2300 > 0, "no Deferred Revenue (2300) credit posted by origination"

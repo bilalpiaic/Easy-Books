@@ -63,6 +63,11 @@ from services.inventory import (
     InventoryError, consume_stock, record_movement, record_purchase,
     return_to_vendor, reverse_consumption,
 )
+from services.deferred import (
+    DeferralPlan, LineDeferral,
+    create_schedules, resolve_deferred_account,
+    _add_months,
+)
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services.tracker_posting import (
@@ -453,6 +458,19 @@ def _seed_products(
     else:
         for code, name, unit, rate in SERVICE_PRODUCTS:
             services.append(upsert(code, name, unit, D(rate), "service"))
+        # Mark the "Annual Support Contract" as a deferred-revenue product so
+        # _seed_invoices can originate real DeferredRevenueSchedule rows via
+        # the same #47 production path (Dr AR / Cr Revenue + Cr 2300).
+        if business_model == "services":
+            support = s.exec(
+                select(Product).where(
+                    Product.tenant_id == tenant_id, Product.code == "SUPPORT"
+                )
+            ).first()
+            if support and not support.is_deferred:
+                support.is_deferred = True
+                support.recognition_months = 12
+                s.add(support)
 
     if business_model in ("trader", "manufacturing"):
         for code, name, unit, sale, cost in STOCK_PRODUCTS_TRADER:
@@ -802,12 +820,44 @@ def _seed_invoices(
             ))
 
         if status != "draft" and ar and rev_acc:
+            # Compute deferred-revenue split (mirrors create_invoice #47 path):
+            # any line whose product.is_deferred contributes its net to 2300
+            # instead of the normal revenue account.  fx_rate=1 throughout seeder.
+            deferred_net = ZERO
+            deferred_lines: list[LineDeferral] = []
+            for li in line_items:
+                prod = li["product"]
+                if getattr(prod, "is_deferred", False):
+                    net_base = money(li["qty"] * li["rate"])  # fx_rate = 1
+                    if net_base > ZERO:
+                        deferred_lines.append(LineDeferral(
+                            net_base=net_base,
+                            recognition_months=max(1, int(getattr(prod, "recognition_months", 12) or 12)),
+                            revenue_account_id=getattr(prod, "revenue_account_id", None) or rev_acc.id,
+                        ))
+                        deferred_net += net_base
+
+            # Clamp to subtotal to prevent sub-cent rounding imbalance
+            deferred_credit = min(deferred_net, subtotal)
+            revenue_net = money(subtotal - deferred_credit)
+
             entries = [EntryInput(account_id=ar.id, debit=total)]
+            if revenue_net > ZERO:
+                entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net))
+            if deferred_credit > ZERO:
+                deferred_acc_obj = resolve_deferred_account(s, tid)
+                entries.append(EntryInput(account_id=deferred_acc_obj.id, credit=deferred_credit))
             if gst_amount > 0 and gst_out:
-                entries.append(EntryInput(account_id=rev_acc.id, credit=money(subtotal)))
                 entries.append(EntryInput(account_id=gst_out.id, credit=gst_amount))
-            else:
-                entries.append(EntryInput(account_id=rev_acc.id, credit=total))
+            elif gst_amount > ZERO and not gst_out:
+                # GST account missing: roll into revenue to keep JV balanced
+                if revenue_net > ZERO:
+                    # Replace revenue entry with revenue+gst combined
+                    entries = [e for e in entries if e.account_id != rev_acc.id]
+                    entries.append(EntryInput(account_id=rev_acc.id, credit=money(revenue_net + gst_amount)))
+                else:
+                    entries.append(EntryInput(account_id=rev_acc.id, credit=gst_amount))
+
             txn = post_transaction(
                 s, user, date=issue_date,
                 description=f"Invoice {number} — {customer.name}",
@@ -818,6 +868,14 @@ def _seed_invoices(
             )
             invoice.transaction_id = txn.id
             s.add(invoice)
+
+            # Originate DeferredRevenueSchedule rows after invoice.id is set
+            if deferred_credit > ZERO and deferred_lines:
+                deferral_plan = DeferralPlan(
+                    deferred_lines=deferred_lines,
+                    deferred_net_base=deferred_credit,
+                )
+                create_schedules(s, user, invoice, deferral_plan)
 
             if total_cogs > 0 and cogs and inv_acc:
                 post_transaction(
@@ -1735,28 +1793,64 @@ def _seed_analytic_accounts(s: Session, tenant_id: int) -> None:
 
 
 def _seed_deferred_revenue(s: Session, user: User, invoices: list, count: int = 4) -> None:
-    """G-08: deferred revenue schedules for service/subscription invoices."""
+    """G-08: recognise 1–2 periods for the deferred-revenue schedules that were
+    originated by _seed_invoices (via the real #47 production path).  Schedules
+    are already present in the DB (created by create_schedules inside the
+    invoice loop).  We just advance recognised_amount for 2 periods so the
+    demo shows meaningful progress.  Idempotent: skips if any schedule already
+    has recognised_amount > 0."""
     tid = user.tenant_id
-    if s.exec(select(DeferredRevenueSchedule).where(DeferredRevenueSchedule.tenant_id == tid)).first():
+    scheds = s.exec(
+        select(DeferredRevenueSchedule).where(
+            DeferredRevenueSchedule.tenant_id == tid,
+            DeferredRevenueSchedule.status == "active",
+        )
+    ).all()
+    if not scheds:
         return
-    deferred_acc = _account(s, tid, "2300")
-    rev = _account(s, tid, "4020") or _account(s, tid, "4010") or _account(s, tid, "4000")
-    if not deferred_acc or not rev or not invoices:
+    # Skip if already partially recognised (re-run guard)
+    if any(D(sc.recognised_amount) > ZERO for sc in scheds):
         return
 
-    sample = [inv for inv in invoices if inv.customer_id][:count]
-    for inv in sample:
-        total = money(D(inv.subtotal))
-        if total <= ZERO:
+    # Recognise 2 monthly periods for each schedule
+    PERIODS = 2
+    for sched in scheds:
+        remaining = D(sched.total_amount) - D(sched.recognised_amount)
+        if remaining <= ZERO:
             continue
-        start = inv.issue_date
-        end = _due_date(start, 365)  # recognise over 12 months
-        s.add(DeferredRevenueSchedule(
-            tenant_id=tid, invoice_id=inv.id, total_amount=total,
-            recognised_amount=ZERO, start_date=start, end_date=end,
-            frequency="monthly", next_recognition_date=start, status="active",
-            deferred_revenue_account_id=deferred_acc.id, revenue_account_id=rev.id,
-        ))
+        # Derive months from start/end dates (matches run_recognition logic)
+        start_d = date.fromisoformat(sched.start_date)
+        end_d   = date.fromisoformat(sched.end_date)
+        months  = max(1, (end_d.year - start_d.year) * 12 + (end_d.month - start_d.month))
+        per_month = money(D(sched.total_amount) / months)
+
+        recognition_date = sched.start_date
+        for _ in range(PERIODS):
+            remaining = D(sched.total_amount) - D(sched.recognised_amount)
+            if remaining <= ZERO:
+                break
+            charge = min(remaining, per_month)
+            if charge <= ZERO:
+                break
+            post_transaction(
+                s, user,
+                date=recognition_date,
+                description=f"Deferred Revenue Recognition — Schedule {sched.id}",
+                entries=[
+                    EntryInput(account_id=sched.deferred_revenue_account_id, debit=charge),
+                    EntryInput(account_id=sched.revenue_account_id, credit=charge),
+                ],
+                audit_entity_type="deferred_revenue",
+                audit_detail={"schedule_id": sched.id, "charge": str(charge)},
+            )
+            sched.recognised_amount = money(D(sched.recognised_amount) + charge)
+            recognition_date = _add_months(recognition_date, 1)
+
+        if D(sched.recognised_amount) >= D(sched.total_amount):
+            sched.status = "completed"
+        else:
+            sched.next_recognition_date = recognition_date
+        s.add(sched)
 
 
 # ── Returns & Advances (Sprint 13) ────────────────────────────────────────────
