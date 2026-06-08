@@ -367,12 +367,20 @@ function InvoicingPanel() {
         "Click Save. GL entries post immediately and the invoice is marked sent.",
       ]} />
 
-      <SectionHeading>Draft Editing</SectionHeading>
+      <SectionHeading>Editing an Invoice (draft or posted)</SectionHeading>
       <StepList steps={[
-        "If an invoice is in 'draft' status, click Edit in the toolbar to reopen the create modal pre-filled.",
+        "Click Edit in the toolbar to reopen the create modal pre-filled — this works for draft AND posted invoices.",
         "Change any field — lines, prices, dates, notes.",
-        "Save. The old GL entries are reversed and new ones are posted.",
-        "Once posted (status changes from draft), editing is blocked. Use Reverse to correct a posted invoice.",
+        "Save. For a posted invoice the original GL entries are reversed and new ones re-posted automatically.",
+        "Editing is blocked once a payment is allocated or the invoice's date falls in a locked period (use Reverse instead). If overselling protection is on, an edit that would drive stock negative is rejected.",
+      ]} />
+
+      <SectionHeading>Deferred-Revenue Products</SectionHeading>
+      <StepList steps={[
+        "On the product form, tick 'Deferred revenue' and set a recognition period (months) — for subscriptions/support/retainers.",
+        "When you invoice that product, its amount posts to Deferred Revenue (2300) instead of Sales Revenue, and a recognition schedule is created.",
+        "Open the Deferred Revenue screen to see schedules and run recognition — each run releases one period's revenue (Dr Deferred Revenue / Cr Revenue).",
+        "Editing a deferred invoice rebuilds its schedule, but is blocked once any period has been recognised (void & reissue instead).",
       ]} />
 
       <SectionHeading>Receive a Payment</SectionHeading>
@@ -640,9 +648,17 @@ function ReportsPanel() {
       <StepList steps={[
         "Go to Trial Balance from the sidebar.",
         "Select your reporting period using the date range picker.",
-        "The report shows total debits and credits for every account.",
+        "The report shows total debits and credits for every account, grouped under their parent accounts with rolled-up subtotals.",
         "The grand total row must show equal debits and credits — if not, there is a data entry error.",
         "Export to CSV for external reconciliation.",
+      ]} />
+
+      <SectionHeading>Hierarchical Statements & Drill-Down</SectionHeading>
+      <StepList steps={[
+        "Trial Balance, Balance Sheet, and P&L display as an expandable tree that mirrors your Chart of Accounts.",
+        "Each group/parent row shows a subtotal rolled up from its children; click the ▸/▾ chevron to expand or collapse any group.",
+        "Click a leaf-account line to drill straight into its ledger — and from a ledger row into the underlying voucher.",
+        "On the Balance Sheet and P&L, turn on Compare to show a prior period side-by-side.",
       ]} />
 
       <SectionHeading>Income Statement (P&L)</SectionHeading>
