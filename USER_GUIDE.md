@@ -184,6 +184,8 @@ Go to **Chart of Accounts** (`/coa`) to view and manage your accounts.
 
 Click any account code throughout the app to drill into its ledger.
 
+**Multi-level accounts.** Your Chart of Accounts is organised as a tree: **group/header accounts** (e.g. *Assets → Current Assets*) contain child accounts beneath them. You post only to the **leaf** accounts at the bottom of the tree — group accounts can't take entries; their balances roll up automatically from their children. On the Chart-of-Accounts page you can expand/collapse groups and add a new account under any parent. The financial statements use this same hierarchy to show subtotals (see §9).
+
 ### 3.3 Manual Journal Entry
 
 Go to **New Entry** (`/entry`) to post a manual JV:
@@ -245,6 +247,10 @@ Dr 1100  Accounts Receivable    1,170.00
 ### 4.3 Edit a Draft Invoice
 
 If the invoice status is `draft`, a **Edit** button appears in the toolbar. Clicking it opens the create modal pre-filled with existing data. On save, lines are replaced and the JV is re-posted.
+
+**Editing a posted invoice.** You can also edit an invoice *after* it's posted (not just drafts): the system reverses the original entries and re-posts from your changes. This is blocked once the invoice has a payment against it or its date falls in a closed period, and — if the invoice has overselling protection on — an edit that would drive stock negative is rejected too.
+
+**Deferred-revenue products.** If a product is marked **Deferred revenue** (on the product form, with a recognition period in months), its invoice lines don't hit Sales Revenue immediately — they post to **Deferred Revenue** and create a recognition schedule that releases the income over the term. See the **Deferred Revenue** screen to view schedules and run recognition. Editing such an invoice rebuilds its schedule, but is blocked once any period has been recognised.
 
 ### 4.4 Reverse an Invoice
 
@@ -427,6 +433,8 @@ Once all lines are matched, click **Lock & Close** — verifies GL balance = sta
 ## 9. FINANCIAL REPORTING
 
 All reports are **live from the GL** — always current, no batch jobs.
+
+**Hierarchical statements.** Trial Balance, Balance Sheet, and P&L are displayed as an **expandable tree** that mirrors your Chart of Accounts: each group shows a rolled-up subtotal, and you can expand ▸ / collapse ▾ any group to show or hide its child accounts. Click a **leaf account line** to drill straight into its ledger, and from there into the underlying voucher. Turn on **Compare** (period selector) on the Balance Sheet or P&L to show a prior period side-by-side.
 
 | Report | Path | IAS ref |
 |--------|------|---------|
