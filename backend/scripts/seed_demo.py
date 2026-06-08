@@ -351,19 +351,20 @@ def _ensure_coa(s: Session, tenant_id: int, model: str) -> None:
     this tenant is missing. Existing demo tenants pre-date newer backbone
     accounts (1090/4901 from Sprint 7-12, 1260/2310 from Sprint 13), so without
     this the advance/asset/FX seeders silently skip. Idempotent (by code)."""
-    existing = {
-        a.code for a in s.exec(
-            select(Account).where(Account.tenant_id == tenant_id)
-        ).all()
-    }
-    added = False
-    for code, name, atype, is_memo in _coa_for(model):
+    existing = {a.code: a for a in s.exec(
+        select(Account).where(Account.tenant_id == tenant_id)
+    ).all()}
+    template = _coa_for(model)
+    for code, name, atype, is_memo, parent_code, is_group in template:
         if code not in existing:
-            s.add(Account(code=code, name=name, type=atype,
-                          is_memo=is_memo, tenant_id=tenant_id))
-            added = True
-    if added:
-        s.flush()
+            acc = Account(code=code, name=name, type=atype, is_memo=is_memo,
+                          is_group=is_group, tenant_id=tenant_id)
+            s.add(acc); existing[code] = acc
+    s.flush()
+    for code, name, atype, is_memo, parent_code, is_group in template:
+        if parent_code and existing[code].parent_id is None:
+            existing[code].parent_id = existing[parent_code].id
+    s.flush()
 
 
 def _seed_customers(s: Session, tenant_id: int) -> list[Customer]:
