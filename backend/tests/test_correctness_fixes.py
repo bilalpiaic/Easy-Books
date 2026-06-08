@@ -193,9 +193,9 @@ def test_invoice_reversal_restores_stock_and_reverses_cogs(client):
         assert Decimal(str(p.stock_qty)) == Decimal("10")
 
     # Trial balance must remain balanced (Dr == Cr) after the double-reversal
-    rows = c.get("/api/reports/trial-balance", headers=auth).json()
-    total_dr = sum((Decimal(str(r["total_debit"])) for r in rows if r["total_debit"] is not None), start=Decimal("0"))
-    total_cr = sum((Decimal(str(r["total_credit"])) for r in rows if r["total_credit"] is not None), start=Decimal("0"))
+    tb_body = c.get("/api/reports/trial-balance", headers=auth).json()
+    total_dr = Decimal(str(tb_body["totals"]["debit"]))
+    total_cr = Decimal(str(tb_body["totals"]["credit"]))
     assert total_dr == total_cr
 
 

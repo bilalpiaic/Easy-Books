@@ -188,14 +188,14 @@ def test_period_close_zeroes_revenue_and_expense(client: TestClient):
     assert Decimal(data["net_income"]) == Decimal("1000")
 
     # Income statement for May should show zero net (revenue closed to RE)
-    rows = client.get(
+    tb_body = client.get(
         "/api/reports/trial-balance",
         headers=auth,
         params={"start": "2026-05-01", "end": "2026-05-31"},
     ).json()
     # After close, Revenue is zero net within the period because of the
     # closing JV; verify Dr=Cr overall remains balanced.
-    assert _sum_decimal(rows, "total_debit") == _sum_decimal(rows, "total_credit")
+    assert Decimal(str(tb_body["totals"]["debit"])) == Decimal(str(tb_body["totals"]["credit"]))
 
     # Double-close should 400
     r = client.post(f"/api/periods/{period_id}/close", headers=auth)

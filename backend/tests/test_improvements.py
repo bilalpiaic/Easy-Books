@@ -55,6 +55,17 @@ def _sum_decimal(rows, key: str) -> Decimal:
     return total
 
 
+def _tb_find(nodes, code):
+    """Recursively find a node by account code in the TB tree."""
+    for n in nodes:
+        if n["code"] == code:
+            return n
+        hit = _tb_find(n.get("children", []), code)
+        if hit:
+            return hit
+    return None
+
+
 # ── G-01: Bank reconciliation zero-difference enforcement ─────────────────────
 
 def test_reconciliation_close_rejects_nonzero_difference():
@@ -246,10 +257,10 @@ def test_credit_note_create_posts_gl():
 
     # GL check: after invoice (Dr AR 1000 / Cr Rev 1000) + CN (Cr AR 500 / Dr Rev 500)
     # Net AR = 1000 - 500 = 500
-    tb = client.get("/api/reports/trial-balance", headers=auth).json()
-    ar_row = next((row for row in tb if row["code"] == "1100"), None)
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    ar_row = _tb_find(tb_body["tree"], "1100")
     assert ar_row is not None, "AR account (1100) missing from trial balance"
-    ar_net = float(ar_row["total_debit"]) - float(ar_row["total_credit"])
+    ar_net = float(ar_row["debit"]) - float(ar_row["credit"])
     assert abs(ar_net - 500.0) < 0.01, f"Expected AR net=500, got {ar_net}"
 
     app.dependency_overrides.clear()
@@ -295,9 +306,10 @@ def test_asset_depreciation_posts_gl():
     assert r.status_code == 200, r.text
     assert abs(float(r.json()["depreciation_amount"]) - 10000.0) < 0.01  # 120000/12
 
-    tb = {row["code"]: row for row in client.get("/api/reports/trial-balance", headers=auth).json()}
-    assert "5050" in tb, "Depreciation Expense account missing from TB"
-    assert abs(float(tb["5050"]["total_debit"]) - 10000.0) < 0.01
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    row_5050 = _tb_find(tb_body["tree"], "5050")
+    assert row_5050 is not None, "Depreciation Expense account missing from TB"
+    assert abs(float(row_5050["debit"]) - 10000.0) < 0.01
 
     app.dependency_overrides.clear()
 
@@ -518,8 +530,9 @@ def test_sales_return_restocks_and_reverses_cogs():
     assert abs(_stock_qty(client, auth, pid) - 8.0) < 0.01
 
     # Trial balance must stay balanced
-    tb = client.get("/api/reports/trial-balance", headers=auth).json()
-    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = Decimal(str(tb_body["totals"]["debit"]))
+    cr = Decimal(str(tb_body["totals"]["credit"]))
     assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
     app.dependency_overrides.clear()
 
@@ -551,8 +564,9 @@ def test_purchase_return_reduces_stock_and_ap():
 
     assert abs(_stock_qty(client, auth, pid) - 15.0) < 0.01  # 20 - 5
 
-    tb = client.get("/api/reports/trial-balance", headers=auth).json()
-    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = Decimal(str(tb_body["totals"]["debit"]))
+    cr = Decimal(str(tb_body["totals"]["credit"]))
     assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
     app.dependency_overrides.clear()
 
@@ -586,8 +600,9 @@ def test_customer_advance_record_and_apply():
     assert abs(float(body["remaining"]) - 400.0) < 0.01
     assert body["invoice_status"] == "paid"
 
-    tb = client.get("/api/reports/trial-balance", headers=auth).json()
-    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = Decimal(str(tb_body["totals"]["debit"]))
+    cr = Decimal(str(tb_body["totals"]["credit"]))
     assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
     app.dependency_overrides.clear()
 
@@ -618,8 +633,9 @@ def test_vendor_advance_record_and_apply():
     assert abs(float(body["remaining"]) - 300.0) < 0.01
     assert body["bill_status"] == "paid"
 
-    tb = client.get("/api/reports/trial-balance", headers=auth).json()
-    dr = _sum_decimal(tb, "total_debit"); cr = _sum_decimal(tb, "total_credit")
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    dr = Decimal(str(tb_body["totals"]["debit"]))
+    cr = Decimal(str(tb_body["totals"]["credit"]))
     assert dr == cr, f"TB imbalanced dr={dr} cr={cr}"
     app.dependency_overrides.clear()
 
@@ -640,12 +656,12 @@ def _acct(client, auth, code):
 
 
 def _tb_net(client, auth, code):
-    """Return debit-credit net for an account code from the trial balance."""
-    tb = client.get("/api/reports/trial-balance", headers=auth).json()
-    row = next((r for r in tb if r["code"] == code), None)
+    """Return debit-credit net for an account code from the trial balance tree."""
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    row = _tb_find(tb_body["tree"], code)
     if not row:
         return 0.0
-    return float(row["total_debit"]) - float(row["total_credit"])
+    return float(row["debit"]) - float(row["credit"])
 
 
 def test_soft_close_locks_without_zeroing_pl():
@@ -710,6 +726,6 @@ def test_year_end_close_zeros_pl_to_retained_earnings():
     assert abs(_tb_net(client, auth, "3100") - (-600.0)) < 0.01
 
     # Trial balance still balances
-    tb = client.get("/api/reports/trial-balance", headers=auth).json()
-    assert _sum_decimal(tb, "total_debit") == _sum_decimal(tb, "total_credit")
+    tb_body = client.get("/api/reports/trial-balance", headers=auth).json()
+    assert Decimal(str(tb_body["totals"]["debit"])) == Decimal(str(tb_body["totals"]["credit"]))
     app.dependency_overrides.clear()
