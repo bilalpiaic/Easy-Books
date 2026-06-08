@@ -434,6 +434,10 @@ Side effects:
   Invoice.status = 'partial'  (700 < 1000)
 ```
 
+**Deferred revenue (IFRS 15 — services / subscriptions).** When an invoice line's product is flagged `is_deferred`, its net is credited to **Deferred Revenue (2300)** instead of Sales Revenue and a `DeferredRevenueSchedule` is originated over the product's `recognition_months` (`services/deferred.py`). Posting: `Dr AR / Cr Deferred Revenue (2300)` for the deferred portion `+ Cr Revenue` for any normal lines `+ Cr GST` (GST is never deferred — tax point is the invoice date). The recognition run (`POST /api/deferred-revenue/run-recognition`) then releases revenue period by period (`Dr 2300 / Cr Revenue`).
+
+**Editing a posted invoice.** `PUT /api/invoices/{id}` reverses the original JV(s) and re-posts from the edited lines — blocked if the invoice is paid or sits in a locked period. The re-consume honours the `block_negative_stock` guard; for a deferred invoice the schedule is rebuilt, but the edit is **blocked once any period has been recognised** (void & reissue instead).
+
 ---
 
 ### 4.2 PURCHASE / PAYABLES
@@ -1086,6 +1090,10 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 | Dashboard KPIs | `GET /api/reports/dashboard` | Revenue, expense, AR/AP outstanding (net of allocations), overdue counts, low stock |
 | Dashboard charts | `GET /api/reports/dashboard/charts?months=12` | 12-month series for chart components |
 | Report Builder | `POST /api/report-builder/run` | User-configurable ad-hoc report: column chooser, filter predicates, group-by/aggregates, pagination — over any whitelisted source; tenant isolation enforced by the engine |
+
+**Hierarchical statements (V2.5).** In single-period mode, Trial Balance, Balance Sheet, and Income Statement roll up over the multi-level Chart of Accounts (`services/account_tree.py`): each parent's subtotal = its own direct balance + the sum of its descendant leaves, zero subtrees pruned. The payloads are nested trees — TB `{tree, totals}`, BS `{assets, liabilities, equity, totals}` (with a synthetic current-period retained-earnings line), P&L `{revenue, expenses, totals}` + `net_profit`. The frontend renders them with the `<AccountTree>` component (expand/collapse, parent subtotals, and click-through drill from a leaf line → its ledger → the underlying voucher). **Comparison mode** keeps the flat `{current, comparison}` shape.
+
+**Voucher series.** Posted transactions carry a `voucher_type` (Sales `SL`, Purchase `PU`, Receipt `CR`, Payment `CP`, Journal `JV`, Credit-Note `CN`, Debit-Note `DN`) with per-type numbering; the Cash Book and Bank Book and the voucher-type filters on the ledgers read from it.
 
 ---
 
