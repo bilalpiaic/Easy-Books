@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Plus, Trash2, Save, AlertCircle, ScrollText } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { VOUCHER_TYPES } from "@/lib/voucherTypes"
 import { useRouter } from "next/navigation"
 
 interface Account {
@@ -22,6 +23,7 @@ export default function NewEntryPage() {
   const router = useRouter()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [voucherType, setVoucherType] = useState("JV")
   const [description, setDescription] = useState("")
   const [rows, setRows] = useState<EntryRow[]>([
     { account_id: "", debit: "", credit: "" },
@@ -73,6 +75,7 @@ export default function NewEntryPage() {
     const payload = {
       date,
       description,
+      voucher_type: voucherType,
       entries: rows
         .filter(r => r.account_id && (parseFloat(r.debit) > 0 || parseFloat(r.credit) > 0))
         .map(r => ({
@@ -108,7 +111,21 @@ export default function NewEntryPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-[#ede9e2] space-y-4">
           {/* ── Header fields ───────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
+                Voucher Type
+              </label>
+              <select
+                value={voucherType}
+                onChange={e => setVoucherType(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm"
+              >
+                {Object.entries(VOUCHER_TYPES).map(([code, label]) => (
+                  <option key={code} value={code}>{code} — {label}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
                 Transaction Date
