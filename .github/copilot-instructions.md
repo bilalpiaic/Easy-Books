@@ -2,6 +2,8 @@
 
 Easy-Books is a multi-tenant double-entry accounting SaaS with a modern stack (FastAPI + SQLModel backend, Next.js 16 + React 19 frontend) and a legacy Express/vanilla reference app. Focus development on the modern stack unless explicitly asked otherwise.
 
+Current (v2.5.0): multi-level Chart of Accounts (group parents + leaf accounts; posting to active leaves only) with hierarchical Trial Balance / Balance Sheet / P&L (`services/account_tree.py` roll-up; nested-tree payloads single-period, flat comparison mode); deferred-revenue origination (`services/deferred.py`; `product.is_deferred` → Deferred Revenue 2300 + recognition schedules); posted-document editing (reverse-and-repost, negative-stock guard); voucher series (SL/PU/CR/CP/JV/CN/DN).
+
 ## Build, test, and lint commands
 
 ### Backend (FastAPI, Python 3.11+)
