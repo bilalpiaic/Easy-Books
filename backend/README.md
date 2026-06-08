@@ -34,7 +34,7 @@ backend/
 ├── main.py              # FastAPI bootstrap — middleware + router mounts
 ├── models.py            # SQLModel tables (core)
 ├── models_telecom.py    # 23 tc_* tables for telecom_franchise
-├── db.py                # Engine, create_all, seed 5 demo tenants
+├── db.py                # Engine, create_all, seed 5 demo tenants; hierarchical default CoA (group skeleton + parented leaves; posting to leaves only)
 ├── auth.py              # JWT (HS256) + bcrypt
 ├── routers/             # 29 domain routers
 │   ├── common.py        # Shared deps: SessionDep, CurrentUserDep, WriteUserDep, AdminUserDep
@@ -49,6 +49,8 @@ backend/
 │   └── …
 ├── services/
 │   ├── posting.py       # THE only GL writer — enforces ∑Dr=∑Cr + all invariants
+│   ├── account_tree.py  # Hierarchical roll-up engine for TB/BS/P&L (parent = own + Σ leaves)
+│   ├── deferred.py      # Deferred-revenue origination (is_deferred → 2300 + schedules)
 │   ├── inventory.py     # Weighted-Average cost + FIFO layer relief
 │   ├── tracker_posting.py   # Telecom balanced JVs
 │   ├── franchise_posting.py # Telecom mobile-money/postpaid/commission JVs
@@ -57,7 +59,7 @@ backend/
 │   ├── csrf.py          # Double-submit CSRF middleware
 │   └── idempotency.py   # Response-cache middleware
 ├── scripts/
-│   └── seed_demo.py     # Idempotent seeder — 100 invoices/bills, 70 payments, 25 customers/vendors per tenant
+│   └── seed_demo.py     # Idempotent seeder — 100 invoices/bills, 70 payments, 25 customers/vendors per tenant; spans 2 fiscal years, typed vouchers, deferred-revenue origination, multiple users
 └── tests/
 ```
 

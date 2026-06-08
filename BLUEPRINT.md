@@ -223,7 +223,8 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `phone`, `avatar_url`, `is_active`, `must_change_password`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id`, `created_at`, `last_login_at` |
 | `userinvite` | Pending tenant invite — `email`, `role` (CHECK), `token` (unique), `invited_by_id`, `expires_at`, `accepted_at`. Consumed by `POST /api/auth/accept-invite` |
 | `settings` | KV per tenant — `company_name`, fiscal year, number prefixes |
-| `account` | `code`, `name`, `type` (`Asset/Liability/Equity/Revenue/Expense` CHECK), `parent_id`, **`is_memo`** (V2.1 — excludes from formal A=L+E totals) |
+| `account` | `code`, `name`, `type` (`Asset/Liability/Equity/Revenue/Expense` CHECK), **`parent_id` + `is_group`** (V2.4/V2.5 — multi-level hierarchy; the default CoA is now hierarchical and posting is restricted to active **leaf** accounts, parent balances roll up), `is_active`, **`is_memo`** (V2.1 — excludes from formal A=L+E totals) |
+| `deferredrevenueschedule` | IFRS 15 — `invoice_id`, `total_amount`, `recognised_amount`, `start_date`, `end_date`, `frequency`, `next_recognition_date`, `status`, `deferred_revenue_account_id`, `revenue_account_id`. Originated by `create_invoice` for `is_deferred` product lines; released by the recognition run |
 | `accountingperiod` | `period_start`, `period_end`, `is_locked`, `name` |
 | `transaction` | `jv_number` (unique per tenant), `date`, `description`, `is_reversed`, `reversed_by_id`, `created_at` |
 | `journalentry` | `transaction_id` (CASCADE), `account_id`, `debit`, `credit`. DB CHECK: `debit≥0 ∧ credit≥0 ∧ ¬(debit>0 ∧ credit>0) ∧ (debit>0 ∨ credit>0)` |
@@ -326,6 +327,8 @@ The sidebar reads `/api/auth/me` → `tenant.business_model` and filters its NAV
 
 `db.py::_coa_for(business_model)` composes the CoA from a common backbone plus a model-specific layer. Codes overlap on the backbone so reports keep working regardless of which model.
 
+**Multi-level hierarchy (V2.5).** The template is now hierarchical: a shared **group skeleton** lives in `_COA_GROUPS` (`1` Assets → `11` Current / `12` Non-Current; `2` Liabilities → `21` Current; `3` Equity; `4` Revenue → `41` Operating / `49` Other Income; `5` Expenses → `51` Cost of Sales / `52` Operating / `59` Other) and every leaf account carries a `parent_code` pointing at one of those groups. Leaf codes are unchanged (so the auto-posting defaults 1100/2200/4000/5010/1200 still resolve). `seed_data` inserts the template in two passes (create all, then wire `parent_id`); the group rows are `is_group=True` and non-postable. Group balances are computed by roll-up (`services/account_tree.py`).
+
 ### Common backbone (every tenant)
 1000 Cash · 1010 Bank · 1100 AR · 2000 AP · 2200 GST Payable · 3000 Owner Capital · 3010 Drawings · 3100 Retained Earnings · 4000 Sales Revenue · 4900 Other Income · 5000 General Expenses · 5050 Depreciation · 5900 Other Expenses
 
@@ -387,9 +390,10 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - `/api/product-categories` — CRUD for the 2-level taxonomy (parent → sub-category). `DELETE /{id}` returns 400 while any subcategory or product is assigned.
 
 ### Invoices (`/api/invoices`)
-- `POST /` — creates Invoice + lines + posts JE (Dr AR / Cr Revenue + Cr GST). If a line has `product_id` referencing a stock product, also relieves stock at WAvg and posts a separate COGS sub-JV.
+- `POST /` — creates Invoice + lines + posts JE (Dr AR / Cr Revenue + Cr GST). If a line has `product_id` referencing a stock product, also relieves stock at WAvg and posts a separate COGS sub-JV. **Deferred revenue (IFRS 15):** if a line's product is `is_deferred`, its net is credited to Deferred Revenue (2300) instead of Revenue and a `DeferredRevenueSchedule` is originated (`services/deferred.py`); the deferred GL credit is clamped to subtotal so multi-currency invoices stay balanced.
 - `GET /` — list with status filter + aging join.
 - `GET /{id}` — single + lines.
+- `PUT /{id}` — **edit a posted invoice** (reverse-and-repost): blocked if paid or in a locked period; honours the `block_negative_stock` guard on the re-consume; for deferred invoices, rebuilds the schedule (or blocks once recognition has begun).
 - `DELETE /{id}` — only when no payment allocated.
 
 ### Bills (`/api/bills`)
@@ -482,6 +486,7 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 
 ### Reports (`/api/reports`)
 - `/journal`, `/trial-balance`, `/income-statement`, `/balance-sheet`, `/cash-flow`, `/tax-summary`, `/dashboard`, `/aging`.
+- **Hierarchical statements (V2.5).** Single-period `/trial-balance`, `/balance-sheet`, and `/income-statement` return a **nested tree** rolled up over the multi-level CoA (`services/account_tree.py`, parent = own + Σ descendant leaves, zero subtrees pruned): TB → `{tree, totals}`; BS → `{assets, liabilities, equity, totals}` (with the RE-CUR synthetic current-earnings equity line); P&L → `{revenue, expenses, totals}` + `net_profit`. **Comparison mode** (`compare_end` / `compare_start`+`compare_end`) keeps the prior flat `{current, comparison}` shape. The frontend `<AccountTree>` renders expand/collapse with leaf drill-down to the ledger and on to the voucher.
 - `/ledger?account_id=…&start=…&end=…` — running balance per row; when `start`/`end` supplied also returns `opening_balance` (net of all JEs before `start`) and `closing_balance` (`opening + Σdebits − Σcredits`), following per-account-type sign convention.
 - `/product-ledger?product_id=…&start=…&end=…` — stock movements + running qty; supports per-location or consolidated view.
 - `/inventory-performance` — on-hand qty/value, low-stock, slow-movers, units sold + COGS.

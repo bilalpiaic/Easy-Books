@@ -6,6 +6,8 @@ This file provides foundational context, architecture, and development guideline
 
 **Easy-Books** is a multi-tenant double-entry accounting SaaS for SMEs. It enforces bookkeeping invariants at the database level (∑Dr = ∑Cr, no negative amounts, no posting into locked periods), keeps inventory at Weighted-Average cost, and derives every financial report live from the General Ledger.
 
+**Recent (v2.5.0):** the Chart of Accounts is **multi-level** (group parents + leaf accounts; posting to leaves only) and the **financial statements are hierarchical** — Trial Balance / Balance Sheet / P&L roll up over the CoA tree with expand/collapse + drill-down (`services/account_tree.py`). **Deferred-revenue origination** (`services/deferred.py`): `product.is_deferred` lines post to Deferred Revenue (2300) and originate recognition schedules. Posted invoices/bills are editable (reverse-and-repost), and transactions carry voucher types (SL/PU/CR/CP/JV/CN/DN).
+
 Five business models are supported, each with a tailored Chart of Accounts and adaptive UI:
 
 | Model | Key features |

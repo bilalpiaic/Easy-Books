@@ -250,7 +250,7 @@ Once production is live, demo tenants are auto-created on the first database ini
 
 **Option B: Direct database seeding (dev/test only)**
 - In your local backend, run: `cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo`
-- This populates all five demo tenants with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates, and 60+ journal entries per tenant
+- This populates all five demo tenants with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates, and 60+ journal entries per tenant — spread across two fiscal years, with correct voucher types, deferred-revenue origination (services tenant), and multiple users. Every tenant (real or demo) is created with a hierarchical Chart of Accounts.
 - **WARNING:** This approach bypasses the API and should only be used in dev/staging — it does not generate audit logs or trigger webhooks
 
 ---
