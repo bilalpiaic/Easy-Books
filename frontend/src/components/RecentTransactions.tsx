@@ -34,19 +34,57 @@ function fmtAmount(n: number): string {
 export default function RecentTransactions() {
   const [rows, setRows] = useState<JournalRow[] | null>(null)
 
+  const STORAGE_KEY = "eb.recentTx.cols"
+  const [hidden, setHidden] = useState<Set<ColKey>>(new Set())
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) setHidden(new Set(JSON.parse(raw) as ColKey[]))
+    } catch { /* ignore malformed storage */ }
+  }, [])
+
+  function toggleCol(key: ColKey) {
+    setHidden(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  const visible = ALL_COLUMNS.filter(c => c.fixed || !hidden.has(c.key))
+
   useEffect(() => {
     apiFetch<{ items: JournalRow[] }>("/api/reports/journal?limit=100")
       .then(res => setRows(res.items ?? []))
       .catch(() => setRows([]))
   }, [])
 
-  const visible = ALL_COLUMNS
-
   return (
     <div className="bg-white rounded-xl border border-[#ede9e2] shadow-sm overflow-hidden">
       <div className="px-5 py-3.5 border-b border-[#ede9e2] flex items-center justify-between gap-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">Recent Transactions</p>
-        <Link href="/journal" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View all →</Link>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button onClick={() => setMenuOpen(o => !o)}
+              className="text-[11px] text-[#1a1814]/55 font-semibold hover:text-[#1a1814] border border-[#ede9e2] rounded-lg px-2 py-1">
+              Columns ▾
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-1 z-10 bg-white border border-[#ede9e2] rounded-lg shadow-lg p-2 min-w-[160px]">
+                {ALL_COLUMNS.filter(c => !c.fixed).map(c => (
+                  <label key={c.key} className="flex items-center gap-2 px-2 py-1 text-xs text-[#1a1814]/80 cursor-pointer hover:bg-[#faf8f4] rounded">
+                    <input type="checkbox" checked={!hidden.has(c.key)} onChange={() => toggleCol(c.key)} />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <Link href="/journal" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View all →</Link>
+        </div>
       </div>
       <div className="overflow-x-auto">
         {rows === null ? (
