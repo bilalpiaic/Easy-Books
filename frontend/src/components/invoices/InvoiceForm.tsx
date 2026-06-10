@@ -369,7 +369,7 @@ export default function InvoiceForm({ mode, invoice, onSaved, onCancel }: Props)
         )}
         <p className="text-xs text-black/50">GL posting: Dr Accounts Receivable / Cr Revenue / Cr GST Payable</p>
         <div className="flex justify-end gap-3 pt-2">
-          <button onClick={onCancel} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+          <button onClick={() => { setConfirmPostedEdit(false); onCancel() }} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
           {!confirmPostedEdit && (
             <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
               {saving ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Post Invoice'}
