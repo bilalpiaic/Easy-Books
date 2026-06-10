@@ -175,7 +175,7 @@ export default function InvoiceForm({ mode, invoice, onSaved, onCancel }: Props)
         })
         onSaved(invoice.id)
       } else {
-        const created = await apiFetch<{ id: number }>('/api/invoices', {
+        const created = await apiFetch<InvoiceFull>('/api/invoices', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         })
         onSaved(created.id)
@@ -188,7 +188,7 @@ export default function InvoiceForm({ mode, invoice, onSaved, onCancel }: Props)
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-8 max-w-3xl">
+    <div className="bg-white rounded-2xl border border-[#ede9e2] p-8 max-w-3xl mx-auto">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
