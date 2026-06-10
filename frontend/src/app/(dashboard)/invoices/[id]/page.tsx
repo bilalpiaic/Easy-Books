@@ -118,7 +118,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <div className="flex items-center gap-2">
           {(inv.status === "draft" || inv.status === "sent" || inv.status === "posted" || inv.status === "overdue") && (
             <Link
-              href={`/invoices?edit=${inv.id}`}
+              href={`/invoices/${inv.id}/edit`}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
             >
               <Pencil className="w-4 h-4" /> Edit
