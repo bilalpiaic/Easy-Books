@@ -8,6 +8,17 @@
 
 Add a per-RSO **Stock & Issuance** report to the Telecom Franchise dashboard: one row per RSO agent showing stock/load/SIM issuance, bank deposits, and two closing balances, with a franchise-level totals footer that also carries FCA figures (which are not attributable per-RSO).
 
+## Business workflow context (the "why")
+
+The telecom-franchise load/stock distribution chain (confirmed by the franchise owner):
+1. **Bank → Operator's Tracker** — franchise funds a prepaid float (Tracker) with the operator.
+2. **Tracker → MSR** — recharge (e-Load) into the franchise's Master Sales Rep float; physical stock (scratch cards, SIMs/HLR, bundles) issued to the franchise.
+3. **MSR → RSO/DSO/WIC** — Load **and** Stock issued down to the field-channel agents. ← **this table starts here**
+4. **RSO/DSO/WIC → Bank** — agents deposit cash to clear their Load & Stock outstandings. ← `bank_deposits`
+5. **Stock → FCA campaign** — some stock is consumed by First-Call-Activation campaigns; this is the franchise's **terminal cost**. ← franchise-level `fca_hits`
+
+This report covers the **MSR→channel→bank** segment (steps 3–4) with FCA (step 5) as the franchise's closing cost. The two closings express the unsettled positions at the channel tier: `HLR+Load−Deposits` = monetary receivable still owed by channels; `SIM Issued−FCA` = SIM units issued but not yet consumed by activation campaigns. The channel tier (RSO/DSO/WIC) is modelled entirely as `tc_rso_agent` rows (no separate DSO/WIC tables), so one row per `RsoAgent` covers all three channel types.
+
 ## Locked decisions (from brainstorming)
 
 1. **Row granularity = per RSO agent** (`tc_rso_agent`). Stock/load/deposit data attributes cleanly per RSO.
