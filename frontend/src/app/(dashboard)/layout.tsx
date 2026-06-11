@@ -7,6 +7,8 @@ import Header from "@/components/Header"
 import BottomNav from "@/components/BottomNav"
 import { isAuthenticated } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
+import NavBar from "@/components/NavBar"
+import { BreadcrumbProvider } from "@/context/BreadcrumbContext"
 
 const TITLE_MAP: Record<string, string> = {
   "/dashboard":        "Dashboard",
@@ -107,24 +109,27 @@ export default function DashboardLayout({
 
   return (
     <SettingsProvider>
-      <div className="flex h-screen overflow-hidden bg-[#f6f3ee]">
-        <Sidebar
-          open={open}
-          onClose={onClose}
-          pinned={pinned}
-          onTogglePinned={onTogglePinned}
-        />
-        <div className="flex-1 flex flex-col min-w-0">
-          <Header onOpenMenu={onOpen} />
-          <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-20 md:pb-6 w-full">
-            {/* No max-width constraint — pages decide their own width.
-                Tables/dashboards fill the viewport; narrative content can
-                wrap itself with `max-w-prose` where readability matters. */}
-            {children}
-          </main>
+      <BreadcrumbProvider>
+        <div className="flex h-screen overflow-hidden bg-[#f6f3ee]">
+          <Sidebar
+            open={open}
+            onClose={onClose}
+            pinned={pinned}
+            onTogglePinned={onTogglePinned}
+          />
+          <div className="flex-1 flex flex-col min-w-0">
+            <Header onOpenMenu={onOpen} />
+            <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 pb-20 md:pb-6 w-full">
+              {/* No max-width constraint — pages decide their own width.
+                  Tables/dashboards fill the viewport; narrative content can
+                  wrap itself with `max-w-prose` where readability matters. */}
+              <NavBar />
+              {children}
+            </main>
+          </div>
+          <BottomNav onMore={onOpen} />
         </div>
-        <BottomNav onMore={onOpen} />
-      </div>
+      </BreadcrumbProvider>
     </SettingsProvider>
   )
 }
