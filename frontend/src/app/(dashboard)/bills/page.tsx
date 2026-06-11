@@ -1,8 +1,8 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Plus, Download, Printer, Receipt } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
@@ -11,10 +11,9 @@ import SortableHeader from '@/components/SortableHeader'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
 import { downloadCSV } from '@/lib/utils'
-import { useFmt, useSettings } from '@/context/SettingsContext'
+import { useFmt } from '@/context/SettingsContext'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
-import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 
 interface Bill {
   id: number
@@ -27,42 +26,11 @@ interface Bill {
   gst_amount: number
   total: number
   status: string
-  notes?: string | null
-  internal_memo?: string | null
-  lines?: LineItem[]
 }
 
 interface AgingBuckets {
   current: number; "1_30": number; "31_60": number; "61_90": number; over_90: number
   items: { id: number; name: string; number: string; due_date: string; amount: number; days_past: number; bucket: string }[]
-}
-
-interface Vendor { id: number; name: string }
-interface Account { id: number; code: string; name: string; type: string }
-interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number }
-interface PaymentTerm { id: number; code: string; name: string; days: number }
-
-interface BillForm {
-  vendor_id: string
-  vendor_name: string
-  bill_date: string
-  due_date: string
-  payment_term_id: string
-  description: string
-  notes: string
-  internal_memo: string
-  gst_rate: string
-  ap_account_id: string
-  expense_account_id: string
-  currency: string
-  exchange_rate: string
-}
-
-const emptyForm: BillForm = {
-  vendor_id: '', vendor_name: '', bill_date: new Date().toISOString().split('T')[0],
-  due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
-  ap_account_id: '', expense_account_id: '',
-  currency: 'PKR', exchange_rate: '1',
 }
 
 const statusColors: Record<string, string> = {
@@ -76,10 +44,9 @@ const statusColors: Record<string, string> = {
 const PAGE_SIZE = 50
 const BILL_STATUSES = ['draft', 'received', 'partial', 'paid', 'overdue']
 
-function BillsInner() {
+export default function Bills() {
   const fmt = useFmt()
-  const { settings } = useSettings()
-  const searchParams = useSearchParams()
+  const router = useRouter()
   const [bills, setBills]       = useState<Bill[]>([])
   const [total, setTotal]       = useState(0)
   const [page, setPage]         = useState(1)
@@ -91,19 +58,7 @@ function BillsInner() {
   const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('desc')
   const [loading, setLoading]   = useState(true)
   const [aging, setAging]       = useState<AgingBuckets | null>(null)
-  const [modalOpen, setModalOpen]   = useState(false)
-  const [editBill, setEditBill]     = useState<Bill | null>(null)
-  const [form, setForm]             = useState<BillForm>(emptyForm)
-  const [lines, setLines]           = useState<LineItem[]>([])
-  const [saving, setSaving]         = useState(false)
-  const [formError, setFormError]   = useState('')
-  const [vendors, setVendors]       = useState<Vendor[]>([])
-  const [accounts, setAccounts]     = useState<Account[]>([])
-  const [products, setProducts]     = useState<Product[]>([])
-  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
-  const [taxCodes, setTaxCodes]         = useState<TaxCodeOption[]>([])
   const [selectedIds, setSelectedIds]   = useState<Set<number>>(new Set())
-  const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
 
   const handleBulkAction = async (action: string) => {
     const ids = Array.from(selectedIds)
@@ -152,14 +107,7 @@ function BillsInner() {
     apiFetch<AgingBuckets>('/api/bills/aging').then(setAging).catch(() => {})
   }, [])
 
-  const openCreate = () => {
-    loadModalData()
-    setEditBill(null)
-    setForm(emptyForm)
-    setLines([])
-    setFormError('')
-    setModalOpen(true)
-  }
+  const openCreate = () => router.push('/bills/new')
 
   useEffect(() => {
     const h = () => openCreate()
@@ -167,154 +115,6 @@ function BillsInner() {
     return () => window.removeEventListener("kbd:new", h)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const openEdit = (bill: Bill) => {
-    loadModalData()
-    setEditBill(bill)
-    setForm({
-      vendor_id: String(bill.vendor_id ?? ''),
-      vendor_name: bill.vendor_name ?? '',
-      bill_date: bill.bill_date,
-      due_date: bill.due_date,
-      payment_term_id: '',
-      description: '', notes: '', internal_memo: '',
-      gst_rate: '17',
-      ap_account_id: '',
-      expense_account_id: '',
-      currency: 'PKR', exchange_rate: '1',
-    })
-    // Fetch full bill with lines
-    apiFetch<Bill & { gst_rate: number; description: string; ap_account_id: number | null; expense_account_id: number | null; payment_term_id: number | null }>(`/api/bills/${bill.id}`)
-      .then(full => {
-        setForm({
-          vendor_id: String(full.vendor_id ?? ''),
-          vendor_name: full.vendor_name ?? '',
-          bill_date: full.bill_date,
-          due_date: full.due_date,
-          payment_term_id: full.payment_term_id ? String(full.payment_term_id) : '',
-          description: full.description ?? '',
-          notes: full.notes ?? '',
-          internal_memo: full.internal_memo ?? '',
-          gst_rate: String(full.gst_rate ?? 17),
-          ap_account_id: full.ap_account_id ? String(full.ap_account_id) : '',
-          expense_account_id: full.expense_account_id ? String(full.expense_account_id) : '',
-          currency: (full as any).currency ?? 'PKR',
-          exchange_rate: String((full as any).exchange_rate ?? 1),
-        })
-        setLines((full.lines ?? []).map((l: LineItem & { tax_code_id?: number | null }) => ({
-          product_id: l.product_id ?? undefined,
-          description: l.description,
-          qty: Number(l.qty),
-          unit: l.unit ?? 'pcs',
-          rate: Number(l.rate),
-          amount: Number(l.amount),
-          tax_code_id: l.tax_code_id ?? null,
-        })))
-      })
-      .catch(() => {})
-    setFormError('')
-    setModalOpen(true)
-  }
-
-  const loadModalData = () => {
-    Promise.all([
-      apiFetch<{ total: number; items: Vendor[] }>('/api/vendors?limit=200'),
-      apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500'),
-      apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
-      apiFetch<PaymentTerm[]>('/api/payment-terms'),
-      apiFetch<{ total: number; items: TaxCodeOption[] }>('/api/tax-codes?limit=100'),
-    ]).then(([v, a, p, terms, tc]) => {
-      setVendors(v.items)
-      setAccounts(a.items)
-      setProducts(p.items)
-      setPaymentTerms(terms)
-      setTaxCodes(tc.items)
-    }).catch(() => {})
-  }
-
-  // Auto-open edit modal if navigated with ?edit=<id>
-  useEffect(() => {
-    const editId = searchParams.get('edit')
-    if (editId && bills.length > 0) {
-      const bill = bills.find(b => String(b.id) === editId)
-      if (bill && (bill.status === 'draft' || bill.status === 'received' || bill.status === 'overdue')) openEdit(bill)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, bills])
-
-  const subtotal = lines.reduce((s, l) => s + l.amount, 0)
-  const usePerLineTax = lines.some(l => l.tax_code_id)
-  const perLineTaxTotal = usePerLineTax
-    ? lines.reduce((s, l) => {
-        if (!l.tax_code_id) return s
-        const tc = taxCodes.find(t => t.id === l.tax_code_id)
-        return s + (tc ? Math.round(l.amount * tc.rate / 100 * 100) / 100 : 0)
-      }, 0)
-    : 0
-  const gstAmount = usePerLineTax
-    ? perLineTaxTotal
-    : Math.round(subtotal * (parseFloat(form.gst_rate) || 0) / 100 * 100) / 100
-  const totalAmount = Math.round((subtotal + gstAmount) * 100) / 100
-
-  const handleSave = async () => {
-    if (lines.length === 0)                       { setFormError('Add at least one line item'); return }
-    if (lines.some(l => !l.description.trim()))   { setFormError('All lines must have a description'); return }
-    if (!form.bill_date || (!form.due_date && !form.payment_term_id)) {
-      setFormError('Bill date required; provide either a due date or a payment term'); return
-    }
-    // For received/overdue bills, require explicit confirmation before saving
-    if (editBill && editBill.status !== 'draft') {
-      if (!confirmPostedEdit) {
-        setConfirmPostedEdit(true)
-        return
-      }
-      setConfirmPostedEdit(false)
-    }
-    setSaving(true); setFormError('')
-    const body = {
-      vendor_id: form.vendor_id ? parseInt(form.vendor_id) : null,
-      vendor_name: form.vendor_name || null,
-      bill_date: form.bill_date,
-      due_date: form.due_date,
-      payment_term_id: form.payment_term_id ? parseInt(form.payment_term_id) : null,
-      description: form.description || null,
-      notes: form.notes || null,
-      internal_memo: form.internal_memo || null,
-      lines: lines.map(l => ({
-        product_id: l.product_id ?? null,
-        description: l.description,
-        qty: l.qty,
-        unit: l.unit ?? null,
-        rate: l.rate,
-        tax_code_id: l.tax_code_id ?? null,
-      })),
-      gst_rate: parseFloat(form.gst_rate) || 0,
-      ap_account_id: form.ap_account_id ? parseInt(form.ap_account_id) : null,
-      currency: form.currency || settings.currency,
-      exchange_rate: parseFloat(form.exchange_rate) || 1,
-      expense_account_id: form.expense_account_id ? parseInt(form.expense_account_id) : null,
-    }
-    try {
-      if (editBill) {
-        await apiFetch(`/api/bills/${editBill.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-      } else {
-        await apiFetch('/api/bills', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-      }
-      setModalOpen(false); load()
-    } catch (err) {
-      setFormError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleStatusChange = async (b: Bill, newStatus: string) => {
     try {
@@ -327,9 +127,6 @@ function BillsInner() {
 
   const payable = bills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.total, 0)
   const paid    = bills.filter(b => b.status === 'paid').reduce((s, b) => s + b.total, 0)
-
-  const apAccounts      = accounts.filter(a => a.type === 'Liability')
-  const expenseAccounts = accounts.filter(a => a.type === 'Expense')
 
   return (
     <div className="space-y-6">
@@ -450,7 +247,7 @@ function BillsInner() {
                     <div className="flex items-center justify-end gap-2">
                       {(b.status === 'draft' || b.status === 'received' || b.status === 'overdue') && (
                         <button
-                          onClick={() => openEdit(b)}
+                          onClick={() => router.push(`/bills/${b.id}/edit`)}
                           className="text-xs px-2 py-1 border border-[#b8943f]/40 text-[#b8943f] rounded hover:bg-[#faf6ec]"
                         >
                           Edit
@@ -507,197 +304,6 @@ function BillsInner() {
         ]}
         onClear={() => setSelectedIds(new Set())}
       />
-
-      {/* Create / Edit Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setModalOpen(false); setConfirmPostedEdit(false) }} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
-              {editBill ? `Edit Bill ${editBill.number}` : 'New Bill'}
-            </h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor</label>
-                  <select value={form.vendor_id}
-                    onChange={e => { const v = vendors.find(v => v.id === parseInt(e.target.value)); setForm(p => ({ ...p, vendor_id: e.target.value, vendor_name: v?.name ?? '' })) }}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
-                    <option value="">— Select or type name —</option>
-                    {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor Name</label>
-                  <input value={form.vendor_name} onChange={e => setForm(p => ({ ...p, vendor_name: e.target.value }))}
-                    placeholder="or type manually"
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Bill Date</label>
-                  <input type="date" value={form.bill_date} onChange={e => setForm(p => ({ ...p, bill_date: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Term</label>
-                  <select
-                    value={form.payment_term_id}
-                    onChange={e => {
-                      const termId = e.target.value
-                      setForm(p => {
-                        const term = paymentTerms.find(t => String(t.id) === termId)
-                        const due = term && p.bill_date
-                          ? new Date(new Date(p.bill_date).getTime() + term.days * 86400000).toISOString().split('T')[0]
-                          : p.due_date
-                        return { ...p, payment_term_id: termId, due_date: due }
-                      })
-                    }}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
-                  >
-                    <option value="">— select —</option>
-                    {paymentTerms.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Due Date</label>
-                  <input type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Description</label>
-                <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="e.g. Office supplies — May 2026"
-                  className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Currency</label>
-                  <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value, exchange_rate: e.target.value === settings.currency ? '1' : p.exchange_rate }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
-                    {['PKR','USD','EUR','GBP','AED','SAR','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
-                    Exchange Rate (1 {form.currency} = ? {settings.currency})
-                  </label>
-                  <input type="number" step="0.0001" min="0" value={form.exchange_rate}
-                    onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
-                    disabled={form.currency === settings.currency}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm disabled:opacity-50" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
-                <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint customerId={form.vendor_id ? Number(form.vendor_id) : null} priceKind="purchase" />
-              </div>
-
-              <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-black/60">Subtotal</span>
-                  <span className="font-mono">{fmt(subtotal)}</span>
-                </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-black/60">Tax</span>
-                  {usePerLineTax ? (
-                    <span className="font-mono text-xs text-black/60">(per-line) {fmt(gstAmount)}</span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <input type="number" min="0" max="100" step="0.5"
-                        value={form.gst_rate}
-                        onChange={e => setForm(p => ({ ...p, gst_rate: e.target.value }))}
-                        className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
-                      />
-                      <span className="text-black/60 text-xs">%</span>
-                      <span className="font-mono">{fmt(gstAmount)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
-                  <span>Total</span>
-                  <span className="font-mono text-[#1a1814]">{fmt(totalAmount)}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Notes (printed)</label>
-                  <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                    placeholder="Printed on the bill for the vendor"
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm resize-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</label>
-                  <textarea rows={2} value={form.internal_memo} onChange={e => setForm(p => ({ ...p, internal_memo: e.target.value }))}
-                    placeholder="Staff-only note, not printed"
-                    className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-none" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">AP Account</label>
-                  <select value={form.ap_account_id} onChange={e => setForm(p => ({ ...p, ap_account_id: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
-                    <option value="">Auto (2000)</option>
-                    {apAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Expense Account</label>
-                  <select value={form.expense_account_id} onChange={e => setForm(p => ({ ...p, expense_account_id: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
-                    <option value="">Auto (5000)</option>
-                    {expenseAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              {formError && <p className="text-red-600 text-sm">{formError}</p>}
-              {confirmPostedEdit && (
-                <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-sm text-amber-900">
-                  <p className="font-semibold mb-1">Confirm posted-bill edit</p>
-                  <p className="mb-3">This will reverse the original ledger entry and post a correction, keeping the same document number. Continue?</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="px-4 py-2 bg-amber-700 text-white rounded-lg font-bold hover:bg-amber-800 disabled:opacity-50 text-xs"
-                    >
-                      {saving ? 'Saving…' : 'Yes, post correction'}
-                    </button>
-                    <button
-                      onClick={() => setConfirmPostedEdit(false)}
-                      className="px-4 py-2 border border-amber-400 text-amber-800 rounded-lg font-bold hover:bg-amber-100 text-xs"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-              <p className="text-xs text-black/50">GL posting: Dr Expense / Dr GST Receivable / Cr Accounts Payable</p>
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => { setModalOpen(false); setConfirmPostedEdit(false) }} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                {!confirmPostedEdit && (
-                  <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                    {saving ? 'Posting...' : (editBill ? 'Save Changes' : 'Post Bill')}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
-}
-
-export default function Bills() {
-  return <Suspense><BillsInner /></Suspense>
 }
