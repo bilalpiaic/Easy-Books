@@ -14,6 +14,7 @@ Provide consistent navigation controls — a **back** affordance, a **Dashboard 
 2. **Back/up: both.** A `←` arrow runs browser history-back (`router.back()`); every breadcrumb segment is also a clickable structural link. The crumbs are the deterministic fallback when history is empty (deep-link).
 3. **Leaf label: a `useBreadcrumb()` context hook.** Pages optionally set a precise leaf (`INV-001`, `New`, `Edit INV-001`); with zero wiring a sub-page still shows `Dashboard › List`.
 4. **Trail shape: `⌂ Dashboard › {List} › {Leaf}`.** No abstract section-name crumb ("Receivable") — it is not a navigable route; the **list crumb is the section home**.
+5. **Home is guaranteed on *every* page/form.** Because the breadcrumb bar is sub-pages-only, the always-visible Home control lives in the global `Header` (the dark top bar mounted on every dashboard route). So top-level lists and the dashboard — which intentionally have no breadcrumb bar — still always expose Home. On sub-pages the breadcrumb additionally starts with its own `⌂ Dashboard` crumb (conventional, in-content); the two are complementary, not contradictory.
 
 ## Architecture
 
@@ -67,7 +68,10 @@ Move the single source of truth out of the Sidebar so two consumers can share it
 ```
 The `NavBar` self-decides visibility, so no page needs to opt in for the baseline trail.
 
-### Unit 4 — Bounded page cleanup
+### Unit 4 — Persistent Home button in `Header.tsx`
+Add an always-visible `⌂` Home control to the global `Header` (the dark top bar in `layout.tsx`, present on every dashboard page/form). Placed immediately right of the existing menu (hamburger) button: a `Home`-icon button → `Link href="/dashboard"`, styled like the menu button (`text-white/70 hover:text-[#ffd966] hover:bg-white/5`), with `aria-label="Home"` and `title="Dashboard"`. This is the universal Home guarantee (locked decision 5); it is independent of the breadcrumb bar's visibility.
+
+### Unit 5 — Bounded page cleanup
 Remove the now-redundant hand-rolled breadcrumb `<nav>…</nav>` and add a `useBreadcrumb(leaf)` call in the **6 detail sub-pages** that currently roll their own:
 `invoices/[id]`, `bills/[id]`, `bill-payments/[id]`, `credit-notes/[id]`, `journal/[id]`, `assets/[id]`.
 
@@ -95,7 +99,7 @@ Pages push their leaf via `useBreadcrumb(leaf)` → context → NavBar re-render
 ## Testing / verification
 - `resolveBreadcrumb` is a **pure function** kept isolated in `lib/nav.ts` — logic verifiable by inspection and, if a runner is later added, unit-testable (cases: exact NAV href → not sub-page; one level deeper → sub-page with that list; nested known route → longest prefix; orphan → none).
 - Frontend has **no unit-test runner**; gate is `cd frontend && npm run build` (green, all routes compile) + `npm run lint` (changed files clean).
-- Manual spot-checks: `/invoices/123` shows `← ⌂ Dashboard › Invoices › INV-…`; `/invoices` (list) shows no bar; `/invoices/new` shows `… › Invoices › New Invoice`; `/dashboard` shows no bar.
+- Manual spot-checks: `/invoices/123` shows `← ⌂ Dashboard › Invoices › INV-…`; `/invoices` (list) shows no bar; `/invoices/new` shows `… › Invoices › New Invoice`; `/dashboard` shows no bar. **Header Home button is visible on every page** — `/dashboard`, top-level lists, and sub-pages alike.
 
 ## Future hooks (not built now — YAGNI)
 The `<NavBar/>` row is the anchor for later additions named in §6: Next/Prev-record arrows (need an ordered-id source per list), Favorites (a per-user pinned-routes store), Recently-Visited (a small client-side ring buffer). None are implemented here; the component just leaves room.
