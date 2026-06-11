@@ -19,7 +19,7 @@ from models import Account, JournalEntry
 from models_telecom import (
     CommissionLine, CommissionStatement, FcaEvent, KpiTarget, LoadTransfer,
     MobileMoneyAccount, PostpaidBillCycle, RsoAgent, RsoDailyCollection,
-    SimActivation, SimBatch, TrackerAccount, TrackerTransaction,
+    RsoStockIssue, SimActivation, SimBatch, TrackerAccount, TrackerTransaction,
 )
 from services.money import D, ZERO
 
@@ -199,6 +199,89 @@ def rso_ledger(session: SessionDep, user: CurrentUserDep, rso_id: Optional[int] 
             "open_load_balance": str(D(load_in) - D(load_out) - D(collected[0])),
         })
     return {"items": rows, "total": len(rows)}
+
+
+@router.get("/stock-issuance")
+def stock_issuance(
+    session: SessionDep, user: CurrentUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+):
+    """Per-RSO stock & issuance report (#42). One row per RSO agent; FCA is
+    franchise-level (tc_fca_event has no rso_id) so it appears only in totals.
+    Covers the MSR->channel->bank segment of the franchise load/stock chain."""
+    tid = user.tenant_id
+
+    def _between(col):
+        conds = []
+        if start:
+            conds.append(col >= start)
+        if end:
+            conds.append(col <= end)
+        return conds
+
+    def _sum(model, value_col, *extra):
+        return session.exec(
+            select(func.coalesce(func.sum(value_col), 0)).where(
+                model.tenant_id == tid, *extra,
+            )
+        ).one()
+
+    rsos = session.exec(select(RsoAgent).where(RsoAgent.tenant_id == tid)).all()
+
+    items = []
+    tot_stock = tot_load = tot_hlr = tot_other = tot_dep = ZERO
+    tot_sim = 0
+    for r in rsos:
+        sim_types = RsoStockIssue.stock_type.in_(("sim_batch", "imsi"))
+        stock = _sum(RsoStockIssue, RsoStockIssue.face_value,
+                     RsoStockIssue.rso_id == r.id,
+                     RsoStockIssue.stock_type == "scratch_card",
+                     *_between(RsoStockIssue.issue_date))
+        load = _sum(LoadTransfer, LoadTransfer.amount,
+                    LoadTransfer.to_type == "rso", LoadTransfer.to_ref_id == r.id,
+                    *_between(LoadTransfer.transfer_date))
+        hlr = _sum(RsoStockIssue, RsoStockIssue.face_value,
+                   RsoStockIssue.rso_id == r.id, sim_types,
+                   *_between(RsoStockIssue.issue_date))
+        sim_qty = _sum(RsoStockIssue, RsoStockIssue.qty_issued,
+                       RsoStockIssue.rso_id == r.id, sim_types,
+                       *_between(RsoStockIssue.issue_date))
+        other = _sum(RsoStockIssue, RsoStockIssue.face_value,
+                     RsoStockIssue.rso_id == r.id,
+                     RsoStockIssue.stock_type == "bundle",
+                     *_between(RsoStockIssue.issue_date))
+        dep = _sum(RsoDailyCollection, RsoDailyCollection.total_deposited,
+                   RsoDailyCollection.rso_id == r.id,
+                   *_between(RsoDailyCollection.collection_date))
+
+        stock_d, load_d, hlr_d, other_d, dep_d = D(stock), D(load), D(hlr), D(other), D(dep)
+        sim_i = int(sim_qty)
+        items.append({
+            "rso_id": r.id, "name": r.name, "territory": r.territory,
+            "stock_issuance": str(stock_d), "load_issued": str(load_d),
+            "hlr_issued": str(hlr_d), "sim_issued_qty": sim_i,
+            "other_stock": str(other_d), "bank_deposits": str(dep_d),
+            "closing_hlr_load_dep": str(hlr_d + load_d - dep_d),
+            "fca_hits": None, "closing_sim_fca": None,
+        })
+        tot_stock += stock_d; tot_load += load_d; tot_hlr += hlr_d
+        tot_other += other_d; tot_dep += dep_d; tot_sim += sim_i
+
+    fca_count = session.exec(
+        select(func.coalesce(func.count(FcaEvent.id), 0)).where(
+            FcaEvent.tenant_id == tid, *_between(FcaEvent.event_date),
+        )
+    ).one()
+    fca = int(fca_count)
+
+    totals = {
+        "stock_issuance": str(tot_stock), "load_issued": str(tot_load),
+        "hlr_issued": str(tot_hlr), "sim_issued_qty": tot_sim,
+        "other_stock": str(tot_other), "bank_deposits": str(tot_dep),
+        "closing_hlr_load_dep": str(tot_hlr + tot_load - tot_dep),
+        "fca_hits": fca, "closing_sim_fca": tot_sim - fca,
+    }
+    return {"items": items, "totals": totals, "period": {"start": start, "end": end}}
 
 
 @router.get("/float-statement")
