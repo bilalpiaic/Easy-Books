@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Plus, Search, Trash2, Download, Printer, Users } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
@@ -23,29 +24,16 @@ interface Customer {
   is_active: boolean
 }
 
-interface FormState {
-  name: string
-  email: string
-  phone: string
-  address: string
-  opening_balance: string
-}
-
-const emptyForm: FormState = { name: '', email: '', phone: '', address: '', opening_balance: '0' }
 const PAGE_SIZE = 50
 
 export default function Customers() {
   const fmt = useFmt()
+  const router = useRouter()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editCustomer, setEditCustomer] = useState<Customer | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const handleBulkDelete = async () => {
@@ -71,7 +59,7 @@ export default function Customers() {
   useEffect(() => { setPage(1) }, [search])
   useEffect(load, [page, search])
 
-  const openAdd = () => { setEditCustomer(null); setForm(emptyForm); setFormError(''); setModalOpen(true) }
+  const openAdd = () => router.push('/customers/new')
 
   useEffect(() => {
     const h = () => openAdd()
@@ -79,30 +67,6 @@ export default function Customers() {
     return () => window.removeEventListener("kbd:new", h)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const openEdit = (c: Customer) => {
-    setEditCustomer(c)
-    setForm({ name: c.name, email: c.email ?? '', phone: c.phone ?? '', address: c.address ?? '', opening_balance: String(c.opening_balance) })
-    setFormError('')
-    setModalOpen(true)
-  }
-
-  const handleSave = async () => {
-    if (!form.name.trim()) { setFormError('Name is required.'); return }
-    setSaving(true); setFormError('')
-    try {
-      const body = { name: form.name, email: form.email || null, phone: form.phone || null, address: form.address || null, opening_balance: parseFloat(form.opening_balance) || 0 }
-      if (editCustomer) {
-        await apiFetch(`/api/customers/${editCustomer.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      } else {
-        await apiFetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      }
-      setModalOpen(false); load()
-    } catch (err) {
-      setFormError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleDelete = async (c: Customer) => {
     if (!window.confirm(`Delete customer "${c.name}"? This cannot be undone.`)) return
@@ -231,7 +195,7 @@ export default function Customers() {
                 </td>
                 <td className="ui-td flex items-center gap-3">
                   <Link href={`/customers/${c.id}/products`} className="text-[#b8943f] text-sm font-bold hover:underline">Products</Link>
-                  <button onClick={() => openEdit(c)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
+                  <button onClick={() => router.push(`/customers/${c.id}/edit`)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(c)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
@@ -249,44 +213,6 @@ export default function Customers() {
         actions={[{ label: 'Delete Selected', onClick: handleBulkDelete, variant: 'danger' }]}
         onClear={() => setSelectedIds(new Set())}
       />
-
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">{editCustomer ? 'Edit Customer' : 'Add Customer'}</h2>
-            <div className="space-y-4">
-              {(['name', 'email', 'phone', 'address'] as const).map(field => (
-                <div key={field}>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1 capitalize">{field}</label>
-                  <input
-                    value={form[field]}
-                    onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
-                    placeholder={field === 'name' ? 'Customer name' : ''}
-                  />
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Opening Balance</label>
-                <input
-                  type="number" step="0.01"
-                  value={form.opening_balance}
-                  onChange={e => setForm(p => ({ ...p, opening_balance: e.target.value }))}
-                  className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
-                />
-              </div>
-              {formError && <p className="text-red-600 text-sm">{formError}</p>}
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Search, Trash2, Download, Package, Printer, List, FolderTree } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
@@ -40,38 +40,7 @@ interface CoaSub { name: string; qty: number; value: number; items: CoaItem[] }
 interface CoaGroup { name: string; qty: number; value: number; subs: CoaSub[] }
 interface CoaData { groups: CoaGroup[]; grand: { qty: number; value: number } }
 
-interface Account {
-  id: number
-  code: string
-  name: string
-  type: string
-}
-
-interface FormState {
-  code: string
-  name: string
-  unit: string
-  product_type: string
-  default_rate: string
-  reorder_level: string
-  stock_account_id: string
-  revenue_account_id: string
-  cogs_account_id: string
-  category_id: string
-  is_deferred: boolean
-  recognition_months: string
-}
-
-const UNITS = ['pcs', 'kg', 'mtr', 'hrs', 'ltr', 'box', 'doz']
 const PAGE_SIZE = 50
-
-const emptyForm: FormState = {
-  code: '', name: '', unit: 'pcs', product_type: 'service',
-  default_rate: '0', reorder_level: '0',
-  stock_account_id: '', revenue_account_id: '', cogs_account_id: '',
-  category_id: '',
-  is_deferred: false, recognition_months: '12',
-}
 
 function stockBadge(p: Product) {
   if (p.product_type !== 'stock') return null
@@ -82,6 +51,7 @@ function stockBadge(p: Product) {
 
 function ProductsInner() {
   const fmt = useFmt()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [lowStockOnly, setLowStockOnly] = useState(() => searchParams.get('low_stock') === 'true')
   const [products, setProducts] = useState<Product[]>([])
@@ -89,15 +59,8 @@ function ProductsInner() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Cat[]>([])
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editProduct, setEditProduct] = useState<Product | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [formParentCat, setFormParentCat] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [view, setView] = useState<'list' | 'tree'>('list')
   const [coa, setCoa] = useState<CoaData | null>(null)
@@ -137,9 +100,6 @@ function ProductsInner() {
   }
 
   useEffect(() => {
-    apiFetch<{ items: Account[] }>('/api/accounts?limit=500')
-      .then(d => setAccounts(d.items))
-      .catch(() => {})
     apiFetch<Cat[]>('/api/product-categories')
       .then(setCategories)
       .catch(() => {})
@@ -148,7 +108,7 @@ function ProductsInner() {
   useEffect(() => { setPage(1) }, [search, lowStockOnly, categoryFilter])
   useEffect(load, [page, search, lowStockOnly, categoryFilter])
 
-  const openAdd = () => { setEditProduct(null); setForm(emptyForm); setFormParentCat(''); setFormError(''); setModalOpen(true) }
+  const openAdd = () => router.push('/products/new')
 
   useEffect(() => {
     const h = () => openAdd()
@@ -156,79 +116,6 @@ function ProductsInner() {
     return () => window.removeEventListener("kbd:new", h)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const openEdit = (p: Product) => {
-    setEditProduct(p)
-    // Resolve which parent/sub the product's category_id maps to
-    let initParentCat = ''
-    let initCategoryId = ''
-    if (p.category_id != null) {
-      // Check if category_id is a top-level parent
-      const asParent = categories.find(c => c.id === p.category_id)
-      if (asParent) {
-        initParentCat = String(asParent.id)
-        initCategoryId = String(p.category_id)
-      } else {
-        // It's a sub-category — find which parent owns it
-        for (const parent of categories) {
-          const sub = (parent.children ?? []).find(s => s.id === p.category_id)
-          if (sub) {
-            initParentCat = String(parent.id)
-            initCategoryId = String(p.category_id)
-            break
-          }
-        }
-      }
-    }
-    setFormParentCat(initParentCat)
-    setForm({
-      code: p.code ?? '',
-      name: p.name,
-      unit: p.unit,
-      product_type: p.product_type,
-      default_rate: String(p.default_rate),
-      reorder_level: String(p.reorder_level),
-      stock_account_id: p.stock_account_id ? String(p.stock_account_id) : '',
-      revenue_account_id: p.revenue_account_id ? String(p.revenue_account_id) : '',
-      cogs_account_id: p.cogs_account_id ? String(p.cogs_account_id) : '',
-      category_id: initCategoryId,
-      is_deferred: p.is_deferred ?? false,
-      recognition_months: String(p.recognition_months ?? 12),
-    })
-    setFormError('')
-    setModalOpen(true)
-  }
-
-  const handleSave = async () => {
-    if (!form.name.trim()) { setFormError('Name is required.'); return }
-    setSaving(true); setFormError('')
-    try {
-      const body = {
-        code: form.code || null,
-        name: form.name,
-        unit: form.unit,
-        product_type: form.product_type,
-        default_rate: parseFloat(form.default_rate) || 0,
-        reorder_level: parseFloat(form.reorder_level) || 0,
-        stock_account_id: form.stock_account_id ? parseInt(form.stock_account_id) : null,
-        revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
-        cogs_account_id: form.cogs_account_id ? parseInt(form.cogs_account_id) : null,
-        category_id: form.category_id ? Number(form.category_id) : null,
-        is_deferred: form.is_deferred,
-        recognition_months: parseInt(form.recognition_months) || 12,
-      }
-      if (editProduct) {
-        await apiFetch(`/api/products/${editProduct.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      } else {
-        await apiFetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      }
-      setModalOpen(false); load()
-    } catch (err) {
-      setFormError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleDelete = async (p: Product) => {
     if (!window.confirm(`Delete product "${p.name}"? This cannot be undone.`)) return
@@ -239,15 +126,6 @@ function ProductsInner() {
       alert((err as Error).message)
     }
   }
-
-  const isStock = form.product_type === 'stock'
-  const assetAccounts = accounts.filter(a => a.type === 'Asset')
-  const revenueAccounts = accounts.filter(a => a.type === 'Revenue')
-  const expenseAccounts = accounts.filter(a => a.type === 'Expense')
-
-  // For the two-step category picker in the form
-  const selectedParentCat = categories.find(c => String(c.id) === formParentCat)
-  const subCategories = selectedParentCat?.children ?? []
 
   // Flat list of all categories for the list filter
   const allCatsFlat: { id: number; label: string }[] = []
@@ -439,7 +317,7 @@ function ProductsInner() {
                 </td>
                 <td className="ui-td text-center">{stockBadge(p)}</td>
                 <td className="ui-td flex items-center gap-3">
-                  <button onClick={() => openEdit(p)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
+                  <button onClick={() => router.push(`/products/${p.id}/edit`)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
@@ -458,150 +336,6 @@ function ProductsInner() {
         actions={[{ label: 'Delete Selected', onClick: handleBulkDelete, variant: 'danger' }]}
         onClear={() => setSelectedIds(new Set())}
       />
-
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">{editProduct ? 'Edit Product' : 'Add Product'}</h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Code</label>
-                  <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
-                    placeholder="e.g. SKU-001"
-                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Unit</label>
-                  <select value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
-                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]">
-                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Name *</label>
-                <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="Product name"
-                  className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-2">Type</label>
-                <div className="flex gap-3">
-                  {['service', 'stock'].map(t => (
-                    <button key={t} type="button"
-                      onClick={() => setForm(p => ({ ...p, product_type: t }))}
-                      className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all ${form.product_type === t ? 'bg-[#1a1814] text-white' : 'bg-[#f6f3ee] text-black/60 hover:bg-[#ede9e2]'}`}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {categories.length > 0 && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Category</label>
-                    <select
-                      value={formParentCat}
-                      onChange={e => {
-                        setFormParentCat(e.target.value)
-                        // When parent changes, default category_id to the parent itself (or clear)
-                        setForm(p => ({ ...p, category_id: e.target.value }))
-                      }}
-                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
-                    >
-                      <option value="">— None —</option>
-                      {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  {subCategories.length > 0 && (
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Sub-category</label>
-                      <select
-                        value={form.category_id}
-                        onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))}
-                        className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
-                      >
-                        <option value={formParentCat}>— (parent only) —</option>
-                        {subCategories.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Selling Price</label>
-                  <input type="number" min="0" step="0.01" value={form.default_rate}
-                    onChange={e => setForm(p => ({ ...p, default_rate: e.target.value }))}
-                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
-                </div>
-                {isStock && (
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Reorder Level</label>
-                    <input type="number" min="0" step="0.001" value={form.reorder_level}
-                      onChange={e => setForm(p => ({ ...p, reorder_level: e.target.value }))}
-                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
-                  </div>
-                )}
-              </div>
-              <div className="border-t border-[#ede9e2] pt-4 space-y-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Deferred Revenue</p>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.is_deferred}
-                    onChange={e => setForm(p => ({ ...p, is_deferred: e.target.checked }))}
-                    className="rounded border-[#ede9e2] accent-[#b8943f] w-4 h-4"
-                  />
-                  <span className="text-sm text-[#1a1814]/80">Recognize revenue over time (deferred)</span>
-                </label>
-                {form.is_deferred && (
-                  <div className="w-1/2">
-                    <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Recognition Months</label>
-                    <input
-                      type="number" min="1" step="1"
-                      value={form.recognition_months}
-                      onChange={e => setForm(p => ({ ...p, recognition_months: e.target.value }))}
-                      className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
-                    />
-                  </div>
-                )}
-              </div>
-              {isStock && (
-                <div className="space-y-3 border-t border-[#ede9e2] pt-4">
-                  <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">GL Accounts (optional)</p>
-                  {[
-                    { label: 'Stock / Inventory Account', key: 'stock_account_id', opts: assetAccounts },
-                    { label: 'Revenue Account', key: 'revenue_account_id', opts: revenueAccounts },
-                    { label: 'COGS Account', key: 'cogs_account_id', opts: expenseAccounts },
-                  ].map(({ label, key, opts }) => (
-                    <div key={key}>
-                      <label className="block text-xs text-[#1a1814]/60 mb-1">{label}</label>
-                      <select
-                        value={(form as unknown as Record<string, string>)[key]}
-                        onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-                        className="w-full px-4 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
-                      >
-                        <option value="">— use default —</option>
-                        {opts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {formError && <p className="text-red-600 text-sm">{formError}</p>}
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

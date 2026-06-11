@@ -48,6 +48,16 @@ def list_customers(
     return {"total": total, "items": items}
 
 
+@router.get("/{customer_id}")
+def get_customer(session: SessionDep, user: CurrentUserDep, customer_id: int):
+    c = session.exec(
+        select(Customer).where(Customer.id == customer_id, Customer.tenant_id == user.tenant_id)
+    ).first()
+    if not c:
+        raise HTTPException(404, "Customer not found")
+    return c
+
+
 @router.post("", status_code=201)
 def create_customer(session: SessionDep, user: WriteUserDep, body: CustomerCreate):
     c = Customer(**body.model_dump(), tenant_id=user.tenant_id)

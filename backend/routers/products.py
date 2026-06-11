@@ -131,6 +131,16 @@ def product_last_price(
     return {"rate": None, "date": None, "scope": None, "party_name": None}
 
 
+@router.get("/{product_id}")
+def get_product(session: SessionDep, user: CurrentUserDep, product_id: int):
+    p = session.exec(
+        select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)
+    ).first()
+    if not p:
+        raise HTTPException(404, "Product not found")
+    return p
+
+
 @router.post("", status_code=201)
 def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate):
     p = Product(tenant_id=user.tenant_id, **body.model_dump())
