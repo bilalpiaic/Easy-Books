@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import BillPaymentForm from '@/components/payments/BillPaymentForm'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function NewBillPaymentPage() {
   const router = useRouter()
+  useBreadcrumb('Pay Bill')
   return (
     <div className="space-y-6">
       <div>

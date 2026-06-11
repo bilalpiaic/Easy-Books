@@ -1,8 +1,8 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import Link from "next/link"
-import { ChevronRight, Building2, Printer } from "lucide-react"
+import { Building2, Printer } from "lucide-react"
+import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
@@ -33,6 +33,7 @@ export default function FixedAssetRegisterPage({ params }: { params: Promise<{ i
   const fmt = useFmt()
   const [asset, setAsset] = useState<AssetDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  useBreadcrumb(asset ? asset.name : undefined)
 
   useEffect(() => {
     apiFetch<AssetDetail>(`/api/assets/${id}`)
@@ -58,13 +59,6 @@ export default function FixedAssetRegisterPage({ params }: { params: Promise<{ i
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <nav className="flex items-center gap-1.5 text-xs text-[#1a1814]/50 print:hidden">
-        <Link href="/dashboard" className="hover:text-[#b8943f]">Dashboard</Link>
-        <ChevronRight className="w-3 h-3" />
-        <Link href="/assets" className="hover:text-[#b8943f]">Fixed Assets</Link>
-        <ChevronRight className="w-3 h-3" />
-        <span className="text-[#1a1814]/80 font-medium">{asset.name}</span>
-      </nav>
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">

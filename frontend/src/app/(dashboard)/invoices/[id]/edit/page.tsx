@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import InvoiceForm, { InvoiceFull } from '@/components/invoices/InvoiceForm'
 import { apiFetch } from '@/lib/api'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [invoice, setInvoice] = useState<InvoiceFull | null>(null)
   const [failed, setFailed] = useState(false)
+  useBreadcrumb(invoice ? `Edit ${invoice.number}` : 'Edit')
 
   useEffect(() => {
     apiFetch<InvoiceFull>(`/api/invoices/${id}`)

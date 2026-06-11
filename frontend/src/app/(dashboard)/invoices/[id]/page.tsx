@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, ChevronRight, Download, Link as LinkIcon, History } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History } from "lucide-react"
+import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
 import { useFmt } from "@/context/SettingsContext"
@@ -70,6 +71,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [busy, setBusy]     = useState(false)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
+  useBreadcrumb(inv ? inv.number : undefined)
 
   const load = () =>
     apiFetch<Invoice>(`/api/invoices/${id}`)
@@ -107,12 +109,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-black/40">
-        <Link href="/invoices" className="hover:text-black/70 transition-colors">Invoices</Link>
-        <ChevronRight className="w-3 h-3" />
-        <span className="text-black/60">{inv.number}</span>
-      </nav>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">

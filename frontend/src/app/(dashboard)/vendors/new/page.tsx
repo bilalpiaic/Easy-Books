@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import VendorForm from '@/components/vendors/VendorForm'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function NewVendorPage() {
   const router = useRouter()
+  useBreadcrumb('Add Vendor')
   return (
     <div className="space-y-6">
       <div>

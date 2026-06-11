@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import CustomerForm from '@/components/customers/CustomerForm'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function NewCustomerPage() {
   const router = useRouter()
+  useBreadcrumb('Add Customer')
   return (
     <div className="space-y-6">
       <div>
