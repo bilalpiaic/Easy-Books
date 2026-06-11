@@ -109,6 +109,16 @@ class Settings(SQLModel, table=True):
     tenant: Tenant = Relationship(back_populates="settings")
 
 
+class UserDashboardLayout(SQLModel, table=True):
+    """Per-user dashboard layout (#52 §3). Opaque JSON blob — the widget
+    registry and merge logic live in the frontend; the backend only stores
+    and returns the string keyed by (tenant_id, user_id)."""
+    tenant_id: int = Field(foreign_key="tenant.id", primary_key=True)
+    user_id: int = Field(foreign_key="user.id", primary_key=True)
+    layout_json: str
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Account(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="unique_account_code_per_tenant"),
