@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import InvoiceForm from '@/components/invoices/InvoiceForm'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function NewInvoicePage() {
   const router = useRouter()
+  useBreadcrumb('New Invoice')
   return (
     <div className="space-y-6">
       <div>

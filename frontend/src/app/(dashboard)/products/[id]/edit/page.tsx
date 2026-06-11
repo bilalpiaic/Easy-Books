@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import ProductForm, { ProductFull } from '@/components/products/ProductForm'
 import { apiFetch } from '@/lib/api'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [product, setProduct] = useState<ProductFull | null>(null)
   const [failed, setFailed] = useState(false)
+  useBreadcrumb(product ? `Edit ${product.name}` : 'Edit')
 
   useEffect(() => {
     apiFetch<ProductFull>(`/api/products/${id}`)

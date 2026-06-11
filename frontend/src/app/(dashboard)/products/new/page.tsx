@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import ProductForm from '@/components/products/ProductForm'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function NewProductPage() {
   const router = useRouter()
+  useBreadcrumb('Add Product')
   return (
     <div className="space-y-6">
       <div>

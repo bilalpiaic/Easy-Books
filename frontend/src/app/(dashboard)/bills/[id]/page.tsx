@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, Receipt, Pencil, ChevronRight, History } from "lucide-react"
+import { Printer, RotateCcw, Receipt, Pencil, History } from "lucide-react"
+import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -70,6 +71,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const [busy, setBusy]   = useState(false)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
+  useBreadcrumb(bill ? bill.number : undefined)
 
   const load = () =>
     apiFetch<Bill>(`/api/bills/${id}`)
@@ -106,11 +108,6 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <nav className="flex items-center gap-1.5 text-xs text-black/40">
-        <Link href="/bills" className="hover:text-black/70 transition-colors">Bills</Link>
-        <ChevronRight className="w-3 h-3" />
-        <span className="text-black/60">{bill.number}</span>
-      </nav>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           {(bill.status === "draft" || bill.status === "received" || bill.status === "overdue") && (

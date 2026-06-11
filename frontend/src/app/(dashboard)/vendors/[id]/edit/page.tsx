@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import VendorForm, { VendorFull } from '@/components/vendors/VendorForm'
 import { apiFetch } from '@/lib/api'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function EditVendorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [vendor, setVendor] = useState<VendorFull | null>(null)
   const [failed, setFailed] = useState(false)
+  useBreadcrumb(vendor ? `Edit ${vendor.name}` : 'Edit')
 
   useEffect(() => {
     apiFetch<VendorFull>(`/api/vendors/${id}`)

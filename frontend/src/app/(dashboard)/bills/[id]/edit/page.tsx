@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import BillForm, { BillFull } from '@/components/bills/BillForm'
 import { apiFetch } from '@/lib/api'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function EditBillPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [bill, setBill] = useState<BillFull | null>(null)
   const [failed, setFailed] = useState(false)
+  useBreadcrumb(bill ? `Edit ${bill.number}` : 'Edit')
 
   useEffect(() => {
     apiFetch<BillFull>(`/api/bills/${id}`)

@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import CustomerForm, { CustomerFull } from '@/components/customers/CustomerForm'
 import { apiFetch } from '@/lib/api'
+import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [customer, setCustomer] = useState<CustomerFull | null>(null)
   const [failed, setFailed] = useState(false)
+  useBreadcrumb(customer ? `Edit ${customer.name}` : 'Edit')
 
   useEffect(() => {
     apiFetch<CustomerFull>(`/api/customers/${id}`)

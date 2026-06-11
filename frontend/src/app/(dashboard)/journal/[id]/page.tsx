@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, ScrollText, ChevronRight } from "lucide-react"
+import { Printer, RotateCcw, ScrollText } from "lucide-react"
+import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
@@ -50,6 +51,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy]   = useState(false)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
+  useBreadcrumb(txn ? txn.jv_number : undefined)
 
   const load = () =>
     apiFetch<Txn>(`/api/transactions/${id}`)
@@ -82,11 +84,6 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <nav className="flex items-center gap-1.5 text-xs text-black/40">
-        <Link href="/journal" className="hover:text-black/70 transition-colors">Journal</Link>
-        <ChevronRight className="w-3 h-3" />
-        <span className="text-black/60">{txn.jv_number}</span>
-      </nav>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           <Link href={`/journal/${txn.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">

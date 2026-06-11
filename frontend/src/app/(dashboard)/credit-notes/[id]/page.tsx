@@ -1,8 +1,8 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import Link from "next/link"
-import { ChevronRight, Receipt, Printer } from "lucide-react"
+import { Receipt, Printer } from "lucide-react"
+import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
@@ -29,6 +29,7 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
   const fmt = useFmt()
   const [cn, setCn] = useState<CreditNoteDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  useBreadcrumb(cn ? cn.number : undefined)
 
   useEffect(() => {
     apiFetch<CreditNoteDetail>(`/api/credit-notes/${id}`)
@@ -41,13 +42,6 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <nav className="flex items-center gap-1.5 text-xs text-[#1a1814]/50 print:hidden">
-        <Link href="/dashboard" className="hover:text-[#b8943f]">Dashboard</Link>
-        <ChevronRight className="w-3 h-3" />
-        <Link href="/credit-notes" className="hover:text-[#b8943f]">Credit Notes</Link>
-        <ChevronRight className="w-3 h-3" />
-        <span className="text-[#1a1814]/80 font-medium">{cn.number}</span>
-      </nav>
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
