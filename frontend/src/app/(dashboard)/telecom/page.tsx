@@ -26,10 +26,35 @@ interface Dashboard {
 interface RevenueStream { code: string; name: string; amount: string }
 interface RevenueResp { items: RevenueStream[]; total_revenue: string }
 
+interface StockRow {
+  rso_id: number; name: string; territory: string | null
+  stock_issuance: string; load_issued: string; hlr_issued: string
+  sim_issued_qty: number; other_stock: string; bank_deposits: string
+  closing_hlr_load_dep: string; fca_hits: number | null; closing_sim_fca: number | null
+}
+interface StockTotals {
+  stock_issuance: string; load_issued: string; hlr_issued: string
+  sim_issued_qty: number; other_stock: string; bank_deposits: string
+  closing_hlr_load_dep: string; fca_hits: number; closing_sim_fca: number
+}
+interface StockResp { items: StockRow[]; totals: StockTotals; period: { start: string | null; end: string | null } }
+
 export default function TelecomDashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null)
   const [rev, setRev] = useState<RevenueResp | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [stock, setStock] = useState<StockResp | null>(null)
+  const [siStart, setSiStart] = useState("")
+  const [siEnd, setSiEnd] = useState("")
+
+  useEffect(() => {
+    const qs = new URLSearchParams()
+    if (siStart) qs.set("start", siStart)
+    if (siEnd) qs.set("end", siEnd)
+    apiFetch<StockResp>(`/api/telecom/reports/stock-issuance${qs.toString() ? `?${qs}` : ""}`)
+      .then(setStock)
+      .catch(() => {})
+  }, [siStart, siEnd])
 
   useEffect(() => {
     apiFetch<Dashboard>("/api/telecom/reports/dashboard")
@@ -126,6 +151,78 @@ export default function TelecomDashboardPage() {
                   <td className="px-4 py-2 text-right flex items-center justify-end gap-1">
                     <TrendingUp className="w-3.5 h-3.5 text-[#b8943f]" />{money(rev.total_revenue)}
                   </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Stock & Issuance (per RSO)">
+        <div className="flex flex-wrap items-end gap-3 mb-3">
+          <label className="text-xs text-[#1a1814]/60">
+            From
+            <input type="date" value={siStart} onChange={e => setSiStart(e.target.value)}
+              className="block mt-1 px-2 py-1 border border-[#ede9e2] rounded-lg text-sm" />
+          </label>
+          <label className="text-xs text-[#1a1814]/60">
+            To
+            <input type="date" value={siEnd} onChange={e => setSiEnd(e.target.value)}
+              className="block mt-1 px-2 py-1 border border-[#ede9e2] rounded-lg text-sm" />
+          </label>
+          {(siStart || siEnd) && (
+            <button onClick={() => { setSiStart(""); setSiEnd("") }}
+              className="text-xs text-[#b8943f] hover:underline">Clear</button>
+          )}
+        </div>
+        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[920px]">
+            <thead className="bg-[#f6f3ee] text-[10px] uppercase tracking-widest text-[#1a1814]/60">
+              <tr>
+                <th className="px-3 py-2 text-left">RSO</th>
+                <th className="px-3 py-2 text-right">Stock Iss.</th>
+                <th className="px-3 py-2 text-right">Load Iss.</th>
+                <th className="px-3 py-2 text-right">HLR Iss.</th>
+                <th className="px-3 py-2 text-right">Other Stock</th>
+                <th className="px-3 py-2 text-right">SIM Iss.</th>
+                <th className="px-3 py-2 text-right">Bank Dep.</th>
+                <th className="px-3 py-2 text-right">FCA Hits</th>
+                <th className="px-3 py-2 text-right">Closing (SIM−FCA)</th>
+                <th className="px-3 py-2 text-right">Closing (HLR+Load−Dep)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(stock?.items ?? []).map(r => (
+                <tr key={r.rso_id} className="border-t border-[#ede9e2]">
+                  <td className="px-3 py-2">{r.name}{r.territory ? ` · ${r.territory}` : ""}</td>
+                  <td className="px-3 py-2 text-right">{money(r.stock_issuance)}</td>
+                  <td className="px-3 py-2 text-right">{money(r.load_issued)}</td>
+                  <td className="px-3 py-2 text-right">{money(r.hlr_issued)}</td>
+                  <td className="px-3 py-2 text-right">{money(r.other_stock)}</td>
+                  <td className="px-3 py-2 text-right">{r.sim_issued_qty}</td>
+                  <td className="px-3 py-2 text-right">{money(r.bank_deposits)}</td>
+                  <td className="px-3 py-2 text-right text-[#1a1814]/35">—</td>
+                  <td className="px-3 py-2 text-right text-[#1a1814]/35">—</td>
+                  <td className="px-3 py-2 text-right">{money(r.closing_hlr_load_dep)}</td>
+                </tr>
+              ))}
+              {stock && stock.items.length === 0 && (
+                <tr><td className="px-4 py-6 text-center text-[#1a1814]/50" colSpan={10}>No RSO activity for this period.</td></tr>
+              )}
+            </tbody>
+            {stock && stock.items.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-[#b8943f]/30 bg-[#faf6ec] font-bold">
+                  <td className="px-3 py-2">TOTAL</td>
+                  <td className="px-3 py-2 text-right">{money(stock.totals.stock_issuance)}</td>
+                  <td className="px-3 py-2 text-right">{money(stock.totals.load_issued)}</td>
+                  <td className="px-3 py-2 text-right">{money(stock.totals.hlr_issued)}</td>
+                  <td className="px-3 py-2 text-right">{money(stock.totals.other_stock)}</td>
+                  <td className="px-3 py-2 text-right">{stock.totals.sim_issued_qty}</td>
+                  <td className="px-3 py-2 text-right">{money(stock.totals.bank_deposits)}</td>
+                  <td className="px-3 py-2 text-right">{stock.totals.fca_hits}</td>
+                  <td className="px-3 py-2 text-right">{stock.totals.closing_sim_fca}</td>
+                  <td className="px-3 py-2 text-right">{money(stock.totals.closing_hlr_load_dep)}</td>
                 </tr>
               </tfoot>
             )}
