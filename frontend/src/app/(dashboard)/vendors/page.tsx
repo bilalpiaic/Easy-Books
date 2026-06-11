@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, Search, Trash2, Download, Printer, Truck } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
@@ -22,29 +23,16 @@ interface Vendor {
   is_active: boolean
 }
 
-interface FormState {
-  name: string
-  email: string
-  phone: string
-  address: string
-  opening_balance: string
-}
-
-const emptyForm: FormState = { name: '', email: '', phone: '', address: '', opening_balance: '0' }
 const PAGE_SIZE = 50
 
 export default function Vendors() {
   const fmt = useFmt()
+  const router = useRouter()
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editVendor, setEditVendor] = useState<Vendor | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const handleBulkDelete = async () => {
@@ -70,7 +58,7 @@ export default function Vendors() {
   useEffect(() => { setPage(1) }, [search])
   useEffect(load, [page, search])
 
-  const openAdd = () => { setEditVendor(null); setForm(emptyForm); setFormError(''); setModalOpen(true) }
+  const openAdd = () => router.push('/vendors/new')
 
   useEffect(() => {
     const h = () => openAdd()
@@ -78,31 +66,6 @@ export default function Vendors() {
     return () => window.removeEventListener("kbd:new", h)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const openEdit = (v: Vendor) => {
-    setEditVendor(v)
-    setForm({ name: v.name, email: v.email ?? '', phone: v.phone ?? '', address: v.address ?? '', opening_balance: String(v.opening_balance) })
-    setFormError('')
-    setModalOpen(true)
-  }
-
-  const handleSave = async () => {
-    if (!form.name.trim()) { setFormError('Name is required.'); return }
-    setSaving(true); setFormError('')
-    try {
-      const body = { name: form.name, email: form.email || null, phone: form.phone || null, address: form.address || null, opening_balance: parseFloat(form.opening_balance) || 0 }
-      if (editVendor) {
-        await apiFetch(`/api/vendors/${editVendor.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      } else {
-        await apiFetch('/api/vendors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      }
-      setModalOpen(false); load()
-    } catch (err) {
-      setFormError((err as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleDelete = async (v: Vendor) => {
     if (!window.confirm(`Delete vendor "${v.name}"? This cannot be undone.`)) return
@@ -228,7 +191,7 @@ export default function Vendors() {
                   </span>
                 </td>
                 <td className="ui-td flex items-center gap-3">
-                  <button onClick={() => openEdit(v)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
+                  <button onClick={() => router.push(`/vendors/${v.id}/edit`)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(v)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
@@ -246,44 +209,6 @@ export default function Vendors() {
         actions={[{ label: 'Delete Selected', onClick: handleBulkDelete, variant: 'danger' }]}
         onClear={() => setSelectedIds(new Set())}
       />
-
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">{editVendor ? 'Edit Vendor' : 'Add Vendor'}</h2>
-            <div className="space-y-4">
-              {(['name', 'email', 'phone', 'address'] as const).map(field => (
-                <div key={field}>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1 capitalize">{field}</label>
-                  <input
-                    value={form[field]}
-                    onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                    className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
-                    placeholder={field === 'name' ? 'Vendor name' : ''}
-                  />
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Opening Balance</label>
-                <input
-                  type="number" step="0.01"
-                  value={form.opening_balance}
-                  onChange={e => setForm(p => ({ ...p, opening_balance: e.target.value }))}
-                  className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
-                />
-              </div>
-              {formError && <p className="text-red-600 text-sm">{formError}</p>}
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-                <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -48,6 +48,16 @@ def list_vendors(
     return {"total": total, "items": items}
 
 
+@router.get("/{vendor_id}")
+def get_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int):
+    v = session.exec(
+        select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == user.tenant_id)
+    ).first()
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+    return v
+
+
 @router.post("", status_code=201)
 def create_vendor(session: SessionDep, user: WriteUserDep, body: VendorCreate):
     v = Vendor(**body.model_dump(), tenant_id=user.tenant_id)
