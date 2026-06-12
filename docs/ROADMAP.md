@@ -1,69 +1,89 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-08 (against `main` @ v2.5.0; #47/#48 + #53 Phase 2 merged)_
+_Last reviewed: 2026-06-12 (against `main` @ merge `b9f961d`)._
 
 ## Status summary
 
-| State | Issues |
-|-------|--------|
-| ✅ **Done & closed** | #43 (Financial Reporting/Inventory/Sales-Purchase, 7 sections), #44 (Voucher Series, Phase 1+2), #45 (Consolidated/Sub-Ledger GL), #48 (posted-edit `block_negative_stock` hardening — v2.5.0), #47 (deferred-revenue origination — v2.5.0), #50 (Selling/Cost Price), #51 (Posted-doc editing), #53 (Multi-Level COA — **Phase 1 v2.4.0 + Phase 2 v2.5.0**) |
-| 🟡 **Partially done (open)** | #52 (COA/Dashboard/UX bundle — §1/§2/§5 redirected to #53/#41/#40; net-new §3/§4/§6 remaining) |
-| 🔴 **Not started (open)** | #40, #41, #42 |
+**All six open GitHub issues are implemented and on `main`.** The tracker is stale — every
+open issue has shipped; the table below reconciles each to its delivery. The forward work is
+a small **future-scope backlog** (no open issue yet), outlined at the bottom.
 
-Shipped this cycle: v2.2.0 → v2.3.0 → v2.3.1 → v2.3.2 → v2.4.0 → **v2.5.0** (#47 deferred-revenue origination, #48 posted-edit negative-stock hardening, #53 Phase 2 hierarchical reporting).
+| Issue | Title | Status | Delivered by |
+|-------|-------|--------|--------------|
+| **#40** | Full-page data-entry forms | ✅ Shipped | v2.6.0 — 7 New/Edit flows converted modal→route (invoices, bills, payments-received, bill-payments, products, customers, vendors) |
+| **#41** | Configurable columns for Recent Transactions | ✅ Shipped | v2.5.0 — `RecentTransactions` widget: "Columns ▾" dropdown with per-column checkboxes, persisted in `localStorage`; voucher-type filter, sort, search, click-to-open |
+| **#42** | Telecom Stock & Issuance table | ✅ Shipped | merge `d433cf8` — `GET /api/telecom/reports/stock-issuance` (per-RSO aggregation + franchise FCA footer) + table on `telecom/page.tsx`; 3 tests |
+| **#47** | Rebuild deferred-revenue schedule on invoice edit | ✅ Shipped | v2.5.0 — `services/deferred.py`; `update_invoice` blocks edit once recognised, else reverses + rebuilds the schedule (origination + edit path unified) |
+| **#52** | COA Management & Dashboard bundle | ✅ Shipped | §1/§2/§5 → #53/#41/#40; **§3** customizable dashboard (P1 `8e6a896` reorder/show-hide + P2 `b9f961d` resizable grid + shortcut tiles); **§4** voucher-type selector on New Entry; **§6** standard nav (breadcrumbs + always-on Home) |
+| **#53** | Flexible Multi-Level Chart of Accounts | ✅ Shipped | Phase 1 v2.4.0 (multi-level CoA, `parent_id`/`is_group`, post-to-leaf) + Phase 2 v2.5.0 (hierarchical TB / Balance Sheet / P&L roll-up + drill-to-ledger via `services/account_tree.py`) |
 
-**Post-v2.5.0 infrastructure (on `main`):** seeding-layer modernization — the **default Chart of Accounts is now hierarchical for every tenant** (group skeleton + parented leaves in `db.py`), and the demo seed exercises deferred-revenue origination, voucher types, two fiscal years, and multiple users per tenant. **In progress:** documentation regeneration (all `.md` + the in-app guide/workflow pages reconciled to v2.5.0; branch `feature/docs-regen`).
-
----
-
-## Remaining work — concrete plans
-
-### 1. #47 + #48 — Posted-edit hardening + deferred revenue · ✅ **SHIPPED (v2.5.0)**
-- **#48 — `block_negative_stock` on edit.** `update_invoice`'s re-consume now mirrors `create_invoice`: reads the setting, passes `block_negative=`, wraps the loop in `try/except InventoryError → rollback + 400`.
-- **#47 — Deferred-revenue origination** (re-scoped from "rebuild on edit" — the origination path never existed). `services/deferred.py` (`plan_deferral`/`resolve_deferred_account`/`create_schedules`/`has_any_recognition`/`reverse_schedules`); `create_invoice` splits net revenue → Deferred Revenue (2300) for `product.is_deferred` lines + builds one schedule per deferred line; `update_invoice` blocks edits once recognised, else reverses+rebuilds; product form exposes the flags; existing recognition engine reused. GST posts immediately; deferred GL credit clamped to subtotal (multi-currency-safe).
-
-### 2. #53 Phase 2 — COA reporting roll-up & drill-down · ✅ **SHIPPED (v2.5.0)**
-Hierarchical Trial Balance, Balance Sheet, and P&L.
-- **Shipped:** `services/account_tree.py` shared roll-up engine; `/trial-balance` → `{tree, totals}`, `/balance-sheet` (single period) → `{assets, liabilities, equity, totals}` (RE-CUR synthetic equity node preserved), `/income-statement` (single period) → `{revenue, expenses, totals}` + `net_profit`; comparison mode stays flat. Reusable `<AccountTree>` frontend component with expand/collapse + **leaf drill-to-ledger** on all three pages. All flat-shape test assertions migrated; full suite green (333 tests on merged main).
-- **Remaining future scope:** Cash Flow hierarchical roll-up; dashboard financial summaries.
-
-### 3. #41 (= #52 §2) — Recent Transactions enhancement · effort **S-M** · priority **Med**
-- **Scope:** dashboard Recent Transactions shows full columns (Date · Voucher No · **Voucher Type** · Account · Party · Narration · Amount); user-selectable columns (checkbox, persisted); voucher-type filter; sort by date; quick search; click-to-open.
-- **Approach:** reuse **`GET /api/reports/journal`** (already returns `voucher_type` + supports `?voucher_type=` filter from #44). Frontend: enhance the Recent-Transactions widget on `dashboard/page.tsx` — column-config dropdown (persist in settings or localStorage), filter/sort/search, row→`/journal/{transaction_id}`.
-- **Deps:** voucher series (#44, done). Mostly frontend.
-
-### 4. #52 §4 — Voucher-type LOV on New Entry · effort **S** · priority **Med**
-- **Scope:** the manual New-Entry/JV form (`entry/page.tsx`) gets a **voucher-type selector** that drives the number series / posting classification (entry layout/posting logic per type is future).
-- **Approach:** `post_transaction` already accepts `voucher_type` (#44). Add a voucher-type `<select>` (from `lib/voucherTypes.ts`) to the manual entry form; thread it to the create-transaction endpoint → typed number. **Effort S** (leverages #44).
-- **Deps:** voucher series (#44, done).
-
-### 5. #40 (= #52 §5) — Full-page data-entry forms · effort **M-L** · priority **Med**
-- **Scope:** New Invoice/Bill (+ JV/Receipt/Payment + Product/Customer/Supplier masters) use **full-page** layout instead of modals.
-- **Approach:** the invoice/bill create/edit currently lives as a **modal inside the list page** (`invoices/page.tsx`). Convert to dedicated routes (`/invoices/new`, `/invoices/[id]/edit`) reusing the existing form + `LineItemsTable`. Sizeable but mechanical; the density system already helps. **Needs a short design** (route structure, where the shared form lives).
-- **Deps:** interacts with #52 §6 (nav controls). **Effort M-L.**
-
-### 6. #52 §6 — Standard navigation controls · effort **M** · priority **Med**
-- **Scope:** consistent Previous / Home (Dashboard) / Home (Section) / breadcrumbs on every screen; designed to later support Next/Prev record, Favorites, Recently-Visited.
-- **Approach:** a shared top-of-page nav component + a route→section map; mounted in the dashboard layout. **Needs a small design** (section taxonomy, breadcrumb source). **Effort M.**
-
-### 7. #42 — Telecom dashboard Stock & Issuance table · effort **M** · priority **Med (telecom tenants)**
-- **Scope:** table — Name · Stock Issuance · Load Issued · HLR Issued · Other Stock Issued · FCA Hits · Closing (SIM Issued − FCA) · Closing (HLR Issued + Load − Bank Deposits).
-- **Approach:** new aggregation in `telecom_reports.py` (alongside the existing `/dashboard`, `/rso-ledger`, `/float-statement`) over the `tc_*` telecom tables; telecom dashboard table on `telecom/page.tsx`. **Needs telecom-domain design** (which tc_* tables/events feed each column; the FCA + bank-deposit definitions). **Effort M.**
-
-### 8. #52 §3 — User-customizable dashboard · effort **L** · priority **Low-Med**
-- **Scope:** drag-&-drop widgets, hide/show, save per-user layout (Cash Position, Bank Balances, AR/AP Aging, Sales/Purchase/Inventory/Profit summaries, Recent Transactions, Top Customers/Products, Alerts).
-- **Approach:** a widget registry + a layout persisted per user; a grid/drag library. **Largest UX piece — its own spec.** Do last.
+**Recommended action:** close #40, #41, #42, #47, #52, #53 with a comment citing the delivery
+above. (See "Issue closure" below.)
 
 ---
 
-## Recommended sequence
-1. **#47 + #48** posted-edit hardening (S, closes 2 issues, low risk).
-2. ~~**#53 Phase 2**~~ ✅ COA reporting roll-up/drill-down — **shipped**.
-3. **#41** Recent Transactions (S-M; reuses voucher journal endpoint).
-4. **#52 §4** Voucher LOV on New Entry (S; leverages #44).
-5. **#40** Full-page forms (M-L UX refactor).
-6. **#52 §6** Standard nav controls (M).
-7. **#42** Telecom Stock & Issuance table (M; domain).
-8. **#52 §3** Customizable dashboard (L; last).
+## Shipped history (condensed)
 
-**Cross-cutting note:** each non-trivial item (esp. #40, #42, #52 §3/§6) gets its own brainstorm → spec → plan → subagent execution, consistent with how v2.2.0–v2.4.0 shipped. The two hardening items (#47/#48) and #52 §4 are small enough to spec lightly.
+v2.1.0 → v2.6.0 + post-v2.6.0:
+- **Reporting & GL:** #43 (financial/inventory/sales reports), #45 (consolidated/sub-ledger GL), #44 (voucher series P1+P2), hierarchical TB/BS/P&L (#53 P2), report-builder, audit log.
+- **Accounting correctness:** #50 (selling/cost price), #51 (posted-doc editing), #48 (`block_negative_stock` on edit), #47 (deferred-revenue origination + edit rebuild).
+- **Chart of Accounts:** #53 multi-level CoA (P1 structure + P2 hierarchical reporting); default CoA is hierarchical for every tenant (group skeleton + parented leaves in `db.py`).
+- **UX:** #40 full-page forms; #41 Recent Transactions widget; #52 §4 voucher selector; #52 §6 nav controls (breadcrumbs + Home); **#52 §3 customizable dashboard** (per-user reorder/show-hide → resizable `react-grid-layout` grid + form/report shortcut tiles).
+- **Telecom:** #42 Stock & Issuance per-RSO report + dashboard table.
+- **Infra:** Alembic migrations source-of-truth; per-tenant demo seeding; desktop/script installers with in-app update check; standalone evaluation build auto-loads demo data.
+
+Full per-merge detail lives in `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+
+---
+
+## Forward backlog (no open issue — future scope, build outlines)
+
+These are the genuinely-remaining ideas, all previously deferred under YAGNI. None is blocking;
+each would follow the standard brainstorm → spec → plan → subagent-execution flow. Listed in
+rough priority order.
+
+### B1. Dashboard "smart tiles" — live metrics on shortcuts · effort **M** · priority **Med**
+- **Why:** #52 §3 Phase 2 shipped shortcut tiles as pure navigation. The deferred next step is
+  optional live figures on a tile (e.g. Invoices → overdue count, Bank → balance, AR → outstanding).
+- **Build outline:** add a small metric resolver keyed by `NAV` href (a registry mapping
+  `href → () => fetch a single number`); extend the layout item to carry an optional
+  `mode: "shortcut" | "metric"`; `ShortcutTile` renders the figure when `metric`. Reuse existing
+  dashboard summary endpoints where possible (no new aggregation for the common ones). Per-user
+  layout store is unchanged (opaque). **Spec needed:** which metrics, refresh cadence, endpoint reuse.
+
+### B2. Dashboard data widgets — Bank Balances / Top Products / Inventory summary · effort **M** · priority **Low-Med**
+- **Why:** the original #52 §3 wishlist named these; Phase 2 wrapped only existing blocks + shortcuts.
+- **Build outline:** three new widgets in `WIDGET_REGISTRY` backed by **new** aggregation endpoints
+  (`/api/reports/bank-balances` per-account list, top-products by movement, inventory valuation summary).
+  Each is a grid widget with default/min size; they appear in the Add-widget panel automatically.
+  **Spec needed:** exact columns/metrics per widget; backend endpoints + tests.
+
+### B3. Cash Flow statement — comparative/period polish · effort **S-M** · priority **Low**
+- **Why:** TB/BS/P&L got hierarchical roll-up (#53 P2); Cash Flow (`reports.py:/cash-flow`,
+  indirect method) was left flat. A true CoA tree doesn't fit cash-flow's activity classification,
+  so this is **polish, not a tree**: tighten operating/investing/financing classification, ensure
+  comparison mode parity with the other statements, optional drill to contributing accounts.
+- **Build outline:** review `cash_flow_statement` classification rules; align comparison-mode shape
+  with BS/P&L; add tests. **Small/optional** — confirm there's user demand before building.
+
+### B4. Per-breakpoint dashboard layouts · effort **S** · priority **Low**
+- **Why:** Phase 2 stores one desktop layout; tablet/mobile derive by stacking. Power users on
+  multiple screen sizes may want distinct arrangements.
+- **Build outline:** extend layout schema to v3 (`{version:3, layouts:{lg,sm,xs}}`) with a v2→v3
+  migration in `resolveLayout`; capture per-breakpoint from react-grid-layout's `onLayoutChange`
+  `allLayouts`. Backend store unchanged. **Low value vs. effort** — likely skip unless requested.
+
+---
+
+## Issue closure (recommended)
+
+Close all six open issues as delivered:
+
+| Issue | Suggested closing comment |
+|-------|---------------------------|
+| #40 | Shipped in v2.6.0 — all 7 New/Edit flows now full-page routes. |
+| #41 | Shipped in v2.5.0 — Recent Transactions has a Columns ▾ selector (per-column checkboxes, persisted) + filter/sort/search. |
+| #42 | Shipped — `GET /api/telecom/reports/stock-issuance` + per-RSO table on the telecom dashboard (merge `d433cf8`). |
+| #47 | Shipped in v2.5.0 — `update_invoice` rebuilds the deferred-revenue schedule (block-if-recognised, else reverse + rebuild). |
+| #52 | Shipped — §3 customizable dashboard (P1 reorder/show-hide + P2 resizable grid + shortcut tiles), §4 voucher selector, §6 nav controls; §1/§2/§5 delivered via #53/#41/#40. |
+| #53 | Shipped — multi-level CoA (P1 v2.4.0) + hierarchical TB/BS/P&L reporting with drill-to-ledger (P2 v2.5.0). |
