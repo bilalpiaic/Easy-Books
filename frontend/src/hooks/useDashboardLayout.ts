@@ -33,7 +33,11 @@ export function packItems(sized: { id: string; w: number; h: number }[]): GridIt
 }
 
 export function defaultGrid(): GridItem[] {
-  return packItems(gridDefs.map(d => ({ id: d.id, w: d.defaultSize.w, h: d.defaultSize.h })))
+  return packItems(
+    gridDefs
+      .filter(d => d.defaultOnGrid !== false)
+      .map(d => ({ id: d.id, w: d.defaultSize.w, h: d.defaultSize.h })),
+  )
 }
 
 export function migrateV1toV2(v1: StoredLayoutV1): GridItem[] {

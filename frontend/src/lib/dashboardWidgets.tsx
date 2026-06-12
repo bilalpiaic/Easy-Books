@@ -3,6 +3,9 @@ import Link from "next/link"
 import { Bar, Doughnut, Line } from "react-chartjs-2"
 import type { ChartOptions, ChartData as ChartJsData } from "chart.js"
 import RecentTransactions from "@/components/RecentTransactions"
+import BankBalancesWidget from "@/components/dashboard/widgets/BankBalancesWidget"
+import TopProductsWidget from "@/components/dashboard/widgets/TopProductsWidget"
+import InventorySummaryWidget from "@/components/dashboard/widgets/InventorySummaryWidget"
 import { apiFetch } from "@/lib/api"
 import type { AppSettings } from "@/context/SettingsContext"
 import {
@@ -64,6 +67,7 @@ export interface WidgetDef {
   minSize: WidgetSize
   pinned?: boolean               // rendered in the fixed notices strip, NOT a grid item
   conditional?: boolean          // render() may return null (e.g. ar_aging when no data)
+  defaultOnGrid?: boolean        // default true; false = not on the default dashboard, add via panel
   render: (ctx: WidgetContext) => React.ReactNode
 }
 
@@ -388,5 +392,20 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     defaultVisible: true,
     defaultSize: { w: 4, h: 3 }, minSize: { w: 2, h: 2 },
     render: () => <RecentTransactions />,
+  },
+  {
+    id: "bank_balances", title: "Bank Balances", defaultVisible: true, defaultOnGrid: false,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <BankBalancesWidget />,
+  },
+  {
+    id: "top_products", title: "Top Products", defaultVisible: true, defaultOnGrid: false,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <TopProductsWidget />,
+  },
+  {
+    id: "inventory_summary", title: "Inventory Summary", defaultVisible: true, defaultOnGrid: false,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    render: () => <InventorySummaryWidget />,
   },
 ]
