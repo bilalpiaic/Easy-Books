@@ -42,14 +42,11 @@ These are the genuinely-remaining ideas, all previously deferred under YAGNI. No
 each would follow the standard brainstorm → spec → plan → subagent-execution flow. Listed in
 rough priority order.
 
-### B1. Dashboard "smart tiles" — live metrics on shortcuts · effort **M** · priority **Med**
-- **Why:** #52 §3 Phase 2 shipped shortcut tiles as pure navigation. The deferred next step is
-  optional live figures on a tile (e.g. Invoices → overdue count, Bank → balance, AR → outstanding).
-- **Build outline:** add a small metric resolver keyed by `NAV` href (a registry mapping
-  `href → () => fetch a single number`); extend the layout item to carry an optional
-  `mode: "shortcut" | "metric"`; `ShortcutTile` renders the figure when `metric`. Reuse existing
-  dashboard summary endpoints where possible (no new aggregation for the common ones). Per-user
-  layout store is unchanged (opaque). **Spec needed:** which metrics, refresh cadence, endpoint reuse.
+### B1. Dashboard "smart tiles" — live metrics on shortcuts · ✅ **SHIPPED** (merge `9aced3a`)
+- Automatic, summary-only: `lib/dashboardTileMetrics.ts` maps 7 routes (invoices→AR, bills→AP,
+  products→low-stock, bank/cash→cash, aging→AR/AP) to a `{value, badge?, tone?}` read from the
+  already-loaded `DashboardSummary`; `ShortcutTile` renders it; `DashboardGrid.renderItem` resolves
+  it. Zero backend / schema change. Spec `2026-06-13-dashboard-smart-tiles-design.md`.
 
 ### B2. Dashboard data widgets — Bank Balances / Top Products / Inventory summary · effort **M** · priority **Low-Med**
 - **Why:** the original #52 §3 wishlist named these; Phase 2 wrapped only existing blocks + shortcuts.
