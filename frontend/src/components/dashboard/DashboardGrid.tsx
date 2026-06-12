@@ -5,7 +5,8 @@ import { Responsive, WidthProvider, type Layout, type LayoutItem } from "react-g
 import "react-grid-layout/css/styles.css"
 import { X, Check, RotateCcw, Plus } from "lucide-react"
 import { WIDGET_REGISTRY, type WidgetContext, type WidgetDef } from "@/lib/dashboardWidgets"
-import { isShortcutId } from "@/lib/dashboardShortcuts"
+import { isShortcutId, shortcutHref } from "@/lib/dashboardShortcuts"
+import { resolveTileMetric } from "@/lib/dashboardTileMetrics"
 import ShortcutTile from "@/components/dashboard/ShortcutTile"
 import AddWidgetPanel from "@/components/dashboard/AddWidgetPanel"
 import type { GridItem, UseDashboardLayout } from "@/hooks/useDashboardLayout"
@@ -16,7 +17,8 @@ const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, 
 
 function renderItem(item: GridItem, ctx: WidgetContext, meta: { model: string | undefined; role: string }, editing: boolean): React.ReactNode {
   if (isShortcutId(item.id)) {
-    return <ShortcutTile id={item.id} model={meta.model} role={meta.role} editing={editing} />
+    const metric = resolveTileMetric(shortcutHref(item.id), ctx.s, ctx.fmt)
+    return <ShortcutTile id={item.id} model={meta.model} role={meta.role} editing={editing} metric={metric ?? undefined} />
   }
   const def = registryById.get(item.id)
   return def ? def.render(ctx) : null
