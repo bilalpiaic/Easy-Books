@@ -9,10 +9,9 @@ import {
 } from "chart.js"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import { apiFetch } from "@/lib/api"
-import { Settings2 } from "lucide-react"
 import DateRangePicker from "@/components/DateRangePicker"
-import DashboardCanvas from "@/components/dashboard/DashboardCanvas"
-import CustomizeBar from "@/components/dashboard/CustomizeBar"
+import DashboardGrid from "@/components/dashboard/DashboardGrid"
+import { WIDGET_REGISTRY } from "@/lib/dashboardWidgets"
 import { useDashboardLayout } from "@/hooks/useDashboardLayout"
 import {
   type DashboardData, type ChartData, type WidgetContext, type DashboardChartConfigs,
@@ -46,7 +45,6 @@ export default function Dashboard() {
   const [checklistDismissed, setChecklistDismissed] = useState(false)
 
   const layout = useDashboardLayout()
-  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     setData(null)
@@ -142,6 +140,9 @@ export default function Dashboard() {
     settings, reloadSettings, checklistDismissed, setChecklistDismissed,
   }
 
+  const onboardingWidget = WIDGET_REGISTRY.find(w => w.id === "onboarding")
+  const alertsWidget = WIDGET_REGISTRY.find(w => w.id === "alerts")
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -149,28 +150,18 @@ export default function Dashboard() {
           <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">Dashboard</h1>
           <p className="text-xs text-[#1a1814]/50 mt-0.5 font-medium tracking-wide uppercase">Financial Overview</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="bg-white border border-[#ede9e2] rounded-xl px-3 py-2 shadow-sm">
-            <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
-          </div>
-          {!editing && (
-            <button
-              onClick={() => setEditing(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#ede9e2] bg-white shadow-sm text-sm font-medium text-[#1a1814]/75 hover:border-[#b8943f]/40 transition-colors"
-            >
-              <Settings2 className="w-4 h-4 text-[#b8943f]" /> Customize
-            </button>
-          )}
+        <div className="bg-white border border-[#ede9e2] rounded-xl px-3 py-2 shadow-sm">
+          <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
         </div>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      {editing ? (
-        <CustomizeBar layout={layout} onDone={() => setEditing(false)} ctx={ctx} />
-      ) : (
-        <DashboardCanvas widgets={layout.widgets} ctx={ctx} />
-      )}
+      {/* Pinned notices (not part of the customizable grid) */}
+      {onboardingWidget?.render(ctx)}
+      {alertsWidget?.render(ctx)}
+
+      <DashboardGrid layout={layout} ctx={ctx} editing={false} />
     </div>
   )
 }
