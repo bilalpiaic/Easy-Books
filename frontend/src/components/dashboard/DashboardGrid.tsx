@@ -6,14 +6,17 @@ import "react-grid-layout/css/styles.css"
 import { X, Check, RotateCcw } from "lucide-react"
 import { WIDGET_REGISTRY, type WidgetContext, type WidgetDef } from "@/lib/dashboardWidgets"
 import { isShortcutId } from "@/lib/dashboardShortcuts"
+import ShortcutTile from "@/components/dashboard/ShortcutTile"
 import type { GridItem, UseDashboardLayout } from "@/hooks/useDashboardLayout"
 import { GRID_COLS } from "@/hooks/useDashboardLayout"
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, w]))
 
-function renderItem(item: GridItem, ctx: WidgetContext): React.ReactNode {
-  if (isShortcutId(item.id)) return null   // ShortcutTile added in Task 7
+function renderItem(item: GridItem, ctx: WidgetContext, meta: { model: string | undefined; role: string }, editing: boolean): React.ReactNode {
+  if (isShortcutId(item.id)) {
+    return <ShortcutTile id={item.id} model={meta.model} role={meta.role} editing={editing} />
+  }
   const def = registryById.get(item.id)
   return def ? def.render(ctx) : null
 }
@@ -87,7 +90,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
               </button>
             )}
             <div className={editing ? "pointer-events-none select-none h-full" : "h-full"}>
-              {renderItem(i, ctx)}
+              {renderItem(i, ctx, layout.meta, editing)}
             </div>
           </div>
         ))}
