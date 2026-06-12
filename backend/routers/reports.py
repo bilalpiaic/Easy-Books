@@ -975,6 +975,10 @@ def cash_flow_statement(
         beginning_balance = sum((balance_at(a, day_before) for a in cash_accounts), ZERO)
         ending_balance = sum((balance_at(a, e) for a in cash_accounts), ZERO)
         net_cash_change = operating_cash + investing_cash + financing_cash
+        # Reconciling difference: any actual cash movement the classifier didn't
+        # bucket. By construction net_cash_change + unclassified == ending - beginning,
+        # so the statement always ties out to real cash.
+        unclassified = (ending_balance - beginning_balance) - net_cash_change
 
         return {
             "period": {"start": s, "end": e},
@@ -986,6 +990,7 @@ def cash_flow_statement(
             "financing_items": financing_items,
             "financing_cash": financing_cash,
             "net_cash_change": net_cash_change,
+            "unclassified": unclassified,
             "beginning_balance": beginning_balance,
             "ending_balance": ending_balance,
         }
