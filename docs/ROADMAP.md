@@ -55,13 +55,12 @@ rough priority order.
   off the default dashboard; the Add-widget panel surfaces them automatically. Pure helpers in
   `lib/inventorySummary.ts`. Spec `2026-06-13-dashboard-data-widgets-design.md`.
 
-### B3. Cash Flow statement — comparative/period polish · effort **S-M** · priority **Low**
-- **Why:** TB/BS/P&L got hierarchical roll-up (#53 P2); Cash Flow (`reports.py:/cash-flow`,
-  indirect method) was left flat. A true CoA tree doesn't fit cash-flow's activity classification,
-  so this is **polish, not a tree**: tighten operating/investing/financing classification, ensure
-  comparison mode parity with the other statements, optional drill to contributing accounts.
-- **Build outline:** review `cash_flow_statement` classification rules; align comparison-mode shape
-  with BS/P&L; add tests. **Small/optional** — confirm there's user demand before building.
+### B3. Cash Flow statement — reconciliation tie-out · ✅ **SHIPPED** (merge `581be22`)
+- Discovery: comparison mode was **already** implemented (backend + frontend); the real gap was that
+  the classifier could silently fail to tie out. Added `unclassified = (ending − beginning) −
+  net_cash_change` to `/cash-flow`'s `_compute` (so both single + comparison get it); frontend shows a
+  reconciling row (when non-zero) + a ✓-Reconciled/amber indicator and the reconciled net change.
+  Classifier untouched. 3 tests (372 suite). Spec `2026-06-13-cashflow-reconciliation-tieout-design.md`.
 
 ### B4. Per-breakpoint dashboard layouts · effort **S** · priority **Low**
 - **Why:** Phase 2 stores one desktop layout; tablet/mobile derive by stacking. Power users on
