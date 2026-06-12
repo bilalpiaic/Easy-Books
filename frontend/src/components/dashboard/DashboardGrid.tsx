@@ -3,10 +3,11 @@
 import React, { useState } from "react"
 import { Responsive, WidthProvider, type Layout, type LayoutItem } from "react-grid-layout/legacy"
 import "react-grid-layout/css/styles.css"
-import { X, Check, RotateCcw } from "lucide-react"
+import { X, Check, RotateCcw, Plus } from "lucide-react"
 import { WIDGET_REGISTRY, type WidgetContext, type WidgetDef } from "@/lib/dashboardWidgets"
 import { isShortcutId } from "@/lib/dashboardShortcuts"
 import ShortcutTile from "@/components/dashboard/ShortcutTile"
+import AddWidgetPanel from "@/components/dashboard/AddWidgetPanel"
 import type { GridItem, UseDashboardLayout } from "@/hooks/useDashboardLayout"
 import { GRID_COLS } from "@/hooks/useDashboardLayout"
 
@@ -27,8 +28,9 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
   editing: boolean
   onExitEditing: () => void
 }) {
-  const { items, applyLayout, removeWidget, reset, reload, save } = layout
+  const { items, meta, applyLayout, addWidget, removeWidget, reset, reload, save } = layout
   const [saving, setSaving] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   const rglLayout: LayoutItem[] = items.map(i => {
@@ -50,6 +52,9 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">Customizing dashboard</span>
           <span className="text-[11px] text-[#1a1814]/45">Drag to move · drag a corner to resize · × to remove</span>
           <div className="ml-auto flex items-center gap-2">
+            <button onClick={() => setAdding(a => !a)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#b8943f] hover:text-[#a07f33] px-2 py-1">
+              <Plus className="w-3.5 h-3.5" /> Add widget
+            </button>
             <button onClick={reset} className="inline-flex items-center gap-1 text-xs text-[#1a1814]/60 hover:text-[#1a1814] px-2 py-1">
               <RotateCcw className="w-3.5 h-3.5" /> Reset
             </button>
@@ -61,6 +66,14 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
             </button>
           </div>
         </div>
+      )}
+
+      {editing && adding && (
+        <AddWidgetPanel
+          items={items} meta={meta}
+          onAdd={(id) => { addWidget(id); setAdding(false) }}
+          onClose={() => setAdding(false)}
+        />
       )}
 
       {err && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2 text-sm text-red-700">{err}</div>}
@@ -90,7 +103,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
               </button>
             )}
             <div className={editing ? "pointer-events-none select-none h-full" : "h-full"}>
-              {renderItem(i, ctx, layout.meta, editing)}
+              {renderItem(i, ctx, meta, editing)}
             </div>
           </div>
         ))}
