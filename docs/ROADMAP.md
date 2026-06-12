@@ -48,12 +48,12 @@ rough priority order.
   already-loaded `DashboardSummary`; `ShortcutTile` renders it; `DashboardGrid.renderItem` resolves
   it. Zero backend / schema change. Spec `2026-06-13-dashboard-smart-tiles-design.md`.
 
-### B2. Dashboard data widgets — Bank Balances / Top Products / Inventory summary · effort **M** · priority **Low-Med**
-- **Why:** the original #52 §3 wishlist named these; Phase 2 wrapped only existing blocks + shortcuts.
-- **Build outline:** three new widgets in `WIDGET_REGISTRY` backed by **new** aggregation endpoints
-  (`/api/reports/bank-balances` per-account list, top-products by movement, inventory valuation summary).
-  Each is a grid widget with default/min size; they appear in the Add-widget panel automatically.
-  **Spec needed:** exact columns/metrics per widget; backend endpoints + tests.
+### B2. Dashboard data widgets — Bank Balances / Top Products / Inventory summary · ✅ **SHIPPED** (merge `963cce2`)
+- Three opt-in self-fetching widgets reusing existing endpoints (zero backend): Bank Balances ←
+  `/api/bank-accounts`; Top Products (best sellers, top 5) + Inventory Summary (stock value / items /
+  low-stock) ← `/api/reports/inventory-performance`. New `WidgetDef.defaultOnGrid:false` keeps them
+  off the default dashboard; the Add-widget panel surfaces them automatically. Pure helpers in
+  `lib/inventorySummary.ts`. Spec `2026-06-13-dashboard-data-widgets-design.md`.
 
 ### B3. Cash Flow statement — comparative/period polish · effort **S-M** · priority **Low**
 - **Why:** TB/BS/P&L got hierarchical roll-up (#53 P2); Cash Flow (`reports.py:/cash-flow`,
