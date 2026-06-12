@@ -9,8 +9,10 @@ import {
 } from "chart.js"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import { apiFetch } from "@/lib/api"
+import { Settings2 } from "lucide-react"
 import DateRangePicker from "@/components/DateRangePicker"
 import DashboardCanvas from "@/components/dashboard/DashboardCanvas"
+import CustomizeBar from "@/components/dashboard/CustomizeBar"
 import { useDashboardLayout } from "@/hooks/useDashboardLayout"
 import {
   type DashboardData, type ChartData, type WidgetContext, type DashboardChartConfigs,
@@ -44,6 +46,7 @@ export default function Dashboard() {
   const [checklistDismissed, setChecklistDismissed] = useState(false)
 
   const layout = useDashboardLayout()
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     setData(null)
@@ -146,14 +149,28 @@ export default function Dashboard() {
           <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">Dashboard</h1>
           <p className="text-xs text-[#1a1814]/50 mt-0.5 font-medium tracking-wide uppercase">Financial Overview</p>
         </div>
-        <div className="bg-white border border-[#ede9e2] rounded-xl px-3 py-2 shadow-sm">
-          <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
+        <div className="flex items-center gap-2">
+          <div className="bg-white border border-[#ede9e2] rounded-xl px-3 py-2 shadow-sm">
+            <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
+          </div>
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#ede9e2] bg-white shadow-sm text-sm font-medium text-[#1a1814]/75 hover:border-[#b8943f]/40 transition-colors"
+            >
+              <Settings2 className="w-4 h-4 text-[#b8943f]" /> Customize
+            </button>
+          )}
         </div>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <DashboardCanvas widgets={layout.widgets} ctx={ctx} />
+      {editing ? (
+        <CustomizeBar layout={layout} onDone={() => setEditing(false)} ctx={ctx} />
+      ) : (
+        <DashboardCanvas widgets={layout.widgets} ctx={ctx} />
+      )}
     </div>
   )
 }
