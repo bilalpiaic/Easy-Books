@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Settings2 } from "lucide-react"
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement, LineElement,
@@ -9,10 +10,9 @@ import {
 } from "chart.js"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import { apiFetch } from "@/lib/api"
-import { Settings2 } from "lucide-react"
 import DateRangePicker from "@/components/DateRangePicker"
-import DashboardCanvas from "@/components/dashboard/DashboardCanvas"
-import CustomizeBar from "@/components/dashboard/CustomizeBar"
+import DashboardGrid from "@/components/dashboard/DashboardGrid"
+import { WIDGET_REGISTRY } from "@/lib/dashboardWidgets"
 import { useDashboardLayout } from "@/hooks/useDashboardLayout"
 import {
   type DashboardData, type ChartData, type WidgetContext, type DashboardChartConfigs,
@@ -142,6 +142,9 @@ export default function Dashboard() {
     settings, reloadSettings, checklistDismissed, setChecklistDismissed,
   }
 
+  const onboardingWidget = WIDGET_REGISTRY.find(w => w.id === "onboarding")
+  const alertsWidget = WIDGET_REGISTRY.find(w => w.id === "alerts")
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -166,11 +169,11 @@ export default function Dashboard() {
 
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      {editing ? (
-        <CustomizeBar layout={layout} onDone={() => setEditing(false)} ctx={ctx} />
-      ) : (
-        <DashboardCanvas widgets={layout.widgets} ctx={ctx} />
-      )}
+      {/* Pinned notices (not part of the customizable grid) */}
+      {onboardingWidget?.render(ctx)}
+      {alertsWidget?.render(ctx)}
+
+      <DashboardGrid layout={layout} ctx={ctx} editing={editing} onExitEditing={() => setEditing(false)} />
     </div>
   )
 }

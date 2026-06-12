@@ -38,19 +38,26 @@
 
 **Files:** Modify `frontend/package.json`
 
-- [ ] **Step 1: Install (runtime + types)**
+> **VERIFIED ENVIRONMENT NOTE (resolved during execution):** `react-grid-layout@2.2.3`
+> is installed and confirmed working under React 19.2 / Next 16. **v2 is a rewrite** —
+> the classic `WidthProvider(Responsive)` API lives under the **`react-grid-layout/legacy`**
+> subpath, the package **self-types** (do NOT install `@types/react-grid-layout` — the stale
+> DefinitelyTyped v1 typings conflict), and the type naming differs from v1: **`Layout` is the
+> array type, `LayoutItem` is the item**. CSS is `react-grid-layout/css/styles.css` (the
+> `react-resizable` CSS is NOT needed). These facts are already baked into Tasks 5/6 below.
+> v1 is NOT an option (it uses `findDOMNode`, removed in React 19).
 
-Run: `cd frontend && npm install react-grid-layout && npm install -D @types/react-grid-layout`
-`react-grid-layout` does NOT bundle TypeScript types — `@types/react-grid-layout` (DefinitelyTyped) is required or the `import { ..., type Layout } from "react-grid-layout"` will fail to type-check.
-If npm errors with an unmet React peer dependency (react-grid-layout may declare `react <19`), retry each with `--legacy-peer-deps`: `npm install react-grid-layout --legacy-peer-deps` then `npm install -D @types/react-grid-layout --legacy-peer-deps`.
+- [ ] **Step 1: Install (already done in this branch — verify only)**
 
-- [ ] **Step 2: Smoke-verify it loads under React 19**
+`react-grid-layout@^2.2.3` is already in `frontend/package.json` (added during plan execution). Confirm: `cd frontend && grep react-grid-layout package.json` shows `^2.2.3` and `grep '@types/react-grid-layout' package.json` shows nothing. If for any reason it's missing, run `npm install react-grid-layout` (no `@types` package).
 
-Create a throwaway check — add to the TOP of `frontend/src/app/(dashboard)/dashboard/page.tsx` (temporarily) the import line `import { Responsive, WidthProvider } from "react-grid-layout"` and a no-op `void WidthProvider; void Responsive`. Run `cd frontend && npm run build`.
-Expected: build succeeds (module resolves, no type/runtime import error).
-Then REMOVE the temporary lines.
+- [ ] **Step 2: Smoke-verify the legacy import builds under React 19 (already verified)**
 
-If the build fails specifically because `react-grid-layout` is incompatible with React 19 at the type/runtime level (not merely a peer-dep warning), STOP and report `BLOCKED` with the exact error — the spec's fallback is `gridstack` and that decision needs escalation before continuing.
+This was verified during plan execution with a throwaway probe component importing
+`{ Responsive, WidthProvider, type Layout, type LayoutItem } from "react-grid-layout/legacy"` +
+`import "react-grid-layout/css/styles.css"` — `npm run build` compiled successfully. No action
+needed unless `npm run build` later fails on the RGL import; if it does, report `BLOCKED` with the
+exact error (fallback `gridstack` would need escalation).
 
 - [ ] **Step 3: Remove the retired @dnd-kit deps**
 
@@ -382,9 +389,8 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 "use client"
 
 import React from "react"
-import { Responsive, WidthProvider, type Layout } from "react-grid-layout"
+import { Responsive, WidthProvider, type Layout, type LayoutItem } from "react-grid-layout/legacy"
 import "react-grid-layout/css/styles.css"
-import "react-resizable/css/styles.css"
 import { WIDGET_REGISTRY, type WidgetContext, type WidgetDef } from "@/lib/dashboardWidgets"
 import { isShortcutId } from "@/lib/dashboardShortcuts"
 import type { GridItem, UseDashboardLayout } from "@/hooks/useDashboardLayout"
@@ -406,7 +412,7 @@ export default function DashboardGrid({ layout, ctx, editing }: {
   editing: boolean
 }) {
   const { items, applyLayout } = layout
-  const rglLayout: Layout[] = items.map(i => {
+  const rglLayout: LayoutItem[] = items.map(i => {
     const def = registryById.get(i.id)
     return {
       i: i.id, x: i.x, y: i.y, w: i.w, h: i.h,
@@ -532,9 +538,8 @@ Replace `DashboardGrid.tsx` ENTIRELY with this version (adds an `onExitEditing` 
 "use client"
 
 import React, { useState } from "react"
-import { Responsive, WidthProvider, type Layout } from "react-grid-layout"
+import { Responsive, WidthProvider, type Layout, type LayoutItem } from "react-grid-layout/legacy"
 import "react-grid-layout/css/styles.css"
-import "react-resizable/css/styles.css"
 import { X, Check, RotateCcw } from "lucide-react"
 import { WIDGET_REGISTRY, type WidgetContext, type WidgetDef } from "@/lib/dashboardWidgets"
 import { isShortcutId } from "@/lib/dashboardShortcuts"
@@ -560,7 +565,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  const rglLayout: Layout[] = items.map(i => {
+  const rglLayout: LayoutItem[] = items.map(i => {
     const def = registryById.get(i.id)
     return { i: i.id, x: i.x, y: i.y, w: i.w, h: i.h, minW: def?.minSize.w ?? 1, minH: def?.minSize.h ?? 1 }
   })
@@ -604,7 +609,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
         compactType="vertical"
         isDraggable={editing}
         isResizable={editing}
-        onLayoutChange={(l: Layout[]) => { if (editing) applyLayout(l) }}
+        onLayoutChange={(l: Layout) => { if (editing) applyLayout(l) }}
         draggableCancel=".no-drag"
       >
         {items.map(i => (
@@ -918,4 +923,4 @@ Expected: `clean` (no references remain).
 - **Type consistency:** `GridItem`/`GridLayoutV2`/`UseDashboardLayout`/`Meta` + `GRID_COLS` defined in Task 4 and consumed unchanged in Tasks 5-8. Hook return members used by the grid (`items, meta, applyLayout, addWidget, removeWidget, reset, reload, save, dirty`) all exist on `UseDashboardLayout` (Task 4). `WidgetDef.defaultSize/minSize/pinned` defined Task 2, read in Task 4 (`defaultGrid`/`migrate`/`validateV2`) and Task 5/6 (`minW/minH`). `isShortcutId/shortcutId/shortcutHref/resolveShortcut/shortcutCatalog` defined Task 3, used in Tasks 4/7/8. `ShortcutTile` props `{id,model,role,editing}` defined Task 7, called with those in Task 7 Step 2.
 - **No placeholders in new code:** full verbatim for `dashboardShortcuts.ts`, the rewritten hook, `DashboardGrid` (both versions), `ShortcutTile`, `AddWidgetPanel`, and all page edits. The registry size additions are a complete value table + the exact chart class edits.
 - **Ordering/standalone:** Task 4 leaves `DashboardCanvas`/`CustomizeBar` temporarily broken (documented) — resolved in Task 5 which deletes both. Every other task ends build-green + lint-baseline. Backend untouched throughout (Task 9 Step 1 re-confirms 369).
-- **RGL specifics:** `WidthProvider(Responsive)`, `layouts`/`breakpoints`/`cols`, `onLayoutChange` guarded by `editing`, `draggableCancel=".no-drag"` so the remove button doesn't start a drag, CSS imports included. The remove button carries `no-drag`.
+- **RGL specifics (v2.2.3, verified):** import `{ Responsive, WidthProvider, type Layout, type LayoutItem }` from **`react-grid-layout/legacy`**; `Layout` is the array type, `LayoutItem` the item; `WidthProvider(Responsive)`, `layouts`/`breakpoints`/`cols`, `onLayoutChange` guarded by `editing`, `draggableCancel=".no-drag"` so the remove button doesn't start a drag; only `react-grid-layout/css/styles.css` imported (no react-resizable CSS); package self-types (no `@types/react-grid-layout`). The remove button carries `no-drag`.

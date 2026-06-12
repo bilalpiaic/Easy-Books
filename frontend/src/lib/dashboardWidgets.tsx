@@ -55,11 +55,15 @@ export interface WidgetContext {
   setChecklistDismissed: (v: boolean) => void
 }
 
+export interface WidgetSize { w: number; h: number }
 export interface WidgetDef {
   id: string
   title: string
-  defaultVisible: boolean
-  conditional?: boolean
+  defaultVisible: boolean        // retained from Phase 1; unused by the grid but harmless
+  defaultSize: WidgetSize        // cells on the 4-col desktop grid
+  minSize: WidgetSize
+  pinned?: boolean               // rendered in the fixed notices strip, NOT a grid item
+  conditional?: boolean          // render() may return null (e.g. ar_aging when no data)
   render: (ctx: WidgetContext) => React.ReactNode
 }
 
@@ -125,6 +129,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "quick_actions",
     title: "Quick Actions",
     defaultVisible: true,
+    defaultSize: { w: 4, h: 1 }, minSize: { w: 2, h: 1 },
     render: () => (
       <div className="bg-white border border-[#ede9e2] rounded-xl shadow-sm px-3 py-2 flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/45 mr-1">Quick Actions</span>
@@ -142,6 +147,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "onboarding",
     title: "Setup Checklist",
     defaultVisible: true,
+    defaultSize: { w: 4, h: 2 }, minSize: { w: 4, h: 1 }, pinned: true,
     conditional: true,
     render: (ctx) => {
       const { settings, checklistDismissed, setChecklistDismissed, reloadSettings } = ctx
@@ -199,6 +205,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "primary_kpis",
     title: "Key Figures",
     defaultVisible: true,
+    defaultSize: { w: 4, h: 2 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
       const { s, fmt, netProfit, margin } = ctx
       return (
@@ -216,6 +223,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "secondary_kpis",
     title: "Receivables / Payables",
     defaultVisible: true,
+    defaultSize: { w: 4, h: 2 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
       const { s, fmt } = ctx
       return (
@@ -233,12 +241,13 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "ar_aging",
     title: "AR Aging",
     defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
     conditional: true,
     render: (ctx) => {
       const { s, fmt, agingLabels, agingValues } = ctx
       const { agingBarData } = ctx.chartConfigs
       return s?.ar_aging ? (
-        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm h-full flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">AR Aging (Receivables)</p>
@@ -246,7 +255,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
             </div>
             <Link href="/invoices" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View invoices →</Link>
           </div>
-          <div className="h-36">
+          <div className="flex-1 min-h-0">
             <Bar data={agingBarData as ChartJsData<"bar">} options={{
               responsive: true, maintainAspectRatio: false,
               plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y as number) } } },
@@ -272,6 +281,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "alerts",
     title: "Action Alerts",
     defaultVisible: true,
+    defaultSize: { w: 4, h: 1 }, minSize: { w: 4, h: 1 }, pinned: true,
     conditional: true,
     render: (ctx) => {
       const { s } = ctx
@@ -290,11 +300,12 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "monthly_rev_exp",
     title: "Monthly Revenue vs Expenses",
     defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
       const { charts } = ctx
       const { barData, baseChartOpts } = ctx.chartConfigs
       return (
-        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm h-full flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">Monthly Revenue vs Expenses</p>
             <div className="flex items-center gap-3 text-[10px] font-medium text-[#1a1814]/50">
@@ -302,7 +313,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />Expenses</span>
             </div>
           </div>
-          <div className="h-48 sm:h-56">
+          <div className="flex-1 min-h-0">
             {charts ? <Bar data={barData as ChartJsData<"bar">} options={baseChartOpts} /> : <ChartSkeleton />}
           </div>
         </div>
@@ -313,13 +324,14 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "net_profit_trend",
     title: "Net Profit Trend",
     defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
       const { charts } = ctx
       const { lineData, lineOpts } = ctx.chartConfigs
       return (
-        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm h-full flex flex-col">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55 mb-3">Net Profit Trend</p>
-          <div className="h-48 sm:h-56">
+          <div className="flex-1 min-h-0">
             {charts ? <Line data={lineData as ChartJsData<"line">} options={lineOpts} /> : <ChartSkeleton />}
           </div>
         </div>
@@ -330,13 +342,14 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "expense_breakdown",
     title: "Expense Breakdown",
     defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
       const { charts } = ctx
       const { doughnutData, doughnutOpts } = ctx.chartConfigs
       return (
-        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm h-full flex flex-col">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55 mb-3">Expense Breakdown (YTD)</p>
-          <div className="h-52">
+          <div className="flex-1 min-h-0">
             {charts ? (
               charts.expense_breakdown.length > 0
                 ? <Doughnut data={doughnutData as ChartJsData<"doughnut">} options={doughnutOpts} />
@@ -351,13 +364,14 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "top_customers",
     title: "Top Customers",
     defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
       const { charts } = ctx
       const { customerBarData, baseChartOpts } = ctx.chartConfigs
       return (
-        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm h-full flex flex-col">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55 mb-3">Top Customers by Revenue</p>
-          <div className="h-52">
+          <div className="flex-1 min-h-0">
             {charts ? (
               charts.top_customers.length > 0
                 ? <Bar data={customerBarData as ChartJsData<"bar">} options={{ ...baseChartOpts, indexAxis: "y" } as ChartOptions<"bar">} />
@@ -372,6 +386,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "recent_transactions",
     title: "Recent Transactions",
     defaultVisible: true,
+    defaultSize: { w: 4, h: 3 }, minSize: { w: 2, h: 2 },
     render: () => <RecentTransactions />,
   },
 ]
