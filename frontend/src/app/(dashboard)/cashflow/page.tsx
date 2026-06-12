@@ -19,6 +19,7 @@ interface CashFlowData {
   financing_items: { name: string; amount: number }[]
   financing_cash: number
   net_cash_change: number
+  unclassified: number
   beginning_balance: number
   ending_balance: number
 }
@@ -216,17 +217,32 @@ export default function CashFlow() {
             <Row label="Net Cash from Financing" current={data.financing_cash} comparison={comparison?.financing_cash} showCmp={showCmp} bold fmt={fmt} />
           </div>
 
+          {/* Reconciling difference (only when classification didn't fully tie out) */}
+          {(Math.abs(data.unclassified) >= 0.005 || (!!comparison && Math.abs(comparison.unclassified) >= 0.005)) && (
+            <div>
+              <Row label="Unclassified / reconciling" current={data.unclassified}
+                comparison={comparison?.unclassified ?? null} showCmp={showCmp} indent fmt={fmt} />
+            </div>
+          )}
+
           {/* Summary */}
           <div className="bg-[#f6f3ee] p-6 rounded-xl space-y-3">
             <div className="flex justify-between pb-3 border-b border-[#ede9e2]">
-              <span className="font-semibold">Net Change in Cash</span>
+              <span className="font-semibold flex items-center gap-2">
+                Net Change in Cash
+                {Math.abs(data.unclassified) < 0.005 ? (
+                  <span className="text-[10px] text-green-600 font-bold uppercase tracking-wide">✓ Reconciled</span>
+                ) : (
+                  <span className="text-[10px] text-amber-600 font-bold">incl. unclassified</span>
+                )}
+              </span>
               <div className="flex gap-8">
-                <span className={`font-mono text-right w-36 inline-block font-bold text-lg ${data.net_cash_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {data.net_cash_change >= 0 ? '+' : ''}{fmt(data.net_cash_change)}
+                <span className={`font-mono text-right w-36 inline-block font-bold text-lg ${(data.net_cash_change + data.unclassified) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(data.net_cash_change + data.unclassified) >= 0 ? '+' : ''}{fmt(data.net_cash_change + data.unclassified)}
                 </span>
                 {showCmp && comparison && (
-                  <span className={`font-mono text-right w-36 inline-block font-bold text-lg ${(comparison.net_cash_change ?? 0) >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                    {(comparison.net_cash_change ?? 0) >= 0 ? '+' : ''}{fmt(comparison.net_cash_change ?? 0)}
+                  <span className={`font-mono text-right w-36 inline-block font-bold text-lg ${(comparison.net_cash_change + comparison.unclassified) >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                    {(comparison.net_cash_change + comparison.unclassified) >= 0 ? '+' : ''}{fmt(comparison.net_cash_change + comparison.unclassified)}
                   </span>
                 )}
               </div>
