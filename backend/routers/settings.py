@@ -55,6 +55,8 @@ class SettingsUpdate(BaseModel):
     block_negative_stock: Optional[str] = None
     # UI density preference ("comfortable" or "compact")
     ui_density: Optional[str] = None
+    # Amount display precision ("2" or "4")
+    decimal_places: Optional[str] = None
 
 
 @router.get("")
@@ -83,6 +85,11 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
         if ud not in ("comfortable", "compact"):
             raise HTTPException(400, "ui_density must be 'comfortable' or 'compact'")
         # (No pop — ui_density is stored in the KV settings table, not on Tenant)
+
+    if "decimal_places" in updates:
+        dp = updates["decimal_places"]
+        if dp not in ("2", "4"):
+            raise HTTPException(400, "decimal_places must be '2' or '4'")
 
     # Keep Tenant.base_currency in sync with the "currency" KV setting
     if "currency" in updates and tenant:
