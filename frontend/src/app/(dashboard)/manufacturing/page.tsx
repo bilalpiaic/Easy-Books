@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Factory, Package, Warehouse, Layers, Wrench, ShoppingCart } from "lucide-react"
+import { Factory, Package, Warehouse, Layers, Wrench, ShoppingCart, BarChart2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 
@@ -95,6 +95,7 @@ export default function ManufacturingDashboardPage() {
           <QuickLink href="/manufacturing/boms"              icon={Layers}     title="Bills of Material" subtitle="Define recipes for outputs" />
           <QuickLink href="/manufacturing/rate-plans"        icon={Wrench}     title="Rate Plans"        subtitle="Set your value-add pricing" />
           <QuickLink href="/manufacturing/production-orders" icon={Warehouse}  title="Production Orders" subtitle="Run the floor" />
+          <QuickLink href="/manufacturing/reports"          icon={BarChart2}  title="Mfg Reports"       subtitle="WIP aging, summary, custody" />
         </div>
       </section>
     </div>

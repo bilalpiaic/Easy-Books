@@ -6,7 +6,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, ShoppingCart,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play,
+  Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
 } from "lucide-react"
 
 export type NavItem = {
@@ -47,6 +47,7 @@ export const NAV: NavItem[] = [
   { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
   { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing", forModel: "manufacturing" },
   { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
+  { label: "Mfg Reports",     href: "/manufacturing/reports",           icon: BarChart2, section: "Manufacturing", forModel: "manufacturing" },
   { label: "Telecom Overview", href: "/telecom",                icon: Radio,       section: "Telecom", forModel: "telecom_franchise" },
   { label: "Tracker & Load",   href: "/telecom/tracker",        icon: Wallet,      section: "Telecom", forModel: "telecom_franchise" },
   { label: "RSO Channel",      href: "/telecom/rso",            icon: Network,     section: "Telecom", forModel: "telecom_franchise" },
