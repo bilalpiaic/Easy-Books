@@ -37,7 +37,7 @@ function hrefFor(type: DocKind, id: number | string): string {
     case "payment_received": return `/payments-received/${id}/print`
     case "bill_payment":     return `/bill-payments/${id}/print`
     case "grn":              return `/manufacturing/grn/${id}/print`
-    case "production_order": return `/manufacturing/production-orders/${id}/print`
+    case "production_order": return `/manufacturing/production-orders/${id}`
     case "customer":         return `/customers/${id}/ledger`
     case "vendor":           return `/vendors/${id}/ledger`
     case "account":          return `/ledger?account=${encodeURIComponent(String(id))}`
