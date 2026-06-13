@@ -257,6 +257,17 @@ export default function SettingsPage() {
                 <option value="AED">AED — UAE Dirham</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-semibold text-black/85 mb-2">Decimal Places</label>
+              <select
+                value={form.decimal_places ?? "2"}
+                onChange={e => handleChange('decimal_places', e.target.value)}
+                className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black"
+              >
+                <option value="2">2 — Standard (1,500.00)</option>
+                <option value="4">4 — Extended (1,500.0000)</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
