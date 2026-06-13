@@ -6,7 +6,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, ShoppingCart,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers,
+  Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play,
 } from "lucide-react"
 
 export type NavItem = {
@@ -71,6 +71,7 @@ export const NAV: NavItem[] = [
   { label: "Budget vs Actual", href: "/budgets",           icon: TrendingUp,       section: "Reports" },
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
+  { label: "Deferred Revenue", href: "/deferred-revenue",  icon: Play,             section: "Reports" },
   { label: "AR Aging",         href: "/aging/receivable",  icon: Clock,            section: "Reports" },
   { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Reports" },
   { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp,   section: "Reports" },
