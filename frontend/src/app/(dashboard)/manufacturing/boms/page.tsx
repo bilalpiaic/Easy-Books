@@ -16,15 +16,23 @@ interface Bom {
   id: number; output_product_id: number; output_qty: string; version: number
   is_active: boolean; description: string | null; lines: BomLine[]
 }
+interface Product { id: number; code: string; name: string }
 
 export default function BomsListPage() {
-  const [boms, setBoms]   = useState<Bom[]>([])
+  const [boms, setBoms]       = useState<Bom[]>([])
+  const [products, setProducts] = useState<Map<number, Product>>(new Map())
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]     = useState<string | null>(null)
 
   useEffect(() => {
-    apiFetch<{ items: Bom[] }>("/api/bom")
-      .then(d => setBoms(d.items))
+    Promise.all([
+      apiFetch<{ items: Bom[] }>("/api/bom"),
+      apiFetch<{ items: Product[] }>("/api/products?limit=500"),
+    ])
+      .then(([b, p]) => {
+        setBoms(b.items)
+        setProducts(new Map(p.items.map(x => [x.id, x])))
+      })
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false))
   }, [])
@@ -93,26 +101,40 @@ export default function BomsListPage() {
             <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">Output product</th>
-                <th className="text-left px-4 py-2">Version</th>
-                <th className="text-left px-4 py-2">Output qty</th>
-                <th className="text-left px-4 py-2">Lines</th>
-                <th className="text-left px-4 py-2">Active</th>
+                <th className="text-left px-4 py-2">Description</th>
+                <th className="text-right px-4 py-2">Output qty</th>
+                <th className="text-center px-4 py-2">Lines</th>
+                <th className="text-center px-4 py-2">Ver.</th>
+                <th className="text-center px-4 py-2">Status</th>
               </tr>
             </thead>
             <tbody>
-              {boms.map(b => (
-                <tr key={b.id} className="border-t border-[#ede9e2]">
-                  <td className="px-4 py-2">#{b.output_product_id}</td>
-                  <td className="px-4 py-2">v{b.version}</td>
-                  <td className="px-4 py-2">{b.output_qty}</td>
-                  <td className="px-4 py-2">{b.lines.length}</td>
-                  <td className="px-4 py-2">
-                    {b.is_active
-                      ? <span className="text-emerald-700 font-semibold">Active</span>
-                      : <span className="text-[#1a1814]/50">Archived</span>}
-                  </td>
-                </tr>
-              ))}
+              {boms.map(b => {
+                const prod = products.get(b.output_product_id)
+                return (
+                  <tr key={b.id} className="border-t border-[#ede9e2] hover:bg-[#faf8f4]">
+                    <td className="px-4 py-2.5">
+                      {prod ? (
+                        <div>
+                          <span className="font-medium">{prod.name}</span>
+                          <span className="text-[#1a1814]/50 text-xs ml-1.5 font-mono">{prod.code}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[#1a1814]/50">#{b.output_product_id}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-[#1a1814]/60 text-xs">{b.description ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{b.output_qty}</td>
+                    <td className="px-4 py-2.5 text-center">{b.lines.length}</td>
+                    <td className="px-4 py-2.5 text-center text-xs text-[#1a1814]/60">v{b.version}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      {b.is_active
+                        ? <span className="text-emerald-700 font-semibold text-xs">Active</span>
+                        : <span className="text-[#1a1814]/40 text-xs">Archived</span>}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

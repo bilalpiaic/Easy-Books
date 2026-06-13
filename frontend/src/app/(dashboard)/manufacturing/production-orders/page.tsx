@@ -6,6 +6,7 @@ import { Warehouse, Printer, Plus } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
+import { useFmt } from "@/context/SettingsContext"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 
@@ -17,6 +18,8 @@ interface Po {
   started_at: string | null; completed_at: string | null
   delivered_at: string | null; billed_at: string | null
 }
+interface Customer { id: number; name: string }
+interface RatePlan { id: number; code: string; name: string }
 
 const STATE_TONE: Record<string, string> = {
   draft:     "bg-slate-100 text-slate-800",
@@ -28,10 +31,13 @@ const STATE_TONE: Record<string, string> = {
 }
 
 export default function ProductionOrdersPage() {
-  const [pos, setPos] = useState<Po[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [busyId, setBusyId] = useState<number | null>(null)
+  const fmt = useFmt()
+  const [pos, setPos]             = useState<Po[]>([])
+  const [customers, setCustomers] = useState<Map<number, string>>(new Map())
+  const [ratePlans, setRatePlans] = useState<Map<number, string>>(new Map())
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
+  const [busyId, setBusyId]       = useState<number | null>(null)
 
   const refresh = () =>
     apiFetch<{ items: Po[] }>("/api/production-orders")
@@ -39,7 +45,13 @@ export default function ProductionOrdersPage() {
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false))
+    Promise.all([
+      refresh(),
+      apiFetch<{ items: Customer[] }>("/api/customers").then(d =>
+        setCustomers(new Map(d.items.map(c => [c.id, c.name])))),
+      apiFetch<{ items: RatePlan[] }>("/api/rate-plans").then(d =>
+        setRatePlans(new Map(d.items.map(r => [r.id, r.code])))),
+    ]).finally(() => setLoading(false))
   }, [])
 
   const advance = async (po: Po, action: "start" | "complete" | "deliver" | "bill" | "cancel") => {
@@ -128,10 +140,11 @@ export default function ProductionOrdersPage() {
               <tr>
                 <th className="text-left px-4 py-2">PO #</th>
                 <th className="text-left px-4 py-2">Customer</th>
-                <th className="text-left px-4 py-2">Output qty</th>
-                <th className="text-left px-4 py-2">WIP cost</th>
-                <th className="text-left px-4 py-2">Unit cost</th>
-                <th className="text-left px-4 py-2">State</th>
+                <th className="text-left px-4 py-2">Rate Plan</th>
+                <th className="text-right px-4 py-2">Output qty</th>
+                <th className="text-right px-4 py-2">WIP cost</th>
+                <th className="text-right px-4 py-2">Unit cost</th>
+                <th className="text-center px-4 py-2">State</th>
                 <th className="text-right px-4 py-2">Action</th>
               </tr>
             </thead>
@@ -144,12 +157,16 @@ export default function ProductionOrdersPage() {
                       <DocLink type="production_order" id={p.id} label={p.number} className="text-[#b8943f]" />
                     </td>
                     <td className="px-4 py-2">
-                      <DocLink type="customer" id={p.customer_id} label={`#${p.customer_id}`} />
+                      <DocLink type="customer" id={p.customer_id}
+                        label={customers.get(p.customer_id) ?? `#${p.customer_id}`} />
                     </td>
-                    <td className="px-4 py-2">{p.output_qty}</td>
-                    <td className="px-4 py-2">{p.own_material_cost}</td>
-                    <td className="px-4 py-2">{p.output_unit_cost}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-xs text-[#1a1814]/60 font-mono">
+                      {p.rate_plan_id ? (ratePlans.get(p.rate_plan_id) ?? `#${p.rate_plan_id}`) : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">{p.output_qty}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{fmt(Number(p.own_material_cost))}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{fmt(Number(p.output_unit_cost))}</td>
+                    <td className="px-4 py-2 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${STATE_TONE[p.state] ?? ""}`}>
                         {p.state}
                       </span>

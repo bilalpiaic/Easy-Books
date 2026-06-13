@@ -14,15 +14,23 @@ interface Grn {
   id: number; number: string; customer_id: number; received_date: string
   declared_value: string; lines: GrnLine[]
 }
+interface Customer { id: number; name: string }
 
 export default function GrnPage() {
-  const [grns, setGrns] = useState<Grn[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [grns, setGrns]           = useState<Grn[]>([])
+  const [customers, setCustomers] = useState<Map<number, string>>(new Map())
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
 
   useEffect(() => {
-    apiFetch<{ items: Grn[] }>("/api/grn")
-      .then(d => setGrns(d.items))
+    Promise.all([
+      apiFetch<{ items: Grn[] }>("/api/grn"),
+      apiFetch<{ items: Customer[] }>("/api/customers"),
+    ])
+      .then(([g, c]) => {
+        setGrns(g.items)
+        setCustomers(new Map(c.items.map(x => [x.id, x.name])))
+      })
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false))
   }, [])
@@ -107,7 +115,8 @@ export default function GrnPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-2">
-                    <DocLink type="customer" id={g.customer_id} label={`#${g.customer_id}`} />
+                    <DocLink type="customer" id={g.customer_id}
+                      label={customers.get(g.customer_id) ?? `#${g.customer_id}`} />
                   </td>
                   <td className="px-4 py-2">{g.received_date}</td>
                   <td className="px-4 py-2">{g.lines.length}</td>
