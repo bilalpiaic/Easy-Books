@@ -1,86 +1,165 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Easy-Books — Release build & publish (DRAFT)
+# Easy-Books — Deterministic release pipeline
 #
-# Triggered when a version tag (vX.Y.Z) is pushed. Builds the desktop installers
-# on macOS and Windows and PUBLISHES them to the matching GitHub Release, including
-# electron-builder's `latest.yml` / `latest-mac.yml` metadata — which is what the
-# in-app desktop auto-updater (electron-updater) reads.
+# Trigger:  git tag vX.Y.Z  →  git push origin vX.Y.Z
 #
-# ── STATUS: DRAFT — not yet validated in CI. Before relying on it: ────────────
-#   1. The Release for the tag should exist (this workflow's electron-builder
-#      `--publish always` will create/attach to it). For source-only releases you
-#      can still `gh release create vX.Y.Z` manually.
-#   2. macOS signing + notarization: electron-builder.yml has `notarize: true` and
-#      `hardenedRuntime: true`, so the macOS job REQUIRES an Apple Developer ID
-#      certificate and these repo secrets:
-#        CSC_LINK (base64 .p12), CSC_KEY_PASSWORD, APPLE_ID,
-#        APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
-#      Without them the macOS job fails at notarization. For UNSIGNED dev builds,
-#      set `notarize: false` (and drop `hardenedRuntime`) in electron-builder.yml,
-#      or guard those keys behind an env flag.
-#   3. Windows code signing is optional (unsigned nsis builds fine; users see a
-#      SmartScreen warning). Add CSC_LINK/CSC_KEY_PASSWORD secrets to sign.
-#   4. The v2.3.0 tag already exists and predates this workflow, so it will NOT
-#      run for v2.3.0 — only for tags pushed AFTER this file lands on `main`.
+# Stages:
+#   1. validate  — fail fast if tag ≠ desktop/package.json ≠ frontend/package.json
+#   2. build     — parallel Windows + macOS builds (--publish never; artifacts only)
+#   3. publish   — single job creates the GitHub Release and uploads all assets
+#
+# Why 3 stages?  The old workflow had macOS and Windows both running
+# `--publish always` concurrently, causing a race on latest.yml / latest-mac.yml.
+# Now only the publish stage touches the release, so there is exactly one writer.
+#
+# Secrets required:
+#   GH_TOKEN              — automatically provided by Actions (repo write)
+#   CSC_LINK              — base64-encoded .p12 code-signing cert (Win + macOS)
+#   CSC_KEY_PASSWORD      — cert password
+#   APPLE_ID              — macOS notarization (optional; omit for unsigned builds)
+#   APPLE_APP_SPECIFIC_PASSWORD
+#   APPLE_TEAM_ID
+#
+# macOS note:  electron-builder.yml has `notarize: true` and `hardenedRuntime: true`.
+# Without the Apple secrets the macOS build job will fail at notarization.
+# For unsigned/dev builds, set `notarize: false` in electron-builder.yml.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Release
 
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch: {}   # allow manual runs from the Actions tab
+  workflow_dispatch: {}
 
 permissions:
-  contents: write          # needed to publish/attach release assets
+  contents: write
 
+# ── Stage 1: Validate ─────────────────────────────────────────────────────────
 jobs:
-  desktop:
-    name: Build & publish (${{ matrix.os }})
+  validate:
+    name: Validate versions
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.vtag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: vtag
+        name: Extract version from tag
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify desktop/package.json matches tag
+        run: |
+          pkg=$(node -p "require('./desktop/package.json').version")
+          tag="${{ steps.vtag.outputs.version }}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error file=desktop/package.json::version $pkg does not match tag v$tag — update desktop/package.json before tagging"
+            exit 1
+          fi
+          echo "✅  desktop/package.json: $pkg"
+
+      - name: Verify frontend/package.json matches tag
+        run: |
+          pkg=$(node -p "require('./frontend/package.json').version")
+          tag="${{ steps.vtag.outputs.version }}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error file=frontend/package.json::version $pkg does not match tag v$tag — update frontend/package.json before tagging"
+            exit 1
+          fi
+          echo "✅  frontend/package.json: $pkg"
+
+# ── Stage 2: Build (parallel, no publish) ─────────────────────────────────────
+  build:
+    name: Build (${{ matrix.os }})
+    needs: validate
     strategy:
-      fail-fast: false
+      fail-fast: true          # abort the other platform if one fails
       matrix:
         include:
-          - os: macos-latest
-            script: ./desktop/build-all.sh --publish
-            shell: bash
           - os: windows-latest
-            script: ./desktop/build-all.ps1 -Publish
-            shell: pwsh
+            artifact: windows
+            stage_cmd: pwsh -File desktop/scripts/prepare-resources.ps1
+          - os: macos-latest
+            artifact: macos
+            stage_cmd: bash desktop/scripts/prepare-resources.sh
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0          # full history + tags for versioning
+          fetch-depth: 0       # full history so PyInstaller spec has git metadata
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v5
 
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20.18.1"
 
-      # PyInstaller (a backend dev dependency) + backend env, so
-      # prepare-resources' `uv run pyinstaller` works.
-      - name: Sync backend env
+      - name: Sync backend Python environment
         working-directory: backend
         run: uv sync
 
-      - name: Build & publish desktop installer
-        shell: ${{ matrix.shell }}
-        run: ${{ matrix.script }}
+      - name: Stage desktop resources (PyInstaller + Next.js + portable Node)
+        run: ${{ matrix.stage_cmd }}
+
+      - name: Install desktop (Electron) dependencies
+        working-directory: desktop
+        run: npm install
+
+      - name: Build installer — no publish
+        working-directory: desktop
+        run: npx electron-builder --config electron-builder.yml --publish never
         env:
-          # electron-builder `--publish always` uses GH_TOKEN to attach assets +
-          # latest*.yml to the GitHub Release for this tag.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ── macOS signing / notarization (set these secrets to enable) ──
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.artifact }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.exe.blockmap
+            desktop/dist/*.dmg
+            desktop/dist/*.dmg.blockmap
+            desktop/dist/latest*.yml
+          if-no-files-found: error
+          retention-days: 1    # only needed long enough for the publish job
+
+# ── Stage 3: Publish (single job — no race on latest.yml) ─────────────────────
+  publish:
+    name: Publish GitHub release
+    needs: [validate, build]   # both matrix variants of build must succeed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-windows
+          path: release-assets
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-macos
+          path: release-assets
+
+      - name: Create GitHub release and upload all assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          echo "Publishing Easy-Books v${VERSION}"
+          ls -lh release-assets/
+          gh release create "v${VERSION}" release-assets/* \
+            --title "Easy-Books v${VERSION}" \
+            --generate-notes \
+            --verify-tag
