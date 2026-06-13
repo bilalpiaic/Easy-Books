@@ -38,11 +38,14 @@ export default function ProductionOrdersPage() {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [busyId, setBusyId]       = useState<number | null>(null)
+  const [filterState, setFilterState] = useState("")
 
-  const refresh = () =>
-    apiFetch<{ items: Po[] }>("/api/production-orders")
+  const refresh = (state?: string) => {
+    const params = state ? `?state=${state}` : ""
+    return apiFetch<{ items: Po[] }>(`/api/production-orders${params}`)
       .then(d => setPos(d.items))
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
+  }
 
   useEffect(() => {
     Promise.all([
@@ -53,6 +56,12 @@ export default function ProductionOrdersPage() {
         setRatePlans(new Map(d.items.map(r => [r.id, r.code])))),
     ]).finally(() => setLoading(false))
   }, [])
+
+  const handleStateFilter = (state: string) => {
+    setFilterState(state)
+    setLoading(true)
+    refresh(state || undefined).finally(() => setLoading(false))
+  }
 
   const advance = async (po: Po, action: "start" | "complete" | "deliver" | "bill" | "cancel") => {
     setBusyId(po.id)
@@ -103,6 +112,25 @@ export default function ProductionOrdersPage() {
           </button>
         </div>
       </header>
+
+      {/* State filter */}
+      <div className="flex items-center gap-3 print:hidden">
+        <select
+          value={filterState}
+          onChange={e => handleStateFilter(e.target.value)}
+          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#b8943f]"
+        >
+          <option value="">All states</option>
+          {Object.keys(STATE_TONE).map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+        {filterState && (
+          <button onClick={() => handleStateFilter("")} className="text-sm text-[#1a1814]/50 hover:text-[#1a1814] underline">
+            Clear
+          </button>
+        )}
+      </div>
 
       <HelpCallout title="The 5-step lifecycle" tone="tip">
         <ol className="list-decimal pl-4 space-y-1">
