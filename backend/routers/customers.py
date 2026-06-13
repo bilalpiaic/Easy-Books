@@ -19,6 +19,7 @@ class CustomerCreate(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     opening_balance: Decimal = Decimal("0")
+    payment_term_id: Optional[int] = None
 
 
 class CustomerUpdate(BaseModel):
@@ -28,6 +29,7 @@ class CustomerUpdate(BaseModel):
     address: Optional[str] = None
     opening_balance: Optional[Decimal] = None
     is_active: Optional[bool] = None
+    payment_term_id: Optional[int] = None
 
 
 @router.get("")

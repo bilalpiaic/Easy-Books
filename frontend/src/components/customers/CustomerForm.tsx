@@ -11,7 +11,10 @@ export interface CustomerFull {
   address: string | null
   opening_balance: number
   is_active: boolean
+  payment_term_id: number | null
 }
+
+interface PaymentTerm { id: number; code: string; name: string; days: number }
 
 interface FormState {
   name: string
@@ -19,9 +22,12 @@ interface FormState {
   phone: string
   address: string
   opening_balance: string
+  payment_term_id: string
 }
 
-const emptyForm: FormState = { name: '', email: '', phone: '', address: '', opening_balance: '0' }
+const emptyForm: FormState = {
+  name: '', email: '', phone: '', address: '', opening_balance: '0', payment_term_id: '',
+}
 
 interface Props {
   mode: 'create' | 'edit'
@@ -31,9 +37,14 @@ interface Props {
 }
 
 export default function CustomerForm({ mode, customer, onSaved, onCancel }: Props) {
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [saving, setSaving] = useState(false)
+  const [form, setForm]         = useState<FormState>(emptyForm)
+  const [terms, setTerms]       = useState<PaymentTerm[]>([])
+  const [saving, setSaving]     = useState(false)
   const [formError, setFormError] = useState('')
+
+  useEffect(() => {
+    apiFetch<PaymentTerm[]>('/api/payment-terms').then(setTerms).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (mode === 'edit' && customer) {
@@ -43,6 +54,7 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         phone: customer.phone ?? '',
         address: customer.address ?? '',
         opening_balance: String(customer.opening_balance),
+        payment_term_id: customer.payment_term_id ? String(customer.payment_term_id) : '',
       })
     }
   }, [mode, customer])
@@ -57,12 +69,21 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         phone: form.phone || null,
         address: form.address || null,
         opening_balance: parseFloat(form.opening_balance) || 0,
+        payment_term_id: form.payment_term_id ? parseInt(form.payment_term_id) : null,
       }
       if (mode === 'edit' && customer) {
-        await apiFetch(`/api/customers/${customer.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        await apiFetch(`/api/customers/${customer.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
         onSaved(customer.id)
       } else {
-        const created = await apiFetch<CustomerFull>('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        const created = await apiFetch<CustomerFull>('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
         onSaved(created.id)
       }
     } catch (err) {
@@ -94,6 +115,31 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
             onChange={e => setForm(p => ({ ...p, opening_balance: e.target.value }))}
             className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
           />
+        </div>
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            Default Payment Terms
+          </label>
+          <select
+            value={form.payment_term_id}
+            onChange={e => setForm(p => ({ ...p, payment_term_id: e.target.value }))}
+            className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+          >
+            <option value="">None (set per invoice)</option>
+            {terms.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.name} ({t.days} days)
+              </option>
+            ))}
+          </select>
+          {terms.length === 0 && (
+            <p className="text-xs text-[#1a1814]/50 mt-1">
+              No terms configured — add them in Settings → Payment Terms.
+            </p>
+          )}
+          <p className="text-xs text-[#1a1814]/50 mt-1">
+            Applied to new invoices for this customer when no term is chosen on the invoice.
+          </p>
         </div>
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <div className="flex justify-end gap-3 pt-2">
