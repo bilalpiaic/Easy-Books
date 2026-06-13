@@ -64,6 +64,7 @@ export const NAV: NavItem[] = [
   { label: "Balance Sheet",    href: "/balance",           icon: PieChart,         section: "Reports" },
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
+  { label: "Budget vs Actual", href: "/budgets",           icon: TrendingUp,       section: "Reports" },
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
   { label: "AR Aging",         href: "/aging/receivable",  icon: Clock,            section: "Reports" },
