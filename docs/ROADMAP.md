@@ -62,12 +62,13 @@ rough priority order.
   reconciling row (when non-zero) + a ✓-Reconciled/amber indicator and the reconciled net change.
   Classifier untouched. 3 tests (372 suite). Spec `2026-06-13-cashflow-reconciliation-tieout-design.md`.
 
-### B4. Per-breakpoint dashboard layouts · effort **S** · priority **Low**
+### B4. Per-breakpoint dashboard layouts · ✅ **SHIPPED** (merge `57b9b3e`)
 - **Why:** Phase 2 stores one desktop layout; tablet/mobile derive by stacking. Power users on
   multiple screen sizes may want distinct arrangements.
 - **Build outline:** extend layout schema to v3 (`{version:3, layouts:{lg,sm,xs}}`) with a v2→v3
   migration in `resolveLayout`; capture per-breakpoint from react-grid-layout's `onLayoutChange`
-  `allLayouts`. Backend store unchanged. **Low value vs. effort** — likely skip unless requested.
+  `allLayouts`. Backend store unchanged. **Shipped:** v3 schema migrations, multi-breakpoint state
+  management in `useDashboardState`, per-breakpoint capture in `DashboardGrid`, v2→v3 auto-migration.
 
 ---
 
