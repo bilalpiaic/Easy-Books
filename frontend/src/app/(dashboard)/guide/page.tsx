@@ -558,7 +558,7 @@ function ProductsPanel() {
       <StepList steps={[
         "On the Products page, click the CSV Import button.",
         "Download the sample CSV template to see the required columns.",
-        "Required columns: name, type (stock/service), unit_price.",
+        "Required columns: name, product_type (stock/service), default_rate.",
         "Optional: description, reorder_level, opening_stock.",
         "Upload your CSV and review the preview before confirming the import.",
       ]} />
@@ -1128,10 +1128,11 @@ function CsvImportPanel() {
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
             {[
-              ["Products",    "Products page",         "name, type, unit_price"],
-              ["Customers",   "Customers page",        "name, email"],
-              ["Vendors",     "Vendors page",          "name, email"],
-              ["Accounts",    "Chart of Accounts",     "code, name, type"],
+              ["Transactions", "Journal page",      "date, description, account_code, debit, credit"],
+              ["Accounts",     "Chart of Accounts", "code, name, type · optional: parent_code, is_group, is_memo"],
+              ["Products",     "Products page",     "name, product_type, default_rate · optional: category_name, is_deferred"],
+              ["Customers",    "Customers page",    "name · optional: email, phone, opening_balance"],
+              ["Vendors",      "Vendors page",      "name · optional: email, phone, opening_balance"],
             ].map(([entity, where, fields]) => (
               <tr key={entity} className="hover:bg-[#faf8f4]">
                 <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{entity}</td>
@@ -1159,7 +1160,7 @@ function CsvImportPanel() {
           { code: "Missing column",         fix: "Check that all required column headers are present, using exact spelling and case." },
           { code: "Duplicate code/email",   fix: "Each account code and customer/vendor email must be unique. Remove duplicates from your CSV." },
           { code: "Invalid type value",     fix: "For Products, type must be exactly 'stock' or 'service' (lowercase)." },
-          { code: "Non-numeric price",      fix: "unit_price must be a plain number (e.g. 1500.00) — no currency symbols or commas." },
+          { code: "Non-numeric price",      fix: "default_rate must be a plain number (e.g. 1500.00) — no currency symbols or commas." },
           { code: "Empty required field",   fix: "Every required field must have a value. Blank cells in required columns cause row-level failures." },
         ].map(({ code, fix }) => (
           <div key={code} className="flex gap-3 items-start">
