@@ -173,7 +173,8 @@ export function useDashboardLayout(): UseDashboardLayout {
     }).finally(() => setLoading(false))
   }, [])
 
-  const applyLayout = (bp: Breakpoint, allLayouts: Record<string, readonly { i: string; x: number; y: number; w: number; h: number }[]>) => {
+  // bp is part of the caller contract (DashboardGrid passes activeBp); write targets derive from allLayouts keys + prev state.
+  const applyLayout = (_bp: Breakpoint, allLayouts: Record<string, readonly { i: string; x: number; y: number; w: number; h: number }[]>) => {
     setLayouts(prev => {
       const next = { ...prev }
       for (const key of Object.keys(allLayouts) as Breakpoint[]) {
