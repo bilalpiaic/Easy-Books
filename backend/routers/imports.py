@@ -24,10 +24,13 @@ SAMPLE_CSVS: dict[str, list[list[str]]] = {
         ["2025-01-02", "Office supplies", "1000", "0", "1500"],
     ],
     "accounts": [
-        ["code", "name", "type"],
-        ["1050", "Petty Cash", "Asset"],
-        ["2210", "Accrued Liabilities", "Liability"],
-        ["5200", "Marketing Expense", "Expense"],
+        ["code", "name", "type", "parent_code", "is_group", "is_memo"],
+        ["10",   "Assets",           "Asset",     "",  "true",  "false"],
+        ["11",   "Current Assets",   "Asset",     "10","true",  "false"],
+        ["1000", "Cash",             "Asset",     "11","false", "false"],
+        ["1050", "Petty Cash",       "Asset",     "11","false", "false"],
+        ["2210", "Accrued Liabilities", "Liability", "2", "false", "false"],
+        ["5200", "Marketing Expense",   "Expense",   "5", "false", "false"],
     ],
     "customers": [
         ["name", "email", "phone", "address", "opening_balance"],
@@ -72,6 +75,7 @@ def _csv_response(entity: str) -> StreamingResponse:
 
 def _validate_accounts(rows: list[dict], session: Session, tenant_id: int):
     VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
+    VALID_BOOLS = {"true", "false", "1", "0", ""}
     valid, errors = 0, []
     for i, row in enumerate(rows, start=2):
         code = (row.get("code") or "").strip()
@@ -81,6 +85,14 @@ def _validate_accounts(rows: list[dict], session: Session, tenant_id: int):
             errors.append({"row": i, "message": "name is required"}); continue
         if atype not in VALID_TYPES:
             errors.append({"row": i, "message": f"type must be one of {sorted(VALID_TYPES)}"}); continue
+        bool_err = None
+        for bool_col in ("is_group", "is_memo"):
+            val = (row.get(bool_col) or "").strip().lower()
+            if val not in VALID_BOOLS:
+                bool_err = {"row": i, "message": f"{bool_col} must be 'true' or 'false'"}
+                break
+        if bool_err:
+            errors.append(bool_err); continue
         if code:
             existing = session.exec(
                 select(Account).where(Account.code == code, Account.tenant_id == tenant_id)
@@ -211,24 +223,65 @@ def download_sample(entity: str, _user: CurrentUserDep):
 async def import_accounts(
     file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
+    VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
+
+    def _bool(val: str) -> bool:
+        return (val or "").strip().lower() in ("true", "1")
+
     rows = _parse_csv(await file.read())
-    valid, errors = _validate_accounts(rows, session, user.tenant_id)
+    _valid, errors = _validate_accounts(rows, session, user.tenant_id)
+
+    # Seed code→id from pre-existing tenant accounts (for parent resolution)
+    existing = session.exec(
+        select(Account).where(Account.tenant_id == user.tenant_id, Account.code.isnot(None))
+    ).all()
+    code_to_id: dict[str, int] = {a.code: a.id for a in existing}
+
     imported = 0
-    for i, row in enumerate(rows, start=2):
+    # Each entry: (account_id, parent_code_raw) — resolved in pass 2
+    deferred_parents: list[tuple[int, str]] = []
+
+    # ── Pass 1: create all accounts (no parent_id yet) ──────────────────────
+    for row in rows:
         code = (row.get("code") or "").strip()
         name = (row.get("name") or "").strip()
         atype = (row.get("type") or "").strip()
-        VALID_TYPES = {"Asset", "Liability", "Equity", "Revenue", "Expense"}
         if not name or atype not in VALID_TYPES:
             continue
-        if code and session.exec(
-            select(Account).where(Account.code == code, Account.tenant_id == user.tenant_id)
-        ).first():
+        if code and code in code_to_id:
             continue
-        session.add(Account(
-            tenant_id=user.tenant_id, code=code or None, name=name, type=atype,
-        ))
+
+        acct = Account(
+            tenant_id=user.tenant_id,
+            code=code or None,
+            name=name,
+            type=atype,
+            is_group=_bool(row.get("is_group")),
+            is_memo=_bool(row.get("is_memo")),
+        )
+        session.add(acct)
+        session.flush()  # assigns acct.id without committing
+
+        if code:
+            code_to_id[code] = acct.id
+        parent_code_raw = (row.get("parent_code") or "").strip()
+        if parent_code_raw:
+            deferred_parents.append((acct.id, parent_code_raw))
         imported += 1
+
+    # ── Pass 2: wire parent_id ───────────────────────────────────────────────
+    for acct_id, parent_code_raw in deferred_parents:
+        parent_id = code_to_id.get(parent_code_raw)
+        if parent_id is not None:
+            acct = session.get(Account, acct_id)
+            if acct:
+                acct.parent_id = parent_id
+        else:
+            errors.append({
+                "row": 0,
+                "message": f"parent_code '{parent_code_raw}' not found — account created without parent",
+            })
+
     session.commit()
     log_audit(session, user, "import", "Account", detail={"imported": imported, "errors": len(errors)})
     session.commit()
