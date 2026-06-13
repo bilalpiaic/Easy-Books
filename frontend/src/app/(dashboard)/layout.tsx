@@ -55,6 +55,7 @@ const TITLE_MAP: Record<string, string> = {
   "/budgets":                            "Budget vs Actual",
   "/telecom":          "Telecom",
   "/imports":          "CSV Bulk Import",
+  "/payment-terms":    "Payment Terms",
 }
 
 const LS_KEY_PINNED = "eb_sidebar_pinned"
