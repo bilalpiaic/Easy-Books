@@ -72,8 +72,8 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
             <button onClick={() => setAdding(a => !a)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#b8943f] hover:text-[#a07f33] px-2 py-1">
               <Plus className="w-3.5 h-3.5" /> Add widget
             </button>
-            <button onClick={reset} className="inline-flex items-center gap-1 text-xs text-[#1a1814]/60 hover:text-[#1a1814] px-2 py-1">
-              <RotateCcw className="w-3.5 h-3.5" /> Reset
+            <button onClick={reset} title="Resets layout for all screen sizes" className="inline-flex items-center gap-1 text-xs text-[#1a1814]/60 hover:text-[#1a1814] px-2 py-1">
+              <RotateCcw className="w-3.5 h-3.5" /> Reset all
             </button>
             <button onClick={() => { reload(); onExitEditing() }} className="inline-flex items-center gap-1 text-xs text-[#1a1814]/60 hover:text-[#1a1814] px-2 py-1">
               <X className="w-3.5 h-3.5" /> Cancel

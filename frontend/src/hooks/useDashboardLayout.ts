@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { WIDGET_REGISTRY, type WidgetDef } from "@/lib/dashboardWidgets"
 import { isShortcutId, resolveShortcut } from "@/lib/dashboardShortcuts"
 
+/** @deprecated Use BP_COLS.lg — kept for external consumers only. */
 export const GRID_COLS = 4
 
 export interface GridItem { id: string; x: number; y: number; w: number; h: number }
@@ -33,13 +34,13 @@ type SavedAny = GridLayoutV3 | GridLayoutV2 | StoredLayoutV1 | Record<string, un
 const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, w]))
 const gridDefs = WIDGET_REGISTRY.filter(w => !w.pinned)
 
-/** Shelf-pack {id,w,h} entries into a GRID_COLS-wide layout (left→right, wrap). */
+/** Shelf-pack {id,w,h} entries into a BP_COLS.lg-wide layout (left→right, wrap). */
 export function packItems(sized: { id: string; w: number; h: number }[]): GridItem[] {
   const items: GridItem[] = []
   let x = 0, y = 0, rowH = 0
   for (const s of sized) {
-    const w = Math.min(s.w, GRID_COLS)
-    if (x + w > GRID_COLS) { x = 0; y += rowH; rowH = 0 }
+    const w = Math.min(s.w, BP_COLS.lg)
+    if (x + w > BP_COLS.lg) { x = 0; y += rowH; rowH = 0 }
     items.push({ id: s.id, x, y, w, h: s.h })
     x += w; rowH = Math.max(rowH, s.h)
   }
