@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Warehouse, Printer } from "lucide-react"
+import Link from "next/link"
+import { Warehouse, Printer, Plus } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
@@ -75,14 +76,20 @@ export default function ProductionOrdersPage() {
             <p className="text-sm text-[#1a1814]/60">Drive one batch from kickoff to invoice.</p>
           </div>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
-          title="Print"
-        >
-          <Printer className="w-4 h-4" />
-          Print
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/manufacturing/production-orders/new"
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
+            <Plus className="w-4 h-4" /> New PO
+          </Link>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            title="Print"
+          >
+            <Printer className="w-4 h-4" />
+            Print
+          </button>
+        </div>
       </header>
 
       <HelpCallout title="The 5-step lifecycle" tone="tip">
@@ -104,13 +111,14 @@ export default function ProductionOrdersPage() {
       {pos.length === 0 ? (
         <EmptyStateGuide
           title="No production orders yet"
-          description="Once you have a BoM and a rate plan, create your first PO via the API."
+          description="Once you have a BoM and a rate plan, create your first PO."
           steps={[
             "Create or pick a BoM for the output product.",
             "Make sure the customer has an active rate plan assigned.",
-            "POST /api/production-orders with bom_id, customer_id, output_qty.",
+            "Click 'New PO', pick a BoM + customer + output qty.",
             "Then walk the PO through start → complete → deliver → bill.",
           ]}
+          primaryAction={{ label: "New PO", href: "/manufacturing/production-orders/new" }}
           secondaryAction={{ label: "Open the guide →", href: "/guide" }}
         />
       ) : (

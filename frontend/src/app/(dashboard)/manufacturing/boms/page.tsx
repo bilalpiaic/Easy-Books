@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Layers, Printer } from "lucide-react"
+import Link from "next/link"
+import { Layers, Printer, Plus } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
@@ -41,14 +42,20 @@ export default function BomsListPage() {
             <p className="text-sm text-[#1a1814]/60">Recipes that turn raw materials into finished goods.</p>
           </div>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
-          title="Print"
-        >
-          <Printer className="w-4 h-4" />
-          Print
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/manufacturing/boms/new"
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
+            <Plus className="w-4 h-4" /> New BOM
+          </Link>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            title="Print"
+          >
+            <Printer className="w-4 h-4" />
+            Print
+          </button>
+        </div>
       </header>
 
       <HelpCallout title="What a BoM does for you" tone="tip">
@@ -74,9 +81,10 @@ export default function BomsListPage() {
           description="Create your first recipe to start producing."
           steps={[
             "Make sure the output product and all component products exist (Products page).",
-            "POST /api/bom with output_product_id, output_qty, and lines (component_product_id + qty_per_output + source).",
+            "Click 'New BOM' to define output product, batch qty, and component lines.",
             "Tag each line as 'own_stock' or 'customer_supplied' depending on who owns the material.",
           ]}
+          primaryAction={{ label: "New BOM", href: "/manufacturing/boms/new" }}
           secondaryAction={{ label: "How to model BoMs →", href: "/guide" }}
         />
       ) : (
