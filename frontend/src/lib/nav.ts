@@ -78,6 +78,7 @@ export const NAV: NavItem[] = [
   { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Reports" },
   { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp,   section: "Reports" },
   { label: "Report Builder",      href: "/reports/builder",      icon: Table2,         section: "Reports" },
+  { label: "CSV Import",        href: "/imports",           icon: Upload,           section: "System" },
   { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Audit Log",        href: "/audit",             icon: ScrollText,       section: "System", adminOnly: true },
