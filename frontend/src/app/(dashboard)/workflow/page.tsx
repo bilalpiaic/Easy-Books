@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 
 type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
@@ -901,6 +901,31 @@ function VendorAdvanceFlow() {
   )
 }
 
+function DashboardCustomizationFlow() {
+  return (
+    <div className="space-y-4 min-w-[480px]">
+      <HFlow>
+        <StepBox title="Dashboard" impact="Any screen size" accent="blue" />
+        <Arrow />
+        <StepBox title="Click Customize" impact="Edit mode activates" accent="gold" />
+        <Arrow />
+        <StepBox title="Drag / Resize widgets" impact="Reorder or resize any card" accent="purple" />
+        <Arrow />
+        <StepBox title="Add widget (optional)" impact="Pick from widget menu" accent="orange" />
+        <Arrow />
+        <StepBox title="Done" impact="Layout auto-saved" accent="green" />
+      </HFlow>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-800 leading-relaxed">
+        <span className="font-bold">Responsive breakpoints:</span> Desktop, tablet, and phone layouts are
+        independent. Resize the browser window to the target width and click{" "}
+        <span className="font-mono">Customize</span> — changes are saved for that breakpoint only.
+        Switch between breakpoints to adjust each view separately.
+      </div>
+    </div>
+  )
+}
+
 export default function WorkflowPage() {
   const handlePrint = () => window.print()
   const [businessModel, setBusinessModel] = useState<BusinessModel | null>(null)
@@ -1148,6 +1173,16 @@ export default function WorkflowPage() {
         iconColor="text-orange-600"
       >
         <VendorAdvanceFlow />
+      </SectionCard>
+
+      {/* 20 — Dashboard Customization */}
+      <SectionCard
+        icon={LayoutDashboard}
+        title="Dashboard Customization"
+        subtitle="Drag, resize, and save your widget layout per breakpoint"
+        iconColor="text-blue-600"
+      >
+        <DashboardCustomizationFlow />
       </SectionCard>
 
       {/* Footer note */}
