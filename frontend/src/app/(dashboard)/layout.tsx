@@ -43,6 +43,7 @@ const TITLE_MAP: Record<string, string> = {
   "/manufacturing":                      "Manufacturing",
   "/manufacturing/purchase-orders":      "Purchase Orders",
   "/manufacturing/stock-locations":      "Stock Locations",
+  "/manufacturing/grn":                  "Goods Receipt",
   "/budgets":                            "Budget vs Actual",
   "/telecom":          "Telecom",
 }

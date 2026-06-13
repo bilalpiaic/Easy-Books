@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { PackagePlus, Printer } from "lucide-react"
+import Link from "next/link"
+import { PackagePlus, Plus, Printer } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
@@ -39,14 +40,22 @@ export default function GrnPage() {
             <p className="text-sm text-[#1a1814]/60">Customer-supplied material received into your godown.</p>
           </div>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
-          title="Print"
-        >
-          <Printer className="w-4 h-4" />
-          Print
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/manufacturing/grn/new"
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+          >
+            <Plus className="w-4 h-4" /> New GRN
+          </Link>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            title="Print"
+          >
+            <Printer className="w-4 h-4" />
+            Print
+          </button>
+        </div>
       </header>
 
       <HelpCallout title="Why GRN is custodial, not a purchase" tone="tip">
@@ -93,7 +102,9 @@ export default function GrnPage() {
               {grns.map(g => (
                 <tr key={g.id} className="border-t border-[#ede9e2]">
                   <td className="px-4 py-2 font-mono text-xs">
-                    <DocLink type="grn" id={g.id} label={g.number} className="text-[#b8943f]" />
+                    <Link href={`/manufacturing/grn/${g.id}`} className="text-[#b8943f] hover:underline">
+                      {g.number}
+                    </Link>
                   </td>
                   <td className="px-4 py-2">
                     <DocLink type="customer" id={g.customer_id} label={`#${g.customer_id}`} />
