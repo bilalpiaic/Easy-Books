@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Printer, Package } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface GrnLine {
   id: number
@@ -42,6 +43,7 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
   const [locationMap, setLocationMap] = useState<Record<number, string>>({})
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
+  const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -173,6 +175,11 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
             </tfoot>
           )}
         </table>
+      </div>
+      {/* Attachments */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <AttachmentPanel parentType="grn" parentId={grn.id} embedded onSelect={setSelectedAtt} />
+        {selectedAtt && <AttachmentPreviewPane att={selectedAtt} />}
       </div>
     </div>
   )

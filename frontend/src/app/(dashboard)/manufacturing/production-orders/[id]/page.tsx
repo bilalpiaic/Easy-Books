@@ -7,6 +7,7 @@ import { Printer, ChevronLeft, CheckCircle, AlertCircle } from 'lucide-react'
 import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from '@/components/AttachmentPanel'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,7 @@ export default function ProductionOrderDetailPage() {
   const [error, setError]     = useState<string | null>(null)
   const [busy, setBusy]       = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
 
   const load = async () => {
     try {
@@ -350,6 +352,12 @@ export default function ProductionOrderDetailPage() {
           )}
         </div>
       )}
+
+      {/* Attachments */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <AttachmentPanel parentType="production_order" parentId={po.id} embedded onSelect={setSelectedAtt} />
+        {selectedAtt && <AttachmentPreviewPane att={selectedAtt} />}
+      </div>
     </div>
   )
 }
