@@ -278,7 +278,7 @@ async def import_accounts(
                 acct.parent_id = parent_id
         else:
             errors.append({
-                "row": 0,
+                "row": None,
                 "message": f"parent_code '{parent_code_raw}' not found — account created without parent",
             })
 
