@@ -106,6 +106,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
         isDraggable={editing}
         isResizable={editing}
         onBreakpointChange={(bp: string) => setActiveBp(bp as Breakpoint)}
+        // activeBp may lag one render on bp-change; hook ignores the bp arg and derives targets from allLayouts keys + prev state.
         onLayoutChange={(_l: Layout, all: Partial<Record<string, Layout>>) => {
           if (editing) applyLayout(activeBp, all as Record<string, Layout>)
         }}
