@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History, Send } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
@@ -86,6 +86,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); loadHistory() }, [id])
 
+  const markSent = async () => {
+    if (!window.confirm(`Mark invoice ${inv?.number} as Sent? This may send an email notification to the customer.`)) return
+    setBusy(true); setError(null)
+    try {
+      await apiFetch(`/api/invoices/${id}/status?status=sent`, { method: "PATCH" })
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mark as sent")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const reverse = async () => {
     if (!inv?.transaction_id) {
       setError("This invoice has no posted transaction to reverse.")
@@ -127,6 +140,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             >
               <Pencil className="w-4 h-4" /> Edit
             </span>
+          )}
+          {inv.status === "draft" && (
+            <button
+              onClick={markSent}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec] disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" /> Mark as Sent
+            </button>
           )}
           <Link
             href={`/invoices/${inv.id}/print`}
