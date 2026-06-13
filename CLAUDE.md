@@ -55,6 +55,7 @@ npm install && node server.js    # runs on root package.json
 | `main.py` | FastAPI bootstrap — middleware wiring and router mounts (~80 lines) |
 | `models.py` | SQLModel table + schema definitions (includes `ProductCategory` for the 2-level product taxonomy). `Account` has `parent_id` + `is_group` (multi-level CoA; posting to active leaves only). `Product` has `is_deferred` + `recognition_months` (deferred revenue). `DeferredRevenueSchedule` tracks IFRS-15 recognition per invoice. |
 | `models_telecom.py` | 23 `tc_*` tables for the Telecom Franchise business model |
+| `models.py` (`UserDashboardLayout`) | Per-user dashboard layout KV — `(tenant_id, user_id)` → opaque `layout` JSON; schema-agnostic (v3 sparse breakpoint overrides). `GET/PUT /api/dashboard/layout`. |
 | `db.py` | Engine creation, startup seeding (default tenant + CoA + admin user + 5 demo tenants). **The default Chart of Accounts is hierarchical** — a shared group skeleton (`_COA_GROUPS`: `1`/`11`/`12`/`2`/`21`/`3`/`4`/`41`/`49`/`5`/`51`/`52`/`59`) + leaf accounts carrying `parent_code`; `_coa_for()` yields 6-tuples `(code,name,type,is_memo,parent_code,is_group)`; `seed_data` inserts in two passes (create all → wire `parent_id`). Posting is restricted to active leaf accounts. The three `_coa_for` consumers (`seed_data`, `seed_demo._ensure_coa`, settings model-switch) all do this two-pass wiring. |
 | `auth.py` | JWT encoding/decoding, bcrypt password hashing |
 | `routers/` | 37+ domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …) |
@@ -139,6 +140,10 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 - `desktop/preload.js` — exposes `window.easybooks.checkForUpdates()`, `onUpdateAvailable(cb)`, `onUpdateDownloaded(cb)`, and `installUpdate()` to the renderer via Electron's context bridge
 - `desktop/main.js` `wireAutoUpdater()` — hooks `electron-updater`'s `autoUpdater` events to the IPC channel; checks the GitHub releases feed on launch
 - `frontend/src/components/UpdateModal.tsx` — **Settings → Check for Updates** modal; calls the bridge methods on Electron, falls back to showing the `update.bat` / `update.sh` CLI command on script/web installs; data is preserved in both paths
+
+**react-grid-layout (dashboard grid):** Import from `react-grid-layout/legacy` (v2 API, self-typed). Do NOT add `@types/react-grid-layout` — v2 ships its own types. v1 is unusable under React 19 (`findDOMNode` removed). `Layout` = array, `LayoutItem` = single item.
+
+**Dashboard layout store:** Schema v3 `{version:3, layouts:{lg:GridItem[], sm?:GridItem[], xs?:GridItem[]}}` — `lg` is canonical; `sm`/`xs` are sparse overrides created only on first drag/resize at that width. `BP_COLS={lg:4,sm:2,xs:1}` exported from `hooks/useDashboardLayout.ts`. Migration chain in `resolveLayout` handles v1/v2/v3/garbage. `onDragStop`/`onResizeStop` alone call `markCustomized` — `onLayoutChange` updates but never creates overrides.
 
 **UI conventions:**
 - Icons: `lucide-react` only
