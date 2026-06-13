@@ -185,3 +185,56 @@ def test_import_transactions_invalid_voucher_type(client, admin_headers):
     assert body["imported"] == 0
     assert len(body["errors"]) == 1
     assert "XX" in body["errors"][0]["message"]
+
+
+# ── Backward compatibility ────────────────────────────────────────────────────
+
+def test_import_backward_compat_all_entities(client, admin_headers):
+    """Old-style CSVs (no new columns) import cleanly for all five entities."""
+    h = admin_headers
+
+    # Accounts — original 3-column format
+    r = _upload(client, "accounts", [
+        ["code", "name",              "type"],
+        ["8810", "Compat Cash",       "Asset"],
+        ["8820", "Compat Equity",     "Equity"],
+    ], h)
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 2, r.json()
+    assert r.json()["errors"] == []
+
+    # Customers — original 5-column format
+    r = _upload(client, "customers", [
+        ["name",          "email",              "phone",          "address",  "opening_balance"],
+        ["Compat Cust",   "compat@example.com", "0300-0000000",   "Karachi",  "0"],
+    ], h)
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 1
+
+    # Vendors — original 5-column format
+    r = _upload(client, "vendors", [
+        ["name",          "email",               "phone",         "address",    "opening_balance"],
+        ["Compat Vend",   "vcompat@example.com", "0311-0000000",  "Lahore",     "0"],
+    ], h)
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 1
+
+    # Products — original 6-column format
+    r = _upload(client, "products", [
+        ["code",    "name",         "unit", "product_type", "default_rate", "reorder_level"],
+        ["CP-001", "Compat Widget", "pcs",  "stock",        "100",          "5"],
+    ], h)
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 1
+
+    # Transactions — original 5-column format
+    acct1 = client.post("/api/accounts", headers=h, json={"code": "9910", "name": "Compat Cash Acct", "type": "Asset"}).json()
+    acct2 = client.post("/api/accounts", headers=h, json={"code": "9920", "name": "Compat Eq Acct", "type": "Equity"}).json()
+    r = _upload(client, "transactions", [
+        ["date",       "description",  "account_code", "debit", "credit"],
+        ["2025-06-01", "Compat entry", "9910",         "1000",  "0"],
+        ["2025-06-01", "Compat entry", "9920",         "0",     "1000"],
+    ], h)
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 1
+    assert r.json()["errors"] == []
