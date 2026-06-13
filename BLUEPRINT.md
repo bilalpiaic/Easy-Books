@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-05-25 · **Branch:** `main`
+> **Last updated:** 2026-06-13 · **Branch:** `main`
 
 ---
 
@@ -864,7 +864,11 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 - `NAV` items can carry `forModel: "manufacturing"`. Filtered out unless tenant's business_model matches.
 - `SECTIONS` is filtered to those with at least one visible item — sections with no items disappear.
 
-### 14.5 Brand
+### 14.5 Dashboard grid (react-grid-layout)
+- Import as `import ReactGridLayout from 'react-grid-layout/legacy'` — this is the **v2 API** (React 19 compatible, self-typed). Do **not** import from `'react-grid-layout'` (v1 API) and do **not** install `@types/react-grid-layout` (types incompatible with v2, will cause TS errors).
+- Layout schema v3: `{version:3, layouts:{lg, sm?, xs?}}` with `BP_COLS = {lg:4, sm:2, xs:1}` and `rowHeight=96`.
+
+### 14.6 Brand
 - Background: `#f6f3ee` (cream)
 - Accent: `#b8943f` (gold)
 - Text: `#1a1814` (charcoal)
@@ -1039,6 +1043,65 @@ tenant-model-aware** — each business model sees only the sections relevant to 
 - **Period Close modes** — `POST /api/periods/{id}/close?mode=soft|year_end`. `soft` locks + snapshots `AccountBalance` (P&L not zeroed — for monthly/quarterly); `year_end` posts the P&L→Retained-Earnings closing JV then locks (IAS 1). `GET /api/periods/{id}/close-preview` returns net income before posting. New **Period Close** page (Reports) with Monthly/Quarterly/Yearly presets. Balance-sheet accounts carry forward via live-from-GL continuity (no opening JV).
 - **Drill-down links** — `DocLink` gains `credit_note` / `debit_note` / `fixed_asset` kinds. New detail pages: `assets/[id]` (Fixed Assets Register with depreciation schedule), `debit-notes/[id]`, `credit-notes/[id]`. Account rows on P&L / Balance Sheet / Cash Flow / Bank Accounts / Telecom tiles / Recurring lines now link to the General Ledger (ISA 230/315).
 - **Seeding fix** — `_ensure_coa()` convergently adds missing common-backbone accounts to existing demo tenants, so customer/vendor advances (and assets/FX) seed correctly on re-run.
+
+### Sprint 15–16 Shipped ✅ (Dashboard Customization Arc)
+
+#### Sprint 15 — Per-user customizable dashboard (#52 §3)
+
+**Phase 1 — Reorder / show-hide (per-user layout)**
+
+| Item | Detail |
+|---|---|
+| Backend | New KV table `UserDashboardLayout` (`tenant_id`, `user_id`, layout JSON — opaque store). `GET`/`PUT /api/dashboard/layout` endpoints. |
+| Widget registry | `lib/dashboardWidgets.tsx` — 11 widget definitions, each carrying `id`, `title`, `render`, `pinned`, `defaultOnGrid`, `defaultSize`, `minSize`. |
+| Hook | `useDashboardLayout` — loads/persists layout, drives show/hide + reorder via `@dnd-kit` sortable. |
+
+**Phase 2 — Resizable 2-D grid + shortcut tiles**
+
+| Item | Detail |
+|---|---|
+| Grid library | Replaced `@dnd-kit` with `react-grid-layout` v2. **Import via `'react-grid-layout/legacy'`** (v2 API, self-typed; do NOT install `@types/react-grid-layout` — incompatible with v2 and React 19). |
+| Layout schema | v2: `{version:2, items:[{id,x,y,w,h}]}`. 4-col desktop grid, `rowHeight=96`. |
+| Migration | `resolveLayout` handles v1→v2 migration client-side; opaque JSON store means no backend change. |
+| Shortcut tiles | Any NAV item (model/role-filtered) added as `shortcut:<href>` widget via `AddWidgetPanel`. |
+| Pinned widgets | Onboarding checklist + Alert banner float above the grid (not in layout). |
+| New files | `lib/dashboardShortcuts.ts`, `components/dashboard/{DashboardGrid,ShortcutTile,AddWidgetPanel}.tsx`. Removed: `DashboardCanvas.tsx`, `CustomizeBar.tsx`. |
+
+#### Sprint 15 — B1 Smart Tile Metrics
+
+Live metric badges on shortcut tiles — no new backend endpoints.
+
+- `lib/dashboardTileMetrics.ts` — `resolveTileMetric(href)`: 7-route map (invoices, bills, products, customers, vendors, assets, bank-accounts → count/total from summary APIs).
+- `ShortcutTile` gains optional `metric` prop (value + tone badge: `success`/`warning`/`neutral`).
+- `DashboardGrid.renderItem` wires the resolver automatically.
+
+#### Sprint 15 — B2 Data Widgets (opt-in)
+
+Three self-fetching widgets, `defaultOnGrid:false` (hidden by default; discoverable via Add panel):
+
+| Widget | Data source |
+|---|---|
+| **Bank Balances** | `GET /api/bank-accounts` — balance per account |
+| **Top Products** | `GET /api/reports/inventory-performance` — top 5 by revenue |
+| **Inventory Summary** | `GET /api/reports/inventory-performance` — total value/qty |
+
+New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. Helper: `lib/inventorySummary.ts`.
+
+#### Sprint 15 — B3 Cash-Flow Reconciliation Tie-out
+
+- New `unclassified` field on `/api/reports/cash-flow`: `unclassified = (ending_balance − beginning_balance) − net_cash_change` (IAS 7 reconciling amount for unbucketed GL movements).
+- Frontend: reconciling row below the cash-flow statement; green ✓ badge when `unclassified = 0`, amber badge when not.
+- 3 new backend tests; suite at 372.
+
+#### Sprint 16 — B4 Per-Breakpoint Dashboard Layouts
+
+| Item | Detail |
+|---|---|
+| Layout schema | v3: `{version:3, layouts:{lg: GridItem[], sm?: GridItem[], xs?: GridItem[]}}`. |
+| Sparse overrides | `lg` is canonical (defines widget membership); `sm`/`xs` only exist after a real user gesture at that width. `markCustomized(bp)` is called only from `onDragStop`/`onResizeStop`. |
+| Columns | `BP_COLS = {lg:4, sm:2, xs:1}`. `validateBreakpoint` enforces shared-membership invariant + per-col width clamping. |
+| Migration chain | `resolveLayout`: v3→validate, v2→`{lg:items}`, v1→migrate+wrap, garbage→`{lg:defaultGrid()}`. |
+| Toolbar | Active breakpoint label ("Desktop / Tablet / Phone layout"); "Reset all" clears all overrides. Backend unchanged. |
 
 ### Still Pending
 
