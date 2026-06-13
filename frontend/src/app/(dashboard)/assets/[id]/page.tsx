@@ -1,7 +1,7 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import { Building2, Printer } from "lucide-react"
+import { Building2, Printer, AlertCircle, CheckCircle } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -33,13 +33,51 @@ export default function FixedAssetRegisterPage({ params }: { params: Promise<{ i
   const fmt = useFmt()
   const [asset, setAsset] = useState<AssetDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deprDate, setDeprDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [busy, setBusy] = useState(false)
+  const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null)
   useBreadcrumb(asset ? asset.name : undefined)
+
+  const reload = () =>
+    apiFetch<AssetDetail>(`/api/assets/${id}`)
+      .then(d => setAsset(d)).catch(() => {})
 
   useEffect(() => {
     apiFetch<AssetDetail>(`/api/assets/${id}`)
       .then(d => { setAsset(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [id])
+
+  const runDepreciate = async () => {
+    if (!asset) return
+    setBusy(true); setActionMsg(null)
+    try {
+      const res = await apiFetch<{ jv_number?: string; depreciation_amount: number; message?: string }>(
+        `/api/assets/${id}/depreciate`,
+        { method: "POST", body: JSON.stringify({ depreciation_date: deprDate }) }
+      )
+      if (res.message) {
+        setActionMsg({ ok: false, text: res.message })
+      } else {
+        setActionMsg({ ok: true, text: `Posted ${fmt(res.depreciation_amount)} depreciation — ${res.jv_number}` })
+        await reload()
+      }
+    } catch (e) {
+      setActionMsg({ ok: false, text: e instanceof Error ? e.message : "Depreciation failed" })
+    } finally { setBusy(false) }
+  }
+
+  const runDispose = async () => {
+    if (!asset || !confirm(`Mark "${asset.name}" as disposed? This cannot be undone.`)) return
+    setBusy(true); setActionMsg(null)
+    try {
+      await apiFetch(`/api/assets/${id}/dispose`, { method: "PATCH" })
+      setActionMsg({ ok: true, text: "Asset marked as disposed." })
+      await reload()
+    } catch (e) {
+      setActionMsg({ ok: false, text: e instanceof Error ? e.message : "Dispose failed" })
+    } finally { setBusy(false) }
+  }
 
   if (loading) return <div className="text-center py-20 text-[#1a1814]/50">Loading…</div>
   if (!asset) return <div className="text-center py-20 text-[#1a1814]/50">Asset not found.</div>
@@ -92,6 +130,53 @@ export default function FixedAssetRegisterPage({ params }: { params: Promise<{ i
           </div>
         ))}
       </div>
+
+      {/* Actions */}
+      {!asset.is_disposed && (
+        <div className="bg-white border border-[#ede9e2] rounded-2xl p-5 print:hidden space-y-4">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60">Actions</h2>
+
+          {actionMsg && (
+            <div className={`flex items-start gap-2 p-3 rounded-xl text-sm ${
+              actionMsg.ok
+                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+                : "bg-amber-50 border border-amber-200 text-amber-800"
+            }`}>
+              {actionMsg.ok
+                ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              }
+              {actionMsg.text}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Depreciation date</label>
+              <input
+                type="date"
+                value={deprDate}
+                onChange={e => setDeprDate(e.target.value)}
+                className="ui-field bg-[#f6f3ee] rounded-xl text-sm"
+              />
+            </div>
+            <button
+              onClick={runDepreciate}
+              disabled={busy}
+              className="px-5 py-2.5 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50"
+            >
+              {busy ? "Working…" : "Post Depreciation"}
+            </button>
+            <button
+              onClick={runDispose}
+              disabled={busy}
+              className="px-5 py-2.5 border border-red-200 text-red-700 rounded-xl text-sm font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              Dispose Asset
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Depreciation schedule */}
       <div className="bg-white rounded-2xl border border-[#1a1814]/5 overflow-hidden">
