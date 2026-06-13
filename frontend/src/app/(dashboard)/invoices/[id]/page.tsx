@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History, Send } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History, Send, Ban } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
@@ -85,6 +85,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); loadHistory() }, [id])
+
+  const voidInvoice = async () => {
+    if (!window.confirm(`Void invoice ${inv?.number}? This cannot be undone and removes it from reports.`)) return
+    setBusy(true); setError(null)
+    try {
+      await apiFetch(`/api/invoices/${id}/status?status=void`, { method: "PATCH" })
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to void invoice")
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const markSent = async () => {
     if (!window.confirm(`Mark invoice ${inv?.number} as Sent? This may send an email notification to the customer.`)) return
@@ -190,6 +203,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
             >
               <LinkIcon className="w-4 h-4" /> Payment Link
+            </button>
+          )}
+          {(inv.status === "draft" || inv.status === "sent") && (
+            <button
+              onClick={voidInvoice}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 disabled:opacity-50"
+            >
+              <Ban className="w-4 h-4" /> Void
             </button>
           )}
           {inv.transaction_id && inv.status !== "reversed" && (
