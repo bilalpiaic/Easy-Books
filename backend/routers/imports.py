@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
-from models import Account, Customer, Product, Vendor
+from models import Account, Customer, Product, ProductCategory, Vendor
 from services.money import D
 from services.posting import EntryInput, post_transaction
 
@@ -43,10 +43,10 @@ SAMPLE_CSVS: dict[str, list[list[str]]] = {
         ["Khan & Sons", "khan@supplier.com", "0333-2222222", "Faisalabad", "25000"],
     ],
     "products": [
-        ["code", "name", "unit", "product_type", "default_rate", "reorder_level"],
-        ["PRD-001", "Widget A", "pcs", "stock", "1500", "50"],
-        ["PRD-002", "Consulting Hour", "hrs", "service", "5000", "0"],
-        ["PRD-003", "Raw Cotton", "kg", "stock", "350", "200"],
+        ["code",    "name",                    "unit", "product_type", "default_rate", "reorder_level", "category_name", "is_deferred", "recognition_months"],
+        ["PRD-001", "Widget A",                "pcs",  "stock",        "1500",         "50",            "Electronics",   "false",       ""],
+        ["PRD-002", "Annual Support Contract", "hrs",  "service",      "50000",        "0",             "Services",      "true",        "12"],
+        ["PRD-003", "Raw Cotton",              "kg",   "stock",        "350",          "200",           "",              "false",       ""],
     ],
 }
 
@@ -131,9 +131,16 @@ def _validate_vendors(rows: list[dict]):
     return valid, errors
 
 
-def _validate_products(rows: list[dict]):
+def _validate_products(rows: list[dict], session: Session, tenant_id: int):
     VALID_TYPES = {"stock", "service"}
     VALID_UNITS = {"pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"}
+    VALID_BOOLS = {"true", "false", "1", "0", ""}
+
+    cats = session.exec(
+        select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)
+    ).all()
+    cat_names = {c.name.lower() for c in cats}
+
     valid, errors = 0, []
     for i, row in enumerate(rows, start=2):
         name = (row.get("name") or "").strip()
@@ -150,6 +157,19 @@ def _validate_products(rows: list[dict]):
             D(row.get("reorder_level") or "0")
         except Exception:
             errors.append({"row": i, "message": "default_rate and reorder_level must be numbers"}); continue
+        cat_name_raw = (row.get("category_name") or "").strip()
+        if cat_name_raw and cat_name_raw.lower() not in cat_names:
+            errors.append({"row": i, "message": f"category '{cat_name_raw}' not found"}); continue
+        is_def_raw = (row.get("is_deferred") or "").strip().lower()
+        if is_def_raw not in VALID_BOOLS:
+            errors.append({"row": i, "message": "is_deferred must be 'true' or 'false'"}); continue
+        rm_raw = (row.get("recognition_months") or "").strip()
+        if rm_raw:
+            try:
+                if int(rm_raw) < 1:
+                    raise ValueError()
+            except (ValueError, TypeError):
+                errors.append({"row": i, "message": "recognition_months must be a positive integer"}); continue
         valid += 1
     return valid, errors
 
@@ -203,7 +223,7 @@ async def validate_import(
     elif entity == "vendors":
         valid, errors = _validate_vendors(rows)
     elif entity == "products":
-        valid, errors = _validate_products(rows)
+        valid, errors = _validate_products(rows, session, user.tenant_id)
     elif entity == "transactions":
         valid, errors = _validate_transactions(rows, session, user.tenant_id)
     else:
@@ -354,6 +374,12 @@ async def import_products(
 ):
     VALID_TYPES = {"stock", "service"}
     VALID_UNITS = {"pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"}
+
+    cats = session.exec(
+        select(ProductCategory).where(ProductCategory.tenant_id == user.tenant_id)
+    ).all()
+    cat_name_to_id: dict[str, int] = {c.name.lower(): c.id for c in cats}
+
     rows = _parse_csv(await file.read())
     imported, errors = 0, []
     for i, row in enumerate(rows, start=2):
@@ -371,6 +397,25 @@ async def import_products(
             reorder = D(row.get("reorder_level") or "0")
         except Exception:
             errors.append({"row": i, "message": "default_rate and reorder_level must be numbers"}); continue
+
+        # category_name → category_id
+        category_id = None
+        cat_name_raw = (row.get("category_name") or "").strip()
+        if cat_name_raw:
+            category_id = cat_name_to_id.get(cat_name_raw.lower())
+            if category_id is None:
+                errors.append({"row": i, "message": f"category '{cat_name_raw}' not found"}); continue
+
+        # IFRS 15 fields
+        is_deferred = (row.get("is_deferred") or "").strip().lower() in ("true", "1")
+        rm_raw = (row.get("recognition_months") or "").strip()
+        try:
+            recognition_months = int(rm_raw) if rm_raw else 12
+            if recognition_months < 1:
+                raise ValueError()
+        except (ValueError, TypeError):
+            errors.append({"row": i, "message": "recognition_months must be a positive integer"}); continue
+
         session.add(Product(
             tenant_id=user.tenant_id,
             code=(row.get("code") or "").strip() or None,
@@ -379,9 +424,13 @@ async def import_products(
             product_type=ptype,
             default_rate=rate,
             reorder_level=reorder,
+            category_id=category_id,
+            is_deferred=is_deferred,
+            recognition_months=recognition_months,
             is_active=True,
         ))
         imported += 1
+
     session.commit()
     log_audit(session, user, "import", "Product", detail={"imported": imported, "errors": len(errors)})
     session.commit()
