@@ -10,7 +10,7 @@ import { resolveTileMetric } from "@/lib/dashboardTileMetrics"
 import ShortcutTile from "@/components/dashboard/ShortcutTile"
 import AddWidgetPanel from "@/components/dashboard/AddWidgetPanel"
 import type { GridItem, UseDashboardLayout } from "@/hooks/useDashboardLayout"
-import { GRID_COLS } from "@/hooks/useDashboardLayout"
+import { BP_COLS, type Breakpoint } from "@/hooks/useDashboardLayout"
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, w]))
@@ -30,15 +30,27 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
   editing: boolean
   onExitEditing: () => void
 }) {
-  const { items, meta, applyLayout, addWidget, removeWidget, reset, reload, save } = layout
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [activeBp, setActiveBp] = useState<Breakpoint>("lg")
 
-  const rglLayout: LayoutItem[] = items.map(i => {
-    const def = registryById.get(i.id)
-    return { i: i.id, x: i.x, y: i.y, w: i.w, h: i.h, minW: def?.minSize.w ?? 1, minH: def?.minSize.h ?? 1 }
-  })
+  const { layouts, meta, applyLayout, markCustomized, addWidget, removeWidget, reset, reload, save } = layout
+
+  function toRglItems(items: readonly { id: string; x: number; y: number; w: number; h: number }[], cols: number): LayoutItem[] {
+    return items.map(i => {
+      const def = registryById.get(i.id)
+      const minW = Math.min(def?.minSize.w ?? 1, cols)
+      const minH = def?.minSize.h ?? 1
+      return { i: i.id, x: i.x, y: i.y, w: i.w, h: i.h, minW, minH }
+    })
+  }
+
+  const rglLayouts: Record<string, LayoutItem[]> = {
+    lg: toRglItems(layouts.lg, BP_COLS.lg),
+    ...(layouts.sm ? { sm: toRglItems(layouts.sm, BP_COLS.sm) } : {}),
+    ...(layouts.xs ? { xs: toRglItems(layouts.xs, BP_COLS.xs) } : {}),
+  }
 
   const handleDone = async () => {
     setSaving(true); setErr(null)
@@ -52,6 +64,9 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
       {editing && (
         <div className="flex flex-wrap items-center gap-2 bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-3 py-2 sticky top-2 z-20">
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">Customizing dashboard</span>
+          <span className="text-[11px] text-[#b8943f]/70 font-semibold">
+            {activeBp === "lg" ? "Desktop layout" : activeBp === "sm" ? "Tablet layout" : "Phone layout"}
+          </span>
           <span className="text-[11px] text-[#1a1814]/45">Drag to move · drag a corner to resize · × to remove</span>
           <div className="ml-auto flex items-center gap-2">
             <button onClick={() => setAdding(a => !a)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#b8943f] hover:text-[#a07f33] px-2 py-1">
@@ -72,7 +87,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
 
       {editing && adding && (
         <AddWidgetPanel
-          items={items} meta={meta}
+          items={layouts.lg} meta={meta}
           onAdd={(id) => { addWidget(id); setAdding(false) }}
           onClose={() => setAdding(false)}
         />
@@ -82,18 +97,23 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
 
       <ResponsiveGridLayout
         className="layout"
-        layouts={{ lg: rglLayout, sm: rglLayout, xs: rglLayout }}
+        layouts={rglLayouts}
         breakpoints={{ lg: 1024, sm: 640, xs: 0 }}
-        cols={{ lg: GRID_COLS, sm: 2, xs: 1 }}
+        cols={{ lg: BP_COLS.lg, sm: BP_COLS.sm, xs: BP_COLS.xs }}
         rowHeight={96}
         margin={[12, 12]}
         compactType="vertical"
         isDraggable={editing}
         isResizable={editing}
-        onLayoutChange={(l: Layout) => { if (editing) applyLayout(l) }}
+        onBreakpointChange={(bp: string) => setActiveBp(bp as Breakpoint)}
+        onLayoutChange={(_l: Layout, all: Partial<Record<string, Layout>>) => {
+          if (editing) applyLayout(activeBp, all as Record<string, Layout>)
+        }}
+        onDragStop={() => { markCustomized(activeBp) }}
+        onResizeStop={() => { markCustomized(activeBp) }}
         draggableCancel=".no-drag"
       >
-        {items.map(i => (
+        {layouts.lg.map(i => (
           <div key={i.id} className={`overflow-hidden ${editing ? "ring-2 ring-dashed ring-[#b8943f]/40 rounded-xl relative" : ""}`}>
             {editing && (
               <button
