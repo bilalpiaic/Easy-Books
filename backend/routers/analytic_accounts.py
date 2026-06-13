@@ -35,6 +35,18 @@ def list_analytic_accounts(
     return {"total": total, "items": items}
 
 
+@router.get("/{aa_id}")
+def get_analytic_account(session: SessionDep, user: WriteUserDep, aa_id: int):
+    aa = session.exec(
+        select(AnalyticAccount).where(
+            AnalyticAccount.id == aa_id, AnalyticAccount.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not aa:
+        raise HTTPException(404)
+    return aa
+
+
 @router.post("", status_code=201)
 def create_analytic_account(session: SessionDep, user: WriteUserDep, body: AnalyticCreate):
     if body.type not in ("cost_center", "project", "department"):

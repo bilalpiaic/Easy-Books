@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Layers } from "lucide-react"
+import Link from "next/link"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Layers, TrendingUp } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 
 interface AnalyticAccount {
@@ -275,6 +276,13 @@ function AccountTable({
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
+                    <Link
+                      href={`/analytic-accounts/${aa.id}`}
+                      className="text-[#1a1814]/40 hover:text-[#b8943f] transition-colors"
+                      title="View P&L"
+                    >
+                      <TrendingUp className="w-3.5 h-3.5" />
+                    </Link>
                     <button
                       onClick={() => onEdit(aa)}
                       className="text-[#1a1814]/40 hover:text-[#b8943f] transition-colors"
