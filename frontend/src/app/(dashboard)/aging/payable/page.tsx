@@ -106,7 +106,9 @@ export default function APAgingPage() {
                         item.name
                       )}
                     </td>
-                    <td className="ui-td font-mono text-sm text-[#b8943f]">{item.number}</td>
+                    <td className="ui-td font-mono text-sm">
+                      <Link href={`/bills/${item.id}`} className="text-[#b8943f] hover:underline">{item.number}</Link>
+                    </td>
                     <td className="ui-td text-sm text-[#1a1814]/70">{item.due_date}</td>
                     <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">{item.days_past}</td>
                     <td className="ui-td text-right font-mono text-sm font-semibold">{fmt(item.amount)}</td>
