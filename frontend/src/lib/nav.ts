@@ -57,6 +57,7 @@ export const NAV: NavItem[] = [
   { label: "Franchise Admin",  href: "/telecom/franchise",      icon: ScrollText,  section: "Telecom", forModel: "telecom_franchise" },
   { label: "Devices (IMEI)",   href: "/telecom/devices",        icon: Tablet,      section: "Telecom", forModel: "telecom_franchise" },
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
+  { label: "Exchange Rates",   href: "/exchange-rates",    icon: TrendingUp,       section: "Banking" },
   { label: "Bank Imports",     href: "/bank-imports",      icon: Upload,           section: "Banking" },
   { label: "Cash Book",        href: "/cash-book",         icon: Wallet,           section: "Banking" },
   { label: "Bank Book",        href: "/bank-book",         icon: BookOpen,         section: "Banking" },

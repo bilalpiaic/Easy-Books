@@ -27,6 +27,7 @@ const TITLE_MAP: Record<string, string> = {
   "/bank-accounts":    "Bank Accounts",
   "/bank-imports":         "Bank Statement Imports",
   "/analytic-accounts":    "Analytic Accounts",
+  "/exchange-rates":       "Exchange Rates",
   "/reconciliations":  "Reconciliations",
   "/trial-balance":    "Trial Balance",
   "/pl":               "Income Statement",
