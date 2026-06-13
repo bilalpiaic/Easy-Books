@@ -1,11 +1,13 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Wallet } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { apiFetch } from "@/lib/api"
 
 interface Operator { id: number; name: string; operator_code: string; commission_settlement_cycle: string }
 interface TrackerAccount { id: number; operator_id: number; account_number: string; deposit_balance: string; load_balance: string }
@@ -14,10 +16,25 @@ interface TrackerTxn {
   load_disbursed: string; commission_earned: string; tracker_reference: string | null
 }
 
+interface TrackerStatement {
+  tracker_accounts: { id: number; account_number: string; deposit_balance: string; load_balance: string }[]
+  transactions: TrackerTxn[]
+  gl_deposit_balance: string
+  gl_load_balance: string
+}
+
 export default function TrackerPage() {
   const operators = useTelecomList<Operator>("/api/telecom/operators")
   const accounts = useTelecomList<TrackerAccount>("/api/telecom/tracker-accounts")
   const txns = useTelecomList<TrackerTxn>("/api/telecom/tracker/transactions")
+  const [stmt, setStmt] = useState<TrackerStatement | null>(null)
+  const [stmtErr, setStmtErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    apiFetch<TrackerStatement>("/api/telecom/reports/tracker-statement")
+      .then(setStmt)
+      .catch(e => setStmtErr(e instanceof Error ? e.message : "Failed to load"))
+  }, [])
 
   const opOptions: SelectOption[] = operators.items.map(o => ({ value: String(o.id), label: `${o.name} (${o.operator_code})` }))
   const acctOptions: SelectOption[] = accounts.items.map(a => ({ value: String(a.id), label: a.account_number }))
@@ -140,6 +157,80 @@ export default function TrackerPage() {
           <Section title="Tracker transaction ledger">
             <DataTable columns={txnCols} rows={txns.items} empty="No tracker transactions yet." />
           </Section>
+        )},
+        { id: "statement", label: "Reconciliation", content: (
+          <div className="space-y-4">
+            {stmtErr && <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">{stmtErr}</div>}
+            {stmt && (
+              <>
+                <Section title="GL control totals">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#ede9e2]">
+                        <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Account</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Sub-ledger sum</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">GL balance</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Difference</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const depositSum = stmt.tracker_accounts.reduce((s, a) => s + parseFloat(a.deposit_balance), 0)
+                        const loadSum    = stmt.tracker_accounts.reduce((s, a) => s + parseFloat(a.load_balance), 0)
+                        const glDep = parseFloat(stmt.gl_deposit_balance)
+                        const glLoad = parseFloat(stmt.gl_load_balance)
+                        const depDiff  = depositSum - glDep
+                        const loadDiff = loadSum - glLoad
+                        return (
+                          <>
+                            <tr className="border-b border-[#ede9e2]">
+                              <td className="px-4 py-2 text-[#1a1814]">1210 — Tracker Deposit</td>
+                              <td className="px-4 py-2 text-right tabular-nums">{money(depositSum.toFixed(2))}</td>
+                              <td className="px-4 py-2 text-right tabular-nums">{money(stmt.gl_deposit_balance)}</td>
+                              <td className={`px-4 py-2 text-right tabular-nums font-semibold ${Math.abs(depDiff) > 0.01 ? "text-red-600" : "text-emerald-600"}`}>
+                                {Math.abs(depDiff) < 0.01 ? "✓ Balanced" : money(depDiff.toFixed(2))}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-4 py-2 text-[#1a1814]">1211 — Load Float</td>
+                              <td className="px-4 py-2 text-right tabular-nums">{money(loadSum.toFixed(2))}</td>
+                              <td className="px-4 py-2 text-right tabular-nums">{money(stmt.gl_load_balance)}</td>
+                              <td className={`px-4 py-2 text-right tabular-nums font-semibold ${Math.abs(loadDiff) > 0.01 ? "text-red-600" : "text-emerald-600"}`}>
+                                {Math.abs(loadDiff) < 0.01 ? "✓ Balanced" : money(loadDiff.toFixed(2))}
+                              </td>
+                            </tr>
+                          </>
+                        )
+                      })()}
+                    </tbody>
+                  </table>
+                </Section>
+                <Section title="Per-account balances">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#ede9e2]">
+                        <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Tracker account</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Deposit balance</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Load balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stmt.tracker_accounts.map(a => (
+                        <tr key={a.id} className="border-b border-[#ede9e2] last:border-0">
+                          <td className="px-4 py-2 font-mono text-[#1a1814]/80">{a.account_number}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{money(a.deposit_balance)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{money(a.load_balance)}</td>
+                        </tr>
+                      ))}
+                      {stmt.tracker_accounts.length === 0 && (
+                        <tr><td colSpan={3} className="px-4 py-4 text-center text-[#1a1814]/40 text-sm">No tracker accounts yet.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </Section>
+              </>
+            )}
+          </div>
         )},
       ]} />
     </div>
