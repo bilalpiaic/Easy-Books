@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight, Pencil } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useDp } from '@/context/SettingsContext'
 import DocLink from '@/components/DocLink'
@@ -53,6 +53,7 @@ export default function RecurringPage() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<TemplateForm>(emptyForm)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [running, setRunning] = useState(false)
@@ -77,7 +78,21 @@ export default function RecurringPage() {
   }, [])
 
   const openCreate = () => {
+    setEditingId(null)
     setForm(emptyForm)
+    setFormError('')
+    setModalOpen(true)
+  }
+
+  const openEdit = (t: RecurringTemplate) => {
+    setEditingId(t.id)
+    setForm({
+      name: t.name,
+      description: t.description ?? '',
+      frequency: t.frequency,
+      next_run: t.next_run,
+      entries: t.entries.map(e => ({ ...e })),
+    })
     setFormError('')
     setModalOpen(true)
   }
@@ -92,17 +107,18 @@ export default function RecurringPage() {
     }
     setSaving(true); setFormError('')
     try {
-      await apiFetch('/api/recurring', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          description: form.description || null,
-          frequency: form.frequency,
-          next_run: form.next_run,
-          entries: form.entries,
-        }),
+      const body = JSON.stringify({
+        name: form.name,
+        description: form.description || null,
+        frequency: form.frequency,
+        next_run: form.next_run,
+        entries: form.entries,
       })
+      if (editingId != null) {
+        await apiFetch(`/api/recurring/${editingId}`, { method: 'PUT', body })
+      } else {
+        await apiFetch('/api/recurring', { method: 'POST', body })
+      }
       setModalOpen(false)
       load()
     } catch (err) {
@@ -258,9 +274,14 @@ export default function RecurringPage() {
                   </button>
                 </td>
                 <td className="ui-td">
-                  <button onClick={() => handleDelete(t)} className="text-red-400 hover:text-red-600">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 justify-end">
+                    <button onClick={() => openEdit(t)} title="Edit template" className="text-[#1a1814]/40 hover:text-[#b8943f]">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(t)} title="Delete template" className="text-red-400 hover:text-red-600">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -273,7 +294,9 @@ export default function RecurringPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">New Recurring Template</h2>
+            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
+              {editingId != null ? 'Edit Recurring Template' : 'New Recurring Template'}
+            </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -381,7 +404,7 @@ export default function RecurringPage() {
                 </button>
                 <button onClick={handleSave} disabled={saving}
                   className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
-                  {saving ? 'Saving…' : 'Create Template'}
+                  {saving ? 'Saving…' : editingId != null ? 'Save Changes' : 'Create Template'}
                 </button>
               </div>
             </div>

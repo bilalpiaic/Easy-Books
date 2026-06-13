@@ -103,6 +103,41 @@ def create_recurring(
     return t
 
 
+@router.put("/{template_id}")
+def update_recurring(
+    session: SessionDep, user: WriteUserDep, template_id: int, body: RecurringCreate
+):
+    """Full update of a recurring template (name, frequency, entries, etc.)."""
+    t = session.exec(
+        select(RecurringTemplate).where(
+            RecurringTemplate.id == template_id,
+            RecurringTemplate.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not t:
+        raise HTTPException(404, "Template not found")
+    if body.frequency not in _FREQ_DELTAS:
+        raise HTTPException(400, "Invalid frequency")
+    acc_ids = {e.account_id for e in body.entries}
+    rows = session.exec(
+        select(Account.id).where(
+            Account.id.in_(acc_ids), Account.tenant_id == user.tenant_id
+        )
+    ).all()
+    if len(set(rows)) != len(acc_ids):
+        raise HTTPException(400, "One or more accounts not found for tenant")
+    t.name = body.name
+    t.description = body.description
+    t.frequency = body.frequency
+    t.next_run = body.next_run
+    t.entries_json = _json.dumps([e.model_dump() for e in body.entries])
+    session.add(t)
+    log_audit(session, user, "UPDATE", "recurring", t.id, {"name": t.name})
+    session.commit()
+    session.refresh(t)
+    return {**t.model_dump(), "entries": _json.loads(t.entries_json)}
+
+
 @router.patch("/{template_id}")
 def toggle_recurring(session: SessionDep, user: WriteUserDep, template_id: int, is_active: bool):
     """Activate or deactivate a recurring template."""
