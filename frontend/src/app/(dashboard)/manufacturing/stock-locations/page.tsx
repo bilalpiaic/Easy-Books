@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight } from "lucide-react"
+import Link from "next/link"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight, ArrowLeftRight } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 
@@ -147,12 +148,18 @@ export default function StockLocationsPage() {
             Warehouses, godowns, and WIP buckets. Click a location to view its stock.
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
-        >
-          <Plus className="w-4 h-4" /> New Location
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/manufacturing/stock-locations/movements"
+            className="inline-flex items-center gap-2 border border-[#ede9e2] px-3 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
+            <ArrowLeftRight className="w-4 h-4" /> Movements
+          </Link>
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+          >
+            <Plus className="w-4 h-4" /> New Location
+          </button>
+        </div>
       </div>
 
       {error && (
