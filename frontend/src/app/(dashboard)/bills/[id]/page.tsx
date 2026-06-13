@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, Receipt, Pencil, History } from "lucide-react"
+import { Printer, RotateCcw, Receipt, Pencil, History, CheckCircle } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -86,6 +86,19 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); loadHistory() }, [id])
 
+  const markReceived = async () => {
+    if (!window.confirm(`Mark bill ${bill?.number} as Received?`)) return
+    setBusy(true); setError(null)
+    try {
+      await apiFetch(`/api/bills/${id}/status?status=received`, { method: "PATCH" })
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mark as received")
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const reverse = async () => {
     if (!bill?.transaction_id) {
       setError("This bill has no posted transaction to reverse.")
@@ -125,6 +138,15 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             >
               <Pencil className="w-4 h-4" /> Edit
             </span>
+          )}
+          {bill.status === "draft" && (
+            <button
+              onClick={markReceived}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec] disabled:opacity-50"
+            >
+              <CheckCircle className="w-4 h-4" /> Mark as Received
+            </button>
           )}
           <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
             <Printer className="w-4 h-4" /> Print
