@@ -6,7 +6,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, ShoppingCart,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, Undo2, CalendarCheck, Clock, Table2,
+  Building2, Undo2, CalendarCheck, Clock, Table2, Upload,
 } from "lucide-react"
 
 export type NavItem = {
@@ -56,6 +56,7 @@ export const NAV: NavItem[] = [
   { label: "Franchise Admin",  href: "/telecom/franchise",      icon: ScrollText,  section: "Telecom", forModel: "telecom_franchise" },
   { label: "Devices (IMEI)",   href: "/telecom/devices",        icon: Tablet,      section: "Telecom", forModel: "telecom_franchise" },
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
+  { label: "Bank Imports",     href: "/bank-imports",      icon: Upload,           section: "Banking" },
   { label: "Cash Book",        href: "/cash-book",         icon: Wallet,           section: "Banking" },
   { label: "Bank Book",        href: "/bank-book",         icon: BookOpen,         section: "Banking" },
   { label: "Reconciliations",  href: "/reconciliations",   icon: CheckCheck,       section: "Banking" },
