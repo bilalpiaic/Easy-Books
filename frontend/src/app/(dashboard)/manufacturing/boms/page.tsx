@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Layers, Printer, Plus } from "lucide-react"
+import { Layers, Printer, Plus, Archive } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
@@ -19,12 +19,13 @@ interface Bom {
 interface Product { id: number; code: string; name: string }
 
 export default function BomsListPage() {
-  const [boms, setBoms]       = useState<Bom[]>([])
+  const [boms, setBoms]         = useState<Bom[]>([])
   const [products, setProducts] = useState<Map<number, Product>>(new Map())
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState<string | null>(null)
+  const [busyId, setBusyId]     = useState<number | null>(null)
 
-  useEffect(() => {
+  const load = () =>
     Promise.all([
       apiFetch<{ items: Bom[] }>("/api/bom"),
       apiFetch<{ items: Product[] }>("/api/products?limit=500"),
@@ -35,7 +36,19 @@ export default function BomsListPage() {
       })
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false))
-  }, [])
+
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const deactivate = async (bom: Bom) => {
+    if (!confirm(`Archive BOM #${bom.id} (v${bom.version})? Production orders referencing it will keep their cost basis.`)) return
+    setBusyId(bom.id)
+    try {
+      await apiFetch(`/api/bom/${bom.id}/deactivate`, { method: "PATCH" })
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Archive failed")
+    } finally { setBusyId(null) }
+  }
 
   if (loading) return <p className="text-sm text-[#1a1814]/60">Loading…</p>
 
@@ -106,6 +119,7 @@ export default function BomsListPage() {
                 <th className="text-center px-4 py-2">Lines</th>
                 <th className="text-center px-4 py-2">Ver.</th>
                 <th className="text-center px-4 py-2">Status</th>
+                <th className="px-4 py-2 print:hidden" />
               </tr>
             </thead>
             <tbody>
@@ -131,6 +145,18 @@ export default function BomsListPage() {
                       {b.is_active
                         ? <span className="text-emerald-700 font-semibold text-xs">Active</span>
                         : <span className="text-[#1a1814]/40 text-xs">Archived</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right print:hidden">
+                      {b.is_active && (
+                        <button
+                          onClick={() => deactivate(b)}
+                          disabled={busyId === b.id}
+                          title="Archive BOM"
+                          className="p-1.5 rounded border border-[#ede9e2] hover:bg-amber-50 text-[#1a1814]/40 hover:text-amber-600 disabled:opacity-50 transition-colors"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

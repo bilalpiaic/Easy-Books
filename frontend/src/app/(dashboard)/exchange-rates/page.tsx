@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Trash2, TrendingUp } from "lucide-react"
+import { Plus, Trash2, TrendingUp, RefreshCw, CheckCircle, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useSettings } from "@/context/SettingsContext"
 
@@ -113,6 +113,31 @@ export default function ExchangeRatesPage() {
 
   const applyFilter = () => load(filterFrom.toUpperCase(), filterTo.toUpperCase())
 
+  // ── FX Revaluation ─────────────────────────────────────────────────────────
+  const [revalDate, setRevalDate]   = useState(today)
+  const [revalBusy, setRevalBusy]   = useState(false)
+  const [revalMsg, setRevalMsg]     = useState<{ ok: boolean; text: string } | null>(null)
+
+  const runRevaluation = async () => {
+    setRevalBusy(true); setRevalMsg(null)
+    try {
+      const res = await apiFetch<{ jv_number?: string; entries_count: number; message?: string }>(
+        `/api/reports/fx-revaluation?revaluation_date=${revalDate}`,
+        { method: "POST" },
+      )
+      if (res.message) {
+        setRevalMsg({ ok: false, text: res.message })
+      } else {
+        setRevalMsg({
+          ok: true,
+          text: `Posted ${res.entries_count} GL line${res.entries_count !== 1 ? "s" : ""} — ${res.jv_number}`,
+        })
+      }
+    } catch (e) {
+      setRevalMsg({ ok: false, text: e instanceof Error ? e.message : "Revaluation failed" })
+    } finally { setRevalBusy(false) }
+  }
+
   // Unique currency pairs for quick-filter chips
   const pairs = Array.from(
     new Set(rates.map(r => `${r.from_currency}/${r.to_currency}`))
@@ -138,6 +163,50 @@ export default function ExchangeRatesPage() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">{error}</div>
       )}
+
+      {/* FX Revaluation */}
+      <div className="bg-white border border-[#ede9e2] rounded-2xl p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <RefreshCw className="w-4 h-4 text-[#b8943f]" />
+          <h2 className="text-sm font-bold text-[#1a1814]">FX Revaluation <span className="text-[#1a1814]/40 font-normal">(IAS 21)</span></h2>
+        </div>
+        <p className="text-xs text-[#1a1814]/60">
+          Restates open foreign-currency AR balances to the closing rate on the chosen date.
+          Posts an Unrealised FX Gain/Loss entry (account 4901) for the difference.
+        </p>
+        {revalMsg && (
+          <div className={`flex items-start gap-2 p-3 rounded-xl text-sm ${
+            revalMsg.ok
+              ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+              : "bg-amber-50 border border-amber-200 text-amber-800"
+          }`}>
+            {revalMsg.ok
+              ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            }
+            {revalMsg.text}
+          </div>
+        )}
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Revaluation date</label>
+            <input
+              type="date"
+              value={revalDate}
+              onChange={e => setRevalDate(e.target.value)}
+              className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+            />
+          </div>
+          <button
+            onClick={runRevaluation}
+            disabled={revalBusy}
+            className="flex items-center gap-2 px-5 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${revalBusy ? "animate-spin" : ""}`} />
+            {revalBusy ? "Running…" : "Run Revaluation"}
+          </button>
+        </div>
+      </div>
 
       {/* Filter row */}
       <div className="flex flex-wrap items-center gap-2">
