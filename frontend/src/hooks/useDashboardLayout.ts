@@ -9,12 +9,26 @@ export const GRID_COLS = 4
 export interface GridItem { id: string; x: number; y: number; w: number; h: number }
 export interface GridLayoutV2 { version: 2; items: GridItem[] }
 
+export type Breakpoint = "lg" | "sm" | "xs"
+export const BP_COLS: Record<Breakpoint, number> = { lg: 4, sm: 2, xs: 1 }
+
+export interface ResolvedLayouts {
+  lg: GridItem[]
+  sm?: GridItem[]
+  xs?: GridItem[]
+}
+
+export interface GridLayoutV3 {
+  version: 3
+  layouts: ResolvedLayouts
+}
+
 // Phase-1 shapes (for migration only)
 interface StoredWidgetV1 { id: string; visible: boolean }
 interface StoredLayoutV1 { version: 1; widgets: StoredWidgetV1[] }
 
 type Meta = { model: string | undefined; role: string }
-type SavedAny = GridLayoutV2 | StoredLayoutV1 | Record<string, unknown> | null
+type SavedAny = GridLayoutV3 | GridLayoutV2 | StoredLayoutV1 | Record<string, unknown> | null
 
 const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, w]))
 const gridDefs = WIDGET_REGISTRY.filter(w => !w.pinned)
@@ -68,17 +82,63 @@ function validateV2(items: GridItem[], meta: Meta): GridItem[] {
   return out
 }
 
-/** Resolve a saved blob (null | v1 | v2) into validated grid items. */
-export function resolveLayout(saved: SavedAny, meta: Meta): GridItem[] {
-  if (!saved || typeof saved !== "object") return defaultGrid()
+function validateBreakpoint(
+  items: GridItem[],
+  meta: Meta,
+  lgIds: Set<string>,
+  cols: number,
+): GridItem[] {
+  const seen = new Set<string>()
+  const out: GridItem[] = []
+  for (let it of items) {
+    if (!it || typeof it.id !== "string" || seen.has(it.id)) continue
+    if (!lgIds.has(it.id)) continue  // shared-membership invariant
+    if (isShortcutId(it.id)) {
+      if (!resolveShortcut(it.id, meta.model, meta.role)) continue
+    } else {
+      const def = registryById.get(it.id)
+      if (!def || def.pinned) continue
+      const minW = Math.min(def.minSize.w, cols)
+      const minH = def.minSize.h
+      if (it.w < minW) it = { ...it, w: minW }
+      if (it.h < minH) it = { ...it, h: minH }
+    }
+    const maxW = cols
+    if (it.w > maxW) it = { ...it, w: maxW }
+    seen.add(it.id)
+    out.push(it)
+  }
+  return out
+}
+
+/** Resolve a saved blob (null | v1 | v2 | v3) into validated layouts by breakpoint. */
+export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
+  if (!saved || typeof saved !== "object") return { lg: defaultGrid() }
   const v = (saved as { version?: number }).version
+
+  if (v === 3) {
+    const s = saved as GridLayoutV3
+    if (!Array.isArray(s.layouts?.lg)) return { lg: defaultGrid() }
+    const lg = validateV2(s.layouts.lg, meta)
+    if (lg.length === 0) return { lg: defaultGrid() }
+    const lgIds = new Set(lg.map(i => i.id))
+    const result: ResolvedLayouts = { lg }
+    for (const bp of ["sm", "xs"] as const) {
+      const raw = s.layouts[bp]
+      if (!Array.isArray(raw)) continue
+      const validated = validateBreakpoint(raw, meta, lgIds, BP_COLS[bp])
+      if (validated.length > 0) result[bp] = validated
+    }
+    return result
+  }
+
   if (v === 2 && Array.isArray((saved as GridLayoutV2).items)) {
-    return validateV2((saved as GridLayoutV2).items, meta)
+    return { lg: validateV2((saved as GridLayoutV2).items, meta) }
   }
   if (v === 1 && Array.isArray((saved as StoredLayoutV1).widgets)) {
-    return migrateV1toV2(saved as StoredLayoutV1)
+    return { lg: migrateV1toV2(saved as StoredLayoutV1) }
   }
-  return defaultGrid()
+  return { lg: defaultGrid() }
 }
 
 function serialize(items: GridItem[]): string {
