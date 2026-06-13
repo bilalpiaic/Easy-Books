@@ -6,7 +6,7 @@ import {
   Factory, ListChecks, Tags, PackagePlus, Warehouse, ShoppingCart,
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
-  Building2, Undo2, CalendarCheck, Clock, Table2, Upload,
+  Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers,
 } from "lucide-react"
 
 export type NavItem = {
@@ -26,6 +26,7 @@ export const NAV: NavItem[] = [
   { label: "Recurring",        href: "/recurring",         icon: RefreshCw,        section: "Ledger" },
   { label: "General Ledger",   href: "/ledger",            icon: BookOpen,         section: "Ledger" },
   { label: "Chart of Accounts",href: "/coa",               icon: TableProperties,  section: "Ledger" },
+  { label: "Analytic Accounts",href: "/analytic-accounts", icon: Layers,           section: "Ledger" },
   { label: "Invoices",         href: "/invoices",          icon: FileSignature,    section: "Receivable" },
   { label: "Credit Notes",     href: "/credit-notes",      icon: Receipt,          section: "Receivable" },
   { label: "Customers",        href: "/customers",         icon: Users,            section: "Receivable" },
