@@ -57,6 +57,13 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Budget vs Actual with monthly per-account variance
 - **Report Builder** — user-configurable reports (column chooser, click-to-filter, grouping/totals, saved views, CSV/XLSX export)
 
+**Dashboard (v2.5+)**
+- Per-user drag-to-arrange, resize, show/hide widgets — layouts saved per-user via `/api/dashboard/layout`
+- Responsive 2D grid (react-grid-layout) — 4-col desktop / 2-col tablet / 1-col phone; per-breakpoint layouts saved independently
+- **Shortcut tiles** — pin any nav page (invoices, bills, bank accounts, …) as a dashboard tile with live metric badge (count / total)
+- **Data widgets** — opt-in Bank Balances, Top Products, Inventory Summary (self-fetching; zero additional backend queries)
+- **Cash-flow tie-out** — reconciling row on the Cash Flow statement shows ✓ (balanced) or amber delta per IAS 7
+
 **Advanced features**
 - Fixed Assets register + straight-line/reducing-balance depreciation (IAS 16)
 - Purchase Orders (raise → approve → convert-to-bill, 3-way match)
