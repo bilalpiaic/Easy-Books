@@ -44,6 +44,7 @@ export const NAV: NavItem[] = [
   { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing", forModel: "manufacturing" },
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
   { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Manufacturing", forModel: "manufacturing" },
+  { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
   { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing", forModel: "manufacturing" },
   { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
   { label: "Telecom Overview", href: "/telecom",                icon: Radio,       section: "Telecom", forModel: "telecom_franchise" },
