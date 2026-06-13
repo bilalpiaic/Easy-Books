@@ -36,6 +36,8 @@ export interface AppSettings {
   block_negative_stock: string
   // UI density
   ui_density: string
+  // Amount display precision
+  decimal_places: string
 }
 
 const defaults: AppSettings = {
@@ -65,6 +67,7 @@ const defaults: AppSettings = {
   onboarding_dismissed: "",
   block_negative_stock: "false",
   ui_density: "comfortable",
+  decimal_places: "2",
 }
 
 interface SettingsContextValue {
@@ -104,14 +107,23 @@ export function useSettings() {
   return useContext(SettingsContext)
 }
 
-export function fmtCurrency(n: number, currency: string): string {
-  const rounded = Math.round(n || 0)
-  const formatted = rounded.toLocaleString("en-PK")
+export function fmtCurrency(n: number, currency: string, dp: number = 2): string {
+  const formatted = (n || 0).toLocaleString("en-PK", {
+    minimumFractionDigits: dp,
+    maximumFractionDigits: dp,
+  })
   return `${currency} ${formatted}`
 }
 
 /** Hook that returns a formatter using the tenant's base currency. */
 export function useFmt() {
   const { settings } = useSettings()
-  return (n: number) => fmtCurrency(n, settings.currency || "PKR")
+  const dp = parseInt(settings.decimal_places || "2")
+  return (n: number) => fmtCurrency(n, settings.currency || "PKR", dp)
+}
+
+/** Returns the tenant's configured decimal places as a number (2 or 4). */
+export function useDp(): number {
+  const { settings } = useSettings()
+  return parseInt(settings.decimal_places || "2")
 }
