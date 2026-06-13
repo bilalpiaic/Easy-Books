@@ -141,16 +141,13 @@ export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
   return { lg: defaultGrid() }
 }
 
-function serialize(items: GridItem[]): string {
-  return JSON.stringify(items.map(i => ({ id: i.id, x: i.x, y: i.y, w: i.w, h: i.h })))
-}
-
 export interface UseDashboardLayout {
-  items: GridItem[]
+  layouts: ResolvedLayouts
   meta: Meta
   loading: boolean
   dirty: boolean
-  applyLayout: (layout: readonly { i: string; x: number; y: number; w: number; h: number }[]) => void
+  applyLayout: (bp: Breakpoint, allLayouts: Record<string, readonly { i: string; x: number; y: number; w: number; h: number }[]>) => void
+  markCustomized: (bp: Breakpoint) => void
   addWidget: (id: string) => void
   removeWidget: (id: string) => void
   reset: () => void
@@ -159,7 +156,7 @@ export interface UseDashboardLayout {
 }
 
 export function useDashboardLayout(): UseDashboardLayout {
-  const [items, setItems] = useState<GridItem[]>(() => defaultGrid())
+  const [layouts, setLayouts] = useState<ResolvedLayouts>(() => ({ lg: defaultGrid() }))
   const [saved, setSaved] = useState<SavedAny>(null)
   const [meta, setMeta] = useState<Meta>({ model: undefined, role: getCurrentUser()?.role ?? "viewer" })
   const [loading, setLoading] = useState(true)
@@ -172,27 +169,68 @@ export function useDashboardLayout(): UseDashboardLayout {
       const m: Meta = { model: me?.tenant?.business_model, role: me?.role ?? getCurrentUser()?.role ?? "viewer" }
       setMeta(m)
       setSaved(lay.layout)
-      setItems(resolveLayout(lay.layout, m))
+      setLayouts(resolveLayout(lay.layout, m))
     }).finally(() => setLoading(false))
   }, [])
 
-  const applyLayout = (layout: readonly { i: string; x: number; y: number; w: number; h: number }[]) =>
-    setItems(layout.map(l => ({ id: l.i, x: l.x, y: l.y, w: l.w, h: l.h })))
+  const applyLayout = (bp: Breakpoint, allLayouts: Record<string, readonly { i: string; x: number; y: number; w: number; h: number }[]>) => {
+    setLayouts(prev => {
+      const next = { ...prev }
+      for (const key of Object.keys(allLayouts) as Breakpoint[]) {
+        const arr = allLayouts[key]
+        if (!arr) continue
+        const mapped = arr.map(l => ({ id: l.i, x: l.x, y: l.y, w: l.w, h: l.h }))
+        if (key === "lg") { next.lg = mapped; continue }
+        if (prev[key]) next[key] = mapped  // only update if override already exists
+      }
+      return next
+    })
+  }
 
-  const addWidget = (id: string) => setItems(prev => {
-    if (prev.some(i => i.id === id)) return prev
+  const markCustomized = (bp: Breakpoint) => {
+    if (bp === "lg") return  // lg is always present
+    setLayouts(prev => {
+      if (prev[bp]) return prev  // already an override, nothing to do
+      // Promote: derive from lg with column clamping
+      const cols = BP_COLS[bp]
+      const lgIds = new Set(prev.lg.map(i => i.id))
+      const derived = validateBreakpoint(prev.lg, meta, lgIds, cols)
+      return { ...prev, [bp]: derived }
+    })
+  }
+
+  const addWidget = (id: string) => setLayouts(prev => {
+    if (prev.lg.some(i => i.id === id)) return prev
     const def = registryById.get(id)
-    const size = def ? def.defaultSize : { w: 1, h: 1 }   // shortcut default 1x1
-    const y = prev.reduce((m, i) => Math.max(m, i.y + i.h), 0)
-    return [...prev, { id, x: 0, y, w: size.w, h: size.h }]
+    const size = def ? def.defaultSize : { w: 1, h: 1 }
+    const newLg: GridItem[] = [
+      ...prev.lg,
+      { id, x: 0, y: prev.lg.reduce((m, i) => Math.max(m, i.y + i.h), 0), w: size.w, h: size.h }
+    ]
+    const next: ResolvedLayouts = { lg: newLg }
+    for (const bp of ["sm", "xs"] as const) {
+      if (!prev[bp]) continue
+      const cols = BP_COLS[bp]
+      const w = Math.min(size.w, cols)
+      const y = prev[bp]!.reduce((m, i) => Math.max(m, i.y + i.h), 0)
+      next[bp] = [...prev[bp]!, { id, x: 0, y, w, h: size.h }]
+    }
+    return next
   })
 
-  const removeWidget = (id: string) => setItems(prev => prev.filter(i => i.id !== id))
-  const reset = () => setItems(defaultGrid())
-  const reload = () => setItems(resolveLayout(saved, meta))
+  const removeWidget = (id: string) => setLayouts(prev => {
+    const next: ResolvedLayouts = { lg: prev.lg.filter(i => i.id !== id) }
+    for (const bp of ["sm", "xs"] as const) {
+      if (prev[bp]) next[bp] = prev[bp]!.filter(i => i.id !== id)
+    }
+    return next
+  })
+
+  const reset = () => setLayouts({ lg: defaultGrid() })
+  const reload = () => setLayouts(resolveLayout(saved, meta))
 
   const save = async () => {
-    const payload: GridLayoutV2 = { version: 2, items }
+    const payload: GridLayoutV3 = { version: 3, layouts }
     await apiFetch("/api/dashboard/layout", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -201,8 +239,8 @@ export function useDashboardLayout(): UseDashboardLayout {
     setSaved(payload)
   }
 
-  const baseline = saved ? resolveLayout(saved, meta) : defaultGrid()
-  const dirty = serialize(items) !== serialize(baseline)
+  const baseline = resolveLayout(saved, meta)
+  const dirty = JSON.stringify(layouts) !== JSON.stringify(baseline)
 
-  return { items, meta, loading, dirty, applyLayout, addWidget, removeWidget, reset, reload, save }
+  return { layouts, meta, loading, dirty, applyLayout, markCustomized, addWidget, removeWidget, reset, reload, save }
 }
