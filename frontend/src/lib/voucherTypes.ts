@@ -33,3 +33,21 @@ export const VOUCHER_TYPE_COLORS: Record<string, string> = {
 export function voucherTypeBadgeClass(type: string): string {
   return VOUCHER_TYPE_COLORS[type] ?? "bg-gray-100 text-gray-600"
 }
+
+export type AccountType = "Asset" | "Liability" | "Equity" | "Revenue" | "Expense"
+
+/** Suggested account types for each voucher type — hinted accounts shown first in selects. */
+export const VOUCHER_ACCOUNT_HINTS: Record<string, AccountType[]> = {
+  CP: ["Asset"],
+  CR: ["Asset"],
+  BP: ["Asset"],
+  BR: ["Asset"],
+  CO: ["Asset"],
+  SL: ["Asset", "Revenue"],
+  SR: ["Asset", "Revenue"],
+  CN: ["Asset", "Revenue"],
+  PR: ["Asset", "Expense", "Liability"],
+  PV: ["Asset", "Expense", "Liability"],
+  DN: ["Asset", "Expense", "Liability"],
+  JV: [],
+}

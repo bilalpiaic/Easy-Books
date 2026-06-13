@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import { useDp } from '@/context/SettingsContext'
 import DocLink from '@/components/DocLink'
 
 interface RecurringEntry {
@@ -57,6 +58,7 @@ export default function RecurringPage() {
   const [running, setRunning] = useState(false)
   const [lastRunResult, setLastRunResult] = useState<string | null>(null)
   const [now, setNow] = useState<Date | null>(null)
+  const dp = useDp()
 
   const load = () => {
     setLoading(true)
@@ -86,7 +88,7 @@ export default function RecurringPage() {
     const totalDebit = form.entries.reduce((s, e) => s + e.debit, 0)
     const totalCredit = form.entries.reduce((s, e) => s + e.credit, 0)
     if (Math.abs(totalDebit - totalCredit) > 0.001) {
-      setFormError(`Debits (${totalDebit.toFixed(2)}) must equal Credits (${totalCredit.toFixed(2)})`); return
+      setFormError(`Debits (${totalDebit.toFixed(dp)}) must equal Credits (${totalCredit.toFixed(dp)})`); return
     }
     setSaving(true); setFormError('')
     try {
@@ -357,10 +359,10 @@ export default function RecurringPage() {
                           </button>
                         </td>
                         <td className={`px-4 py-2 text-right font-mono text-xs font-bold ${Math.abs(totalDebit - totalCredit) > 0.001 ? 'text-red-600' : 'text-green-600'}`}>
-                          {totalDebit.toFixed(2)}
+                          {totalDebit.toFixed(dp)}
                         </td>
                         <td className={`px-4 py-2 text-right font-mono text-xs font-bold ${Math.abs(totalDebit - totalCredit) > 0.001 ? 'text-red-600' : 'text-green-600'}`}>
-                          {totalCredit.toFixed(2)}
+                          {totalCredit.toFixed(dp)}
                         </td>
                         <td />
                       </tr>

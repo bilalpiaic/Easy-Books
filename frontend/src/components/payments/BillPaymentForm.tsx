@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { useFmt } from '@/context/SettingsContext'
+import { useFmt, useDp } from '@/context/SettingsContext'
 
 interface OpenBill {
   id: number
@@ -47,6 +47,7 @@ interface Props {
 
 export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const fmt = useFmt()
+  const dp = useDp()
   const [form, setForm]             = useState<PayForm>(emptyForm)
   const [saving, setSaving]         = useState(false)
   const [formError, setFormError]   = useState('')
@@ -135,7 +136,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
     if (checked) {
       const remaining = paymentAmount - totalApplied
       const suggested = Math.min(bill.outstanding, remaining > 0 ? remaining : bill.outstanding)
-      setAlloc(bill.id, 'amount', String(suggested.toFixed(2)))
+      setAlloc(bill.id, 'amount', String(suggested.toFixed(dp)))
     } else {
       setAlloc(bill.id, 'amount', '')
     }

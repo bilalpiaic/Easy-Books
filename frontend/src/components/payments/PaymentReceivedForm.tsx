@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { useFmt } from '@/context/SettingsContext'
+import { useFmt, useDp } from '@/context/SettingsContext'
 
 interface OpenInvoice {
   id: number
@@ -47,6 +47,7 @@ interface Props {
 
 export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
   const fmt = useFmt()
+  const dp = useDp()
   const [form, setForm] = useState<PayForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
@@ -142,7 +143,7 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
     if (checked) {
       const remaining = paymentAmount - totalApplied
       const suggested = Math.min(inv.outstanding, remaining > 0 ? remaining : inv.outstanding)
-      setAlloc(inv.id, 'amount', String(suggested.toFixed(2)))
+      setAlloc(inv.id, 'amount', String(suggested.toFixed(dp)))
     } else {
       setAlloc(inv.id, 'amount', '')
     }

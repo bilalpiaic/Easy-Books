@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react"
 import { Plus, Trash2, Save, AlertCircle, ScrollText } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { VOUCHER_TYPES } from "@/lib/voucherTypes"
+import { VOUCHER_TYPES, VOUCHER_ACCOUNT_HINTS, AccountType } from "@/lib/voucherTypes"
+import { useDp } from "@/context/SettingsContext"
 import { useRouter } from "next/navigation"
 
 interface Account {
   id: number
   code: string
   name: string
+  type?: string
   postable?: boolean
 }
 
@@ -63,6 +65,15 @@ export default function NewEntryPage() {
   const totalCredit = rows.reduce((s, r) => s + (parseFloat(r.credit) || 0), 0)
   const difference  = Math.abs(totalDebit - totalCredit)
   const balanced    = difference < 0.005
+
+  const dp = useDp()
+  const hintTypes = VOUCHER_ACCOUNT_HINTS[voucherType] ?? []
+  const hintedAccounts = hintTypes.length > 0
+    ? accounts.filter(a => hintTypes.includes(a.type as AccountType))
+    : []
+  const otherAccounts = hintTypes.length > 0
+    ? accounts.filter(a => !hintTypes.includes(a.type as AccountType))
+    : accounts
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -187,7 +198,13 @@ export default function NewEntryPage() {
                             required
                           >
                             <option value="">Select Account</option>
-                            {accounts.map(a => (
+                            {hintedAccounts.map(a => (
+                              <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                            ))}
+                            {hintedAccounts.length > 0 && otherAccounts.length > 0 && (
+                              <option disabled>── All accounts ──</option>
+                            )}
+                            {otherAccounts.map(a => (
                               <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
                             ))}
                           </select>
@@ -258,7 +275,13 @@ export default function NewEntryPage() {
                     required
                   >
                     <option value="">Select Account</option>
-                    {accounts.map(a => (
+                    {hintedAccounts.map(a => (
+                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                    ))}
+                    {hintedAccounts.length > 0 && otherAccounts.length > 0 && (
+                      <option disabled>── All accounts ──</option>
+                    )}
+                    {otherAccounts.map(a => (
                       <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
                     ))}
                   </select>
@@ -310,16 +333,16 @@ export default function NewEntryPage() {
             <div className="grid grid-cols-3 gap-2 sm:gap-4 text-right font-mono">
               <div>
                 <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Debit</div>
-                <div className="text-sm sm:text-base font-bold text-[#1a1814]">{totalDebit.toFixed(2)}</div>
+                <div className="text-sm sm:text-base font-bold text-[#1a1814]">{totalDebit.toFixed(dp)}</div>
               </div>
               <div>
                 <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Credit</div>
-                <div className="text-sm sm:text-base font-bold text-[#1a1814]">{totalCredit.toFixed(2)}</div>
+                <div className="text-sm sm:text-base font-bold text-[#1a1814]">{totalCredit.toFixed(dp)}</div>
               </div>
               <div className="border-l border-[#ede9e2] pl-2 sm:pl-4">
                 <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Diff</div>
                 <div className={`text-sm sm:text-base font-bold ${balanced ? "text-emerald-600" : "text-red-600"}`}>
-                  {difference.toFixed(2)}
+                  {difference.toFixed(dp)}
                 </div>
               </div>
             </div>
