@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-05-25 · **Version:** 2.0
+**Last updated:** 2026-06-13 · **Version:** 2.5
 
 ---
 
@@ -17,6 +17,8 @@
 7. [Inventory Management](#7-inventory-management)
 8. [Bank Reconciliation](#8-bank-reconciliation)
 9. [Financial Reporting](#9-financial-reporting)
+   - 9.1 [Dashboard Quick Actions & KPIs](#91-dashboard-quick-actions--kpis)
+   - 9.7 [Customizing Your Dashboard](#97-customizing-your-dashboard)
 10. [Period Close](#10-period-close)
 11. [Recurring Journal Entries](#11-recurring-journal-entries)
 12. [Bulk Actions](#12-bulk-actions)
@@ -453,6 +455,8 @@ All reports are **live from the GL** — always current, no batch jobs.
 | Product Ledger | `/products/ledger` | IAS 2.36(d) |
 | Inventory Performance | `/inventory/performance` | IAS 2.36 |
 
+> **Cash Flow tie-out (v2.5+)** — The Cash Flow Statement (**Reports → Cash Flow**) now shows a **reconciling row** at the bottom. If the classified cash movements do not fully account for the change in bank balance, the unclassified amount is highlighted in amber. A ✓ indicator appears when the statement is fully reconciled (per IAS 7).
+
 ### 9.2 AR Aging & AP Aging (dedicated pages)
 
 **AR Aging** (`/aging/receivable`) and **AP Aging** (`/aging/payable`) show outstanding balances split into **Current / 1–30 / 31–60 / 61–90 / 90+ days** buckets. Click a customer or vendor row to drill directly to their ledger. (Under **Reports**.)
@@ -500,6 +504,57 @@ The dashboard also shows the following KPIs:
 - **Low Stock Items** — count with link to low-stock filter
 - **AR Aging Chart** — 5-bucket mini-chart
 - **Recent Transactions** — last 10 JVs
+
+### 9.7 Customizing Your Dashboard
+
+**(v2.5+)** The Dashboard is fully customizable — rearrange, resize, add, and remove widgets to suit your workflow. Each user's layout is saved independently, so your arrangement does not affect other users' dashboards.
+
+#### Entering and Exiting Customize Mode
+
+Click the **pencil / customize icon** (top-right of the Dashboard) to enter customize mode. A toolbar appears at the top of the page. When you are done:
+
+- Click **Done** to save all changes.
+- Click **Cancel** to discard all changes and revert to the previous layout.
+
+#### Rearranging and Resizing Widgets
+
+While in customize mode:
+- **Drag** a widget by its header to move it to a new position in the grid.
+- **Drag a corner** of a widget to resize it.
+- Click the **× button** on a widget to remove it from the dashboard.
+
+#### Per-Breakpoint Layouts
+
+The dashboard maintains **separate layouts for Desktop, Tablet, and Phone**. The customize toolbar displays which breakpoint you are currently editing — **"Desktop layout"**, **"Tablet layout"**, or **"Phone layout"**. To edit the tablet or phone layout, narrow your browser window until the toolbar label changes, then rearrange widgets in that view. Layouts for each breakpoint are saved independently.
+
+#### Adding Widgets
+
+Click **+ Add widget** in the customize toolbar to open the **Add panel**. The panel has two tabs:
+
+| Tab | Contents |
+|-----|----------|
+| **Widgets** | Data widgets: Bank Balances, Top Products, Inventory Summary |
+| **Shortcuts** | Any navigation page pinned as a quick-access tile |
+
+Click any item in the panel to add it to the dashboard.
+
+**Data widgets available:**
+
+| Widget | What it shows |
+|--------|--------------|
+| **Bank Balances** | Live balances across all your bank accounts at a glance |
+| **Top Products** | Your 5 best-selling products by revenue |
+| **Inventory Summary** | Total stock value and total on-hand quantity |
+
+#### Shortcut Tiles
+
+Pin any navigation page (Invoices, Bills, Bank Accounts, Products, etc.) as a tile directly on your dashboard. Where applicable, shortcut tiles display a **live metric badge** — for example, "12 overdue" on the Invoices tile, or "£5,420 total" on the Bank Accounts tile. Badges update automatically each time the dashboard loads.
+
+#### Resetting to Defaults
+
+Click **Reset all** in the customize toolbar to remove all customization and restore the default grid layout for every breakpoint.
+
+> **Note** — layouts are tied to your user account. Resetting affects only your own dashboard, not your colleagues'.
 
 ---
 

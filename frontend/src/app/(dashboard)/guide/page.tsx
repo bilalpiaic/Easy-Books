@@ -8,7 +8,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory, Link2, Radio, Keyboard, ListChecks,
+  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_f
 
 const TABS: Tab[] = [
   { id: "getting-started",  label: "Getting Started",        icon: LogIn,           shortLabel: "Start"    },
+  { id: "dashboard",        label: "Dashboard Customization", icon: LayoutDashboard, shortLabel: "Dash"     },
   { id: "coa",              label: "Chart of Accounts",      icon: BarChart3,       shortLabel: "COA"      },
   { id: "invoicing",        label: "Invoicing",              icon: FileSignature,   shortLabel: "Invoices" },
   { id: "billing",          label: "Billing",                icon: Receipt,         shortLabel: "Bills"    },
@@ -1844,10 +1845,79 @@ function BudgetsPanel() {
   )
 }
 
+function DashboardCustomizationPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+        The dashboard is fully customizable per user. Your layout is saved to your account —
+        other users see their own arrangement.
+      </p>
+
+      <SectionHeading>Entering customize mode</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Click the customize icon (pencil/grid icon) in the dashboard toolbar to enter customize
+        mode. The editing bar appears at the top showing which layout you&apos;re editing
+        (<b>Desktop layout</b>, <b>Tablet layout</b>, or <b>Phone layout</b>).
+      </p>
+
+      <SectionHeading>Rearranging widgets</SectionHeading>
+      <StepList steps={[
+        "Drag any widget by its header/body to move it to a new position in the grid.",
+        "Drag the resize handle (bottom-right corner) to make it taller or wider.",
+        "Click × on a widget to remove it from the grid.",
+      ]} />
+
+      <SectionHeading>Per-breakpoint layouts</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Each screen size has its own saved arrangement:
+      </p>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Desktop</b> (≥1024 px) — 4-column grid</li>
+        <li><b>Tablet</b> (640–1023 px) — 2-column grid</li>
+        <li><b>Phone</b> (&lt;640 px) — 1-column grid</li>
+      </ul>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-2">
+        Resize your browser to switch breakpoints. The toolbar label updates to show which
+        layout you&apos;re editing. Desktop edits don&apos;t affect your phone layout until you
+        edit it directly.
+      </p>
+
+      <SectionHeading>Adding widgets and shortcuts</SectionHeading>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+        Click <b>+ Add widget</b> in the toolbar to open the Add panel:
+      </p>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Widgets tab</b> — Bank Balances, Top Products, Inventory Summary — self-fetching data widgets</li>
+        <li><b>Shortcuts tab</b> — pin any navigation page as a quick-access tile (e.g., Invoices, Bills, Products, Bank Accounts)</li>
+      </ul>
+      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-2">
+        Shortcut tiles show live metric badges where available (e.g., overdue count, total outstanding).
+      </p>
+
+      <SectionHeading>Saving and resetting</SectionHeading>
+      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Done</b> — saves your layout and exits customize mode</li>
+        <li><b>Cancel</b> — discards unsaved changes</li>
+        <li><b>Reset all</b> — removes all customizations and returns to the default grid for all screen sizes</li>
+      </ul>
+
+      <TipCallout>
+        Your dashboard layout is saved per-user. Team members each have their own arrangement
+        and can customize independently.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p><b>Reset all</b> clears ALL breakpoint layouts — desktop, tablet, and phone. There is no undo once saved.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
 // ── Panel map ─────────────────────────────────────────────────────────────────
 
 const PANEL_MAP: Record<string, React.ReactNode> = {
   "getting-started": <GettingStartedPanel />,
+  "dashboard":       <DashboardCustomizationPanel />,
   "coa":             <CoaPanel />,
   "invoicing":       <InvoicingPanel />,
   "billing":         <BillingPanel />,
