@@ -14,6 +14,7 @@ from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 router = APIRouter(prefix="/api/import", tags=["import"])
 
+VALID_VOUCHER_TYPES = {"JV", "SL", "PU", "CR", "CP", "CN", "DN"}
 
 SAMPLE_CSVS: dict[str, list[list[str]]] = {
     "transactions": [
@@ -175,7 +176,6 @@ def _validate_products(rows: list[dict], session: Session, tenant_id: int):
 
 
 def _validate_transactions(rows: list[dict], session: Session, tenant_id: int):
-    VALID_VOUCHER_TYPES = {"JV", "SL", "PU", "CR", "CP", "CN", "DN"}
     errors: list[dict] = []
     groups: dict[tuple, list] = {}
     for i, row in enumerate(rows, start=2):
@@ -454,7 +454,6 @@ async def import_products(
 async def import_transactions(
     file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
-    VALID_VOUCHER_TYPES = {"JV", "SL", "PU", "CR", "CP", "CN", "DN"}
     rows = _parse_csv(await file.read())
     errors: list[dict] = []
     imported = 0

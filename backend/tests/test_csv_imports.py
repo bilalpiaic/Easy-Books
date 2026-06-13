@@ -146,3 +146,42 @@ def test_import_transactions_voucher_type(client, admin_headers):
     journal = client.get("/api/reports/journal?limit=50", headers=h).json()
     rows = journal if isinstance(journal, list) else journal.get("items", journal)
     assert any(row["voucher_type"] == "SL" for row in rows), rows
+
+
+def test_import_transactions_default_voucher_type(client, admin_headers):
+    """Transactions without voucher_type column default to JV."""
+    h = admin_headers
+    acct1 = client.post("/api/accounts", headers=h, json={"code": "9830", "name": "Cash Def", "type": "Asset"}).json()
+    acct2 = client.post("/api/accounts", headers=h, json={"code": "9840", "name": "Eq Def", "type": "Equity"}).json()
+
+    r = _upload(client, "transactions", [
+        ["date",       "description",   "account_code", "debit", "credit"],
+        ["2025-04-01", "Default VT",    "9830",         "2000",  "0"],
+        ["2025-04-01", "Default VT",    "9840",         "0",     "2000"],
+    ], h)
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 1
+    assert r.json()["errors"] == []
+
+    journal = client.get("/api/reports/journal?limit=50", headers=h).json()
+    rows = journal if isinstance(journal, list) else journal.get("items", journal)
+    matching = [row for row in rows if row.get("description") == "Default VT"]
+    assert all(row["voucher_type"] == "JV" for row in matching), matching
+
+
+def test_import_transactions_invalid_voucher_type(client, admin_headers):
+    """An invalid voucher_type causes a group-level error; transaction not created."""
+    h = admin_headers
+    acct1 = client.post("/api/accounts", headers=h, json={"code": "9850", "name": "Cash Inv", "type": "Asset"}).json()
+    acct2 = client.post("/api/accounts", headers=h, json={"code": "9860", "name": "Rev Inv", "type": "Revenue"}).json()
+
+    r = _upload(client, "transactions", [
+        ["date",       "description",    "account_code", "debit", "credit", "voucher_type"],
+        ["2025-05-01", "Bad VT entry",   "9850",         "1000",  "0",      "XX"],
+        ["2025-05-01", "Bad VT entry",   "9860",         "0",     "1000",   "XX"],
+    ], h)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["imported"] == 0
+    assert len(body["errors"]) == 1
+    assert "XX" in body["errors"][0]["message"]
