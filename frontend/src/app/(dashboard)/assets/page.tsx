@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Building2, Play } from "lucide-react"
+import { Plus, Building2, Play, Archive } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
@@ -102,6 +102,16 @@ export default function AssetsPage() {
     }
   }
 
+  async function disposeAsset(assetId: number, name: string) {
+    if (!confirm(`Mark "${name}" as disposed? This cannot be undone.`)) return
+    try {
+      await apiFetch(`/api/assets/${assetId}/dispose`, { method: 'PATCH' })
+      load()
+    } catch (err) {
+      alert((err as Error).message)
+    }
+  }
+
   async function runDepreciation(assetId: number) {
     try {
       const result = await apiFetch<{ jv_number?: string; depreciation_amount?: number; message?: string }>(
@@ -137,7 +147,7 @@ export default function AssetsPage() {
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee]">
             <tr>
-              {['Name', 'Date', 'Cost', 'Accum. Depr', 'Book Value', 'Method', 'Depreciate'].map(h => (
+              {['Name', 'Date', 'Cost', 'Accum. Depr', 'Book Value', 'Method', 'Actions'].map(h => (
                 <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
               ))}
             </tr>
@@ -154,15 +164,19 @@ export default function AssetsPage() {
                 </td>
               </tr>
             ) : items.map(a => (
-              <tr key={a.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="ui-td font-medium"><DocLink type="fixed_asset" id={a.id} label={a.name} className="font-medium" />{a.code && <span className="ml-2 text-xs text-[#1a1814]/40">{a.code}</span>}</td>
+              <tr key={a.id} className={`border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50${a.is_disposed ? ' opacity-50' : ''}`}>
+                <td className="ui-td font-medium">
+                  <DocLink type="fixed_asset" id={a.id} label={a.name} className="font-medium" />
+                  {a.code && <span className="ml-2 text-xs text-[#1a1814]/40">{a.code}</span>}
+                  {a.is_disposed && <span className="ml-2 text-[10px] bg-[#1a1814]/10 text-[#1a1814]/50 rounded px-1.5 py-0.5 uppercase tracking-wide">Disposed</span>}
+                </td>
                 <td className="ui-td text-[#1a1814]/60">{a.acquisition_date}</td>
                 <td className="ui-td font-mono">{fmt(a.acquisition_cost)}</td>
                 <td className="ui-td font-mono text-red-500">({fmt(a.accumulated_depreciation)})</td>
                 <td className="ui-td font-mono font-bold">{fmt(a.book_value)}</td>
                 <td className="ui-td text-xs text-[#1a1814]/50 capitalize">{a.method.replace('_', ' ')}</td>
                 <td className="ui-td">
-                  {deprTarget === a.id ? (
+                  {a.is_disposed ? null : deprTarget === a.id ? (
                     <div className="flex items-center gap-2">
                       <input type="date" value={deprDate} onChange={e => setDeprDate(e.target.value)}
                         className="border rounded px-2 py-1 text-xs" />
@@ -171,10 +185,16 @@ export default function AssetsPage() {
                       <button onClick={() => setDeprTarget(null)} className="text-xs text-[#1a1814]/40">✕</button>
                     </div>
                   ) : (
-                    <button onClick={() => setDeprTarget(a.id)}
-                      className="flex items-center gap-1 text-xs text-[#b8943f] hover:underline">
-                      <Play size={12} /> Run
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setDeprTarget(a.id)}
+                        className="flex items-center gap-1 text-xs text-[#b8943f] hover:underline">
+                        <Play size={12} /> Depreciate
+                      </button>
+                      <button onClick={() => disposeAsset(a.id, a.name)}
+                        className="flex items-center gap-1 text-xs text-[#1a1814]/40 hover:text-red-600 hover:underline">
+                        <Archive size={12} /> Dispose
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
