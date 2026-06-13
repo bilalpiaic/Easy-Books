@@ -19,21 +19,35 @@ interface Customer { id: number; name: string }
 export default function GrnPage() {
   const [grns, setGrns]           = useState<Grn[]>([])
   const [customers, setCustomers] = useState<Map<number, string>>(new Map())
+  const [customerList, setCustomerList] = useState<Customer[]>([])
+  const [filterCustomer, setFilterCustomer] = useState("")
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
 
-  useEffect(() => {
-    Promise.all([
-      apiFetch<{ items: Grn[] }>("/api/grn"),
-      apiFetch<{ items: Customer[] }>("/api/customers"),
-    ])
-      .then(([g, c]) => {
-        setGrns(g.items)
-        setCustomers(new Map(c.items.map(x => [x.id, x.name])))
-      })
+  const loadGrns = (custId?: string) => {
+    const params = new URLSearchParams()
+    if (custId) params.set("customer_id", custId)
+    apiFetch<{ items: Grn[] }>(`/api/grn${params.toString() ? `?${params}` : ""}`)
+      .then(g => setGrns(g.items))
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    apiFetch<{ items: Customer[] }>("/api/customers")
+      .then(c => {
+        setCustomerList(c.items)
+        setCustomers(new Map(c.items.map(x => [x.id, x.name])))
+      })
+      .catch(() => {})
+    loadGrns()
   }, [])
+
+  const handleCustomerFilter = (custId: string) => {
+    setFilterCustomer(custId)
+    setLoading(true)
+    loadGrns(custId || undefined)
+  }
 
   if (loading) return <p className="text-sm text-[#1a1814]/60">Loading…</p>
 
@@ -65,6 +79,28 @@ export default function GrnPage() {
           </button>
         </div>
       </header>
+
+      {/* Customer filter */}
+      <div className="flex items-center gap-3 print:hidden">
+        <select
+          value={filterCustomer}
+          onChange={e => handleCustomerFilter(e.target.value)}
+          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#b8943f]"
+        >
+          <option value="">All customers</option>
+          {customerList.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        {filterCustomer && (
+          <button
+            onClick={() => handleCustomerFilter("")}
+            className="text-sm text-[#1a1814]/50 hover:text-[#1a1814] underline"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
 
       <HelpCallout title="Why GRN is custodial, not a purchase" tone="tip">
         When a customer drops off fabric/material for you to process, it&apos;s never your asset —
