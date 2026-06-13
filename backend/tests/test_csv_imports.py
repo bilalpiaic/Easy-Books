@@ -122,3 +122,27 @@ def test_import_products_is_deferred(client, admin_headers):
     svc = next(p for p in items if p["code"] == "SV-001")
     assert svc["is_deferred"] is True
     assert svc["recognition_months"] == 6
+
+
+# ── Transactions ──────────────────────────────────────────────────────────────
+
+def test_import_transactions_voucher_type(client, admin_headers):
+    """A CSV with voucher_type=SL posts the transaction with that voucher series."""
+    h = admin_headers
+    # Create two leaf accounts for a balanced JV
+    ar = client.post("/api/accounts", headers=h, json={"code": "9810", "name": "AR Test", "type": "Asset"}).json()
+    rev = client.post("/api/accounts", headers=h, json={"code": "9820", "name": "Rev Test", "type": "Revenue"}).json()
+
+    r = _upload(client, "transactions", [
+        ["date",       "description", "account_code", "debit", "credit", "voucher_type"],
+        ["2025-03-01", "Test sale",   "9810",         "5000",  "0",      "SL"],
+        ["2025-03-01", "Test sale",   "9820",         "0",     "5000",   "SL"],
+    ], h)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["imported"] == 1, body
+    assert body["errors"] == []
+
+    journal = client.get("/api/reports/journal?limit=50", headers=h).json()
+    rows = journal if isinstance(journal, list) else journal.get("items", journal)
+    assert any(row["voucher_type"] == "SL" for row in rows), rows

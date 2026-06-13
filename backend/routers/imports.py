@@ -17,11 +17,11 @@ router = APIRouter(prefix="/api/import", tags=["import"])
 
 SAMPLE_CSVS: dict[str, list[list[str]]] = {
     "transactions": [
-        ["date", "description", "account_code", "debit", "credit"],
-        ["2025-01-01", "Cash sale", "1000", "5000", "0"],
-        ["2025-01-01", "Cash sale", "4000", "0", "5000"],
-        ["2025-01-02", "Office supplies", "5100", "1500", "0"],
-        ["2025-01-02", "Office supplies", "1000", "0", "1500"],
+        ["date",       "description",     "account_code", "debit", "credit", "voucher_type"],
+        ["2025-01-01", "Cash sale",        "1000",         "5000",  "0",      "SL"],
+        ["2025-01-01", "Cash sale",        "4000",         "0",     "5000",   "SL"],
+        ["2025-01-02", "Office supplies",  "5100",         "1500",  "0",      "CP"],
+        ["2025-01-02", "Office supplies",  "1000",         "0",     "1500",   "CP"],
     ],
     "accounts": [
         ["code", "name", "type", "parent_code", "is_group", "is_memo"],
@@ -175,6 +175,7 @@ def _validate_products(rows: list[dict], session: Session, tenant_id: int):
 
 
 def _validate_transactions(rows: list[dict], session: Session, tenant_id: int):
+    VALID_VOUCHER_TYPES = {"JV", "SL", "PU", "CR", "CP", "CN", "DN"}
     errors: list[dict] = []
     groups: dict[tuple, list] = {}
     for i, row in enumerate(rows, start=2):
@@ -187,6 +188,18 @@ def _validate_transactions(rows: list[dict], session: Session, tenant_id: int):
     valid = 0
     for (_date, _desc), group_rows in groups.items():
         group_errors = []
+
+        # Validate voucher_type (from first non-empty value in group)
+        for _, row in group_rows:
+            vt = (row.get("voucher_type") or "").strip().upper()
+            if vt:
+                if vt not in VALID_VOUCHER_TYPES:
+                    group_errors.append({
+                        "row": group_rows[0][0],
+                        "message": f"voucher_type '{vt}' is not valid; must be one of {sorted(VALID_VOUCHER_TYPES)}",
+                    })
+                break
+
         for i, row in group_rows:
             acct_code = (row.get("account_code") or "").strip()
             if not acct_code:
@@ -441,6 +454,7 @@ async def import_products(
 async def import_transactions(
     file: UploadFile, session: SessionDep, user: WriteUserDep,
 ):
+    VALID_VOUCHER_TYPES = {"JV", "SL", "PU", "CR", "CP", "CN", "DN"}
     rows = _parse_csv(await file.read())
     errors: list[dict] = []
     imported = 0
@@ -454,6 +468,24 @@ async def import_transactions(
         groups.setdefault((date, desc), []).append((i, row))
 
     for (date, desc), group_rows in groups.items():
+        # Resolve voucher_type from first non-empty value in group
+        voucher_type = "JV"
+        invalid_vt = False
+        for _, row in group_rows:
+            vt = (row.get("voucher_type") or "").strip().upper()
+            if vt:
+                if vt not in VALID_VOUCHER_TYPES:
+                    errors.append({
+                        "row": group_rows[0][0],
+                        "message": f"voucher_type '{vt}' is not valid; must be one of {sorted(VALID_VOUCHER_TYPES)}",
+                    })
+                    invalid_vt = True
+                else:
+                    voucher_type = vt
+                break
+        if invalid_vt:
+            continue
+
         entries: list[EntryInput] = []
         group_errors = []
         for i, row in group_rows:
@@ -484,6 +516,7 @@ async def import_transactions(
             post_transaction(
                 session, user,
                 date=date, description=desc, entries=entries,
+                voucher_type=voucher_type,
                 audit_entity_type="transaction_import",
             )
             imported += 1
