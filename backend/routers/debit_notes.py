@@ -22,8 +22,9 @@ from routers.common import (
 from services.inventory import InventoryError, return_to_vendor
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/debit-notes", tags=["debit-notes"])
+router = APIRouter(prefix="/api/debit-notes", tags=["debit-notes"], dependencies=[perm_dep("debit_notes")])
 
 
 class DNLineCreate(BaseModel):

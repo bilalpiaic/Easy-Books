@@ -10,8 +10,9 @@ from models import Account, BankAccount, JournalEntry
 from services.money import D, ZERO
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/bank-accounts", tags=["bank-accounts"])
+router = APIRouter(prefix="/api/bank-accounts", tags=["bank-accounts"], dependencies=[perm_dep("bank_accounts")])
 
 
 class BankAccountCreate(BaseModel):

@@ -9,8 +9,9 @@ from sqlmodel import func, select
 from models import Customer, Invoice, InvoiceLine, PaymentReceived, Product
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit, mark_onboarding_step
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/customers", tags=["customers"])
+router = APIRouter(prefix="/api/customers", tags=["customers"], dependencies=[perm_dep("customers")])
 
 
 class CustomerCreate(BaseModel):

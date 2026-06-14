@@ -25,8 +25,9 @@ from routers.common import (
 from routers.payments import _refresh_bill_status, _refresh_invoice_status
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/advances", tags=["advances"])
+router = APIRouter(prefix="/api/advances", tags=["advances"], dependencies=[perm_dep("advances")])
 
 
 # ── DTOs ──────────────────────────────────────────────────────────────────────

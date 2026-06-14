@@ -22,7 +22,8 @@ from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
-router = APIRouter(tags=["invoices"])
+from services.permissions import perm_dep, apply_own_filter
+router = APIRouter(tags=["invoices"], dependencies=[perm_dep("invoices")])
 
 
 def _consume_product_or_bom(
@@ -153,6 +154,7 @@ def list_invoices(
         q = q.where(Invoice.issue_date <= date_to)
     if customer_id:
         q = q.where(Invoice.customer_id == customer_id)
+    q = apply_own_filter(q, Invoice, user, session)
 
     col = _SORTABLE.get(sort_by, Invoice.issue_date)
     q = q.order_by(asc(col) if sort_dir == "asc" else desc(col))
@@ -198,7 +200,7 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
     return {**inv.model_dump(), "lines": enriched_lines}
 
 
-@router.post("/api/invoices", status_code=201)
+@router.post("/api/invoices", status_code=201, dependencies=[perm_dep("invoices", "edit")])
 def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate):
     prefix_row = session.exec(
         select(Settings).where(
@@ -449,7 +451,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     return result
 
 
-@router.put("/api/invoices/{invoice_id}")
+@router.put("/api/invoices/{invoice_id}", dependencies=[perm_dep("invoices", "edit")])
 def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, body: InvoiceCreate):
     """Edit a draft or posted (unpaid, open-period) invoice.
 
@@ -793,7 +795,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     return result
 
 
-@router.patch("/api/invoices/{invoice_id}/status")
+@router.patch("/api/invoices/{invoice_id}/status", dependencies=[perm_dep("invoices", "edit")])
 def update_invoice_status(
     session: SessionDep, user: WriteUserDep, invoice_id: int, status: str
 ):
@@ -866,7 +868,7 @@ class BulkInvoiceAction(BaseModel):
     action: Literal["mark_sent", "void", "delete"]
 
 
-@router.post("/api/invoices/bulk")
+@router.post("/api/invoices/bulk", dependencies=[perm_dep("invoices", "edit")])
 def bulk_invoice_action(session: SessionDep, user: WriteUserDep, body: BulkInvoiceAction):
     """Bulk mark_sent / void / delete on a list of invoice IDs (tenant-scoped)."""
     invoices = session.exec(
@@ -913,7 +915,7 @@ def bulk_invoice_action(session: SessionDep, user: WriteUserDep, body: BulkInvoi
     return {"affected": affected, "errors": errors}
 
 
-@router.post("/api/invoices/{invoice_id}/payment-link")
+@router.post("/api/invoices/{invoice_id}/payment-link", dependencies=[perm_dep("invoices", "edit")])
 def create_payment_link(session: SessionDep, user: WriteUserDep, invoice_id: int):
     """Create a Stripe Checkout payment link for the invoice. G-12."""
     import os

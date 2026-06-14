@@ -20,6 +20,7 @@ from services.account_tree import build_account_tree
 from services.export_utils import stream_csv, stream_xlsx
 from services.money import D, ZERO, money
 
+from services.permissions import perm_dep, apply_own_filter
 from .common import CurrentUserDep, SessionDep
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])

@@ -10,8 +10,9 @@ from models import ExchangeRate
 from services.money import D
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/exchange-rates", tags=["exchange-rates"])
+router = APIRouter(prefix="/api/exchange-rates", tags=["exchange-rates"], dependencies=[perm_dep("exchange_rates")])
 
 
 class RateCreate(BaseModel):

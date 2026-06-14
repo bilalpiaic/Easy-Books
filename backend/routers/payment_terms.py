@@ -8,8 +8,9 @@ from sqlmodel import select
 from models import PaymentTerm
 
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/payment-terms", tags=["payment-terms"])
+router = APIRouter(prefix="/api/payment-terms", tags=["payment-terms"], dependencies=[perm_dep("payment_terms")])
 
 
 class PaymentTermCreate(BaseModel):

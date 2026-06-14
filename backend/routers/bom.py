@@ -19,8 +19,9 @@ from models import BomHeader, BomLine, Product, StockLocation
 from services.money import D
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/bom", tags=["bom"])
+router = APIRouter(prefix="/api/bom", tags=["bom"], dependencies=[perm_dep("bom")])
 
 _VALID_SOURCES = {"own_stock", "customer_supplied"}
 

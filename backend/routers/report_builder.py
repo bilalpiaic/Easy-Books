@@ -14,8 +14,9 @@ from routers.common import CurrentUserDep, SessionDep
 from services.export_utils import safe_cell as _safe_cell
 from services.report_engine import MAX_EXPORT_ROWS, ReportConfig, ReportError, run_report
 from services.report_sources import REGISTRY
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/report-builder", tags=["report-builder"])
+router = APIRouter(prefix="/api/report-builder", tags=["report-builder"], dependencies=[perm_dep("report_builder")])
 
 
 @router.get("/sources")

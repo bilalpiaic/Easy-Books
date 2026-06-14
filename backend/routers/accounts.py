@@ -13,8 +13,9 @@ from services.accounts import (
 )
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+router = APIRouter(prefix="/api/accounts", tags=["accounts"], dependencies=[perm_dep("accounts")])
 
 
 class AccountCreate(BaseModel):

@@ -14,8 +14,9 @@ from sqlmodel import func, select
 from models import Account, TaxCode
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/tax-codes", tags=["tax-codes"])
+router = APIRouter(prefix="/api/tax-codes", tags=["tax-codes"], dependencies=[perm_dep("tax_codes")])
 
 
 class TaxCodeCreate(BaseModel):

@@ -20,8 +20,9 @@ from models import Customer, CustomerRatePlan, Product, RatePlan
 from services.money import D
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/rate-plans", tags=["rate-plans"])
+router = APIRouter(prefix="/api/rate-plans", tags=["rate-plans"], dependencies=[perm_dep("rate_plans")])
 
 
 class RatePlanCreate(BaseModel):

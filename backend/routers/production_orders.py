@@ -33,12 +33,13 @@ from services.inventory import consume_stock, record_movement, record_purchase
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
+from services.permissions import perm_dep, apply_own_filter
 from .common import (
     CurrentUserDep, SessionDep, WriteUserDep,
     get_or_create_account, log_audit, next_number,
 )
 
-router = APIRouter(prefix="/api/production-orders", tags=["production-orders"])
+router = APIRouter(prefix="/api/production-orders", tags=["production-orders"], dependencies=[perm_dep("production_orders")])
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────

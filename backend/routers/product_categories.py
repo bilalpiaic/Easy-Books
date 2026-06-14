@@ -6,8 +6,9 @@ from sqlmodel import select
 
 from models import Product, ProductCategory
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/product-categories", tags=["product-categories"])
+router = APIRouter(prefix="/api/product-categories", tags=["product-categories"], dependencies=[perm_dep("product_categories")])
 
 
 class CategoryIn(BaseModel):

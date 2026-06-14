@@ -11,8 +11,9 @@ from services.money import D
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/import", tags=["import"])
+router = APIRouter(prefix="/api/import", tags=["import"], dependencies=[perm_dep("csv_import")])
 
 VALID_VOUCHER_TYPES = {"JV", "SL", "PU", "CR", "CP", "CN", "DN"}
 

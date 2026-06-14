@@ -11,8 +11,9 @@ from models import (
 from services.money import D, ZERO
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/reconciliations", tags=["reconciliations"])
+router = APIRouter(prefix="/api/reconciliations", tags=["reconciliations"], dependencies=[perm_dep("reconciliations")])
 
 
 class ReconciliationCreate(BaseModel):

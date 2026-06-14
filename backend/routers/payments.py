@@ -19,6 +19,7 @@ from services.money import D, money
 from services.posting import EntryInput, post_transaction
 from services.vouchers import classify_cash_account
 
+from services.permissions import perm_dep, apply_own_filter
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account
 
 router = APIRouter(tags=["payments"])
@@ -74,11 +75,12 @@ def _refresh_bill_status(session, bill: Bill) -> None:
     session.add(bill)
 
 
-@router.get("/api/payments-received")
+@router.get("/api/payments-received", dependencies=[perm_dep("payments_received")])
 def list_payments_received(
     session: SessionDep, user: CurrentUserDep, skip: int = 0, limit: int = 50
 ):
     q = select(PaymentReceived).where(PaymentReceived.tenant_id == user.tenant_id)
+    q = apply_own_filter(q, PaymentReceived, user, session)
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(
         q.order_by(PaymentReceived.payment_date.desc()).offset(skip).limit(limit)
@@ -86,7 +88,7 @@ def list_payments_received(
     return {"total": total, "items": items}
 
 
-@router.get("/api/payments-received/{payment_id}")
+@router.get("/api/payments-received/{payment_id}", dependencies=[perm_dep("payments_received")])
 def get_payment_received(
     session: SessionDep, user: CurrentUserDep, payment_id: int
 ):
@@ -120,7 +122,7 @@ def get_payment_received(
     return {**pay.model_dump(), "allocations": allocations}
 
 
-@router.post("/api/payments-received", status_code=201)
+@router.post("/api/payments-received", status_code=201, dependencies=[perm_dep("payments_received", "edit")])
 def create_payment_received(
     session: SessionDep, user: WriteUserDep, body: PaymentReceivedCreate
 ):
@@ -236,7 +238,7 @@ class BillPaymentCreate(BaseModel):
     allocations: List[AllocationLine] = []
 
 
-@router.get("/api/bill-payments/{payment_id}")
+@router.get("/api/bill-payments/{payment_id}", dependencies=[perm_dep("bill_payments")])
 def get_bill_payment(
     session: SessionDep, user: CurrentUserDep, payment_id: int
 ):
@@ -270,11 +272,12 @@ def get_bill_payment(
     return {**pay.model_dump(), "allocations": allocations}
 
 
-@router.get("/api/bill-payments")
+@router.get("/api/bill-payments", dependencies=[perm_dep("bill_payments")])
 def list_bill_payments(
     session: SessionDep, user: CurrentUserDep, skip: int = 0, limit: int = 50
 ):
     q = select(BillPayment).where(BillPayment.tenant_id == user.tenant_id)
+    q = apply_own_filter(q, BillPayment, user, session)
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(
         q.order_by(BillPayment.payment_date.desc()).offset(skip).limit(limit)
@@ -282,7 +285,7 @@ def list_bill_payments(
     return {"total": total, "items": items}
 
 
-@router.post("/api/bill-payments", status_code=201)
+@router.post("/api/bill-payments", status_code=201, dependencies=[perm_dep("bill_payments", "edit")])
 def create_bill_payment(
     session: SessionDep, user: WriteUserDep, body: BillPaymentCreate
 ):

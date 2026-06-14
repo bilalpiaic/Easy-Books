@@ -15,8 +15,9 @@ from models import InventoryLayer, Product, StockLocation, StockMovement
 from services.money import D
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/stock-locations", tags=["stock-locations"])
+router = APIRouter(prefix="/api/stock-locations", tags=["stock-locations"], dependencies=[perm_dep("stock_locations")])
 
 _VALID_TYPES = {"own", "customer_custodial", "wip"}
 

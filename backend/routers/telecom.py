@@ -40,9 +40,10 @@ from services.tracker_posting import (
     post_tracker_deposit,
 )
 
+from services.permissions import perm_dep
 from .common import CurrentUserDep, SessionDep, WriteUserDep
 
-router = APIRouter(tags=["telecom"], prefix="/api/telecom")
+router = APIRouter(tags=["telecom"], prefix="/api/telecom", dependencies=[perm_dep("telecom.tracker")])
 
 
 # ──────────────────────────────────────────────────────────────────────────

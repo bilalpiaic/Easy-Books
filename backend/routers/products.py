@@ -12,8 +12,9 @@ from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/products", tags=["products"])
+router = APIRouter(prefix="/api/products", tags=["products"], dependencies=[perm_dep("products")])
 
 
 class ProductCreate(BaseModel):

@@ -11,8 +11,9 @@ from routers.common import SessionDep, WriteUserDep, log_audit
 from services.depreciation import compute_depreciation
 from services.money import D, money
 from services.posting import EntryInput, post_transaction
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/assets", tags=["assets"])
+router = APIRouter(prefix="/api/assets", tags=["assets"], dependencies=[perm_dep("assets")])
 
 
 class AssetCreate(BaseModel):

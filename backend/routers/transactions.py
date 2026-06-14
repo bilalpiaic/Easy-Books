@@ -20,8 +20,9 @@ from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+router = APIRouter(prefix="/api/transactions", tags=["transactions"], dependencies=[perm_dep("journal_entry")])
 
 
 def _unwind_payment_received(session, user, pmt: PaymentReceived) -> None:

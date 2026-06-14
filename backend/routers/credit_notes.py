@@ -17,8 +17,9 @@ from routers.common import (
 from services.inventory import reverse_consumption
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/credit-notes", tags=["credit-notes"])
+router = APIRouter(prefix="/api/credit-notes", tags=["credit-notes"], dependencies=[perm_dep("credit_notes")])
 
 
 class CNLineCreate(BaseModel):

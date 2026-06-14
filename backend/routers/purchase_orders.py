@@ -11,8 +11,9 @@ from routers.common import AdminUserDep, SessionDep, WriteUserDep, log_audit, ne
 from services.money import D, money
 from services.posting import EntryInput, post_transaction
 from routers.common import get_or_create_account
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/purchase-orders", tags=["purchase-orders"])
+router = APIRouter(prefix="/api/purchase-orders", tags=["purchase-orders"], dependencies=[perm_dep("purchase_orders")])
 
 
 class POLineCreate(BaseModel):

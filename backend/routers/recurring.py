@@ -18,8 +18,9 @@ from services.money import D
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/recurring", tags=["recurring"])
+router = APIRouter(prefix="/api/recurring", tags=["recurring"], dependencies=[perm_dep("recurring")])
 
 
 class RecurringEntry(BaseModel):

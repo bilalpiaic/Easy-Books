@@ -9,8 +9,9 @@ from sqlmodel import func, select
 from models import Bill, BillPayment, Vendor
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/vendors", tags=["vendors"])
+router = APIRouter(prefix="/api/vendors", tags=["vendors"], dependencies=[perm_dep("vendors")])
 
 
 class VendorCreate(BaseModel):

@@ -7,8 +7,9 @@ from sqlmodel import func, select
 from models import AuditLog, User
 
 from .common import CurrentUserDep, SessionDep
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/audit-log", tags=["audit"])
+router = APIRouter(prefix="/api/audit-log", tags=["audit"], dependencies=[perm_dep("audit_log")])
 
 
 @router.get("")

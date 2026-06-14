@@ -15,7 +15,8 @@ from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
-router = APIRouter(tags=["bills"])
+from services.permissions import perm_dep, apply_own_filter
+router = APIRouter(tags=["bills"], dependencies=[perm_dep("bills")])
 
 
 class BillLineCreate(BaseModel):
@@ -94,6 +95,7 @@ def list_bills(
         q = q.where(Bill.bill_date <= date_to)
     if vendor_id:
         q = q.where(Bill.vendor_id == vendor_id)
+    q = apply_own_filter(q, Bill, user, session)
 
     col = _SORTABLE.get(sort_by, Bill.bill_date)
     q = q.order_by(asc(col) if sort_dir == "asc" else desc(col))
@@ -136,7 +138,7 @@ def get_bill(session: SessionDep, user: CurrentUserDep, bill_id: int):
     return {**bill.model_dump(), "lines": enriched_lines}
 
 
-@router.post("/api/bills", status_code=201)
+@router.post("/api/bills", status_code=201, dependencies=[perm_dep("bills", "edit")])
 def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     prefix_row = session.exec(
         select(Settings).where(
@@ -332,7 +334,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     return result
 
 
-@router.put("/api/bills/{bill_id}")
+@router.put("/api/bills/{bill_id}", dependencies=[perm_dep("bills", "edit")])
 def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: BillCreate):
     """Edit a draft or posted (unpaid, open-period) bill.
 
@@ -552,7 +554,7 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     return result
 
 
-@router.patch("/api/bills/{bill_id}/status")
+@router.patch("/api/bills/{bill_id}/status", dependencies=[perm_dep("bills", "edit")])
 def update_bill_status(
     session: SessionDep, user: WriteUserDep, bill_id: int, status: str
 ):
@@ -581,7 +583,7 @@ class BulkBillAction(BaseModel):
     action: Literal["mark_received", "void", "delete"]
 
 
-@router.post("/api/bills/bulk")
+@router.post("/api/bills/bulk", dependencies=[perm_dep("bills", "edit")])
 def bulk_bill_action(session: SessionDep, user: WriteUserDep, body: BulkBillAction):
     """Bulk mark_received / void / delete on a list of bill IDs (tenant-scoped)."""
     bills = session.exec(

@@ -32,8 +32,9 @@ from models import (
 from services.money import D, money
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(tags=["bank-imports"])
+router = APIRouter(tags=["bank-imports"], dependencies=[perm_dep("bank_imports")])
 
 
 def _parse_csv(content: str) -> list[dict]:

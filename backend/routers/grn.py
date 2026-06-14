@@ -23,8 +23,9 @@ from .common import (
     get_or_create_account, log_audit, next_number,
 )
 from models import InventoryLayer
+from services.permissions import perm_dep, apply_own_filter
 
-router = APIRouter(prefix="/api/grn", tags=["grn"])
+router = APIRouter(prefix="/api/grn", tags=["grn"], dependencies=[perm_dep("grn")])
 
 
 class GRNLineIn(BaseModel):
