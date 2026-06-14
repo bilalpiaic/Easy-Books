@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Clock, Plus, Pencil, Trash2, Check, X } from "lucide-react"
+import { Clock, Plus, Pencil, Trash2, Check, X, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { downloadCSV } from "@/lib/utils"
 
 interface PaymentTerm {
   id: number
@@ -92,10 +93,19 @@ export default function PaymentTermsPage() {
             <p className="text-sm text-[#1a1814]/60">Net-day terms assigned to customers and vendors.</p>
           </div>
         </div>
-        <button onClick={openCreate}
-          className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
-          <Plus className="w-4 h-4" /> New Term
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('payment-terms.csv', terms.map(t => ({ Code: t.code, Name: t.name, Days: t.days })))}
+            disabled={terms.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <button onClick={openCreate}
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
+            <Plus className="w-4 h-4" /> New Term
+          </button>
+        </div>
       </header>
 
       {terms.length === 0 ? (

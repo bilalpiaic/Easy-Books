@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight, Pencil } from 'lucide-react'
+import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight, Pencil, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useDp } from '@/context/SettingsContext'
+import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
 
 interface RecurringEntry {
@@ -192,6 +193,13 @@ export default function RecurringPage() {
           <p className="text-sm text-black/75 mt-1">Scheduled journal entries that post automatically</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => downloadCSV('recurring-templates.csv', templates.map(t => ({ Name: t.name, Description: t.description ?? '', Frequency: FREQ_LABELS[t.frequency] ?? t.frequency, "Next Run": t.next_run, "Last Run": t.last_run ?? '', Active: t.is_active ? 'Yes' : 'No' })))}
+            disabled={templates.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button
             onClick={handleRunDue}
             disabled={running}

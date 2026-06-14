@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarCheck, Plus, Lock, RotateCcw, Eye } from "lucide-react"
+import { CalendarCheck, Plus, Lock, RotateCcw, Eye, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 
 interface Period {
   id: number
@@ -104,14 +105,23 @@ export default function PeriodClosePage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#1a1814] flex items-center justify-center flex-shrink-0">
-          <CalendarCheck className="w-5 h-5 text-[#ffd966]" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#1a1814] flex items-center justify-center flex-shrink-0">
+            <CalendarCheck className="w-5 h-5 text-[#ffd966]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-serif text-[#1a1814]">Period Close</h1>
+            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mt-0.5">Soft lock (monthly/quarterly) · Year-end P&L → Retained Earnings</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-serif text-[#1a1814]">Period Close</h1>
-          <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mt-0.5">Soft lock (monthly/quarterly) · Year-end P&L → Retained Earnings</p>
-        </div>
+        <button
+          onClick={() => downloadCSV('periods.csv', periods.map(p => ({ Name: p.name ?? '', "Period Start": p.period_start, "Period End": p.period_end, Status: p.is_locked ? 'Locked' : 'Open' })))}
+          disabled={periods.length === 0}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+        >
+          <Download className="w-4 h-4" /> CSV
+        </button>
       </div>
 
       <div className="bg-white border border-[#ede9e2] rounded-xl p-4 flex flex-wrap items-center gap-3">
