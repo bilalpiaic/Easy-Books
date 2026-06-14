@@ -19,6 +19,7 @@ const TITLE_MAP: Record<string, string> = {
   "/ledger":           "General Ledger",
   "/coa":              "Chart of Accounts",
   "/invoices":         "Invoices",
+  "/commissions":      "Sales Commissions",
   "/customers":        "Customers",
   "/customers/":       "Customer",
   "/payments-received":"Payments Received",

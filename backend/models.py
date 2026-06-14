@@ -122,8 +122,40 @@ class Settings(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", primary_key=True)
     key: str = Field(primary_key=True)
     value: str
+    tenant: "Tenant" = Relationship(back_populates="settings")
 
-    tenant: Tenant = Relationship(back_populates="settings")
+
+class CommissionPlan(SQLModel, table=True):
+    """Per-user commission configuration. A single active plan per user at a time."""
+    __tablename__ = "commission_plan"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    rate: Decimal = Field(sa_column=Column(Numeric(10, 4), nullable=False))  # % of recovery
+    sales_target: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    recovery_target: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    target_bonus: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    effective_from: str = Field(index=True)  # YYYY-MM-DD
+    effective_to: Optional[str] = None       # null = open-ended
+    active: bool = Field(default=True)
+
+
+class CommissionLedger(SQLModel, table=True):
+    """Computed monthly commission record for a sales person. One row per user per period."""
+    __tablename__ = "commission_ledger"
+    __table_args__ = (UniqueConstraint("tenant_id", "user_id", "period", name="uq_commission_period"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    period: str = Field(index=True)               # YYYY-MM
+    total_invoiced: Decimal = Field(sa_column=Column(Numeric(18, 4), nullable=False, server_default="0"))
+    total_recovered: Decimal = Field(sa_column=Column(Numeric(18, 4), nullable=False, server_default="0"))
+    rate: Decimal = Field(sa_column=Column(Numeric(10, 4), nullable=False))
+    commission_amount: Decimal = Field(sa_column=Column(Numeric(18, 4), nullable=False, server_default="0"))
+    bonus_amount: Decimal = Field(sa_column=Column(Numeric(18, 4), nullable=False, server_default="0"))
+    total_payable: Decimal = Field(sa_column=Column(Numeric(18, 4), nullable=False, server_default="0"))
+    status: str = Field(default="draft")          # draft | approved | posted
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
 
 
 class UserDashboardLayout(SQLModel, table=True):
@@ -284,6 +316,7 @@ class Invoice(SQLModel, table=True):
     payment_link_url: Optional[str] = None
     payment_link_status: Optional[str] = None  # "unpaid" | "paid"
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    assigned_to_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
 
 class Bill(SQLModel, table=True):

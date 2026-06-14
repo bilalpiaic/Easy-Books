@@ -25,7 +25,7 @@ from routers import (
     product_categories, production_orders, products, purchase_orders, rate_plans,
     reconciliations, recurring, report_builder, reports, settings, stock_locations,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
-    permissions,
+    permissions, commissions,
 )
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
@@ -94,6 +94,7 @@ _ROUTERS = [
     backup.router,
     admin.router,
     permissions.router,
+    commissions.router,
 ]
 
 for r in _ROUTERS:

@@ -29,6 +29,7 @@ export const NAV: NavItem[] = [
   { label: "Chart of Accounts",href: "/coa",               icon: TableProperties,  section: "Ledger" },
   { label: "Analytic Accounts",href: "/analytic-accounts", icon: Layers,           section: "Ledger" },
   { label: "Invoices",         href: "/invoices",          icon: FileSignature,    section: "Receivable" },
+  { label: "Commissions",      href: "/commissions",        icon: Percent,          section: "Receivable" },
   { label: "Credit Notes",     href: "/credit-notes",      icon: Receipt,          section: "Receivable" },
   { label: "Customers",        href: "/customers",         icon: Users,            section: "Receivable" },
   { label: "Payments Received",href: "/payments-received", icon: ArrowDownLeft,    section: "Receivable" },

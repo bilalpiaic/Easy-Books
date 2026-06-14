@@ -96,6 +96,7 @@ class InvoiceCreate(BaseModel):
     revenue_account_id: Optional[int] = None
     currency: Optional[str] = None       # defaults to tenant base
     exchange_rate: Optional[Decimal] = None  # override; else resolved from ExchangeRate
+    assigned_to_id: Optional[int] = None  # sales person (for commission tracking)
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -284,6 +285,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         ar_account_id=body.ar_account_id,
         revenue_account_id=body.revenue_account_id,
         created_by_id=user.id,
+        assigned_to_id=body.assigned_to_id,
     )
     session.add(invoice)
     session.flush()
@@ -646,6 +648,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.exchange_rate = fx_rate
     inv.ar_account_id = body.ar_account_id
     inv.revenue_account_id = body.revenue_account_id
+    inv.assigned_to_id = body.assigned_to_id
     session.add(inv)
     session.flush()
 

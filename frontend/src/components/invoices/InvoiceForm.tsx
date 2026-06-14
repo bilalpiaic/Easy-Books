@@ -22,10 +22,12 @@ export interface InvoiceFull {
   revenue_account_id: number | null
   currency: string
   exchange_rate: number
+  assigned_to_id: number | null
   lines: (LineItem & { tax_code_id?: number | null })[]
 }
 
 interface Customer { id: number; name: string }
+interface StaffUser { id: number; name: string; email: string }
 interface Account { id: number; code: string; name: string; type: string }
 interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number }
 interface PaymentTerm { id: number; code: string; name: string; days: number }
@@ -44,6 +46,7 @@ interface FormState {
   revenue_account_id: string
   currency: string
   exchange_rate: string
+  assigned_to_id: string
 }
 
 const emptyForm: FormState = {
@@ -51,6 +54,7 @@ const emptyForm: FormState = {
   due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
   ar_account_id: '', revenue_account_id: '',
   currency: 'PKR', exchange_rate: '1',
+  assigned_to_id: '',
 }
 
 interface Props {
@@ -69,6 +73,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [staff, setStaff] = useState<StaffUser[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
@@ -83,9 +88,10 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
       apiFetch<PaymentTerm[]>('/api/payment-terms'),
       apiFetch<{ total: number; items: TaxCodeOption[] }>('/api/tax-codes?limit=100'),
-    ]).then(([c, a, p, terms, tc]) => {
+      apiFetch<StaffUser[]>('/api/commissions/staff'),
+    ]).then(([c, a, p, terms, tc, s]) => {
       setCustomers(c.items); setAccounts(a.items); setProducts(p.items)
-      setPaymentTerms(terms); setTaxCodes(tc.items)
+      setPaymentTerms(terms); setTaxCodes(tc.items); setStaff(s)
       if (mode === 'create' && initialCustomerId) {
         const cust = c.items.find((x: Customer) => x.id === initialCustomerId)
         if (cust) setForm(f => ({ ...f, customer_id: String(cust.id), customer_name: cust.name }))
@@ -109,6 +115,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         revenue_account_id: invoice.revenue_account_id ? String(invoice.revenue_account_id) : '',
         currency: invoice.currency ?? 'PKR',
         exchange_rate: String(invoice.exchange_rate ?? 1),
+        assigned_to_id: invoice.assigned_to_id ? String(invoice.assigned_to_id) : '',
       })
       setLines((invoice.lines ?? []).map(l => ({
         product_id: l.product_id ?? undefined,
@@ -172,6 +179,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
       currency: form.currency || settings.currency,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
+      assigned_to_id: form.assigned_to_id ? parseInt(form.assigned_to_id) : null,
     }
     try {
       if (mode === 'edit' && invoice) {
@@ -258,11 +266,21 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
           </div>
         </div>
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Description</label>
-          <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            placeholder="e.g. Consulting services — May 2026"
-            className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Description</label>
+            <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="e.g. Consulting services — May 2026"
+              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Sales Person <span className="font-normal normal-case text-[#1a1814]/40">(optional)</span></label>
+            <select value={form.assigned_to_id} onChange={e => setForm(p => ({ ...p, assigned_to_id: e.target.value }))}
+              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              <option value="">None</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

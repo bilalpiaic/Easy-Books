@@ -19,6 +19,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "payments_received":      {"label": "Payments Received",       "category": "Receivable"},
     "customers":              {"label": "Customers",               "category": "Receivable"},
     "customer_ledger":        {"label": "Customer Ledger",         "category": "Receivable"},
+    "commissions":            {"label": "Sales Commissions",       "category": "Receivable"},
     # Payable
     "bills":                  {"label": "Purchase Bills",          "category": "Payable"},
     "debit_notes":            {"label": "Debit Notes",             "category": "Payable"},
