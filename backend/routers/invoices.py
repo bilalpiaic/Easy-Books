@@ -10,7 +10,7 @@ from sqlmodel import Session, asc, desc, func, select
 
 from datetime import timedelta
 
-from models import Account, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
+from models import Account, BomHeader, BomLine, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
 from services.deferred import (
     plan_deferral, resolve_deferred_account, create_schedules,
     has_any_recognition, reverse_schedules,
@@ -23,6 +23,49 @@ from services.posting import EntryInput, post_transaction
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
 router = APIRouter(tags=["invoices"])
+
+
+def _consume_product_or_bom(
+    session: Session, tenant_id: int, product: Product,
+    qty: Decimal, block_negative: bool, source_doc_id: int,
+) -> Decimal:
+    """Consume inventory for an invoice line.
+
+    If the product has an active BOM with explode_on_invoice=True, consume
+    each required component proportionally. Otherwise consume the product itself.
+    Returns total COGS amount.
+    """
+    bom = session.exec(
+        select(BomHeader).where(
+            BomHeader.tenant_id == tenant_id,
+            BomHeader.output_product_id == product.id,
+            BomHeader.is_active == True,  # noqa: E712
+            BomHeader.explode_on_invoice == True,  # noqa: E712
+        )
+    ).first()
+
+    if bom is None:
+        return consume_stock(
+            session, tenant_id=tenant_id, product_id=product.id,
+            qty=qty, block_negative=block_negative, source_doc_id=source_doc_id,
+        )
+
+    # BOM explosion: consume each required component scaled by (qty / output_qty)
+    lines = session.exec(
+        select(BomLine).where(BomLine.bom_id == bom.id, BomLine.is_optional == False)  # noqa: E712
+    ).all()
+    scale = D(qty) / D(bom.output_qty)
+    total_cogs = D("0")
+    for ln in lines:
+        if ln.source == "own_stock":
+            total_cogs += consume_stock(
+                session, tenant_id=tenant_id,
+                product_id=ln.component_product_id,
+                qty=D(ln.qty_per_output) * scale,
+                block_negative=block_negative,
+                source_doc_id=source_doc_id,
+            )
+    return total_cogs
 
 
 # ── DTOs ──────────────────────────────────────────────────────────────────────
@@ -283,13 +326,9 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
                     )
                 ).first()
                 if prod and prod.product_type == "stock":
-                    total_cogs += consume_stock(
-                        session,
-                        tenant_id=user.tenant_id,
-                        product_id=prod.id,
-                        qty=D(line_data.qty),
-                        block_negative=block_negative,
-                        source_doc_id=invoice.id,
+                    total_cogs += _consume_product_or_bom(
+                        session, user.tenant_id, prod,
+                        D(line_data.qty), block_negative, invoice.id,
                     )
     except InventoryError as e:
         session.rollback()
@@ -631,11 +670,9 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                     )
                 ).first()
                 if prod and prod.product_type == "stock":
-                    total_cogs += consume_stock(
-                        session, tenant_id=user.tenant_id,
-                        product_id=prod.id, qty=D(line_data.qty),
-                        block_negative=block_negative,
-                        source_doc_id=inv.id,
+                    total_cogs += _consume_product_or_bom(
+                        session, user.tenant_id, prod,
+                        D(line_data.qty), block_negative, inv.id,
                     )
     except InventoryError as e:
         session.rollback()

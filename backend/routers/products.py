@@ -27,6 +27,7 @@ class ProductCreate(BaseModel):
     category_id: Optional[int] = None
     is_deferred: bool = False
     recognition_months: int = 12
+    hs_code: Optional[str] = None
     opening_qty: Decimal = Decimal("0")
     opening_cost: Decimal = Decimal("0")
 

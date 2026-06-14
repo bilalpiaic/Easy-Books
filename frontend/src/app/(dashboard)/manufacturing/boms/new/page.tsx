@@ -30,10 +30,11 @@ export default function NewBomPage() {
   const [locations, setLocations]   = useState<StockLocation[]>([])
   const [loadErr, setLoadErr]       = useState<string | null>(null)
 
-  const [outputProductId, setOutputProductId] = useState("")
-  const [outputQty, setOutputQty]             = useState("1")
-  const [description, setDescription]         = useState("")
-  const [lines, setLines]                     = useState<LineState[]>([emptyLine()])
+  const [outputProductId, setOutputProductId]       = useState("")
+  const [outputQty, setOutputQty]                   = useState("1")
+  const [description, setDescription]               = useState("")
+  const [explodeOnInvoice, setExplodeOnInvoice]     = useState(false)
+  const [lines, setLines]                           = useState<LineState[]>([emptyLine()])
 
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState<string | null>(null)
@@ -65,6 +66,7 @@ export default function NewBomPage() {
         body: JSON.stringify({
           output_product_id: parseInt(outputProductId),
           output_qty:        oQty,
+          explode_on_invoice: explodeOnInvoice,
           description:       description.trim() || undefined,
           lines: validLines.map(l => ({
             component_product_id: parseInt(l.component_product_id),
@@ -127,6 +129,14 @@ export default function NewBomPage() {
               placeholder="Optional description / version note"
               className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]" />
           </div>
+          <label className="flex items-start gap-3 cursor-pointer p-3 bg-amber-50 border border-amber-100 rounded-lg">
+            <input type="checkbox" checked={explodeOnInvoice} onChange={e => setExplodeOnInvoice(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-[#b8943f]" />
+            <span className="text-sm text-[#1a1814]">
+              <span className="font-semibold">Auto-consume components on sale invoice</span>
+              <span className="block text-xs text-[#1a1814]/60 mt-0.5">When enabled, posting an invoice for this product automatically consumes its BOM components from stock instead of the finished product itself. Use for kit / assembly-to-order products.</span>
+            </span>
+          </label>
         </div>
 
         {/* Component lines */}

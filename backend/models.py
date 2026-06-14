@@ -388,6 +388,7 @@ class Product(SQLModel, table=True):
     # IFRS 15: if True, invoice lines for this product post to Deferred Revenue (2300)
     is_deferred: bool = Field(default=False)
     recognition_months: int = Field(default=12)
+    hs_code: Optional[str] = Field(default=None)  # Harmonized System code for FBR / customs
 
 
 class BomHeader(SQLModel, table=True):
@@ -410,6 +411,7 @@ class BomHeader(SQLModel, table=True):
     output_qty: Money = money_col(default=Decimal("1"))  # produces N output units per recipe run
     version: int = Field(default=1)
     is_active: bool = Field(default=True)
+    explode_on_invoice: bool = Field(default=False)  # auto-consume components when output product is sold
     description: Optional[str] = None
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

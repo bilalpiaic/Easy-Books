@@ -18,6 +18,7 @@ export interface ProductFull {
   is_active: boolean
   is_deferred: boolean
   recognition_months: number
+  hs_code: string | null
 }
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
@@ -38,6 +39,7 @@ interface FormState {
   recognition_months: string
   opening_qty: string
   opening_cost: string
+  hs_code: string
 }
 
 const UNITS = ['pcs', 'kg', 'mtr', 'hrs', 'ltr', 'box', 'doz']
@@ -49,6 +51,7 @@ const emptyForm: FormState = {
   category_id: '',
   is_deferred: false, recognition_months: '12',
   opening_qty: '0', opening_cost: '0',
+  hs_code: '',
 }
 
 interface Props {
@@ -113,6 +116,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       recognition_months: String(product.recognition_months ?? 12),
       opening_qty: '0',
       opening_cost: '0',
+      hs_code: product.hs_code ?? '',
     })
   }, [mode, product, categories])
 
@@ -133,6 +137,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         category_id: form.category_id ? Number(form.category_id) : null,
         is_deferred: form.is_deferred,
         recognition_months: parseInt(form.recognition_months) || 12,
+        hs_code: form.hs_code.trim() || null,
       }
       if (mode === 'edit' && product) {
         await apiFetch(`/api/products/${product.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -162,11 +167,17 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
   return (
     <div className="bg-white rounded-2xl border border-[#ede9e2] p-8 max-w-2xl mx-auto">
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Code</label>
             <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
               placeholder="e.g. SKU-001"
+              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">HS Code <span className="normal-case font-normal">(FBR)</span></label>
+            <input value={form.hs_code} onChange={e => setForm(p => ({ ...p, hs_code: e.target.value }))}
+              placeholder="e.g. 8471.30"
               className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
           </div>
           <div>

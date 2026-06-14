@@ -37,6 +37,7 @@ class BomLineIn(BaseModel):
 class BomCreate(BaseModel):
     output_product_id: int
     output_qty: Decimal = Decimal("1")
+    explode_on_invoice: bool = False
     description: Optional[str] = None
     notes: Optional[str] = None
     lines: List[BomLineIn]
@@ -148,6 +149,7 @@ def create_bom(session: SessionDep, user: WriteUserDep, body: BomCreate):
         output_qty=D(body.output_qty),
         version=new_version,
         is_active=True,
+        explode_on_invoice=body.explode_on_invoice,
         description=body.description,
         notes=body.notes,
     )
