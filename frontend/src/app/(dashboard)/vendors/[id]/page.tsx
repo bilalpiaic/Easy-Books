@@ -27,7 +27,6 @@ interface Bill {
   bill_date: string
   due_date: string
   total: number
-  amount_due: number
   status: string
 }
 
@@ -71,7 +70,7 @@ export default function VendorHubPage() {
 
   const outstanding = bills
     .filter(b => !["paid", "reversed"].includes(b.status))
-    .reduce((s, b) => s + Number(b.amount_due), 0)
+    .reduce((s, b) => s + Number(b.total), 0)
   const totalBilled   = bills.reduce((s, b) => s + Number(b.total), 0)
   const overdueCount  = bills.filter(b => b.status === "overdue").length
 
@@ -196,7 +195,6 @@ export default function VendorHubPage() {
                 <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Due</th>
                 <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Status</th>
                 <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Total</th>
-                <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Due</th>
               </tr>
             </thead>
             <tbody>
@@ -214,9 +212,8 @@ export default function VendorHubPage() {
                       {bill.status}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-xs">{fmt(bill.total)}</td>
-                  <td className={`px-4 py-2 text-right tabular-nums text-xs font-medium ${Number(bill.amount_due) > 0 ? "text-amber-700" : "text-[#1a1814]/40"}`}>
-                    {Number(bill.amount_due) > 0 ? fmt(bill.amount_due) : "—"}
+                  <td className={`px-4 py-2 text-right tabular-nums text-xs ${["paid","reversed"].includes(bill.status) ? "text-[#1a1814]/40" : "font-medium"}`}>
+                    {fmt(bill.total)}
                   </td>
                 </tr>
               ))}
