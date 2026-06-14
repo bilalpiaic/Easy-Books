@@ -112,7 +112,10 @@ function wireAutoUpdater() {
     catch (e) { _checking = false; return isNoReleaseError(e) ? { ok: true } : { ok: false, error: String(e) } }
   })
   ipcMain.handle("eb:install-update", () => { try { autoUpdater.quitAndInstall() } catch (_) {} })
-  return () => { _checking = true }   // expose setter so startup call can mark in-progress
+  return {
+    startCheck: () => { _checking = true },
+    clearCheck: () => { _checking = false },
+  }
 }
 
 const gotLock = app.requestSingleInstanceLock()
@@ -120,14 +123,14 @@ if (!gotLock) { app.quit() } else {
   app.on("second-instance", () => { if (win) { win.show(); win.focus() } })
   app.whenReady().then(() => {
     startSidecars(); createWindow()
-    const setChecking = wireAutoUpdater()
+    const { startCheck, clearCheck } = wireAutoUpdater()
     // Check GitHub Releases for a newer version and notify the user. Inert
     // until a release feed exists (see electron-builder.yml `publish`).
     try {
-      setChecking()   // mark in-progress before startup check so modal check yields
+      startCheck()   // mark in-progress before startup check so modal check yields
       const p = autoUpdater.checkForUpdatesAndNotify()
       if (p && typeof p.finally === "function") p.finally(() => { /* _checking cleared by event handlers */ })
-    } catch (_) {}
+    } catch (_) { clearCheck() }   // reset flag if startup check throws synchronously
   })
 }
 
