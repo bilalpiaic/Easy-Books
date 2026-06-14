@@ -62,7 +62,11 @@ class SettingsUpdate(BaseModel):
 @router.get("")
 def get_settings(session: SessionDep, user: CurrentUserDep):
     rows = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id)).all()
-    return {s.key: s.value for s in rows}
+    out = {s.key: s.value for s in rows}
+    tenant = session.get(Tenant, user.tenant_id)
+    if tenant:
+        out["business_model"] = tenant.business_model
+    return out
 
 
 @router.patch("")

@@ -38,6 +38,8 @@ export interface AppSettings {
   ui_density: string
   // Amount display precision
   decimal_places: string
+  // Business model
+  business_model: string
 }
 
 const defaults: AppSettings = {
@@ -68,6 +70,7 @@ const defaults: AppSettings = {
   block_negative_stock: "false",
   ui_density: "comfortable",
   decimal_places: "2",
+  business_model: "simple",
 }
 
 interface SettingsContextValue {
