@@ -27,6 +27,8 @@ class ProductCreate(BaseModel):
     category_id: Optional[int] = None
     is_deferred: bool = False
     recognition_months: int = 12
+    opening_qty: Decimal = Decimal("0")
+    opening_cost: Decimal = Decimal("0")
 
 
 @router.get("")
@@ -143,7 +145,11 @@ def get_product(session: SessionDep, user: CurrentUserDep, product_id: int):
 
 @router.post("", status_code=201)
 def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate):
-    p = Product(tenant_id=user.tenant_id, **body.model_dump())
+    _bootstrap = {"opening_qty", "opening_cost"}
+    p = Product(tenant_id=user.tenant_id, **body.model_dump(exclude=_bootstrap))
+    if body.product_type == "stock" and body.opening_qty > 0:
+        p.stock_qty = body.opening_qty
+        p.avg_cost = body.opening_cost
     session.add(p)
     log_audit(session, user, "CREATE", "product", None, {"name": body.name})
     session.commit()
@@ -160,7 +166,7 @@ def update_product(
     ).first()
     if not p:
         raise HTTPException(404, "Product not found")
-    for k, v in body.model_dump().items():
+    for k, v in body.model_dump(exclude={"opening_qty", "opening_cost"}).items():
         setattr(p, k, v)
     session.add(p)
     log_audit(session, user, "UPDATE", "product", p.id, {"name": p.name})

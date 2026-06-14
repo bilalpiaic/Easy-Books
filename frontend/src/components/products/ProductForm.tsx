@@ -36,6 +36,8 @@ interface FormState {
   category_id: string
   is_deferred: boolean
   recognition_months: string
+  opening_qty: string
+  opening_cost: string
 }
 
 const UNITS = ['pcs', 'kg', 'mtr', 'hrs', 'ltr', 'box', 'doz']
@@ -46,6 +48,7 @@ const emptyForm: FormState = {
   stock_account_id: '', revenue_account_id: '', cogs_account_id: '',
   category_id: '',
   is_deferred: false, recognition_months: '12',
+  opening_qty: '0', opening_cost: '0',
 }
 
 interface Props {
@@ -108,6 +111,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       category_id: initCategoryId,
       is_deferred: product.is_deferred ?? false,
       recognition_months: String(product.recognition_months ?? 12),
+      opening_qty: '0',
+      opening_cost: '0',
     })
   }, [mode, product, categories])
 
@@ -133,7 +138,10 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         await apiFetch(`/api/products/${product.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         onSaved(product.id)
       } else {
-        const created = await apiFetch<ProductFull>('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        const createBody = form.product_type === 'stock'
+          ? { ...body, opening_qty: parseFloat(form.opening_qty) || 0, opening_cost: parseFloat(form.opening_cost) || 0 }
+          : body
+        const created = await apiFetch<ProductFull>('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createBody) })
         onSaved(created.id)
       }
     } catch (err) {
@@ -235,6 +243,23 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
             </div>
           )}
         </div>
+        {isStock && mode === 'create' && (
+          <div className="grid grid-cols-2 gap-4 border border-amber-100 bg-amber-50/60 rounded-xl p-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Opening Qty</label>
+              <input type="number" min="0" step="0.001" value={form.opening_qty}
+                onChange={e => setForm(p => ({ ...p, opening_qty: e.target.value }))}
+                className="w-full ui-field bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Unit Cost (opening)</label>
+              <input type="number" min="0" step="0.0001" value={form.opening_cost}
+                onChange={e => setForm(p => ({ ...p, opening_cost: e.target.value }))}
+                className="w-full ui-field bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+            </div>
+            <p className="col-span-2 text-xs text-amber-700/80">Sets the initial stock balance. Leave at 0 if stock will come in via bills or GRN.</p>
+          </div>
+        )}
         <div className="border-t border-[#ede9e2] pt-4 space-y-3">
           <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Deferred Revenue</p>
           <label className="flex items-center gap-3 cursor-pointer">
