@@ -77,6 +77,8 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login_at: Optional[datetime] = None
 
+    my_data_only: bool = Field(default=False)
+
     tenant: Tenant = Relationship(back_populates="users")
 
 
@@ -99,6 +101,21 @@ class UserInvite(SQLModel, table=True):
     expires_at: datetime
     accepted_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class UserPermission(SQLModel, table=True):
+    """Sparse per-user permission overrides. When no row exists for a
+    (user_id, resource_key) pair, the role default applies:
+    owner/admin/accountant → edit, viewer → view."""
+    __tablename__ = "user_permission"
+    __table_args__ = (
+        UniqueConstraint("user_id", "resource_key", name="uq_user_permission"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    resource_key: str = Field(index=True)
+    access_level: str = Field(default="edit")  # "none" | "view" | "edit"
 
 
 class Settings(SQLModel, table=True):
@@ -175,6 +192,7 @@ class Transaction(TransactionBase, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_reversed: bool = Field(default=False)
     reversed_by_id: Optional[int] = Field(default=None)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
     tenant: Tenant = Relationship(back_populates="transactions")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="transaction", cascade_delete=True)
@@ -265,6 +283,7 @@ class Invoice(SQLModel, table=True):
     # Stripe payment link fields (G-12)
     payment_link_url: Optional[str] = None
     payment_link_status: Optional[str] = None  # "unpaid" | "paid"
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
 
 class Bill(SQLModel, table=True):
@@ -289,6 +308,7 @@ class Bill(SQLModel, table=True):
     expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
 
 class PaymentReceived(SQLModel, table=True):
@@ -302,6 +322,7 @@ class PaymentReceived(SQLModel, table=True):
     reference: Optional[str] = None
     cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
 
 class BillPayment(SQLModel, table=True):
@@ -315,6 +336,7 @@ class BillPayment(SQLModel, table=True):
     reference: Optional[str] = None
     cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
 
 class BankAccount(SQLModel, table=True):
