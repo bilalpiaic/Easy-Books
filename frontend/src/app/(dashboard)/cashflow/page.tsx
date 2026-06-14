@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Printer } from 'lucide-react'
+import { Printer, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { fmtAmount } from '@/lib/utils'
+import { fmtAmount, downloadCSV } from '@/lib/utils'
 import { useSettings } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
@@ -90,6 +90,24 @@ export default function CashFlow() {
 
   const fmt = (n: number) => fmtAmount(n, settings.currency)
 
+  const exportCsv = () => {
+    if (!data) return
+    const rows: Record<string, string | number>[] = [
+      { Section: "Operating", Item: "Net Income", Amount: data.net_income },
+      { Section: "Operating", Item: "AR Change", Amount: data.operating_adjustments.ar_change },
+      { Section: "Operating", Item: "AP Change", Amount: data.operating_adjustments.ap_change },
+      { Section: "Operating", Item: "Net Operating Cash", Amount: data.operating_cash },
+      ...data.investing_items.map(i => ({ Section: "Investing", Item: i.name, Amount: i.amount })),
+      { Section: "Investing", Item: "Net Investing Cash", Amount: data.investing_cash },
+      ...data.financing_items.map(i => ({ Section: "Financing", Item: i.name, Amount: i.amount })),
+      { Section: "Financing", Item: "Net Financing Cash", Amount: data.financing_cash },
+      { Section: "Summary", Item: "Net Cash Change", Amount: data.net_cash_change },
+      { Section: "Summary", Item: "Beginning Balance", Amount: data.beginning_balance },
+      { Section: "Summary", Item: "Ending Balance", Amount: data.ending_balance },
+    ]
+    downloadCSV(`cash-flow-${start}-${end}.csv`, rows)
+  }
+
   useEffect(() => {
     setIsLoading(true)
     setError('')
@@ -125,9 +143,16 @@ export default function CashFlow() {
           <h1 className="text-3xl font-serif font-medium">Cash Flow Statement</h1>
           <p className="text-sm text-black/75 mt-1">Sources and uses of cash — Indirect Method</p>
         </div>
-        <button onClick={() => window.print()} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
-          <Printer className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {!compareMode && (
+            <button onClick={exportCsv} disabled={isLoading || !data} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40" title="Export CSV">
+              <Download className="w-5 h-5" />
+            </button>
+          )}
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60" title="Print">
+            <Printer className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
