@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Trash2, TrendingUp, RefreshCw, CheckCircle, AlertCircle } from "lucide-react"
+import { Plus, Trash2, TrendingUp, RefreshCw, CheckCircle, AlertCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useSettings } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 
 interface ExchangeRate {
   id: number
@@ -152,12 +153,21 @@ export default function ExchangeRatesPage() {
             Historical FX rates used for multi-currency transactions.
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Add Rate
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('exchange-rates.csv', rates.map(r => ({ Date: r.date, From: r.from_currency, To: r.to_currency, Rate: r.rate })))}
+            disabled={rates.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Rate
+          </button>
+        </div>
       </div>
 
       {error && (
