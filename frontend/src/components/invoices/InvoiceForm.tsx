@@ -80,6 +80,8 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
   const [customerBalance, setCustomerBalance] = useState<number | null>(null)
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
+  const [applyingPromos, setApplyingPromos] = useState(false)
+  const [promoMsg, setPromoMsg] = useState("")
 
   useEffect(() => {
     Promise.all([
@@ -146,6 +148,67 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const arAccounts = accounts.filter(a => a.type === 'Asset')
   const revenueAccounts = accounts.filter(a => a.type === 'Revenue')
 
+  const handleApplyPromos = async () => {
+    if (lines.length === 0) return
+    setApplyingPromos(true); setPromoMsg("")
+    try {
+      const subtotal = lines.reduce((s, l) => s + l.amount, 0)
+      const suggestions = await apiFetch<Array<{
+        rule_id: number; rule_name: string; line_idx: number | null
+        discount_type: string; discount_value: number | null
+        giveaway_product_id: number | null; giveaway_qty: number | null
+      }>>("/api/promo-rules/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: form.issue_date || new Date().toISOString().split("T")[0],
+          lines: lines.map(l => ({ product_id: l.product_id ?? 0, qty: l.qty, rate: l.rate })),
+          invoice_total: subtotal,
+        }),
+      })
+      if (suggestions.length === 0) { setPromoMsg("No matching promos found."); return }
+      let applied = 0
+      const newLines = [...lines]
+      for (const s of suggestions) {
+        if (s.discount_type === "giveaway") {
+          const gp = products.find(p => p.id === s.giveaway_product_id)
+          if (gp) {
+            newLines.push({
+              product_id: gp.id,
+              description: `Giveaway: ${gp.name}`,
+              qty: s.giveaway_qty ?? 1,
+              unit: gp.unit,
+              rate: 0,
+              discount_pct: 0,
+              promo_rule_id: s.rule_id,
+              amount: 0,
+              tax_code_id: null,
+            })
+            applied++
+          }
+        } else if (s.line_idx !== null && s.line_idx < newLines.length) {
+          const l = newLines[s.line_idx]
+          const disc = s.discount_type === "percent"
+            ? (s.discount_value ?? 0)
+            : (s.discount_value ? Math.min(s.discount_value / l.rate * 100, 100) : 0)
+          newLines[s.line_idx] = {
+            ...l,
+            discount_pct: parseFloat(disc.toFixed(2)),
+            promo_rule_id: s.rule_id,
+            amount: Math.round(l.qty * l.rate * (1 - disc / 100) * 100) / 100,
+          }
+          applied++
+        }
+      }
+      setLines(newLines)
+      setPromoMsg(`${applied} promo${applied !== 1 ? "s" : ""} applied.`)
+    } catch (e) {
+      setPromoMsg(e instanceof Error ? e.message : "Failed to check promos")
+    } finally {
+      setApplyingPromos(false)
+    }
+  }
+
   const handleSave = async () => {
     if (lines.length === 0) { setFormError('Add at least one line item'); return }
     if (lines.some(l => !l.description.trim())) { setFormError('All lines must have a description'); return }
@@ -172,6 +235,8 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         qty: l.qty,
         unit: l.unit ?? null,
         rate: l.rate,
+        discount_pct: l.discount_pct ?? 0,
+        promo_rule_id: l.promo_rule_id ?? null,
         tax_code_id: l.tax_code_id ?? null,
       })),
       gst_rate: parseFloat(form.gst_rate) || 0,
@@ -303,7 +368,16 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Line Items</label>
+            <div className="flex items-center gap-2">
+              {promoMsg && <span className="text-xs text-[#b8943f]">{promoMsg}</span>}
+              <button type="button" onClick={handleApplyPromos} disabled={applyingPromos || lines.length === 0}
+                className="px-3 py-1.5 text-xs font-semibold bg-[#faf6ec] border border-[#b8943f]/40 text-[#b8943f] rounded-lg hover:bg-[#b8943f]/10 disabled:opacity-40 transition-colors">
+                {applyingPromos ? "Checking…" : "Apply Promos"}
+              </button>
+            </div>
+          </div>
           <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" />
         </div>
 

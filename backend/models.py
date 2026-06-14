@@ -712,6 +712,31 @@ class ProductionOrder(SQLModel, table=True):
     notes: Optional[str] = None
 
 
+class PromoRule(SQLModel, table=True):
+    """Promotional pricing rule. Matches on product/category + date range +
+    optional qty/value threshold. Applies a % discount or adds giveaway lines."""
+    __tablename__ = "promo_rule"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    description: Optional[str] = None
+    is_active: bool = Field(default=True)
+    start_date: Optional[str] = None    # YYYY-MM-DD; null = no lower bound
+    end_date: Optional[str] = None      # YYYY-MM-DD; null = no upper bound
+    # Scope: which products this promo covers
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    category_id: Optional[int] = Field(default=None, foreign_key="productcategory.id")
+    # Trigger thresholds (both optional; each is ANDed when set)
+    min_qty: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    min_invoice_value: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    # Discount action
+    discount_type: str = Field(default="percent")   # "percent" | "fixed" | "giveaway"
+    discount_value: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    giveaway_product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    giveaway_qty: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class InvoiceLine(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     invoice_id: int = Field(foreign_key="invoice.id", ondelete="CASCADE")
@@ -720,8 +745,10 @@ class InvoiceLine(SQLModel, table=True):
     qty: Money = money_col(default=Decimal("1"))
     unit: Optional[str] = None
     rate: Money = money_col()
-    amount: Money = money_col()  # stored = qty × rate
+    discount_pct: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(5, 2), nullable=False, server_default="0"))
+    amount: Money = money_col()  # stored = qty × rate × (1 − discount_pct/100)
     tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
+    promo_rule_id: Optional[int] = Field(default=None, foreign_key="promo_rule.id")
 
 
 class BillLine(SQLModel, table=True):

@@ -78,6 +78,8 @@ class InvoiceLineCreate(BaseModel):
     qty: Decimal = Decimal("1")
     unit: Optional[str] = None
     rate: Decimal = Decimal("0")
+    discount_pct: Decimal = Decimal("0")   # 0–100 percent discount
+    promo_rule_id: Optional[int] = None
     tax_code_id: Optional[int] = None
 
 
@@ -252,7 +254,13 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     ).first()
     inv_fmt = fmt_row.value if fmt_row else None
 
-    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
+    def _line_amount(l: InvoiceLineCreate) -> Decimal:
+        base = D(l.qty) * D(l.rate)
+        if l.discount_pct:
+            base = base * (D("100") - D(l.discount_pct)) / D("100")
+        return base
+
+    subtotal = money(sum_money(_line_amount(l) for l in body.lines))
     gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
@@ -342,7 +350,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     per_gl_tax: dict[int, Decimal] = {}  # gl_account_id → total_tax for per-line mode
     try:
         for line_data in body.lines:
-            amount = money(D(line_data.qty) * D(line_data.rate))
+            amount = money(_line_amount(line_data))
             line_tax_code_id = line_data.tax_code_id
             if line_tax_code_id:
                 tc = session.exec(
@@ -362,6 +370,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
                     qty=D(line_data.qty),
                     unit=line_data.unit,
                     rate=D(line_data.rate),
+                    discount_pct=D(line_data.discount_pct),
+                    promo_rule_id=line_data.promo_rule_id,
                     amount=amount,
                     tax_code_id=line_tax_code_id,
                 )
@@ -557,8 +567,14 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     if not due_date:
         due_date = body.issue_date
 
-    # Recalculate totals
-    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
+    # Recalculate totals (respecting per-line discounts)
+    def _line_amount_edit(l: InvoiceLineCreate) -> Decimal:
+        base = D(l.qty) * D(l.rate)
+        if getattr(l, "discount_pct", Decimal("0")):
+            base = base * (D("100") - D(l.discount_pct)) / D("100")
+        return base
+
+    subtotal = money(sum_money(_line_amount_edit(l) for l in body.lines))
     gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
@@ -701,7 +717,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     total_cogs = ZERO
     try:
         for line_data in body.lines:
-            amount = money(D(line_data.qty) * D(line_data.rate))
+            amount = money(_line_amount_edit(line_data))
             session.add(InvoiceLine(
                 invoice_id=inv.id,
                 product_id=line_data.product_id,
@@ -709,6 +725,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 qty=D(line_data.qty),
                 unit=line_data.unit,
                 rate=D(line_data.rate),
+                discount_pct=D(getattr(line_data, "discount_pct", Decimal("0"))),
+                promo_rule_id=getattr(line_data, "promo_rule_id", None),
                 amount=amount,
             ))
             if line_data.product_id:

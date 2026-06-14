@@ -11,6 +11,8 @@ export interface LineItem {
   qty: number
   unit?: string
   rate: number
+  discount_pct?: number   // 0–100 percentage discount
+  promo_rule_id?: number | null
   amount: number
   tax_code_id?: number | null
 }
@@ -53,7 +55,11 @@ interface Props {
 const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
 
 function emptyLine(): LineItem {
-  return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, amount: 0, tax_code_id: null }
+  return { product_id: null, description: "", qty: 1, unit: "pcs", rate: 0, discount_pct: 0, amount: 0, tax_code_id: null }
+}
+
+function calcAmount(qty: number, rate: number, discountPct = 0) {
+  return Math.round(qty * rate * (1 - discountPct / 100) * 100) / 100
 }
 
 export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false, customerId = null, priceKind = 'sale' }: Props) {
@@ -63,7 +69,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
     const updated = lines.map((l, i) => {
       if (i !== idx) return l
       const merged = { ...l, ...patch }
-      merged.amount = Math.round(merged.qty * merged.rate * 100) / 100
+      merged.amount = calcAmount(merged.qty, merged.rate, merged.discount_pct ?? 0)
       return merged
     })
     onChange(updated)
@@ -92,7 +98,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
     }
     const prod = products.find(p => p.id === Number(productId))
     if (!prod) return
-    const amount = Math.round(lines[idx].qty * prod.default_rate * 100) / 100
+    const amount = calcAmount(lines[idx].qty, prod.default_rate, lines[idx].discount_pct ?? 0)
     onChange(lines.map((l, i) =>
       i === idx
         ? { ...l, product_id: prod.id, description: prod.name, unit: prod.unit, rate: prod.default_rate, amount }
@@ -112,7 +118,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
   // Extra columns: product, tax — affects colspan calculations
   const hasProducts = products.length > 0
   const hasTax = showTax
-  const baseCols = 4 // description, qty, unit, rate
+  const baseCols = 5 // description, qty, unit, rate, discount
   const extraCols = (hasProducts ? 1 : 0) + (hasTax ? 1 : 0)
   const totalDataCols = baseCols + extraCols + 1 // +1 for amount
   const actionCol = readOnly ? 0 : 1
@@ -130,6 +136,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
             <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Qty</th>
             <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Unit</th>
             <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Rate</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Disc %</th>
             {hasTax && (
               <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 w-32">Tax</th>
             )}
@@ -234,6 +241,20 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                       </button>
                     )}
                   </>
+                )}
+              </td>
+              <td className="px-3 py-2">
+                {readOnly ? (
+                  <span className="block text-right font-mono text-xs">
+                    {(line.discount_pct ?? 0) > 0 ? `${line.discount_pct}%` : "—"}
+                  </span>
+                ) : (
+                  <input
+                    type="number" min="0" max="100" step="0.01"
+                    value={line.discount_pct ?? 0}
+                    onChange={e => update(idx, { discount_pct: parseFloat(e.target.value) || 0 })}
+                    className={`w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm ${(line.discount_pct ?? 0) > 0 ? "text-emerald-600 font-semibold" : ""}`}
+                  />
                 )}
               </td>
               {hasTax && (

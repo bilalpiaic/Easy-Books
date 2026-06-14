@@ -20,6 +20,7 @@ const TITLE_MAP: Record<string, string> = {
   "/coa":              "Chart of Accounts",
   "/invoices":         "Invoices",
   "/commissions":      "Sales Commissions",
+  "/promo-discounts":  "Promotional Discounts",
   "/customers":        "Customers",
   "/customers/":       "Customer",
   "/payments-received":"Payments Received",
