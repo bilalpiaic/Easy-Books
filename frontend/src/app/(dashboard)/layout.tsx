@@ -7,6 +7,7 @@ import Header from "@/components/Header"
 import BottomNav from "@/components/BottomNav"
 import { isAuthenticated } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
+import { PermissionProvider } from "@/context/PermissionContext"
 import NavBar from "@/components/NavBar"
 import { BreadcrumbProvider } from "@/context/BreadcrumbContext"
 
@@ -160,6 +161,7 @@ export default function DashboardLayout({
 
   return (
     <SettingsProvider>
+      <PermissionProvider>
       <BreadcrumbProvider>
         <div className="flex h-screen overflow-hidden bg-[#f6f3ee]">
           <Sidebar
@@ -181,6 +183,7 @@ export default function DashboardLayout({
           <BottomNav onMore={onOpen} />
         </div>
       </BreadcrumbProvider>
+      </PermissionProvider>
     </SettingsProvider>
   )
 }

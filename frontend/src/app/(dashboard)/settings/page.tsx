@@ -658,6 +658,21 @@ export default function SettingsPage() {
             <option value="compact">Compact</option>
           </select>
         </div>
+
+        <div className="pt-4 mt-4 border-t border-[#ede9e2]">
+          <label className="block text-sm font-semibold text-black/85 mb-2">User Rights Module</label>
+          <select
+            value={form.user_rights_enabled ?? "false"}
+            onChange={e => handleChange('user_rights_enabled', e.target.value)}
+            className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black bg-white"
+          >
+            <option value="false">Disabled — all users access all data (default)</option>
+            <option value="true">Enabled — enforce per-user permission matrix</option>
+          </select>
+          <p className="text-xs text-[#1a1814]/50 mt-1">
+            When enabled, access to each module is controlled per-user via Settings → Permissions.
+          </p>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#ede9e2] p-8 shadow-sm">

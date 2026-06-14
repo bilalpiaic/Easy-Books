@@ -42,6 +42,8 @@ export interface AppSettings {
   business_model: string
   // Inventory cost method
   cost_method: string
+  // User Rights Module
+  user_rights_enabled: string
 }
 
 const defaults: AppSettings = {
@@ -74,6 +76,7 @@ const defaults: AppSettings = {
   decimal_places: "2",
   business_model: "simple",
   cost_method: "wavg",
+  user_rights_enabled: "false",
 }
 
 interface SettingsContextValue {
