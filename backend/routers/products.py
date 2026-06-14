@@ -7,9 +7,11 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from models import Bill, BillLine, Customer, Invoice, InvoiceLine, Product, Vendor
-from services.money import D, money
+from services.inventory import record_movement
+from services.money import D, ZERO, money
+from services.posting import EntryInput, post_transaction
 
-from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
@@ -190,3 +192,85 @@ def delete_product(session: SessionDep, user: WriteUserDep, product_id: int):
     log_audit(session, user, "DELETE", "product", p.id, {"name": p.name})
     session.delete(p)
     session.commit()
+
+
+class StockAdjustIn(BaseModel):
+    counted_qty: Decimal
+    date: str
+    notes: Optional[str] = None
+
+
+@router.post("/{product_id}/adjust-stock", status_code=201)
+def adjust_stock(session: SessionDep, user: WriteUserDep, product_id: int, body: StockAdjustIn):
+    """Physical count → stock adjustment. Posts a GL variance entry and records the movement."""
+    p = session.exec(
+        select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)
+    ).first()
+    if not p:
+        raise HTTPException(404, "Product not found")
+    if p.product_type != "stock":
+        raise HTTPException(400, "Stock adjustments are only valid for stock-type products")
+
+    system_qty = D(p.stock_qty)
+    counted_qty = D(body.counted_qty)
+    variance = counted_qty - system_qty
+    if variance == ZERO:
+        return {"variance": "0", "jv_number": None, "message": "No variance — qty unchanged"}
+
+    avg_cost = D(p.avg_cost)
+    variance_value = abs(variance) * avg_cost
+
+    # GL accounts
+    inv_acc  = get_or_create_account(session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset")
+    adj_acc  = get_or_create_account(session, user.tenant_id, "5040", "Inventory Adjustments", "Expense")
+
+    if variance > 0:
+        # Found more stock: Dr Inventory / Cr Inventory Adjustments
+        entries = [
+            EntryInput(account_id=inv_acc.id, debit=money(variance_value)),
+            EntryInput(account_id=adj_acc.id, credit=money(variance_value)),
+        ]
+    else:
+        # Stock short: Dr Inventory Adjustments / Cr Inventory
+        entries = [
+            EntryInput(account_id=adj_acc.id, debit=money(variance_value)),
+            EntryInput(account_id=inv_acc.id, credit=money(variance_value)),
+        ]
+
+    txn = post_transaction(
+        session, user,
+        date=body.date,
+        description=f"Stock adjustment — {p.name} (counted {counted_qty}, system {system_qty})",
+        entries=entries,
+        voucher_type="JV",
+        audit_entity_type="product",
+        audit_detail={"product_id": p.id, "variance": str(variance), "notes": body.notes},
+    )
+
+    # Update product qty
+    p.stock_qty = money(counted_qty)
+    session.add(p)
+
+    # Record movement
+    record_movement(
+        session,
+        tenant_id=user.tenant_id,
+        product_id=product_id,
+        direction="ADJUSTMENT",
+        qty=abs(variance),
+        unit_cost=avg_cost,
+        source_doc_type="adjustment",
+        posted_to_gl=True,
+        notes=body.notes or f"Physical count: counted={counted_qty}, system={system_qty}",
+    )
+
+    session.commit()
+    log_audit(session, user, "ADJUST_STOCK", "product", p.id, {"variance": str(variance), "counted_qty": str(counted_qty)})
+    return {
+        "variance": str(variance),
+        "variance_value": str(variance_value),
+        "jv_number": txn.jv_number,
+        "system_qty": str(system_qty),
+        "counted_qty": str(counted_qty),
+        "message": f"Adjusted stock by {'+' if variance > 0 else ''}{variance} units",
+    }

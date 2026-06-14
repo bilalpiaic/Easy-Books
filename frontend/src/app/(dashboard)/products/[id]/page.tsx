@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft, Pencil, Package, BarChart2, BookOpen,
-  FileText, TrendingDown, TrendingUp, AlertTriangle,
+  FileText, TrendingDown, TrendingUp, AlertTriangle, ClipboardCheck,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -47,6 +47,15 @@ export default function ProductHubPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
 
+  // Stock adjustment modal
+  const [adjOpen, setAdjOpen]     = useState(false)
+  const [adjQty, setAdjQty]       = useState("")
+  const [adjDate, setAdjDate]     = useState(() => new Date().toISOString().slice(0, 10))
+  const [adjNotes, setAdjNotes]   = useState("")
+  const [adjBusy, setAdjBusy]     = useState(false)
+  const [adjResult, setAdjResult] = useState<{ jv_number: string; message: string } | null>(null)
+  const [adjErr, setAdjErr]       = useState<string | null>(null)
+
   useEffect(() => {
     Promise.all([
       apiFetch<Product>(`/api/products/${id}`),
@@ -56,6 +65,23 @@ export default function ProductHubPage() {
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false))
   }, [id])
+
+  const submitAdjustment = async () => {
+    if (!adjQty || isNaN(Number(adjQty))) { setAdjErr("Enter a valid counted quantity"); return }
+    setAdjBusy(true); setAdjErr(null); setAdjResult(null)
+    try {
+      const res = await apiFetch<{ jv_number: string; message: string }>(
+        `/api/products/${id}/adjust-stock`,
+        { method: "POST", body: JSON.stringify({ counted_qty: Number(adjQty), date: adjDate, notes: adjNotes || null }) }
+      )
+      setAdjResult(res)
+      // Refresh product data to show updated stock qty
+      const updated = await apiFetch<Product>(`/api/products/${id}`)
+      setProduct(updated)
+    } catch (e) {
+      setAdjErr(e instanceof Error ? e.message : "Adjustment failed")
+    } finally { setAdjBusy(false) }
+  }
 
   if (loading) return <div className="p-8 text-sm text-[#1a1814]/50 text-center">Loading…</div>
   if (error)   return <div className="p-8 text-sm text-red-600">{error}</div>
@@ -208,7 +234,82 @@ export default function ProductHubPage() {
             <span className="text-sm font-medium text-[#1a1814]">BOMs ({boms.length})</span>
           </Link>
         )}
+        {isStock && (
+          <button
+            onClick={() => { setAdjOpen(true); setAdjResult(null); setAdjErr(null); setAdjQty(String(product.stock_qty)) }}
+            className="bg-white border border-[#ede9e2] rounded-xl p-4 flex flex-col items-center gap-2 hover:border-[#b8943f] hover:bg-[#faf8f4] transition-colors group"
+          >
+            <ClipboardCheck className="w-5 h-5 text-[#b8943f]/70 group-hover:text-[#b8943f]" />
+            <span className="text-sm font-medium text-[#1a1814]">Adjust Stock</span>
+          </button>
+        )}
       </div>
+
+      {/* Stock adjustment modal */}
+      {adjOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={e => { if (e.target === e.currentTarget) setAdjOpen(false) }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-xl font-serif font-semibold text-[#1a1814]">Physical Count — Adjust Stock</h2>
+            <p className="text-sm text-[#1a1814]/60">
+              Enter the physically counted quantity. If it differs from the system ({Number(product.stock_qty).toFixed(3)} {product.unit}), a variance journal entry will be posted automatically.
+            </p>
+
+            {adjResult ? (
+              <div className="space-y-3">
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl px-4 py-3 text-sm">
+                  <p className="font-semibold">{adjResult.message}</p>
+                  <p className="text-xs mt-0.5 text-emerald-700">JV: {adjResult.jv_number}</p>
+                </div>
+                <button onClick={() => setAdjOpen(false)} className="w-full bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-[#a07c32]">
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#1a1814]/65 uppercase tracking-wide mb-1">Counted Quantity ({product.unit})</label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={adjQty}
+                    onChange={e => setAdjQty(e.target.value)}
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+                    placeholder="0.000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#1a1814]/65 uppercase tracking-wide mb-1">Count Date</label>
+                  <input
+                    type="date"
+                    value={adjDate}
+                    onChange={e => setAdjDate(e.target.value)}
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#1a1814]/65 uppercase tracking-wide mb-1">Notes (optional)</label>
+                  <input
+                    type="text"
+                    value={adjNotes}
+                    onChange={e => setAdjNotes(e.target.value)}
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+                    placeholder="Reason for adjustment…"
+                  />
+                </div>
+                {adjErr && <p className="text-xs text-red-600">{adjErr}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setAdjOpen(false)} className="flex-1 border border-[#ede9e2] py-2.5 rounded-lg text-sm text-[#1a1814]/60 hover:bg-[#f6f3ee]">
+                    Cancel
+                  </button>
+                  <button onClick={submitAdjustment} disabled={adjBusy} className="flex-1 bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-[#a07c32] disabled:opacity-50">
+                    {adjBusy ? "Posting…" : "Post Adjustment"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Product details card */}
       <div className="bg-white border border-[#ede9e2] rounded-xl p-5 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
