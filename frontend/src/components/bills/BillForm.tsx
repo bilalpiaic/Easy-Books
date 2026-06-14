@@ -56,11 +56,12 @@ const emptyForm: FormState = {
 interface Props {
   mode: 'create' | 'edit'
   bill?: BillFull
+  initialVendorId?: number
   onSaved: (id: number) => void
   onCancel: () => void
 }
 
-export default function BillForm({ mode, bill, onSaved, onCancel }: Props) {
+export default function BillForm({ mode, bill, initialVendorId, onSaved, onCancel }: Props) {
   const fmt = useFmt()
   const { settings } = useSettings()
   const [form, setForm] = useState<FormState>(emptyForm)
@@ -84,6 +85,10 @@ export default function BillForm({ mode, bill, onSaved, onCancel }: Props) {
     ]).then(([v, a, p, terms, tc]) => {
       setVendors(v.items); setAccounts(a.items); setProducts(p.items)
       setPaymentTerms(terms); setTaxCodes(tc.items)
+      if (mode === 'create' && initialVendorId) {
+        const vend = v.items.find((x: Vendor) => x.id === initialVendorId)
+        if (vend) setForm(f => ({ ...f, vendor_id: String(vend.id), vendor_name: vend.name }))
+      }
     }).catch(() => {})
   }, [])
 

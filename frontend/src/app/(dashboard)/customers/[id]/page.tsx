@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
   User, Mail, Phone, MapPin, BookOpen, FileText,
-  Package, Pencil, ArrowLeft, TrendingUp,
+  Package, Pencil, ArrowLeft, TrendingUp, Plus,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -180,6 +180,13 @@ export default function CustomerHubPage() {
         >
           <TrendingUp className="w-5 h-5 text-[#b8943f]/70 group-hover:text-[#b8943f]" />
           <span className="text-sm font-medium text-[#1a1814]">All Invoices</span>
+        </Link>
+        <Link
+          href={`/invoices/new?customer_id=${id}`}
+          className="bg-[#b8943f] rounded-xl p-4 flex flex-col items-center gap-2 hover:bg-[#a07c32] transition-colors group"
+        >
+          <Plus className="w-5 h-5 text-white" />
+          <span className="text-sm font-medium text-white">New Invoice</span>
         </Link>
       </div>
 

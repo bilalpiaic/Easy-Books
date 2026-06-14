@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import InvoiceForm from '@/components/invoices/InvoiceForm'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
 export default function NewInvoicePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const customerId = searchParams.get('customer_id')
   useBreadcrumb('New Invoice')
   return (
     <div className="space-y-6">
@@ -20,6 +22,7 @@ export default function NewInvoicePage() {
       </div>
       <InvoiceForm
         mode="create"
+        initialCustomerId={customerId ? parseInt(customerId) : undefined}
         onSaved={(id) => router.push(`/invoices/${id}`)}
         onCancel={() => router.push('/invoices')}
       />

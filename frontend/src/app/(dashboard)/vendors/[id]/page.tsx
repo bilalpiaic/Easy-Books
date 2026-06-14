@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
   Building2, Mail, Phone, MapPin, BookOpen, FileText,
-  Pencil, ArrowLeft, TrendingDown,
+  Pencil, ArrowLeft, TrendingDown, Plus,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -171,6 +171,13 @@ export default function VendorHubPage() {
         >
           <TrendingDown className="w-5 h-5 text-[#b8943f]/70 group-hover:text-[#b8943f]" />
           <span className="text-sm font-medium text-[#1a1814]">All Bills</span>
+        </Link>
+        <Link
+          href={`/bills/new?vendor_id=${id}`}
+          className="bg-[#b8943f] rounded-xl p-4 flex flex-col items-center gap-2 hover:bg-[#a07c32] transition-colors group"
+        >
+          <Plus className="w-5 h-5 text-white" />
+          <span className="text-sm font-medium text-white">New Bill</span>
         </Link>
       </div>
 
