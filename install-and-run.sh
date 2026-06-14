@@ -88,9 +88,21 @@ done
 
 # Migrate the user's DB forward so updates apply new columns (not just tables).
 # Fail loud rather than start the app on a half-migrated schema.
+# Auto-backup before any migration so users can roll back by restoring the file.
+log "Checking for pending database migrations…"
+PENDING="$( cd backend && PYTHONPATH=. uv run alembic check 2>&1 )" && HAS_PENDING=0 || HAS_PENDING=1
+if [ "$HAS_PENDING" = "1" ]; then
+  BACKUP_DIR="$EB_DATA_DIR/backups"
+  mkdir -p "$BACKUP_DIR"
+  STAMP="$(date +%Y%m%d_%H%M%S)"
+  for db_file in "$EB_DATA_DIR"/*.db; do
+    [ -f "$db_file" ] && cp "$db_file" "$BACKUP_DIR/$(basename "$db_file" .db)_$STAMP.bak" && \
+      log "  Backed up $(basename "$db_file") → backups/$(basename "$db_file" .db)_$STAMP.bak"
+  done
+fi
 log "Applying database migrations…"
 ( cd backend && PYTHONPATH=. uv run alembic upgrade head ) \
-  || die "Database migration failed — your data is unchanged. See the error above."
+  || die "Database migration failed — restore from $EB_DATA_DIR/backups/ if needed. See the error above."
 
 # First-run demo data: load the 5 fully-populated demo companies so the demo
 # logins work immediately. Idempotent (skips once present); skipped entirely

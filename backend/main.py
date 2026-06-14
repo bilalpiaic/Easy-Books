@@ -99,6 +99,33 @@ _ROUTERS = [
 for r in _ROUTERS:
     app.include_router(r)
 
+# ── Version endpoint ──────────────────────────────────────────────────────────
+
+import tomllib as _tomllib
+from sqlalchemy import text as _text
+from db import engine as _engine
+
+def _read_app_version() -> str:
+    try:
+        _pyproject = os.path.join(os.path.dirname(__file__), "pyproject.toml")
+        with open(_pyproject, "rb") as _f:
+            return _tomllib.load(_f)["project"]["version"]
+    except Exception:
+        return "unknown"
+
+_APP_VERSION = _read_app_version()
+
+@app.get("/api/version")
+def get_version():
+    """Return the app version and current Alembic revision. No auth required."""
+    try:
+        with _engine.connect() as _conn:
+            row = _conn.execute(_text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
+            alembic_head = row[0] if row else "none"
+    except Exception:
+        alembic_head = "unknown"
+    return {"version": _APP_VERSION, "alembic_head": alembic_head}
+
 # ── Stripe webhook ────────────────────────────────────────────────────────────
 
 from fastapi import Request as _Request

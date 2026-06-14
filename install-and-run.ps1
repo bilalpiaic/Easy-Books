@@ -88,12 +88,28 @@ foreach ($port in 8000, 3000) {
 
 # Migrate the user's DB forward so updates apply new columns (not just tables).
 # Fail loud rather than start the app on a half-migrated schema.
+# Auto-backup before any migration so users can roll back by restoring the file.
+Log 'Checking for pending database migrations...'
+Push-Location backend
+$pendingOut = cmd /c 'set "PYTHONPATH=." && uv run alembic check 2>&1'
+$hasPending = $LASTEXITCODE -ne 0
+Pop-Location
+if ($hasPending) {
+  $backupDir = Join-Path $env:EB_DATA_DIR 'backups'
+  New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+  $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+  Get-ChildItem -Path $env:EB_DATA_DIR -Filter '*.db' -File | ForEach-Object {
+    $dest = Join-Path $backupDir ($_.BaseName + "_$stamp.bak")
+    Copy-Item $_.FullName $dest
+    Log "  Backed up $($_.Name) → backups\$($_.BaseName)_$stamp.bak"
+  }
+}
 Log 'Applying database migrations...'
 Push-Location backend
-uv run alembic upgrade head
+cmd /c 'set "PYTHONPATH=." && uv run alembic upgrade head'
 $migrateCode = $LASTEXITCODE
 Pop-Location
-if ($migrateCode -ne 0) { throw 'Database migration failed - your data is unchanged. See the error above.' }
+if ($migrateCode -ne 0) { throw "Database migration failed - restore from $env:EB_DATA_DIR\backups\ if needed. See the error above." }
 
 # First-run demo data: load the 5 fully-populated demo companies so the demo
 # logins work immediately. Idempotent (skips once present); skipped entirely
