@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Receipt } from "lucide-react"
+import { Plus, Receipt, Download } from "lucide-react"
+import { downloadCSV } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useSettings } from "@/context/SettingsContext"
@@ -143,10 +144,19 @@ export default function CreditNotesPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Credit Notes</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">{total} total</p>
         </div>
-        <button onClick={openModal}
-          className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
-          <Plus size={16} /> New Credit Note
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('credit-notes.csv', items.map(n => ({ Number: n.number, Customer: n.customer_name ?? '', Date: n.issue_date, Total: n.total, Status: n.status })))}
+            disabled={items.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download size={16} /> CSV
+          </button>
+          <button onClick={openModal}
+            className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
+            <Plus size={16} /> New Credit Note
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#1a1814]/5 overflow-hidden">

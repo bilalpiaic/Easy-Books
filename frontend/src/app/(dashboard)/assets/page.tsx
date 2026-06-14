@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Building2, Play, Archive } from "lucide-react"
+import { Plus, Building2, Play, Archive, Download } from "lucide-react"
+import { downloadCSV } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
@@ -137,10 +138,19 @@ export default function AssetsPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Fixed Assets</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">{total} assets · IAS 16</p>
         </div>
-        <button onClick={openModal}
-          className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
-          <Plus size={16} /> New Asset
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('fixed-assets.csv', items.map(a => ({ Name: a.name, Code: a.code ?? '', "Acquisition Date": a.acquisition_date, "Acquisition Cost": a.acquisition_cost, "Accum. Depr.": a.accumulated_depreciation, "Book Value": a.book_value, Method: a.method, "Useful Life (months)": a.useful_life_months, Status: a.is_disposed ? "Disposed" : "Active" })))}
+            disabled={items.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download size={16} /> CSV
+          </button>
+          <button onClick={openModal}
+            className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
+            <Plus size={16} /> New Asset
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#1a1814]/5 overflow-hidden">

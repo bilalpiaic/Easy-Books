@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Printer } from 'lucide-react'
+import { Plus, Search, Printer, Download } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 
 interface BillPaymentRecord {
@@ -59,6 +60,13 @@ export default function BillPayments() {
           <p className="text-sm text-black/75 mt-1">Record vendor payments and track cash outflows</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('bill-payments.csv', filtered.map(p => ({ Date: p.payment_date, Vendor: p.vendor_name ?? '', Method: p.method, Reference: p.reference ?? '', Amount: p.amount })))}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"

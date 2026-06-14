@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Undo2 } from "lucide-react"
+import { Plus, Undo2, Download } from "lucide-react"
+import { downloadCSV } from "@/lib/utils"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -112,9 +113,18 @@ export default function DebitNotesPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Debit Notes / Purchase Returns</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">{total} total · returns goods to a vendor (IAS 2.11)</p>
         </div>
-        <button onClick={openModal} className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
-          <Plus size={16} /> New Debit Note
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('debit-notes.csv', items.map(n => ({ Number: n.number, Vendor: n.vendor_name ?? '', Date: n.issue_date, Total: n.total, Status: n.status })))}
+            disabled={items.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download size={16} /> CSV
+          </button>
+          <button onClick={openModal} className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
+            <Plus size={16} /> New Debit Note
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#1a1814]/5 overflow-hidden">
