@@ -6,6 +6,7 @@ const http = require("http")
 
 const BACKEND_PORT = 8000, FRONTEND_PORT = 3000
 let backend, frontend, win
+let _backendErr = ""
 
 const resDir = () => app.isPackaged
   ? process.resourcesPath
@@ -25,6 +26,7 @@ function startSidecars() {
     PORT: String(BACKEND_PORT),
   }
   backend = spawn(exe(path.join(resDir(), "backend", "easybooks-backend")), [], { env })
+  backend.stderr.on("data", (d) => { _backendErr = (_backendErr + String(d)).slice(-2000) })
   frontend = spawn(
     exe(path.join(resDir(), "node", process.platform === "win32" ? "node" : "bin/node")),
     [path.join(resDir(), "frontend", "server.js")],
@@ -65,7 +67,12 @@ async function createWindow() {
     await waitForServer(FRONTEND_PORT)
     await win.loadURL(`http://127.0.0.1:${FRONTEND_PORT}`)
   } catch (e) {
-    dialog.showErrorBox("Easy-Books failed to start", String(e))
+    // If the backend printed a FATAL migration error, surface it (includes backup path)
+    // instead of the generic waitForServer timeout message.
+    const detail = _backendErr.includes("FATAL")
+      ? _backendErr.replace(/.*\[migrate\] FATAL: /s, "").slice(0, 800)
+      : String(e)
+    dialog.showErrorBox("Easy-Books failed to start", detail)
     app.quit()
   }
 }
