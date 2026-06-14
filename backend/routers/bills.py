@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
 
-from models import Account, Bill, BillLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction, Vendor
+from models import Account, Bill, BillLine, JournalEntry, PaymentAllocation, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction, Vendor
 from services.fx import rate_to_base
 from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
@@ -74,6 +74,42 @@ _SORTABLE = {
     "total":       Bill.total,
     "status":      Bill.status,
 }
+
+
+@router.get("/api/bills/open-for-allocation")
+def open_bills_for_allocation(
+    session: SessionDep,
+    user: CurrentUserDep,
+    ap_account_id: Optional[int] = None,
+):
+    """Return open/partial bills with balance_due for the allocation panel."""
+    q = select(Bill).where(
+        Bill.tenant_id == user.tenant_id,
+        Bill.status.in_(["open", "partial", "received"]),  # type: ignore[attr-defined]
+    )
+    if ap_account_id:
+        q = q.where(Bill.ap_account_id == ap_account_id)
+    bills = session.exec(q.order_by(Bill.bill_date)).all()
+
+    result = []
+    for bill in bills:
+        allocated = session.exec(
+            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
+            .where(PaymentAllocation.bill_id == bill.id)
+        ).one()
+        balance_due = float(D(bill.total) - D(allocated))
+        if balance_due <= 0:
+            continue
+        result.append({
+            "id": bill.id,
+            "number": bill.number,
+            "vendor_name": bill.vendor_name or "",
+            "bill_date": bill.bill_date,
+            "due_date": bill.due_date,
+            "total": float(bill.total),
+            "balance_due": balance_due,
+        })
+    return result
 
 
 @router.get("/api/bills")

@@ -12,8 +12,9 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from models import (
-    Bill, BillLine, BillPayment, Invoice, InvoiceLine, PaymentAllocation,
-    PaymentReceived, Product, Transaction, TransactionCreate, TransactionRead,
+    AllocationInput, Bill, BillLine, BillPayment, Invoice, InvoiceLine,
+    PaymentAllocation, PaymentReceived, Product, Transaction,
+    TransactionCreate, TransactionRead,
 )
 from services.inventory import reverse_consumption, reverse_purchase
 from services.money import D, ZERO, money
@@ -136,6 +137,72 @@ def _unwind_bill(session, user, bill: Bill) -> None:
     session.add(bill)
 
 
+from sqlmodel import func as _func
+
+
+def _apply_allocations(
+    session,
+    user,
+    txn: Transaction,
+    allocs: list[AllocationInput],
+    date: str,
+) -> None:
+    """After posting a CR/BR/CP/BP JV, create PaymentReceived/BillPayment +
+    PaymentAllocation records and refresh each document's derived status."""
+    from routers.payments import _refresh_invoice_status, _refresh_bill_status
+
+    invoice_allocs = [a for a in allocs if a.invoice_id and (a.amount or 0) > 0]
+    bill_allocs    = [a for a in allocs if a.bill_id    and (a.amount or 0) > 0]
+
+    if invoice_allocs:
+        total = sum(a.amount for a in invoice_allocs)
+        pmt = PaymentReceived(
+            tenant_id=user.tenant_id,
+            transaction_id=txn.id,
+            payment_date=date,
+            amount=total,
+            created_by_id=user.id,
+        )
+        session.add(pmt)
+        session.flush()
+        for a in invoice_allocs:
+            inv = session.get(Invoice, a.invoice_id)
+            if not inv or inv.tenant_id != user.tenant_id:
+                continue
+            session.add(PaymentAllocation(
+                tenant_id=user.tenant_id,
+                payment_received_id=pmt.id,
+                invoice_id=inv.id,
+                amount=a.amount,
+            ))
+            session.flush()
+            _refresh_invoice_status(session, inv)
+
+    if bill_allocs:
+        total = sum(a.amount for a in bill_allocs)
+        bp = BillPayment(
+            tenant_id=user.tenant_id,
+            transaction_id=txn.id,
+            payment_date=date,
+            amount=total,
+            created_by_id=user.id,
+        )
+        session.add(bp)
+        session.flush()
+        for a in bill_allocs:
+            bill = session.get(Bill, a.bill_id)
+            if not bill or bill.tenant_id != user.tenant_id:
+                continue
+            session.add(PaymentAllocation(
+                tenant_id=user.tenant_id,
+                bill_payment_id=bp.id,
+                bill_id=bill.id,
+                amount=a.amount,
+            ))
+            session.flush()
+            _refresh_bill_status(session, bill)
+
+
 @router.post("")
 def create_transaction(
     session: SessionDep, user: WriteUserDep, tx_data: TransactionCreate
@@ -155,6 +222,8 @@ def create_transaction(
         voucher_type=tx_data.voucher_type or "JV",
         audit_entity_type="transaction",
     )
+    if tx_data.allocations:
+        _apply_allocations(session, user, txn, tx_data.allocations, tx_data.date)
     session.commit()
     return {"id": txn.id, "jv_number": txn.jv_number}
 

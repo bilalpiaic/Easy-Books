@@ -1461,10 +1461,18 @@ class JournalEntryCreate(JournalEntryBase):
     tenant_id: Optional[int] = None  # set by server from JWT
 
 
+class AllocationInput(SQLModel):
+    """Inline allocation when posting a CR/BR/CP/BP voucher from the entry form."""
+    invoice_id: Optional[int] = None
+    bill_id: Optional[int] = None
+    amount: Decimal
+
+
 class TransactionCreate(TransactionBase):
     tenant_id: Optional[int] = None  # set by server from JWT
     voucher_type: str = "JV"         # classification → per-type number series (#52 §4)
     entries: List[JournalEntryCreate]
+    allocations: Optional[List["AllocationInput"]] = None
 
 
 class TransactionRead(TransactionBase):

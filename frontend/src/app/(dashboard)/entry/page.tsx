@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Trash2, Save, AlertCircle, ScrollText, Info } from "lucide-react"
+import { Plus, Trash2, Save, AlertCircle, ScrollText, Info, Link2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import {
   VOUCHER_TYPES,
@@ -25,6 +25,23 @@ interface EntryRow {
   credit: string
 }
 
+interface OpenItem {
+  id: number
+  number: string
+  customer_name?: string
+  vendor_name?: string
+  issue_date?: string
+  bill_date?: string
+  due_date: string
+  total: number
+  balance_due: number
+}
+
+interface AllocRow {
+  item_id: number
+  amount: string
+}
+
 export default function NewEntryPage() {
   const router = useRouter()
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -37,6 +54,8 @@ export default function NewEntryPage() {
   ])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [openItems, setOpenItems] = useState<OpenItem[]>([])
+  const [allocRows, setAllocRows] = useState<AllocRow[]>([])
 
   useEffect(() => {
     apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500")
@@ -131,6 +150,56 @@ export default function NewEntryPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, accounts, voucherType])
 
+  // ── Allocation panel (CR/BR = look for AR on credit; CP/BP = AP on debit) ──
+  const isAllocationVoucher = ["CR", "BR", "CP", "BP"].includes(voucherType)
+
+  const partyAccountId = useMemo<number | null>(() => {
+    if (!isAllocationVoucher) return null
+    const isReceiving = voucherType === "CR" || voucherType === "BR"
+    for (const row of rows) {
+      if (!row.account_id) continue
+      const amount = isReceiving ? parseFloat(row.credit) : parseFloat(row.debit)
+      if (!(amount > 0)) continue
+      const acct = accounts.find(a => a.id === parseInt(row.account_id))
+      if (!acct) continue
+      if (isReceiving && acct.code?.startsWith("12")) return acct.id
+      if (!isReceiving && acct.code?.startsWith("21")) return acct.id
+    }
+    return null
+  }, [rows, accounts, voucherType, isAllocationVoucher])
+
+  const allocationMode: "invoice" | "bill" | null = useMemo(() => {
+    if (!partyAccountId) return null
+    return (voucherType === "CR" || voucherType === "BR") ? "invoice" : "bill"
+  }, [partyAccountId, voucherType])
+
+  useEffect(() => {
+    setAllocRows([])
+    setOpenItems([])
+    if (!partyAccountId || !allocationMode) return
+    const param = allocationMode === "invoice"
+      ? `ar_account_id=${partyAccountId}`
+      : `ap_account_id=${partyAccountId}`
+    const endpoint = allocationMode === "invoice"
+      ? `/api/invoices/open-for-allocation?${param}`
+      : `/api/bills/open-for-allocation?${param}`
+    apiFetch<OpenItem[]>(endpoint).then(setOpenItems).catch(console.error)
+  }, [partyAccountId, allocationMode])
+
+  const totalAllocated = allocRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+
+  function toggleAlloc(itemId: number) {
+    setAllocRows(prev => {
+      if (prev.find(r => r.item_id === itemId)) return prev.filter(r => r.item_id !== itemId)
+      const item = openItems.find(i => i.id === itemId)
+      return [...prev, { item_id: itemId, amount: item ? item.balance_due.toFixed(2) : "" }]
+    })
+  }
+
+  function setAllocAmount(itemId: number, value: string) {
+    setAllocRows(prev => prev.map(r => r.item_id === itemId ? { ...r, amount: value } : r))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!balanced) {
@@ -139,7 +208,8 @@ export default function NewEntryPage() {
     }
     setIsSubmitting(true)
     setError("")
-    const payload = {
+    const activeAllocs = allocRows.filter(r => parseFloat(r.amount) > 0)
+    const payload: Record<string, unknown> = {
       date,
       description,
       voucher_type: voucherType,
@@ -150,6 +220,12 @@ export default function NewEntryPage() {
           debit: parseFloat(r.debit)  || 0,
           credit: parseFloat(r.credit) || 0,
         })),
+    }
+    if (activeAllocs.length > 0 && allocationMode) {
+      payload.allocations = activeAllocs.map(r => ({
+        ...(allocationMode === "invoice" ? { invoice_id: r.item_id } : { bill_id: r.item_id }),
+        amount: parseFloat(r.amount),
+      }))
     }
     try {
       const created = await apiFetch<{ id: number }>("/api/transactions", {
@@ -453,6 +529,98 @@ export default function NewEntryPage() {
             </div>
           </div>
         </section>
+
+        {/* ── Invoice / Bill Allocation panel (CR/BR/CP/BP) ────── */}
+        {isAllocationVoucher && (
+          <section className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-[#ede9e2]">
+            <div className="flex items-center gap-2 mb-3">
+              <Link2 className="w-4 h-4 text-[#b8943f] shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
+                {allocationMode === "invoice" ? "Invoice Allocation" : allocationMode === "bill" ? "Bill Allocation" : "Invoice / Bill Allocation"}
+              </span>
+              {totalAllocated > 0 && (
+                <span className="ml-auto text-xs font-mono font-semibold text-[#b8943f]">
+                  Allocated: {totalAllocated.toFixed(2)}
+                </span>
+              )}
+            </div>
+
+            {!partyAccountId ? (
+              <p className="text-xs text-[#1a1814]/50 italic">
+                {voucherType === "CR" || voucherType === "BR"
+                  ? "Select a receivables account (12xx) on the credit side to load open invoices."
+                  : "Select a payables account (21xx) on the debit side to load open bills."}
+              </p>
+            ) : openItems.length === 0 ? (
+              <p className="text-xs text-[#1a1814]/50 italic">
+                No open {allocationMode === "invoice" ? "invoices" : "bills"} for this account.
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-[#ede9e2]">
+                <table className="w-full text-xs">
+                  <thead className="bg-[#faf6ec]">
+                    <tr>
+                      <th className="px-3 py-2 text-left w-8"></th>
+                      <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
+                        {allocationMode === "invoice" ? "Invoice" : "Bill"} #
+                      </th>
+                      <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 hidden sm:table-cell">
+                        {allocationMode === "invoice" ? "Customer" : "Vendor"}
+                      </th>
+                      <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 hidden sm:table-cell">Due</th>
+                      <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Balance Due</th>
+                      <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Amount Applied</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ede9e2]">
+                    {openItems.map(item => {
+                      const alloc = allocRows.find(r => r.item_id === item.id)
+                      const checked = !!alloc
+                      return (
+                        <tr key={item.id} className={checked ? "bg-amber-50" : ""}>
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleAlloc(item.id)}
+                              className="accent-[#b8943f]"
+                            />
+                          </td>
+                          <td className="px-3 py-2 font-mono font-semibold text-[#1a1814]">{item.number}</td>
+                          <td className="px-3 py-2 text-[#1a1814]/70 hidden sm:table-cell">
+                            {item.customer_name || item.vendor_name || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-[#1a1814]/60 hidden sm:table-cell">{item.due_date}</td>
+                          <td className="px-3 py-2 text-right font-mono text-[#1a1814]">{item.balance_due.toFixed(2)}</td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={item.balance_due}
+                              value={alloc?.amount ?? ""}
+                              disabled={!checked}
+                              onChange={e => setAllocAmount(item.id, e.target.value)}
+                              placeholder="0.00"
+                              className="w-full px-2 py-1.5 bg-white border border-[#ede9e2] rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-right font-mono disabled:opacity-40"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {totalAllocated > 0 && Math.abs(totalAllocated - totalDebit) > 0.005 && Math.abs(totalAllocated - totalCredit) > 0.005 && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mt-3 text-xs">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>Allocated ({totalAllocated.toFixed(2)}) doesn&apos;t match the transaction total — unallocated portion will be on-account.</span>
+              </div>
+            )}
+          </section>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2.5 rounded-lg flex items-start gap-2 text-xs sm:text-sm">

@@ -10,7 +10,7 @@ from sqlmodel import Session, asc, desc, func, select
 
 from datetime import timedelta
 
-from models import Account, BomHeader, BomLine, Customer, Invoice, InvoiceLine, JournalEntry, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
+from models import Account, BomHeader, BomLine, Customer, Invoice, InvoiceLine, JournalEntry, PaymentAllocation, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
 from services.deferred import (
     plan_deferral, resolve_deferred_account, create_schedules,
     has_any_recognition, reverse_schedules,
@@ -131,6 +131,42 @@ _SORTABLE = {
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
+
+
+@router.get("/api/invoices/open-for-allocation")
+def open_invoices_for_allocation(
+    session: SessionDep,
+    user: CurrentUserDep,
+    ar_account_id: Optional[int] = None,
+):
+    """Return open/partial/overdue invoices with balance_due for the allocation panel."""
+    q = select(Invoice).where(
+        Invoice.tenant_id == user.tenant_id,
+        Invoice.status.in_(["open", "partial", "overdue", "sent"]),  # type: ignore[attr-defined]
+    )
+    if ar_account_id:
+        q = q.where(Invoice.ar_account_id == ar_account_id)
+    invoices = session.exec(q.order_by(Invoice.issue_date)).all()
+
+    result = []
+    for inv in invoices:
+        allocated = session.exec(
+            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
+            .where(PaymentAllocation.invoice_id == inv.id)
+        ).one()
+        balance_due = float(D(inv.total) - D(allocated))
+        if balance_due <= 0:
+            continue
+        result.append({
+            "id": inv.id,
+            "number": inv.number,
+            "customer_name": inv.customer_name or "",
+            "issue_date": inv.issue_date,
+            "due_date": inv.due_date,
+            "total": float(inv.total),
+            "balance_due": balance_due,
+        })
+    return result
 
 
 @router.get("/api/invoices")
