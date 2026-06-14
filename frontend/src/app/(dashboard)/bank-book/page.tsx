@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Landmark, Printer } from "lucide-react"
+import { Landmark, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { VOUCHER_TYPES } from "@/lib/voucherTypes"
+import { downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import LedgerEntriesTable, { LedgerPayload } from "@/components/LedgerEntriesTable"
@@ -133,14 +134,30 @@ export default function BankBookPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => window.print()}
-          disabled={!ledgerData}
-          className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
-          title={!ledgerData ? "No data to print" : "Print Bank Book"}
-        >
-          <Printer className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (!ledgerData) return
+              downloadCSV(`bank-book-${ledgerData.name}.csv`, ledgerData.entries.map(e => ({
+                Date: e.date, "JV#": e.jv_number, Type: e.voucher_type ?? "", Description: e.description,
+                Debit: e.debit, Credit: e.credit, Balance: e.balance,
+              })))
+            }}
+            disabled={!ledgerData}
+            className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Export CSV"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => window.print()}
+            disabled={!ledgerData}
+            className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            title={!ledgerData ? "No data to print" : "Print Bank Book"}
+          >
+            <Printer className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Controls */}
