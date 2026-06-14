@@ -1,9 +1,10 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import { downloadCSV } from '@/lib/utils'
 
 interface Row {
   product_id: number
@@ -28,10 +29,17 @@ export default function CustomerProducts({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 print:hidden">
+      <div className="flex items-center justify-between print:hidden">
         <Link href="/customers" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
           <ArrowLeft className="w-4 h-4" /> Customers
         </Link>
+        <button
+          onClick={() => downloadCSV('customer-products.csv', rows.map(r => ({ Product: r.name, Code: r.code ?? '', "Last Price": r.last_rate, "Last Date": r.last_date, "Total Qty": r.total_qty, Invoices: r.invoice_count })))}
+          disabled={rows.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] disabled:opacity-40"
+        >
+          <Download className="w-4 h-4" /> CSV
+        </button>
       </div>
       <h1 className="text-3xl font-serif font-medium">Products Sold</h1>
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-x-auto">

@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Printer, Package } from "lucide-react"
+import { ArrowLeft, Printer, Package, Download } from "lucide-react"
+import { downloadCSV } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
@@ -89,9 +90,18 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
         <Link href={`/products/${id}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
           <ArrowLeft className="w-4 h-4" /> Product
         </Link>
-        <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
-          <Printer className="w-4 h-4" /> Print
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => data && downloadCSV(`stock-card-${data.product.code ?? data.product.name}.csv`, data.entries.map(e => ({ Date: e.date, Direction: e.direction, "Lot #": e.lot_no ?? '', "Qty In": e.qty_in ?? '', "Qty Out": e.qty_out ?? '', "Unit Cost": e.unit_cost, "Total Cost": e.total_cost, "Running Qty": e.running_qty, "Running Value": e.running_value, Source: e.source_doc_type ?? '' })))}
+            disabled={!data || data.entries.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+        </div>
       </div>
 
       <header className="bg-white border border-[#ede9e2] rounded-xl p-5 flex items-start gap-3 print:hidden">
