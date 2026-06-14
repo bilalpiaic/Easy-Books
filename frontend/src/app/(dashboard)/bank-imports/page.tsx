@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Upload, CheckCircle2, Clock, FileText } from "lucide-react"
+import { Plus, Upload, CheckCircle2, Clock, FileText, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { downloadCSV } from "@/lib/utils"
 
 interface BankImport {
   id: number
@@ -57,13 +58,22 @@ export default function BankImportsPage() {
             Upload CSV statements and reconcile lines to journal entries.
           </p>
         </div>
-        <Link
-          href="/bank-imports/new"
-          className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Upload Statement
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('bank-imports.csv', imports.map(i => ({ File: i.file_name, Account: accounts[i.bank_account_id]?.name ?? String(i.bank_account_id), Lines: i.line_count, Matched: i.matched_count, Status: i.status, Uploaded: i.created_at })))}
+            disabled={imports.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <Link
+            href="/bank-imports/new"
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Upload Statement
+          </Link>
+        </div>
       </div>
 
       {error && (
