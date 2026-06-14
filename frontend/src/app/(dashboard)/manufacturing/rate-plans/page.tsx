@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Tags, Printer, Plus, Pencil, UserPlus } from "lucide-react"
+import { Tags, Printer, Plus, Pencil, UserPlus, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
+import { downloadCSV } from "@/lib/utils"
 
 interface RatePlan {
   id: number; code: string; name: string; version: number; is_active: boolean
@@ -169,6 +170,13 @@ export default function RatePlansPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('rate-plans.csv', plans.map(p => ({ Code: p.code, Name: p.name, Version: p.version, Active: p.is_active ? 'Yes' : 'No', "Unit Rate": p.per_unit_rate, "Overhead %": p.overhead_pct, "Margin %": p.margin_pct, "Valid From": p.valid_from ?? '', "Valid To": p.valid_to ?? '' })))}
+            disabled={plans.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button onClick={openCreate}
             className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
             <Plus className="w-4 h-4" /> New Plan

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight, ArrowLeftRight, Users } from "lucide-react"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight, ArrowLeftRight, Users, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 
 interface StockLocation {
   id: number
@@ -149,6 +150,13 @@ export default function StockLocationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('stock-locations.csv', locations.map(l => ({ Code: l.code, Name: l.name, Type: TYPE_LABELS[l.type] ?? l.type, Active: l.is_active ? 'Yes' : 'No' })))}
+            disabled={locations.length === 0}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <Link href="/manufacturing/stock-locations/custody"
             className="inline-flex items-center gap-2 border border-[#ede9e2] px-3 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
             <Users className="w-4 h-4" /> Custody

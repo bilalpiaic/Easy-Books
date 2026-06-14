@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeftRight, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 
 interface Movement {
   id: number
@@ -122,6 +123,13 @@ export default function StockMovementsPage() {
             ← Stock Locations
           </Link>
         </div>
+        <button
+          onClick={() => downloadCSV('stock-movements.csv', movements.map(m => ({ Date: m.occurred_at.slice(0, 10), Direction: m.direction, Product: productMap.get(m.product_id)?.name ?? m.product_id, Lot: m.lot_no ?? '', Qty: m.qty, "From": m.from_location_id ? (locationMap.get(m.from_location_id)?.name ?? m.from_location_id) : '', "To": m.to_location_id ? (locationMap.get(m.to_location_id)?.name ?? m.to_location_id) : '', "Unit Cost": m.unit_cost, "Total Cost": m.total_cost, Source: m.source_doc_type ? `${m.source_doc_type} #${m.source_doc_id}` : '' })))}
+          disabled={movements.length === 0}
+          className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+        >
+          <Download className="w-4 h-4" /> CSV
+        </button>
       </header>
 
       <div className="flex items-center gap-3">
