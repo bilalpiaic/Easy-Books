@@ -193,6 +193,7 @@ def create_payment_received(
         reference=body.reference,
         cash_account_id=cash_acc.id,
         transaction_id=txn.id,
+        created_by_id=user.id,
     )
     session.add(pmt)
     session.flush()
@@ -349,6 +350,7 @@ def create_bill_payment(
         reference=body.reference,
         cash_account_id=cash_acc.id,
         transaction_id=txn.id,
+        created_by_id=user.id,
     )
     session.add(bp)
     session.flush()

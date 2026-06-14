@@ -213,6 +213,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         status="draft",
         ap_account_id=body.ap_account_id,
         expense_account_id=body.expense_account_id,
+        created_by_id=user.id,
     )
     session.add(bill)
     session.flush()

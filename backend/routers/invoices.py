@@ -281,6 +281,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         status="draft",
         ar_account_id=body.ar_account_id,
         revenue_account_id=body.revenue_account_id,
+        created_by_id=user.id,
     )
     session.add(invoice)
     session.flush()

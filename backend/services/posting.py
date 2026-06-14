@@ -149,6 +149,7 @@ def post_transaction(
         party=party,
         payment_method=payment_method,
         notes=notes,
+        created_by_id=user.id,
     )
     session.add(txn)
     session.flush()
