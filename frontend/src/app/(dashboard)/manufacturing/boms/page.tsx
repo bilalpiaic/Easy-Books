@@ -14,7 +14,7 @@ interface BomLine {
 }
 interface Bom {
   id: number; output_product_id: number; output_qty: string; version: number
-  is_active: boolean; description: string | null; lines: BomLine[]
+  is_active: boolean; explode_on_invoice: boolean; description: string | null; lines: BomLine[]
 }
 interface Product { id: number; code: string; name: string }
 
@@ -142,9 +142,14 @@ export default function BomsListPage() {
                     <td className="px-4 py-2.5 text-center">{b.lines.length}</td>
                     <td className="px-4 py-2.5 text-center text-xs text-[#1a1814]/60">v{b.version}</td>
                     <td className="px-4 py-2.5 text-center">
-                      {b.is_active
-                        ? <span className="text-emerald-700 font-semibold text-xs">Active</span>
-                        : <span className="text-[#1a1814]/40 text-xs">Archived</span>}
+                      <div className="flex flex-col items-center gap-0.5">
+                        {b.is_active
+                          ? <span className="text-emerald-700 font-semibold text-xs">Active</span>
+                          : <span className="text-[#1a1814]/40 text-xs">Archived</span>}
+                        {b.explode_on_invoice && (
+                          <span className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 text-[10px] font-medium">Kit</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-right print:hidden">
                       {b.is_active && (

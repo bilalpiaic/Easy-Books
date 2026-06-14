@@ -44,10 +44,10 @@ SAMPLE_CSVS: dict[str, list[list[str]]] = {
         ["Khan & Sons", "khan@supplier.com", "0333-2222222", "Faisalabad", "25000"],
     ],
     "products": [
-        ["code",    "name",                    "unit", "product_type", "default_rate", "reorder_level", "category_name", "is_deferred", "recognition_months"],
-        ["PRD-001", "Widget A",                "pcs",  "stock",        "1500",         "50",            "Electronics",   "false",       ""],
-        ["PRD-002", "Annual Support Contract", "hrs",  "service",      "50000",        "0",             "Services",      "true",        "12"],
-        ["PRD-003", "Raw Cotton",              "kg",   "stock",        "350",          "200",           "",              "false",       ""],
+        ["code",    "name",                    "unit", "product_type", "default_rate", "reorder_level", "category_name", "is_deferred", "recognition_months", "hs_code",   "opening_qty", "opening_cost"],
+        ["PRD-001", "Widget A",                "pcs",  "stock",        "1500",         "50",            "Electronics",   "false",       "",                   "8479.89",   "100",         "1200"],
+        ["PRD-002", "Annual Support Contract", "hrs",  "service",      "50000",        "0",             "Services",      "true",        "12",                 "",          "",            ""],
+        ["PRD-003", "Raw Cotton",              "kg",   "stock",        "350",          "200",           "",              "false",       "",                   "5201.00",   "500",         "280"],
     ],
 }
 
@@ -429,7 +429,17 @@ async def import_products(
         except (ValueError, TypeError):
             errors.append({"row": i, "message": "recognition_months must be a positive integer"}); continue
 
-        session.add(Product(
+        # FBR / customs
+        hs_code = (row.get("hs_code") or "").strip() or None
+
+        # Opening stock (stock products only)
+        try:
+            opening_qty = D(row.get("opening_qty") or "0")
+            opening_cost = D(row.get("opening_cost") or "0")
+        except Exception:
+            errors.append({"row": i, "message": "opening_qty and opening_cost must be numbers"}); continue
+
+        prod = Product(
             tenant_id=user.tenant_id,
             code=(row.get("code") or "").strip() or None,
             name=name,
@@ -440,8 +450,13 @@ async def import_products(
             category_id=category_id,
             is_deferred=is_deferred,
             recognition_months=recognition_months,
+            hs_code=hs_code,
             is_active=True,
-        ))
+        )
+        if ptype == "stock" and opening_qty > 0:
+            prod.stock_qty = opening_qty
+            prod.avg_cost = opening_cost
+        session.add(prod)
         imported += 1
 
     session.commit()

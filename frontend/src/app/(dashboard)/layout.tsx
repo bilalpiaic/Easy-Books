@@ -69,6 +69,7 @@ const TITLE_MAP: Record<string, string> = {
   "/products/categories": "Product Categories",
   "/products/ledger":     "Product Ledger",
   "/products/new":        "New Product",
+  "/products/":           "Product",
   "/inventory/performance": "Inventory Performance",
   "/customer-performance":  "Customer Performance",
   "/reports/builder":       "Report Builder",

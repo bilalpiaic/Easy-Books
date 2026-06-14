@@ -317,6 +317,7 @@ function ProductsInner() {
                 </td>
                 <td className="ui-td text-center">{stockBadge(p)}</td>
                 <td className="ui-td flex items-center gap-3">
+                  <Link href={`/products/${p.id}`} className="text-[#1a1814]/60 text-sm hover:underline">View</Link>
                   <button onClick={() => router.push(`/products/${p.id}/edit`)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
