@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Download, Printer, Receipt } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
@@ -47,6 +47,8 @@ const BILL_STATUSES = ['draft', 'received', 'partial', 'paid', 'overdue']
 export default function Bills() {
   const fmt = useFmt()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [vendorFilter, setVendorFilter] = useState<{ id: number; name: string } | null>(null)
   const [bills, setBills]       = useState<Bill[]>([])
   const [total, setTotal]       = useState(0)
   const [page, setPage]         = useState(1)
@@ -59,6 +61,16 @@ export default function Bills() {
   const [loading, setLoading]   = useState(true)
   const [aging, setAging]       = useState<AgingBuckets | null>(null)
   const [selectedIds, setSelectedIds]   = useState<Set<number>>(new Set())
+
+  useEffect(() => {
+    const vendorId = searchParams.get('vendor_id')
+    if (vendorId) {
+      apiFetch<{ id: number; name: string }>(`/api/vendors/${vendorId}`)
+        .then(v => setVendorFilter({ id: v.id, name: v.name }))
+        .catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleBulkAction = async (action: string) => {
     const ids = Array.from(selectedIds)
@@ -87,10 +99,11 @@ export default function Bills() {
       sort_by: sortBy,
       sort_dir: sortDir,
     })
-    if (search)   params.set('search',    search)
-    if (status)   params.set('status',    status)
-    if (dateFrom) params.set('date_from', dateFrom)
-    if (dateTo)   params.set('date_to',   dateTo)
+    if (search)          params.set('search',    search)
+    if (status)          params.set('status',    status)
+    if (dateFrom)        params.set('date_from', dateFrom)
+    if (dateTo)          params.set('date_to',   dateTo)
+    if (vendorFilter)    params.set('vendor_id', String(vendorFilter.id))
     apiFetch<{ total: number; items: Bill[] }>(`/api/bills?${params}`)
       .then(d => { setBills(d.items); setTotal(d.total) })
       .catch(() => {})
@@ -101,8 +114,8 @@ export default function Bills() {
     setSortBy(field); setSortDir(dir); setPage(1)
   }
 
-  useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo])
-  useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir])
+  useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo, vendorFilter])
+  useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir, vendorFilter])
   useEffect(() => {
     apiFetch<AgingBuckets>('/api/bills/aging').then(setAging).catch(() => {})
   }, [])
@@ -169,6 +182,20 @@ export default function Bills() {
           <p className="text-2xl font-bold text-[#1a1814] mt-2">{total}</p>
         </div>
       </div>
+
+      {vendorFilter && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="bg-[#b8943f]/10 text-[#b8943f] border border-[#b8943f]/20 rounded-full px-3 py-1 font-medium">
+            Vendor: {vendorFilter.name}
+          </span>
+          <button
+            onClick={() => setVendorFilter(null)}
+            className="text-[#1a1814]/40 hover:text-red-500 text-xs transition-colors"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       <FilterBar
         search={search} onSearch={setSearch}

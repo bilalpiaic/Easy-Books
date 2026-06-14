@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Download, Printer, FileSignature } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
@@ -50,6 +50,8 @@ const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 export default function Invoices() {
   const fmt = useFmt()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [customerFilter, setCustomerFilter] = useState<{ id: number; name: string } | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -63,6 +65,16 @@ export default function Invoices() {
   const [aging, setAging] = useState<AgingBuckets | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
+  useEffect(() => {
+    const customerId = searchParams.get('customer_id')
+    if (customerId) {
+      apiFetch<{ id: number; name: string }>(`/api/customers/${customerId}`)
+        .then(c => setCustomerFilter({ id: c.id, name: c.name }))
+        .catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const load = () => {
     setLoading(true)
     const params = new URLSearchParams({
@@ -71,10 +83,11 @@ export default function Invoices() {
       sort_by: sortBy,
       sort_dir: sortDir,
     })
-    if (search) params.set('search', search)
-    if (status) params.set('status', status)
-    if (dateFrom) params.set('date_from', dateFrom)
-    if (dateTo) params.set('date_to', dateTo)
+    if (search)         params.set('search', search)
+    if (status)         params.set('status', status)
+    if (dateFrom)       params.set('date_from', dateFrom)
+    if (dateTo)         params.set('date_to', dateTo)
+    if (customerFilter) params.set('customer_id', String(customerFilter.id))
     apiFetch<{ total: number; items: Invoice[] }>(`/api/invoices?${params}`)
       .then(d => { setInvoices(d.items); setTotal(d.total) })
       .catch(() => {})
@@ -85,8 +98,8 @@ export default function Invoices() {
     setSortBy(field); setSortDir(dir); setPage(1)
   }
 
-  useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo])
-  useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir])
+  useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo, customerFilter])
+  useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir, customerFilter])
   useEffect(() => {
     apiFetch<AgingBuckets>('/api/invoices/aging').then(setAging).catch(() => {})
   }, [])
@@ -175,6 +188,20 @@ export default function Invoices() {
           <p className="text-2xl font-bold text-[#1a1814] mt-2">{total}</p>
         </div>
       </div>
+
+      {customerFilter && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="bg-[#b8943f]/10 text-[#b8943f] border border-[#b8943f]/20 rounded-full px-3 py-1 font-medium">
+            Customer: {customerFilter.name}
+          </span>
+          <button
+            onClick={() => setCustomerFilter(null)}
+            className="text-[#1a1814]/40 hover:text-red-500 text-xs transition-colors"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       <FilterBar
         search={search} onSearch={setSearch}
