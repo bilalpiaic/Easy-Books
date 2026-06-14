@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Eye, EyeOff, Trash2, Printer } from 'lucide-react'
+import { Plus, Eye, EyeOff, Trash2, Printer, Download } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
 
 interface BankAccount {
@@ -127,6 +128,13 @@ export default function BankAccounts() {
           <button onClick={() => setHideBalance(!hideBalance)} className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee]">
             {hideBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             {hideBalance ? 'Show' : 'Hide'} Balance
+          </button>
+          <button
+            onClick={() => downloadCSV('bank-accounts.csv', accounts.map(a => ({ Name: a.name, Bank: a.bank_name ?? '', "Account #": a.account_number ?? '', Balance: a.balance, Active: a.is_active ? 'Yes' : 'No' })))}
+            disabled={accounts.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={() => window.print()}
