@@ -57,6 +57,7 @@ class SettingsUpdate(BaseModel):
     ui_density: Optional[str] = None
     # Amount display precision ("2" or "4")
     decimal_places: Optional[str] = None
+    user_rights_enabled: Optional[str] = None  # "true" | "false"
 
 
 @router.get("")
@@ -95,6 +96,10 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
         dp = updates["decimal_places"]
         if dp not in ("2", "4"):
             raise HTTPException(400, "decimal_places must be '2' or '4'")
+
+    if "user_rights_enabled" in updates:
+        if updates["user_rights_enabled"] not in ("true", "false"):
+            raise HTTPException(400, "user_rights_enabled must be 'true' or 'false'")
 
     # Keep Tenant.base_currency in sync with the "currency" KV setting
     if "currency" in updates and tenant:
