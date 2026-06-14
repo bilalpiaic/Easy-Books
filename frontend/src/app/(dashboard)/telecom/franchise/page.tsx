@@ -1,11 +1,12 @@
 "use client"
 
-import { ScrollText } from "lucide-react"
+import { ScrollText, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Agreement {
@@ -93,7 +94,7 @@ export default function FranchisePage() {
         )},
         { id: "agreements", label: "Agreements", content: (
           <div className="space-y-4">
-            <Section title="Agreements"><DataTable columns={agCols} rows={agreements.items} empty="No agreements yet." /></Section>
+            <Section title="Agreements" action={<button onClick={() => downloadCSV('franchise-agreements.csv', agreements.items.map(a => ({ "Agreement #": a.agreement_number, Start: a.start_date, End: a.end_date ?? '', Fee: a.franchise_fee_paid, "Royalty %": a.royalty_rate_pct, "Min Target": a.min_monthly_target, "Amort Months": a.amortisation_months })))} disabled={agreements.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={agCols} rows={agreements.items} empty="No agreements yet." /></Section>
             <Section title="Add a franchise agreement">
               <ActionForm endpoint="/api/telecom/franchise/agreements" fields={agFields} submitLabel="Add agreement" successText={() => "Agreement added."} onSuccess={agreements.refetch} />
             </Section>

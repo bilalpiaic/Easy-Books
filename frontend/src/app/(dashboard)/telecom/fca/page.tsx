@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Target } from "lucide-react"
+import { Target, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface TrackerAccount { id: number; account_number: string }
@@ -112,7 +113,7 @@ export default function FcaPage() {
             <Section title="Log a first-call activation">
               <ActionForm endpoint="/api/telecom/fca/events" fields={eventFields} submitLabel="Log event" successText={() => "FCA event logged."} onSuccess={events.refetch} />
             </Section>
-            <Section title="Recent events"><DataTable columns={eventCols} rows={events.items} empty="No FCA events yet." /></Section>
+            <Section title="Recent events" action={<button onClick={() => downloadCSV('fca-events.csv', events.items.map(e => ({ MSISDN: e.msisdn, Date: e.event_date, Channel: e.source_channel })))} disabled={events.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={eventCols} rows={events.items} empty="No FCA events yet." /></Section>
           </div>
         )},
         { id: "target", label: "Targets", content: (
@@ -120,7 +121,7 @@ export default function FcaPage() {
             <Section title="Set a monthly target">
               <ActionForm endpoint="/api/telecom/kpi/targets" fields={targetFields} submitLabel="Save target" successText={() => "Target saved."} onSuccess={targets.refetch} />
             </Section>
-            <Section title="Targets"><DataTable columns={targetCols} rows={targets.items} empty="No targets set yet." /></Section>
+            <Section title="Targets" action={<button onClick={() => downloadCSV('fca-targets.csv', targets.items.map(t => ({ Month: t.target_month, Metric: t.metric, Target: t.target_value })))} disabled={targets.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={targetCols} rows={targets.items} empty="No targets set yet." /></Section>
           </div>
         )},
         { id: "commission", label: "Target commission", content: (

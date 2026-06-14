@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Smartphone } from "lucide-react"
+import { Smartphone, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface SimBatch { id: number; batch_number: string; qty_received: number; qty_activated: number; unit_cost: string; received_date: string }
@@ -99,7 +100,9 @@ export default function SimPage() {
             <Section title="Record a SIM activation">
               <ActionForm endpoint="/api/telecom/sim/activations" fields={activationFields} submitLabel="Activate" successText={() => "Activation recorded."} onSuccess={activations.refetch} />
             </Section>
-            <Section title="Recent activations">
+            <Section title="Recent activations" action={
+              <button onClick={() => downloadCSV('sim-activations.csv', activations.items.map(a => ({ "SIM/MSISDN": a.sim_number, Date: a.activation_date, Type: a.activation_type, Customer: a.customer_name ?? '', Commission: a.commission_rate, "Commission Status": a.commission_status, Status: a.status })))} disabled={activations.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+            }>
               <DataTable columns={actCols} rows={activations.items} empty="No activations yet." />
             </Section>
           </div>
@@ -118,7 +121,9 @@ export default function SimPage() {
           </Section>
         )},
         { id: "batches", label: "Batches", content: (
-          <Section title="SIM batch utilisation">
+          <Section title="SIM batch utilisation" action={
+            <button onClick={() => downloadCSV('sim-batches.csv', util.map(b => ({ Batch: b.batch_number, Received: b.qty_received, Activated: b.qty_activated, Available: b.qty_available, "Unit Cost": b.unit_cost })))} disabled={util.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+          }>
             <DataTable columns={batchCols} rows={util} empty="No SIM batches yet — procure stock via Tracker → Stock debit." />
           </Section>
         )},

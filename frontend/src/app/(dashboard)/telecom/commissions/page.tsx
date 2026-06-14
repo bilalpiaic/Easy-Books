@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Percent } from "lucide-react"
+import { Percent, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, Tile, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Statement {
@@ -88,7 +89,9 @@ export default function CommissionsPage() {
         )},
         { id: "statements", label: "Statements", content: (
           <div className="space-y-4">
-            <Section title="Commission statements"><DataTable columns={stmtCols} rows={statements.items} empty="No statements yet." /></Section>
+            <Section title="Commission statements" action={
+              <button onClick={() => downloadCSV('commissions.csv', statements.items.map(s => ({ Date: s.statement_date, "Period From": s.period_from, "Period To": s.period_to, Reference: s.statement_reference ?? '', Total: s.total_commission, Status: s.status })))} disabled={statements.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+            }><DataTable columns={stmtCols} rows={statements.items} empty="No statements yet." /></Section>
             <Section title="Record a commission statement">
               <ActionForm endpoint="/api/telecom/commissions/statements" fields={stmtFields} submitLabel="Record statement" successText={() => "Statement recorded."} onSuccess={statements.refetch} />
             </Section>

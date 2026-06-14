@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Banknote } from "lucide-react"
+import { Banknote, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, Tile, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface MmAccount { id: number; account_number: string; account_type: string; current_float_balance: string }
@@ -142,7 +143,7 @@ export default function MobileMoneyPage() {
           </div>
         )},
         { id: "txns", label: "Transactions", content: (
-          <Section title="Mobile money transactions">
+          <Section title="Mobile money transactions" action={<button onClick={() => downloadCSV('mm-transactions.csv', txns.items.map(t => ({ Date: t.txn_date, Type: t.txn_type, Amount: t.amount, Reference: t.customer_reference ?? '' })))} disabled={txns.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
             <DataTable columns={txnCols} rows={txns.items} empty="No transactions yet." />
           </Section>
         )},

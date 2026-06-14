@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Wallet } from "lucide-react"
+import { Wallet, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { apiFetch } from "@/lib/api"
+import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string; commission_settlement_cycle: string }
 interface TrackerAccount { id: number; operator_id: number; account_number: string; deposit_balance: string; load_balance: string }
@@ -135,7 +136,7 @@ export default function TrackerPage() {
         )},
         { id: "accounts", label: "Accounts", content: (
           <div className="space-y-4">
-            <Section title="Tracker accounts">
+            <Section title="Tracker accounts" action={<button onClick={() => downloadCSV('tracker-accounts.csv', accounts.items.map(a => ({ "Account #": a.account_number, "Deposit Balance": a.deposit_balance, "Load Balance": a.load_balance })))} disabled={accounts.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
               <DataTable columns={acctCols} rows={accounts.items} empty="No tracker accounts yet." />
             </Section>
             <Section title="Register a tracker account">
@@ -145,7 +146,7 @@ export default function TrackerPage() {
         )},
         { id: "operators", label: "Operators", content: (
           <div className="space-y-4">
-            <Section title="Operators">
+            <Section title="Operators" action={<button onClick={() => downloadCSV('tracker-operators.csv', operators.items.map(o => ({ Name: o.name, Code: o.operator_code, "Settlement Cycle": o.commission_settlement_cycle })))} disabled={operators.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
               <DataTable columns={opCols} rows={operators.items} empty="No operators yet." />
             </Section>
             <Section title="Add an operator">
@@ -154,7 +155,7 @@ export default function TrackerPage() {
           </div>
         )},
         { id: "txns", label: "Transactions", content: (
-          <Section title="Tracker transaction ledger">
+          <Section title="Tracker transaction ledger" action={<button onClick={() => downloadCSV('tracker-transactions.csv', txns.items.map(t => ({ Date: t.txn_date, Type: t.txn_type, Amount: t.amount, "Load Disbursed": t.load_disbursed, Commission: t.commission_earned, Reference: t.tracker_reference ?? '' })))} disabled={txns.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
             <DataTable columns={txnCols} rows={txns.items} empty="No tracker transactions yet." />
           </Section>
         )},

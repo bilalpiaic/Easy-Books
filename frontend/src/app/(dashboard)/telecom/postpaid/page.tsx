@@ -1,11 +1,12 @@
 "use client"
 
-import { ReceiptText } from "lucide-react"
+import { ReceiptText, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Connection { id: number; msisdn: string; customer_name: string; plan_name: string; monthly_rental: string; activation_date: string }
@@ -101,11 +102,11 @@ export default function PostpaidPage() {
           </Section>
         )},
         { id: "cycles", label: "Bill cycles", content: (
-          <Section title="Postpaid book"><DataTable columns={cycleCols} rows={cycles.items} empty="No bill cycles yet." /></Section>
+          <Section title="Postpaid book" action={<button onClick={() => downloadCSV('postpaid-cycles.csv', cycles.items.map(c => ({ Month: c.billing_month, Gross: c.gross_amount, Commission: c.franchise_commission, "Net Remit": c.net_remittance, Collection: c.collection_status, Remittance: c.remittance_status })))} disabled={cycles.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={cycleCols} rows={cycles.items} empty="No bill cycles yet." /></Section>
         )},
         { id: "connections", label: "Connections", content: (
           <div className="space-y-4">
-            <Section title="Connections"><DataTable columns={connCols} rows={connections.items} empty="No connections yet." /></Section>
+            <Section title="Connections" action={<button onClick={() => downloadCSV('postpaid-connections.csv', connections.items.map(c => ({ MSISDN: c.msisdn, Customer: c.customer_name, Plan: c.plan_name, Rental: c.monthly_rental, Activated: c.activation_date })))} disabled={connections.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={connCols} rows={connections.items} empty="No connections yet." /></Section>
             <Section title="Add a postpaid connection">
               <ActionForm endpoint="/api/telecom/postpaid/connections" fields={connFields} submitLabel="Add connection" successText={() => "Connection added."} onSuccess={connections.refetch} />
             </Section>

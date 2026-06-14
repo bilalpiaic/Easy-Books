@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Network } from "lucide-react"
+import { Network, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface RsoAgent { id: number; name: string; phone: string | null; territory: string | null }
 interface RetailOutlet { id: number; rso_id: number; shop_name: string; owner_name: string | null }
@@ -132,7 +133,7 @@ export default function RsoPage() {
             <Section title="Record daily RSO collection">
               <ActionForm endpoint="/api/telecom/rso/collections" fields={collectionFields} submitLabel="Post collection" onSuccess={collections.refetch} />
             </Section>
-            <Section title="Recent collections">
+            <Section title="Recent collections" action={<button onClick={() => downloadCSV('rso-collections.csv', collections.items.map(c => ({ Date: c.collection_date, Load: c.load_portion, Stock: c.stock_portion, Deposited: c.total_deposited, Variance: c.variance })))} disabled={collections.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
               <DataTable columns={collCols} rows={collections.items} empty="No collections yet." />
             </Section>
           </div>
@@ -143,7 +144,7 @@ export default function RsoPage() {
           </Section>
         )},
         { id: "ledger", label: "RSO ledger", content: (
-          <Section title="Per-RSO position">
+          <Section title="Per-RSO position" action={<button onClick={() => downloadCSV('rso-ledger.csv', ledger.map(r => ({ RSO: r.name, Territory: r.territory ?? '', "Load In": r.load_in_msr, "Load Out": r.load_out_retail, "Cash Collected": r.cash_collected_total, "Open Balance": r.open_load_balance })))} disabled={ledger.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
             <DataTable columns={ledgerCols} rows={ledger} empty="No RSO activity yet." />
           </Section>
         )},

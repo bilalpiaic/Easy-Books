@@ -1,11 +1,12 @@
 "use client"
 
-import { Tablet } from "lucide-react"
+import { Tablet, Download } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, useTelecomList,
 } from "@/components/telecom/primitives"
+import { downloadCSV } from "@/lib/utils"
 
 interface Product { id: number; code: string; name: string; product_type: string }
 interface DeviceImei { id: number; imei_number: string; serial_number: string | null; status: string; product_id: number }
@@ -60,7 +61,9 @@ export default function DevicesPage() {
           </Section>
         )},
         { id: "inventory", label: "Inventory", content: (
-          <Section title="Device inventory">
+          <Section title="Device inventory" action={
+            <button onClick={() => downloadCSV('devices.csv', imeis.items.map(d => ({ IMEI: d.imei_number, Model: productById.get(d.product_id)?.name ?? `#${d.product_id}`, Serial: d.serial_number ?? '', Status: d.status })))} disabled={imeis.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+          }>
             <DataTable columns={imeiCols} rows={imeis.items} empty="No devices registered yet." />
           </Section>
         )},
