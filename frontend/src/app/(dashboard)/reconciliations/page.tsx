@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, CheckCircle, XCircle, Printer } from 'lucide-react'
+import { Plus, CheckCircle, XCircle, Printer, Download } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import { downloadCSV } from '@/lib/utils'
 
 interface Reconciliation {
   id: number
@@ -111,6 +112,13 @@ export default function Reconciliations() {
           <p className="text-sm text-black/75 mt-1">Bank reconciliation and cash verification</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('reconciliations.csv', recs.map(r => ({ "Account": r.bank_account_name, "Period Start": r.period_start, "Period End": r.period_end, "Statement Balance": r.statement_balance, Status: r.status })))}
+            disabled={recs.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
