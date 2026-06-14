@@ -66,6 +66,7 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
     tenant = session.get(Tenant, user.tenant_id)
     if tenant:
         out["business_model"] = tenant.business_model
+        out["cost_method"] = tenant.cost_method or "wavg"
     return out
 
 

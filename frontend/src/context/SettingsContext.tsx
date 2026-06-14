@@ -40,6 +40,8 @@ export interface AppSettings {
   decimal_places: string
   // Business model
   business_model: string
+  // Inventory cost method
+  cost_method: string
 }
 
 const defaults: AppSettings = {
@@ -71,6 +73,7 @@ const defaults: AppSettings = {
   ui_density: "comfortable",
   decimal_places: "2",
   business_model: "simple",
+  cost_method: "wavg",
 }
 
 interface SettingsContextValue {

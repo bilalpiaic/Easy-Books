@@ -304,6 +304,18 @@ export default function SettingsPage() {
                 <option value="year_end">Year End</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-semibold text-black/85 mb-2">Inventory Cost Method</label>
+              <select
+                value={form.cost_method || "wavg"}
+                onChange={e => handleChange('cost_method', e.target.value)}
+                className="w-full px-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-black"
+              >
+                <option value="wavg">Weighted Average (IAS 2)</option>
+                <option value="fifo">FIFO — First In, First Out</option>
+              </select>
+              <p className="text-xs text-black/60 mt-1">Affects cost of goods sold and inventory valuation. Change only at a period boundary.</p>
+            </div>
           </div>
         </div>
       </div>
