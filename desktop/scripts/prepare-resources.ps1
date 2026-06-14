@@ -15,7 +15,9 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     $pkg  = "node-v$NodeVersion-win-$arch"
     Invoke-WebRequest "https://nodejs.org/dist/v$NodeVersion/$pkg.zip" -OutFile "$Root\node-build.zip"
     if (Test-Path "$Root\.nodetmp") { Remove-Item "$Root\.nodetmp" -Recurse -Force }
-    Expand-Archive "$Root\node-build.zip" -DestinationPath "$Root\.nodetmp" -Force
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory(
+        "$Root\node-build.zip", "$Root\.nodetmp")
     Move-Item (Join-Path "$Root\.nodetmp" $pkg) $NodeDir -Force
     Remove-Item "$Root\node-build.zip","$Root\.nodetmp" -Recurse -Force
   }

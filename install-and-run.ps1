@@ -40,7 +40,9 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     $url  = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-$arch.zip"
     Invoke-WebRequest -Uri $url -OutFile 'node.zip'
     if (Test-Path '.nodetmp') { Remove-Item '.nodetmp' -Recurse -Force }
-    Expand-Archive 'node.zip' -DestinationPath '.nodetmp' -Force
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory(
+        (Join-Path $Root 'node.zip'), (Join-Path $Root '.nodetmp'))
     Move-Item (Join-Path '.nodetmp' "node-v$NodeVersion-win-$arch") $NodeDir -Force
     Remove-Item 'node.zip' -Force
     Remove-Item '.nodetmp' -Recurse -Force
