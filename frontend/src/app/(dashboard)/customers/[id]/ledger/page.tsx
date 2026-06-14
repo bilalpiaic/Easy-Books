@@ -2,9 +2,10 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Printer, Users } from "lucide-react"
+import { ArrowLeft, Printer, Users, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
@@ -79,6 +80,13 @@ export default function CustomerLedgerPage({ params }: { params: Promise<{ id: s
           <ArrowLeft className="w-4 h-4" /> Customers
         </Link>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV(`customer-ledger-${c.name}.csv`, visibleEntries.map(e => ({ Date: e.date, Type: e.doc_type, "Doc #": e.doc_number, Description: e.description, Debit: e.debit, Credit: e.credit, Balance: e.running_balance })))}
+            disabled={visibleEntries.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <Link href={`/customers/${id}/statement?from=${start}&to=${end}`}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/40 rounded-lg text-sm font-bold text-[#b8943f] hover:bg-[#faf6ec]">
             <Printer className="w-4 h-4" /> Print Statement

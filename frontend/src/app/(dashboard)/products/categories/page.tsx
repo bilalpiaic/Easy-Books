@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Tag, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Tag, Plus, Pencil, Trash2, Check, X, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import { downloadCSV } from '@/lib/utils'
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
 
@@ -90,10 +91,24 @@ export default function CategoriesPage() {
             <p className="text-sm text-[#1a1814]/60">Two-level taxonomy: parent → sub-category.</p>
           </div>
         </div>
-        <button onClick={() => openAdd(null)}
-          className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
-          <Plus className="w-4 h-4" /> Parent Category
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const rows = tree.flatMap(p => p.children && p.children.length > 0
+                ? p.children.map(c => ({ Parent: p.name, "Sub-category": c.name, Active: c.is_active ? 'Yes' : 'No' }))
+                : [{ Parent: p.name, "Sub-category": '', Active: p.is_active ? 'Yes' : 'No' }])
+              downloadCSV('product-categories.csv', rows)
+            }}
+            disabled={tree.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <button onClick={() => openAdd(null)}
+            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
+            <Plus className="w-4 h-4" /> Parent Category
+          </button>
+        </div>
       </header>
 
       {tree.length === 0 ? (
