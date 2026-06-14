@@ -59,9 +59,9 @@ export default function DebitNoteDetailPage({ params }: { params: Promise<{ id: 
             <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mt-0.5">Purchase Return · {dn.status}</p>
           </div>
         </div>
-        <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] text-[#1a1814]/60 print:hidden" title="Print">
+        <Link href={`/debit-notes/${id}/print`} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] text-[#1a1814]/60 print:hidden" title="Print">
           <Printer className="w-5 h-5" />
-        </button>
+        </Link>
       </div>
 
       <div className="bg-white border border-[#ede9e2] rounded-xl p-5 grid grid-cols-2 gap-4 text-sm">
