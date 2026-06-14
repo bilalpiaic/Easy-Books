@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { BarChart2, Printer, AlertTriangle, PackageCheck, Users } from "lucide-react"
+import { BarChart2, Printer, AlertTriangle, PackageCheck, Users, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 
 /* ── Types ── */
 
@@ -113,10 +114,28 @@ export default function ManufacturingReportsPage() {
             <p className="text-sm text-[#1a1814]/60">WIP aging, production summary, and customer custody.</p>
           </div>
         </div>
-        <button onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm hover:bg-[#f6f3ee] transition-colors">
-          <Printer className="w-4 h-4" /> Print
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (tab === "wip-aging" && wip) {
+                const rows = AGING_BUCKETS.flatMap(b => (wip.buckets[b] ?? []).map(o => ({ Bucket: b, "Order #": o.number, "Age Days": o.age_days, "Output Qty": o.output_qty, "Material Cost": o.own_material_cost })))
+                downloadCSV('mfg-wip-aging.csv', rows)
+              } else if (tab === "production-summary" && summary) {
+                downloadCSV('mfg-production-summary.csv', STATE_ORDER.filter(s => summary[s]).map(s => ({ State: s, Count: summary[s].count, "Output Qty": summary[s].output_qty, Cost: summary[s].cost })))
+              } else if (tab === "customer-custody" && custody) {
+                downloadCSV('mfg-customer-custody.csv', custody.map(r => ({ Customer: r.customer_name, "Product Code": r.product.code, Product: r.product.name, Unit: r.product.unit, "Qty On Hand": r.qty_on_hand, "Declared Value": r.declared_value_open })))
+              }
+            }}
+            disabled={!wip && !summary && !custody}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <button onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm hover:bg-[#f6f3ee] transition-colors">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+        </div>
       </header>
 
       {/* Tab nav */}
