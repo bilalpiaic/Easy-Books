@@ -83,9 +83,16 @@ function isNoReleaseError(err) {
     m.includes("unable to find latest version") ||
     m.includes("please ensure a production release exists") ||
     m.includes("cannot parse releases feed") ||
-    m.includes("latest.yml") ||          // missing update manifest (incl. latest-mac.yml)
+    m.includes("latest.yml") ||        // missing update manifest (incl. latest-mac.yml)
     m.includes("httperror: 404") ||
-    m.includes("httperror: 406")
+    m.includes("httperror: 406") ||
+    // B.2: GitHub serves releases.atom with text/html content-type; treat as "no update"
+    m.includes("unexpected content type") ||
+    // B.7: macOS auto-update fails with signing errors if cert absent; degrade gracefully
+    m.includes("code signature") ||
+    m.includes("could not be verified") ||
+    m.includes("not signed") ||
+    m.includes("certificate")
   )
 }
 
