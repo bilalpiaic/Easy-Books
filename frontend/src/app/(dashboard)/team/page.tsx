@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Users, UserPlus, Mail, Loader2, Copy, Check, KeyRound, ShieldAlert, Trash2, RotateCcw } from "lucide-react"
+import { Users, UserPlus, Mail, Loader2, Copy, Check, KeyRound, ShieldAlert, Trash2, RotateCcw, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
+import { downloadCSV } from "@/lib/utils"
 
 interface Member {
   id: number
@@ -73,12 +74,17 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <header className="flex items-center gap-3">
-        <Users className="w-7 h-7 text-[#b8943f]" />
-        <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Team</h1>
-          <p className="text-sm text-[#1a1814]/60">Manage who can access this organisation and what they can do.</p>
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Users className="w-7 h-7 text-[#b8943f]" />
+          <div>
+            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Team</h1>
+            <p className="text-sm text-[#1a1814]/60">Manage who can access this organisation and what they can do.</p>
+          </div>
         </div>
+        <button onClick={() => downloadCSV('team-members.csv', members.map(m => ({ Name: m.full_name ?? '', Email: m.email, Role: m.role, Status: m.is_active ? 'Active' : 'Inactive', "Last Login": m.last_login_at ?? '' })))} disabled={members.length === 0} className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] disabled:opacity-40">
+          <Download className="w-4 h-4" /> CSV
+        </button>
       </header>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-900 rounded-xl px-4 py-3 text-sm">{error}</div>}
