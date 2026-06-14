@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Printer } from "lucide-react"
+import { Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtAmount } from "@/lib/utils"
+import { fmtAmount, downloadCSV } from "@/lib/utils"
 import { useSettings } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
@@ -112,6 +112,20 @@ export default function PnLPage() {
 
   const fmt = (n: number) => fmtAmount(n, settings.currency)
 
+  function flattenNodes(nodes: TreeNode[]): TreeNode[] {
+    const out: TreeNode[] = []
+    for (const n of nodes) { out.push(n); if (n.children?.length) out.push(...flattenNodes(n.children)) }
+    return out
+  }
+
+  const exportCsv = () => {
+    const rows = [
+      ...flattenNodes(treeRevenue).map(n => ({ Section: "Revenue", Code: n.code, Name: n.name, Amount: (n.amount as number) ?? 0 })),
+      ...flattenNodes(treeExpenses).map(n => ({ Section: "Expense", Code: n.code, Name: n.name, Amount: (n.amount as number) ?? 0 })),
+    ]
+    downloadCSV(`income-statement-${start}-${end}.csv`, rows)
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <PrintHeader title="Income Statement" subtitle={`Period: ${start} — ${end}`} />
@@ -120,9 +134,16 @@ export default function PnLPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Income Statement</h1>
           <p className="text-[#1a1814]/60">Revenue and expenses for the selected period</p>
         </div>
-        <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
-          <Printer className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {!compareMode && (
+            <button onClick={exportCsv} disabled={isLoading} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40" title="Export CSV">
+              <Download className="w-5 h-5" />
+            </button>
+          )}
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60" title="Print">
+            <Printer className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">

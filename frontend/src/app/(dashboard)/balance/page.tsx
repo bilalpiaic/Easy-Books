@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Printer, HelpCircle } from "lucide-react"
+import { Printer, HelpCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtAmount } from "@/lib/utils"
+import { fmtAmount, downloadCSV } from "@/lib/utils"
 import { useSettings } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
@@ -154,6 +154,21 @@ export default function BalanceSheetPage() {
 
   const fmt = (n: number) => fmtAmount(n, settings.currency)
 
+  function flattenNodes(nodes: TreeNode[]): TreeNode[] {
+    const out: TreeNode[] = []
+    for (const n of nodes) { out.push(n); if (n.children?.length) out.push(...flattenNodes(n.children)) }
+    return out
+  }
+
+  const exportCsv = () => {
+    const rows = [
+      ...flattenNodes(treeAssets).map(n => ({ Section: "Assets", Code: n.code, Name: n.name, Balance: (n.balance as number) ?? 0 })),
+      ...flattenNodes(treeLiabilities).map(n => ({ Section: "Liabilities", Code: n.code, Name: n.name, Balance: (n.balance as number) ?? 0 })),
+      ...flattenNodes(treeEquity).map(n => ({ Section: "Equity", Code: n.code, Name: n.name, Balance: (n.balance as number) ?? 0 })),
+    ]
+    downloadCSV(`balance-sheet-${asOf}.csv`, rows)
+  }
+
   // Comparison-mode derived values (unchanged)
   const cmpAssets      = comparison?.filter(i => i.type === "Asset") ?? []
   const cmpLiabilities = comparison?.filter(i => i.type === "Liability") ?? []
@@ -186,9 +201,16 @@ export default function BalanceSheetPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
           <p className="text-[#1a1814]/60">Financial position as of {new Date(asOf).toLocaleDateString()}</p>
         </div>
-        <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
-          <Printer className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {!compareMode && (
+            <button onClick={exportCsv} disabled={isLoading} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40" title="Export CSV">
+              <Download className="w-5 h-5" />
+            </button>
+          )}
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60" title="Print">
+            <Printer className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
