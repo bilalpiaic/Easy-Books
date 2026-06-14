@@ -127,7 +127,13 @@ def get_bill(session: SessionDep, user: CurrentUserDep, bill_id: int):
     lines = session.exec(
         select(BillLine).where(BillLine.bill_id == bill.id).order_by(BillLine.id)
     ).all()
-    return {**bill.model_dump(), "lines": [ln.model_dump() for ln in lines]}
+    product_ids = [ln.product_id for ln in lines if ln.product_id]
+    hs_map: dict[int, str | None] = {}
+    if product_ids:
+        prods = session.exec(select(Product).where(Product.id.in_(product_ids))).all()
+        hs_map = {p.id: p.hs_code for p in prods}
+    enriched_lines = [{**ln.model_dump(), "hs_code": hs_map.get(ln.product_id)} for ln in lines]
+    return {**bill.model_dump(), "lines": enriched_lines}
 
 
 @router.post("/api/bills", status_code=201)

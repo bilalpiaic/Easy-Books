@@ -188,7 +188,14 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
     lines = session.exec(
         select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id).order_by(InvoiceLine.id)
     ).all()
-    return {**inv.model_dump(), "lines": [ln.model_dump() for ln in lines]}
+    # Enrich lines with product hs_code for FBR-compliant print output
+    product_ids = [ln.product_id for ln in lines if ln.product_id]
+    hs_map: dict[int, str | None] = {}
+    if product_ids:
+        prods = session.exec(select(Product).where(Product.id.in_(product_ids))).all()
+        hs_map = {p.id: p.hs_code for p in prods}
+    enriched_lines = [{**ln.model_dump(), "hs_code": hs_map.get(ln.product_id)} for ln in lines]
+    return {**inv.model_dump(), "lines": enriched_lines}
 
 
 @router.post("/api/invoices", status_code=201)

@@ -14,6 +14,7 @@ interface InvoiceLine {
   unit: string | null
   rate: string | number
   amount: string | number
+  hs_code: string | null
 }
 interface Invoice {
   id: number
@@ -118,7 +119,10 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
             <tbody className="divide-y divide-[#ede9e2]">
               {inv.lines.map(ln => (
                 <tr key={ln.id}>
-                  <td className="px-3 py-2">{ln.description}</td>
+                  <td className="px-3 py-2">
+                    <div>{ln.description}</div>
+                    {ln.hs_code && <div className="text-[10px] text-[#1a1814]/45 font-mono mt-0.5">HS: {ln.hs_code}</div>}
+                  </td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.qty)} {ln.unit ?? ""}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.rate)}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.amount)}</td>
