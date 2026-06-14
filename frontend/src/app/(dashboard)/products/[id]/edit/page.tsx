@@ -31,16 +31,16 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/products" className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
-          <ArrowLeft className="w-4 h-4" /> Products
+        <Link href={`/products/${id}`} className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
+          <ArrowLeft className="w-4 h-4" /> Product
         </Link>
         <h1 className="text-3xl font-serif font-medium">Edit {product.name}</h1>
       </div>
       <ProductForm
         mode="edit"
         product={product}
-        onSaved={() => router.push('/products')}
-        onCancel={() => router.push('/products')}
+        onSaved={() => router.push(`/products/${id}`)}
+        onCancel={() => router.push(`/products/${id}`)}
       />
     </div>
   )

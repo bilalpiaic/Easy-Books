@@ -86,8 +86,8 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
       <PrintHeader title={`Stock Card — ${p.code ?? p.name}`} subtitle={`Period ${start} → ${end}`} orientation="landscape" />
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Link href="/products" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
-          <ArrowLeft className="w-4 h-4" /> Products
+        <Link href={`/products/${id}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
+          <ArrowLeft className="w-4 h-4" /> Product
         </Link>
         <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
           <Printer className="w-4 h-4" /> Print
