@@ -2,9 +2,10 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { BookOpen } from "lucide-react"
+import { BookOpen, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 
 interface Product {
   id: number
@@ -100,7 +101,23 @@ function ProductLedgerInner() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Product Ledger</h1>
           <p className="text-[#1a1814]/60">Stock movement history by product and store</p>
         </div>
-        <BookOpen className="w-7 h-7 text-[#b8943f] hidden md:block" />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (!data?.items.length) return
+              downloadCSV("product-ledger.csv", data.items.map(m => ({
+                Date: m.date, Direction: m.direction, "Qty In": m.qty_in, "Qty Out": m.qty_out,
+                "Running Qty": m.running_qty, "Unit Cost": m.unit_cost, Location: m.location, Source: m.source,
+              })))
+            }}
+            disabled={!data?.items.length}
+            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40"
+            title="Export CSV"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+          <BookOpen className="w-7 h-7 text-[#b8943f] hidden md:block" />
+        </div>
       </div>
 
       {/* Filters */}

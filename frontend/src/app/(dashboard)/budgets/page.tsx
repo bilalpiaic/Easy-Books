@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { TrendingUp, Plus, Trash2, AlertCircle } from "lucide-react"
+import { TrendingUp, Plus, Trash2, AlertCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 
 interface BudgetRow {
@@ -147,12 +148,26 @@ export default function BudgetsPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex items-center gap-3">
-        <TrendingUp className="w-7 h-7 text-[#b8943f]" />
-        <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Budgets</h1>
-          <p className="text-sm text-[#1a1814]/60">Set monthly targets and track variance against actual GL activity.</p>
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <TrendingUp className="w-7 h-7 text-[#b8943f]" />
+          <div>
+            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Budgets</h1>
+            <p className="text-sm text-[#1a1814]/60">Set monthly targets and track variance against actual GL activity.</p>
+          </div>
         </div>
+        {tab === "variance" && rows.length > 0 && (
+          <button
+            onClick={() => downloadCSV(`budget-vs-actual.csv`, rows.map(r => ({
+              Account: r.account_name, Code: r.account_code, Month: r.month,
+              Budget: r.budget, Actual: r.actual, Variance: r.variance, "Variance %": r.variance_pct,
+            })))}
+            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+            title="Export CSV"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+        )}
       </header>
 
       {/* Controls */}
