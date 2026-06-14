@@ -97,18 +97,22 @@ function isNoReleaseError(err) {
 }
 
 function wireAutoUpdater() {
+  let _checking = false
   const send = (status) => { try { if (win) win.webContents.send("eb:update-status", status) } catch (_) {} }
   autoUpdater.on("checking-for-update", () => send({ state: "checking" }))
   autoUpdater.on("update-available",    (i) => send({ state: "available", version: i && i.version }))
-  autoUpdater.on("update-not-available",() => send({ state: "none" }))
-  autoUpdater.on("error",               (e) => send(isNoReleaseError(e) ? { state: "none" } : { state: "error", message: String(e) }))
+  autoUpdater.on("update-not-available",() => { _checking = false; send({ state: "none" }) })
+  autoUpdater.on("error",               (e) => { _checking = false; send(isNoReleaseError(e) ? { state: "none" } : { state: "error", message: String(e) }) })
   autoUpdater.on("download-progress",   (p) => send({ state: "downloading", percent: Math.round(p.percent || 0) }))
-  autoUpdater.on("update-downloaded",   (i) => send({ state: "downloaded", version: i && i.version }))
+  autoUpdater.on("update-downloaded",   (i) => { _checking = false; send({ state: "downloaded", version: i && i.version }) })
   ipcMain.handle("eb:check-for-updates", async () => {
+    if (_checking) return { ok: true }   // startup check already in progress — events will arrive
+    _checking = true
     try { await autoUpdater.checkForUpdates(); return { ok: true } }
-    catch (e) { return isNoReleaseError(e) ? { ok: true } : { ok: false, error: String(e) } }
+    catch (e) { _checking = false; return isNoReleaseError(e) ? { ok: true } : { ok: false, error: String(e) } }
   })
   ipcMain.handle("eb:install-update", () => { try { autoUpdater.quitAndInstall() } catch (_) {} })
+  return () => { _checking = true }   // expose setter so startup call can mark in-progress
 }
 
 const gotLock = app.requestSingleInstanceLock()
@@ -116,10 +120,14 @@ if (!gotLock) { app.quit() } else {
   app.on("second-instance", () => { if (win) { win.show(); win.focus() } })
   app.whenReady().then(() => {
     startSidecars(); createWindow()
-    wireAutoUpdater()
+    const setChecking = wireAutoUpdater()
     // Check GitHub Releases for a newer version and notify the user. Inert
     // until a release feed exists (see electron-builder.yml `publish`).
-    try { autoUpdater.checkForUpdatesAndNotify() } catch (_) {}
+    try {
+      setChecking()   // mark in-progress before startup check so modal check yields
+      const p = autoUpdater.checkForUpdatesAndNotify()
+      if (p && typeof p.finally === "function") p.finally(() => { /* _checking cleared by event handlers */ })
+    } catch (_) {}
   })
 }
 
