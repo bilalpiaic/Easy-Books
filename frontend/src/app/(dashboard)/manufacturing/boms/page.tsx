@@ -152,16 +152,24 @@ export default function BomsListPage() {
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-right print:hidden">
-                      {b.is_active && (
-                        <button
-                          onClick={() => deactivate(b)}
-                          disabled={busyId === b.id}
-                          title="Archive BOM"
-                          className="p-1.5 rounded border border-[#ede9e2] hover:bg-amber-50 text-[#1a1814]/40 hover:text-amber-600 disabled:opacity-50 transition-colors"
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/manufacturing/boms/${b.id}`}
+                          className="text-[#b8943f] text-xs font-medium hover:underline"
                         >
-                          <Archive className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                          View
+                        </Link>
+                        {b.is_active && (
+                          <button
+                            onClick={() => deactivate(b)}
+                            disabled={busyId === b.id}
+                            title="Archive BOM"
+                            className="p-1.5 rounded border border-[#ede9e2] hover:bg-amber-50 text-[#1a1814]/40 hover:text-amber-600 disabled:opacity-50 transition-colors"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
