@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ShoppingCart, CheckCircle, FileText, AlertCircle, ArrowLeft } from "lucide-react"
+import { ShoppingCart, CheckCircle, FileText, AlertCircle, ArrowLeft, Printer } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -110,13 +110,21 @@ export default function PurchaseOrderDetailPage() {
             <p className="text-sm text-[#1a1814]/60">{po.vendor_name ?? "No vendor"} · {po.order_date}</p>
           </div>
         </div>
-        <Link
-          href="/manufacturing/purchase-orders"
-          className="flex items-center gap-1.5 text-sm text-[#1a1814]/60 hover:text-[#1a1814] transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          All POs
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/manufacturing/purchase-orders/${id}/print`}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-xl text-xs font-bold hover:bg-[#f6f3ee]"
+          >
+            <Printer className="w-3.5 h-3.5" /> Print
+          </Link>
+          <Link
+            href="/manufacturing/purchase-orders"
+            className="flex items-center gap-1.5 text-sm text-[#1a1814]/60 hover:text-[#1a1814] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            All POs
+          </Link>
+        </div>
       </header>
 
       {error && (
