@@ -1,9 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Plus, Trash2, Save, AlertCircle, ScrollText } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Plus, Trash2, Save, AlertCircle, ScrollText, Info } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { VOUCHER_TYPES, VOUCHER_ACCOUNT_HINTS, AccountType } from "@/lib/voucherTypes"
+import {
+  VOUCHER_TYPES,
+  VOUCHER_SIDE_FILTERS,
+  filterAccountsForSide,
+} from "@/lib/voucherTypes"
 import { useDp } from "@/context/SettingsContext"
 import { useRouter } from "next/navigation"
 
@@ -67,13 +71,65 @@ export default function NewEntryPage() {
   const balanced    = difference < 0.005
 
   const dp = useDp()
-  const hintTypes = VOUCHER_ACCOUNT_HINTS[voucherType] ?? []
-  const hintedAccounts = hintTypes.length > 0
-    ? accounts.filter(a => hintTypes.includes(a.type as AccountType))
-    : []
-  const otherAccounts = hintTypes.length > 0
-    ? accounts.filter(a => !hintTypes.includes(a.type as AccountType))
-    : accounts
+
+  // ── Per-side account filter helpers (Issue #77 Part 1) ───────────────────
+  const hasFilter = !!VOUCHER_SIDE_FILTERS[voucherType]
+
+  // IDs in use on each side (for CV exclusion: can't debit & credit same account)
+  const debitAccountIds = useMemo(
+    () => new Set(rows.filter(r => parseFloat(r.debit) > 0 && r.account_id).map(r => parseInt(r.account_id))),
+    [rows],
+  )
+  const creditAccountIds = useMemo(
+    () => new Set(rows.filter(r => parseFloat(r.credit) > 0 && r.account_id).map(r => parseInt(r.account_id))),
+    [rows],
+  )
+
+  function rowSide(row: EntryRow): "debit" | "credit" | "none" {
+    if (parseFloat(row.debit)  > 0) return "debit"
+    if (parseFloat(row.credit) > 0) return "credit"
+    return "none"
+  }
+
+  /** Filtered accounts + optional empty-state reason for a single row. */
+  function accountsForRow(row: EntryRow): {
+    debitAccounts: Account[]
+    creditAccounts: Account[]
+    side: "debit" | "credit" | "none"
+    emptyReason?: string
+  } {
+    if (!hasFilter) {
+      return { debitAccounts: accounts, creditAccounts: accounts, side: "none" }
+    }
+    const side = rowSide(row)
+    const isCV = voucherType === "CV"
+    if (side === "debit") {
+      const exclude = isCV ? creditAccountIds : undefined
+      const { accounts: filtered, emptyReason } = filterAccountsForSide(accounts, voucherType, "debit", exclude)
+      return { debitAccounts: filtered, creditAccounts: [], side: "debit", emptyReason }
+    }
+    if (side === "credit") {
+      const exclude = isCV ? debitAccountIds : undefined
+      const { accounts: filtered, emptyReason } = filterAccountsForSide(accounts, voucherType, "credit", exclude)
+      return { debitAccounts: [], creditAccounts: filtered, side: "credit", emptyReason }
+    }
+    // "none" — row has no amount yet: show both sides as labelled optgroups
+    const { accounts: debitFiltered }  = filterAccountsForSide(accounts, voucherType, "debit")
+    const { accounts: creditFiltered } = filterAccountsForSide(accounts, voucherType, "credit")
+    return { debitAccounts: debitFiltered, creditAccounts: creditFiltered, side: "none" }
+  }
+
+  // Collect any empty-reason messages to surface above the form
+  const sideWarnings = useMemo(() => {
+    if (!hasFilter) return []
+    const msgs = new Set<string>()
+    for (const row of rows) {
+      const { emptyReason } = accountsForRow(row)
+      if (emptyReason) msgs.add(emptyReason)
+    }
+    return [...msgs]
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, accounts, voucherType])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -170,10 +226,25 @@ export default function NewEntryPage() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
                 Line items
               </span>
-              <span className="text-[10px] text-[#1a1814]/40">
-                {rows.length} {rows.length === 1 ? "line" : "lines"}
-              </span>
+              <div className="flex items-center gap-3">
+                {hasFilter && (
+                  <span className="text-[10px] text-[#b8943f] font-semibold">
+                    Account heads filtered for {voucherType}
+                  </span>
+                )}
+                <span className="text-[10px] text-[#1a1814]/40">
+                  {rows.length} {rows.length === 1 ? "line" : "lines"}
+                </span>
+              </div>
             </div>
+
+            {/* ── COA gap warnings ─────────────────────────────── */}
+            {sideWarnings.map(msg => (
+              <div key={msg} className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mb-3 text-xs">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{msg}</span>
+              </div>
+            ))}
 
             {/* ── Desktop / wide table (md+) ───────────────────── */}
             <div className="hidden md:block">
@@ -188,25 +259,43 @@ export default function NewEntryPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#ede9e2]">
-                    {rows.map((row, idx) => (
+                    {rows.map((row, idx) => {
+                      const { debitAccounts, creditAccounts, side, emptyReason } = accountsForRow(row)
+                      // For a determined side, show only that side's accounts
+                      // For undetermined rows, show debit + credit in separate optgroups
+                      const noAccounts = emptyReason && (debitAccounts.length + creditAccounts.length === 0)
+                      return (
                       <tr key={idx}>
                         <td className="px-3 py-2">
                           <select
                             value={row.account_id}
                             onChange={e => updateRow(idx, "account_id", e.target.value)}
-                            className="w-full px-2 py-2 bg-white border border-[#ede9e2] rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-sm"
+                            className={`w-full px-2 py-2 bg-white border rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-sm ${noAccounts ? "border-amber-300" : "border-[#ede9e2]"}`}
                             required
                           >
-                            <option value="">Select Account</option>
-                            {hintedAccounts.map(a => (
-                              <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                            ))}
-                            {hintedAccounts.length > 0 && otherAccounts.length > 0 && (
-                              <option disabled>── All accounts ──</option>
+                            <option value="">{noAccounts ? "⚠ No accounts available" : "Select Account"}</option>
+                            {side === "none" && hasFilter ? (
+                              <>
+                                {debitAccounts.length > 0 && (
+                                  <optgroup label="── Debit side ──">
+                                    {debitAccounts.map(a => (
+                                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                {creditAccounts.length > 0 && (
+                                  <optgroup label="── Credit side ──">
+                                    {creditAccounts.map(a => (
+                                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                              </>
+                            ) : (
+                              (side === "debit" ? debitAccounts : side === "credit" ? creditAccounts : accounts).map(a => (
+                                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                              ))
                             )}
-                            {otherAccounts.map(a => (
-                              <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                            ))}
                           </select>
                         </td>
                         <td className="px-3 py-2">
@@ -241,7 +330,7 @@ export default function NewEntryPage() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -249,7 +338,10 @@ export default function NewEntryPage() {
 
             {/* ── Mobile cards (< md) ──────────────────────────── */}
             <div className="md:hidden space-y-2">
-              {rows.map((row, idx) => (
+              {rows.map((row, idx) => {
+                const { debitAccounts, creditAccounts, side, emptyReason } = accountsForRow(row)
+                const noAccounts = emptyReason && (debitAccounts.length + creditAccounts.length === 0)
+                return (
                 <div
                   key={idx}
                   className="border border-[#ede9e2] rounded-lg p-3 bg-[#faf8f4]"
@@ -271,19 +363,32 @@ export default function NewEntryPage() {
                   <select
                     value={row.account_id}
                     onChange={e => updateRow(idx, "account_id", e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-[#ede9e2] rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-sm mb-2"
+                    className={`w-full px-3 py-2 bg-white border rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-sm mb-2 ${noAccounts ? "border-amber-300" : "border-[#ede9e2]"}`}
                     required
                   >
-                    <option value="">Select Account</option>
-                    {hintedAccounts.map(a => (
-                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                    ))}
-                    {hintedAccounts.length > 0 && otherAccounts.length > 0 && (
-                      <option disabled>── All accounts ──</option>
+                    <option value="">{noAccounts ? "⚠ No accounts available" : "Select Account"}</option>
+                    {side === "none" && hasFilter ? (
+                      <>
+                        {debitAccounts.length > 0 && (
+                          <optgroup label="── Debit side ──">
+                            {debitAccounts.map(a => (
+                              <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {creditAccounts.length > 0 && (
+                          <optgroup label="── Credit side ──">
+                            {creditAccounts.map(a => (
+                              <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </>
+                    ) : (
+                      (side === "debit" ? debitAccounts : side === "credit" ? creditAccounts : accounts).map(a => (
+                        <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                      ))
                     )}
-                    {otherAccounts.map(a => (
-                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                    ))}
                   </select>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -316,7 +421,7 @@ export default function NewEntryPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             <button
