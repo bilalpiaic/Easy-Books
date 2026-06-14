@@ -14,6 +14,8 @@ import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
+import { usePermission } from "@/context/PermissionContext"
+import { NoAccessBanner } from "@/components/NoAccessBanner"
 
 interface Invoice {
   id: number
@@ -48,6 +50,8 @@ const PAGE_SIZE = 50
 const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 
 export default function Invoices() {
+  const { can } = usePermission()
+  if (!can("invoices")) return <NoAccessBanner resource="invoices" />
   const fmt = useFmt()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -167,7 +171,7 @@ export default function Invoices() {
             <Printer className="w-4 h-4" />
             Print
           </button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+          <button onClick={openCreate} disabled={!can("invoices", "edit")} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35] disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus className="w-4 h-4" />
             New Invoice
           </button>

@@ -10,6 +10,8 @@ import { useFmt } from "@/context/SettingsContext"
 import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
+import { usePermission } from "@/context/PermissionContext"
+import { NoAccessBanner } from "@/components/NoAccessBanner"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -699,6 +701,8 @@ function LedgerPageInner() {
 }
 
 export default function LedgerPage() {
+  const { can } = usePermission()
+  if (!can("report.general_ledger")) return <NoAccessBanner resource="the General Ledger" />
   return (
     <Suspense fallback={<div className="p-6 text-center text-[#1a1814]/60">Loading…</div>}>
       <LedgerPageInner />

@@ -14,6 +14,8 @@ import { downloadCSV } from '@/lib/utils'
 import { useFmt } from '@/context/SettingsContext'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
+import { usePermission } from "@/context/PermissionContext"
+import { NoAccessBanner } from "@/components/NoAccessBanner"
 
 interface Bill {
   id: number
@@ -45,6 +47,8 @@ const PAGE_SIZE = 50
 const BILL_STATUSES = ['draft', 'received', 'partial', 'paid', 'overdue']
 
 export default function Bills() {
+  const { can } = usePermission()
+  if (!can("bills")) return <NoAccessBanner resource="bills" />
   const fmt = useFmt()
   const router = useRouter()
   const searchParams = useSearchParams()

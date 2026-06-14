@@ -13,6 +13,8 @@ import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import CsvImportButton from '@/components/CsvImportButton'
+import { usePermission } from "@/context/PermissionContext"
+import { NoAccessBanner } from "@/components/NoAccessBanner"
 
 interface Product {
   id: number
@@ -422,5 +424,7 @@ function TreeSub({ sub, fmt }: { sub: CoaSub; fmt: (n: number) => string }) {
 }
 
 export default function Products() {
+  const { can } = usePermission()
+  if (!can("products")) return <NoAccessBanner resource="products" />
   return <Suspense><ProductsInner /></Suspense>
 }

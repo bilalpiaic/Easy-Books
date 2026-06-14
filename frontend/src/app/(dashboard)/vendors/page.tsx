@@ -13,6 +13,8 @@ import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import CsvImportButton from '@/components/CsvImportButton'
+import { usePermission } from "@/context/PermissionContext"
+import { NoAccessBanner } from "@/components/NoAccessBanner"
 
 interface Vendor {
   id: number
@@ -27,6 +29,8 @@ interface Vendor {
 const PAGE_SIZE = 50
 
 export default function Vendors() {
+  const { can } = usePermission()
+  if (!can("vendors")) return <NoAccessBanner resource="vendors" />
   const fmt = useFmt()
   const router = useRouter()
   const [vendors, setVendors] = useState<Vendor[]>([])

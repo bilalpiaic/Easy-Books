@@ -13,6 +13,8 @@ import { downloadCSV } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import CsvImportButton from '@/components/CsvImportButton'
+import { usePermission } from "@/context/PermissionContext"
+import { NoAccessBanner } from "@/components/NoAccessBanner"
 
 interface Customer {
   id: number
@@ -27,6 +29,8 @@ interface Customer {
 const PAGE_SIZE = 50
 
 export default function Customers() {
+  const { can } = usePermission()
+  if (!can("customers")) return <NoAccessBanner resource="customers" />
   const fmt = useFmt()
   const router = useRouter()
   const [customers, setCustomers] = useState<Customer[]>([])
