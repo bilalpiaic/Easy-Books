@@ -48,6 +48,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
 
   // Electron updater state machine
   const [updaterStatus, setUpdaterStatus] = useState<UpdateStatus | null>(null)
+  const [confirmInstall, setConfirmInstall] = useState(false)
 
   // Fetch the latest GitHub release version on mount
   useEffect(() => {
@@ -123,8 +124,11 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
   }
 
   const handleInstall = () => {
+    if (!confirmInstall) { setConfirmInstall(true); return }
     try { window.easybooks!.installUpdate() } catch { /* best effort */ }
   }
+
+  const handleInstallCancel = () => setConfirmInstall(false)
 
   // ---------------------------------------------------------------------------
   // Render helpers
@@ -190,13 +194,34 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
             <CheckCircle className="w-4 h-4" />
             {s.version ? `v${s.version} is ready.` : 'Update ready.'}
           </div>
-          <button
-            onClick={handleInstall}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#1a1814] text-white rounded-lg font-medium text-sm hover:bg-[#b8943f] transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Restart &amp; Install
-          </button>
+          {confirmInstall ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
+              <p className="text-sm text-amber-800 font-medium">Unsaved changes will be lost. Restart now?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleInstall}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-lg font-medium text-sm hover:bg-[#b8943f] transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Yes, Restart
+                </button>
+                <button
+                  onClick={handleInstallCancel}
+                  className="px-4 py-2 border border-black/20 rounded-lg font-medium text-sm hover:bg-black/5 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleInstall}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#1a1814] text-white rounded-lg font-medium text-sm hover:bg-[#b8943f] transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Restart &amp; Install
+            </button>
+          )}
         </div>
       )
     }
