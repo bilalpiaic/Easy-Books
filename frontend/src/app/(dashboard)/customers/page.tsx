@@ -194,7 +194,7 @@ export default function Customers() {
                   </span>
                 </td>
                 <td className="ui-td flex items-center gap-3">
-                  <Link href={`/customers/${c.id}/products`} className="text-[#b8943f] text-sm font-bold hover:underline">Products</Link>
+                  <Link href={`/customers/${c.id}`} className="text-[#b8943f] text-sm font-bold hover:underline">View</Link>
                   <button onClick={() => router.push(`/customers/${c.id}/edit`)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(c)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>

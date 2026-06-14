@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, Trash2, Download, Printer, Truck } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
@@ -191,6 +192,7 @@ export default function Vendors() {
                   </span>
                 </td>
                 <td className="ui-td flex items-center gap-3">
+                  <Link href={`/vendors/${v.id}`} className="text-[#b8943f] text-sm font-bold hover:underline">View</Link>
                   <button onClick={() => router.push(`/vendors/${v.id}/edit`)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(v)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
