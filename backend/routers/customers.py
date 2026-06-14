@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Customer, Invoice, InvoiceLine, PaymentReceived, Product
+from models import Customer, Invoice, InvoiceLine, PaymentAllocation, PaymentReceived, Product
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit, mark_onboarding_step
 from services.permissions import perm_dep, apply_own_filter
@@ -119,6 +119,138 @@ def delete_customer(session: SessionDep, user: WriteUserDep, customer_id: int):
     log_audit(session, user, "DELETE", "customer", c.id, {"name": c.name})
     session.delete(c)
     session.commit()
+
+
+@router.get("/{customer_id}/statement")
+def customer_statement(
+    session: SessionDep, user: CurrentUserDep, customer_id: int,
+    from_date: str, to_date: str,
+):
+    """Account statement for a customer: opening balance, invoices, payments, closing balance."""
+    c = session.exec(
+        select(Customer).where(Customer.id == customer_id, Customer.tenant_id == user.tenant_id)
+    ).first()
+    if not c:
+        raise HTTPException(404, "Customer not found")
+
+    D = lambda x: Decimal(str(x)) if x is not None else Decimal("0")
+
+    # All invoices for this customer (pre-period + in-period), excluding void/cancelled
+    all_invoices = session.exec(
+        select(Invoice).where(
+            Invoice.customer_id == customer_id,
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.status.not_in(["void", "cancelled"]),
+            Invoice.transaction_id.is_not(None),  # must be GL-posted
+        ).order_by(Invoice.issue_date.asc(), Invoice.id.asc())
+    ).all()
+
+    all_inv_ids = [inv.id for inv in all_invoices]
+    pre_invoices = [inv for inv in all_invoices if inv.issue_date < from_date]
+    pre_inv_ids = [inv.id for inv in pre_invoices]
+
+    # Pre-period payments: allocations paid BEFORE from_date against pre-period invoices
+    pre_inv_paid: dict[int, Decimal] = {}
+    if pre_inv_ids:
+        for inv_id, paid in session.exec(
+            select(PaymentAllocation.invoice_id, func.sum(PaymentAllocation.amount))
+            .join(PaymentReceived, PaymentReceived.id == PaymentAllocation.payment_received_id)
+            .where(
+                PaymentAllocation.tenant_id == user.tenant_id,
+                PaymentAllocation.invoice_id.in_(pre_inv_ids),
+                PaymentReceived.payment_date < from_date,
+            )
+            .group_by(PaymentAllocation.invoice_id)
+        ).all():
+            pre_inv_paid[inv_id] = D(paid)
+
+    # Opening balance: customer pre-system balance + net AR from invoices before from_date
+    opening_balance = D(c.opening_balance)
+    for inv in pre_invoices:
+        opening_balance += D(inv.total) - pre_inv_paid.get(inv.id, Decimal("0"))
+
+    # All allocations per invoice (for outstanding per line in the statement)
+    inv_paid: dict[int, Decimal] = {}
+    if all_inv_ids:
+        for inv_id, paid in session.exec(
+            select(PaymentAllocation.invoice_id, func.sum(PaymentAllocation.amount))
+            .where(
+                PaymentAllocation.tenant_id == user.tenant_id,
+                PaymentAllocation.invoice_id.in_(all_inv_ids),
+            )
+            .group_by(PaymentAllocation.invoice_id)
+        ).all():
+            inv_paid[inv_id] = D(paid)
+
+    # Period invoices
+    period_invoices = [inv for inv in all_invoices if from_date <= inv.issue_date <= to_date]
+    invoices_out = [
+        {
+            "id": inv.id,
+            "number": inv.number,
+            "date": inv.issue_date,
+            "due_date": inv.due_date,
+            "status": inv.status,
+            "total": str(D(inv.total)),
+            "outstanding": str(max(D(inv.total) - inv_paid.get(inv.id, Decimal("0")), Decimal("0"))),
+            "currency": inv.currency,
+        }
+        for inv in period_invoices
+    ]
+
+    # Payments in period: PaymentReceived with allocations to this customer's invoices
+    period_payments: list[dict] = []
+    if all_inv_ids:
+        pay_rows = session.exec(
+            select(
+                PaymentReceived.id,
+                PaymentReceived.payment_date,
+                PaymentReceived.method,
+                PaymentReceived.reference,
+                func.sum(PaymentAllocation.amount).label("allocated"),
+            )
+            .join(PaymentAllocation, PaymentAllocation.payment_received_id == PaymentReceived.id)
+            .where(
+                PaymentReceived.tenant_id == user.tenant_id,
+                PaymentReceived.payment_date >= from_date,
+                PaymentReceived.payment_date <= to_date,
+                PaymentAllocation.invoice_id.in_(all_inv_ids),
+            )
+            .group_by(
+                PaymentReceived.id,
+                PaymentReceived.payment_date,
+                PaymentReceived.method,
+                PaymentReceived.reference,
+            )
+            .order_by(PaymentReceived.payment_date.asc())
+        ).all()
+        for row in pay_rows:
+            period_payments.append({
+                "id": row.id,
+                "date": row.payment_date,
+                "method": row.method,
+                "reference": row.reference,
+                "amount": str(D(row.allocated)),
+            })
+
+    period_inv_total = sum(D(i["total"]) for i in invoices_out)
+    period_paid_total = sum(D(p["amount"]) for p in period_payments)
+    closing_balance = opening_balance + period_inv_total - period_paid_total
+
+    return {
+        "customer": {
+            "id": c.id,
+            "name": c.name,
+            "email": c.email,
+            "phone": c.phone,
+            "address": c.address,
+        },
+        "period": {"from": from_date, "to": to_date},
+        "opening_balance": str(opening_balance),
+        "invoices": invoices_out,
+        "payments": period_payments,
+        "closing_balance": str(closing_balance),
+    }
 
 
 @router.get("/{customer_id}/products")
