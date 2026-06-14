@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ShoppingCart, Plus, CheckCircle, FileText } from "lucide-react"
+import { ShoppingCart, Plus, CheckCircle, FileText, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 
 interface PurchaseOrder {
@@ -56,13 +57,22 @@ export default function PurchaseOrdersPage() {
             <p className="text-sm text-[#1a1814]/60">Send orders to vendors before goods arrive.</p>
           </div>
         </div>
-        <Link
-          href="/manufacturing/purchase-orders/new"
-          className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          New PO
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadCSV('purchase-orders.csv', pos.map(p => ({ "PO #": p.number, Vendor: p.vendor_name ?? '', "Order Date": p.order_date, "Expected Date": p.expected_date ?? '', Total: p.total, Status: p.status })))}
+            disabled={pos.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <Link
+            href="/manufacturing/purchase-orders/new"
+            className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            New PO
+          </Link>
+        </div>
       </header>
 
       {error && (

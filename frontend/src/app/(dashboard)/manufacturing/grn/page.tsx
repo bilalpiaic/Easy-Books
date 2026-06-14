@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { PackagePlus, Plus, Printer } from "lucide-react"
+import { PackagePlus, Plus, Printer, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
+import { downloadCSV } from "@/lib/utils"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 
@@ -69,6 +70,14 @@ export default function GrnPage() {
           >
             <Plus className="w-4 h-4" /> New GRN
           </Link>
+          <button
+            onClick={() => downloadCSV('grn-list.csv', grns.map(g => ({ "GRN #": g.number, Customer: customers.get(g.customer_id) ?? String(g.customer_id), Date: g.received_date, "Declared Value": g.declared_value, Lines: g.lines.length })))}
+            disabled={grns.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            title="Export CSV"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"

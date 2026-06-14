@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Layers, Printer, Plus, Archive } from "lucide-react"
+import { Layers, Printer, Plus, Archive, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
+import { downloadCSV } from "@/lib/utils"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 
@@ -68,6 +69,14 @@ export default function BomsListPage() {
             className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
             <Plus className="w-4 h-4" /> New BOM
           </Link>
+          <button
+            onClick={() => downloadCSV('boms.csv', boms.map(b => ({ "Product": products.get(b.output_product_id)?.name ?? String(b.output_product_id), "Output Qty": b.output_qty, Version: b.version, Active: b.is_active ? "Yes" : "No", "Auto-explode": b.explode_on_invoice ? "Yes" : "No", Components: b.lines.length })))}
+            disabled={boms.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            title="Export CSV"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Warehouse, Printer, Plus } from "lucide-react"
+import { Warehouse, Printer, Plus, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
+import { downloadCSV } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
@@ -102,6 +103,14 @@ export default function ProductionOrdersPage() {
             className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
             <Plus className="w-4 h-4" /> New PO
           </Link>
+          <button
+            onClick={() => downloadCSV('production-orders.csv', pos.map(p => ({ "PO #": p.number, State: p.state, Customer: customers.get(p.customer_id) ?? String(p.customer_id), "Output Qty": p.output_qty, "Material Cost": p.own_material_cost, "Unit Cost": p.output_unit_cost, "Started": p.started_at ?? '', "Completed": p.completed_at ?? '' })))}
+            disabled={pos.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            title="Export CSV"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
