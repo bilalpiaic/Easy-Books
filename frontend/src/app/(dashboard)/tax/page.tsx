@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Printer } from 'lucide-react'
+import { Printer, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import { downloadCSV } from '@/lib/utils'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 
@@ -39,6 +40,19 @@ export default function TaxReports() {
   const [data, setData] = useState<TaxSummary | null>(null)
   const [error, setError] = useState('')
 
+  const exportCsv = () => {
+    if (!data) return
+    downloadCSV(`tax-report-${start}-${end}.csv`, [
+      { Category: "GST", Item: "Output GST (Sales)", Amount: data.gst.output_gst },
+      { Category: "GST", Item: "Input GST (Purchases)", Amount: data.gst.input_gst },
+      { Category: "GST", Item: "Net GST Payable", Amount: data.gst.net_gst_payable },
+      { Category: "Income Tax", Item: "Total Revenue", Amount: data.income_tax.revenue },
+      { Category: "Income Tax", Item: "Business Expenses", Amount: data.income_tax.expenses },
+      { Category: "Income Tax", Item: "Taxable Income", Amount: data.income_tax.taxable_income },
+      { Category: "Income Tax", Item: "Estimated Tax", Amount: data.income_tax.estimated_tax },
+    ])
+  }
+
   useEffect(() => {
     apiFetch<TaxSummary>(`/api/reports/tax-summary?start=${start}&end=${end}`)
       .then(setData)
@@ -57,6 +71,9 @@ export default function TaxReports() {
           <div className="p-3 bg-white border border-[#ede9e2] rounded-xl">
             <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Fiscal Period" />
           </div>
+          <button onClick={exportCsv} disabled={!data} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40 print:hidden" title="Export CSV">
+            <Download className="w-5 h-5" />
+          </button>
           <button onClick={() => window.print()} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
             <Printer className="w-5 h-5" />
           </button>
