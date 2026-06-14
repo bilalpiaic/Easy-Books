@@ -3,9 +3,10 @@
 import { Suspense, use, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Printer, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
+import { downloadCSV } from '@/lib/utils'
 import PrintHeader from '@/components/PrintHeader'
 
 interface StatementBill {
@@ -88,6 +89,14 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
             <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
               className="px-2 py-1 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#b8943f]" />
           </div>
+          <button
+            onClick={() => downloadCSV(`statement-${v.name}-${fromDate}-${toDate}.csv`, [
+              ...data.bills.map(b => ({ Date: b.date, Type: "Bill", Reference: b.number, Debit: Number(b.total), Credit: 0, Outstanding: Number(b.outstanding) })),
+              ...data.payments.map(p => ({ Date: p.date, Type: "Payment", Reference: p.reference ?? "", Debit: 0, Credit: Number(p.amount), Outstanding: 0 })),
+            ])}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
+            <Download className="w-4 h-4" /> CSV
+          </button>
           <button onClick={() => window.print()}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
             <Printer className="w-4 h-4" /> Print
