@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { Plus, Search, Trash2, Printer, ChevronRight, ChevronDown } from "lucide-react"
+import { Plus, Search, Trash2, Printer, ChevronRight, ChevronDown, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import AccountFormModal from "@/components/AccountFormModal"
 import SkeletonRow from "@/components/SkeletonRow"
@@ -149,6 +150,15 @@ export default function COAPage() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <CsvImportButton entity="accounts" onSuccess={loadAccounts} />
+          <button
+            onClick={() => downloadCSV('chart-of-accounts.csv', accounts.map(a => ({ Code: a.code, Name: a.name, Type: a.type, Group: a.is_group ? 'Yes' : 'No', Active: a.is_active !== false ? 'Yes' : 'No', Balance: balances[a.code] ?? 0 })))}
+            disabled={accounts.length === 0}
+            className="border border-[#ede9e2] px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#f6f3ee] transition-colors font-bold text-sm disabled:opacity-40"
+            title="Export CSV"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
           <button
             onClick={() => window.print()}
             className="border border-[#ede9e2] px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#f6f3ee] transition-colors font-bold text-sm"

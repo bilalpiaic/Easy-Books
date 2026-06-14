@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Wallet } from "lucide-react"
+import { Plus, Wallet, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
 
 type Tab = "customer" | "vendor"
 
@@ -113,9 +114,21 @@ export default function AdvancesPage() {
           <h1 className="text-3xl font-serif text-[#1a1814]">Advances</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">Prepayments received from customers / paid to vendors</p>
         </div>
-        <button onClick={openRecord} className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
-          <Plus size={16} /> Record {tab === "customer" ? "Customer" : "Vendor"} Advance
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const partyMap = new Map(parties.map(p => [p.id, p.name]))
+              downloadCSV(`${tab}-advances.csv`, rows.map(r => ({ "#": r.number, [tab === "customer" ? "Customer" : "Vendor"]: partyMap.get(tab === "customer" ? (r.customer_id ?? 0) : (r.vendor_id ?? 0)) ?? '', Date: r.date, Amount: r.amount, Applied: r.applied_amount, Remaining: r.remaining, Status: r.status })))
+            }}
+            disabled={rows.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download size={16} /> CSV
+          </button>
+          <button onClick={openRecord} className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all">
+            <Plus size={16} /> Record {tab === "customer" ? "Customer" : "Vendor"} Advance
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-1 border-b border-[#ede9e2]">
