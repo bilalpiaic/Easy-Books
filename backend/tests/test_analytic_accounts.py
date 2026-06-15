@@ -115,3 +115,24 @@ def test_bill_analytic_propagates_to_je():
     txn = client.get(f"/api/transactions/{bill['transaction_id']}", headers=h).json()
     for entry in txn["entries"]:
         assert entry.get("analytic_account_id") == aid
+
+
+def test_seed_analytic_pl_non_empty_when_tagged():
+    """If analytic accounts exist, Analytic P&L must return rows for at least one dimension."""
+    h = _headers()
+    if not h:
+        return  # no admin user in test DB — skip
+    r = client.get("/api/analytic-accounts", headers=h)
+    if r.status_code != 200:
+        return
+    data = r.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    if not items:
+        return  # no analytic accounts seeded — skip
+    non_empty = 0
+    for acc in items[:5]:
+        pl = client.get(f"/api/reports/analytic-pl?analytic_account_id={acc['id']}", headers=h)
+        if pl.status_code == 200 and pl.json():
+            non_empty += 1
+    # After seeding, at least 1 dimension must have non-empty P&L
+    assert non_empty >= 1, "Analytic P&L empty for all checked dimensions — seed data missing analytic tags"

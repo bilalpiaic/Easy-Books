@@ -4,7 +4,7 @@ a full calendar year.
 Idempotent — if a demo tenant already exists, the script reuses it and
 skips entities that are already present. Safe to re-run.
 
-Data coverage (v3 — Sprint 7–12 improvement roadmap):
+Data coverage (v4 — Sprint 7–12 improvement roadmap):
   • All dates within the past 12 months (365-day rolling window)
   • 100 invoices + 100 bills per tenant, evenly spread month-by-month
   • Every model-specific COA account exercised (4010/4020/5100/5200/5030 etc.)
@@ -15,6 +15,7 @@ Data coverage (v3 — Sprint 7–12 improvement roadmap):
   • Credit notes (G-02), fixed assets + depreciation (G-05), monthly budgets
     (G-10), purchase orders incl. convert-to-bill (G-06), analytic accounts
     (G-07), and deferred-revenue schedules for services tenants (G-08)
+  (G-07) Analytic Accounts: 7 dimensions per tenant, ~30 % of invoices/bills/payments/JVs tagged
 
 Usage:
     PYTHONPATH=. uv run python -m scripts.seed_demo
@@ -1774,22 +1775,99 @@ def _seed_purchase_orders(s: Session, user: User, vendors: list,
 
 
 def _seed_analytic_accounts(s: Session, tenant_id: int) -> None:
-    """G-07: cost centers / projects / departments for segment reporting."""
-    if s.exec(select(AnalyticAccount).where(AnalyticAccount.tenant_id == tenant_id)).first():
-        return
-    dims = [
-        ("CC-SALES", "Sales Department", "department"),
-        ("CC-OPS",   "Operations",       "department"),
-        ("CC-ADMIN", "Administration",   "department"),
-        ("PRJ-A",    "Project Alpha",    "project"),
-        ("PRJ-B",    "Project Beta",     "project"),
-        ("CC-NORTH", "North Region",     "cost_center"),
-        ("CC-SOUTH", "South Region",     "cost_center"),
+    """G-07: cost centers / projects / departments for segment reporting.
+    Also back-fills ~30 % of seeded invoices, bills, payments, and JVs with
+    analytic tags so Analytic P&L shows non-empty figures per tenant.
+    """
+    import random
+    from models import Invoice, Bill, PaymentReceived, BillPayment, JournalEntry, Transaction
+
+    # 1. Create the 7 dimensions (idempotent)
+    existing = s.exec(select(AnalyticAccount).where(AnalyticAccount.tenant_id == tenant_id)).all()
+    if not existing:
+        dims = [
+            ("CC-SALES", "Sales Department", "department"),
+            ("CC-OPS",   "Operations",       "department"),
+            ("CC-ADMIN", "Administration",   "department"),
+            ("PRJ-A",    "Project Alpha",    "project"),
+            ("PRJ-B",    "Project Beta",     "project"),
+            ("CC-NORTH", "North Region",     "cost_center"),
+            ("CC-SOUTH", "South Region",     "cost_center"),
+        ]
+        for code, name, typ in dims:
+            s.add(AnalyticAccount(
+                tenant_id=tenant_id, code=code, name=name, type=typ, is_active=True,
+            ))
+        s.flush()
+
+    # 2. Load dimension IDs for tagging
+    dim_ids = [
+        a.id for a in s.exec(
+            select(AnalyticAccount).where(AnalyticAccount.tenant_id == tenant_id)
+        ).all()
     ]
-    for code, name, typ in dims:
-        s.add(AnalyticAccount(
-            tenant_id=tenant_id, code=code, name=name, type=typ, is_active=True,
-        ))
+    if not dim_ids:
+        return
+
+    rng = random.Random(tenant_id)  # deterministic per tenant
+
+    # 3. Tag ~30 % of invoices
+    invoices = s.exec(
+        select(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.analytic_account_id.is_(None))
+    ).all()
+    for inv in invoices:
+        if rng.random() < 0.3:
+            inv.analytic_account_id = rng.choice(dim_ids)
+            s.add(inv)
+
+    # 4. Tag ~30 % of bills
+    bills = s.exec(
+        select(Bill).where(Bill.tenant_id == tenant_id, Bill.analytic_account_id.is_(None))
+    ).all()
+    for bill in bills:
+        if rng.random() < 0.3:
+            bill.analytic_account_id = rng.choice(dim_ids)
+            s.add(bill)
+
+    # 5. Tag ~30 % of payments received
+    payments = s.exec(
+        select(PaymentReceived).where(
+            PaymentReceived.tenant_id == tenant_id,
+            PaymentReceived.analytic_account_id.is_(None),
+        )
+    ).all()
+    for pmt in payments:
+        if rng.random() < 0.3:
+            pmt.analytic_account_id = rng.choice(dim_ids)
+            s.add(pmt)
+
+    # 6. Tag ~30 % of bill payments
+    bpayments = s.exec(
+        select(BillPayment).where(
+            BillPayment.tenant_id == tenant_id,
+            BillPayment.analytic_account_id.is_(None),
+        )
+    ).all()
+    for bp in bpayments:
+        if rng.random() < 0.3:
+            bp.analytic_account_id = rng.choice(dim_ids)
+            s.add(bp)
+
+    # 7. Tag ~30 % of manual JVs via their JournalEntry rows
+    jvs = s.exec(
+        select(Transaction).where(Transaction.tenant_id == tenant_id)
+    ).all()
+    for txn in jvs:
+        if rng.random() < 0.3:
+            ana_id = rng.choice(dim_ids)
+            for je in s.exec(
+                select(JournalEntry).where(JournalEntry.transaction_id == txn.id)
+            ).all():
+                if je.analytic_account_id is None:
+                    je.analytic_account_id = ana_id
+                    s.add(je)
+
+    s.flush()
 
 
 def _seed_deferred_revenue(s: Session, user: User, invoices: list, count: int = 4) -> None:
