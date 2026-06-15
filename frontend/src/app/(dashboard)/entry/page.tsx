@@ -16,7 +16,10 @@ interface Account {
   name: string
   type?: string
   postable?: boolean
+  party_type?: string
 }
+
+interface PartyItem { id: number; name: string }
 
 interface AnalyticAccount { id: number; code: string; name: string; type: string }
 
@@ -32,6 +35,10 @@ export default function NewEntryPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
   const [analyticAccountId, setAnalyticAccountId] = useState<string>("")
+  const [customers, setCustomers] = useState<PartyItem[]>([])
+  const [vendors, setVendors]     = useState<PartyItem[]>([])
+  const [customerId, setCustomerId] = useState<string>("")
+  const [vendorId, setVendorId]     = useState<string>("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [voucherType, setVoucherType] = useState("JV")
   const [description, setDescription] = useState("")
@@ -46,11 +53,15 @@ export default function NewEntryPage() {
     Promise.all([
       apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500"),
       apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>("/api/analytic-accounts"),
+      apiFetch<{ total: number; items: PartyItem[] }>("/api/customers?limit=500"),
+      apiFetch<{ total: number; items: PartyItem[] }>("/api/vendors?limit=500"),
     ])
-      .then(([d, an]) => {
+      .then(([d, an, custs, vends]) => {
         setAccounts(d.items.filter(a => a.postable !== false))
-        const items = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
-        setAnalyticAccounts(items)
+        const anItems = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
+        setAnalyticAccounts(anItems)
+        setCustomers(custs.items ?? [])
+        setVendors(vends.items ?? [])
       })
       .catch(console.error)
   }, [])
@@ -94,6 +105,24 @@ export default function NewEntryPage() {
   const creditAccountIds = useMemo(
     () => new Set(rows.filter(r => parseFloat(r.credit) > 0 && r.account_id).map(r => parseInt(r.account_id))),
     [rows],
+  )
+
+  const hasArAccount = useMemo(
+    () => rows.some(r => {
+      if (!r.account_id) return false
+      const a = accounts.find(a => a.id === parseInt(r.account_id))
+      return a?.party_type === "customer"
+    }),
+    [rows, accounts],
+  )
+
+  const hasApAccount = useMemo(
+    () => rows.some(r => {
+      if (!r.account_id) return false
+      const a = accounts.find(a => a.id === parseInt(r.account_id))
+      return a?.party_type === "vendor"
+    }),
+    [rows, accounts],
   )
 
   function rowSide(row: EntryRow): "debit" | "credit" | "none" {
@@ -155,6 +184,8 @@ export default function NewEntryPage() {
       description,
       voucher_type: voucherType,
       analytic_account_id: analyticAccountId ? parseInt(analyticAccountId) : null,
+      customer_id: customerId ? parseInt(customerId) : null,
+      vendor_id: vendorId ? parseInt(vendorId) : null,
       entries: rows
         .filter(r => r.account_id && (parseFloat(r.debit) > 0 || parseFloat(r.credit) > 0))
         .map(r => ({
@@ -246,6 +277,38 @@ export default function NewEntryPage() {
                 {analyticAccounts.map(a => (
                   <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
                 ))}
+              </select>
+            </div>
+          )}
+
+          {/* ── Customer / Vendor pickers (shown when AR/AP account selected) ── */}
+          {hasArAccount && customers.length > 0 && (
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
+                Customer <span className="font-normal normal-case">(optional)</span>
+              </label>
+              <select
+                value={customerId}
+                onChange={e => setCustomerId(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm"
+              >
+                <option value="">— none —</option>
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+          {hasApAccount && vendors.length > 0 && (
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
+                Vendor <span className="font-normal normal-case">(optional)</span>
+              </label>
+              <select
+                value={vendorId}
+                onChange={e => setVendorId(e.target.value)}
+                className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm"
+              >
+                <option value="">— none —</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
               </select>
             </div>
           )}
