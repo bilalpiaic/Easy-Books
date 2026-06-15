@@ -34,6 +34,7 @@ interface AssetForm {
   salvage_value: string
   useful_life_months: string
   method: string
+  funding_account_id: string | null
 }
 
 const emptyForm: AssetForm = {
@@ -42,6 +43,7 @@ const emptyForm: AssetForm = {
   acquisition_date: new Date().toISOString().split('T')[0],
   acquisition_cost: '', salvage_value: '0',
   useful_life_months: '60', method: 'straight_line',
+  funding_account_id: null,
 }
 
 export default function AssetsPage() {
@@ -92,6 +94,7 @@ export default function AssetsPage() {
           acquisition_cost: parseFloat(form.acquisition_cost),
           salvage_value: parseFloat(form.salvage_value) || 0,
           useful_life_months: parseInt(form.useful_life_months),
+          funding_account_id: form.funding_account_id ? parseInt(form.funding_account_id) : null,
         }),
       })
       setModalOpen(false)
@@ -288,6 +291,19 @@ export default function AssetsPage() {
                     <option value="reducing_balance">Reducing Balance</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                  Funded By <span className="font-normal normal-case">(optional — posts acquisition JV)</span>
+                </label>
+                <select
+                  value={form.funding_account_id ?? ""}
+                  onChange={e => setForm(f => ({ ...f, funding_account_id: e.target.value || null }))}
+                  className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                >
+                  <option value="">— no GL entry —</option>
+                  {accountOptions}
+                </select>
               </div>
               {formError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>}
               <button onClick={handleSave} disabled={saving}

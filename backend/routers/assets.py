@@ -27,6 +27,7 @@ class AssetCreate(BaseModel):
     salvage_value: Decimal = Decimal("0")
     useful_life_months: int
     method: str = "straight_line"
+    funding_account_id: Optional[int] = None
 
 
 class DepreciationRun(BaseModel):
@@ -73,13 +74,40 @@ def create_asset(session: SessionDep, user: WriteUserDep, body: AssetCreate):
         if not acc:
             raise HTTPException(400, f"Account {aid} not found for this tenant")
 
+    if body.funding_account_id is not None:
+        funding_acc = session.exec(
+            select(Account).where(
+                Account.id == body.funding_account_id, Account.tenant_id == user.tenant_id
+            )
+        ).first()
+        if not funding_acc:
+            raise HTTPException(400, f"Funding account {body.funding_account_id} not found for this tenant")
+
     asset = FixedAsset(
         tenant_id=user.tenant_id,
         book_value=body.acquisition_cost,
-        **body.model_dump(),
+        **body.model_dump(exclude={"funding_account_id"}),
     )
     session.add(asset)
-    log_audit(session, user, "CREATE", "fixed_asset", None, {"name": body.name})
+    session.flush()
+
+    if body.funding_account_id is not None:
+        txn = post_transaction(
+            session, user,
+            date=body.acquisition_date,
+            description=f"Asset acquisition: {body.name}",
+            entries=[
+                EntryInput(account_id=body.asset_account_id, debit=D(body.acquisition_cost)),
+                EntryInput(account_id=body.funding_account_id, credit=D(body.acquisition_cost)),
+            ],
+            voucher_type="JV",
+            audit_entity_type="fixed_asset",
+            audit_detail={"asset_id": asset.id, "name": body.name},
+        )
+        asset.acquisition_transaction_id = txn.id
+        session.add(asset)
+
+    log_audit(session, user, "CREATE", "fixed_asset", asset.id, {"name": body.name})
     session.commit()
     session.refresh(asset)
     return asset
