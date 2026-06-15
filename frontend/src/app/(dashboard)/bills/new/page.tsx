@@ -1,12 +1,13 @@
 'use client'
 
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import BillForm from '@/components/bills/BillForm'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
-export default function NewBillPage() {
+function NewBillContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const vendorId = searchParams.get('vendor_id')
@@ -27,5 +28,13 @@ export default function NewBillPage() {
         onCancel={() => router.push('/bills')}
       />
     </div>
+  )
+}
+
+export default function NewBillPage() {
+  return (
+    <Suspense>
+      <NewBillContent />
+    </Suspense>
   )
 }

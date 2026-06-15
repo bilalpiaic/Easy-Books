@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Download, Printer, FileSignature } from 'lucide-react'
@@ -49,7 +49,7 @@ const statusColors: Record<string, string> = {
 const PAGE_SIZE = 50
 const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 
-export default function Invoices() {
+function InvoicesContent() {
   const { can } = usePermission()
   if (!can("invoices")) return <NoAccessBanner resource="invoices" />
   const fmt = useFmt()
@@ -368,5 +368,13 @@ export default function Invoices() {
         onClear={() => setSelectedIds(new Set())}
       />
     </div>
+  )
+}
+
+export default function Invoices() {
+  return (
+    <Suspense>
+      <InvoicesContent />
+    </Suspense>
   )
 }

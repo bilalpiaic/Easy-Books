@@ -1,12 +1,13 @@
 'use client'
 
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import InvoiceForm from '@/components/invoices/InvoiceForm'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
 
-export default function NewInvoicePage() {
+function NewInvoiceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const customerId = searchParams.get('customer_id')
@@ -27,5 +28,13 @@ export default function NewInvoicePage() {
         onCancel={() => router.push('/invoices')}
       />
     </div>
+  )
+}
+
+export default function NewInvoicePage() {
+  return (
+    <Suspense>
+      <NewInvoiceContent />
+    </Suspense>
   )
 }
