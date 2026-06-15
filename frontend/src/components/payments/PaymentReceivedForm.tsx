@@ -9,13 +9,10 @@ interface OpenInvoice {
   id: number
   number: string
   customer_name: string | null
+  issue_date?: string
   due_date: string
   total: number
-  outstanding: number  // computed client-side from aging data
-}
-
-interface AgingItem {
-  id: number; number: string; amount: number; customer_name: string | null; due_date: string
+  balance_due: number
 }
 
 interface Account { id: number; code: string; name: string; type: string }
@@ -60,8 +57,9 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
   const [customers, setCustomers] = useState<{ id: number; name: string }[]>([])
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
 
+  // Static data: customers, accounts, analytic accounts
   useEffect(() => {
-    apiFetch<{ items: { id: number; name: string }[] }>('/api/customers?limit=500') // limit=500: covers all parties at current scale; raise if tenants exceed this
+    apiFetch<{ items: { id: number; name: string }[] }>('/api/customers?limit=500')
       .then(d => setCustomers(d.items))
       .catch(() => {})
     apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>('/api/analytic-accounts')
@@ -70,34 +68,25 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
         setAnalyticAccounts(anItems)
       })
       .catch(() => {})
-    Promise.all([
-      apiFetch<{ total: number; items: { id: number; number: string; customer_name: string | null; due_date: string; total: number; status?: string }[] }>(
-        '/api/invoices?limit=500&sort_by=due_date&sort_dir=asc'
-      ),
-      apiFetch<{ items: AgingItem[] }>('/api/invoices/aging'),
-      apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500'),
-    ]).then(([invData, agingData, accData]) => {
-      // Build outstanding map from aging items
-      const outstandingMap = new Map<number, number>()
-      agingData.items.forEach(item => outstandingMap.set(item.id, item.amount))
-      // Filter to unpaid/open invoices
-      const open = invData.items
-        .filter(i => !['paid', 'draft'].includes(i.status ?? ''))
-        .map(i => ({
-          id: i.id,
-          number: i.number,
-          customer_name: i.customer_name,
-          due_date: i.due_date,
-          total: i.total,
-          outstanding: outstandingMap.get(i.id) ?? i.total,
-        }))
-      setOpenInvoices(open)
-      setAllocations(open.map(i => ({ invoice_id: i.id, checked: false, amount: '' })))
-      setAccounts(accData.items)
-    }).catch(() => {
-      setOpenInvoices([]); setAllocations([]); setAccounts([])
-    })
+    apiFetch<{ total: number; items: Account[] }>('/api/accounts?limit=500')
+      .then(d => setAccounts(d.items))
+      .catch(() => {})
   }, [])
+
+  // Reactive: reload open invoices whenever customer changes
+  useEffect(() => {
+    if (!form.customer_id) {
+      setOpenInvoices([])
+      setAllocations([])
+      return
+    }
+    apiFetch<OpenInvoice[]>(`/api/invoices/open-for-allocation?customer_id=${form.customer_id}`)
+      .then(invs => {
+        setOpenInvoices(invs)
+        setAllocations(invs.map(i => ({ invoice_id: i.id, checked: false, amount: '' })))
+      })
+      .catch(() => { setOpenInvoices([]); setAllocations([]) })
+  }, [form.customer_id])
 
   const totalApplied = allocations
     .filter(a => a.checked && parseFloat(a.amount) > 0)
@@ -122,7 +111,6 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
         cash_account_id: form.cash_account_id ? parseInt(form.cash_account_id) : null,
         analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
       }
-      // Build allocations array from checked rows
       const allocationLines = allocations
         .filter(a => a.checked && parseFloat(a.amount) > 0)
         .map(a => ({ invoice_id: a.invoice_id, amount: parseFloat(a.amount) }))
@@ -148,12 +136,11 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
     ))
   }
 
-  // Auto-fill amount when checking a single invoice
   const handleCheck = (inv: OpenInvoice, checked: boolean) => {
     setAlloc(inv.id, 'checked', checked)
     if (checked) {
       const remaining = paymentAmount - totalApplied
-      const suggested = Math.min(inv.outstanding, remaining > 0 ? remaining : inv.outstanding)
+      const suggested = Math.min(inv.balance_due, remaining > 0 ? remaining : inv.balance_due)
       setAlloc(inv.id, 'amount', String(suggested.toFixed(dp)))
     } else {
       setAlloc(inv.id, 'amount', '')
@@ -231,58 +218,62 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
           </div>
         )}
 
-        {/* Invoice allocation checklist */}
-        {openInvoices.length > 0 && (
+        {/* Invoice allocation checklist — only shown once a customer is selected */}
+        {form.customer_id && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">
-              Apply to Open Invoices (optional)
+              Apply to Open Invoices <span className="font-normal normal-case">(optional)</span>
             </label>
-            <div className="border border-[#ede9e2] rounded-xl overflow-hidden text-sm">
-              <table className="w-full">
-                <thead className="bg-[#f6f3ee]">
-                  <tr>
-                    <th className="w-8 px-3 py-2" />
-                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Invoice</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Customer</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Outstanding</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Apply</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
-                  {openInvoices.map(inv => {
-                    const row = allocations.find(a => a.invoice_id === inv.id)
-                    if (!row) return null
-                    return (
-                      <tr key={inv.id} className={row.checked ? 'bg-amber-50/40' : 'hover:bg-[#f6f3ee]/40'}>
-                        <td className="px-3 py-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={row.checked}
-                            onChange={e => handleCheck(inv, e.target.checked)}
-                            className="accent-[#b8943f]"
-                          />
-                        </td>
-                        <td className="px-3 py-2 font-mono text-[#b8943f] font-bold text-xs">{inv.number}</td>
-                        <td className="px-3 py-2 text-black/70 truncate max-w-[120px]">{inv.customer_name ?? '—'}</td>
-                        <td className="px-3 py-2 text-right font-mono text-xs">{fmt(inv.outstanding)}</td>
-                        <td className="px-3 py-2 text-right">
-                          {row.checked ? (
+            {openInvoices.length === 0 ? (
+              <p className="text-xs text-black/40 italic py-2">No outstanding invoices for this customer.</p>
+            ) : (
+              <div className="border border-[#ede9e2] rounded-xl overflow-hidden text-sm">
+                <table className="w-full">
+                  <thead className="bg-[#f6f3ee]">
+                    <tr>
+                      <th className="w-8 px-3 py-2" />
+                      <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Invoice</th>
+                      <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Due Date</th>
+                      <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Balance Due</th>
+                      <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Apply</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ede9e2]">
+                    {openInvoices.map(inv => {
+                      const row = allocations.find(a => a.invoice_id === inv.id)
+                      if (!row) return null
+                      return (
+                        <tr key={inv.id} className={row.checked ? 'bg-amber-50/40' : 'hover:bg-[#f6f3ee]/40'}>
+                          <td className="px-3 py-2 text-center">
                             <input
-                              type="number" step="0.01" min="0.01"
-                              value={row.amount}
-                              onChange={e => setAlloc(inv.id, 'amount', e.target.value)}
-                              className="w-24 text-right px-2 py-1 border border-[#ede9e2] rounded text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
+                              type="checkbox"
+                              checked={row.checked}
+                              onChange={e => handleCheck(inv, e.target.checked)}
+                              className="accent-[#b8943f]"
                             />
-                          ) : (
-                            <span className="text-black/25 text-xs">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          </td>
+                          <td className="px-3 py-2 font-mono text-[#b8943f] font-bold text-xs">{inv.number}</td>
+                          <td className="px-3 py-2 text-black/70 text-xs">{inv.due_date ?? '—'}</td>
+                          <td className="px-3 py-2 text-right font-mono text-xs">{fmt(inv.balance_due)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {row.checked ? (
+                              <input
+                                type="number" step="0.01" min="0.01"
+                                value={row.amount}
+                                onChange={e => setAlloc(inv.id, 'amount', e.target.value)}
+                                className="w-24 text-right px-2 py-1 border border-[#ede9e2] rounded text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
+                              />
+                            ) : (
+                              <span className="text-black/25 text-xs">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Allocation summary */}
             {hasAllocations && (
