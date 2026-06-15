@@ -317,6 +317,7 @@ class Invoice(SQLModel, table=True):
     payment_link_status: Optional[str] = None  # "unpaid" | "paid"
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     assigned_to_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
 
 
 class Bill(SQLModel, table=True):
@@ -342,6 +343,7 @@ class Bill(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
 
 
 class PaymentReceived(SQLModel, table=True):
@@ -356,6 +358,7 @@ class PaymentReceived(SQLModel, table=True):
     cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
 
 
 class BillPayment(SQLModel, table=True):
@@ -370,6 +373,7 @@ class BillPayment(SQLModel, table=True):
     cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
 
 
 class BankAccount(SQLModel, table=True):
@@ -1500,6 +1504,7 @@ class TransactionCreate(TransactionBase):
     voucher_type: str = "JV"         # classification → per-type number series (#52 §4)
     entries: List[JournalEntryCreate]
     allocations: Optional[List["AllocationInput"]] = None
+    analytic_account_id: Optional[int] = None
 
 
 class TransactionRead(TransactionBase):
