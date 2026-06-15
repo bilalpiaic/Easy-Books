@@ -20,6 +20,7 @@ export interface InvoiceFull {
   gst_rate: number
   ar_account_id: number | null
   revenue_account_id: number | null
+  analytic_account_id: number | null
   currency: string
   exchange_rate: number
   assigned_to_id: number | null
@@ -29,6 +30,7 @@ export interface InvoiceFull {
 interface Customer { id: number; name: string }
 interface StaffUser { id: number; name: string; email: string }
 interface Account { id: number; code: string; name: string; type: string }
+interface AnalyticAccount { id: number; code: string; name: string; type: string }
 interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number }
 interface PaymentTerm { id: number; code: string; name: string; days: number }
 
@@ -44,6 +46,7 @@ interface FormState {
   gst_rate: string
   ar_account_id: string
   revenue_account_id: string
+  analytic_account_id: string
   currency: string
   exchange_rate: string
   assigned_to_id: string
@@ -52,7 +55,7 @@ interface FormState {
 const emptyForm: FormState = {
   customer_id: '', customer_name: '', issue_date: new Date().toISOString().split('T')[0],
   due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
-  ar_account_id: '', revenue_account_id: '',
+  ar_account_id: '', revenue_account_id: '', analytic_account_id: '',
   currency: 'PKR', exchange_rate: '1',
   assigned_to_id: '',
 }
@@ -78,6 +81,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [products, setProducts] = useState<Product[]>([])
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
+  const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
   const [customerBalance, setCustomerBalance] = useState<number | null>(null)
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
   const [applyingPromos, setApplyingPromos] = useState(false)
@@ -91,9 +95,12 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       apiFetch<PaymentTerm[]>('/api/payment-terms'),
       apiFetch<{ total: number; items: TaxCodeOption[] }>('/api/tax-codes?limit=100'),
       apiFetch<StaffUser[]>('/api/commissions/staff'),
-    ]).then(([c, a, p, terms, tc, s]) => {
+      apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>('/api/analytic-accounts'),
+    ]).then(([c, a, p, terms, tc, s, an]) => {
       setCustomers(c.items); setAccounts(a.items); setProducts(p.items)
       setPaymentTerms(terms); setTaxCodes(tc.items); setStaff(s)
+      const anItems = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
+      setAnalyticAccounts(anItems)
       if (mode === 'create' && initialCustomerId) {
         const cust = c.items.find((x: Customer) => x.id === initialCustomerId)
         if (cust) setForm(f => ({ ...f, customer_id: String(cust.id), customer_name: cust.name }))
@@ -115,6 +122,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         gst_rate: String(invoice.gst_rate ?? 17),
         ar_account_id: invoice.ar_account_id ? String(invoice.ar_account_id) : '',
         revenue_account_id: invoice.revenue_account_id ? String(invoice.revenue_account_id) : '',
+        analytic_account_id: invoice.analytic_account_id ? String(invoice.analytic_account_id) : '',
         currency: invoice.currency ?? 'PKR',
         exchange_rate: String(invoice.exchange_rate ?? 1),
         assigned_to_id: invoice.assigned_to_id ? String(invoice.assigned_to_id) : '',
@@ -242,6 +250,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       gst_rate: parseFloat(form.gst_rate) || 0,
       ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
       revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
+      analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
       currency: form.currency || settings.currency,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
       assigned_to_id: form.assigned_to_id ? parseInt(form.assigned_to_id) : null,
@@ -441,6 +450,24 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             </select>
           </div>
         </div>
+
+        {analyticAccounts.length > 0 && (
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+              Analytic Account <span className="font-normal normal-case">(optional)</span>
+            </label>
+            <select
+              value={form.analytic_account_id}
+              onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
+              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+            >
+              <option value="">— none —</option>
+              {analyticAccounts.map(a => (
+                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         {confirmPostedEdit && (

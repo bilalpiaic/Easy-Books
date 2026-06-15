@@ -20,6 +20,7 @@ export interface BillFull {
   gst_rate: number
   ap_account_id: number | null
   expense_account_id: number | null
+  analytic_account_id: number | null
   currency: string
   exchange_rate: number
   lines: (LineItem & { tax_code_id?: number | null })[]
@@ -27,6 +28,7 @@ export interface BillFull {
 
 interface Vendor { id: number; name: string }
 interface Account { id: number; code: string; name: string; type: string }
+interface AnalyticAccount { id: number; code: string; name: string; type: string }
 interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number }
 interface PaymentTerm { id: number; code: string; name: string; days: number }
 
@@ -42,6 +44,7 @@ interface FormState {
   gst_rate: string
   ap_account_id: string
   expense_account_id: string
+  analytic_account_id: string
   currency: string
   exchange_rate: string
 }
@@ -49,7 +52,7 @@ interface FormState {
 const emptyForm: FormState = {
   vendor_id: '', vendor_name: '', bill_date: new Date().toISOString().split('T')[0],
   due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
-  ap_account_id: '', expense_account_id: '',
+  ap_account_id: '', expense_account_id: '', analytic_account_id: '',
   currency: 'PKR', exchange_rate: '1',
 }
 
@@ -73,6 +76,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const [products, setProducts] = useState<Product[]>([])
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
+  const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
 
   useEffect(() => {
@@ -82,9 +86,12 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
       apiFetch<{ total: number; items: Product[] }>('/api/products?limit=500'),
       apiFetch<PaymentTerm[]>('/api/payment-terms'),
       apiFetch<{ total: number; items: TaxCodeOption[] }>('/api/tax-codes?limit=100'),
-    ]).then(([v, a, p, terms, tc]) => {
+      apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>('/api/analytic-accounts'),
+    ]).then(([v, a, p, terms, tc, an]) => {
       setVendors(v.items); setAccounts(a.items); setProducts(p.items)
       setPaymentTerms(terms); setTaxCodes(tc.items)
+      const anItems = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
+      setAnalyticAccounts(anItems)
       if (mode === 'create' && initialVendorId) {
         const vend = v.items.find((x: Vendor) => x.id === initialVendorId)
         if (vend) setForm(f => ({ ...f, vendor_id: String(vend.id), vendor_name: vend.name }))
@@ -106,6 +113,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
         gst_rate: String(bill.gst_rate ?? 17),
         ap_account_id: bill.ap_account_id ? String(bill.ap_account_id) : '',
         expense_account_id: bill.expense_account_id ? String(bill.expense_account_id) : '',
+        analytic_account_id: bill.analytic_account_id ? String(bill.analytic_account_id) : '',
         currency: bill.currency ?? 'PKR',
         exchange_rate: String(bill.exchange_rate ?? 1),
       })
@@ -169,6 +177,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
       gst_rate: parseFloat(form.gst_rate) || 0,
       ap_account_id: form.ap_account_id ? parseInt(form.ap_account_id) : null,
       expense_account_id: form.expense_account_id ? parseInt(form.expense_account_id) : null,
+      analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
       currency: form.currency || settings.currency,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
     }
@@ -336,6 +345,24 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             </select>
           </div>
         </div>
+
+        {analyticAccounts.length > 0 && (
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+              Analytic Account <span className="font-normal normal-case">(optional)</span>
+            </label>
+            <select
+              value={form.analytic_account_id}
+              onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
+              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+            >
+              <option value="">— none —</option>
+              {analyticAccounts.map(a => (
+                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         {confirmPostedEdit && (
