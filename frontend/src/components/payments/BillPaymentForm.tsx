@@ -73,14 +73,13 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
       .catch(() => {})
   }, [])
 
-  // Reactive: reload open bills whenever vendor changes
+  // Reload open bills on mount and whenever vendor selection changes.
+  // No vendor selected → all open bills; vendor selected → that vendor's only.
   useEffect(() => {
-    if (!form.vendor_id) {
-      setOpenBills([])
-      setAllocations([])
-      return
-    }
-    apiFetch<OpenBill[]>(`/api/bills/open-for-allocation?vendor_id=${form.vendor_id}`)
+    const url = form.vendor_id
+      ? `/api/bills/open-for-allocation?vendor_id=${form.vendor_id}`
+      : `/api/bills/open-for-allocation`
+    apiFetch<OpenBill[]>(url)
       .then(bills => {
         setOpenBills(bills)
         setAllocations(bills.map(b => ({ bill_id: b.id, checked: false, amount: '' })))
@@ -213,80 +212,81 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
           </div>
         )}
 
-        {/* Bill allocation checklist — only shown once a vendor is selected */}
-        {form.vendor_id && (
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">
-              Apply to Open Bills <span className="font-normal normal-case">(optional)</span>
-            </label>
-            {openBills.length === 0 ? (
-              <p className="text-xs text-black/40 italic py-2">No outstanding bills for this vendor.</p>
-            ) : (
-              <div className="border border-[#ede9e2] rounded-xl overflow-hidden text-sm">
-                <table className="w-full">
-                  <thead className="bg-[#f6f3ee]">
-                    <tr>
-                      <th className="w-8 px-3 py-2" />
-                      <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Bill</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Due Date</th>
-                      <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Balance Due</th>
-                      <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Apply</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#ede9e2]">
-                    {openBills.map(bill => {
-                      const row = allocations.find(a => a.bill_id === bill.id)
-                      if (!row) return null
-                      return (
-                        <tr key={bill.id} className={row.checked ? 'bg-amber-50/40' : 'hover:bg-[#f6f3ee]/40'}>
-                          <td className="px-3 py-2 text-center">
+        {/* Bill allocation checklist */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">
+            Apply to Open Bills <span className="font-normal normal-case">(optional)</span>
+            {form.vendor_id && <span className="ml-1 font-normal normal-case text-[#b8943f]">— filtered by selected vendor</span>}
+          </label>
+          {openBills.length === 0 ? (
+            <p className="text-xs text-black/40 italic py-2">
+              {form.vendor_id ? 'No outstanding bills for this vendor.' : 'No outstanding bills.'}
+            </p>
+          ) : (
+            <div className="border border-[#ede9e2] rounded-xl overflow-hidden text-sm">
+              <table className="w-full">
+                <thead className="bg-[#f6f3ee]">
+                  <tr>
+                    <th className="w-8 px-3 py-2" />
+                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Bill</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Vendor</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Balance Due</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Apply</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#ede9e2]">
+                  {openBills.map(bill => {
+                    const row = allocations.find(a => a.bill_id === bill.id)
+                    if (!row) return null
+                    return (
+                      <tr key={bill.id} className={row.checked ? 'bg-amber-50/40' : 'hover:bg-[#f6f3ee]/40'}>
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={row.checked}
+                            onChange={e => handleCheck(bill, e.target.checked)}
+                            className="accent-[#b8943f]"
+                          />
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[#b8943f] font-bold text-xs">{bill.number}</td>
+                        <td className="px-3 py-2 text-black/70 truncate max-w-[120px] text-xs">{bill.vendor_name ?? '—'}</td>
+                        <td className="px-3 py-2 text-right font-mono text-xs">{fmt(bill.balance_due)}</td>
+                        <td className="px-3 py-2 text-right">
+                          {row.checked ? (
                             <input
-                              type="checkbox"
-                              checked={row.checked}
-                              onChange={e => handleCheck(bill, e.target.checked)}
-                              className="accent-[#b8943f]"
+                              type="number" step="0.01" min="0.01"
+                              value={row.amount}
+                              onChange={e => setAlloc(bill.id, 'amount', e.target.value)}
+                              className="w-24 text-right px-2 py-1 border border-[#ede9e2] rounded text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
                             />
-                          </td>
-                          <td className="px-3 py-2 font-mono text-[#b8943f] font-bold text-xs">{bill.number}</td>
-                          <td className="px-3 py-2 text-black/70 text-xs">{bill.due_date ?? '—'}</td>
-                          <td className="px-3 py-2 text-right font-mono text-xs">{fmt(bill.balance_due)}</td>
-                          <td className="px-3 py-2 text-right">
-                            {row.checked ? (
-                              <input
-                                type="number" step="0.01" min="0.01"
-                                value={row.amount}
-                                onChange={e => setAlloc(bill.id, 'amount', e.target.value)}
-                                className="w-24 text-right px-2 py-1 border border-[#ede9e2] rounded text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
-                              />
-                            ) : (
-                              <span className="text-black/25 text-xs">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                          ) : (
+                            <span className="text-black/25 text-xs">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-            {/* Allocation summary */}
-            {hasAllocations && (
-              <div className={`mt-2 flex items-center justify-between text-xs px-3 py-2 rounded-lg ${diff > 0.01 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
-                <span className="text-black/60">
-                  Payment: <strong>{fmt(paymentAmount)}</strong> · Applied: <strong>{fmt(totalApplied)}</strong>
+          {/* Allocation summary */}
+          {hasAllocations && (
+            <div className={`mt-2 flex items-center justify-between text-xs px-3 py-2 rounded-lg ${diff > 0.01 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
+              <span className="text-black/60">
+                Payment: <strong>{fmt(paymentAmount)}</strong> · Applied: <strong>{fmt(totalApplied)}</strong>
+              </span>
+              {diff > 0.01 ? (
+                <span className="flex items-center gap-1 text-amber-700 font-medium">
+                  <AlertCircle className="w-3 h-3" /> Unallocated: {fmt(diff)}
                 </span>
-                {diff > 0.01 ? (
-                  <span className="flex items-center gap-1 text-amber-700 font-medium">
-                    <AlertCircle className="w-3 h-3" /> Unallocated: {fmt(diff)}
-                  </span>
-                ) : (
-                  <span className="text-green-700 font-medium">Fully applied ✓</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+              ) : (
+                <span className="text-green-700 font-medium">Fully applied ✓</span>
+              )}
+            </div>
+          )}
+        </div>
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <p className="text-xs text-black/50">GL posting: Dr Accounts Payable / Cr Cash/Bank</p>
