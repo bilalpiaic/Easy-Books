@@ -20,6 +20,8 @@ interface AgingItem {
 
 interface Account { id: number; code: string; name: string; type: string }
 
+interface AnalyticAccount { id: number; code: string; name: string; type: string }
+
 interface AllocationRow {
   bill_id: number
   checked: boolean
@@ -33,11 +35,12 @@ interface PayForm {
   method: string
   reference: string
   cash_account_id: string
+  analytic_account_id: string
 }
 
 const emptyForm: PayForm = {
   vendor_id: '', payment_date: new Date().toISOString().split('T')[0],
-  amount: '', method: 'bank_transfer', reference: '', cash_account_id: '',
+  amount: '', method: 'bank_transfer', reference: '', cash_account_id: '', analytic_account_id: '',
 }
 
 interface Props {
@@ -55,10 +58,17 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const [allocations, setAllocations] = useState<AllocationRow[]>([])
   const [accounts, setAccounts]     = useState<Account[]>([])
   const [vendors, setVendors]       = useState<{ id: number; name: string }[]>([])
+  const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
 
   useEffect(() => {
     apiFetch<{ items: { id: number; name: string }[] }>('/api/vendors?limit=500') // limit=500: covers all parties at current scale; raise if tenants exceed this
       .then(d => setVendors(d.items))
+      .catch(() => {})
+    apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>('/api/analytic-accounts')
+      .then(an => {
+        const anItems = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
+        setAnalyticAccounts(anItems)
+      })
       .catch(() => {})
     Promise.all([
       apiFetch<{ total: number; items: { id: number; number: string; vendor_name: string | null; due_date: string; total: number; status?: string }[] }>(
@@ -107,6 +117,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
         method: form.method,
         reference: form.reference || null,
         cash_account_id: form.cash_account_id ? parseInt(form.cash_account_id) : null,
+        analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
       }
       const allocationLines = allocations
         .filter(a => a.checked && parseFloat(a.amount) > 0)
@@ -195,6 +206,23 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
             {cashAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
           </select>
         </div>
+        {analyticAccounts.length > 0 && (
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+              Analytic Account <span className="font-normal normal-case">(optional)</span>
+            </label>
+            <select
+              value={form.analytic_account_id}
+              onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
+              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+            >
+              <option value="">— none —</option>
+              {analyticAccounts.map(a => (
+                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Bill allocation checklist */}
         {openBills.length > 0 && (

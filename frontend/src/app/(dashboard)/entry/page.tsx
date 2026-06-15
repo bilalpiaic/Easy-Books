@@ -19,6 +19,8 @@ interface Account {
   postable?: boolean
 }
 
+interface AnalyticAccount { id: number; code: string; name: string; type: string }
+
 interface EntryRow {
   account_id: string
   debit: string
@@ -45,6 +47,8 @@ interface AllocRow {
 export default function NewEntryPage() {
   const router = useRouter()
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
+  const [analyticAccountId, setAnalyticAccountId] = useState<string>("")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [voucherType, setVoucherType] = useState("JV")
   const [description, setDescription] = useState("")
@@ -58,8 +62,15 @@ export default function NewEntryPage() {
   const [allocRows, setAllocRows] = useState<AllocRow[]>([])
 
   useEffect(() => {
-    apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500")
-      .then(d => setAccounts(d.items.filter(a => a.postable !== false)))
+    Promise.all([
+      apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500"),
+      apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>("/api/analytic-accounts"),
+    ])
+      .then(([d, an]) => {
+        setAccounts(d.items.filter(a => a.postable !== false))
+        const items = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
+        setAnalyticAccounts(items)
+      })
       .catch(console.error)
   }, [])
 
@@ -213,6 +224,7 @@ export default function NewEntryPage() {
       date,
       description,
       voucher_type: voucherType,
+      analytic_account_id: analyticAccountId ? parseInt(analyticAccountId) : null,
       entries: rows
         .filter(r => r.account_id && (parseFloat(r.debit) > 0 || parseFloat(r.credit) > 0))
         .map(r => ({
@@ -295,6 +307,25 @@ export default function NewEntryPage() {
               />
             </div>
           </div>
+
+          {/* ── Analytic Account ────────────────────────────────── */}
+          {analyticAccounts.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                Analytic Account <span className="font-normal normal-case">(optional)</span>
+              </label>
+              <select
+                value={analyticAccountId}
+                onChange={e => setAnalyticAccountId(e.target.value)}
+                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+              >
+                <option value="">— none —</option>
+                {analyticAccounts.map(a => (
+                  <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* ── Line items ─────────────────────────────────────── */}
           <div className="mt-2">
