@@ -15,6 +15,8 @@ from PyInstaller.utils.hooks import collect_submodules
 datas = [("alembic.ini", "."), ("alembic", "alembic")]
 if os.path.isdir("templates"):          # Jinja2 invoice template for the PDF route
     datas.append(("templates", "templates"))
+if os.path.isfile("VERSION"):           # written by prepare-resources before pyinstaller runs
+    datas.append(("VERSION", "."))
 
 # ── Hidden imports ──────────────────────────────────────────────────────────
 # uvicorn (lifespan/loop/protocol plugins), sqlmodel, the JWT + crypto stacks,

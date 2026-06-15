@@ -53,3 +53,18 @@ def test_write_last_version_overwrites(tmp_path):
     (tmp_path / ".last-app-version").write_text("2.5.0")
     write_last_version(tmp_path, "2.6.0")
     assert (tmp_path / ".last-app-version").read_text() == "2.6.0"
+
+
+def test_app_version_reads_version_file(monkeypatch, tmp_path):
+    """_app_version() reads VERSION from the bundle dir."""
+    import run_packaged
+    (tmp_path / "VERSION").write_text("3.1.4")
+    monkeypatch.setattr(run_packaged, "_bundle_dir", lambda: tmp_path)
+    assert run_packaged._app_version() == "3.1.4"
+
+
+def test_app_version_fallback_when_no_version_file(monkeypatch, tmp_path):
+    """_app_version() returns 'dev' when VERSION file is absent."""
+    import run_packaged
+    monkeypatch.setattr(run_packaged, "_bundle_dir", lambda: tmp_path)
+    assert run_packaged._app_version() == "dev"

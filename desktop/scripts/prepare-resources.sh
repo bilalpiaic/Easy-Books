@@ -16,6 +16,12 @@ if ! command -v npm >/dev/null 2>&1; then
   fi
   export PATH="$NODE_DIR/bin:$PATH"
 fi
+
+# Read version from desktop/package.json and write VERSION for run_packaged._app_version()
+APP_VERSION=$(node -e "process.stdout.write(require('$ROOT/desktop/package.json').version)")
+printf '%s' "$APP_VERSION" > "$ROOT/backend/VERSION"
+echo "App version: $APP_VERSION"
+
 # Backend binary
 ( cd "$ROOT/backend" && uv run pyinstaller easybooks-backend.spec )
 cp -r "$ROOT/backend/dist/easybooks-backend" "$RES/backend"
@@ -28,7 +34,7 @@ done
 rm -rf "$ROOT/frontend/.next/standalone"
 
 # Frontend standalone
-( cd "$ROOT/frontend" && npm install && npx next build )
+( cd "$ROOT/frontend" && npm install && NEXT_PUBLIC_APP_VERSION="$APP_VERSION" npx next build )
 cp -r "$ROOT/frontend/.next/static"  "$ROOT/frontend/.next/standalone/.next/static"
 cp -r "$ROOT/frontend/public"        "$ROOT/frontend/.next/standalone/public"
 mkdir -p "$RES/frontend"; cp -r "$ROOT/frontend/.next/standalone/." "$RES/frontend/"

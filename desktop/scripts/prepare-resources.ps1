@@ -24,6 +24,11 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
   $env:Path = "$NodeDir;$env:Path"
 }
 
+# Read version from desktop/package.json and write VERSION for run_packaged._app_version()
+$AppVersion = (Get-Content (Join-Path $Root "desktop/package.json") | ConvertFrom-Json).version
+[System.IO.File]::WriteAllText((Join-Path $Root "backend/VERSION"), $AppVersion)
+Write-Host "App version: $AppVersion"
+
 # Backend binary (PyInstaller emits easybooks-backend\ containing easybooks-backend.exe)
 Push-Location (Join-Path $Root "backend")
 uv run pyinstaller easybooks-backend.spec
@@ -45,7 +50,9 @@ Remove-Item -Recurse -Force (Join-Path $Root "frontend/.next/standalone") -Error
 # Frontend standalone
 Push-Location (Join-Path $Root "frontend")
 npm install
+$env:NEXT_PUBLIC_APP_VERSION = $AppVersion
 npx next build
+$env:NEXT_PUBLIC_APP_VERSION = $null
 Pop-Location
 Copy-Item -Recurse (Join-Path $Root "frontend/.next/static")  (Join-Path $Root "frontend/.next/standalone/.next/static")
 Copy-Item -Recurse (Join-Path $Root "frontend/public")        (Join-Path $Root "frontend/.next/standalone/public")
