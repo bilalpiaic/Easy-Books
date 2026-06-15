@@ -97,7 +97,7 @@ export default function NewEntryPage() {
   // ── Per-side account filter helpers (Issue #77 Part 1) ───────────────────
   const hasFilter = !!VOUCHER_SIDE_FILTERS[voucherType]
 
-  // IDs in use on each side (for CV exclusion: can't debit & credit same account)
+  // IDs in use on each side (for CO exclusion: can't debit & credit same account)
   const debitAccountIds = useMemo(
     () => new Set(rows.filter(r => parseFloat(r.debit) > 0 && r.account_id).map(r => parseInt(r.account_id))),
     [rows],
@@ -142,7 +142,7 @@ export default function NewEntryPage() {
       return { debitAccounts: accounts, creditAccounts: accounts, side: "none" }
     }
     const side = rowSide(row)
-    const isCV = voucherType === "CV"
+    const isCV = voucherType === "CO"
     if (side === "debit") {
       const exclude = isCV ? creditAccountIds : undefined
       const { accounts: filtered, emptyReason } = filterAccountsForSide(accounts, voucherType, "debit", exclude)

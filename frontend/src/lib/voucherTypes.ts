@@ -51,7 +51,7 @@ export interface SideFilter {
 
 /**
  * Smart account-head filtering rules (Issue #77 Part 1).
- * Voucher types not listed here (JV, SL, PR, DN, CN, CO) have no
+ * Voucher types not listed here (JV, SL, PR, DN, CN) have no
  * restriction and show the full COA on both sides.
  */
 export const VOUCHER_SIDE_FILTERS: Record<string, SideFilter> = {
