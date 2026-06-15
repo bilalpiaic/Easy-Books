@@ -1811,25 +1811,42 @@ def _seed_analytic_accounts(s: Session, tenant_id: int) -> None:
 
     rng = random.Random(tenant_id)  # deterministic per tenant
 
-    # 3. Tag ~30 % of invoices
+    # 3. Tag ~30 % of invoices + their JE rows
     invoices = s.exec(
         select(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.analytic_account_id.is_(None))
     ).all()
     for inv in invoices:
         if rng.random() < 0.3:
-            inv.analytic_account_id = rng.choice(dim_ids)
+            ana_id = rng.choice(dim_ids)
+            inv.analytic_account_id = ana_id
             s.add(inv)
+            # Propagate to JE rows so Analytic P&L picks them up
+            if inv.transaction_id:
+                for je in s.exec(
+                    select(JournalEntry).where(JournalEntry.transaction_id == inv.transaction_id)
+                ).all():
+                    if je.analytic_account_id is None:
+                        je.analytic_account_id = ana_id
+                        s.add(je)
 
-    # 4. Tag ~30 % of bills
+    # 4. Tag ~30 % of bills + their JE rows
     bills = s.exec(
         select(Bill).where(Bill.tenant_id == tenant_id, Bill.analytic_account_id.is_(None))
     ).all()
     for bill in bills:
         if rng.random() < 0.3:
-            bill.analytic_account_id = rng.choice(dim_ids)
+            ana_id = rng.choice(dim_ids)
+            bill.analytic_account_id = ana_id
             s.add(bill)
+            if bill.transaction_id:
+                for je in s.exec(
+                    select(JournalEntry).where(JournalEntry.transaction_id == bill.transaction_id)
+                ).all():
+                    if je.analytic_account_id is None:
+                        je.analytic_account_id = ana_id
+                        s.add(je)
 
-    # 5. Tag ~30 % of payments received
+    # 5. Tag ~30 % of payments received + their JE rows
     payments = s.exec(
         select(PaymentReceived).where(
             PaymentReceived.tenant_id == tenant_id,
@@ -1838,10 +1855,18 @@ def _seed_analytic_accounts(s: Session, tenant_id: int) -> None:
     ).all()
     for pmt in payments:
         if rng.random() < 0.3:
-            pmt.analytic_account_id = rng.choice(dim_ids)
+            ana_id = rng.choice(dim_ids)
+            pmt.analytic_account_id = ana_id
             s.add(pmt)
+            if pmt.transaction_id:
+                for je in s.exec(
+                    select(JournalEntry).where(JournalEntry.transaction_id == pmt.transaction_id)
+                ).all():
+                    if je.analytic_account_id is None:
+                        je.analytic_account_id = ana_id
+                        s.add(je)
 
-    # 6. Tag ~30 % of bill payments
+    # 6. Tag ~30 % of bill payments + their JE rows
     bpayments = s.exec(
         select(BillPayment).where(
             BillPayment.tenant_id == tenant_id,
@@ -1850,14 +1875,39 @@ def _seed_analytic_accounts(s: Session, tenant_id: int) -> None:
     ).all()
     for bp in bpayments:
         if rng.random() < 0.3:
-            bp.analytic_account_id = rng.choice(dim_ids)
+            ana_id = rng.choice(dim_ids)
+            bp.analytic_account_id = ana_id
             s.add(bp)
+            if bp.transaction_id:
+                for je in s.exec(
+                    select(JournalEntry).where(JournalEntry.transaction_id == bp.transaction_id)
+                ).all():
+                    if je.analytic_account_id is None:
+                        je.analytic_account_id = ana_id
+                        s.add(je)
 
-    # 7. Tag ~30 % of manual JVs via their JournalEntry rows
+    # 7. Tag ~30 % of remaining manual JVs (not already tagged via invoice/bill/payment)
+    # JVs linked to invoices/bills/payments were already handled above.
+    tagged_txn_ids: set[int] = set()
+    for inv in invoices:
+        if inv.analytic_account_id is not None and inv.transaction_id:
+            tagged_txn_ids.add(inv.transaction_id)
+    for bill in bills:
+        if bill.analytic_account_id is not None and bill.transaction_id:
+            tagged_txn_ids.add(bill.transaction_id)
+    for pmt in payments:
+        if pmt.analytic_account_id is not None and pmt.transaction_id:
+            tagged_txn_ids.add(pmt.transaction_id)
+    for bp in bpayments:
+        if bp.analytic_account_id is not None and bp.transaction_id:
+            tagged_txn_ids.add(bp.transaction_id)
+
     jvs = s.exec(
         select(Transaction).where(Transaction.tenant_id == tenant_id)
     ).all()
     for txn in jvs:
+        if txn.id in tagged_txn_ids:
+            continue  # already tagged via document backfill above
         if rng.random() < 0.3:
             ana_id = rng.choice(dim_ids)
             for je in s.exec(
