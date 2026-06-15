@@ -71,7 +71,7 @@ export const VOUCHER_SIDE_FILTERS: Record<string, SideFilter> = {
     debit:  ["bank"],
     credit: ["Revenue", "Asset", "Equity"],
   },
-  CV: {
+  CO: {
     debit:  ["cashbank"],
     credit: ["cashbank"],
   },
