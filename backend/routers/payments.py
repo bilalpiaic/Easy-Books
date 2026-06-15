@@ -44,6 +44,7 @@ class PaymentReceivedCreate(BaseModel):
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
     allocations: List[AllocationLine] = []
+    analytic_account_id: Optional[int] = None
 
 
 def _refresh_invoice_status(session, inv: Invoice) -> None:
@@ -175,8 +176,8 @@ def create_payment_received(
         date=body.payment_date,
         description=f"Payment received — {cname or ''} {body.reference or ''}".strip(),
         entries=[
-            EntryInput(account_id=cash_acc.id, debit=amount),
-            EntryInput(account_id=ar_acc.id, credit=amount),
+            EntryInput(account_id=cash_acc.id, debit=amount, analytic_account_id=body.analytic_account_id),
+            EntryInput(account_id=ar_acc.id, credit=amount, analytic_account_id=body.analytic_account_id),
         ],
         reference=body.reference,
         payment_method=body.method,
@@ -196,6 +197,7 @@ def create_payment_received(
         cash_account_id=cash_acc.id,
         transaction_id=txn.id,
         created_by_id=user.id,
+        analytic_account_id=body.analytic_account_id,
     )
     session.add(pmt)
     session.flush()
@@ -236,6 +238,7 @@ class BillPaymentCreate(BaseModel):
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
     allocations: List[AllocationLine] = []
+    analytic_account_id: Optional[int] = None
 
 
 @router.get("/api/bill-payments/{payment_id}", dependencies=[perm_dep("bill_payments")])
@@ -333,8 +336,8 @@ def create_bill_payment(
         date=body.payment_date,
         description=f"Bill payment — {vname or ''} {body.reference or ''}".strip(),
         entries=[
-            EntryInput(account_id=ap_acc.id, debit=amount),
-            EntryInput(account_id=cash_acc.id, credit=amount),
+            EntryInput(account_id=ap_acc.id, debit=amount, analytic_account_id=body.analytic_account_id),
+            EntryInput(account_id=cash_acc.id, credit=amount, analytic_account_id=body.analytic_account_id),
         ],
         reference=body.reference,
         payment_method=body.method,
@@ -354,6 +357,7 @@ def create_bill_payment(
         cash_account_id=cash_acc.id,
         transaction_id=txn.id,
         created_by_id=user.id,
+        analytic_account_id=body.analytic_account_id,
     )
     session.add(bp)
     session.flush()

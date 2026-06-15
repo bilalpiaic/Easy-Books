@@ -212,7 +212,12 @@ def create_transaction(
         date=tx_data.date,
         description=tx_data.description or "",
         entries=[
-            EntryInput(account_id=e.account_id, debit=D(e.debit), credit=D(e.credit))
+            EntryInput(
+                account_id=e.account_id,
+                debit=D(e.debit),
+                credit=D(e.credit),
+                analytic_account_id=tx_data.analytic_account_id,
+            )
             for e in tx_data.entries
         ],
         reference=tx_data.reference,

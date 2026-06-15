@@ -99,6 +99,7 @@ class InvoiceCreate(BaseModel):
     currency: Optional[str] = None       # defaults to tenant base
     exchange_rate: Optional[Decimal] = None  # override; else resolved from ExchangeRate
     assigned_to_id: Optional[int] = None  # sales person (for commission tracking)
+    analytic_account_id: Optional[int] = None
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -330,6 +331,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         revenue_account_id=body.revenue_account_id,
         created_by_id=user.id,
         assigned_to_id=body.assigned_to_id,
+        analytic_account_id=body.analytic_account_id,
     )
     session.add(invoice)
     session.flush()
@@ -428,21 +430,22 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     deferred_credit_base = min(deferral.deferred_net_base, subtotal_base)
     revenue_net_base = money(subtotal_base - deferred_credit_base)
 
-    entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
+    ana = body.analytic_account_id
+    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana)]
     if revenue_net_base > ZERO:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base))
+        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
     if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
-        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base))
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=ana))
 
     if use_per_line_tax and per_gl_tax:
         for gl_id, tax_amt in per_gl_tax.items():
-            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate)))
+            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate), analytic_account_id=ana))
     elif gst_amount > 0:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base))
+        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base, analytic_account_id=ana))
 
     txn = post_transaction(
         session, user,
@@ -473,8 +476,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
             date=invoice.issue_date,
             description=f"COGS for {invoice.number}",
             entries=[
-                EntryInput(account_id=cogs_acc.id, debit=total_cogs),
-                EntryInput(account_id=inv_acc.id, credit=total_cogs),
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs, analytic_account_id=ana),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs, analytic_account_id=ana),
             ],
             audit_entity_type="invoice",
             audit_detail={"invoice_number": invoice.number, "cogs": str(total_cogs)},
@@ -701,6 +704,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.ar_account_id = body.ar_account_id
     inv.revenue_account_id = body.revenue_account_id
     inv.assigned_to_id = body.assigned_to_id
+    inv.analytic_account_id = body.analytic_account_id
     session.add(inv)
     session.flush()
 
@@ -767,17 +771,18 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     deferred_credit_base = min(deferral.deferred_net_base, subtotal_base)
     revenue_net_base = money(subtotal_base - deferred_credit_base)
 
-    entries = [EntryInput(account_id=ar_acc.id, debit=total_base)]
+    ana = body.analytic_account_id
+    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana)]
     if revenue_net_base > ZERO:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base))
+        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
     if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
-        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base))
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=ana))
     if gst_amount > ZERO:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base))
+        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base, analytic_account_id=ana))
 
     txn = post_transaction(
         session, user,
@@ -811,8 +816,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             date=inv.issue_date,
             description=f"COGS for {inv.number} (edited)",
             entries=[
-                EntryInput(account_id=cogs_acc.id, debit=total_cogs),
-                EntryInput(account_id=inv_acc.id, credit=total_cogs),
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs, analytic_account_id=ana),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs, analytic_account_id=ana),
             ],
             audit_entity_type="invoice",
             audit_detail={"invoice_number": inv.number, "cogs": str(total_cogs)},
