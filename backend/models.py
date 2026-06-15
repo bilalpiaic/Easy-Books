@@ -191,6 +191,8 @@ class Account(SQLModel, table=True):
     is_group: bool = Field(default=False, index=True)
     # Inactive accounts are excluded from new postings.
     is_active: bool = Field(default=True)
+    # AR/AP party classification (§2): "customer" | "vendor" | None
+    party_type: Optional[str] = None
 
     tenant: Tenant = Relationship(back_populates="accounts")
     journal_entries: List["JournalEntry"] = Relationship(back_populates="account")
@@ -237,6 +239,9 @@ class JournalEntryBase(SQLModel):
     credit: Money = money_col()
     # Optional cost-center / project tag for segment P&L (IAS 1 management commentary)
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    # AR/AP party tracking (§2): links the JE line to the debtor/creditor
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    vendor_id: Optional[int] = Field(default=None, foreign_key="vendor.id")
 
 
 class JournalEntry(JournalEntryBase, table=True):
@@ -926,6 +931,8 @@ class FixedAsset(SQLModel, table=True):
     book_value: Money = money_col()
     is_disposed: bool = Field(default=False)
     last_depreciation_date: Optional[str] = None
+    # §3: links asset to the JV that recorded its acquisition (Dr Asset / Cr AP or Bank)
+    acquisition_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -1505,6 +1512,8 @@ class TransactionCreate(TransactionBase):
     entries: List[JournalEntryCreate]
     allocations: Optional[List["AllocationInput"]] = None
     analytic_account_id: Optional[int] = None
+    customer_id: Optional[int] = None
+    vendor_id: Optional[int] = None
 
 
 class TransactionRead(TransactionBase):

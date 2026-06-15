@@ -42,6 +42,8 @@ class EntryInput:
     debit: Decimal = ZERO
     credit: Decimal = ZERO
     analytic_account_id: Optional[int] = None
+    customer_id: Optional[int] = None
+    vendor_id: Optional[int] = None
 
     def normalised(self) -> "EntryInput":
         return EntryInput(
@@ -49,6 +51,8 @@ class EntryInput:
             debit=D(self.debit),
             credit=D(self.credit),
             analytic_account_id=self.analytic_account_id,
+            customer_id=self.customer_id,
+            vendor_id=self.vendor_id,
         )
 
 
@@ -165,6 +169,8 @@ def post_transaction(
                 debit=e.debit,
                 credit=e.credit,
                 analytic_account_id=e.analytic_account_id,
+                customer_id=e.customer_id,
+                vendor_id=e.vendor_id,
             )
         )
 
