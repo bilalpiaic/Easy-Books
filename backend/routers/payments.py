@@ -177,7 +177,7 @@ def create_payment_received(
         description=f"Payment received — {cname or ''} {body.reference or ''}".strip(),
         entries=[
             EntryInput(account_id=cash_acc.id, debit=amount, analytic_account_id=body.analytic_account_id),
-            EntryInput(account_id=ar_acc.id, credit=amount, analytic_account_id=body.analytic_account_id),
+            EntryInput(account_id=ar_acc.id, credit=amount, analytic_account_id=body.analytic_account_id, customer_id=body.customer_id),
         ],
         reference=body.reference,
         payment_method=body.method,
@@ -336,7 +336,7 @@ def create_bill_payment(
         date=body.payment_date,
         description=f"Bill payment — {vname or ''} {body.reference or ''}".strip(),
         entries=[
-            EntryInput(account_id=ap_acc.id, debit=amount, analytic_account_id=body.analytic_account_id),
+            EntryInput(account_id=ap_acc.id, debit=amount, analytic_account_id=body.analytic_account_id, vendor_id=body.vendor_id),
             EntryInput(account_id=cash_acc.id, credit=amount, analytic_account_id=body.analytic_account_id),
         ],
         reference=body.reference,

@@ -325,7 +325,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     non_stock_base = money((subtotal - total_stock_value) * fx_rate)
 
     ana = body.analytic_account_id
-    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=ana)]
+    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=ana, vendor_id=body.vendor_id)]
     if total_stock_value > 0:
         inv_acc = get_or_create_account(
             session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
@@ -542,7 +542,7 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     non_stock_base = money((subtotal - total_stock_value) * fx_rate)
 
     ana = body.analytic_account_id
-    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=ana)]
+    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=ana, vendor_id=bill.vendor_id)]
     if total_stock_value > 0:
         inv_acc = get_or_create_account(session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset")
         entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_base, analytic_account_id=ana))

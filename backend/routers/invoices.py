@@ -431,7 +431,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
     revenue_net_base = money(subtotal_base - deferred_credit_base)
 
     ana = body.analytic_account_id
-    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana)]
+    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana, customer_id=body.customer_id)]
     if revenue_net_base > ZERO:
         entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
     if deferred_credit_base > ZERO:
@@ -772,7 +772,7 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     revenue_net_base = money(subtotal_base - deferred_credit_base)
 
     ana = body.analytic_account_id
-    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana)]
+    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana, customer_id=inv.customer_id)]
     if revenue_net_base > ZERO:
         entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
     if deferred_credit_base > ZERO:
