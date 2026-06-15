@@ -376,6 +376,12 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             for code, name, atype, is_memo, parent_code, is_group in template:
                 if parent_code:
                     created[code].parent_id = created[parent_code].id
+            # Set party_type: AR account 1100 → "customer", AP account 2000 → "vendor"
+            for code, acc in created.items():
+                if code == "1100" and acc.type == "Asset":
+                    acc.party_type = "customer"
+                elif code == "2000" and acc.type == "Liability":
+                    acc.party_type = "vendor"
             s.commit()
 
         settings_count = s.exec(

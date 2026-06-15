@@ -373,6 +373,22 @@ def _ensure_coa(s: Session, tenant_id: int, model: str) -> None:
     s.flush()
 
 
+def _set_party_types(s: Session, tenant_id: int) -> None:
+    """Set party_type on the canonical AR (1100) and AP (2000) accounts."""
+    changed = False
+    for acc in s.exec(select(Account).where(Account.tenant_id == tenant_id)).all():
+        if acc.code == "1100" and acc.type == "Asset" and acc.party_type != "customer":
+            acc.party_type = "customer"
+            s.add(acc)
+            changed = True
+        elif acc.code == "2000" and acc.type == "Liability" and acc.party_type != "vendor":
+            acc.party_type = "vendor"
+            s.add(acc)
+            changed = True
+    if changed:
+        s.flush()
+
+
 def _seed_customers(s: Session, tenant_id: int) -> list[Customer]:
     out: list[Customer] = []
     for name in CUSTOMER_NAMES:
@@ -2298,6 +2314,7 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         # accounts only reach new tenants otherwise) — must precede the
         # advance/asset seeders that depend on 1260/2310/1090/4901.
         _ensure_coa(s, tenant_id, business_model)
+        _set_party_types(s, tenant_id)
         # Seed starter product categories for tenants that pre-date the feature.
         _ensure_categories(s, tenant_id, business_model)
         s.commit()
