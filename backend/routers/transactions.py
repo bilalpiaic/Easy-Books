@@ -25,6 +25,8 @@ from services.permissions import perm_dep, apply_own_filter
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"], dependencies=[perm_dep("journal_entry")])
 
+_MANUAL_VOUCHER_TYPES = {"JV", "CO"}
+
 
 def _unwind_payment_received(session, user, pmt: PaymentReceived) -> None:
     """Drop allocations tied to this payment and recompute each invoice's
@@ -207,6 +209,15 @@ def _apply_allocations(
 def create_transaction(
     session: SessionDep, user: WriteUserDep, tx_data: TransactionCreate
 ):
+    vt = (tx_data.voucher_type or "JV").upper()
+    if vt not in _MANUAL_VOUCHER_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Voucher type '{vt}' cannot be created via the journal entry form. "
+                f"Use the dedicated invoice / bill / payment module instead."
+            ),
+        )
     txn = post_transaction(
         session, user,
         date=tx_data.date,
@@ -224,7 +235,7 @@ def create_transaction(
         party=tx_data.party,
         payment_method=tx_data.payment_method,
         notes=tx_data.notes,
-        voucher_type=tx_data.voucher_type or "JV",
+        voucher_type=vt,
         audit_entity_type="transaction",
     )
     if tx_data.allocations:
