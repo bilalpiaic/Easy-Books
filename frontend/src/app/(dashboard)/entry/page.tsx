@@ -29,6 +29,18 @@ interface EntryRow {
   credit: string
 }
 
+interface OpenDoc {
+  id: number
+  number: string
+  customer_name?: string
+  vendor_name?: string
+  issue_date?: string
+  bill_date?: string
+  due_date?: string
+  total: number
+  balance_due: number
+}
+
 
 export default function NewEntryPage() {
   const router = useRouter()
@@ -46,6 +58,8 @@ export default function NewEntryPage() {
     { account_id: "", debit: "", credit: "" },
     { account_id: "", debit: "", credit: "" },
   ])
+  const [openDocs, setOpenDocs] = useState<OpenDoc[]>([])
+  const [allocations, setAllocations] = useState<Record<number, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
 
@@ -65,6 +79,22 @@ export default function NewEntryPage() {
       })
       .catch(console.error)
   }, [])
+
+  const CASH_BANK_TYPES = ["CP", "CR", "BP", "BR"]
+  const showAllocation = (!!customerId || !!vendorId) && CASH_BANK_TYPES.includes(voucherType)
+
+  useEffect(() => {
+    if (!showAllocation) {
+      setOpenDocs([])
+      setAllocations({})
+      return
+    }
+    const url = customerId
+      ? `/api/invoices/open-for-allocation?customer_id=${customerId}`
+      : `/api/bills/open-for-allocation?vendor_id=${vendorId}`
+    apiFetch<OpenDoc[]>(url).then(setOpenDocs).catch(console.error)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId, vendorId, voucherType])
 
   const addRow = () =>
     setRows(r => [...r, { account_id: "", debit: "", credit: "" }])
@@ -179,6 +209,15 @@ export default function NewEntryPage() {
     }
     setIsSubmitting(true)
     setError("")
+    const allocationEntries = Object.entries(allocations)
+      .filter(([, amt]) => parseFloat(amt) > 0)
+      .map(([id, amt]) => {
+        const docId = parseInt(id)
+        return customerId
+          ? { invoice_id: docId, amount: parseFloat(amt) }
+          : { bill_id: docId, amount: parseFloat(amt) }
+      })
+
     const payload: Record<string, unknown> = {
       date,
       description,
@@ -193,6 +232,7 @@ export default function NewEntryPage() {
           debit: parseFloat(r.debit)  || 0,
           credit: parseFloat(r.credit) || 0,
         })),
+      allocations: allocationEntries.length > 0 ? allocationEntries : undefined,
     }
     try {
       const created = await apiFetch<{ id: number }>("/api/transactions", {
@@ -232,6 +272,10 @@ export default function NewEntryPage() {
                 className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm"
               >
                 <option value="JV">Journal Voucher</option>
+                <option value="CP">Cash Payment</option>
+                <option value="CR">Cash Receipt</option>
+                <option value="BP">Bank Payment</option>
+                <option value="BR">Bank Receipt</option>
                 <option value="CO">Contra</option>
               </select>
             </div>
@@ -310,6 +354,73 @@ export default function NewEntryPage() {
                 <option value="">— none —</option>
                 {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
               </select>
+            </div>
+          )}
+
+          {/* ── Allocation panel (party-picker driven) ─────────── */}
+          {showAllocation && (
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-2">
+                Allocate to Open {customerId ? "Invoices" : "Bills"}
+                <span className="font-normal normal-case ml-1">(optional)</span>
+              </label>
+              {openDocs.length === 0 ? (
+                <p className="text-xs text-[#1a1814]/40 italic">
+                  No outstanding {customerId ? "invoices" : "bills"} found.
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-[#ede9e2]">
+                  <table className="w-full text-xs">
+                    <thead className="bg-[#faf6ec]">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
+                          {customerId ? "Invoice" : "Bill"}
+                        </th>
+                        <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Date</th>
+                        <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Balance Due</th>
+                        <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Allocate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#ede9e2]">
+                      {openDocs.map(doc => (
+                        <tr key={doc.id}>
+                          <td className="px-3 py-2 font-mono">{doc.number}</td>
+                          <td className="px-3 py-2 text-[#1a1814]/60">
+                            {doc.issue_date ?? doc.bill_date ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">{doc.balance_due.toFixed(2)}</td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={doc.balance_due}
+                              value={allocations[doc.id] ?? ""}
+                              onChange={e =>
+                                setAllocations(prev => ({ ...prev, [doc.id]: e.target.value }))
+                              }
+                              placeholder="0.00"
+                              className="w-full px-2 py-1.5 bg-white border border-[#ede9e2] rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-right font-mono"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#faf6ec]">
+                      <tr>
+                        <td colSpan={3} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
+                          Total Allocated
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono font-bold text-[#1a1814]">
+                          {Object.values(allocations)
+                            .reduce((s, v) => s + (parseFloat(v) || 0), 0)
+                            .toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 

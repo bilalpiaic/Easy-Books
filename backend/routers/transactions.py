@@ -25,7 +25,9 @@ from services.permissions import perm_dep, apply_own_filter
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"], dependencies=[perm_dep("journal_entry")])
 
-_MANUAL_VOUCHER_TYPES = {"JV", "CO"}
+# Document-backed types must only originate from their dedicated routers (invoice, bill, credit_note, debit_note).
+# CP/CR/BP/BR/JV/CO are all valid as manual GL postings via New Entry.
+_DOCUMENT_BACKED_TYPES = {"SL", "PR", "CN", "DN", "SR", "PV"}
 
 
 def _unwind_payment_received(session, user, pmt: PaymentReceived) -> None:
@@ -210,12 +212,12 @@ def create_transaction(
     session: SessionDep, user: WriteUserDep, tx_data: TransactionCreate
 ):
     vt = (tx_data.voucher_type or "JV").upper()
-    if vt not in _MANUAL_VOUCHER_TYPES:
+    if vt in _DOCUMENT_BACKED_TYPES:
         raise HTTPException(
             status_code=400,
             detail=(
                 f"Voucher type '{vt}' cannot be created via the journal entry form. "
-                f"Use the dedicated invoice / bill / payment module instead."
+                f"Use the dedicated invoice / bill / credit note / debit note module instead."
             ),
         )
     txn = post_transaction(

@@ -1,8 +1,8 @@
 """Manual New-Entry can set the transaction's voucher_type (#52 §4).
 
-Note: as of #80 §1, only JV and CO are permitted via the manual journal entry
-form. Dedicated document endpoints (invoices, bills, payments, etc.) continue
-to assign their own voucher types internally.
+JV, CO, CP, CR, BP, BR are all accepted as manual GL postings.
+Document-backed types (SL, PR, CN, DN, SR, PV) are rejected — they must
+only originate from their dedicated routers.
 """
 
 
@@ -31,11 +31,11 @@ def test_manual_entry_honors_co_voucher_type(client, admin_headers):
     assert row["voucher_type"] == "CO", f"expected CO, got {row['voucher_type']}"
 
 
-def test_manual_entry_rejects_dedicated_voucher_types(client, admin_headers):
-    """Dedicated voucher types (CR, CP, SL, etc.) must be rejected with 400."""
+def test_manual_entry_rejects_document_backed_voucher_types(client, admin_headers):
+    """Document-backed types must be rejected — they must originate from dedicated routers."""
     h = admin_headers
     dr, cr = _accts(client, h)
-    for vt in ("CR", "CP", "SL", "SR", "PR", "PV", "CN", "DN", "BP", "BR"):
+    for vt in ("SL", "SR", "PR", "PV", "CN", "DN"):
         r = client.post("/api/transactions", headers=h, json={
             "date": "2026-04-01", "description": "should fail",
             "voucher_type": vt,
@@ -45,6 +45,22 @@ def test_manual_entry_rejects_dedicated_voucher_types(client, admin_headers):
             ],
         })
         assert r.status_code == 400, f"expected 400 for {vt}, got {r.status_code}: {r.text}"
+
+
+def test_manual_entry_accepts_cash_bank_voucher_types(client, admin_headers):
+    """CP/CR/BP/BR are pure GL postings and must be accepted like JV."""
+    h = admin_headers
+    dr, cr = _accts(client, h)
+    for vt in ("CP", "CR", "BP", "BR"):
+        r = client.post("/api/transactions", headers=h, json={
+            "date": "2026-04-01", "description": f"{vt} posting",
+            "voucher_type": vt,
+            "entries": [
+                {"account_id": dr, "debit": 10, "credit": 0},
+                {"account_id": cr, "debit": 0, "credit": 10},
+            ],
+        })
+        assert r.status_code == 200, f"expected 200 for {vt}, got {r.status_code}: {r.text}"
 
 
 def test_manual_entry_defaults_to_jv_when_omitted(client, admin_headers):

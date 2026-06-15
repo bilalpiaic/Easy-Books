@@ -141,6 +141,7 @@ def open_invoices_for_allocation(
     session: SessionDep,
     user: CurrentUserDep,
     ar_account_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
 ):
     """Return open/partial/overdue invoices with balance_due for the allocation panel."""
     q = select(Invoice).where(
@@ -149,6 +150,8 @@ def open_invoices_for_allocation(
     )
     if ar_account_id:
         q = q.where(Invoice.ar_account_id == ar_account_id)
+    if customer_id:
+        q = q.where(Invoice.customer_id == customer_id)
     invoices = session.exec(q.order_by(Invoice.issue_date)).all()
 
     result = []

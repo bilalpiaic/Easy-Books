@@ -1,4 +1,7 @@
-"""§1 — create_transaction must only accept JV and CO voucher types."""
+"""§1 — create_transaction must reject document-backed voucher types (SL/PR/CN/DN/SR/PV).
+
+JV, CO, CP, CR, BP, BR are all valid manual GL postings and must be accepted.
+"""
 
 
 def _accts(client, h):
@@ -53,3 +56,39 @@ def test_cn_rejected(client, admin_headers):
     dr, cr = _accts(client, admin_headers)
     r = client.post("/api/transactions", headers=admin_headers, json=_payload("CN", dr, cr))
     assert r.status_code == 400, r.text
+
+
+def test_dn_rejected(client, admin_headers):
+    dr, cr = _accts(client, admin_headers)
+    r = client.post("/api/transactions", headers=admin_headers, json=_payload("DN", dr, cr))
+    assert r.status_code == 400, r.text
+
+
+def test_pv_rejected(client, admin_headers):
+    dr, cr = _accts(client, admin_headers)
+    r = client.post("/api/transactions", headers=admin_headers, json=_payload("PV", dr, cr))
+    assert r.status_code == 400, r.text
+
+
+def test_cp_accepted(client, admin_headers):
+    dr, cr = _accts(client, admin_headers)
+    r = client.post("/api/transactions", headers=admin_headers, json=_payload("CP", dr, cr))
+    assert r.status_code == 200, r.text
+
+
+def test_cr_accepted(client, admin_headers):
+    dr, cr = _accts(client, admin_headers)
+    r = client.post("/api/transactions", headers=admin_headers, json=_payload("CR", dr, cr))
+    assert r.status_code == 200, r.text
+
+
+def test_bp_accepted(client, admin_headers):
+    dr, cr = _accts(client, admin_headers)
+    r = client.post("/api/transactions", headers=admin_headers, json=_payload("BP", dr, cr))
+    assert r.status_code == 200, r.text
+
+
+def test_br_accepted(client, admin_headers):
+    dr, cr = _accts(client, admin_headers)
+    r = client.post("/api/transactions", headers=admin_headers, json=_payload("BR", dr, cr))
+    assert r.status_code == 200, r.text

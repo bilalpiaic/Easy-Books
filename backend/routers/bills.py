@@ -82,6 +82,7 @@ def open_bills_for_allocation(
     session: SessionDep,
     user: CurrentUserDep,
     ap_account_id: Optional[int] = None,
+    vendor_id: Optional[int] = None,
 ):
     """Return open/partial bills with balance_due for the allocation panel."""
     q = select(Bill).where(
@@ -90,6 +91,8 @@ def open_bills_for_allocation(
     )
     if ap_account_id:
         q = q.where(Bill.ap_account_id == ap_account_id)
+    if vendor_id:
+        q = q.where(Bill.vendor_id == vendor_id)
     bills = session.exec(q.order_by(Bill.bill_date)).all()
 
     result = []
