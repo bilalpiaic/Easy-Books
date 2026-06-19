@@ -21,6 +21,13 @@ const SECTION_COLORS: Record<string, string> = {
   System:        "text-white/40",
 }
 
+const HUB_ROUTES: Record<string, string> = {
+  Receivable: "/receivable",
+  Payable:    "/payable",
+  Inventory:  "/inventory",
+  Banking:    "/banking",
+}
+
 type Me = { role?: string; tenant?: { business_model?: string } }
 
 interface SidebarProps {
@@ -150,9 +157,25 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
         <nav className="flex-1 overflow-y-auto py-2 scrollbar-hide">
           {SECTIONS.map(section => (
             <div key={section} className="mb-1">
-              <div className={cn("px-4 pt-3 pb-1 text-[9px] font-bold uppercase tracking-[0.15em]", SECTION_COLORS[section])}>
-                {section}
-              </div>
+              {HUB_ROUTES[section] ? (
+                <button
+                  onClick={() => go(HUB_ROUTES[section])}
+                  className={cn(
+                    "w-full flex items-center justify-between px-4 pt-3 pb-1",
+                    "text-[9px] font-bold uppercase tracking-[0.15em]",
+                    "hover:opacity-80 transition-opacity",
+                    SECTION_COLORS[section],
+                    pathname.startsWith(HUB_ROUTES[section]) && "underline underline-offset-2"
+                  )}
+                >
+                  {section}
+                  <ChevronRight className="w-3 h-3 opacity-40" />
+                </button>
+              ) : (
+                <div className={cn("px-4 pt-3 pb-1 text-[9px] font-bold uppercase tracking-[0.15em]", SECTION_COLORS[section])}>
+                  {section}
+                </div>
+              )}
               {visibleNav.filter(i => i.section === section).map(item => {
                 const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"))
                 return (
