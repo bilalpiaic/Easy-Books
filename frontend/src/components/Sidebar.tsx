@@ -28,6 +28,9 @@ const HUB_ROUTES: Record<string, string> = {
   Banking:    "/banking",
 }
 
+// Hub hrefs only highlight on exact pathname match to avoid conflicting with sub-page nav items
+const HUB_HREFS = new Set(Object.values(HUB_ROUTES))
+
 type Me = { role?: string; tenant?: { business_model?: string } }
 
 interface SidebarProps {
@@ -177,7 +180,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                 </div>
               )}
               {visibleNav.filter(i => i.section === section).map(item => {
-                const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"))
+                const active = pathname === item.href || (!HUB_HREFS.has(item.href) && item.href !== "/dashboard" && pathname.startsWith(item.href + "/"))
                 return (
                   <button
                     key={item.href}

@@ -151,8 +151,8 @@ export const INVENTORY_CONFIG: HubConfig = {
       label: "Low Stock",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       value: ([data]) => (data.items ?? []).filter((i: any) => i.low_stock && i.on_hand > 0).length,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tone: ([data]) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (data.items ?? []).filter((i: any) => i.low_stock && i.on_hand > 0).length > 0
           ? "warning"
           : "normal",
@@ -161,8 +161,8 @@ export const INVENTORY_CONFIG: HubConfig = {
       label: "Out of Stock",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       value: ([data]) => (data.items ?? []).filter((i: any) => i.on_hand <= 0).length,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tone: ([data]) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (data.items ?? []).filter((i: any) => i.on_hand <= 0).length > 0 ? "danger" : "normal",
     },
   ],
