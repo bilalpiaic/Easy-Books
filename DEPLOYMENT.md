@@ -225,9 +225,7 @@ Normal for serverless Python. Subsequent requests within the same instance are f
 For lower latency, consider a long-running host like Railway or Fly.io for the backend instead.
 
 ### Database tables missing on first deploy
-The startup hook `create_db_and_tables()` runs on the first cold start.
-If the function times out before tables are created, hit any endpoint twice.
-Subsequent boots are instant since `CREATE TABLE IF NOT EXISTS` is a no-op.
+`SQLModel.metadata.create_all()` runs at startup alongside Alembic. If the first cold start times out before the schema is ready, hit any endpoint twice to trigger a warm-start retry. Subsequent boots are instant since `CREATE TABLE IF NOT EXISTS` is a no-op.
 
 ### Lockfile warning on Next.js build
 Already mitigated — the root `package.json`/`package-lock.json` are legacy artifacts
@@ -299,5 +297,5 @@ FastAPI matches routes in registration order. If you add new named sub-routes un
 
 ---
 
-**Last updated:** 2026-05-25
+**Last updated:** 2026-06-15
 **Branch:** `main`

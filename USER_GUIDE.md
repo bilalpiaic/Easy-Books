@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-13 · **Version:** 2.5
+**Last updated:** 2026-06-15 · **Version:** 2.6
 
 ---
 
@@ -28,6 +28,9 @@
 16. [Best Practices & FAQ](#16-best-practices--faq)
 17. [New Modules & Compliance Features (Sprint 7–12)](#17-new-modules--compliance-features-sprint-712)
 18. [Tenant-Specific Guides](#18-tenant-specific-guides)
+19. [Sales Commissions](#19-sales-commissions)
+20. [Promotional Price Discounts](#20-promotional-price-discounts)
+21. [Granular User Permissions (Access Control)](#21-granular-user-permissions-access-control)
 
 ---
 
@@ -911,3 +914,127 @@ The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) 
 | Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ |
 
 The model is read from your tenant at login; switching business model (admin API) re-tailors both pages automatically.
+
+---
+
+## 19. SALES COMMISSIONS
+
+Track and post commissions for your sales staff without spreadsheets.
+
+### 19.1 Commission Plans
+
+Go to **Commissions** (`/commissions`) → **Plans** tab → **+ New Plan**:
+
+| Field | Meaning |
+|-------|---------|
+| **Staff member** | Any user in your tenant |
+| **Rate (%)** | Percentage of invoice value earned as commission |
+| **Sales target** | Monthly sales threshold (optional) |
+| **Recovery target** | Minimum collections threshold (optional) |
+| **Target bonus** | Flat bonus paid when both targets are met |
+| **Effective from / to** | Plan validity window |
+
+A user can have at most one active plan at a time. Plans can overlap in time (only the latest effective plan is used for computation in that period).
+
+### 19.2 Computing Commissions
+
+Click **Compute** (or `POST /api/commissions/compute`) to run the calculation for a given month:
+- Sums all **posted invoices** for each staff member's customers in that period.
+- Multiplies by their plan rate.
+- Adds the target bonus if both sales and recovery targets are met.
+- Creates a `CommissionLedger` entry per user (status: `pending`).
+
+### 19.3 Approve & Post
+
+Review computed entries in the **Ledger** tab:
+- **Approve** — marks the entry reviewed and ready to post.
+- **Post** — posts the GL entry:
+
+```
+Dr Commission Expense (your chosen GL account)
+  Cr Commissions Payable   (your chosen GL account)
+```
+
+Posted commissions appear in the General Ledger and factor into period-end P&L.
+
+---
+
+## 20. PROMOTIONAL PRICE DISCOUNTS
+
+Automate line-item discounts based on product and quantity rules.
+
+### 20.1 Manage Promo Rules
+
+Go to **Promo Discounts** (`/promo-discounts`) → **+ New Rule**:
+
+| Field | Meaning |
+|-------|---------|
+| **Name** | Label shown in the "Apply Promos" results |
+| **Product** | The product this rule applies to (leave blank to match all) |
+| **Min qty** | Minimum units on a line for the rule to apply |
+| **Discount %** | Percentage discount applied to `qty × rate` |
+| **Valid from / to** | Optional date window |
+| **Active** | Toggle on/off without deleting the rule |
+
+### 20.2 Applying Discounts on an Invoice
+
+On the **New Invoice** or **Edit Invoice** form:
+1. Add your line items as usual.
+2. Click **Apply Promos** (appears above the line-items table).
+3. Easy-Books calls `/api/promo-rules/check` and applies matching discounts to each line.
+4. Discount percentages appear in the **Disc%** column (highlighted green when > 0).
+5. The line amount recalculates as `qty × rate × (1 − discount_pct / 100)`.
+
+You can also manually type a discount % in the **Disc%** column on any line — this overrides the rule suggestion.
+
+### 20.3 GL Impact
+
+Promo discounts reduce the invoice **subtotal** before GST is applied. The posted journal entry reflects the discounted net:
+
+```
+Dr  Accounts Receivable     (net × 1.17 with 17% GST)
+  Cr  Sales Revenue           (discounted net)
+  Cr  GST Payable              (net × 0.17)
+```
+
+No separate "discount expense" account is used — the lower revenue is the correct IAS/IFRS treatment for trade discounts per IAS 18.10.
+
+---
+
+## 21. GRANULAR USER PERMISSIONS (ACCESS CONTROL)
+
+Beyond the four RBAC roles (owner / admin / accountant / viewer), **User Permissions** lets you fine-tune exactly what each team member can see and do, down to individual modules.
+
+### 21.1 Enable the Module
+
+Go to **Settings → Permissions** and turn on **"Granular user access control"**. Once on:
+- The admin permissions matrix becomes visible.
+- Permissions are evaluated **per-user, per-resource** (role is still the base; permissions can only restrict, not elevate beyond the role).
+
+### 21.2 The Permissions Matrix
+
+Go to **Settings → Permissions** → **Manage Permissions** (`/settings/permissions`):
+- A grid of 60 resources (Invoices, Bills, Customers, Vendors, Products, Payments, Reports, etc.) × team members.
+- For each cell pick: **Default** (inherits role), **View** (read-only), **Edit** (full write), or **None** (blocked).
+- Save per-user with the **Save** button on that user's row.
+
+### 21.3 My Data Only
+
+Toggle **"My data only"** for a user to restrict their list views to records they personally created:
+- Invoices list shows only invoices created by them.
+- Bills, customers, vendors, products, etc. follow the same filter.
+- Individual record access is still controlled by the access-level setting.
+
+Useful for sales teams where each rep should see only their own accounts.
+
+### 21.4 Effect on the UI
+
+When a user accesses a page they're not permitted to view, a **No Access** banner is shown in place of the page content. Sidebar links they can't access are still visible but return the banner on navigation (they do not disappear — hiding links can be confusing because the URL still works from bookmarks).
+
+### 21.5 API
+
+- `GET /api/permissions/me` — current user's effective permission set.
+- `GET /api/permissions/users/{id}` — admin view of another user's permissions.
+- `PUT /api/permissions/users/{id}` — set overrides for a user.
+- `PATCH /api/permissions/users/{id}/my-data-only` — toggle the my-data-only flag.
+- `GET /api/permissions/resources` — full list of 60 protected resource keys.

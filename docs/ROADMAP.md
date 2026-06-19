@@ -1,12 +1,11 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-12 (against `main` @ merge `b9f961d`)._
+_Last reviewed: 2026-06-15 (against `main` @ commit `9e3bb3d`)._
 
 ## Status summary
 
-**All six open GitHub issues are implemented and on `main`.** The tracker is stale — every
-open issue has shipped; the table below reconciles each to its delivery. The forward work is
-a small **future-scope backlog** (no open issue yet), outlined at the bottom.
+**All open GitHub issues are implemented and on `main`.** The forward work is a small
+**future-scope backlog** (no open issue yet), outlined at the bottom.
 
 | Issue | Title | Status | Delivered by |
 |-------|-------|--------|--------------|
@@ -69,6 +68,34 @@ rough priority order.
   migration in `resolveLayout`; capture per-breakpoint from react-grid-layout's `onLayoutChange`
   `allLayouts`. Backend store unchanged. **Shipped:** v3 schema migrations, multi-breakpoint state
   management in `useDashboardState`, per-breakpoint capture in `DashboardGrid`, v2→v3 auto-migration.
+
+### #70 User Rights / Granular Permissions · ✅ **SHIPPED** (commits `ff1d233`–`10b63ff`)
+- `UserPermission` table (migration `0020_user_rights`) — sparse override rows keyed by `(tenant_id, user_id, resource_key)` with `access_level` (`none/view/edit`) and optional `my_data_only` flag.
+- `services/permissions.py` — `perm_dep()` factory injected into 35 routers; `apply_own_filter` on list endpoints; 60-resource registry; module-level toggle via Settings key `user_rights_enabled`.
+- `GET/PUT /api/permissions/users/{id}` admin matrix; `GET /api/permissions/me` for current user; `GET /api/permissions/resources` for resource list.
+- Frontend: `PermissionContext`, permissions matrix page (`/settings/permissions`), `NoAccessBanner` + page guards on top 6 pages.
+- 12 backend tests.
+
+### #71 Sales Commissions · ✅ **SHIPPED** (commit `4495e9a`)
+- `CommissionPlan` + `CommissionLedger` tables (migration `0021_commissions`).
+- `GET/POST/PUT/DELETE /api/commissions/plans` — rate, sales target, recovery target, target bonus, effective date range.
+- `POST /api/commissions/compute` — computes commission for a period across selected staff.
+- `GET /api/commissions/ledger` — all computed entries; `POST /ledger/{id}/approve` + `/post` — approve and post GL entry (Dr Commission Expense / Cr Commissions Payable).
+- Frontend: `/commissions` management page.
+
+### #72 Promotional Price Discounts · ✅ **SHIPPED** (commit `04ca00c`)
+- `PromoRule` table (migration `0022_promo_rules`) + `InvoiceLine.discount_pct` + `InvoiceLine.promo_rule_id`.
+- `GET/POST/PUT/DELETE /api/promo-rules` — name, product_id, min_qty, discount_pct, active flag, date range.
+- `POST /api/promo-rules/check` — given a list of invoice lines, returns applicable suggestions.
+- `_line_amount()` helper in `routers/invoices.py` applies `amount = qty × rate × (1 − discount_pct/100)`.
+- Frontend: `/promo-discounts` management page; **Apply Promos** button on `InvoiceForm`.
+
+### #77 Part 2 Customer/Vendor Statements + Allocation · ✅ **SHIPPED** (commits `6955267`, `9e3bb3d`)
+- `GET /api/customers/{id}/statement?from_date=&to_date=` — opening balance, period invoices (with outstanding per line), period payments, closing balance.
+- `GET /api/vendors/{id}/statement?from_date=&to_date=` — AP mirror (bills + bill-payments).
+- Opening balance uses `payment_date < from_date` (not invoice date) to correctly exclude in-period payments from pre-period obligations.
+- 4 backend tests for the customer statement endpoint.
+- Frontend pages at `/customers/[id]/statement` and `/vendors/[id]/statement` already existed; backend endpoints now populated.
 
 ---
 

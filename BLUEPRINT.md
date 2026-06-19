@@ -220,9 +220,10 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | Table | Notes |
 |---|---|
 | `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing/telecom_franchise` CHECK), `enabled_modules` (JSON array string), `created_at` |
-| `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `phone`, `avatar_url`, `is_active`, `must_change_password`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id`, `created_at`, `last_login_at` |
+| `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `phone`, `avatar_url`, `is_active`, `must_change_password`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id`, **`created_by_id?`** (set on create), `created_at`, `last_login_at` |
 | `userinvite` | Pending tenant invite — `email`, `role` (CHECK), `token` (unique), `invited_by_id`, `expires_at`, `accepted_at`. Consumed by `POST /api/auth/accept-invite` |
-| `settings` | KV per tenant — `company_name`, fiscal year, number prefixes |
+| `userpermission` | Granular access override — `(tenant_id, user_id, resource_key)` unique; `access_level` (`none/view/edit`); `my_data_only` bool. Sparse — only rows with non-default access exist; missing row = role default. Module-gated by `settings.user_rights_enabled` |
+| `settings` | KV per tenant — `company_name`, fiscal year, number prefixes, **`user_rights_enabled`** (module toggle for granular permissions) |
 | `account` | `code`, `name`, `type` (`Asset/Liability/Equity/Revenue/Expense` CHECK), **`parent_id` + `is_group`** (V2.4/V2.5 — multi-level hierarchy; the default CoA is now hierarchical and posting is restricted to active **leaf** accounts, parent balances roll up), `is_active`, **`is_memo`** (V2.1 — excludes from formal A=L+E totals) |
 | `deferredrevenueschedule` | IFRS 15 — `invoice_id`, `total_amount`, `recognised_amount`, `start_date`, `end_date`, `frequency`, `next_recognition_date`, `status`, `deferred_revenue_account_id`, `revenue_account_id`. Originated by `create_invoice` for `is_deferred` product lines; released by the recognition run |
 | `accountingperiod` | `period_start`, `period_end`, `is_locked`, `name` |
@@ -230,6 +231,9 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | `journalentry` | `transaction_id` (CASCADE), `account_id`, `debit`, `credit`. DB CHECK: `debit≥0 ∧ credit≥0 ∧ ¬(debit>0 ∧ credit>0) ∧ (debit>0 ∨ credit>0)` |
 | `sequencecounter` | `(tenant_id, name)` unique; `next_value`. Used with `SELECT FOR UPDATE` for atomic invoice/bill/grn/po numbers |
 | `auditlog` | One row per mutation: `user_id`, `action`, `entity_type`, `entity_id`, `detail` (JSON) |
+| `commissionplan` | Sales commission plan per user — `user_id`, `rate` (%), `sales_target?`, `recovery_target?`, `target_bonus?`, `effective_from`, `effective_to?`, `active`. One active plan per user per period |
+| `commissionledger` | Computed commission entry — `plan_id`, `period` (YYYY-MM), `invoiced_amount`, `commission_amount`, `bonus_amount?`, `status` (`pending/approved/posted`), `transaction_id?` (set on post) |
+| `promorule` | Price discount rule — `name`, `product_id?`, `min_qty`, `discount_pct`, `valid_from?`, `valid_to?`, `is_active`. Checked via `POST /api/promo-rules/check` at invoice entry |
 
 ### 5.2 AR / AP
 
@@ -238,7 +242,7 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | `customer` | name, contact, `opening_balance`, `is_active` |
 | `vendor` | mirror of customer |
 | `invoice` | `number` (per-tenant atomic), `customer_id`, dates, `subtotal/gst_rate/gst_amount/total` (document currency), `currency`, `exchange_rate` (snapshot at issue), `status` (`draft/posted/partial/paid`), `ar_account_id`, `revenue_account_id`, `transaction_id` |
-| `invoiceline` | `invoice_id` (CASCADE), `product_id?`, `description`, `qty`, `unit?`, `rate`, `amount` |
+| `invoiceline` | `invoice_id` (CASCADE), `product_id?`, `description`, `qty`, `unit?`, `rate`, **`discount_pct`** (0 when no promo), **`promo_rule_id?`** (FK → `promorule`), `amount` = `qty × rate × (1 − discount_pct/100)` |
 | `bill` | mirror of invoice on the payable side; ap/expense account FKs |
 | `billline` | (same shape as invoiceline) |
 | `paymentreceived` | `invoice_id?`, `payment_date`, `amount`, `method`, `cash_account_id`, `transaction_id` |
@@ -492,10 +496,31 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - `/inventory-performance` — on-hand qty/value, low-stock, slow-movers, units sold + COGS.
 - `/customer-performance` — revenue, invoice count, outstanding AR, avg days-to-pay per customer.
 
-### Sub-ledgers (drill-down layer)
+### Sub-ledgers & Statements (drill-down layer)
 - `GET /api/customers/{id}/ledger?start=…&end=…` — per-customer AR sub-ledger. Opening balance, period activity (date, JV no., document, qty_out, Dr, Cr, running balance), closing balance. Aggregates `JournalEntry` rows that touch AR (`account.code = 1100`) where the source `Invoice` or `PaymentReceived` belongs to the customer. Maps to **IFRS 7.7** "information that enables users to evaluate the significance of financial instruments".
+- `GET /api/customers/{id}/statement?from_date=&to_date=` — account statement: JSON `{customer, period, opening_balance, invoices[], payments[], closing_balance}`. Opening balance = `customer.opening_balance + Σ(pre-period invoices − pre-period payments against those invoices)`. Closing = `opening + period_inv_total − period_paid_total`. Frontend page at `/customers/[id]/statement`.
 - `GET /api/vendors/{id}/ledger?start=…&end=…` — per-vendor AP sub-ledger, credit-normal (`Σ credit − Σ debit`, positive = amount owed). Same shape, AP-side. Maps to **IAS 1.78(b)** "trade and other payables".
+- `GET /api/vendors/{id}/statement?from_date=&to_date=` — AP mirror of the customer statement, using bills + bill-payments. Frontend page at `/vendors/[id]/statement`.
 - `GET /api/products/{id}/stock-card?start=…&end=…` — per-product stock card driven by the `StockMovement` event log (the source of truth — `Product.stock_qty` is a derived projection). Opening qty + value, per-row `qty_in / qty_out / unit_cost / running_qty / running_value`. Maps to **IAS 2.36(d)** "the carrying amount of inventories carried at fair value less costs to sell" and IAS 2.36(g) movement breakdown.
+
+### Commissions (`/api/commissions`)
+- `GET /plans` · `POST /plans` · `PUT /plans/{id}` · `DELETE /plans/{id}` — commission plan CRUD.
+- `GET /staff` — users who have any commission plan.
+- `GET /ledger` — computed commission entries with status (`pending/approved/posted`).
+- `POST /compute` — body `{period: "YYYY-MM", user_ids?: [...]}` — computes and creates `CommissionLedger` entries.
+- `POST /ledger/{id}/approve` — marks entry approved.
+- `POST /ledger/{id}/post` — body `{expense_account_id, payable_account_id, date}` — posts `Dr Commission Expense / Cr Commissions Payable`.
+
+### Promotional Discounts (`/api/promo-rules`)
+- `GET /` · `POST /` · `PUT /{id}` · `DELETE /{id}` — promo rule CRUD.
+- `POST /check` — body `{lines: [{product_id, qty, rate}]}` — returns `{suggestions: [{line_index, rule_id, discount_pct, name}]}`. The `InvoiceForm` "Apply Promos" button calls this and patches discount_pct onto matching lines.
+
+### User Permissions (`/api/permissions`)
+- `GET /me` — returns `{permissions: {resource: access_level}, my_data_only, module_enabled}` for the calling user.
+- `GET /resources` — full list of 60 resource keys with display names.
+- `GET /users/{id}` *(admin)* — effective permissions for another user.
+- `PUT /users/{id}` *(admin)* — set permission overrides (body: `{resource_key, access_level}[]`; `access_level="default"` removes the override row).
+- `PATCH /users/{id}/my-data-only` *(admin)* — toggle `{my_data_only: bool}`.
 
 ### Audit (`/api/audit`)
 - `GET /` — filterable list of `AuditLog` rows.
@@ -894,6 +919,10 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 | `0011_stock_locations` | V2.2 | StockLocation, StockMovement; InventoryLayer.location_id/owner_customer_id/lot_no; seeds MAIN per tenant + GODOWN/WIP for manufacturing |
 | `0012_bom_rate_plans` | V2.3 | BomHeader, BomLine, RatePlan, CustomerRatePlan |
 | `0013_grn_production_order` | V2.4 | GoodsReceiptNote, GRNLine, ProductionOrder (with state-machine CHECK) |
+| Various (named) | G-02…G-16 | CreditNote, FixedAsset, PurchaseOrder, AnalyticAccount, DeferredRevenueSchedule, Tenant.cost_method, Budget, Invoice.payment_link_url, DebitNote, CustomerAdvance, VendorAdvance |
+| `0020_user_rights` | #70 | `UserPermission` (tenant/user/resource/access_level/my_data_only); `User.created_by_id`; `User.my_data_only` |
+| `0021_commissions` | #71 | `CommissionPlan`, `CommissionLedger` |
+| `0022_promo_rules` | #72 | `PromoRule`, `InvoiceLine.discount_pct`, `InvoiceLine.promo_rule_id` |
 
 ---
 
@@ -916,7 +945,7 @@ These are the rules that **must not** be violated. Tests fail if they are.
 
 ## 17. TESTING
 
-- **122 backend tests** (pytest). Cover: posting invariants, RBAC, multi-tenant isolation, multi-currency math, FX inverse fallback, period close, payment allocations, idempotency, CSRF, login throttle, sequence counters, stock locations + movements, BoM versioning, RatePlan + assignment, GRN custodial flow, PO full lifecycle, manufacturing reports.
+- **404 backend tests** (pytest). Cover: posting invariants, RBAC, multi-tenant isolation, multi-currency math, FX inverse fallback, period close, payment allocations, idempotency, CSRF, login throttle, sequence counters, stock locations + movements, BoM versioning, RatePlan + assignment, GRN custodial flow, PO full lifecycle, manufacturing reports, user rights/permissions, commissions, promo rules, customer/vendor statement balance arithmetic.
 - **Frontend type-check:** `cd frontend && npx tsc --noEmit` is the canonical type gate.
 - **E2E:** Playwright is on roadmap.
 
@@ -1103,6 +1132,15 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | Migration chain | `resolveLayout`: v3→validate, v2→`{lg:items}`, v1→migrate+wrap, garbage→`{lg:defaultGrid()}`. |
 | Toolbar | Active breakpoint label ("Desktop / Tablet / Phone layout"); "Reset all" clears all overrides. Backend unchanged. |
 
+### Sprint 17 Shipped ✅ (User Rights, Commissions, Promo Discounts, Statements)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **User Rights** (#70) — granular per-resource access control | ✅ | `UserPermission`, `perm_dep()` injected into 35 routers, 60-resource registry, `my_data_only` filter, admin matrix UI, 12 tests |
+| **Sales Commissions** (#71) — plan + compute + post GL | ✅ | `CommissionPlan`, `CommissionLedger`, compute endpoint, approve/post flow, `/commissions` page |
+| **Promotional Discounts** (#72) — promo rules + Apply Promos button | ✅ | `PromoRule`, `InvoiceLine.discount_pct`, `/api/promo-rules/check`, "Apply Promos" in InvoiceForm, `/promo-discounts` page |
+| **Customer & Vendor Statements** (#77 P2) | ✅ | `GET /api/customers/{id}/statement`, `GET /api/vendors/{id}/statement`; date-aware opening balance; 4 tests |
+
 ### Still Pending
 
 **Manufacturing track (V2 follow-ups)**
@@ -1118,6 +1156,7 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 - **Daily overdue sweep cron** (`Invoice.status = 'overdue'` is written on each list fetch but not via a scheduled task).
 - **E2E tests** (Playwright) — login, signup wizard, full PO lifecycle in the UI.
 - **Payroll module** (IAS 19) — currently manual JV only.
+- **Overdue email reminders** — `services/email.py` exists; automated aging reminders not yet wired.
 
 **Developer ergonomics**
 - **Storybook** for guidance components + form patterns.

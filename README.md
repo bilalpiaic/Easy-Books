@@ -77,6 +77,11 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Check for Updates** — compares running version to the latest GitHub release; on the desktop app downloads + installs via `electron-updater` (Restart to apply); on script installs shows the `update.bat`/`update.sh` command; data preserved in both paths
 - Onboarding checklist, audit log (timeline / by-user / by-entity, CSV export)
 
+**Sales operations**
+- **Sales commissions** — define rate/target plans per staff member; compute monthly commissions; approve and post (`Dr Commission Expense / Cr Commissions Payable`) in one click
+- **Promotional discounts** — create promo rules (product, min qty, discount %); "Apply Promos" on the invoice form auto-fills the Disc% column; line amounts recalculate instantly
+- **Granular access control** — 60-resource permission matrix beyond the 4 RBAC roles; per-user "my data only" mode; module-level toggle in Settings
+
 **Multi-tenant SaaS**
 - RBAC: `owner | admin | accountant | viewer`; team management with invite links
 - Tenant isolation at the data layer — every query filters by `tenant_id`

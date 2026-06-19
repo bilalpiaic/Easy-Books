@@ -4,7 +4,7 @@
 > Easy-Books as a product an SME runs **on their own machine or office server** — data on-premise,
 > works offline, no per-seat cloud subscription. (The **Manager.io / QuickBooks Desktop** model.)
 >
-> **Status:** strategy draft · **Last updated:** 2026-05-29
+> **Status:** Phase 2 (Electron desktop) complete · **Last updated:** 2026-06-15
 
 ---
 

@@ -1201,6 +1201,43 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/vendors/{id}/ledger?start=…&end=…` | AP sub-ledger — credit-normal (positive = owed) |
 | GET | `/api/products/{id}/stock-card?start=…&end=…` | StockMovement-driven qty + value card (IAS 2.36(d) reading) |
 
+### 8.7a Customer & Vendor Statements
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/customers/{id}/statement?from_date=&to_date=` | Account statement: opening balance, period invoices (outstanding per line), period payments, closing balance |
+| GET | `/api/vendors/{id}/statement?from_date=&to_date=` | AP mirror: opening balance, period bills, period bill payments, closing balance |
+
+### 8.7b Sales Commissions
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/commissions/plans` | List all commission plans with staff name |
+| POST | `/api/commissions/plans` | Create a plan (rate, targets, effective dates) |
+| PUT | `/api/commissions/plans/{id}` | Update a plan |
+| DELETE | `/api/commissions/plans/{id}` | Remove a plan |
+| GET | `/api/commissions/staff` | List all users who have/had a plan |
+| GET | `/api/commissions/ledger` | List all computed commission entries |
+| POST | `/api/commissions/compute` | Compute commissions for a period (month), creates ledger entries |
+| POST | `/api/commissions/ledger/{id}/approve` | Approve a computed entry for posting |
+| POST | `/api/commissions/ledger/{id}/post` | Post GL entry (Dr Commission Expense / Cr Commissions Payable) |
+
+### 8.7c Promotional Price Discounts
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/promo-rules` | List all promo rules |
+| POST | `/api/promo-rules` | Create a rule (product, min_qty, discount_pct, date range) |
+| PUT | `/api/promo-rules/{id}` | Update a rule |
+| DELETE | `/api/promo-rules/{id}` | Remove a rule |
+| POST | `/api/promo-rules/check` | Given invoice lines, return applicable discount suggestions |
+
+### 8.7d User Permissions (Granular Access Control)
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/permissions/me` | Current user's effective permission set (all resources) |
+| GET | `/api/permissions/resources` | Full list of 60 protected resource keys |
+| GET | `/api/permissions/users/{id}` | Effective permissions for another user (admin only) |
+| PUT | `/api/permissions/users/{id}` | Set/clear permission overrides for a user (admin only) |
+| PATCH | `/api/permissions/users/{id}/my-data-only` | Toggle the my-data-only flag for a user |
+
 ### 8.8 CSV bulk import (master data)
 | Method | Path | Purpose |
 |---|---|---|
@@ -1358,7 +1395,7 @@ END-TO-END SMOKE
 14. Reopen period → balances dropped, lock cleared
 ```
 
-Test suite: 63 pytest tests across `backend/tests/`. Run: `cd backend && .venv/bin/python -m pytest`.
+Test suite: **404 pytest tests** across `backend/tests/`. Run: `cd backend && PYTHONPATH=. uv run pytest`.
 
 ---
 
@@ -1426,6 +1463,9 @@ All migrations are idempotent (check inspector before `create_table` / `add_colu
 | `0019b_purchase_orders` | G-06 | `PurchaseOrder`, `PurchaseOrderLine` |
 | `0019c_invoice_payment_link` | G-12 | `Invoice.payment_link_url/payment_link_status` |
 | `0020_returns_and_advances` | S13 | `DebitNote`, `DebitNoteLine`, `CustomerAdvance`, `VendorAdvance`; CoA `1260`/`2310` |
+| `0020_user_rights` | #70 | `UserPermission` (tenant/user/resource/access_level/my_data_only); `User.created_by_id`; `my_data_only` column |
+| `0021_commissions` | #71 | `CommissionPlan` (user, rate, targets, effective dates); `CommissionLedger` (computed entry, status, GL posting) |
+| `0022_promo_rules` | #72 | `PromoRule` (product, min_qty, discount_pct, date range); `InvoiceLine.discount_pct` + `InvoiceLine.promo_rule_id` |
 
 ---
 
@@ -1525,7 +1565,7 @@ The feature is wired via:
 
 ---
 
-> **Last updated:** 2026-05-29
+> **Last updated:** 2026-06-15
 > **Branch:** `main`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books
