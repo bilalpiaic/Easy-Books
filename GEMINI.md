@@ -6,7 +6,9 @@ This file provides foundational context, architecture, and development guideline
 
 **Easy-Books** is a multi-tenant double-entry accounting SaaS for SMEs. It enforces bookkeeping invariants at the database level (∑Dr = ∑Cr, no negative amounts, no posting into locked periods), keeps inventory at Weighted-Average cost, and derives every financial report live from the General Ledger.
 
-**Recent (v2.5.0):** the Chart of Accounts is **multi-level** (group parents + leaf accounts; posting to leaves only) and the **financial statements are hierarchical** — Trial Balance / Balance Sheet / P&L roll up over the CoA tree with expand/collapse + drill-down (`services/account_tree.py`). **Deferred-revenue origination** (`services/deferred.py`): `product.is_deferred` lines post to Deferred Revenue (2300) and originate recognition schedules. Posted invoices/bills are editable (reverse-and-repost), and transactions carry voucher types (SL/PU/CR/CP/JV/CN/DN).
+**Current (v2.7):** multi-level CoA (group parents + posting-only leaves) with hierarchical Trial Balance / Balance Sheet / P&L (`services/account_tree.py`). Deferred-revenue origination (`services/deferred.py`). Granular permissions (`services/permissions.py`, 60-resource matrix). Sales commissions + promo discounts. Full-page data-entry forms. Per-user resizable dashboard (react-grid-layout v2, schema v3 per-breakpoint). Customer/vendor statements, advances, credit/debit notes.
+
+**v2.7 additions:** Section Hub Pages (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views driven by `HubPage`/`hubConfigs` with `AgingBand`, `LowStockBand`, `AccountListBand` components; sidebar section headers navigate there. Collapsible sidebar (3-state: collapsed/open/pinned via localStorage; hover tooltip nav; auto-pin on wide screens). 3-mode voucher form (Journal / Payment CP-BP / Receipt CR-BR; mode-specific GL pickers; JV prefix auto-applied). Print system overhaul: dot-matrix B&W format, `dd-mm-yy` dates via `fmtDate()`/`fmtDateJs()` in `utils.ts`, dynamic `@page` landscape injection in `PrintHeader` via `useEffect`, `print:hidden` hygiene across all pages, `whitespace-nowrap` on Date/JV# table cells, no inline voucher-type badges, `(amount)` negative format.
 
 Five business models are supported, each with a tailored Chart of Accounts and adaptive UI:
 
@@ -32,7 +34,7 @@ Five business models are supported, each with a tailored Chart of Accounts and a
 | Icons | `lucide-react` only |
 | Charts | `react-chartjs-2` |
 
-**Alembic migrations** are the source of truth (`backend/alembic/versions/`, through 0019). Dev still uses `create_all()` for zero-setup boot, so new-table migrations guard with `bind.dialect.has_table(...)` and SQLite FK ADD-CONSTRAINT lines are stripped (app-level tenant checks enforce integrity). Delete `backend/database.db` to get a fresh seeded DB.
+**Alembic migrations** are the source of truth (`backend/alembic/versions/`, through `0022_promo_rules`). Dev still uses `create_all()` for zero-setup boot, so new-table migrations guard with `bind.dialect.has_table(...)` and SQLite FK ADD-CONSTRAINT lines are stripped (app-level tenant checks enforce integrity). Delete `backend/database.db` to get a fresh seeded DB.
 
 ---
 
@@ -46,9 +48,12 @@ Five business models are supported, each with a tailored Chart of Accounts and a
 │   ├── models_telecom.py    # 23 tc_* tables for telecom_franchise
 │   ├── db.py                # Engine, create_all, seed 5 demo tenants + CoA
 │   ├── auth.py              # JWT + bcrypt
-│   ├── routers/             # 37+ domain routers (credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, …)
+│   ├── routers/             # 40+ domain routers (credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, commissions, promo_rules, permissions, …)
 │   │   ├── admin.py         # Demo-data seed/purge (admin+) — backs Settings → Sample/Demo Data
 │   │   ├── product_categories.py  # ProductCategory CRUD — 2-level taxonomy (parent → sub-category)
+│   │   ├── commissions.py   # CommissionPlan CRUD + compute/approve/post GL entry
+│   │   ├── promo_rules.py   # PromoRule CRUD + /check endpoint (Apply Promos on invoice form)
+│   │   ├── permissions.py   # 60-resource granular permission matrix; perm_dep() factory
 │   │   └── reports.py       # GL opening/closing, product-ledger, inventory-performance, customer-performance
 │   ├── services/
 │   │   ├── posting.py       # THE only GL writer — enforces all invariants
@@ -65,23 +70,31 @@ Five business models are supported, each with a tailored Chart of Accounts and a
 ├── frontend/
 │   └── src/
 │       ├── app/login/  signup/       # Public routes
-│       ├── app/(dashboard)/          # 29+ auth-gated pages
+│       ├── app/(dashboard)/          # 35+ auth-gated pages
+│       │   ├── receivable/  payable/  inventory/  banking/  # Section Hub Pages (v2.7)
+│       │   ├── journal/new/          # 3-mode voucher form: Journal / Payment (CP/BP) / Receipt (CR/BR)
 │       │   ├── telecom/              # Telecom Franchise section (9 sub-pages)
 │       │   ├── manufacturing/        # Manufacturing section (5 sub-pages)
 │       │   ├── products/categories/  # ProductCategory 2-level taxonomy UI
 │       │   ├── products/ledger/      # Product Ledger report
 │       │   ├── inventory/performance/ # Inventory Performance report
+│       │   ├── commissions/  promo-discounts/  settings/permissions/  # v2.6 ops pages
 │       │   ├── team/  profile/       # Multi-user + self-service profile
 │       │   └── …                     # Invoices, bills, reports, CoA, banking, …
 │       ├── app/accept-invite/        # Public — tokenized invite accept
 │       ├── components/
-│       │   ├── Sidebar.tsx           # Adaptive sidebar — Inventory nav group: Products, Categories, Product Ledger, Inventory Performance
+│       │   ├── Sidebar.tsx           # Collapsible 3-state sidebar (collapsed/open/pinned via localStorage); hover tooltip nav; auto-pin on wide screens; section headers link to Hub Pages
+│       │   ├── hub/                  # HubPage renderer + AgingBand, LowStockBand, AccountListBand
+│       │   ├── LedgerEntriesTable.tsx # Shared ledger table (Cash Book/Bank Book): whitespace-nowrap date/JV# cells
 │       │   ├── UpdateModal.tsx       # Settings → Check for Updates (electron-updater on desktop; CLI command on script/web installs)
 │       │   ├── telecom/ActionForm.tsx # Schema-driven JV poster for telecom ops
 │       │   ├── DocLink.tsx           # Central drill-down resolver
-│       │   └── PrintHeader.tsx       # Branded A4 print output
+│       │   └── PrintHeader.tsx       # Branded A4 print — orientation prop injects @page CSS via useEffect
 │       ├── context/SettingsContext.tsx # Company branding + preferences (incl. block_negative_stock over-sell guard), app-wide
-│       └── lib/api.ts                # apiFetch — auto-injects Bearer token
+│       └── lib/
+│           ├── api.ts                # apiFetch — auto-injects Bearer token
+│           ├── utils.ts              # fmtDate(str)→"dd-mm-yy", fmtDateJs(date)→"dd-mm-yy" — use for ALL date display
+│           └── hubConfigs.ts         # HubConfig objects driving the 4 hub pages
 ├── dev.sh                   # Start both servers; auto-seeds demo data; handles WSL2 node/npm
 ├── public/                  # Legacy Express/vanilla JS reference (do not touch)
 └── server.js                # Legacy Express backend (do not touch)
@@ -132,6 +145,9 @@ Auto-created on first run; seeded with 50+ records per entity type by `dev.sh`. 
 - **Over-sell guard** — `block_negative_stock` setting (default `false`): when `true`, `consume_stock(block_negative=True)` raises HTTP 400 if a sale would drive `stock_qty` below 0; purchases are never blocked.
 - **GL opening/closing balance** — `/api/reports/ledger` with `start`/`end` params returns Opening Balance (net of all JEs before `start`) and Closing Balance (`opening + Σdebits − Σcredits`).
 - **Product Categories** — `ProductCategory` is a 2-level taxonomy (parent → sub-category); delete is blocked while sub-categories or products reference the category.
+- **Date display** — always use `fmtDate(str)` or `fmtDateJs(date)` from `src/lib/utils.ts`; never render raw ISO strings or call `.toLocaleDateString()` in the UI. Output: `dd-mm-yy` (e.g. `20-06-26`).
+- **Print orientation** — `<PrintHeader orientation="landscape">` only for wide tables (aging, performance, ledgers, list pages); default is portrait. Orientation is applied via a dynamically injected `<style>` tag — CSS classes cannot control `@page` size.
+- **No voucher-type badges in tables** — the JV# prefix (CP/SL/BR/JV etc.) already identifies the type; do not add inline `<span>` badges next to JV numbers in report tables.
 
 ---
 
