@@ -35,19 +35,12 @@ export default function DashboardLayout({
       router.push("/login")
       return
     }
-    const pref   = typeof window !== "undefined" ? localStorage.getItem(LS_KEY_PINNED) : null
-    const isWide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+    const pref = typeof window !== "undefined" ? localStorage.getItem(LS_KEY_PINNED) : null
     if (pref === "1") {
       setPinned(true)
       setOpen(true)
-    } else if (pref === "0") {
-      // User explicitly unpinned — leave sidebar closed
-    } else if (isWide) {
-      // First visit on a wide screen → pin open (no dark overlay)
-      setPinned(true)
-      setOpen(true)
-      localStorage.setItem(LS_KEY_PINNED, "1")
     }
+    // Default: collapsed — user opens/pins when they choose
   }, [router])
 
   // Browser tab title — use the shared resolver
