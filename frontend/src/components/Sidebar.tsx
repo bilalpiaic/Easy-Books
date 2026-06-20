@@ -139,7 +139,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   //   wide, content sits next to it.
   // - When open + unpinned: the drawer overlays content with a backdrop.
 
-  const drawerWidth = "w-[260px]"
+  const drawerWidth = "w-[220px]"
 
   return (
     <>
@@ -218,7 +218,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                   onMouseEnter={(e) => openTooltip(section, e)}
                   onMouseLeave={closeTooltip}
                   className={cn(
-                    "w-full flex items-center justify-between px-4 pt-3 pb-1",
+                    "w-full flex items-center justify-between px-3 pt-2.5 pb-1",
                     "text-[9px] font-bold uppercase tracking-[0.15em]",
                     "hover:opacity-80 transition-opacity group",
                     SECTION_COLORS[section],
@@ -247,7 +247,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                           key={item.href}
                           onClick={() => go(item.href)}
                           className={cn(
-                            "w-full text-left flex items-center gap-2.5 px-4 py-2 text-[13px] font-medium transition-all border-l-2",
+                            "w-full text-left flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium transition-all border-l-2",
                             active
                               ? "bg-[#b8943f]/15 text-[#ffd966] border-[#b8943f]"
                               : "text-white/60 hover:text-white hover:bg-white/5 border-transparent"
@@ -293,7 +293,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
         const color = SECTION_COLORS[tooltip.section] ?? "text-white/60"
         return (
           <div
-            style={{ top: tooltip.y, left: 264 }}
+            style={{ top: tooltip.y, left: 224 }}
             onMouseEnter={keepTooltip}
             onMouseLeave={closeTooltip}
             className="fixed z-[200] pointer-events-auto"
