@@ -24,7 +24,7 @@ export default function FilterBar({
   const hasFilters = !!status || !!dateFrom || !!dateTo
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 print:hidden">
       {/* Search */}
       <div className="relative flex-1 min-w-48">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/40 pointer-events-none" />

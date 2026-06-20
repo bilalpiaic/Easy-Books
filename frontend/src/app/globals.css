@@ -237,6 +237,17 @@ body {
   /* Vertical column separators for readability */
   td + td, th + th { border-left: 0.5pt solid #ccc !important; }
 
+  /* Flatten badge/status/chip spans to plain text — removes pill shape */
+  td span, th span {
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #000 !important;
+    font-size: inherit !important;
+  }
+
   /* Total / grand-total row in tfoot — double rule above, bold, no fill */
   tfoot tr td {
     background: transparent !important;

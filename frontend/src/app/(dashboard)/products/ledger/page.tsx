@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { BookOpen, Download } from "lucide-react"
+import { BookOpen, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Product {
   id: number
@@ -94,9 +95,20 @@ function ProductLedgerInner() {
       .catch(() => setIsLoading(false))
   }, [productId, locationId, start, end])
 
+  const selectedProduct = products.find(p => String(p.id) === productId)
+  const selectedLocation = locations.find(l => String(l.id) === locationId)
+
+  const printSubtitle = [
+    selectedProduct ? `Product: ${selectedProduct.code ? selectedProduct.code + " · " : ""}${selectedProduct.name}` : null,
+    selectedLocation ? `Location: ${selectedLocation.code} · ${selectedLocation.name}` : "All Locations",
+    `Period: ${start} – ${end}`,
+  ].filter(Boolean).join("  |  ")
+
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <PrintHeader title="Product Ledger" subtitle={printSubtitle} />
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Product Ledger</h1>
           <p className="text-[#1a1814]/60">Stock movement history by product and store</p>
@@ -116,12 +128,20 @@ function ProductLedgerInner() {
           >
             <Download className="w-5 h-5" />
           </button>
+          <button
+            onClick={() => window.print()}
+            disabled={!data?.items.length}
+            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40"
+            title="Print"
+          >
+            <Printer className="w-5 h-5" />
+          </button>
           <BookOpen className="w-7 h-7 text-[#b8943f] hidden md:block" />
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Filters — hidden in print; plain-text summary shown via PrintHeader subtitle */}
+      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Product</label>
           <select
