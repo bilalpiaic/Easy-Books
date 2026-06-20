@@ -64,6 +64,19 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Data widgets** — opt-in Bank Balances, Top Products, Inventory Summary (self-fetching; zero additional backend queries)
 - **Cash-flow tie-out** — reconciling row on the Cash Flow statement shows ✓ (balanced) or amber delta per IAS 7
 
+**Navigation & UX (v2.7)**
+- **Section Hub Pages** — `/receivable`, `/payable`, `/inventory`, `/banking` each open a command-centre view: aging summary band, low-stock alert band, or live bank-balance list; sidebar section headers navigate there directly
+- **Collapsible sidebar** — 3-state behaviour (collapsed / open / pinned); hover expands with tooltip nav; auto-pins on wide screens; state persisted in `localStorage`
+- **3-mode voucher form** — New Entry supports Journal, Payment (CP/BP), and Receipt (CR/BR) modes; mode-specific GL pickers pre-filter Cash/Bank accounts; voucher prefix auto-applies per mode (CP-0001 / BP-0001 / CR-0001 etc.)
+
+**Print system (v2.7)**
+- **Dot-matrix format** — all print output is black-and-white, no background fills; `@media print` strips UI chrome (buttons, filters, pagination, sort handles, checkbox columns, action columns)
+- **Date format** — `dd-mm-yy` used everywhere (e.g. `20-06-26`); `fmtDate()` / `fmtDateJs()` helpers in `utils.ts`
+- **Portrait / landscape auto-selection** — PrintHeader injects the correct `@page { size: A4 … }` rule via `useEffect`; landscape for wide tables (aging, performance, product ledger, journal list), portrait for everything else
+- **Currency prefix** — amount column headers show the currency code once; individual cells contain bare numbers
+- **Negative amounts** — displayed as `(1,234.56)` throughout; debit/credit columns use `—` for the zero side
+- **Column alignment** — Date and JV# cells are `whitespace-nowrap`; Description absorbs remaining width via natural table flow
+
 **Advanced features**
 - Fixed Assets register + straight-line/reducing-balance depreciation (IAS 16)
 - Purchase Orders (raise → approve → convert-to-bill, 3-way match)

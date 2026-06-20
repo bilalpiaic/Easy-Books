@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-15 · **Version:** 2.6
+**Last updated:** 2026-06-20 · **Version:** 2.7
 
 ---
 
@@ -31,6 +31,9 @@
 19. [Sales Commissions](#19-sales-commissions)
 20. [Promotional Price Discounts](#20-promotional-price-discounts)
 21. [Granular User Permissions (Access Control)](#21-granular-user-permissions-access-control)
+22. [Section Hub Pages](#22-section-hub-pages)
+23. [3-Mode Voucher Entry](#23-3-mode-voucher-entry)
+24. [Printing & Report Formats](#24-printing--report-formats)
 
 ---
 
@@ -1037,4 +1040,97 @@ When a user accesses a page they're not permitted to view, a **No Access** banne
 - `GET /api/permissions/users/{id}` — admin view of another user's permissions.
 - `PUT /api/permissions/users/{id}` — set overrides for a user.
 - `PATCH /api/permissions/users/{id}/my-data-only` — toggle the my-data-only flag.
+
+---
+
+## 22. SECTION HUB PAGES
+
+Each major sidebar section now opens a **command-centre hub** before drilling into sub-pages. Access them via the sidebar section headers.
+
+| URL | Hub name | What you see |
+|-----|----------|--------------|
+| `/receivable` | Receivables Overview | Aging summary (Current / 1–30 / 31–60 / 61–90 / 90+), top overdue customers |
+| `/payable` | Payables Overview | AP aging buckets, top overdue vendors |
+| `/inventory` | Inventory Overview | Low-stock alerts list, total on-hand value, item counts |
+| `/banking` | Banking Overview | Live bank account balances derived from the GL |
+
+### 22.1 Navigating to a Hub
+
+Click any sidebar **section header** (e.g. "Receivable", "Inventory") — the header itself is a link to the hub. From the hub you can drill further into aging detail pages, customer/vendor ledgers, or individual bank accounts.
+
+### 22.2 Collapsible Sidebar
+
+The sidebar has three states:
+
+| State | How to enter |
+|-------|-------------|
+| **Collapsed** (icon-only strip) | Click the ← collapse button in the sidebar header |
+| **Open** (full labels) | Click the → expand button, or hover over the collapsed strip |
+| **Pinned** (always open) | On a wide screen the sidebar auto-pins; you can also pin/unpin manually |
+
+Hover over the collapsed sidebar to see a floating panel with full nav labels and sub-items. State is remembered per browser via `localStorage`.
+
+---
+
+## 23. 3-MODE VOUCHER ENTRY
+
+The **New Entry** form (`/journal/new`) supports three distinct modes selectable at the top:
+
+| Mode | Voucher prefix | Use case |
+|------|---------------|----------|
+| **Journal** | JV | General-purpose double-entry — pick any GL accounts |
+| **Payment** | CP (cash) / BP (bank) | Record a payment made; select Cash or Bank account + payee |
+| **Receipt** | CR (cash) / BR (bank) | Record money received; select Cash or Bank account + payer |
+
+### 23.1 Journal Mode
+
+Both debit and credit account pickers show the full Chart of Accounts. Use for inter-account transfers, depreciation, accruals, opening balances, and any entry that doesn't fit the standard AR/AP workflows.
+
+### 23.2 Payment Mode
+
+1. Choose **Cash** or **Bank** from the top selector — this sets the instrument account (e.g. Petty Cash or HBL Current).
+2. The debit side defaults to the chosen cash/bank account (money going out).
+3. Pick the expense or liability account on the credit side.
+4. Enter a **Payee** name (optional but recommended for reporting).
+5. The JV prefix auto-sets to **CP** (Cash Payment) or **BP** (Bank Payment).
+
+### 23.3 Receipt Mode
+
+Mirror of Payment mode — the chosen cash/bank account appears on the credit side (money coming in). Prefix auto-sets to **CR** or **BR**.
+
+> **Tip:** For settling AR/AP balances, use the dedicated **Payments Received** and **Bill Payments** screens instead of the Receipt/Payment voucher form — they allocate against specific invoices/bills and update outstanding balances.
+
+---
+
+## 24. PRINTING & REPORT FORMATS
+
+### 24.1 How to Print
+
+Every report and list page has a **Print** button (printer icon) in the toolbar. Clicking it triggers the browser's native print dialog. The page automatically:
+- Hides all UI controls (filters, pagination, sort handles, action buttons, checkboxes).
+- Applies the correct paper orientation for the content.
+- Renders in black-and-white dot-matrix style (no coloured backgrounds or fills).
+
+### 24.2 Page Orientations
+
+| Orientation | Pages |
+|-------------|-------|
+| **Portrait** | General Ledger, Cash Book, Bank Book, Balance Sheet, Income Statement, Trial Balance, Cash Flow, Tax Summary, Customer/Vendor Statements, Payments lists, Chart of Accounts, all voucher detail pages |
+| **Landscape** | AR/AP Aging, Customer Performance, Inventory Performance, Product Ledger, Journal list, Invoices list, Bills list, Products list, Customer/Vendor Ledgers, Stock Card |
+
+Orientation is applied automatically — no manual page-setup is required.
+
+### 24.3 Date Format
+
+All dates are displayed as **`dd-mm-yy`** (e.g. `20-06-26` for 20 June 2026) across the entire system — both on-screen and in print. This applies to table cells, report subtitles, print headers, statement period labels, and CSV exports.
+
+### 24.4 Amount Display
+
+- **Negative amounts** appear as `(1,234.56)` — parentheses instead of a minus sign, matching accounting convention.
+- **Currency code** is shown once in the column header (e.g. "Debit (PKR)") — individual cells contain bare numbers without repetition.
+- **Zero sides** in debit/credit columns show `—` instead of `0.00`.
+
+### 24.5 Voucher Numbers in Reports
+
+JV numbers carry their type as a prefix (e.g. `CP-2026-001` = Cash Payment, `SL-2026-042` = Sales Invoice). There are no separate "type" badge labels in report tables — the prefix is the type indicator.
 - `GET /api/permissions/resources` — full list of 60 protected resource keys.

@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-06-13 · **Branch:** `main`
+> **Last updated:** 2026-06-20 · **Branch:** `main`
 
 ---
 
@@ -1140,6 +1140,15 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | **Sales Commissions** (#71) — plan + compute + post GL | ✅ | `CommissionPlan`, `CommissionLedger`, compute endpoint, approve/post flow, `/commissions` page |
 | **Promotional Discounts** (#72) — promo rules + Apply Promos button | ✅ | `PromoRule`, `InvoiceLine.discount_pct`, `/api/promo-rules/check`, "Apply Promos" in InvoiceForm, `/promo-discounts` page |
 | **Customer & Vendor Statements** (#77 P2) | ✅ | `GET /api/customers/{id}/statement`, `GET /api/vendors/{id}/statement`; date-aware opening balance; 4 tests |
+
+### Sprint 18 Shipped ✅ (Section Hubs, Sidebar, 3-mode Form, Print System)
+
+| Feature | Notes |
+|---------|-------|
+| **Section Hub Pages** | `/receivable`, `/payable`, `/inventory`, `/banking` — generic `HubPage` renderer driven by `hubConfigs`; band components `AgingBand`, `LowStockBand`, `AccountListBand`; sidebar section headers navigate to hub; `TITLE_MAP` in `(dashboard)/layout.tsx` |
+| **Collapsible sidebar** | 3-state (collapsed / open / pinned) via `localStorage`; hover expands with tooltip nav panel; auto-pin on wide screens; backdrop excludes `top-12` header; z-index layering corrected |
+| **3-mode voucher form** | New Entry supports Journal / Payment (CP/BP) / Receipt (CR/BR); mode-specific Cash/Bank GL pickers; JV prefix auto-applies per mode; distinct PV/RV print templates |
+| **Print system overhaul** | Dot-matrix B&W format; `dd-mm-yy` date format via `fmtDate()`/`fmtDateJs()` across 37+ files; dynamic `@page { size: A4 landscape }` injection in `PrintHeader` via `useEffect`; print hygiene (filter UI, pagination, sort, action cols, checkboxes all `print:hidden`); currency prefix in column headers only; negative amounts as `(1,234.56)`; `whitespace-nowrap` on Date/JV# cells; voucher type badges removed |
 
 ### Still Pending
 

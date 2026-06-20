@@ -55,7 +55,7 @@
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
 | Demo tenants | 5 pre-seeded: simple/services/trader/manufacturing/telecom_franchise (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
-| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+) |
+| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
@@ -1565,7 +1565,44 @@ The feature is wired via:
 
 ---
 
-> **Last updated:** 2026-06-15
+---
+
+## PRINT SYSTEM (v2.7)
+
+### Orientation rules
+
+`PrintHeader` accepts an `orientation` prop. When `"landscape"` is passed it dynamically injects `<style data-print-landscape>@media print { @page { size: A4 landscape; } }</style>` via `useEffect` (CSS `@page` cannot be toggled by class in standard CSS). Portrait is the default via `globals.css`.
+
+| Landscape pages | Portrait pages |
+|-----------------|----------------|
+| AR/AP Aging, Customer Performance, Inventory Performance, Product Ledger, Journal list, Invoices list, Bills list, Products list, Customer/Vendor Ledgers, Stock Card | General Ledger, Cash Book, Bank Book, Balance Sheet, P&L, Trial Balance, Cash Flow, Tax Summary, Statements, Payments lists, CoA, all voucher print pages |
+
+### Date helpers (`frontend/src/lib/utils.ts`)
+
+| Helper | Input | Output |
+|--------|-------|--------|
+| `fmtDate(str)` | ISO string `"2026-06-20"` or datetime `"2026-06-20T…"` | `"20-06-26"` |
+| `fmtDateJs(date)` | JS `Date` object | `"20-06-26"` |
+
+All 37+ date-bearing pages import and use these helpers.
+
+### Print hygiene CSS (`globals.css` + `print:hidden`)
+
+- `.print-landscape` no-op class replaced by dynamic `<style>` injection
+- `@media print { td span, th span { ... } }` flattens any remaining badge pills to plain text
+- `print:hidden` Tailwind class hides: FilterBar, Pagination, SortableHeader, all toolbar buttons, checkbox columns, action columns
+- Greenbar row shading removed; output is plain white with light border-only row dividers
+
+### Column layout in tabular reports
+
+- Date and JV# `<td>` cells carry `whitespace-nowrap` — content never breaks across lines
+- Description columns have no `max-w-*` constraint — absorb remaining table width naturally
+- Amount columns carry `whitespace-nowrap` and `font-mono`
+- Voucher type badges removed from all report tables — the JV# prefix (CP / SL / BR etc.) already encodes the type
+
+---
+
+> **Last updated:** 2026-06-20
 > **Branch:** `main`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-15 (against `main` @ commit `9e3bb3d`)._
+_Last reviewed: 2026-06-20 (against `main` @ commit `63fe569`)._
 
 ## Status summary
 
@@ -89,6 +89,15 @@ rough priority order.
 - `POST /api/promo-rules/check` — given a list of invoice lines, returns applicable suggestions.
 - `_line_amount()` helper in `routers/invoices.py` applies `amount = qty × rate × (1 − discount_pct/100)`.
 - Frontend: `/promo-discounts` management page; **Apply Promos** button on `InvoiceForm`.
+
+### Sprint 18 — Navigation Hubs, Sidebar, 3-mode Form, Print System · ✅ **SHIPPED** (commits `b99fe66`–`63fe569`)
+
+| Feature | What shipped |
+|---------|-------------|
+| **Section Hub Pages** | `/receivable`, `/payable`, `/inventory`, `/banking` command-centre views; `AgingBand`, `LowStockBand`, `AccountListBand` components; generic `HubPage` renderer; sidebar section headers navigate to hub |
+| **Collapsible sidebar** | 3-state (collapsed / open / pinned) via localStorage; hover tooltip nav panel; auto-pin on wide screens |
+| **3-mode voucher form** | Journal / Payment (CP/BP) / Receipt (CR/BR) modes; mode-specific Cash/Bank GL pickers; PV/RV print templates |
+| **Print system** | Dot-matrix B&W; `dd-mm-yy` dates (`fmtDate`/`fmtDateJs`); dynamic `@page` landscape injection; `print:hidden` hygiene across all pages; currency headers; `(amount)` negatives; `whitespace-nowrap` column alignment; voucher type badges removed |
 
 ### #77 Part 2 Customer/Vendor Statements + Allocation · ✅ **SHIPPED** (commits `6955267`, `9e3bb3d`)
 - `GET /api/customers/{id}/statement?from_date=&to_date=` — opening balance, period invoices (with outstanding per line), period payments, closing balance.
