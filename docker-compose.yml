@@ -1,0 +1,68 @@
+services:
+
+  # ── FastAPI backend ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      # Data directory inside the container (SQLite file + uploads live here)
+      EB_DATA_DIR: /data
+      # Must match the URL your users open in their browsers so CORS passes
+      FRONTEND_ORIGIN: ${APP_URL:-http://localhost}
+      # Optional: set a stable JWT secret so sessions survive container restarts.
+      # If blank, local_config.py auto-generates one and persists it in /data.
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      # Auto-load 5 demo companies on first run. Set to false for a clean install.
+      SEED_DEMO: ${SEED_DEMO:-true}
+      # Optional: switch to PostgreSQL.
+      # DATABASE_URL: postgresql://user:password@host:5432/easybooks
+      DATABASE_URL: ${DATABASE_URL:-}
+      APP_ENV: production
+      # Tell the app to trust Alembic for schema bootstrap (not create_all)
+      SCHEMA_BOOTSTRAP: alembic
+    volumes:
+      # Persistent data: SQLite database + uploaded files
+      - eb_data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/version')"
+      interval: 15s
+      timeout: 5s
+      # Give migrations + first-run demo seed time to complete before health checks count
+      start_period: 90s
+      retries: 5
+
+  # ── Next.js frontend ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty = relative URLs (/api/...) so nginx can proxy them without CORS
+        NEXT_PUBLIC_API_URL: ""
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ── nginx reverse proxy (single entry point for the whole app) ───────────────
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      # Expose on the host; change PORT in .env to use a different host port
+      - "${PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+
+# ── Named volumes ────────────────────────────────────────────────────────────
+volumes:
+  eb_data:
+    # Data survives container rebuilds and updates. Back this up regularly.
+    # Location on the host: `docker volume inspect easybooks_eb_data`
