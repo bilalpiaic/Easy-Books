@@ -1,0 +1,174 @@
+<h2>Hub Page Layout — which structure feels right?</h2>
+<p class="subtitle">Using "Receivable" as the example. All options use the same brand colors and data.</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f6f3ee;padding:16px;font-family:'DM Sans',sans-serif;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b8943f;margin-bottom:10px;">RECEIVABLE</div>
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:700;color:#1a1814;">PKR 4.2M</div>
+          <div style="font-size:9px;color:#888;margin-top:2px;">Outstanding AR</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:700;color:#dc2626;">PKR 1.1M</div>
+          <div style="font-size:9px;color:#888;margin-top:2px;">Overdue</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:18px;font-weight:700;color:#1a1814;">48</div>
+          <div style="font-size:9px;color:#888;margin-top:2px;">Open Invoices</div>
+        </div>
+      </div>
+      <!-- Action tiles -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div style="background:#1a1814;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;">🧾</div>
+          <div style="font-size:9px;color:#fff;margin-top:4px;">New Invoice</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;">📋</div>
+          <div style="font-size:9px;color:#1a1814;margin-top:4px;">Invoices</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;">👥</div>
+          <div style="font-size:9px;color:#1a1814;margin-top:4px;">Customers</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;">💳</div>
+          <div style="font-size:9px;color:#1a1814;margin-top:4px;">Payments</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;">📉</div>
+          <div style="font-size:9px;color:#1a1814;margin-top:4px;">AR Aging</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:18px;">🏷️</div>
+          <div style="font-size:9px;color:#1a1814;margin-top:4px;">Credit Notes</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — KPIs + Action Grid</h3>
+      <p>3 metric tiles at top, then a grid of quick-action links. Clean, no scrolling, purely navigational.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f6f3ee;padding:16px;font-family:'DM Sans',sans-serif;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b8943f;margin-bottom:10px;">RECEIVABLE</div>
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:16px;font-weight:700;color:#1a1814;">PKR 4.2M</div>
+          <div style="font-size:9px;color:#888;">Outstanding AR</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:16px;font-weight:700;color:#dc2626;">PKR 1.1M</div>
+          <div style="font-size:9px;color:#888;">Overdue</div>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:16px;font-weight:700;color:#1a1814;">48</div>
+          <div style="font-size:9px;color:#888;">Open Invoices</div>
+        </div>
+      </div>
+      <!-- Two-column: actions + recent -->
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:8px;">
+        <div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:6px;">Quick Actions</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="background:#1a1814;border-radius:7px;padding:7px 10px;color:#fff;font-size:10px;display:flex;align-items:center;gap:6px;"><span>🧾</span> New Invoice</div>
+            <div style="background:#fff;border-radius:7px;padding:7px 10px;font-size:10px;display:flex;align-items:center;gap:6px;"><span>💳</span> Record Payment</div>
+            <div style="background:#fff;border-radius:7px;padding:7px 10px;font-size:10px;display:flex;align-items:center;gap:6px;"><span>👥</span> Customers</div>
+            <div style="background:#fff;border-radius:7px;padding:7px 10px;font-size:10px;display:flex;align-items:center;gap:6px;"><span>📉</span> AR Aging</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:6px;">Recent Invoices</div>
+          <div style="background:#fff;border-radius:8px;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid #f0ece5;font-size:9px;">
+              <span style="color:#1a1814;">INV-0048 · Alpha Corp</span><span style="color:#dc2626;font-weight:600;">Overdue</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid #f0ece5;font-size:9px;">
+              <span style="color:#1a1814;">INV-0047 · Beta Ltd</span><span style="color:#d97706;font-weight:600;">Partial</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:6px 8px;font-size:9px;">
+              <span style="color:#1a1814;">INV-0046 · Gamma Co</span><span style="color:#16a34a;font-weight:600;">Paid</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — KPIs + Actions + Recent List</h3>
+      <p>KPI row at top, then two-column: action buttons left, recent invoices right. More context without needing to navigate away.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f6f3ee;padding:16px;font-family:'DM Sans',sans-serif;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b8943f;margin-bottom:10px;">RECEIVABLE</div>
+      <!-- Wide KPI banner -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+        <div style="background:#fff;border-radius:8px;padding:8px;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:#1a1814;">PKR 4.2M</div>
+          <div style="font-size:8px;color:#888;">Total AR</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:8px;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:#dc2626;">PKR 1.1M</div>
+          <div style="font-size:8px;color:#888;">Overdue</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:8px;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:#1a1814;">48</div>
+          <div style="font-size:8px;color:#888;">Open</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:8px;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:#16a34a;">32d</div>
+          <div style="font-size:8px;color:#888;">Avg Days</div>
+        </div>
+      </div>
+      <!-- Aging bar -->
+      <div style="background:#fff;border-radius:8px;padding:8px;margin-bottom:10px;">
+        <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:5px;">AR Aging Snapshot</div>
+        <div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;">
+          <div style="background:#16a34a;flex:3;" title="Current"></div>
+          <div style="background:#d97706;flex:1;" title="1-30d"></div>
+          <div style="background:#dc2626;flex:1;" title="30d+"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <span style="font-size:8px;color:#16a34a;">■ Current 60%</span>
+          <span style="font-size:8px;color:#d97706;">■ 1–30d 20%</span>
+          <span style="font-size:8px;color:#dc2626;">■ 30d+ 20%</span>
+        </div>
+      </div>
+      <!-- Actions row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+        <div style="background:#1a1814;border-radius:7px;padding:7px;text-align:center;">
+          <div style="font-size:14px;">🧾</div>
+          <div style="font-size:8px;color:#fff;margin-top:2px;">New Invoice</div>
+        </div>
+        <div style="background:#fff;border-radius:7px;padding:7px;text-align:center;">
+          <div style="font-size:14px;">💳</div>
+          <div style="font-size:8px;color:#1a1814;margin-top:2px;">Payment</div>
+        </div>
+        <div style="background:#fff;border-radius:7px;padding:7px;text-align:center;">
+          <div style="font-size:14px;">👥</div>
+          <div style="font-size:8px;color:#1a1814;margin-top:2px;">Customers</div>
+        </div>
+        <div style="background:#fff;border-radius:7px;padding:7px;text-align:center;">
+          <div style="font-size:14px;">📊</div>
+          <div style="font-size:8px;color:#1a1814;margin-top:2px;">Performance</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — KPIs + Aging Bar + Actions</h3>
+      <p>4 KPIs, inline aging breakdown bar, then action row. Higher data density, no recent-items list — more of a command centre than a launcher.</p>
+    </div>
+  </div>
+
+</div>

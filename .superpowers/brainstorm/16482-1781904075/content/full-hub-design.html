@@ -1,0 +1,278 @@
+<h2>Complete Hub Page Design — all 4 sections</h2>
+<p class="subtitle">Each hub: 4 KPI tiles → data band → action grid. Shared component, 4 configs. Does this look right?</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:12px;font-family:'DM Sans',sans-serif;">
+
+  <!-- RECEIVABLE HUB -->
+  <div style="background:#f6f3ee;border-radius:14px;padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#b8943f;">Receivable</div>
+        <div style="font-size:18px;font-weight:700;color:#1a1814;margin-top:1px;">Accounts Receivable</div>
+      </div>
+      <div style="font-size:28px;">🧾</div>
+    </div>
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">4.2M</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Total AR</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#dc2626;">1.1M</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Overdue</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">48</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Open Invoices</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">32d</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Avg Days</div>
+      </div>
+    </div>
+    <!-- Aging bar -->
+    <div style="background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#aaa;margin-bottom:5px;">AR Aging</div>
+      <div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;">
+        <div style="background:#16a34a;flex:6;" title="Current"></div>
+        <div style="background:#d97706;flex:1.5;" title="1-30d"></div>
+        <div style="background:#ea580c;flex:1;" title="31-60d"></div>
+        <div style="background:#dc2626;flex:.5;" title="60d+"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap;">
+        <span style="font-size:8px;color:#16a34a;">■ Current 60%</span>
+        <span style="font-size:8px;color:#d97706;">■ 1–30d 15%</span>
+        <span style="font-size:8px;color:#ea580c;">■ 31–60d 10%</span>
+        <span style="font-size:8px;color:#dc2626;">■ 60d+ 5%</span>
+      </div>
+    </div>
+    <!-- Actions -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+      <div style="background:#1a1814;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">🧾</div><div style="font-size:8px;color:#fff;margin-top:3px;">New Invoice</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">💳</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Payments</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">👥</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Customers</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">📊</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">AR Aging</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">🏷️</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Credit Notes</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">%</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Commissions</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">🔖</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Promos</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;">
+        <div style="font-size:16px;">📈</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Performance</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYABLE HUB -->
+  <div style="background:#f6f3ee;border-radius:14px;padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#b8943f;">Payable</div>
+        <div style="font-size:18px;font-weight:700;color:#1a1814;margin-top:1px;">Accounts Payable</div>
+      </div>
+      <div style="font-size:28px;">📄</div>
+    </div>
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">2.8M</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Total AP</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#dc2626;">320K</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Overdue</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">31</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Open Bills</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">28d</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Avg Days</div>
+      </div>
+    </div>
+    <!-- Aging bar -->
+    <div style="background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#aaa;margin-bottom:5px;">AP Aging</div>
+      <div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;">
+        <div style="background:#16a34a;flex:7;" title="Current"></div>
+        <div style="background:#d97706;flex:1;" title="1-30d"></div>
+        <div style="background:#dc2626;flex:.5;" title="30d+"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:5px;">
+        <span style="font-size:8px;color:#16a34a;">■ Current 73%</span>
+        <span style="font-size:8px;color:#d97706;">■ 1–30d 12%</span>
+        <span style="font-size:8px;color:#dc2626;">■ 30d+ 5%</span>
+      </div>
+    </div>
+    <!-- Actions -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+      <div style="background:#1a1814;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📄</div><div style="font-size:8px;color:#fff;margin-top:3px;">New Bill</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">💸</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Bill Payments</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">🚚</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Vendors</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📊</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">AP Aging</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">↩️</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Debit Notes</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">💰</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Advances</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📋</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Pmt Terms</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">🛒</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Purchases</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVENTORY HUB -->
+  <div style="background:#f6f3ee;border-radius:14px;padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#b8943f;">Inventory</div>
+        <div style="font-size:18px;font-weight:700;color:#1a1814;margin-top:1px;">Stock & Products</div>
+      </div>
+      <div style="font-size:28px;">📦</div>
+    </div>
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">142</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Products</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">1.9M</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Stock Value</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#d97706;">14</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Low Stock</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#dc2626;">3</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Out of Stock</div>
+      </div>
+    </div>
+    <!-- Low stock alerts -->
+    <div style="background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#aaa;margin-bottom:6px;">⚠ Low Stock Alerts</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#fff8f0;border-radius:6px;padding:5px 8px;font-size:9px;">
+          <span style="color:#1a1814;">SIM Card 4G</span><span style="color:#dc2626;font-weight:700;">3 left</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#fff8f0;border-radius:6px;padding:5px 8px;font-size:9px;">
+          <span style="color:#1a1814;">USB-C Cable 1m</span><span style="color:#d97706;font-weight:700;">8 left</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#fff8f0;border-radius:6px;padding:5px 8px;font-size:9px;">
+          <span style="color:#1a1814;">Phone Charger 65W</span><span style="color:#d97706;font-weight:700;">11 left</span>
+        </div>
+      </div>
+    </div>
+    <!-- Actions -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+      <div style="background:#1a1814;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📦</div><div style="font-size:8px;color:#fff;margin-top:3px;">New Product</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📒</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Ledger</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">🏷️</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Categories</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📈</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Performance</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANKING HUB -->
+  <div style="background:#f6f3ee;border-radius:14px;padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#b8943f;">Banking</div>
+        <div style="font-size:18px;font-weight:700;color:#1a1814;margin-top:1px;">Bank & Cash</div>
+      </div>
+      <div style="font-size:28px;">🏦</div>
+    </div>
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">2.56M</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Total Funds</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#1a1814;">3</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Accounts</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#d97706;">2</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Pending Imports</div>
+      </div>
+      <div style="background:#fff;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:#d97706;">5</div>
+        <div style="font-size:8px;color:#999;margin-top:2px;">Unreconciled</div>
+      </div>
+    </div>
+    <!-- Account list -->
+    <div style="background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#aaa;margin-bottom:6px;">Account Balances</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;font-size:9px;background:#f8f5ef;border-radius:6px;">
+          <span style="color:#1a1814;">🏦 HBL Main</span><span style="font-weight:700;color:#1a1814;">PKR 2.10M</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;font-size:9px;background:#f8f5ef;border-radius:6px;">
+          <span style="color:#1a1814;">🏦 MCB Payroll</span><span style="font-weight:700;color:#1a1814;">PKR 450K</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;font-size:9px;background:#f8f5ef;border-radius:6px;">
+          <span style="color:#1a1814;">💵 Petty Cash</span><span style="font-weight:700;color:#1a1814;">PKR 12K</span>
+        </div>
+      </div>
+    </div>
+    <!-- Actions -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+      <div style="background:#1a1814;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">⬆️</div><div style="font-size:8px;color:#fff;margin-top:3px;">Import CSV</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">🏦</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Accounts</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">✅</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Reconcile</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📒</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Cash Book</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">📗</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">Bank Book</div>
+      </div>
+      <div style="background:#fff;border-radius:9px;padding:9px 6px;text-align:center;">
+        <div style="font-size:16px;">💱</div><div style="font-size:8px;color:#1a1814;margin-top:3px;">FX Rates</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;text-align:center;">Does this represent all 4 hubs correctly? Reply in terminal to confirm or request changes.</p>

@@ -1,0 +1,113 @@
+<h2>Middle data band — Inventory & Banking hubs</h2>
+<p class="subtitle">Receivable & Payable use the aging breakdown bar. What should Inventory and Banking show in that same slot?</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px;">
+
+  <!-- INVENTORY options -->
+  <div>
+    <h3 style="margin-bottom:12px;">📦 Inventory Hub band</h3>
+
+    <div class="options">
+      <div class="option" data-choice="inv-a" onclick="toggleSelect(this)">
+        <div class="letter">A</div>
+        <div class="content">
+          <h3>Stock Health Bar</h3>
+          <p style="margin-bottom:8px;">In-stock / Low-stock / Out-of-stock breakdown — mirrors the aging bar pattern exactly.</p>
+          <div style="background:#f6f3ee;border-radius:8px;padding:10px;font-family:sans-serif;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:5px;">Stock Health</div>
+            <div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;">
+              <div style="background:#16a34a;flex:6;"></div>
+              <div style="background:#d97706;flex:2;"></div>
+              <div style="background:#dc2626;flex:1;"></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              <span style="font-size:8px;color:#16a34a;">■ OK 65%</span>
+              <span style="font-size:8px;color:#d97706;">■ Low 22%</span>
+              <span style="font-size:8px;color:#dc2626;">■ Out 13%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="option" data-choice="inv-b" onclick="toggleSelect(this)">
+        <div class="letter">B</div>
+        <div class="content">
+          <h3>Top 3 Low-Stock Alerts</h3>
+          <p style="margin-bottom:8px;">A small list of the most urgent reorder items with qty remaining.</p>
+          <div style="background:#f6f3ee;border-radius:8px;padding:10px;font-family:sans-serif;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:5px;">⚠ Low Stock Alerts</div>
+            <div style="font-size:9px;display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;justify-content:space-between;background:#fff8f0;border-radius:4px;padding:4px 6px;">
+                <span>SIM Card 4G</span><span style="color:#dc2626;font-weight:600;">3 left</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;background:#fff8f0;border-radius:4px;padding:4px 6px;">
+                <span>USB Cable</span><span style="color:#d97706;font-weight:600;">8 left</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;background:#fff8f0;border-radius:4px;padding:4px 6px;">
+                <span>Phone Charger</span><span style="color:#d97706;font-weight:600;">11 left</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANKING options -->
+  <div>
+    <h3 style="margin-bottom:12px;">🏦 Banking Hub band</h3>
+
+    <div class="options">
+      <div class="option" data-choice="bank-a" onclick="toggleSelect(this)">
+        <div class="letter">A</div>
+        <div class="content">
+          <h3>Account Balance List</h3>
+          <p style="margin-bottom:8px;">Each bank/cash account with its current balance — like a mini Bank Accounts page.</p>
+          <div style="background:#f6f3ee;border-radius:8px;padding:10px;font-family:sans-serif;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:5px;">Account Balances</div>
+            <div style="font-size:9px;display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;justify-content:space-between;background:#fff;border-radius:4px;padding:4px 6px;">
+                <span>🏦 HBL Main</span><span style="font-weight:600;">PKR 2.1M</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;background:#fff;border-radius:4px;padding:4px 6px;">
+                <span>🏦 MCB Payroll</span><span style="font-weight:600;">PKR 450K</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;background:#fff;border-radius:4px;padding:4px 6px;">
+                <span>💵 Petty Cash</span><span style="font-weight:600;">PKR 12K</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="option" data-choice="bank-b" onclick="toggleSelect(this)">
+        <div class="letter">B</div>
+        <div class="content">
+          <h3>Cash vs Bank Bar + Pending</h3>
+          <p style="margin-bottom:8px;">Single bar showing cash vs bank split, plus a pending-imports badge.</p>
+          <div style="background:#f6f3ee;border-radius:8px;padding:10px;font-family:sans-serif;">
+            <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:5px;">Funds Breakdown</div>
+            <div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;margin-bottom:4px;">
+              <div style="background:#7c3aed;flex:7;"></div>
+              <div style="background:#b8943f;flex:1;"></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:6px;">
+              <span style="font-size:8px;color:#7c3aed;">■ Bank PKR 2.55M</span>
+              <span style="font-size:8px;color:#b8943f;">■ Cash PKR 12K</span>
+            </div>
+            <div style="font-size:9px;background:#fffbeb;border-radius:4px;padding:4px 6px;color:#92400e;">⏳ 3 pending imports to reconcile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Click your preferred option for each hub independently (multi-select enabled).</p>
+<script>
+// Enable independent multi-select across both columns
+document.querySelectorAll('.option').forEach(el => {
+  el.setAttribute('onclick', 'toggleSelect(this)');
+});
+</script>
