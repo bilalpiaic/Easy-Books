@@ -82,16 +82,62 @@ def create_rate(
     return row
 
 
+# Currencies covered by the ECB / Frankfurter reference set.
+# Everything outside this set is fetched from ExchangeRate-API v4 instead.
+_FRANKFURTER_CURRENCIES = {
+    "AUD","BGN","BRL","CAD","CHF","CNY","CZK","DKK","EUR","GBP",
+    "HKD","HUF","IDR","ILS","INR","ISK","JPY","KRW","MXN","MYR",
+    "NOK","NZD","PHP","PLN","RON","SEK","SGD","THB","TRY","USD","ZAR",
+}
+
+
+def _fetch_frankfurter(from_currency: str, to_currency: str) -> dict:
+    """ECB reference rates via Frankfurter. Raises ValueError if unavailable."""
+    resp = httpx.get(
+        "https://api.frankfurter.app/latest",
+        params={"from": from_currency, "to": to_currency},
+        timeout=8.0,
+        follow_redirects=True,
+    )
+    if resp.status_code == 404:
+        raise ValueError("not_in_frankfurter")
+    resp.raise_for_status()
+    data = resp.json()
+    rate = data.get("rates", {}).get(to_currency)
+    if rate is None:
+        raise ValueError("not_in_frankfurter")
+    return {"rate": float(rate), "date": data.get("date"), "source": "frankfurter.app (ECB)"}
+
+
+def _fetch_exchangerate_api(from_currency: str, to_currency: str) -> dict:
+    """ExchangeRate-API v4 — free, no key, 160+ currencies incl. PKR/AED/SAR/KWD."""
+    resp = httpx.get(
+        f"https://api.exchangerate-api.com/v4/latest/{from_currency}",
+        timeout=8.0,
+        follow_redirects=True,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    rate = data.get("rates", {}).get(to_currency)
+    if rate is None:
+        raise ValueError(f"ExchangeRate-API does not publish a rate for {to_currency}")
+    return {
+        "rate": float(rate),
+        "date": data.get("date", DateType.today().isoformat()),
+        "source": "exchangerate-api.com",
+    }
+
+
 @router.get("/live")
 def get_live_rate(
     from_currency: str,
     to_currency: str,
     user: CurrentUserDep,
 ):
-    """Proxy a live FX rate from Frankfurter (ECB reference rates, no API key).
+    """Proxy a live FX rate.
 
-    Returns the latest available rate.  The caller can pass `save=true` as a
-    query param to upsert the fetched rate into the tenant's ExchangeRate table.
+    Primary source: Frankfurter (ECB reference rates, ~32 currencies).
+    Fallback: ExchangeRate-API v4 (free, no key, 160+ currencies incl. PKR/AED/SAR/KWD/QAR).
     """
     from_currency = from_currency.upper()
     to_currency = to_currency.upper()
@@ -103,34 +149,33 @@ def get_live_rate(
             "date": DateType.today().isoformat(),
             "source": "identity",
         }
-    try:
-        resp = httpx.get(
-            "https://api.frankfurter.app/latest",
-            params={"from": from_currency, "to": to_currency},
-            timeout=8.0,
-            follow_redirects=True,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            502,
-            f"Frankfurter returned HTTP {exc.response.status_code}. "
-            "The currency pair may not be supported.",
-        )
-    except httpx.RequestError:
-        raise HTTPException(502, "Could not reach Frankfurter (api.frankfurter.app). Check internet connectivity.")
 
-    rate = data.get("rates", {}).get(to_currency)
-    if rate is None:
-        raise HTTPException(422, f"Frankfurter does not publish a rate for {to_currency}.")
+    # Choose source: use Frankfurter when both currencies are in its set,
+    # otherwise go straight to ExchangeRate-API.
+    use_frankfurter = (
+        from_currency in _FRANKFURTER_CURRENCIES
+        and to_currency in _FRANKFURTER_CURRENCIES
+    )
+
+    try:
+        if use_frankfurter:
+            try:
+                result = _fetch_frankfurter(from_currency, to_currency)
+            except ValueError:
+                result = _fetch_exchangerate_api(from_currency, to_currency)
+        else:
+            result = _fetch_exchangerate_api(from_currency, to_currency)
+    except httpx.RequestError:
+        raise HTTPException(502, "Could not reach the FX rate service. Check internet connectivity.")
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(502, f"FX rate service returned HTTP {exc.response.status_code}.")
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
 
     return {
         "from_currency": from_currency,
         "to_currency": to_currency,
-        "rate": float(rate),
-        "date": data.get("date"),
-        "source": "frankfurter.app (ECB)",
+        **result,
     }
 
 
