@@ -91,10 +91,13 @@ _FRANKFURTER_CURRENCIES = {
 }
 
 
-def _fetch_frankfurter(from_currency: str, to_currency: str) -> dict:
-    """ECB reference rates via Frankfurter. Raises ValueError if unavailable."""
+def _fetch_frankfurter(from_currency: str, to_currency: str, on_date: Optional[str]) -> dict:
+    """ECB reference rates via Frankfurter. Supports historical dates (YYYY-MM-DD)."""
+    # Frankfurter accepts a date segment: /2026-06-21?from=USD&to=EUR
+    # Future dates are capped to 'latest' automatically.
+    segment = on_date if on_date else "latest"
     resp = httpx.get(
-        "https://api.frankfurter.app/latest",
+        f"https://api.frankfurter.app/{segment}",
         params={"from": from_currency, "to": to_currency},
         timeout=8.0,
         follow_redirects=True,
@@ -110,7 +113,11 @@ def _fetch_frankfurter(from_currency: str, to_currency: str) -> dict:
 
 
 def _fetch_exchangerate_api(from_currency: str, to_currency: str) -> dict:
-    """ExchangeRate-API v4 — free, no key, 160+ currencies incl. PKR/AED/SAR/KWD."""
+    """ExchangeRate-API v4 — free, no key, 160+ currencies incl. PKR/AED/SAR/KWD.
+
+    Free tier only provides the latest rate; historical dates are not supported
+    without an API key.  The returned date reflects what the service reports.
+    """
     resp = httpx.get(
         f"https://api.exchangerate-api.com/v4/latest/{from_currency}",
         timeout=8.0,
@@ -124,7 +131,7 @@ def _fetch_exchangerate_api(from_currency: str, to_currency: str) -> dict:
     return {
         "rate": float(rate),
         "date": data.get("date", DateType.today().isoformat()),
-        "source": "exchangerate-api.com",
+        "source": "exchangerate-api.com (latest)",
     }
 
 
@@ -133,25 +140,29 @@ def get_live_rate(
     from_currency: str,
     to_currency: str,
     user: CurrentUserDep,
+    on_date: Optional[str] = None,
 ):
-    """Proxy a live FX rate.
+    """Proxy a live FX rate for a specific date (YYYY-MM-DD).
 
-    Primary source: Frankfurter (ECB reference rates, ~32 currencies).
-    Fallback: ExchangeRate-API v4 (free, no key, 160+ currencies incl. PKR/AED/SAR/KWD/QAR).
+    Primary source: Frankfurter (ECB, historical dates supported, ~32 currencies).
+    Fallback: ExchangeRate-API v4 (free, no key, 160+ currencies, latest only).
+    `on_date` defaults to today when omitted.
     """
     from_currency = from_currency.upper()
     to_currency = to_currency.upper()
+    # Clamp future dates to today so Frankfurter doesn't reject them
+    today = DateType.today().isoformat()
+    effective_date = on_date if (on_date and on_date <= today) else today
+
     if from_currency == to_currency:
         return {
             "from_currency": from_currency,
             "to_currency": to_currency,
             "rate": 1.0,
-            "date": DateType.today().isoformat(),
+            "date": effective_date,
             "source": "identity",
         }
 
-    # Choose source: use Frankfurter when both currencies are in its set,
-    # otherwise go straight to ExchangeRate-API.
     use_frankfurter = (
         from_currency in _FRANKFURTER_CURRENCIES
         and to_currency in _FRANKFURTER_CURRENCIES
@@ -160,7 +171,7 @@ def get_live_rate(
     try:
         if use_frankfurter:
             try:
-                result = _fetch_frankfurter(from_currency, to_currency)
+                result = _fetch_frankfurter(from_currency, to_currency, effective_date)
             except ValueError:
                 result = _fetch_exchangerate_api(from_currency, to_currency)
         else:

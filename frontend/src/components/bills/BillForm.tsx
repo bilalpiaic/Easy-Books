@@ -164,13 +164,15 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const apAccounts = accounts.filter(a => a.type === 'Liability')
   const expenseAccounts = accounts.filter(a => a.type === 'Expense')
 
-  const fetchLiveRate = async (fromCurrency: string) => {
+  const fetchLiveRate = async (fromCurrency: string, billDate?: string) => {
     const toCurrency = settings.currency
     if (fromCurrency === toCurrency) return
     setFetchingRate(true); setRateError(''); setRateSource('')
+    const date = billDate ?? form.bill_date
+    const qs = `from_currency=${fromCurrency}&to_currency=${toCurrency}${date ? `&on_date=${date}` : ''}`
     try {
       const data = await apiFetch<{ rate: number; date: string; source: string }>(
-        `/api/exchange-rates/live?from_currency=${fromCurrency}&to_currency=${toCurrency}`
+        `/api/exchange-rates/live?${qs}`
       )
       setForm(f => ({ ...f, exchange_rate: String(data.rate) }))
       setRateSource(`${data.date} · ${data.source}`)
@@ -306,7 +308,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
                 currencyTouched.current = true
                 setRateError(''); setRateSource('')
                 setForm(p => ({ ...p, currency: cur, exchange_rate: cur === settings.currency ? '1' : p.exchange_rate }))
-                if (cur !== settings.currency) fetchLiveRate(cur)
+                if (cur !== settings.currency) fetchLiveRate(cur, form.bill_date)
               }}
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
               {Array.from(new Set([settings.currency, ...CURRENCIES])).sort().map(c =>
