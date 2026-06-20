@@ -108,6 +108,7 @@ def get_live_rate(
             "https://api.frankfurter.app/latest",
             params={"from": from_currency, "to": to_currency},
             timeout=8.0,
+            follow_redirects=True,
         )
         resp.raise_for_status()
         data = resp.json()
