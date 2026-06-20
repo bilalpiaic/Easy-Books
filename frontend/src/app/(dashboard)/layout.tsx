@@ -71,6 +71,9 @@ const TITLE_MAP: Record<string, string> = {
   "/audit":            "Audit Log",
   "/bank-book":        "Bank Book",
   "/cash-book":        "Cash Book",
+  "/receivable":       "Accounts Receivable",
+  "/payable":          "Accounts Payable",
+  "/banking":          "Banking",
   "/aging/receivable": "AR Aging",
   "/aging/payable":    "AP Aging",
   "/period-close":     "Period Close",
@@ -79,6 +82,7 @@ const TITLE_MAP: Record<string, string> = {
   "/products/new":        "New Product",
   "/products/":           "Product",
   "/inventory/performance": "Inventory Performance",
+  "/inventory":             "Inventory",
   "/customer-performance":  "Customer Performance",
   "/reports/builder":       "Report Builder",
   "/telecom":                   "Telecom",
@@ -107,21 +111,27 @@ export default function DashboardLayout({
   const [open, setOpen]     = useState(false)
   const [pinned, setPinned] = useState(false)
 
-  // Auth gate + hydrate pinned preference from localStorage. Also auto-open
-  // the drawer on first render if the screen is wide enough — so desktop
-  // users see the menu by default.
+  // Auth gate + hydrate pinned preference from localStorage.
+  // "1" = explicitly pinned, "0" = explicitly unpinned, null = no preference.
+  // No preference on a wide screen → auto-pin (desktop default). Explicit "0"
+  // (user unpinned) is respected so we don't fight their preference.
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push("/login")
       return
     }
-    const pinnedSaved = typeof window !== "undefined" && localStorage.getItem(LS_KEY_PINNED) === "1"
-    const isWide      = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
-    if (pinnedSaved) {
+    const pref   = typeof window !== "undefined" ? localStorage.getItem(LS_KEY_PINNED) : null
+    const isWide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+    if (pref === "1") {
       setPinned(true)
       setOpen(true)
+    } else if (pref === "0") {
+      // User explicitly unpinned — leave sidebar closed
     } else if (isWide) {
+      // First visit on a wide screen → pin open (no dark overlay)
+      setPinned(true)
       setOpen(true)
+      localStorage.setItem(LS_KEY_PINNED, "1")
     }
   }, [router])
 
@@ -153,10 +163,10 @@ export default function DashboardLayout({
     setPinned(prev => {
       const next = !prev
       if (typeof window !== "undefined") {
-        if (next) localStorage.setItem(LS_KEY_PINNED, "1")
-        else localStorage.removeItem(LS_KEY_PINNED)
+        // Save "1" (pinned) or "0" (explicitly unpinned) so auto-pin on wide
+        // screens doesn't re-pin after the user has chosen to unpin.
+        localStorage.setItem(LS_KEY_PINNED, next ? "1" : "0")
       }
-      // Re-open after pinning so the change is visible right away
       if (next) setOpen(true)
       return next
     })

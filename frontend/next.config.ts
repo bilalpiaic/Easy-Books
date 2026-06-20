@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   // Self-contained server bundle for local/on-premise packaging (Phase 0).
   output: "standalone",
   env: { NEXT_PUBLIC_APP_VERSION: version },
+  // Allow HMR from the WSL2 network IP so the app works when accessed
+  // from a Windows browser via the WSL2 VM address (e.g. 172.28.52.3).
+  allowedDevOrigins: ["172.28.52.3"],
   turbopack: {
     root: __dirname,
   },
