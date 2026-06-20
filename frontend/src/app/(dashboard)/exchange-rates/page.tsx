@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Plus, Trash2, TrendingUp, RefreshCw, CheckCircle, AlertCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useSettings } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 
 interface ExchangeRate {
   id: number
@@ -295,7 +295,7 @@ export default function ExchangeRatesPage() {
             <tbody>
               {rates.map(r => (
                 <tr key={r.id} className="border-b border-[#ede9e2] last:border-0 hover:bg-[#faf8f4]">
-                  <td className="px-4 py-2.5 text-[#1a1814]/80">{r.date}</td>
+                  <td className="px-4 py-2.5 text-[#1a1814]/80">{fmtDate(r.date)}</td>
                   <td className="px-4 py-2.5 font-mono text-[#1a1814] font-medium">{r.from_currency}</td>
                   <td className="px-4 py-2.5 font-mono text-[#1a1814] font-medium">{r.to_currency}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(r.rate).toFixed(6)}</td>

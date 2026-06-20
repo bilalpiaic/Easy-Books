@@ -9,7 +9,7 @@ import {
 import { Bar } from "react-chartjs-2"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -138,7 +138,7 @@ export default function CustomerPerformancePage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <PrintHeader title="Customer Performance" subtitle={`Period: ${start} — ${end}`} />
+      <PrintHeader title="Customer Performance" subtitle={`Period: ${fmtDate(start)} — ${fmtDate(end)}`} orientation="landscape" />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>

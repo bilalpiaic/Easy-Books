@@ -10,7 +10,7 @@ import FilterBar from '@/components/FilterBar'
 import SortableHeader from '@/components/SortableHeader'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
-import { downloadCSV } from '@/lib/utils'
+import { downloadCSV, fmtDate } from '@/lib/utils'
 import { useFmt } from '@/context/SettingsContext'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
@@ -266,8 +266,8 @@ function BillsContent() {
                       ? <DocLink type="vendor" id={b.vendor_id} label={b.vendor_name} />
                       : (b.vendor_name ?? '—')}
                   </td>
-                  <td className="ui-td text-black/70">{b.bill_date}</td>
-                  <td className={`ui-td ${b.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{b.due_date}</td>
+                  <td className="ui-td text-black/70">{fmtDate(b.bill_date)}</td>
+                  <td className={`ui-td ${b.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{fmtDate(b.due_date)}</td>
                   <td className="ui-td text-right font-mono">{fmt(b.total)}</td>
                   <td className="ui-td text-center">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[b.status] ?? 'bg-gray-100 text-gray-700'}`}>

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ChevronRight, ChevronDown, BookOpen, Printer, Download, Layers, List } from "lucide-react"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
@@ -599,7 +599,7 @@ function LedgerPageInner() {
                     </tr>
                     {ledgerData.entries.map((entry, idx) => (
                       <tr key={idx} className="hover:bg-[#faf8f4]">
-                        <td className="px-4 py-2.5 text-black/60">{entry.date}</td>
+                        <td className="px-4 py-2.5 text-black/60">{fmtDate(entry.date)}</td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <Link

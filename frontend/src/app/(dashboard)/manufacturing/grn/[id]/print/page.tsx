@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 
 interface GrnLine {
@@ -63,12 +64,12 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
-        <PrintHeader title={`Goods Receipt Note ${grn.number}`} subtitle={`Received ${grn.received_date} · Custodial`} />
+        <PrintHeader title={`Goods Receipt Note ${grn.number}`} subtitle={`Received ${fmtDate(grn.received_date)} · Custodial`} />
 
         <article className="text-[#1a1814]">
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
             <h1 className="text-2xl font-serif font-semibold">GRN {grn.number}</h1>
-            <p className="text-sm text-[#1a1814]/60">Received {grn.received_date}</p>
+            <p className="text-sm text-[#1a1814]/60">Received {fmtDate(grn.received_date)}</p>
           </header>
 
           <div className="grid grid-cols-2 gap-6 mb-6 text-sm">

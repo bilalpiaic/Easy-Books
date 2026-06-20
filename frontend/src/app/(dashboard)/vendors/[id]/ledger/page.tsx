@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Printer, Truck, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
@@ -178,7 +178,7 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
               const vt = e.voucher_type
               return (
                 <tr key={i}>
-                  <td className="px-3 py-2 text-[#1a1814]/70">{e.date}</td>
+                  <td className="px-3 py-2 text-[#1a1814]/70">{fmtDate(e.date)}</td>
                   <td className="px-3 py-2 font-mono text-xs">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {href ? <Link href={href} className="text-[#b8943f] hover:underline">{e.doc_number}</Link> : e.doc_number}

@@ -15,6 +15,24 @@ export const fmtPKR = (n: number) => 'PKR ' + fmt(n)
 /** Number-only amount — currency param kept for call-site compatibility but not emitted. */
 export const fmtAmount = (n: number, _currency?: string) => fmt(n)
 
+/** Convert ISO date string "YYYY-MM-DD" (or datetime) to "dd-mm-yy" display format. */
+export function fmtDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ""
+  const datePart = dateStr.split("T")[0]
+  const parts = datePart.split("-")
+  if (parts.length !== 3) return dateStr
+  const [y, m, d] = parts
+  return `${d}-${m}-${y.slice(2)}`
+}
+
+/** Format a JS Date object as "dd-mm-yy". */
+export function fmtDateJs(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, "0")
+  const mm = String(date.getMonth() + 1).padStart(2, "0")
+  const yy = String(date.getFullYear()).slice(2)
+  return `${dd}-${mm}-${yy}`
+}
+
 export function downloadCSV(filename: string, rows: Record<string, unknown>[]) {
   if (rows.length === 0) return
   const headers = Object.keys(rows[0])

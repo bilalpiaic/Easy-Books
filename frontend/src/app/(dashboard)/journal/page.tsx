@@ -5,7 +5,7 @@ import Link from "next/link"
 import { RotateCcw, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import Pagination from "@/components/Pagination"
@@ -84,7 +84,7 @@ export default function JournalPage() {
 
   return (
     <div>
-      <PrintHeader title="General Journal" subtitle={`Period: ${start} — ${end}`} orientation="landscape" />
+      <PrintHeader title="General Journal" subtitle={`Period: ${fmtDate(start)} — ${fmtDate(end)}`} orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">General Journal</h1>
@@ -155,7 +155,7 @@ export default function JournalPage() {
                   if (isFirstLine) seenTxns.add(entry.transaction_id)
                   return (
                     <tr key={idx} className={`hover:bg-[#f6f3ee]/50 transition-colors ${entry.is_reversed ? 'opacity-60' : ''}`}>
-                      <td className="ui-td text-sm">{entry.date}</td>
+                      <td className="ui-td text-sm">{fmtDate(entry.date)}</td>
                       <td className="ui-td">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Link href={`/journal/${entry.transaction_id}`} className="font-mono text-xs font-bold text-[#b8943f] hover:underline">

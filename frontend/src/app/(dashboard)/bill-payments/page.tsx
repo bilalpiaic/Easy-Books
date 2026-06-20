@@ -8,7 +8,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
-import { downloadCSV } from '@/lib/utils'
+import { downloadCSV, fmtDate } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 
 interface BillPaymentRecord {
@@ -118,7 +118,7 @@ export default function BillPayments() {
                 </tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-[#f6f3ee]/50">
-                  <td className="ui-td text-black/70">{p.payment_date}</td>
+                  <td className="ui-td text-black/70">{fmtDate(p.payment_date)}</td>
                   <td className="ui-td font-medium">
                     {p.bill_id && p.vendor_name
                       ? <DocLink type="bill" id={p.bill_id} label={p.vendor_name} />

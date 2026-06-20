@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import { useFmt, useCurrency } from "@/context/SettingsContext"
+import { fmtDate } from "@/lib/utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
             ) : (
               visibleEntries.map((entry, idx) => (
                 <tr key={idx} className="hover:bg-[#faf8f4]">
-                  <td className="px-4 py-2.5 text-black/60">{entry.date}</td>
+                  <td className="px-4 py-2.5 text-black/60">{fmtDate(entry.date)}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <Link

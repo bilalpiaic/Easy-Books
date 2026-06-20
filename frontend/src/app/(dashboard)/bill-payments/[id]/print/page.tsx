@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 
 interface Allocation {
@@ -61,12 +62,12 @@ export default function VoucherPrintPage({ params }: { params: Promise<{ id: str
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
-        <PrintHeader title={`Payment Voucher #${pay.id}`} subtitle={`Paid on ${pay.payment_date}`} />
+        <PrintHeader title={`Payment Voucher #${pay.id}`} subtitle={`Paid on ${fmtDate(pay.payment_date)}`} />
 
         <article className="text-[#1a1814]">
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
             <h1 className="text-2xl font-serif font-semibold">Voucher #{pay.id}</h1>
-            <p className="text-sm text-[#1a1814]/60">Paid on {pay.payment_date}</p>
+            <p className="text-sm text-[#1a1814]/60">Paid on {fmtDate(pay.payment_date)}</p>
           </header>
 
           <div className="grid grid-cols-2 gap-6 mb-6 text-sm">

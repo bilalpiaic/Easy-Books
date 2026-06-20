@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ function JvTemplate({ txn }: { txn: Txn }) {
       <table className="w-full text-sm border border-[#ede9e2] mb-5">
         <tbody className="divide-y divide-[#ede9e2]">
           <MetaRow k="Voucher No" v={txn.jv_number} />
-          <MetaRow k="Date"       v={txn.date} />
+          <MetaRow k="Date"       v={fmtDate(txn.date)} />
           {txn.description && <MetaRow k="Description" v={txn.description} />}
           {txn.reference   && <MetaRow k="Reference"   v={txn.reference} />}
           {txn.party       && <MetaRow k="Party"       v={txn.party} />}
@@ -190,7 +191,7 @@ function PvTemplate({ txn }: { txn: Txn }) {
         </div>
         <div className="text-right">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Date</p>
-          <p className="text-xl font-mono font-bold">{txn.date}</p>
+          <p className="text-xl font-mono font-bold">{fmtDate(txn.date)}</p>
         </div>
       </div>
 
@@ -286,7 +287,7 @@ function RvTemplate({ txn }: { txn: Txn }) {
         </div>
         <div className="text-right">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Date</p>
-          <p className="text-xl font-mono font-bold">{txn.date}</p>
+          <p className="text-xl font-mono font-bold">{fmtDate(txn.date)}</p>
         </div>
       </div>
 
@@ -401,7 +402,7 @@ export default function VoucherPrintPage({ params }: { params: Promise<{ id: str
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
-        <PrintHeader title={title} subtitle={`Voucher No: ${txn.jv_number}  ·  Date: ${txn.date}`} />
+        <PrintHeader title={title} subtitle={`Voucher No: ${txn.jv_number}  ·  Date: ${fmtDate(txn.date)}`} />
 
         {isPv ? <PvTemplate txn={txn} /> :
          isRv ? <RvTemplate txn={txn} /> :

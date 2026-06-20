@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthToken } from "@/lib/auth"
+import { fmtDate } from "@/lib/utils"
 
 export type ParentType =
   | "invoice" | "bill" | "transaction" | "payment_received"
@@ -239,7 +240,7 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
                       {att.original_name}
                     </p>
                     <p className="text-[10px] text-[#1a1814]/50">
-                      {fmtBytes(att.size_bytes)} · {new Date(att.uploaded_at).toLocaleDateString()}
+                      {fmtBytes(att.size_bytes)} · {fmtDate(att.uploaded_at)}
                     </p>
                   </div>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

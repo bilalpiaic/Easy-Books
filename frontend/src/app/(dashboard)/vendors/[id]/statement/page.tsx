@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Printer, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
-import { downloadCSV } from '@/lib/utils'
+import { downloadCSV, fmtDate, fmtDateJs } from '@/lib/utils'
 import PrintHeader from '@/components/PrintHeader'
 
 interface StatementBill {
@@ -54,7 +54,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [generatedDate, setGeneratedDate] = useState('')
-  useEffect(() => { setGeneratedDate(new Date().toLocaleDateString()) }, [])
+  useEffect(() => { setGeneratedDate(fmtDateJs(new Date())) }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -73,7 +73,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <PrintHeader title={`Statement — ${v.name}`} subtitle={`Period: ${data.period.from} to ${data.period.to}`} />
+      <PrintHeader title={`Statement — ${v.name}`} subtitle={`Period: ${fmtDate(data.period.from)} to ${fmtDate(data.period.to)}`} />
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 print:hidden">
@@ -164,7 +164,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                 {data.bills.map(b => (
                   <tr key={b.id}>
                     <td className="py-2 font-mono text-[#b8943f] text-xs">{b.number}</td>
-                    <td className="py-2 text-black/70">{b.date}</td>
+                    <td className="py-2 text-black/70">{fmtDate(b.date)}</td>
                     <td className="py-2 text-black/70">{b.due_date}</td>
                     <td className="py-2 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${b.status === 'paid' ? 'bg-green-100 text-green-700' : b.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -200,7 +200,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
               <tbody className="divide-y divide-[#f6f3ee]">
                 {data.payments.map(p => (
                   <tr key={p.id}>
-                    <td className="py-2 text-black/70">{p.date}</td>
+                    <td className="py-2 text-black/70">{fmtDate(p.date)}</td>
                     <td className="py-2 capitalize text-black/70">{p.method}</td>
                     <td className="py-2 text-black/50 text-xs">{p.reference ?? '—'}</td>
                     <td className="py-2 text-right font-mono text-green-600">{fmt(Number(p.amount))}</td>

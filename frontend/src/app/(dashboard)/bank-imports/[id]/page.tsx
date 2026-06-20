@@ -6,6 +6,7 @@ import Link from "next/link"
 import { CheckCircle2, Clock, Zap, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { fmtDate } from "@/lib/utils"
 
 interface BankImport {
   id: number
@@ -162,7 +163,7 @@ export default function BankImportDetailPage() {
           </h1>
           {imp && (
             <p className="text-sm text-[#1a1814]/60 mt-0.5">
-              {imp.matched_count} / {imp.line_count} matched ({pct}%) · {new Date(imp.created_at).toLocaleDateString()}
+              {imp.matched_count} / {imp.line_count} matched ({pct}%) · {fmtDate(imp.created_at)}
             </p>
           )}
         </div>
@@ -227,7 +228,7 @@ export default function BankImportDetailPage() {
                   key={line.id}
                   className={`border-b border-[#ede9e2] last:border-0 ${line.is_matched ? "" : "bg-amber-50/30"}`}
                 >
-                  <td className="px-4 py-2.5 text-[#1a1814]/80 whitespace-nowrap">{line.date}</td>
+                  <td className="px-4 py-2.5 text-[#1a1814]/80 whitespace-nowrap">{fmtDate(line.date)}</td>
                   <td className="px-4 py-2.5 text-[#1a1814] max-w-[220px]">
                     <span className="line-clamp-2">{line.description}</span>
                   </td>
@@ -270,7 +271,7 @@ export default function BankImportDetailPage() {
                           <option value="">Select JV…</option>
                           {candidates.map(c => (
                             <option key={c.transaction_id} value={c.transaction_id}>
-                              {c.jv_number} · {c.date}
+                              {c.jv_number} · {fmtDate(c.date)}
                             </option>
                           ))}
                         </select>

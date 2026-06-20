@@ -64,10 +64,22 @@ export default function PrintHeader({
       .catch(() => {})
   }, [])
 
-  const printedAt = new Date().toLocaleString(undefined, {
-    year: "numeric", month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  })
+  useEffect(() => {
+    if (orientation !== "landscape") return
+    const style = document.createElement("style")
+    style.setAttribute("data-print-landscape", "1")
+    style.textContent = "@media print { @page { size: A4 landscape; margin: 12mm 15mm; } }"
+    document.head.appendChild(style)
+    return () => { document.querySelector("style[data-print-landscape]")?.remove() }
+  }, [orientation])
+
+  const now = new Date()
+  const dd = String(now.getDate()).padStart(2, "0")
+  const mm = String(now.getMonth() + 1).padStart(2, "0")
+  const yy = String(now.getFullYear()).slice(2)
+  const hh = String(now.getHours()).padStart(2, "0")
+  const min = String(now.getMinutes()).padStart(2, "0")
+  const printedAt = `${dd}-${mm}-${yy} ${hh}:${min}`
 
   return (
     <div

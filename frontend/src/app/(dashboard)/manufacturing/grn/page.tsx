@@ -6,7 +6,7 @@ import { PackagePlus, Plus, Printer, Download } from "lucide-react"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 
@@ -163,7 +163,7 @@ export default function GrnPage() {
                     <DocLink type="customer" id={g.customer_id}
                       label={customers.get(g.customer_id) ?? `#${g.customer_id}`} />
                   </td>
-                  <td className="px-4 py-2">{g.received_date}</td>
+                  <td className="px-4 py-2">{fmtDate(g.received_date)}</td>
                   <td className="px-4 py-2">{g.lines.length}</td>
                   <td className="px-4 py-2">{g.declared_value}</td>
                   <td className="px-4 py-2 text-right print:hidden">

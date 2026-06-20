@@ -5,7 +5,7 @@ import { Plus, CheckCircle, XCircle, Printer, Download } from 'lucide-react'
 import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
-import { downloadCSV } from '@/lib/utils'
+import { downloadCSV, fmtDate } from '@/lib/utils'
 
 interface Reconciliation {
   id: number
@@ -257,7 +257,7 @@ export default function Reconciliations() {
                     <tr><td colSpan={5} className="ui-td text-center text-black/40">No GL entries for this period/account.</td></tr>
                   ) : detail.lines.map(ln => (
                     <tr key={ln.id} className={ln.is_matched ? 'bg-green-50/60' : ''}>
-                      <td className="ui-td text-black/60">{ln.date}</td>
+                      <td className="ui-td text-black/60">{fmtDate(ln.date)}</td>
                       <td className="ui-td max-w-xs truncate">{ln.description}</td>
                       <td className="ui-td text-right font-mono">{ln.debit > 0 ? fmt(ln.debit) : '—'}</td>
                       <td className="ui-td text-right font-mono">{ln.credit > 0 ? fmt(ln.credit) : '—'}</td>

@@ -6,6 +6,7 @@ import { Printer, RotateCcw, ScrollText } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { fmtDate } from "@/lib/utils"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 
 interface Entry {
@@ -103,7 +104,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
           <ScrollText className="w-7 h-7 text-[#b8943f] shrink-0 mt-1" />
           <div className="min-w-0">
             <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Voucher {txn.jv_number}</h1>
-            <p className="text-sm text-[#1a1814]/60">Posted {txn.date}</p>
+            <p className="text-sm text-[#1a1814]/60">Posted {fmtDate(txn.date)}</p>
           </div>
         </div>
         {txn.is_reversed && (
@@ -120,7 +121,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
         <table className="w-full text-sm">
           <tbody className="divide-y divide-[#ede9e2]">
             <Row k="JV Number" v={txn.jv_number} mono />
-            <Row k="Date" v={txn.date} />
+            <Row k="Date" v={fmtDate(txn.date)} />
             {txn.description && <Row k="Description" v={txn.description} />}
             {txn.reference && <Row k="Reference" v={txn.reference} />}
             {txn.party && <Row k="Party" v={txn.party} />}

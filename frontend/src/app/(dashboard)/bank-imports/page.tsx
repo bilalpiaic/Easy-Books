@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Plus, Upload, CheckCircle2, Clock, FileText, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 
 interface BankImport {
   id: number
@@ -132,7 +132,7 @@ export default function BankImportsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-[#1a1814]/70">
-                      {new Date(imp.created_at).toLocaleDateString()}
+                      {fmtDate(imp.created_at)}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{imp.line_count}</td>
                     <td className="px-4 py-3 text-right tabular-nums">

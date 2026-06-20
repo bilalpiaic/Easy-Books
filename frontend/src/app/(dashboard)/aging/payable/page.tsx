@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Clock, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDateJs } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 
 interface AgingItem {
@@ -87,7 +87,7 @@ export default function APAgingPage() {
         </div>
       </div>
 
-      <PrintHeader title="AP Aging Report" subtitle={`As of ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}`} />
+      <PrintHeader title="AP Aging Report" subtitle={`As of ${fmtDateJs(new Date())}`} orientation="landscape" />
 
       {/* Bucket summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">

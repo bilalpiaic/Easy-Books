@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 
 interface Line { id: number; description: string; qty: number; rate: number; amount: number; unit: string | null }
@@ -59,12 +60,12 @@ export default function DebitNotePrintPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
-        <PrintHeader title={`Debit Note ${dn.number}`} subtitle={`Issued ${dn.issue_date} · ${dn.status.toUpperCase()}`} />
+        <PrintHeader title={`Debit Note ${dn.number}`} subtitle={`Issued ${fmtDate(dn.issue_date)} · ${dn.status.toUpperCase()}`} />
 
         <article className="text-[#1a1814]">
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
             <h1 className="text-2xl font-serif font-semibold">Debit Note {dn.number}</h1>
-            <p className="text-sm text-[#1a1814]/60">Issued {dn.issue_date} · {dn.status}</p>
+            <p className="text-sm text-[#1a1814]/60">Issued {fmtDate(dn.issue_date)} · {dn.status}</p>
           </header>
 
           <div className="grid grid-cols-2 gap-6 mb-6 text-sm">

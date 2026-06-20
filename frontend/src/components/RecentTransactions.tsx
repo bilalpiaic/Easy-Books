@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { voucherTypeBadgeClass } from "@/lib/voucherTypes"
+import { fmtDate } from "@/lib/utils"
 
 interface JournalRow {
   transaction_id: number
@@ -146,7 +147,7 @@ export default function RecentTransactions() {
 function RowCell({ col, row }: { col: ColKey; row: JournalRow }) {
   switch (col) {
     case "date":
-      return <td className="px-5 py-3 text-[#1a1814]/55 text-xs whitespace-nowrap">{row.date}</td>
+      return <td className="px-5 py-3 text-[#1a1814]/55 text-xs whitespace-nowrap">{fmtDate(row.date)}</td>
     case "voucher":
       return (
         <td className="px-5 py-3">

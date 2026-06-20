@@ -8,7 +8,7 @@ import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
-import { downloadCSV } from '@/lib/utils'
+import { downloadCSV, fmtDate } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 
 interface Payment {
@@ -111,7 +111,7 @@ export default function PaymentsReceived() {
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No payments recorded.</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-[#f6f3ee]/50">
-                  <td className="ui-td text-black/70">{p.payment_date}</td>
+                  <td className="ui-td text-black/70">{fmtDate(p.payment_date)}</td>
                   <td className="ui-td font-medium">
                     {p.invoice_id && p.customer_name
                       ? <DocLink type="invoice" id={p.invoice_id} label={p.customer_name} />

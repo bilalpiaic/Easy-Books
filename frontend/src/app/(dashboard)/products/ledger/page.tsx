@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { BookOpen, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 
 interface Product {
@@ -106,7 +106,7 @@ function ProductLedgerInner() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <PrintHeader title="Product Ledger" subtitle={printSubtitle} />
+      <PrintHeader title="Product Ledger" subtitle={printSubtitle} orientation="landscape" />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
@@ -231,7 +231,7 @@ function ProductLedgerInner() {
               ) : (
                 data.items.map((item, idx) => (
                   <tr key={idx} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                    <td className="ui-td text-sm text-[#1a1814]/70">{item.date}</td>
+                    <td className="ui-td text-sm text-[#1a1814]/70">{fmtDate(item.date)}</td>
                     <td className="ui-td">
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[#b8943f]/10 text-[#b8943f]">
                         {item.direction}

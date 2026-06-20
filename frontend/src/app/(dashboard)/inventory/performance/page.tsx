@@ -6,7 +6,7 @@ import { AlertTriangle, Download, Printer } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { getAuthHeader } from "@/lib/auth"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -180,7 +180,7 @@ export default function InventoryPerformancePage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <PrintHeader title="Inventory Performance" subtitle={`Period: ${start} — ${end}`} />
+      <PrintHeader title="Inventory Performance" subtitle={`Period: ${fmtDate(start)} — ${fmtDate(end)}`} orientation="landscape" />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Printer, HelpCircle, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { fmtAmount, downloadCSV } from "@/lib/utils"
+import { fmtAmount, downloadCSV, fmtDate } from "@/lib/utils"
 import { useSettings } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
@@ -195,11 +195,11 @@ export default function BalanceSheetPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <PrintHeader title="Balance Sheet" subtitle={`As of ${asOf}`} />
+      <PrintHeader title="Balance Sheet" subtitle={`As of ${fmtDate(asOf)}`} />
       <div className="flex justify-between items-center mb-8 print:hidden">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
-          <p className="text-[#1a1814]/60">Financial position as of {new Date(asOf).toLocaleDateString()}</p>
+          <p className="text-[#1a1814]/60">Financial position as of {fmtDate(asOf)}</p>
         </div>
         <div className="flex items-center gap-2">
           {!compareMode && (

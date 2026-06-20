@@ -11,7 +11,7 @@ import SortableHeader from '@/components/SortableHeader'
 import BulkActionBar from '@/components/BulkActionBar'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
-import { downloadCSV } from '@/lib/utils'
+import { downloadCSV, fmtDate } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import { usePermission } from "@/context/PermissionContext"
@@ -272,8 +272,8 @@ function InvoicesContent() {
                       ? <DocLink type="customer" id={inv.customer_id} label={inv.customer_name} />
                       : (inv.customer_name ?? '—')}
                   </td>
-                  <td className="ui-td text-black/70">{inv.issue_date}</td>
-                  <td className={`ui-td ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{inv.due_date}</td>
+                  <td className="ui-td text-black/70">{fmtDate(inv.issue_date)}</td>
+                  <td className={`ui-td ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{fmtDate(inv.due_date)}</td>
                   <td className="ui-td text-right font-mono">{fmt(inv.total)}</td>
                   <td className="ui-td text-center">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700'}`}>

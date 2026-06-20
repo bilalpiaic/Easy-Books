@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import { Printer, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
+import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 
 interface POLine {
@@ -99,7 +100,7 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
         <div className="text-right">
           <div className="mb-1">
             <span className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">Order Date: </span>
-            <span>{po.order_date}</span>
+            <span>{fmtDate(po.order_date)}</span>
           </div>
           {po.expected_date && (
             <div>

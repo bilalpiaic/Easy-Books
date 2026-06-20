@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Printer, Package, Download } from "lucide-react"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
@@ -153,7 +153,7 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
               const href = m.source_doc_id && m.source_doc_type ? DOC_HREF[m.source_doc_type]?.(m.source_doc_id) : undefined
               return (
                 <tr key={i}>
-                  <td className="px-3 py-2 text-[#1a1814]/70">{m.date}</td>
+                  <td className="px-3 py-2 text-[#1a1814]/70">{fmtDate(m.date)}</td>
                   <td className="px-3 py-2">
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${DIRECTION_TONE[m.direction] ?? "bg-slate-100 text-slate-700"}`}>
                       {m.direction}
