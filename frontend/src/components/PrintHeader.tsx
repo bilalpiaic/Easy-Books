@@ -112,7 +112,9 @@ export default function PrintHeader({
         {subtitle && <p className="print-subtitle">{subtitle}</p>}
       </div>
 
-      <div className="print-stamp">Generated {printedAt}</div>
+      <div className="print-stamp">
+        Generated {printedAt}{info.currency ? ` · Currency: ${info.currency}` : ""}
+      </div>
     </div>
   )
 }

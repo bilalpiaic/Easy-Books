@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useCurrency } from "@/context/SettingsContext"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +46,8 @@ interface LedgerEntriesTableProps {
  * balances remain unchanged (filter is display-only, not a recalculation).
  */
 export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEntriesTableProps) {
-  const fmt = useFmt()
+  const fmt      = useFmt()
+  const currency = useCurrency()
 
   const visibleEntries = voucherFilter
     ? payload.entries.filter(e => e.voucher_type === voucherFilter)
@@ -100,9 +101,9 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
               <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Date</th>
               <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">Voucher</th>
               <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Balance</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit ({currency})</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit ({currency})</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Balance ({currency})</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#f6f3ee]">

@@ -116,6 +116,7 @@ export function useSettings() {
   return useContext(SettingsContext)
 }
 
+/** Full currency display — use only for standalone amounts, NOT table cells. */
 export function fmtCurrency(n: number, currency: string, dp: number = 2): string {
   const val = n || 0
   const abs = Math.abs(val)
@@ -126,11 +127,28 @@ export function fmtCurrency(n: number, currency: string, dp: number = 2): string
   return val < 0 ? `${currency} (${formatted})` : `${currency} ${formatted}`
 }
 
-/** Hook that returns a formatter using the tenant's base currency. */
+/** Number-only formatter (no currency prefix) — for table cell values. */
+export function fmtNum(n: number, dp: number = 2): string {
+  const val = n || 0
+  const abs = Math.abs(val)
+  const formatted = abs.toLocaleString("en-PK", {
+    minimumFractionDigits: dp,
+    maximumFractionDigits: dp,
+  })
+  return val < 0 ? `(${formatted})` : formatted
+}
+
+/** Hook that returns a number-only formatter for table cells. */
 export function useFmt() {
   const { settings } = useSettings()
   const dp = parseInt(settings.decimal_places || "2")
-  return (n: number) => fmtCurrency(n, settings.currency || "PKR", dp)
+  return (n: number) => fmtNum(n, dp)
+}
+
+/** Returns the tenant's active currency code (e.g. "PKR"). */
+export function useCurrency(): string {
+  const { settings } = useSettings()
+  return settings.currency || "PKR"
 }
 
 /** Returns the tenant's configured decimal places as a number (2 or 4). */

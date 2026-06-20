@@ -10,12 +10,10 @@ export const fmt = (n: number) => {
   const abs = Math.round(Math.abs(val)).toLocaleString('en-PK')
   return val < 0 ? `(${abs})` : abs
 }
+/** For a standalone full-currency label (e.g. bank balance KPIs). */
 export const fmtPKR = (n: number) => 'PKR ' + fmt(n)
-export const fmtAmount = (n: number, currency = 'PKR') => {
-  const val = n || 0
-  const abs = Math.round(Math.abs(val)).toLocaleString('en-PK')
-  return val < 0 ? `${currency} (${abs})` : `${currency} ${abs}`
-}
+/** Number-only amount — currency param kept for call-site compatibility but not emitted. */
+export const fmtAmount = (n: number, _currency?: string) => fmt(n)
 
 export function downloadCSV(filename: string, rows: Record<string, unknown>[]) {
   if (rows.length === 0) return

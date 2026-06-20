@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Trash2, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useCurrency } from "@/context/SettingsContext"
 
 export interface LineItem {
   product_id?: number | null
@@ -63,7 +63,8 @@ function calcAmount(qty: number, rate: number, discountPct = 0) {
 }
 
 export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false, customerId = null, priceKind = 'sale' }: Props) {
-  const fmt = useFmt()
+  const fmt      = useFmt()
+  const currency = useCurrency()
   const [hints, setHints] = useState<Record<number, { rate: number; date: string; scope: string; party_name: string | null } | null>>({})
   const update = (idx: number, patch: Partial<LineItem>) => {
     const updated = lines.map((l, i) => {
@@ -135,12 +136,12 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
             <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Description</th>
             <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Qty</th>
             <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Unit</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Rate</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Rate ({currency})</th>
             <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Disc %</th>
             {hasTax && (
               <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 w-32">Tax</th>
             )}
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Amount</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Amount ({currency})</th>
             {!readOnly && <th className="w-8" />}
           </tr>
         </thead>
