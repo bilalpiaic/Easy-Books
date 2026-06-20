@@ -4,7 +4,7 @@
 > Easy-Books as a product an SME runs **on their own machine or office server** — data on-premise,
 > works offline, no per-seat cloud subscription. (The **Manager.io / QuickBooks Desktop** model.)
 >
-> **Status:** Phase 2 (Electron desktop) complete · v2.7 features included · **Last updated:** 2026-06-20
+> **Status:** Phase 1 (Docker Compose) complete · Phase 2 (Electron desktop) complete · v2.7 features included · **Last updated:** 2026-06-21
 
 ---
 
@@ -107,13 +107,30 @@ cp -r frontend/public        frontend/.next/standalone/public
 - **`SEED_DEMO=false`** — skip auto-loading demo data; fresh install boots empty and the first signup becomes the owner. (The one-click installers default to `SEED_DEMO=true`; `run-local.sh` defaults to `false`.)
 - Data is backed up/restored from **Settings → Backup & Restore** (zip of DB + uploads).
 
-### Path C — On-prem Docker Compose ("Server edition")
-Ship `docker-compose.yml` (FastAPI + Next standalone + Postgres) for a small office to run on one
-machine; staff connect over the LAN. Close to ready — prod already targets Postgres.
+### Path C — Office Server: Docker Compose ✅ (complete)
 
-- **Pros:** easiest to build; true multi-user over LAN; keeps multi-tenant strengths.
-- **Cons:** requires Docker literacy; not double-click friendly.
-- **Effort:** Low. **Best as a paid "Server/Pro" tier for multi-seat offices.**
+A single `docker compose up -d --build` on any Linux / Windows / macOS server spins up three
+containers behind an nginx entry point. Staff on the same network open a browser to the server's
+IP — no client-side install needed.
+
+```
+Browser (any machine on LAN)
+    │
+    ▼  http://192.168.1.100  (or your domain)
+nginx :80
+    ├─ /api/*       → FastAPI backend  :8000  (internal only)
+    ├─ /uploads/*   → FastAPI backend  :8000  (internal only)
+    └─ /*           → Next.js frontend :3000  (internal only)
+```
+
+nginx is the only container that exposes a port. Because browser and API share one origin, CORS
+never fires. Data persists in a Docker named volume (`eb_data`) — survives container rebuilds and
+`git pull` updates. See **[Docker section below](#docker-compose--officeteam-server)** for the
+step-by-step setup.
+
+- **Pros:** single-command deploy and update; true multi-user over LAN; zero client prerequisites; keeps all multi-tenant / multi-user strengths; SQLite default, one env-var switch to PostgreSQL.
+- **Cons:** requires Docker (+ Docker Compose plugin) on the server machine; not double-click friendly for end users.
+- **Best for:** small-to-medium offices sharing one accounting instance (up to ~20 concurrent users on SQLite; add `DATABASE_URL` for PostgreSQL for larger teams).
 
 ### Path D — Bring-your-own-server install script
 A guided `curl | bash` (or script) that provisions the same app on a customer VPS/NAS. Complements
@@ -140,12 +157,12 @@ the others rather than replacing them. **Effort:** Low.
 
 ## Recommended roadmap
 
-| Phase | Outcome |
-|---|---|
-| **Phase 0 — make it packageable** | `output: 'standalone'`; per-install secret + DB in app-data; demo-seeding toggle (fresh install boots empty); in-app Backup/Restore; localhost launcher. |
-| **Phase 1 — Server edition (Path C)** | Docker Compose + Postgres + license-file check. Fastest to revenue for offices. |
-| **Phase 2 — Desktop edition (Path A)** | Bundle FastAPI (PyInstaller) + Next standalone in Tauri/Electron; Windows `.msi` first, then notarized Mac `.dmg`. |
-| **Phase 3 — polish** | Auto-update; trial→paid activation; opt-in telemetry. |
+| Phase | Outcome | Status |
+|---|---|---|
+| **Phase 0 — make it packageable** | `output: 'standalone'`; per-install secret + DB in app-data; demo-seeding toggle; in-app Backup/Restore; localhost launcher. | ✅ Complete |
+| **Phase 1 — Server edition (Path C)** | Docker Compose (nginx + FastAPI + Next.js) — single-command office/team deploy; SQLite default, PostgreSQL via env var; auto-migration on startup. | ✅ Complete |
+| **Phase 2 — Desktop edition (Path A)** | Electron shell + PyInstaller backend + bundled Node; Windows NSIS `.exe` + macOS `.dmg`; auto-update via GitHub Releases. | ✅ Complete |
+| **Phase 3 — polish** | License-file check; trial→paid activation; opt-in telemetry; HTTPS/TLS config guide. | 🔲 Planned |
 
 ## Resolved decisions (Phase 2 complete)
 
@@ -159,10 +176,145 @@ the others rather than replacing them. **Effort:** Low.
 ## Remaining open items
 
 - **Code signing** — Windows SmartScreen "Unknown publisher" warning until a code-signing cert is supplied via `CSC_LINK` / `CSC_KEY_PASSWORD`. Document the *More info → Run anyway* step for unsigned trial builds.
-- **Invoice PDF export** — WeasyPrint needs the GTK runtime, which is not bundled. PDF download fails on a clean machine; the rest of the app is unaffected.
+- **Invoice PDF export** — WeasyPrint needs the GTK runtime, which is not bundled in the desktop app. PDF download fails on a clean machine; the rest of the app is unaffected. (Docker install is unaffected — the backend container runs on Debian/slim where WeasyPrint works normally.)
 - **macOS notarization** — requires `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID` on a macOS build host. Without it, Gatekeeper shows a quarantine warning on first open.
 - **Payroll / IAS 19** — currently manual JV only; a dedicated payroll module is a future-scope item.
-- **Docker / Server edition (Path C)** — still unbuilt; would target small offices running on a LAN server.
+- **HTTPS / TLS for Docker** — the Docker setup serves plain HTTP on port 80. For internet-facing deploys, add a Certbot / Let's Encrypt sidecar or terminate TLS upstream (e.g. Cloudflare Tunnel, nginx on the host).
+
+---
+
+---
+
+## Docker Compose — Office/Team Server
+
+> **Prerequisites:** [Docker Desktop](https://docs.docker.com/get-docker/) (Windows/macOS) or
+> Docker Engine + Compose plugin (Linux). No Python, Node, or git knowledge required on the server.
+
+### 1. Get the code
+
+```bash
+git clone https://github.com/bilalpiaic/Easy-Books.git
+cd Easy-Books
+```
+
+Or download and extract the ZIP if git is not installed.
+
+### 2. Configure
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` — only **one line is required** for a team install:
+
+```bash
+# .env
+APP_URL=http://192.168.1.100   # ← your server's LAN IP (or domain name)
+JWT_SECRET_KEY=                # optional: auto-generated + persisted in the volume if blank
+PORT=80                        # host port nginx listens on
+SEED_DEMO=true                 # false for a clean install with no demo companies
+DATABASE_URL=                  # optional: PostgreSQL URI; leave blank for SQLite
+```
+
+> Generate a stable JWT secret with: `openssl rand -hex 32`
+> Without it, a secret is auto-generated and persisted in the data volume — tokens stay valid across restarts.
+
+### 3. Start
+
+```bash
+docker compose up -d --build
+```
+
+First build takes **3–5 minutes** (downloads images, compiles Next.js). Watch progress:
+
+```bash
+docker compose logs -f
+```
+
+The backend logs `[startup] Starting API server...` when it's ready. Then open `http://<your-server-ip>` in any browser on the network.
+
+### 4. Access from team machines
+
+No install needed on client machines — just a modern browser. Point them to:
+
+```
+http://192.168.1.100      ← replace with your server's IP or hostname
+```
+
+Demo logins (if `SEED_DEMO=true`):
+
+| Email | Model | Password |
+|---|---|---|
+| `demo.simple@easy-books.app` | Simple | `demo1234` |
+| `demo.services@easy-books.app` | Services | `demo1234` |
+| `demo.trader@easy-books.app` | Trader | `demo1234` |
+| `demo.manufacturing@easy-books.app` | Manufacturing | `demo1234` |
+| `demo.telecom@easy-books.app` | Telecom Franchise | `demo1234` |
+
+### 5. Data location
+
+All data (SQLite database + uploads) lives in the Docker named volume **`eb_data`**. It persists across container rebuilds, restarts, and `git pull` updates — never deleted unless you explicitly run `docker volume rm`.
+
+To find where Docker stores it on the host:
+```bash
+docker volume inspect Easy-Books_eb_data
+```
+
+### 6. Backup
+
+**Option A — in-app:** Settings → Backup & Restore → Download (zips the database + uploads).
+
+**Option B — volume copy:**
+```bash
+# Stop app, copy volume to a .tar, restart
+docker compose stop
+docker run --rm -v Easy-Books_eb_data:/data -v $(pwd):/backup alpine \
+  tar czf /backup/eb-backup-$(date +%Y%m%d).tar.gz -C /data .
+docker compose start
+```
+
+### 7. Update to a newer version
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+The backend entrypoint runs `alembic upgrade head` on every start — schema changes apply automatically. The `eb_data` volume is never touched during an update; your accounting data is safe.
+
+### 8. Switch to PostgreSQL
+
+For larger teams or higher concurrency, replace SQLite with a managed PostgreSQL instance:
+
+1. Provision a PostgreSQL database (Neon, Supabase, Aiven, or a local Postgres container).
+2. Add the connection string to `.env`:
+   ```bash
+   DATABASE_URL=postgresql://user:password@host:5432/easybooks
+   ```
+3. Restart: `docker compose up -d`
+
+Alembic handles the schema setup on first connect. No other code changes are needed.
+
+### 9. HTTPS / TLS (for internet access)
+
+The default Docker setup serves plain HTTP on port 80. For external access or data-in-transit security:
+
+**Option A — Cloudflare Tunnel** (simplest, free): create a tunnel from your Cloudflare dashboard pointing to `http://localhost:80`. No firewall ports to open.
+
+**Option B — Certbot sidecar**: add a `certbot` service to docker-compose.yml and configure nginx to serve port 443. See the [nginx + certbot guide](https://mindsers.blog/post/https-using-nginx-certbot-docker/).
+
+**Option C — Reverse proxy on the host**: run Caddy or nginx on the host machine as a TLS terminator in front of the Docker nginx container.
+
+### Files reference
+
+| File | Purpose |
+|---|---|
+| `docker-compose.yml` | Orchestrates backend, frontend, nginx |
+| `.env.example` | All configurable variables with explanations |
+| `nginx/nginx.conf` | Routes `/api/` and `/uploads/` to backend, `/*` to frontend |
+| `backend/Dockerfile` | python:3.12-slim + uv; deps cached separately from code |
+| `backend/docker-entrypoint.sh` | Runs migrations + demo seed before uvicorn starts |
+| `frontend/Dockerfile` | 3-stage build; only the Next.js standalone bundle in the runtime image |
 
 ---
 
@@ -300,6 +452,16 @@ Both install paths run `alembic upgrade head` on every launch:
 - **Desktop app** (`backend/run_packaged.py`) — runs Alembic before uvicorn starts, same guarantee.
 
 This means pulling a newer version of Easy-Books and re-running the installer migrates your database **in place** — existing rows are preserved and new schema features are available immediately.
+
+### Updating a Docker install
+
+```bash
+cd /path/to/Easy-Books
+git pull
+docker compose up -d --build
+```
+
+The backend entrypoint runs `alembic upgrade head` before uvicorn starts, so schema changes apply on every restart. The `eb_data` volume (SQLite + uploads) is never touched by `--build`.
 
 ### Updating a script install
 

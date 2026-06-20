@@ -1,6 +1,16 @@
-# Easy-Books — Vercel Deployment Guide
+# Easy-Books — Cloud Deployment Guide
 
-> **Strategy:** Two separate Vercel projects + Neon Postgres
+> **This document covers cloud / SaaS deployment (Vercel + Neon Postgres).**
+> For on-premise and self-hosted options, see [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md):
+> - **Script installer** — one-click, no Docker/Python/Node required
+> - **Docker Compose** — team/office LAN server; `docker compose up -d --build`
+> - **Desktop (Electron)** — signed Windows `.exe` / macOS `.dmg`
+
+---
+
+## Vercel Strategy
+
+> Two separate Vercel projects + Neon Postgres:
 > Frontend → `easy-books-frontend.vercel.app` (Next.js)
 > Backend → `easy-books-backend.vercel.app` (FastAPI on `@vercel/python`)
 > Database → Neon Postgres (managed, serverless)
@@ -297,5 +307,5 @@ FastAPI matches routes in registration order. If you add new named sub-routes un
 
 ---
 
-**Last updated:** 2026-06-20
+**Last updated:** 2026-06-21
 **Branch:** `main`

@@ -106,7 +106,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 
 ---
 
-## Two ways to run
+## Three ways to run
 
 ### ① One-click standalone (recommended for end users)
 
@@ -139,7 +139,32 @@ A bundled Electron desktop app (Phase 2) packages the FastAPI backend as a PyIns
 
 ---
 
-### ② Developer mode
+### ② Docker — team / office network
+
+Share one Easy-Books instance across your whole office. Any machine on the network opens a browser — no client install needed.
+
+**Prerequisites:** [Docker Desktop](https://docs.docker.com/get-docker/) (or Docker Engine + Compose plugin on Linux).
+
+```bash
+git clone https://github.com/bilalpiaic/Easy-Books.git
+cd Easy-Books
+cp .env.example .env
+# Edit .env — set APP_URL=http://YOUR_SERVER_IP
+docker compose up -d --build
+```
+
+Open `http://YOUR_SERVER_IP` from any machine on the LAN. First build takes ~3–5 min; subsequent starts are instant. Data persists in the `eb_data` Docker volume — safe across `git pull` updates.
+
+To update:
+```bash
+git pull && docker compose up -d --build
+```
+
+See [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md#docker-compose--officeteam-server) for full setup, HTTPS, PostgreSQL, and backup instructions.
+
+---
+
+### ③ Developer mode
 
 ```bash
 git clone https://github.com/bilalpiaic/Easy-Books.git
@@ -205,12 +230,19 @@ User data (the SQLite database, uploaded files, and the per-install JWT secret) 
 
 ### Database migrations run automatically on launch
 
-Both install paths run `alembic upgrade head` before starting the servers:
+All three install paths run `alembic upgrade head` before starting the servers:
 
 - **Script installers** (`install-and-run.sh` / `install-and-run.bat`) — migrate before boot
 - **Desktop app** — `backend/run_packaged.py` migrates before uvicorn starts
+- **Docker** — `backend/docker-entrypoint.sh` migrates before uvicorn starts
 
 Your schema is updated in place; existing rows are preserved and new features are available immediately after an update. The auto-seed guard (`scripts/autoseed_demo.py`) skips if any user is already present, so **updating an existing install never injects demo data** — only a brand-new empty database triggers the one-time demo load.
+
+### Updating a Docker install
+
+```bash
+git pull && docker compose up -d --build
+```
 
 ### Updating a script install
 

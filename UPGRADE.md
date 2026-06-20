@@ -57,24 +57,26 @@ The Electron updater applies the database migration automatically on the next la
 
 ---
 
-## Docker / Self-Hosted
+## Docker Compose (office/team server)
 
 ```bash
-# Pull the latest image
-docker pull ghcr.io/bilalpiaic/easy-books:latest
-
-# Stop and remove the old container (data volume is separate)
-docker stop easy-books && docker rm easy-books
-
-# Start with the same volume mount
-docker run -d --name easy-books \
-  -v easy-books-data:/data \
-  -e EB_DATA_DIR=/data \
-  -p 3000:3000 -p 8000:8000 \
-  ghcr.io/bilalpiaic/easy-books:latest
+cd /path/to/Easy-Books   # wherever you cloned the repo
+git pull
+docker compose up -d --build
 ```
 
-The new container runs `alembic upgrade head` before starting the app.
+`--build` rebuilds only the containers whose source has changed. The `eb_data` volume (SQLite database + uploads) is never modified by the build step — your accounting data is safe.
+
+The backend entrypoint runs `alembic upgrade head` automatically before uvicorn starts, so any schema migrations in the new version are applied on the next restart without any manual steps.
+
+**Verify the upgrade:**
+```bash
+docker compose logs backend | grep "startup"
+# Should show: [startup] Running Alembic migrations... [startup] Starting API server...
+
+curl http://localhost/api/version
+# Returns {"version": "x.y.z", "alembic_head": "..."}
+```
 
 ---
 
@@ -92,6 +94,23 @@ cd ../frontend && npm install && npm run build
 ## Rollback Procedure
 
 If a migration fails or the app behaves unexpectedly after upgrading:
+
+### Docker (volume backup restore)
+
+```bash
+# Stop the stack
+docker compose stop
+
+# Restore a volume backup (.tar.gz created during the backup step)
+docker run --rm -v Easy-Books_eb_data:/data -v $(pwd):/backup alpine \
+  sh -c "rm -rf /data/* && tar xzf /backup/eb-backup-YYYYMMDD.tar.gz -C /data"
+
+# Roll back the code
+git checkout <previous-tag>
+
+# Restart — entrypoint will run alembic downgrade if needed
+docker compose up -d --build
+```
 
 ### SQLite (script / desktop installs)
 
@@ -144,4 +163,4 @@ After upgrading, confirm:
 
 ---
 
-*Last reviewed: 2026-06-20 · Branch: `main`*
+*Last reviewed: 2026-06-21 · Branch: `main`*
