@@ -120,7 +120,6 @@ export default function BankBookPage() {
       <PrintHeader
         title={pageTitle}
         subtitle={`Period: ${start} — ${end}`}
-        orientation="landscape"
       />
 
       {/* Page title */}

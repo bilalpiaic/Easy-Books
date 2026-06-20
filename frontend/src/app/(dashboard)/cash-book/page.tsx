@@ -125,7 +125,6 @@ export default function CashBookPage() {
       <PrintHeader
         title={selectedAccount ? `Cash Book — ${selectedAccount.name}` : "Cash Book"}
         subtitle={`Period: ${start} — ${end}`}
-        orientation="landscape"
       />
 
       {/* Page title */}

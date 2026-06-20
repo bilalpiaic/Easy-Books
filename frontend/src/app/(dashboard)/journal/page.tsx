@@ -6,7 +6,7 @@ import { RotateCcw, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
-import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
+import { VOUCHER_TYPES } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
@@ -161,14 +161,6 @@ export default function JournalPage() {
                           <Link href={`/journal/${entry.transaction_id}`} className="font-mono text-xs font-bold text-[#b8943f] hover:underline">
                             {entry.jv_number}
                           </Link>
-                          {isFirstLine && (
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${voucherTypeBadgeClass(entry.voucher_type)}`}
-                              title={VOUCHER_TYPES[entry.voucher_type] ?? entry.voucher_type}
-                            >
-                              {entry.voucher_type}
-                            </span>
-                          )}
                           {entry.is_reversed && isFirstLine && (
                             <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase rounded-full">Reversed</span>
                           )}

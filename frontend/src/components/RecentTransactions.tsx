@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
-import { voucherTypeBadgeClass } from "@/lib/voucherTypes"
 import { fmtDate } from "@/lib/utils"
 
 interface JournalRow {
@@ -17,12 +16,11 @@ interface JournalRow {
   is_reversed: boolean
 }
 
-type ColKey = "voucher" | "vtype" | "date" | "account" | "narration" | "amount"
+type ColKey = "voucher" | "date" | "account" | "narration" | "amount"
 
 const ALL_COLUMNS: { key: ColKey; label: string; fixed?: boolean }[] = [
   { key: "date", label: "Date", fixed: true },
   { key: "voucher", label: "Voucher No" },
-  { key: "vtype", label: "Type" },
   { key: "account", label: "Account" },
   { key: "narration", label: "Narration" },
   { key: "amount", label: "Amount", fixed: true },
@@ -155,12 +153,6 @@ function RowCell({ col, row }: { col: ColKey; row: JournalRow }) {
             className="font-mono text-[11px] text-[#b8943f] font-semibold hover:underline underline-offset-2 whitespace-nowrap">
             {row.jv_number}{row.is_reversed && <span className="ml-1 text-[#1a1814]/40">(reversed)</span>}
           </Link>
-        </td>
-      )
-    case "vtype":
-      return (
-        <td className="px-5 py-3">
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${voucherTypeBadgeClass(row.voucher_type)}`}>{row.voucher_type}</span>
         </td>
       )
     case "account":

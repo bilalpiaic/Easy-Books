@@ -6,7 +6,7 @@ import { ArrowLeft, Printer, Truck, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
-import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
+import { VOUCHER_TYPES } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -182,14 +182,6 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
                   <td className="px-3 py-2 font-mono text-xs">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {href ? <Link href={href} className="text-[#b8943f] hover:underline">{e.doc_number}</Link> : e.doc_number}
-                      {vt && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${voucherTypeBadgeClass(vt)}`}
-                          title={VOUCHER_TYPES[vt] ?? vt}
-                        >
-                          {vt}
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-[#1a1814]/80">{e.description}</td>

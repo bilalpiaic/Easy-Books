@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { VOUCHER_TYPES, voucherTypeBadgeClass } from "@/lib/voucherTypes"
+import { VOUCHER_TYPES } from "@/lib/voucherTypes"
 import { useFmt, useCurrency } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
 
@@ -135,14 +135,6 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
                       >
                         {entry.jv_number}
                       </Link>
-                      {entry.voucher_type && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${voucherTypeBadgeClass(entry.voucher_type)}`}
-                          title={VOUCHER_TYPES[entry.voucher_type] ?? entry.voucher_type}
-                        >
-                          {entry.voucher_type}
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-black/65 max-w-xs truncate">{entry.description}</td>
