@@ -369,7 +369,6 @@ function LedgerPageInner() {
       <PrintHeader
         title={selectedAccount ? `Ledger — ${selectedAccount.code} ${selectedAccount.name}` : "General Ledger"}
         subtitle={`Period: ${start} — ${end}`}
-        orientation="landscape"
       />
 
       {/* Breadcrumb */}
