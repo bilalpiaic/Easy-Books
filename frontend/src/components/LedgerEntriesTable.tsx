@@ -126,18 +126,16 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
             ) : (
               visibleEntries.map((entry, idx) => (
                 <tr key={idx} className="hover:bg-[#faf8f4]">
-                  <td className="px-4 py-2.5 text-black/60">{fmtDate(entry.date)}</td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Link
-                        href={`/journal/${entry.transaction_id}`}
-                        className="font-mono text-xs text-[#b8943f] hover:underline underline-offset-2"
-                      >
-                        {entry.jv_number}
-                      </Link>
-                    </div>
+                  <td className="px-4 py-2.5 text-black/60 whitespace-nowrap">{fmtDate(entry.date)}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap">
+                    <Link
+                      href={`/journal/${entry.transaction_id}`}
+                      className="font-mono text-xs text-[#b8943f] hover:underline underline-offset-2"
+                    >
+                      {entry.jv_number}
+                    </Link>
                   </td>
-                  <td className="px-4 py-2.5 text-black/65 max-w-xs truncate">{entry.description}</td>
+                  <td className="px-4 py-2.5 text-black/65 truncate">{entry.description}</td>
                   <td className="px-4 py-2.5 text-right font-mono text-sm">
                     {entry.debit > 0 ? fmt(entry.debit) : <span className="text-black/20">—</span>}
                   </td>

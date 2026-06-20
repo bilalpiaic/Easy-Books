@@ -135,11 +135,11 @@ export default function JournalPage() {
         <table className="w-full text-left min-w-[640px]">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
-              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">JV #</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 w-24">Date</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 w-28">JV #</th>
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account &amp; Description</th>
-              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
-              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right w-24">Debit</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right w-24">Credit</th>
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 print:hidden"></th>
             </tr>
           </thead>
@@ -155,18 +155,18 @@ export default function JournalPage() {
                   if (isFirstLine) seenTxns.add(entry.transaction_id)
                   return (
                     <tr key={idx} className={`hover:bg-[#f6f3ee]/50 transition-colors ${entry.is_reversed ? 'opacity-60' : ''}`}>
-                      <td className="ui-td text-sm">{fmtDate(entry.date)}</td>
-                      <td className="ui-td">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                      <td className="ui-td text-sm whitespace-nowrap">{fmtDate(entry.date)}</td>
+                      <td className="ui-td whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
                           <Link href={`/journal/${entry.transaction_id}`} className="font-mono text-xs font-bold text-[#b8943f] hover:underline">
                             {entry.jv_number}
                           </Link>
                           {entry.is_reversed && isFirstLine && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase rounded-full">Reversed</span>
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase rounded-full print:hidden">Reversed</span>
                           )}
                         </div>
                         {isFirstLine && entry.legacy_jv_number && (
-                          <div className="mt-0.5 text-[9px] text-[#1a1814]/40 font-mono" title="Original voucher number before renumbering">
+                          <div className="mt-0.5 text-[9px] text-[#1a1814]/40 font-mono print:hidden">
                             was {entry.legacy_jv_number}
                           </div>
                         )}

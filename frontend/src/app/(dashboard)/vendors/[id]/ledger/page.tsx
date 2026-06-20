@@ -159,8 +159,8 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
         <table className="w-full text-sm min-w-[760px]">
           <thead className="bg-[#faf6ec]">
             <tr>
-              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Date</th>
-              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Document</th>
+              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Date</th>
+              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Document</th>
               <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
               <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
               <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Debit</th>
@@ -175,14 +175,11 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
             </tr>
             {visibleEntries.map((e, i) => {
               const href = DOC_HREF[e.doc_type]?.(e.doc_id)
-              const vt = e.voucher_type
               return (
                 <tr key={i}>
-                  <td className="px-3 py-2 text-[#1a1814]/70">{fmtDate(e.date)}</td>
-                  <td className="px-3 py-2 font-mono text-xs">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {href ? <Link href={href} className="text-[#b8943f] hover:underline">{e.doc_number}</Link> : e.doc_number}
-                    </div>
+                  <td className="px-3 py-2 text-[#1a1814]/70 whitespace-nowrap">{fmtDate(e.date)}</td>
+                  <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
+                    {href ? <Link href={href} className="text-[#b8943f] hover:underline">{e.doc_number}</Link> : e.doc_number}
                   </td>
                   <td className="px-3 py-2 text-[#1a1814]/80">{e.description}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs">
