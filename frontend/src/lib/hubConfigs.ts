@@ -168,7 +168,6 @@ export const INVENTORY_CONFIG: HubConfig = {
   ],
   band: "low-stock",
   bandData: ([data]) => ({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     items: [...(data.items ?? [])]
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((i: any) => i.low_stock || i.on_hand <= 0)

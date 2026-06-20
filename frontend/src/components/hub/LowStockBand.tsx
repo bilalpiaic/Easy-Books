@@ -9,7 +9,12 @@ export interface LowStockBandProps {
 }
 
 export default function LowStockBand({ items }: LowStockBandProps) {
-  if (items.length === 0) return null
+  if (items.length === 0)
+    return (
+      <div className="bg-white rounded-xl p-3 text-sm text-[#1a1814]/40 text-center">
+        All products within stock levels
+      </div>
+    )
   return (
     <div className="bg-white rounded-xl p-3">
       <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-amber-600 mb-2">
