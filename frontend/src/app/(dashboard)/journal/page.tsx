@@ -140,7 +140,7 @@ export default function JournalPage() {
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account &amp; Description</th>
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
-              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75"></th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 print:hidden"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">
@@ -188,7 +188,7 @@ export default function JournalPage() {
                       </td>
                       <td className="ui-td text-right font-mono text-sm">{entry.debit > 0 ? fmt(entry.debit) : "-"}</td>
                       <td className="ui-td text-right font-mono text-sm">{entry.credit > 0 ? fmt(entry.credit) : "-"}</td>
-                      <td className="ui-td">
+                      <td className="ui-td print:hidden">
                         {isFirstLine && (
                           <div className="flex items-center gap-1.5">
                             <Link

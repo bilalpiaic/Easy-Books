@@ -182,7 +182,7 @@ export default function ProductionOrdersPage() {
                 <th className="text-right px-4 py-2">WIP cost</th>
                 <th className="text-right px-4 py-2">Unit cost</th>
                 <th className="text-center px-4 py-2">State</th>
-                <th className="text-right px-4 py-2">Action</th>
+                <th className="text-right px-4 py-2 print:hidden">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -208,7 +208,7 @@ export default function ProductionOrdersPage() {
                         {p.state}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2 text-right print:hidden">
                       <div className="flex items-center justify-end gap-2 flex-wrap">
                         <a
                           href={`/manufacturing/production-orders/${p.id}/print`}

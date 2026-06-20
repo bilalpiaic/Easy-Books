@@ -29,7 +29,7 @@ export default function SortableHeader({ label, field, sortBy, sortDir, onSort, 
     >
       <span className="inline-flex items-center gap-1">
         {label}
-        <span className={`transition-colors ${active ? 'text-[#b8943f]' : 'text-black/25 group-hover:text-black/50'}`}>
+        <span className={`transition-colors print:hidden ${active ? 'text-[#b8943f]' : 'text-black/25 group-hover:text-black/50'}`}>
           {active
             ? sortDir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
             : <ChevronsUpDown className="w-3 h-3" />

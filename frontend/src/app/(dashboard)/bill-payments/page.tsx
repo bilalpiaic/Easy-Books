@@ -101,7 +101,7 @@ export default function BillPayments() {
                 <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Reference</th>
                 <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
                 <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
-                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16">Print</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16 print:hidden">Print</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
@@ -131,7 +131,7 @@ export default function BillPayments() {
                   </td>
                   <td className="ui-td capitalize text-black/70">{p.method.replace('_', ' ')}</td>
                   <td className="ui-td text-right font-mono font-bold text-red-700">{fmt(p.amount)}</td>
-                  <td className="ui-td text-right">
+                  <td className="ui-td text-right print:hidden">
                     <Link
                       href={`/bill-payments/${p.id}/print`}
                       title="Print voucher"

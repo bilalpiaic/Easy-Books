@@ -214,7 +214,7 @@ function BillsContent() {
           <table className="w-full text-sm min-w-[700px]">
             <thead className="sticky top-0 z-10 bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
-                <th className="px-4 py-4 w-10">
+                <th className="px-4 py-4 w-10 print:hidden">
                   <input type="checkbox"
                     className="rounded border-[#ede9e2] accent-[#b8943f]"
                     checked={bills.length > 0 && bills.every(b => selectedIds.has(b.id))}
@@ -227,7 +227,7 @@ function BillsContent() {
                 <SortableHeader label="Due Date"   field="due_date"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Total"      field="total"       sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
                 <SortableHeader label="Status"     field="status"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
-                <th className="ui-th" />
+                <th className="ui-th print:hidden" />
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
@@ -247,7 +247,7 @@ function BillsContent() {
                 </tr>
               ) : bills.map(b => (
                 <tr key={b.id} className={`hover:bg-[#f6f3ee]/50 ${b.status === 'overdue' ? 'bg-red-50/30' : ''} ${selectedIds.has(b.id) ? 'bg-[#ffd966]/10' : ''}`}>
-                  <td className="px-4 py-4 w-10">
+                  <td className="px-4 py-4 w-10 print:hidden">
                     <input type="checkbox"
                       className="rounded border-[#ede9e2] accent-[#b8943f]"
                       checked={selectedIds.has(b.id)}
@@ -274,7 +274,7 @@ function BillsContent() {
                       {b.status}
                     </span>
                   </td>
-                  <td className="ui-td">
+                  <td className="ui-td print:hidden">
                     <div className="flex items-center justify-end gap-2">
                       {(b.status === 'draft' || b.status === 'received' || b.status === 'overdue') && (
                         <button

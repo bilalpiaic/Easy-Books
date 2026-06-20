@@ -148,7 +148,7 @@ export default function GrnPage() {
                 <th className="text-left px-4 py-2">Received</th>
                 <th className="text-left px-4 py-2">Lines</th>
                 <th className="text-left px-4 py-2">Declared value</th>
-                <th className="text-right px-4 py-2 w-16">Print</th>
+                <th className="text-right px-4 py-2 w-16 print:hidden">Print</th>
               </tr>
             </thead>
             <tbody>
@@ -166,7 +166,7 @@ export default function GrnPage() {
                   <td className="px-4 py-2">{g.received_date}</td>
                   <td className="px-4 py-2">{g.lines.length}</td>
                   <td className="px-4 py-2">{g.declared_value}</td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2 text-right print:hidden">
                     <a
                       href={`/manufacturing/grn/${g.id}/print`}
                       title="Print GRN"

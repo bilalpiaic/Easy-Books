@@ -6,6 +6,7 @@ import { Clock, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface AgingItem {
   id: number
@@ -86,8 +87,7 @@ export default function APAgingPage() {
         </div>
       </div>
 
-      {/* Print-only title */}
-      <h1 className="hidden print:block text-2xl font-serif text-[#1a1814] mb-6">AP Aging Report</h1>
+      <PrintHeader title="AP Aging Report" subtitle={`As of ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}`} />
 
       {/* Bucket summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
