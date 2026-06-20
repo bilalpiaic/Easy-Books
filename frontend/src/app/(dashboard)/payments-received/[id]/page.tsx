@@ -48,7 +48,7 @@ export default function PaymentReceivedDetail({ params }: { params: Promise<{ id
         <ChevronRight className="w-3 h-3" />
         <span className="text-black/60">Receipt #{pay.id}</span>
       </nav>
-      <div className="flex justify-end">
+      <div className="flex justify-end print:hidden">
         <Link href={`/payments-received/${pay.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
           <Printer className="w-4 h-4" /> Print
         </Link>
