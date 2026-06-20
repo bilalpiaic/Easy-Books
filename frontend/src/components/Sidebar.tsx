@@ -111,7 +111,9 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
           aria-label="Close menu"
           onClick={onClose}
           className={cn(
-            "fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity",
+            // Starts at top-12 (below the 48px header) so the hamburger button
+            // remains clickable even while the sidebar is open in overlay mode.
+            "fixed inset-x-0 bottom-0 top-12 z-40 bg-black/60 backdrop-blur-sm transition-opacity",
             pinned && "md:hidden"
           )}
         />
