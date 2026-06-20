@@ -29,7 +29,9 @@ interface RecLine {
 
 interface RecDetail extends Reconciliation { lines: RecLine[] }
 interface BankAccount { id: number; name: string }
+interface GLAccount { id: number; code: string; name: string; is_group: boolean }
 interface NewRecForm { bank_account_id: string; period_start: string; period_end: string; statement_balance: string }
+interface AdjForm { description: string; account_id: string; date: string }
 
 const emptyForm: NewRecForm = {
   bank_account_id: '',
@@ -48,6 +50,11 @@ export default function Reconciliations() {
   const [formError, setFormError] = useState('')
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [detail, setDetail] = useState<RecDetail | null>(null)
+  const [glAccounts, setGlAccounts] = useState<GLAccount[]>([])
+  const [adjOpen, setAdjOpen] = useState(false)
+  const [adjForm, setAdjForm] = useState<AdjForm>({ description: '', account_id: '', date: '' })
+  const [adjSaving, setAdjSaving] = useState(false)
+  const [adjError, setAdjError] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -88,6 +95,11 @@ export default function Reconciliations() {
 
   const openDetail = (rec: Reconciliation) => {
     apiFetch<RecDetail>(`/api/reconciliations/${rec.id}`).then(setDetail).catch(() => {})
+    apiFetch<{ items: GLAccount[] }>('/api/accounts?limit=500')
+      .then(r => setGlAccounts((r.items ?? []).filter(a => !a.is_group)))
+      .catch(() => {})
+    setAdjOpen(false)
+    setAdjError('')
   }
 
   const toggleLine = async (recId: number, lineId: number, val: boolean) => {
@@ -102,6 +114,38 @@ export default function Reconciliations() {
 
   const matchedBalance = detail ? detail.lines.filter(l => l.is_matched).reduce((s, l) => s + l.debit - l.credit, 0) : 0
   const difference = detail ? detail.statement_balance - matchedBalance : 0
+
+  const openAdj = () => {
+    setAdjForm({
+      description: difference > 0 ? 'Bank interest income' : 'Bank charges',
+      account_id: '',
+      date: detail?.period_end ?? new Date().toISOString().split('T')[0],
+    })
+    setAdjError('')
+    setAdjOpen(true)
+  }
+
+  const handlePostAdj = async () => {
+    if (!adjForm.account_id) { setAdjError('Select an account'); return }
+    setAdjSaving(true); setAdjError('')
+    try {
+      await apiFetch(`/api/reconciliations/${detail!.id}/adjustment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: adjForm.description,
+          account_id: parseInt(adjForm.account_id),
+          date: adjForm.date,
+        }),
+      })
+      apiFetch<RecDetail>(`/api/reconciliations/${detail!.id}`).then(setDetail).catch(() => {})
+      setAdjOpen(false)
+    } catch (err) {
+      setAdjError((err as Error).message)
+    } finally {
+      setAdjSaving(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -240,6 +284,58 @@ export default function Reconciliations() {
                 <p className={`text-lg font-bold font-mono ${Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>{fmt(difference)}</p>
               </div>
             </div>
+
+            {Math.abs(difference) >= 0.01 && (
+              <div className="mb-6 border border-amber-200 rounded-xl bg-amber-50 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-amber-800">
+                    {difference > 0 ? 'Unrecorded credit (bank interest / refund)' : 'Unrecorded debit (bank charges / fee)'}
+                  </span>
+                  <button
+                    onClick={() => adjOpen ? setAdjOpen(false) : openAdj()}
+                    className="text-xs font-bold text-amber-700 hover:underline"
+                  >
+                    {adjOpen ? 'Cancel' : 'Post Adjustment'}
+                  </button>
+                </div>
+                {adjOpen && (
+                  <div className="mt-3 pt-3 border-t border-amber-200 space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-widest text-amber-900/70 mb-1">Description</label>
+                      <input type="text" value={adjForm.description}
+                        onChange={e => setAdjForm(f => ({ ...f, description: e.target.value }))}
+                        className="w-full ui-field bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-amber-900/70 mb-1">
+                          {difference > 0 ? 'Credit account (income)' : 'Debit account (expense)'}
+                        </label>
+                        <select value={adjForm.account_id}
+                          onChange={e => setAdjForm(f => ({ ...f, account_id: e.target.value }))}
+                          className="w-full ui-field bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]">
+                          <option value="">— Select —</option>
+                          {glAccounts.map(a => (
+                            <option key={a.id} value={a.id}>{a.code} {a.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-amber-900/70 mb-1">Date</label>
+                        <input type="date" value={adjForm.date}
+                          onChange={e => setAdjForm(f => ({ ...f, date: e.target.value }))}
+                          className="w-full ui-field bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                      </div>
+                    </div>
+                    {adjError && <p className="text-red-600 text-sm">{adjError}</p>}
+                    <button onClick={handlePostAdj} disabled={adjSaving}
+                      className="w-full py-2 bg-[#1a1814] text-white rounded-xl font-bold text-sm hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                      {adjSaving ? 'Posting…' : `Post adjustment (${fmt(Math.abs(difference))})`}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm">

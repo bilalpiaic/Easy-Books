@@ -9,6 +9,7 @@ from models import (
     BankAccount, JournalEntry, Reconciliation, ReconciliationLine, Transaction,
 )
 from services.money import D, ZERO
+from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep
 from services.permissions import perm_dep, apply_own_filter
@@ -167,3 +168,89 @@ def close_reconciliation(session: SessionDep, user: WriteUserDep, rec_id: int):
     session.add(rec)
     session.commit()
     return {"success": True}
+
+
+class AdjustmentCreate(BaseModel):
+    description: str
+    account_id: int   # the non-bank side (charges / interest account)
+    date: str         # YYYY-MM-DD
+
+
+def _compute_matched_total(session, rec_id: int) -> Decimal:
+    matched_lines = session.exec(
+        select(ReconciliationLine).where(
+            ReconciliationLine.reconciliation_id == rec_id,
+            ReconciliationLine.is_matched == True,  # noqa: E712
+        )
+    ).all()
+    total = ZERO
+    for rl in matched_lines:
+        je = session.get(JournalEntry, rl.journal_entry_id)
+        if je:
+            total += D(je.debit) - D(je.credit)
+    return total
+
+
+@router.post("/{rec_id}/adjustment", status_code=201)
+def post_adjustment(
+    session: SessionDep, user: WriteUserDep, rec_id: int, body: AdjustmentCreate
+):
+    """Post a bank fee / interest adjustment JV and auto-append it as an unmatched line."""
+    rec = session.exec(
+        select(Reconciliation).where(
+            Reconciliation.id == rec_id, Reconciliation.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not rec:
+        raise HTTPException(404, "Not found")
+    if rec.status == "closed":
+        raise HTTPException(400, "Reconciliation is already closed")
+
+    matched_total = _compute_matched_total(session, rec_id)
+    difference = D(str(rec.statement_balance)) - matched_total
+    if abs(difference) < D("0.01"):
+        raise HTTPException(400, "No adjustment needed — difference is already zero")
+
+    ba = session.get(BankAccount, rec.bank_account_id)
+    if not ba or not ba.coa_account_id:
+        raise HTTPException(400, "Bank account has no linked GL account")
+
+    abs_diff = abs(difference)
+    # difference > 0: statement > GL → unrecorded credit (interest): Dr Bank, Cr other
+    # difference < 0: GL > statement → unrecorded expense (charges):  Dr other, Cr Bank
+    if difference > ZERO:
+        entries = [
+            EntryInput(account_id=ba.coa_account_id, debit=abs_diff),
+            EntryInput(account_id=body.account_id, credit=abs_diff),
+        ]
+    else:
+        entries = [
+            EntryInput(account_id=body.account_id, debit=abs_diff),
+            EntryInput(account_id=ba.coa_account_id, credit=abs_diff),
+        ]
+
+    txn = post_transaction(
+        session, user,
+        date=body.date,
+        description=body.description,
+        entries=entries,
+        voucher_type="JV",
+    )
+    session.flush()
+
+    # Attach the bank-side JE as a new (unmatched) reconciliation line
+    bank_je = session.exec(
+        select(JournalEntry).where(
+            JournalEntry.transaction_id == txn.id,
+            JournalEntry.account_id == ba.coa_account_id,
+        )
+    ).first()
+    if bank_je:
+        session.add(ReconciliationLine(
+            reconciliation_id=rec.id,
+            journal_entry_id=bank_je.id,
+            is_matched=False,
+        ))
+
+    session.commit()
+    return {"jv_number": txn.jv_number, "amount": float(abs_diff)}
