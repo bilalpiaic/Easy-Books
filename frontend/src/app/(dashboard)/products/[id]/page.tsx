@@ -25,6 +25,17 @@ interface Product {
   recognition_months: number
   hs_code: string | null
   category_id: number | null
+  cost_method: string | null
+}
+
+interface CostLayer {
+  id: number
+  qty_received: string
+  qty_remaining: string
+  unit_cost: string
+  lot_no: string | null
+  source_doc: string | null
+  created_at: string | null
 }
 
 interface Bom {
@@ -46,6 +57,20 @@ export default function ProductHubPage() {
   const [boms, setBoms]       = useState<Bom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
+
+  // Cost layers
+  const [layers, setLayers]           = useState<CostLayer[] | null>(null)
+  const [layersOpen, setLayersOpen]   = useState(false)
+  const [layersLoading, setLayersLoading] = useState(false)
+
+  const loadLayers = () => {
+    if (layers !== null) { setLayersOpen(true); return }
+    setLayersLoading(true)
+    apiFetch<CostLayer[]>(`/api/products/${id}/layers`)
+      .then(d => { setLayers(d); setLayersOpen(true) })
+      .catch(() => {})
+      .finally(() => setLayersLoading(false))
+  }
 
   // Stock adjustment modal
   const [adjOpen, setAdjOpen]     = useState(false)
@@ -345,7 +370,78 @@ export default function ProductHubPage() {
             <p className="text-[#1a1814]">Deferred · {product.recognition_months} months</p>
           </div>
         )}
+        {isStock && (
+          <div>
+            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Cost Method</p>
+            <p className="font-medium text-[#1a1814]">
+              {product.cost_method === 'fifo' ? 'FIFO (per-product)' : product.cost_method === 'wavg' ? 'WAvg (per-product)' : 'Inherit from company'}
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* FIFO cost layers — available for all stock products */}
+      {isStock && (
+        <div className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+          <button
+            onClick={() => layersOpen ? setLayersOpen(false) : loadLayers()}
+            className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold text-[#1a1814] hover:bg-[#f6f3ee] transition-colors"
+          >
+            <span>Cost Layers (FIFO view)</span>
+            <span className="text-xs text-[#1a1814]/40">{layersOpen ? '▲ Hide' : '▼ Show open layers'}</span>
+          </button>
+          {layersOpen && (
+            <div className="border-t border-[#ede9e2]">
+              {layersLoading ? (
+                <p className="px-5 py-4 text-sm text-[#1a1814]/40">Loading…</p>
+              ) : !layers || layers.length === 0 ? (
+                <p className="px-5 py-4 text-sm text-[#1a1814]/40">No open cost layers. Receive stock via a Bill or GRN first.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-[#f6f3ee]">
+                    <tr>
+                      <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Received</th>
+                      <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Source</th>
+                      <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Lot</th>
+                      <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty Received</th>
+                      <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty Remaining</th>
+                      <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Unit Cost</th>
+                      <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Layer Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ede9e2]">
+                    {layers.map(l => {
+                      const remaining = parseFloat(l.qty_remaining)
+                      const cost = parseFloat(l.unit_cost)
+                      return (
+                        <tr key={l.id} className="hover:bg-[#f6f3ee]/50">
+                          <td className="ui-td whitespace-nowrap text-black/60">{l.created_at ? l.created_at.split('T')[0] : '—'}</td>
+                          <td className="ui-td font-mono text-xs text-[#b8943f]">{l.source_doc ?? '—'}</td>
+                          <td className="ui-td text-black/60">{l.lot_no ?? '—'}</td>
+                          <td className="ui-td text-right font-mono">{parseFloat(l.qty_received).toFixed(3)}</td>
+                          <td className="ui-td text-right font-mono font-semibold">{remaining.toFixed(3)}</td>
+                          <td className="ui-td text-right font-mono">{fmt(cost)}</td>
+                          <td className="ui-td text-right font-mono">{fmt(remaining * cost)}</td>
+                        </tr>
+                      )
+                    })}
+                    <tr className="bg-[#f6f3ee] font-semibold">
+                      <td colSpan={4} className="ui-td text-right text-xs uppercase tracking-widest text-black/50">Total</td>
+                      <td className="ui-td text-right font-mono">
+                        {layers.reduce((s, l) => s + parseFloat(l.qty_remaining), 0).toFixed(3)}
+                      </td>
+                      <td className="ui-td" />
+                      <td className="ui-td text-right font-mono">
+                        {fmt(layers.reduce((s, l) => s + parseFloat(l.qty_remaining) * parseFloat(l.unit_cost), 0))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

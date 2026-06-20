@@ -208,10 +208,11 @@ def consume_stock(
             f"sale {money(qty)}"
         )
 
-    # Determine cost method from tenant setting
+    # Effective cost method: product override → tenant setting → wavg default
     from models import Tenant as _Tenant
     _tenant = session.get(_Tenant, tenant_id)
-    _cost_method = getattr(_tenant, "cost_method", "wavg") if _tenant else "wavg"
+    _tenant_cost_method = getattr(_tenant, "cost_method", "wavg") if _tenant else "wavg"
+    _cost_method = getattr(prod, "cost_method", None) or _tenant_cost_method
 
     avg_cost = D(prod.avg_cost)
 

@@ -19,6 +19,7 @@ export interface ProductFull {
   is_deferred: boolean
   recognition_months: number
   hs_code: string | null
+  cost_method: string | null
 }
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
@@ -40,6 +41,7 @@ interface FormState {
   opening_qty: string
   opening_cost: string
   hs_code: string
+  cost_method: string  // '' = inherit from tenant, 'wavg', 'fifo'
 }
 
 const UNITS = ['pcs', 'kg', 'mtr', 'hrs', 'ltr', 'box', 'doz']
@@ -52,6 +54,7 @@ const emptyForm: FormState = {
   is_deferred: false, recognition_months: '12',
   opening_qty: '0', opening_cost: '0',
   hs_code: '',
+  cost_method: '',
 }
 
 interface Props {
@@ -117,6 +120,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       opening_qty: '0',
       opening_cost: '0',
       hs_code: product.hs_code ?? '',
+      cost_method: product.cost_method ?? '',
     })
   }, [mode, product, categories])
 
@@ -138,6 +142,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         is_deferred: form.is_deferred,
         recognition_months: parseInt(form.recognition_months) || 12,
         hs_code: form.hs_code.trim() || null,
+        cost_method: form.cost_method || null,
       }
       if (mode === 'edit' && product) {
         await apiFetch(`/api/products/${product.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -294,6 +299,21 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
             </div>
           )}
         </div>
+        {isStock && (
+          <div className="border-t border-[#ede9e2] pt-4 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Cost Flow Method (IAS 2.25)</p>
+            <select
+              value={form.cost_method}
+              onChange={e => setForm(p => ({ ...p, cost_method: e.target.value }))}
+              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+            >
+              <option value="">— Inherit from company settings —</option>
+              <option value="wavg">Weighted Average (WAvg)</option>
+              <option value="fifo">FIFO — First In, First Out</option>
+            </select>
+            <p className="text-xs text-black/40">Override the company-wide cost method for this product only.</p>
+          </div>
+        )}
         {isStock && (
           <div className="space-y-3 border-t border-[#ede9e2] pt-4">
             <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">GL Accounts (optional)</p>

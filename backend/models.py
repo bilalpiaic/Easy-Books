@@ -453,6 +453,8 @@ class Product(SQLModel, table=True):
     is_deferred: bool = Field(default=False)
     recognition_months: int = Field(default=12)
     hs_code: Optional[str] = Field(default=None)  # Harmonized System code for FBR / customs
+    # IAS 2.25: per-product cost-flow override. None → inherit from Tenant.cost_method.
+    cost_method: Optional[str] = Field(default=None)  # 'wavg' | 'fifo' | None
 
 
 class BomHeader(SQLModel, table=True):

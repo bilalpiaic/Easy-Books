@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Bill, BillLine, Customer, Invoice, InvoiceLine, Product, Vendor
+from models import Bill, BillLine, Customer, Invoice, InvoiceLine, InventoryLayer, Product, Vendor
 from services.inventory import record_movement
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
@@ -31,6 +31,7 @@ class ProductCreate(BaseModel):
     is_deferred: bool = False
     recognition_months: int = 12
     hs_code: Optional[str] = None
+    cost_method: Optional[str] = None  # 'wavg' | 'fifo' | None (inherit from tenant)
     opening_qty: Decimal = Decimal("0")
     opening_cost: Decimal = Decimal("0")
 
@@ -147,8 +148,42 @@ def get_product(session: SessionDep, user: CurrentUserDep, product_id: int):
     return p
 
 
+@router.get("/{product_id}/layers")
+def get_product_layers(session: SessionDep, user: CurrentUserDep, product_id: int):
+    """Open FIFO cost layers for a stock product (qty_remaining > 0, oldest first)."""
+    p = session.exec(
+        select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)
+    ).first()
+    if not p:
+        raise HTTPException(404, "Product not found")
+    layers = session.exec(
+        select(InventoryLayer)
+        .where(
+            InventoryLayer.tenant_id == user.tenant_id,
+            InventoryLayer.product_id == product_id,
+            InventoryLayer.qty_remaining > 0,
+            InventoryLayer.owner_customer_id.is_(None),  # exclude custodial stock
+        )
+        .order_by(InventoryLayer.id.asc())
+    ).all()
+    return [
+        {
+            "id": l.id,
+            "qty_received": str(l.qty_received),
+            "qty_remaining": str(l.qty_remaining),
+            "unit_cost": str(l.unit_cost),
+            "lot_no": l.lot_no,
+            "source_doc": l.source_doc,
+            "created_at": l.created_at.isoformat() if l.created_at else None,
+        }
+        for l in layers
+    ]
+
+
 @router.post("", status_code=201)
 def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate):
+    if body.cost_method and body.cost_method not in ("wavg", "fifo"):
+        raise HTTPException(400, "cost_method must be 'wavg', 'fifo', or null")
     _bootstrap = {"opening_qty", "opening_cost"}
     p = Product(tenant_id=user.tenant_id, **body.model_dump(exclude=_bootstrap))
     if body.product_type == "stock" and body.opening_qty > 0:
@@ -165,6 +200,8 @@ def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate)
 def update_product(
     session: SessionDep, user: WriteUserDep, product_id: int, body: ProductCreate
 ):
+    if body.cost_method and body.cost_method not in ("wavg", "fifo"):
+        raise HTTPException(400, "cost_method must be 'wavg', 'fifo', or null")
     p = session.exec(
         select(Product).where(Product.id == product_id, Product.tenant_id == user.tenant_id)
     ).first()
