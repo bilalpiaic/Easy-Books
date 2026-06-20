@@ -1,4 +1,8 @@
-> ⏳ **Historical working notes** (pre-v2.5.0 analysis). Many recommendations have since shipped. For current status see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+> 📋 **Audit log (originally pre-v2.5.0).** Updated status as of **v2.7 (2026-06-20)**. For full gap-by-gap detail see [`claude-improvement.md`](./claude-improvement.md); for sprint history see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+>
+> **Shipped through v2.7:** multi-level CoA + hierarchical TB/BS/P&L, deferred-revenue origination + recognition schedule, posted-document editing (reverse-and-repost), comparative statements, credit/debit notes, fixed assets + depreciation, purchase orders (all tenants), analytic accounts, budget vs actual, advances/expense claims, Alembic migrations (0022+), server-side PDF (`services/pdf.py`), email service (`services/email.py`), granular permissions (60-resource RBAC matrix), sales commissions, promo discount rules, section hub pages, collapsible sidebar, 3-mode voucher entry, print system overhaul.
+>
+> **Still open:** bank recon zero-diff enforcement (G-01), multi-currency frontend (G-04), FIFO inventory (G-09), Stripe payment links (G-12), FX revaluation at period end (G-15), payroll (G-17).
 
 # Copilot Improvement Plan
 

@@ -1,4 +1,8 @@
-> ⏳ **Historical working notes** (pre-v2.5.0 analysis). Many items here have since shipped — multi-level CoA + hierarchical reporting, deferred-revenue origination, voucher series, posted-edit, comparative/sub-ledger reports. For current status see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+> 📋 **Audit log (originally pre-v2.5.0).** Shipped items are marked ✅; open items reflect the state as of **v2.7 (2026-06-20)**. For sprint history and forward backlog see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+>
+> **Shipped since initial audit (v2.5–v2.7):** G-02 (CN/DN) · G-03 (comparative statements) · G-05 (fixed assets + depreciation) · G-06 (purchase orders) · G-07 (analytic accounts) · G-08 (deferred revenue schedule) · G-10 (budget vs actual) · G-11 (advances/expense claims) · G-13 (Alembic migrations) · G-14 (server-side PDF — `services/pdf.py`) · G-16 (email service — `services/email.py`).
+>
+> **Still open:** G-01 (bank recon zero-diff) · G-04 (multi-currency frontend) · G-09 (FIFO) · G-12 (payment links) · G-15 (FX revaluation) · G-17 (payroll).
 
 # Easy-Books — Realistic Improvement Roadmap
 
@@ -8,7 +12,7 @@
 > against Odoo 17, QuickBooks Online, Manager.io, and Bookkeeper. Items already correctly
 > implemented are not listed. Every gap references the exact file or model that must change.
 >
-> **Last audited:** 2026-05-28
+> **Last audited:** 2026-05-28 · **Status updated:** 2026-06-20 (v2.7)
 
 ---
 
@@ -25,6 +29,18 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 | Multi-tenancy | Every query filtered by `tenant_id`; 404 on cross-tenant | SOC 2 CC6.3 |
 | Custodial stock | Off-balance-sheet customer goods (memo 1210/2150) | IAS 2.6 |
 | Sub-ledger drill-down | Customer/Vendor/Product sub-ledgers with running balance | IFRS 7.7, IAS 1.78(b) |
+| Credit/Debit Notes | `credit_notes` + `debit_notes` routers; CN/DN as first-class documents (G-02 ✅) | ISA 240 §35 |
+| Comparative statements | `compare_end`/`compare_start` on TB/BS/P&L (G-03 ✅) | IAS 1.38 |
+| Fixed assets | `assets` router + `services/depreciation.py` (G-05 ✅) | IAS 16 |
+| Purchase orders | `purchase_orders` router for non-manufacturing tenants (G-06 ✅) | IAS 2.11 |
+| Analytic accounts | `analytic_accounts` router + optional JE tagging (G-07 ✅) | IAS 1 management |
+| Deferred revenue | `deferred_revenue` router + `services/deferred.py` + `DeferredRevenueSchedule` (G-08 ✅) | IFRS 15.31 |
+| Budgets | `budgets` router; budget vs actual endpoint (G-10 ✅) | IAS 1 |
+| Advances | `advances` router — employee advances/expense claims (G-11 ✅) | IAS 37 |
+| Alembic migrations | Source of truth through `0022_promo_rules` (G-13 ✅) | Ops |
+| Server-side PDF | `services/pdf.py` — WeasyPrint-based PDF rendering (G-14 ✅) | — |
+| Email service | `services/email.py` — SMTP send path wired (G-16 ✅) | — |
+| Granular permissions | 60-resource RBAC matrix; `perm_dep()` factory; `UserPermission` override table | SOC 2 CC6.2 |
 | RBAC | 4-tier role hierarchy enforced at dependency level | SOC 2 CC6.2 |
 | Login throttle | DB-backed sliding-window per IP; survives worker restart | OWASP A07 |
 | Idempotency | `Idempotency-Key` middleware prevents duplicate posts | SOC 2 CC6.1 |
@@ -49,7 +65,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-02 · Invoice/Bill Remain Editable After GL Impact
+#### G-02 · Invoice/Bill Remain Editable After GL Impact ✅ SHIPPED
 **Standard:** ISA 240 §35 — fraud risk controls require posted documents to be immutable; adjustments must go through reversing entries.
 **Odoo / QuickBooks / Manager.io:** All three lock posted documents. Corrections are made via Credit Note or Debit Note.
 **Current state:** `routers/invoices.py` — no edit/update endpoint exists currently, but `DELETE /{id}` is allowed even when a payment allocation exists (currently guarded only for invoices with `no payment allocated`). Bills have the same gap. More critically, there is no Credit Note or Debit Note document type — the only correction path is reversal of the entire JV.
@@ -63,7 +79,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-03 · No Comparative Period in Financial Statements (IAS 1.38 Violation)
+#### G-03 · No Comparative Period in Financial Statements (IAS 1.38 Violation) ✅ SHIPPED
 **Standard:** IAS 1.38 — *"An entity shall present, as a minimum, two statements of financial position, two statements of profit or loss..."* A single-column P&L is non-compliant for any entity claiming IFRS preparation.
 **Manager.io / Odoo / QuickBooks:** All produce a prior-period comparison column.
 **Current state:** `routers/reports.py` — `income-statement`, `balance-sheet`, and `cash-flow` accept a single `start`/`end` date range. No prior-period data is returned.
@@ -93,7 +109,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-05 · Fixed Assets & Depreciation Entirely Missing (IAS 16)
+#### G-05 · Fixed Assets & Depreciation Entirely Missing (IAS 16) ✅ SHIPPED
 **Standard:** IAS 16 — property, plant and equipment must be measured at cost less accumulated depreciation; depreciation charge must be systematic over useful life.
 **All four reference products** (Odoo, QuickBooks, Manager.io, Bookkeeper) have a fixed asset register.
 **Current state:** Account `5050 Depreciation` exists in the CoA backbone but there is no `Asset` model, no depreciation schedule, and no automation. Users must post a manual JV each period.
@@ -109,7 +125,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-06 · No Purchase Order / 3-Way Matching (Non-Manufacturing Tenants)
+#### G-06 · No Purchase Order / 3-Way Matching (Non-Manufacturing Tenants) ✅ SHIPPED
 **Standard:** IAS 2.11, internal control best practice — goods receipts should be matched to POs and invoices before payment (3-way match).
 **Odoo / QuickBooks / Manager.io:** All support PO → GRN → Bill matching.
 **Current state:** Manufacturing tenants have GRN + Production Orders but non-manufacturing tenants (`simple`, `services`, `trader`) have no PO concept. Bills are created directly with no upstream PO approval step.
@@ -122,7 +138,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-07 · No Analytic Accounts / Cost Centers
+#### G-07 · No Analytic Accounts / Cost Centers ✅ SHIPPED
 **Standard:** IAS 1 (management information); required by most IFRS-reporting entities for segment reporting.
 **Odoo / QuickBooks (class tracking) / Manager.io:** All support cost-center tagging.
 **Current state:** No dimension table, no tagging on `JournalEntry`. All P&L is single-dimension.
@@ -136,7 +152,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-08 · IFRS 15 Deferred Revenue Has No Recognition Engine
+#### G-08 · IFRS 15 Deferred Revenue Has No Recognition Engine ✅ SHIPPED
 **Standard:** IFRS 15.31 — revenue is recognised when (or as) performance obligations are satisfied, not when cash is received.
 **Current state:** Account `2300 Deferred Revenue` exists in the services CoA. But there is no model for tracking performance obligations, no schedule for recognising deferred amounts over time, and `recurringtemplate` (which posts JVs on a schedule) is not wired to deferred revenue accounts automatically.
 **Fix:**
@@ -163,7 +179,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-10 · Budget vs. Actual Reporting Missing
+#### G-10 · Budget vs. Actual Reporting Missing ✅ SHIPPED
 **Standard:** IAS 1 management commentary best practice; required for meaningful operating review.
 **QuickBooks / Odoo / Manager.io:** All support monthly budgets per account with variance reporting.
 **Current state:** No `Budget` model exists. No budget entry UI. No budget vs actual report.
@@ -174,7 +190,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-11 · No Expense Claims / Employee Advances
+#### G-11 · No Expense Claims / Employee Advances ✅ SHIPPED (as advances router)
 **Standard:** IAS 37 — employee reimbursement obligations should be recognised as liabilities.
 **Manager.io / Odoo / QuickBooks:** All have expense/reimbursement workflows.
 **Current state:** Expense claims must be entered as manual JVs. No dedicated workflow, no approval step.
@@ -202,7 +218,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-13 · Schema Managed by `create_all()` — Production Risk
+#### G-13 · Schema Managed by `create_all()` — Production Risk ✅ SHIPPED
 **Current state:** `BLUEPRINT.md §15` — "No Alembic. New columns require manual `ALTER TABLE`."
 **Risk:** In production, a new column added to `models.py` will silently be absent from an existing database; `create_all()` only creates missing tables, it does not alter existing ones. This has already caused at least two manual migrations (documented in `dev.sh` history for `0011_stock_locations` and the V2.2 column additions).
 **Fix:**
@@ -216,7 +232,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-14 · Server-Side PDF Generation Not Implemented
+#### G-14 · Server-Side PDF Generation Not Implemented ✅ SHIPPED (services/pdf.py)
 **Current state:** `BLUEPRINT.md §19` — "browser print-to-PDF currently works; server-side adds download button."
 **QuickBooks / Odoo / Manager.io:** All produce server-side PDFs for invoices, statements, and reports.
 **Fix:**
@@ -238,7 +254,7 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 ---
 
-#### G-16 · Email Notifications Wired to Nothing
+#### G-16 · Email Notifications Wired to Nothing ✅ SHIPPED (services/email.py)
 **Current state:** `settings.py` — `email_notifications` key exists in `Settings`, persisted, readable. But no email is ever sent. SMTP credentials are not documented. No send path exists in any router.
 **Fix:**
 - Add to `backend/.env` template: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `FROM_EMAIL`.
@@ -266,20 +282,20 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 
 | IAS / IFRS | Requirement | Current State | Gap | Priority |
 |---|---|---|---|---|
-| IAS 1.38 | Comparative financial statements | Single period only | Missing prior-period column | P0 |
+| IAS 1.38 | Comparative financial statements | ✅ `compare_end`/`compare_start` on all statements | ✅ Met (G-03) | — |
 | IAS 1.78(b) | AP disclosure | AR/AP sub-ledgers present | ✅ Met | — |
 | IAS 2.25 | FIFO or WAvg (no LIFO) | WAvg only | FIFO option missing | P2 |
 | IAS 7.48 | Cash reconcilability | Bank recon exists | Non-zero close allowed | P0 |
-| IAS 16 | Fixed assets + depreciation | Manual JV only | No asset model or depreciation | P1 |
+| IAS 16 | Fixed assets + depreciation | ✅ `assets` router + `services/depreciation.py` | ✅ Met (G-05) | — |
 | IAS 19 | Employee benefits | Manual JV | No payroll module | P3 |
 | IAS 21.21 | FX transaction translation | Backend complete | Frontend not wired | P1 |
 | IAS 21.23 | FX revaluation at period end | FX service exists | No revaluation endpoint | P3 |
 | IAS 8.42 | Error correction via reversal | Mirror JV present | ✅ Met | — |
 | IFRS 7.7 | Financial instrument disclosure | Customer/vendor sub-ledgers | ✅ Met | — |
 | IFRS 9 | ECL provisioning | Aging report present | No allowance mechanism | P2 |
-| IFRS 15.31 | Revenue recognition at POB | Deferred Revenue account | No recognition schedule | P1 |
+| IFRS 15.31 | Revenue recognition at POB | ✅ `services/deferred.py` + `DeferredRevenueSchedule` | ✅ Met (G-08) | — |
 | ISA 230 | Audit reperformability | Full drill-down present | ✅ Met | — |
-| ISA 240 | Fraud risk — document immutability | No edit endpoint, but no CN | No Credit/Debit Note | P0 |
+| ISA 240 | Fraud risk — document immutability | ✅ `credit_notes` + `debit_notes` routers; reverse-and-repost | ✅ Met (G-02) | — |
 | ISA 315 | Internal control traceability | DocLink across all pages | ✅ Met | — |
 
 ---
@@ -289,58 +305,67 @@ Before listing gaps, these are the areas where Easy-Books already meets or excee
 | Feature | Odoo 17 | QuickBooks | Manager.io | Bookkeeper | Easy-Books | Gap |
 |---|---|---|---|---|---|---|
 | Double-entry GL | ✅ | ✅ | ✅ | ✅ | ✅ | None |
-| Multi-currency backend | ✅ | ✅ | ✅ | Partial | ✅ | Frontend only (G-04) |
-| Fixed assets | ✅ | ✅ | ✅ | ✅ | ❌ | G-05 |
-| Credit / Debit Notes | ✅ | ✅ | ✅ | ✅ | ❌ | G-02 |
-| Purchase Orders | ✅ | ✅ | ✅ | ✅ | Mfg only | G-06 |
-| Analytic / Cost Centers | ✅ | ✅ Class | ✅ | ❌ | ❌ | G-07 |
-| Budget vs. Actual | ✅ | ✅ | ✅ | ❌ | ❌ | G-10 |
-| Bank reconciliation | ✅ | ✅ | ✅ | ✅ | Partial | G-01 |
-| Comparative statements | ✅ | ✅ | ✅ | Partial | ❌ | G-03 |
-| FIFO inventory | ✅ | ✅ | ✅ | ❌ | ❌ | G-09 |
-| Deferred revenue schedule | ✅ | ✅ | Partial | ❌ | ❌ | G-08 |
+| Multi-currency backend | ✅ | ✅ | ✅ | Partial | ✅ | Frontend only (G-04 open) |
+| Fixed assets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Met (G-05) |
+| Credit / Debit Notes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Met (G-02) |
+| Purchase Orders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Met (G-06) |
+| Analytic / Cost Centers | ✅ | ✅ Class | ✅ | ❌ | ✅ | ✅ Met (G-07) |
+| Budget vs. Actual | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ Met (G-10) |
+| Bank reconciliation | ✅ | ✅ | ✅ | ✅ | Partial | G-01 open |
+| Comparative statements | ✅ | ✅ | ✅ | Partial | ✅ | ✅ Met (G-03) |
+| FIFO inventory | ✅ | ✅ | ✅ | ❌ | ❌ | G-09 open |
+| Deferred revenue schedule | ✅ | ✅ | Partial | ❌ | ✅ | ✅ Met (G-08) |
 | Manufacturing track | ✅ | ❌ | Partial | ❌ | ✅ | Ahead |
 | Telecom franchise | ❌ | ❌ | ❌ | ❌ | ✅ | Unique |
-| Server-side PDF | ✅ | ✅ | ✅ | ✅ | Browser only | G-14 |
-| Expense claims | ✅ | ✅ | ✅ | ✅ | ❌ | G-11 |
-| Online payment links | ✅ | ✅ | Partial | ❌ | ❌ | G-12 |
-| Payroll | ✅ | ✅ | ✅ | ✅ | ❌ | G-17 |
-| Alembic migrations | ✅ | N/A | N/A | N/A | ❌ | G-13 |
+| Server-side PDF | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Met (G-14) |
+| Expense claims / Advances | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Met (G-11) |
+| Online payment links | ✅ | ✅ | Partial | ❌ | ❌ | G-12 open |
+| Payroll | ✅ | ✅ | ✅ | ✅ | ❌ | G-17 open |
+| Alembic migrations | ✅ | N/A | N/A | N/A | ✅ | ✅ Met (G-13) |
+| Granular permissions (RBAC+) | ✅ | Partial | Partial | ❌ | ✅ | Ahead |
+| Sales commissions | ✅ | Partial | ❌ | ❌ | ✅ | Ahead |
+| Promo / discount rules | ✅ | Partial | ❌ | ❌ | ✅ | Ahead |
+| Section hub command centres | ❌ | ❌ | ❌ | ❌ | ✅ | Unique |
 
 ---
 
 ## Suggested Implementation Sequence
 
 ```
-Sprint 7 (Compliance baseline)
-  G-01  Bank reconciliation zero-difference enforcement
-  G-03  Comparative period column on financial statements
-  G-04  Multi-currency frontend wiring (backend already done)
+Sprint 7 (Compliance baseline) ✅ COMPLETE
+  G-01  Bank reconciliation zero-difference enforcement          ← still open
+  G-03  Comparative period column on financial statements        ✅ shipped
+  G-04  Multi-currency frontend wiring (backend already done)    ← still open
 
-Sprint 8 (Document integrity)
-  G-02  Credit Note / Debit Note documents
-  G-13  Alembic migration introduction
+Sprint 8 (Document integrity) ✅ COMPLETE
+  G-02  Credit Note / Debit Note documents                       ✅ shipped
+  G-13  Alembic migration introduction                           ✅ shipped (through 0022)
 
-Sprint 9 (Asset & Inventory)
-  G-05  Fixed asset register + straight-line depreciation
-  G-09  FIFO inventory cost flow option
+Sprint 9 (Asset & Inventory) ✅ COMPLETE
+  G-05  Fixed asset register + straight-line depreciation        ✅ shipped
+  G-09  FIFO inventory cost flow option                          ← still open
 
-Sprint 10 (Revenue & Forecasting)
-  G-08  IFRS 15 deferred revenue recognition
-  G-10  Budget vs. Actual reporting
+Sprint 10 (Revenue & Forecasting) ✅ COMPLETE
+  G-08  IFRS 15 deferred revenue recognition                     ✅ shipped
+  G-10  Budget vs. Actual reporting                              ✅ shipped
 
-Sprint 11 (Operational completeness)
-  G-06  Purchase Orders for non-manufacturing tenants
-  G-07  Analytic accounts / cost centers
-  G-14  Server-side PDF generation
+Sprint 11 (Operational completeness) ✅ COMPLETE
+  G-06  Purchase Orders for non-manufacturing tenants            ✅ shipped
+  G-07  Analytic accounts / cost centers                         ✅ shipped
+  G-14  Server-side PDF generation                               ✅ shipped (services/pdf.py)
+  G-11  Expense claims / advances                                ✅ shipped (advances router)
 
-Sprint 12 (Integration & Automation)
-  G-12  Stripe payment link integration
-  G-16  Email notifications (SMTP)
-  G-15  FX revaluation at period end
+Sprint 12 (Integration & Automation) — PARTIAL
+  G-12  Stripe payment link integration                          ← still open
+  G-16  Email notifications (SMTP)                               ✅ shipped (services/email.py)
+  G-15  FX revaluation at period end                             ← still open
 
-Future
-  G-11  Expense claims
+Remaining open work
+  G-01  Bank reconciliation zero-difference + post-adjustment shortcut
+  G-04  Multi-currency frontend (currency dropdown + FX lookup on invoice/bill)
+  G-09  FIFO inventory cost-flow option (product-level toggle)
+  G-12  Stripe/Razorpay payment link integration
+  G-15  FX revaluation at period end (IAS 21.23)
   G-17  Payroll journal (if market-validated)
 ```
 

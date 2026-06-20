@@ -1,8 +1,15 @@
-> ⏳ **Historical working notes** (pre-v2.5.0 analysis). Many items here have since shipped. For current status see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+> 📋 **Audit log (originally pre-v2.5.0).** Phases 1–3 are largely shipped as of v2.7 (2026-06-20). See `claude-improvement.md` for the full gap-by-gap status. For sprint history see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+>
+> **Phase 1 status (v2.7):** §1.1 Multi-currency frontend — ⏳ still open. §1.2 Fixed assets — ✅ shipped (`assets` router + `services/depreciation.py`). §1.3 Bank recon hardening — ⏳ still open (G-01).
+> **Phase 2 status (v2.7):** §2.1 Tax engine — ⏳ partial (tax slabs in `reports.py`; `TaxSlab` table not yet introduced). §2.2 Comparative reports — ✅ shipped; Budgets — ✅ shipped (`budgets` router).
+> **Phase 3 status (v2.7):** §3.1 Document lifecycle/locking — ✅ shipped (CN/DN + reverse-and-repost). §3.2 Enhanced inventory — FIFO ⏳ open; Stock Adjustments ✅ shipped.
+> **Phase 4 status (v2.7):** §4.1 Batch processing — ⏳ not yet. §4.2 API docs/webhooks — ⏳ not yet.
 
 # Easy-Books Improvement Roadmap (Phase 2)
 
 This document outlines the strategic plan to elevate Easy-Books from a robust multi-tenant accounting system to a feature-complete ERP competitor (Odoo, QuickBooks, Manager.io) while ensuring full compliance with International Accounting Standards (IFRS/IAS).
+
+**Status updated: 2026-06-20 (v2.7).** Completed items are marked ✅ below.
 
 ---
 
@@ -15,12 +22,8 @@ This document outlines the strategic plan to elevate Easy-Books from a robust mu
     *   Implement an "FX Lookup" component that fetches the latest rate from `/api/exchange-rates` on date change.
     *   Update `fmtPKR` to a dynamic `fmtAmount(amt, currency)` helper.
 
-### 1.2 Fixed Assets & Depreciation (IAS 16)
-*   **Gap:** No automated handling of long-term assets.
-*   **Action:**
-    *   **New Models:** `AssetAccount`, `AssetDepreciationSchedule`.
-    *   **Feature:** Automated monthly depreciation posting (Straight-line / Reducing Balance).
-    *   **Feature:** Asset registry with acquisition cost, salvage value, and accumulated depreciation tracking.
+### 1.2 Fixed Assets & Depreciation (IAS 16) ✅ SHIPPED
+*   **Shipped:** `assets` router + `services/depreciation.py` — `FixedAsset` model with SL/RB methods; `DepreciationEntry` tracks period charges; Dr Depreciation / Cr Accumulated Depreciation GL postings.
 
 ### 1.3 Bank Reconciliation Hardening
 *   **Gap:** Reconciliations can currently be closed with a non-zero difference.
@@ -39,27 +42,20 @@ This document outlines the strategic plan to elevate Easy-Books from a robust mu
     *   Implement "Tax Groups" to handle composite taxes (e.g., Sales Tax + Further Tax + Income Tax Withholding).
     *   Allow tenants to select "Localization Packs" (e.g., GCC VAT, UK VAT, Pakistan GST).
 
-### 2.2 Advanced Reporting
-*   **Gap:** Reports are single-period only.
-*   **Action:**
-    *   **Comparative Reports:** 2-column P&L/Balance Sheet (Current vs. Prior Period).
-    *   **Budgeting:** Allow tenants to set monthly budgets per Expense account and report on "Budget vs. Actual".
+### 2.2 Advanced Reporting ✅ SHIPPED
+*   **Comparative reports:** `compare_end`/`compare_start` on TB/BS/P&L (`routers/reports.py`) — flat `{current, comparison}` payload; 2-column rendering in frontend.
+*   **Budgeting:** `budgets` router — monthly budgets per account; Budget vs Actual report endpoint.
 
 ---
 
 ## Phase 3: Operational & UI Polishing
 
-### 3.1 Document Lifecycle & Locking
-*   **Gap:** Invoices can be edited after being "Sent" or "Partially Paid".
-*   **Action:**
-    *   Implement a "Locked" state for documents that have GL impact.
-    *   Use a "Credit Note" / "Debit Note" workflow for adjustments to posted documents instead of direct editing.
+### 3.1 Document Lifecycle & Locking ✅ SHIPPED
+*   **Shipped:** `credit_notes` + `debit_notes` routers provide first-class adjustment documents. Posted invoices/bills use reverse-and-repost for edits (blocked if payment allocated). Delete guarded when `PaymentAllocation` rows exist.
 
 ### 3.2 Enhanced Inventory (IAS 2)
-*   **Gap:** Weighted-average is the only cost flow.
-*   **Action:**
-    *   Implement optional **FIFO (First-In-First-Out)** cost flow toggle.
-    *   Add "Stock Adjustments" with reason codes (Damage, Shrinkage, Initial Upload).
+*   **FIFO:** ⏳ still open — WAvg remains the only cost flow (`services/inventory.py`). `InventoryLayer` structure already supports per-layer cost; adding `cost_method` flag to `Product` would enable FIFO consumption.
+*   **Stock Adjustments:** ✅ shipped — stock movement reasons supported via inventory router.
 
 ---
 
