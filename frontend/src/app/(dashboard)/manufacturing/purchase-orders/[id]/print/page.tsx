@@ -32,7 +32,10 @@ interface PurchaseOrder {
 
 const fmtNum = (v: string | number) => {
   const n = Number(v)
-  return isNaN(n) ? String(v) : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  if (isNaN(n)) return String(v)
+  const abs = Math.abs(n)
+  const s = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n < 0 ? `(${s})` : s
 }
 
 const STATUS_LABEL: Record<string, string> = {

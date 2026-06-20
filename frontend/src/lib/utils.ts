@@ -5,9 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const fmt = (n: number) => Math.round(n || 0).toLocaleString('en-PK');
-export const fmtPKR = (n: number) => 'PKR ' + fmt(n);
-export const fmtAmount = (n: number, currency = 'PKR') => `${currency} ${fmt(n)}`;
+export const fmt = (n: number) => {
+  const val = n || 0
+  const abs = Math.round(Math.abs(val)).toLocaleString('en-PK')
+  return val < 0 ? `(${abs})` : abs
+}
+export const fmtPKR = (n: number) => 'PKR ' + fmt(n)
+export const fmtAmount = (n: number, currency = 'PKR') => {
+  const val = n || 0
+  const abs = Math.round(Math.abs(val)).toLocaleString('en-PK')
+  return val < 0 ? `${currency} (${abs})` : `${currency} ${abs}`
+}
 
 export function downloadCSV(filename: string, rows: Record<string, unknown>[]) {
   if (rows.length === 0) return

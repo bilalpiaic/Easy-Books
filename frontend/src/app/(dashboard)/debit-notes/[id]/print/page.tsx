@@ -22,8 +22,12 @@ interface DebitNote {
   lines: Line[]
 }
 
-const fmt = (v: number) =>
-  (v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (v: number) => {
+  const n = v || 0
+  const abs = Math.abs(n)
+  const s = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n < 0 ? `(${s})` : s
+}
 
 export default function DebitNotePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)

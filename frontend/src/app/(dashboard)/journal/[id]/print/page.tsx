@@ -34,11 +34,16 @@ interface Txn {
 const fmt = (v: string | number) => {
   const n = Number(v)
   if (Number.isNaN(n) || n === 0) return ""
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const abs = Math.abs(n)
+  const s = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n < 0 ? `(${s})` : s
 }
 
-const fmtAmt = (n: number) =>
-  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmtAmt = (n: number) => {
+  const abs = Math.abs(n)
+  const s = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n < 0 ? `(${s})` : s
+}
 
 /** Convert a positive number to English words (up to 999,999,999). */
 function amountInWords(amount: number): string {

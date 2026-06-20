@@ -28,7 +28,9 @@ interface Grn {
 const fmt = (v: string | number) => {
   const n = Number(v)
   if (Number.isNaN(n)) return String(v)
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+  const abs = Math.abs(n)
+  const s = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+  return n < 0 ? `(${s})` : s
 }
 
 export default function GrnPrintPage({ params }: { params: Promise<{ id: string }> }) {

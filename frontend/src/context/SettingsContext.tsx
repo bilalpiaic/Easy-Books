@@ -117,11 +117,13 @@ export function useSettings() {
 }
 
 export function fmtCurrency(n: number, currency: string, dp: number = 2): string {
-  const formatted = (n || 0).toLocaleString("en-PK", {
+  const val = n || 0
+  const abs = Math.abs(val)
+  const formatted = abs.toLocaleString("en-PK", {
     minimumFractionDigits: dp,
     maximumFractionDigits: dp,
   })
-  return `${currency} ${formatted}`
+  return val < 0 ? `${currency} (${formatted})` : `${currency} ${formatted}`
 }
 
 /** Hook that returns a formatter using the tenant's base currency. */

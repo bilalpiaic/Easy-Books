@@ -26,7 +26,9 @@ interface Payment {
 const fmt = (v: string | number) => {
   const n = Number(v)
   if (Number.isNaN(n)) return String(v)
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const abs = Math.abs(n)
+  const s = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n < 0 ? `(${s})` : s
 }
 
 export default function ReceiptPrintPage({ params }: { params: Promise<{ id: string }> }) {
