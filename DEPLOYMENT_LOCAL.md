@@ -4,7 +4,7 @@
 > Easy-Books as a product an SME runs **on their own machine or office server** — data on-premise,
 > works offline, no per-seat cloud subscription. (The **Manager.io / QuickBooks Desktop** model.)
 >
-> **Status:** Phase 2 (Electron desktop) complete · **Last updated:** 2026-06-15
+> **Status:** Phase 2 (Electron desktop) complete · v2.7 features included · **Last updated:** 2026-06-20
 
 ---
 
@@ -147,15 +147,22 @@ the others rather than replacing them. **Effort:** Low.
 | **Phase 2 — Desktop edition (Path A)** | Bundle FastAPI (PyInstaller) + Next standalone in Tauri/Electron; Windows `.msi` first, then notarized Mac `.dmg`. |
 | **Phase 3 — polish** | Auto-update; trial→paid activation; opt-in telemetry. |
 
-## Open decisions
-1. **Target user** — non-technical single-business desktop (Path A) vs small office server (Path C)?
-2. **OS priority** — Windows-first, or Mac/Linux too?
-3. **Node-or-no-Node** — refactor `[id]` routes to query-params for a lighter static bundle, or keep
-   path routes and ship Node (`standalone`)?
-4. **Licensing strictness** — offline honor-system key vs enforced online activation?
+## Resolved decisions (Phase 2 complete)
 
-> The architecture is already ~80% local-ready: the frontend never does server-side data fetching and
-> SQLite is a first-class backend. The highest-leverage early decision is **Node-or-no-Node**.
+| Decision | Resolution |
+|----------|-----------|
+| **Target user** | Non-technical single-business desktop (Path A) — Electron ships a `.exe`/`.dmg` installer with zero prerequisites |
+| **OS priority** | Windows-first (NSIS `.exe`); macOS `.dmg` via the same `build-all.sh`; Linux `.AppImage` as a bonus |
+| **Node-or-no-Node** | Kept path routes (`output: 'standalone'`) — Node is bundled in `desktop/resources/node`; no route refactor needed |
+| **Licensing strictness** | Deferred — current build has no license gate; add offline signed-key check as a future phase |
+
+## Remaining open items
+
+- **Code signing** — Windows SmartScreen "Unknown publisher" warning until a code-signing cert is supplied via `CSC_LINK` / `CSC_KEY_PASSWORD`. Document the *More info → Run anyway* step for unsigned trial builds.
+- **Invoice PDF export** — WeasyPrint needs the GTK runtime, which is not bundled. PDF download fails on a clean machine; the rest of the app is unaffected.
+- **macOS notarization** — requires `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID` on a macOS build host. Without it, Gatekeeper shows a quarantine warning on first open.
+- **Payroll / IAS 19** — currently manual JV only; a dedicated payroll module is a future-scope item.
+- **Docker / Server edition (Path C)** — still unbuilt; would target small offices running on a LAN server.
 
 ---
 
@@ -182,6 +189,12 @@ versions (unlike dev's `create_all`, this delivers new *columns* to upgraded ins
 Verified on Linux: the PyInstaller bundle boots, runs the full migration chain from an empty DB,
 and serves `GET /docs → 200`. Build artifacts (`backend/build`, `backend/dist`, `desktop/resources`,
 `desktop/dist`, `desktop/node_modules`) are gitignored.
+
+**v2.7 features included in the build** (no extra packaging steps required — they are pure frontend/UX changes):
+- **Section Hub Pages** — `/receivable`, `/payable`, `/inventory`, `/banking` command-centre views
+- **Collapsible sidebar** — 3-state (collapsed/open/pinned), hover tooltip nav, auto-pin on wide screens
+- **3-mode voucher form** — Journal / Payment (CP/BP) / Receipt (CR/BR) with auto-prefixed JV numbers
+- **Print system overhaul** — dot-matrix B&W, `dd-mm-yy` dates, correct portrait/landscape per page, `(amount)` negatives, `whitespace-nowrap` column alignment, no redundant voucher-type badges
 
 ### Building the installers (Tasks 5–9 — on the target OS)
 electron-builder does **not** cross-compile signed installers, so each installer is built on its

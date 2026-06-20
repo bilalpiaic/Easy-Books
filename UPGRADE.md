@@ -141,3 +141,7 @@ After upgrading, confirm:
 ---
 
 *For support, open an issue at https://github.com/bilalpiaic/Easy-Books/issues*
+
+---
+
+*Last reviewed: 2026-06-20 · Branch: `main`*

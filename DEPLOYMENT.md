@@ -297,5 +297,5 @@ FastAPI matches routes in registration order. If you add new named sub-routes un
 
 ---
 
-**Last updated:** 2026-06-15
+**Last updated:** 2026-06-20
 **Branch:** `main`
