@@ -198,7 +198,7 @@ export default function COAPage() {
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Type</th>
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Status</th>
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Balance</th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Actions</th>
+                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 print:hidden">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1a1814]/5">
@@ -294,7 +294,7 @@ export default function COAPage() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-8 py-4">
+                      <td className="px-8 py-4 print:hidden">
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => { setEditAccount(acc); setModalOpen(true) }}
