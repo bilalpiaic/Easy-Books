@@ -110,186 +110,311 @@ body {
 .scrollbar-hide { scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* ── Print styles ─────────────────────────────────────────────────
-   A4 with comfortable margins; branded headers + page numbers via
-   <PrintHeader>. Reports that need wider layout (Trial Balance,
-   General Ledger, Journal) opt into landscape via class
-   `print-landscape` on a wrapper or the PrintHeader's `orientation`. */
+/* ═══════════════════════════════════════════════════════════════════
+   GREENBAR / LINE-PRINTER PRINT FORMAT
+   ─────────────────────────────────────────────────────────────────
+   Emulates classic green-bar fan-fold accounting paper:
+   • Strict monospace font (Courier New) for all data
+   • Alternating pale-green / white row bands (pairs of 2)
+   • Dark-green column headers and footer totals
+   • Thin green grid lines, zero decorative chrome
+   • A4 portrait default; landscape via .print-landscape
+   • !important overrides all Tailwind inline classes on print
+   ═══════════════════════════════════════════════════════════════════ */
 @media print {
-  /* Hide all non-content chrome */
+
+  /* ── 1. CHROME SUPPRESSION ─────────────────────────────────────── */
   nav, aside, header,
   [data-sidebar], [data-header],
   .print\:hidden { display: none !important; }
 
-  /*
-   * The dashboard shell uses `flex h-screen overflow-hidden` + `overflow-y-auto`
-   * on main. This clips everything to one viewport height, so content beyond
-   * the first A4 page is silently cut off. Override all scroll containers so
-   * the full document flows across as many pages as needed.
-   */
-  html, body {
-    height: auto !important;
-    overflow: visible !important;
-  }
-  .h-screen   { height: auto !important; }
-  .overflow-hidden { overflow: visible !important; }
-  .overflow-y-auto { overflow: visible !important; height: auto !important; }
-  /* Tables may legitimately use overflow-x-auto; keep horizontal scroll working */
-  .overflow-x-auto { overflow: auto !important; }
-
+  /* ── 2. SCROLL-CONTAINER RESET ─────────────────────────────────── */
+  /* The dashboard shell clips content to one viewport height — override
+     so every printed page flows naturally across as many sheets as needed. */
+  html, body { height: auto !important; overflow: visible !important; }
+  .h-screen            { height: auto !important; }
+  .overflow-hidden     { overflow: visible !important; }
+  .overflow-y-auto     { overflow: visible !important; height: auto !important; }
+  .overflow-x-auto     { overflow: auto !important; }
   main, [data-main] {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
+    margin: 0 !important; padding: 0 !important;
+    width: 100% !important; height: auto !important; overflow: visible !important;
   }
 
-  /* Default: portrait A4 with margin reserved for our header/footer */
+  /* ── 3. PAGE GEOMETRY ──────────────────────────────────────────── */
   @page {
     size: A4 portrait;
-    margin: 20mm 15mm 18mm 15mm;
-  }
-  /* Reports that opt-in to landscape — any page that contains a
-     .print-landscape element will switch its named page. */
-  @page :first { margin-top: 25mm; }   /* slightly more top margin on first page */
-
-  /* Landscape opt-in via class on any descendant */
-  body:has(.print-landscape) {
-    /* The named-page trick — gives Chrome a stable landscape target. */
-  }
-  body:has(.print-landscape) {
-    page: landscape-a4;
+    margin: 14mm 13mm 18mm 15mm;
   }
   @page landscape-a4 {
     size: A4 landscape;
-    margin: 15mm 15mm 15mm 15mm;
+    margin: 12mm 12mm 16mm 12mm;
   }
+  @page {
+    @bottom-right {
+      content: "Page " counter(page) " / " counter(pages);
+      font-family: "Courier New", Courier, monospace;
+      font-size: 7.5pt;
+      color: #3a6e3a;
+    }
+  }
+  body:has(.print-landscape) { page: landscape-a4; }
 
+  /* ── 4. GLOBAL BODY RESET ──────────────────────────────────────── */
   body {
     background: white !important;
-    color: black !important;
-    font-size: 10.5pt;
-    line-height: 1.35;
+    color: #000 !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 9.5pt !important;
+    line-height: 1.38 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  /* Table behaviour: avoid breaking rows; repeat header on every page */
-  tr { page-break-inside: avoid; }
-  thead { display: table-header-group; }
-  tfoot { display: table-footer-group; }
-  table { width: 100% !important; border-collapse: collapse; }
-  table, th, td {
-    border-color: #ccc !important;
+  /* ── 5. GREENBAR TABLE SYSTEM ──────────────────────────────────── */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 9pt !important;
+    border: 1pt solid #3a6e3a !important;
+    margin-bottom: 10pt !important;
   }
-  th, .ui-th {
-    background: #f3f3ed !important;
-    color: #1a1814 !important;
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 8.5pt;
-    letter-spacing: 0.05em;
-    padding: 5pt 6pt !important;
-    border-bottom: 1pt solid #999 !important;
-  }
-  td, .ui-td { padding: 4pt 6pt !important; }
-  tr:nth-child(even) td { background: #fafaf7 !important; }
+  thead { display: table-header-group !important; }
+  tfoot { display: table-footer-group !important; }
+  tr    { page-break-inside: avoid; }
 
-  /* ── Branded header (PrintHeader component) ─────────────────── */
+  /* Column header band — solid dark green */
+  thead tr th,
+  th, .ui-th {
+    background: #1b4d1b !important;
+    color: #fff !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
+    padding: 4pt 6pt !important;
+    border: 0.5pt solid #0f300f !important;
+    white-space: nowrap;
+  }
+
+  /* Data cells */
+  td, .ui-td {
+    padding: 2.5pt 6pt !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 9pt !important;
+    border-right: 0.25pt solid #8fbe8f !important;
+    border-bottom: 0.25pt solid #b8dcb8 !important;
+    vertical-align: middle !important;
+  }
+
+  /* GREENBAR: alternating 2-row pale-green / white bands */
+  tbody tr:nth-child(4n+1) td,
+  tbody tr:nth-child(4n+2) td { background: #dff0df !important; }
+  tbody tr:nth-child(4n+3) td,
+  tbody tr:nth-child(4n+4) td { background: #ffffff !important; }
+
+  /* Footer / grand-total row — dark green, mirrors header */
+  tfoot tr td {
+    background: #1b4d1b !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: 9.5pt !important;
+    border: 0.5pt solid #0f300f !important;
+  }
+
+  /* Sub-total rows that don't live in tfoot — give them a mid-green stripe.
+     Pages add class .gb-subtotal to these rows. */
+  tr.gb-subtotal td {
+    background: #a8d4a8 !important;
+    font-weight: 700 !important;
+    border-top: 1pt solid #3a6e3a !important;
+  }
+
+  /* ── 6. STRIP DECORATIVE CHROME ────────────────────────────────── */
+  .rounded, .rounded-sm, .rounded-md, .rounded-lg,
+  .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-full,
+  [class*="rounded-"] { border-radius: 0 !important; }
+
+  .shadow-sm, .shadow, .shadow-md, .shadow-lg,
+  .shadow-xl, .shadow-2xl, .card-lift { box-shadow: none !important; }
+
+  /* Cream / gold backgrounds → transparent in print */
+  .bg-white      { background: white !important; }
+  .bg-\[\#f6f3ee\], .bg-\[\#faf6ec\], .bg-\[\#fafaf7\],
+  .bg-\[\#faf6ec\], .bg-\[\#f3f3ed\] { background: transparent !important; }
+
+  /* All borders → muted green */
+  .border, [class*="border-"] { border-color: #3a6e3a !important; }
+
+  /* ── 7. GREENBAR BRANDED HEADER (PrintHeader component) ────────── */
   .print-header {
-    border-bottom: 0.5pt solid #888;
-    padding-bottom: 8pt;
-    margin-bottom: 14pt;
+    font-family: "Courier New", Courier, monospace !important;
+    border: 1.5pt solid #1b4d1b !important;
+    border-bottom: 3pt double #1b4d1b !important;
+    padding: 6pt 9pt !important;
+    margin-bottom: 12pt !important;
+    background: white !important;
   }
   .print-brand-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12pt;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 10pt !important;
   }
-  .print-brand {
-    display: flex;
-    align-items: center;
-    gap: 10pt;
-  }
+  .print-brand { display: flex !important; align-items: center !important; gap: 8pt !important; }
   .print-logo {
-    width: 36pt; height: 36pt;
-    background: #b8943f !important;
-    color: #1a1814 !important;
-    border-radius: 6pt;
-    display: flex; align-items: center; justify-content: center;
-    font-family: "DM Serif Display", serif;
-    font-size: 18pt; font-weight: 700;
+    width: 28pt !important; height: 28pt !important;
+    background: #1b4d1b !important;
+    color: #fff !important;
+    border: 1.5pt solid #1b4d1b !important;
+    border-radius: 0 !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 16pt !important; font-weight: 700 !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
   }
-  .print-logo-img {
-    height: 36pt;
-    width: auto;
-    max-width: 90pt;
-    object-fit: contain;
-  }
+  .print-logo-img { height: 28pt !important; width: auto !important; max-width: 70pt !important; }
   .print-org-name {
-    font-family: "DM Serif Display", serif;
-    font-size: 14pt; font-weight: 700;
-    color: #1a1814;
-    line-height: 1.1;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 12pt !important; font-weight: 700 !important;
+    text-transform: uppercase !important; letter-spacing: 0.08em !important;
+    color: #000 !important; line-height: 1.1 !important;
   }
   .print-org-sub {
-    font-size: 7.5pt;
-    color: #666;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-top: 2pt;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 7pt !important; text-transform: uppercase !important;
+    letter-spacing: 0.1em !important; color: #3a6e3a !important; margin-top: 2pt !important;
   }
   .print-meta {
-    font-size: 8.5pt;
-    color: #555;
-    text-align: right;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 8pt !important; color: #333 !important; text-align: right !important;
   }
-  .print-meta-line { margin-bottom: 2pt; }
+  .print-meta-line { margin-bottom: 1.5pt !important; }
 
+  /* Report title block */
   .print-title-row {
-    margin-top: 14pt;
-    padding-top: 6pt;
-    border-top: 1.5pt solid #1a1814;
+    margin-top: 8pt !important;
+    padding: 4pt 0 3pt !important;
+    border-top: 2pt solid #1b4d1b !important;
+    border-bottom: 0.5pt solid #3a6e3a !important;
+    text-align: center !important;
   }
   .print-title {
-    font-family: "DM Serif Display", serif;
-    font-size: 18pt;
-    font-weight: 700;
-    color: #1a1814;
-    margin: 0;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 13pt !important; font-weight: 700 !important;
+    text-transform: uppercase !important; letter-spacing: 0.12em !important;
+    color: #000 !important; margin: 0 !important;
   }
   .print-subtitle {
-    font-size: 9.5pt;
-    color: #555;
-    margin-top: 2pt;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 8.5pt !important; color: #333 !important;
+    text-transform: uppercase !important; letter-spacing: 0.05em !important;
+    margin-top: 2pt !important;
   }
   .print-stamp {
-    font-size: 7.5pt;
-    color: #888;
-    margin-top: 6pt;
-    text-align: right;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 7pt !important; color: #3a6e3a !important;
+    margin-top: 5pt !important; text-align: right !important;
   }
 
-  /* Page number footer */
-  @page {
-    @bottom-right {
-      content: "Page " counter(page) " of " counter(pages);
-      font-family: "DM Sans", sans-serif;
-      font-size: 8pt;
-      color: #888;
-    }
+  /* ── 8. VOUCHER / DOCUMENT PRINT (article-based layouts) ───────── */
+  article {
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 9.5pt !important;
+  }
+  article * { font-family: "Courier New", Courier, monospace !important; }
+
+  /* Strip cream/gold backgrounds from all div/section boxes in articles */
+  article div, article section, article aside {
+    background: transparent !important;
   }
 
-  /* Strip card/shadow styles that look bad in print */
-  .rounded-2xl, .rounded-3xl, .rounded-xl {
-    border-radius: 0 !important;
+  /* gb-box — key info boxes in voucher templates (Paid To / Received From) */
+  .gb-box {
+    border: 1pt solid #1b4d1b !important;
+    padding: 4pt 7pt !important;
+    margin-bottom: 7pt !important;
+    background: #dff0df !important;
   }
-  .shadow-sm, .shadow, .shadow-lg, .shadow-xl, .shadow-2xl,
-  .card-lift { box-shadow: none !important; }
-  .bg-white { background: white !important; }
-  .border, .border-\[\#ede9e2\] { border-color: #ccc !important; }
+  .gb-box-label {
+    font-size: 7.5pt !important; text-transform: uppercase !important;
+    letter-spacing: 0.1em !important; color: #1b4d1b !important;
+    font-weight: 700 !important; margin-bottom: 1pt !important;
+  }
+  .gb-box-value {
+    font-size: 10pt !important; font-weight: 700 !important; color: #000 !important;
+  }
+  .gb-box-sub { font-size: 8pt !important; color: #333 !important; }
+
+  /* gb-amount-box — "Amount in Words" block */
+  .gb-amount-box {
+    border: 1.5pt double #1b4d1b !important;
+    padding: 4pt 7pt !important;
+    margin-bottom: 7pt !important;
+    background: white !important;
+  }
+
+  /* gb-from-strip — "Paid From / Received Into" footer strip */
+  .gb-from-strip {
+    border: 1pt solid #3a6e3a !important;
+    border-left: 4pt solid #1b4d1b !important;
+    background: #dff0df !important;
+    padding: 4pt 7pt !important;
+    margin-bottom: 7pt !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  /* gb-meta-strip — Voucher No / Date header strip */
+  .gb-meta-strip {
+    border-bottom: 2pt solid #1b4d1b !important;
+    padding-bottom: 5pt !important;
+    margin-bottom: 8pt !important;
+    display: flex !important;
+    justify-content: space-between !important;
+  }
+
+  /* gb-sig — signature line bar */
+  .gb-sig {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-top: 24pt !important;
+    padding-top: 6pt !important;
+    border-top: 1pt dashed #3a6e3a !important;
+    font-size: 7.5pt !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: #333 !important;
+    font-family: "Courier New", Courier, monospace !important;
+  }
+  .gb-sig-item {
+    text-align: center !important;
+    min-width: 100pt !important;
+  }
+  .gb-sig-line {
+    border-top: 0.75pt solid #1b4d1b !important;
+    padding-top: 3pt !important;
+    margin-top: 18pt !important;
+  }
+
+  /* gb-rule — greenbar section separator (bold double-line) */
+  .gb-rule {
+    border: 0 !important;
+    border-top: 2pt double #1b4d1b !important;
+    margin: 8pt 0 !important;
+  }
+
+  /* ── 9. LEGACY UTILITY OVERRIDES ──────────────────────────────── */
+  /* Keep text readable where Tailwind sets muted colour classes */
+  .text-\[\#1a1814\]\/55, .text-\[\#1a1814\]\/60,
+  .text-\[\#1a1814\]\/65, .text-\[\#1a1814\]\/40,
+  .text-\[\#1a1814\]\/50 { color: #333 !important; }
+  .font-mono { font-family: "Courier New", Courier, monospace !important; }
+  .italic { font-style: italic !important; }
+  .font-bold, .font-semibold { font-weight: 700 !important; }
+
 }
 
 /* Screen-only utility to opt a report into landscape via the

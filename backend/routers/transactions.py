@@ -411,6 +411,7 @@ def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserD
     return {
         "id": tx.id,
         "jv_number": tx.jv_number,
+        "voucher_type": tx.voucher_type,
         "date": tx.date,
         "description": tx.description,
         "reference": tx.reference,
