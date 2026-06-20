@@ -111,15 +111,18 @@ body {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
 /* ═══════════════════════════════════════════════════════════════════
-   GREENBAR / LINE-PRINTER PRINT FORMAT
+   DOT-MATRIX / LINE-PRINTER PRINT FORMAT
    ─────────────────────────────────────────────────────────────────
-   Emulates classic green-bar fan-fold accounting paper:
-   • Strict monospace font (Courier New) for all data
-   • Alternating pale-green / white row bands (pairs of 2)
-   • Dark-green column headers and footer totals
-   • Thin green grid lines, zero decorative chrome
-   • A4 portrait default; landscape via .print-landscape
-   • !important overrides all Tailwind inline classes on print
+   Pure black-on-white output — no ink-heavy backgrounds at all.
+   Designed to print cleanly on any printer (laser, inkjet, dot-matrix)
+   and to use minimum ink/toner:
+   • Courier New monospace for all text
+   • Column headers: bold + underline rule only — no filled background
+   • Body rows: plain with thin ruled separator — no alternating shading
+   • Total rows: double underline above (classic accounting convention)
+   • All borders: solid black lines, no colour
+   • PrintHeader: two ruled lines around company/title block
+   • !important overrides Tailwind inline classes at print time
    ═══════════════════════════════════════════════════════════════════ */
 @media print {
 
@@ -129,13 +132,13 @@ body {
   .print\:hidden { display: none !important; }
 
   /* ── 2. SCROLL-CONTAINER RESET ─────────────────────────────────── */
-  /* The dashboard shell clips content to one viewport height — override
-     so every printed page flows naturally across as many sheets as needed. */
+  /* The dashboard shell clips content to viewport height — override so
+     all content flows across as many printed pages as needed. */
   html, body { height: auto !important; overflow: visible !important; }
-  .h-screen            { height: auto !important; }
-  .overflow-hidden     { overflow: visible !important; }
-  .overflow-y-auto     { overflow: visible !important; height: auto !important; }
-  .overflow-x-auto     { overflow: auto !important; }
+  .h-screen        { height: auto !important; }
+  .overflow-hidden { overflow: visible !important; }
+  .overflow-y-auto { overflow: visible !important; height: auto !important; }
+  .overflow-x-auto { overflow: auto !important; }
   main, [data-main] {
     margin: 0 !important; padding: 0 !important;
     width: 100% !important; height: auto !important; overflow: visible !important;
@@ -155,265 +158,269 @@ body {
       content: "Page " counter(page) " / " counter(pages);
       font-family: "Courier New", Courier, monospace;
       font-size: 7.5pt;
-      color: #3a6e3a;
+      color: #000;
     }
   }
   body:has(.print-landscape) { page: landscape-a4; }
 
-  /* ── 4. GLOBAL BODY RESET ──────────────────────────────────────── */
+  /* ── 4. GLOBAL BODY — monospace, black on white ────────────────── */
   body {
     background: white !important;
     color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
     font-size: 9.5pt !important;
-    line-height: 1.38 !important;
+    line-height: 1.4 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  /* ── 5. GREENBAR TABLE SYSTEM ──────────────────────────────────── */
+  /* ── 5. STRIP ALL DECORATIVE CHROME ───────────────────────────── */
+  /* Remove every background colour — ink costs money */
+  * { background: transparent !important; }
+  body, html { background: white !important; }
+
+  /* No rounded corners, no shadows */
+  [class*="rounded"] { border-radius: 0 !important; }
+  [class*="shadow"]  { box-shadow: none !important; }
+
+  /* Muted text colours → solid black */
+  [class*="text-"][class*="/"] { color: #000 !important; }
+  .text-\[\#1a1814\]\/55, .text-\[\#1a1814\]\/60,
+  .text-\[\#1a1814\]\/65, .text-\[\#1a1814\]\/40,
+  .text-\[\#1a1814\]\/50 { color: #000 !important; }
+
+  /* All coloured borders → plain black */
+  [class*="border-"] { border-color: #000 !important; }
+
+  /* ── 6. DOT-MATRIX TABLE SYSTEM ────────────────────────────────── */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
     font-family: "Courier New", Courier, monospace !important;
     font-size: 9pt !important;
-    border: 1pt solid #3a6e3a !important;
+    border: 0 !important;
     margin-bottom: 10pt !important;
   }
   thead { display: table-header-group !important; }
   tfoot { display: table-footer-group !important; }
   tr    { page-break-inside: avoid; }
 
-  /* Column header band — solid dark green */
+  /* Column header row — bold text, solid underline, NO fill */
   thead tr th,
   th, .ui-th {
-    background: #1b4d1b !important;
-    color: #fff !important;
+    background: transparent !important;
+    color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8pt !important;
+    font-size: 8.5pt !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.07em !important;
-    padding: 4pt 6pt !important;
-    border: 0.5pt solid #0f300f !important;
+    letter-spacing: 0.06em !important;
+    padding: 3pt 6pt !important;
+    border: 0 !important;
+    border-top: 1pt solid #000 !important;
+    border-bottom: 1pt solid #000 !important;
     white-space: nowrap;
   }
 
-  /* Data cells */
+  /* Data cells — no fill, thin bottom rule between rows */
   td, .ui-td {
+    background: transparent !important;
+    color: #000 !important;
     padding: 2.5pt 6pt !important;
     font-family: "Courier New", Courier, monospace !important;
     font-size: 9pt !important;
-    border-right: 0.25pt solid #8fbe8f !important;
-    border-bottom: 0.25pt solid #b8dcb8 !important;
+    border: 0 !important;
+    border-bottom: 0.3pt dotted #888 !important;
     vertical-align: middle !important;
   }
 
-  /* GREENBAR: alternating 2-row pale-green / white bands */
-  tbody tr:nth-child(4n+1) td,
-  tbody tr:nth-child(4n+2) td { background: #dff0df !important; }
-  tbody tr:nth-child(4n+3) td,
-  tbody tr:nth-child(4n+4) td { background: #ffffff !important; }
+  /* Vertical column separators for readability */
+  td + td, th + th { border-left: 0.5pt solid #ccc !important; }
 
-  /* Footer / grand-total row — dark green, mirrors header */
+  /* Total / grand-total row in tfoot — double rule above, bold, no fill */
   tfoot tr td {
-    background: #1b4d1b !important;
-    color: #fff !important;
+    background: transparent !important;
+    color: #000 !important;
     font-weight: 700 !important;
     font-size: 9.5pt !important;
-    border: 0.5pt solid #0f300f !important;
+    border: 0 !important;
+    border-top: 2pt double #000 !important;
+    border-bottom: 1pt solid #000 !important;
   }
 
-  /* Sub-total rows that don't live in tfoot — give them a mid-green stripe.
-     Pages add class .gb-subtotal to these rows. */
+  /* Sub-total rows (class gb-subtotal) — single heavy rule above, bold */
   tr.gb-subtotal td {
-    background: #a8d4a8 !important;
+    background: transparent !important;
     font-weight: 700 !important;
-    border-top: 1pt solid #3a6e3a !important;
+    border-top: 1pt solid #000 !important;
+    border-bottom: 1pt solid #000 !important;
   }
 
-  /* ── 6. STRIP DECORATIVE CHROME ────────────────────────────────── */
-  .rounded, .rounded-sm, .rounded-md, .rounded-lg,
-  .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-full,
-  [class*="rounded-"] { border-radius: 0 !important; }
-
-  .shadow-sm, .shadow, .shadow-md, .shadow-lg,
-  .shadow-xl, .shadow-2xl, .card-lift { box-shadow: none !important; }
-
-  /* Cream / gold backgrounds → transparent in print */
-  .bg-white      { background: white !important; }
-  .bg-\[\#f6f3ee\], .bg-\[\#faf6ec\], .bg-\[\#fafaf7\],
-  .bg-\[\#faf6ec\], .bg-\[\#f3f3ed\] { background: transparent !important; }
-
-  /* All borders → muted green */
-  .border, [class*="border-"] { border-color: #3a6e3a !important; }
-
-  /* ── 7. GREENBAR BRANDED HEADER (PrintHeader component) ────────── */
+  /* ── 7. DOT-MATRIX BRANDED HEADER (PrintHeader component) ──────── */
   .print-header {
     font-family: "Courier New", Courier, monospace !important;
-    border: 1.5pt solid #1b4d1b !important;
-    border-bottom: 3pt double #1b4d1b !important;
-    padding: 6pt 9pt !important;
-    margin-bottom: 12pt !important;
-    background: white !important;
+    background: transparent !important;
+    border-top: 1.5pt solid #000 !important;
+    border-bottom: 1.5pt solid #000 !important;
+    padding: 6pt 0 !important;
+    margin-bottom: 10pt !important;
   }
   .print-brand-row {
     display: flex !important;
     align-items: flex-start !important;
     justify-content: space-between !important;
-    gap: 10pt !important;
+    gap: 8pt !important;
   }
   .print-brand { display: flex !important; align-items: center !important; gap: 8pt !important; }
   .print-logo {
-    width: 28pt !important; height: 28pt !important;
-    background: #1b4d1b !important;
-    color: #fff !important;
-    border: 1.5pt solid #1b4d1b !important;
+    /* Replace coloured logo box with bracketed initial in monospace */
+    width: auto !important; height: auto !important;
+    background: transparent !important;
+    color: #000 !important;
+    border: 1pt solid #000 !important;
     border-radius: 0 !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 16pt !important; font-weight: 700 !important;
-    display: flex !important; align-items: center !important; justify-content: center !important;
+    font-size: 12pt !important; font-weight: 700 !important;
+    padding: 2pt 5pt !important;
+    display: inline-block !important;
   }
-  .print-logo-img { height: 28pt !important; width: auto !important; max-width: 70pt !important; }
+  .print-logo-img { height: 26pt !important; width: auto !important; max-width: 70pt !important; }
   .print-org-name {
     font-family: "Courier New", Courier, monospace !important;
     font-size: 12pt !important; font-weight: 700 !important;
-    text-transform: uppercase !important; letter-spacing: 0.08em !important;
-    color: #000 !important; line-height: 1.1 !important;
+    text-transform: uppercase !important; letter-spacing: 0.06em !important;
+    color: #000 !important; line-height: 1.15 !important;
   }
   .print-org-sub {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 7pt !important; text-transform: uppercase !important;
-    letter-spacing: 0.1em !important; color: #3a6e3a !important; margin-top: 2pt !important;
+    font-size: 7.5pt !important; text-transform: uppercase !important;
+    letter-spacing: 0.08em !important; color: #000 !important; margin-top: 1pt !important;
   }
   .print-meta {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8pt !important; color: #333 !important; text-align: right !important;
+    font-size: 8pt !important; color: #000 !important; text-align: right !important;
   }
-  .print-meta-line { margin-bottom: 1.5pt !important; }
+  .print-meta-line { margin-bottom: 1pt !important; }
 
-  /* Report title block */
+  /* Report title row — centred, between two rules */
   .print-title-row {
-    margin-top: 8pt !important;
+    margin-top: 6pt !important;
     padding: 4pt 0 3pt !important;
-    border-top: 2pt solid #1b4d1b !important;
-    border-bottom: 0.5pt solid #3a6e3a !important;
+    border-top: 1pt solid #000 !important;
+    border-bottom: 1pt solid #000 !important;
     text-align: center !important;
   }
   .print-title {
     font-family: "Courier New", Courier, monospace !important;
     font-size: 13pt !important; font-weight: 700 !important;
-    text-transform: uppercase !important; letter-spacing: 0.12em !important;
+    text-transform: uppercase !important; letter-spacing: 0.1em !important;
     color: #000 !important; margin: 0 !important;
   }
   .print-subtitle {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8.5pt !important; color: #333 !important;
-    text-transform: uppercase !important; letter-spacing: 0.05em !important;
-    margin-top: 2pt !important;
+    font-size: 8.5pt !important; color: #000 !important;
+    text-transform: uppercase !important; letter-spacing: 0.04em !important;
+    margin-top: 1.5pt !important;
   }
   .print-stamp {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 7pt !important; color: #3a6e3a !important;
-    margin-top: 5pt !important; text-align: right !important;
+    font-size: 7pt !important; color: #000 !important;
+    margin-top: 4pt !important; text-align: right !important;
   }
 
-  /* ── 8. VOUCHER / DOCUMENT PRINT (article-based layouts) ───────── */
+  /* ── 8. VOUCHER / DOCUMENT LAYOUTS (article-based) ─────────────── */
   article {
     font-family: "Courier New", Courier, monospace !important;
     font-size: 9.5pt !important;
   }
-  article * { font-family: "Courier New", Courier, monospace !important; }
-
-  /* Strip cream/gold backgrounds from all div/section boxes in articles */
-  article div, article section, article aside {
+  article * {
+    font-family: "Courier New", Courier, monospace !important;
     background: transparent !important;
   }
 
-  /* gb-box — key info boxes in voucher templates (Paid To / Received From) */
+  /* gb-box — "Paid To" / "Received From" info block */
   .gb-box {
-    border: 1pt solid #1b4d1b !important;
-    padding: 4pt 7pt !important;
-    margin-bottom: 7pt !important;
-    background: #dff0df !important;
+    border: 0 !important;
+    border-top: 1pt solid #000 !important;
+    border-bottom: 1pt solid #000 !important;
+    padding: 4pt 0 !important;
+    margin-bottom: 8pt !important;
+    background: transparent !important;
   }
   .gb-box-label {
     font-size: 7.5pt !important; text-transform: uppercase !important;
-    letter-spacing: 0.1em !important; color: #1b4d1b !important;
-    font-weight: 700 !important; margin-bottom: 1pt !important;
+    letter-spacing: 0.1em !important; color: #000 !important;
+    font-weight: 700 !important; margin-bottom: 1.5pt !important;
   }
-  .gb-box-value {
-    font-size: 10pt !important; font-weight: 700 !important; color: #000 !important;
-  }
-  .gb-box-sub { font-size: 8pt !important; color: #333 !important; }
+  .gb-box-value { font-size: 10pt !important; font-weight: 700 !important; color: #000 !important; }
+  .gb-box-sub   { font-size: 8pt !important; color: #000 !important; }
 
-  /* gb-amount-box — "Amount in Words" block */
+  /* gb-amount-box — "Amount in Words": double-ruled box */
   .gb-amount-box {
-    border: 1.5pt double #1b4d1b !important;
-    padding: 4pt 7pt !important;
-    margin-bottom: 7pt !important;
-    background: white !important;
+    border: 0 !important;
+    border-top: 2pt double #000 !important;
+    border-bottom: 2pt double #000 !important;
+    padding: 4pt 0 !important;
+    margin-bottom: 8pt !important;
+    background: transparent !important;
   }
 
-  /* gb-from-strip — "Paid From / Received Into" footer strip */
+  /* gb-from-strip — "Paid From / Received Into" row */
   .gb-from-strip {
-    border: 1pt solid #3a6e3a !important;
-    border-left: 4pt solid #1b4d1b !important;
-    background: #dff0df !important;
-    padding: 4pt 7pt !important;
-    margin-bottom: 7pt !important;
+    border: 0 !important;
+    border-top: 1pt solid #000 !important;
+    border-bottom: 1pt solid #000 !important;
+    padding: 4pt 0 !important;
+    margin-bottom: 8pt !important;
+    background: transparent !important;
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
   }
 
-  /* gb-meta-strip — Voucher No / Date header strip */
+  /* gb-meta-strip — Voucher No / Date top row */
   .gb-meta-strip {
-    border-bottom: 2pt solid #1b4d1b !important;
+    border: 0 !important;
+    border-bottom: 1.5pt solid #000 !important;
     padding-bottom: 5pt !important;
     margin-bottom: 8pt !important;
     display: flex !important;
     justify-content: space-between !important;
+    background: transparent !important;
   }
 
-  /* gb-sig — signature line bar */
+  /* gb-sig — signature bar: dashed underscores, no fill */
   .gb-sig {
     display: flex !important;
     justify-content: space-between !important;
-    margin-top: 24pt !important;
-    padding-top: 6pt !important;
-    border-top: 1pt dashed #3a6e3a !important;
+    margin-top: 28pt !important;
+    padding-top: 0 !important;
+    border: 0 !important;
     font-size: 7.5pt !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-    color: #333 !important;
+    letter-spacing: 0.07em !important;
+    color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
   }
-  .gb-sig-item {
-    text-align: center !important;
-    min-width: 100pt !important;
-  }
+  .gb-sig-item { text-align: center !important; min-width: 100pt !important; }
   .gb-sig-line {
-    border-top: 0.75pt solid #1b4d1b !important;
+    border-top: 0.75pt solid #000 !important;
     padding-top: 3pt !important;
-    margin-top: 18pt !important;
+    margin-top: 22pt !important;
   }
 
-  /* gb-rule — greenbar section separator (bold double-line) */
+  /* gb-rule — plain solid section separator */
   .gb-rule {
     border: 0 !important;
-    border-top: 2pt double #1b4d1b !important;
+    border-top: 1pt solid #000 !important;
     margin: 8pt 0 !important;
   }
 
-  /* ── 9. LEGACY UTILITY OVERRIDES ──────────────────────────────── */
-  /* Keep text readable where Tailwind sets muted colour classes */
-  .text-\[\#1a1814\]\/55, .text-\[\#1a1814\]\/60,
-  .text-\[\#1a1814\]\/65, .text-\[\#1a1814\]\/40,
-  .text-\[\#1a1814\]\/50 { color: #333 !important; }
-  .font-mono { font-family: "Courier New", Courier, monospace !important; }
-  .italic { font-style: italic !important; }
+  /* ── 9. TYPOGRAPHY UTILITIES ────────────────────────────────────── */
+  .font-mono     { font-family: "Courier New", Courier, monospace !important; }
+  .italic        { font-style: italic !important; }
   .font-bold, .font-semibold { font-weight: 700 !important; }
+  .uppercase     { text-transform: uppercase !important; }
 
 }
 
