@@ -142,6 +142,39 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 
 **Inventory nav section:** the sidebar exposes a dedicated **Inventory** group containing routes for Products (`/products` — has a **List / Tree** view toggle; Tree shows the Main→Sub→Item closing-stock valuation via `/api/reports/product-coa`), Product Categories (`/products/categories`), Product Ledger (`/products/ledger` — has a Location column and accepts `?product=<id>` to pre-select), and Inventory Performance (`/inventory/performance` — product names link into the ledger).
 
+**Section Hub Pages:** each major sidebar section has a command-centre hub page:
+- `/receivable` — AR aging summary + top overdue customers (`AgingBand`)
+- `/payable` — AP aging summary + top overdue vendors (`AgingBand`)
+- `/inventory` — low-stock alerts + on-hand value (`LowStockBand`)
+- `/banking` — live bank-account balances from the GL (`AccountListBand`)
+- Generic renderer: `components/hub/HubPage.tsx` driven by `lib/hubConfigs.ts` (`HubConfig` objects with `title`, `bands[]`). Sidebar section headers navigate to the hub via `TITLE_MAP` in `(dashboard)/layout.tsx`.
+
+**Collapsible sidebar (`components/Sidebar.tsx`):**
+- 3-state behaviour: **collapsed** (icon strip) / **open** (labels) / **pinned** (always open) stored in `localStorage` key `eb.sidebar.pinned` (`"1"` / `"0"`) and `eb.sidebar.open`.
+- Hover over the collapsed strip opens a floating panel with full nav labels; leaving closes it.
+- Auto-pins on wide screens (`window.innerWidth >= 1280`).
+- Backdrop `div` starts at `top-12` (below the header) to avoid covering it; `z-index` layering: header `z-50`, sidebar `z-40`, backdrop `z-30`.
+
+**3-mode voucher form (`app/(dashboard)/journal/new/page.tsx`):**
+- Mode selector at top: **Journal** (JV) / **Payment** (CP cash, BP bank) / **Receipt** (CR cash, BR bank).
+- Payment mode: GL picker pre-filters to Cash/Bank accounts for the instrument side; payee field shown.
+- Receipt mode: mirror of Payment with reversed Dr/Cr orientation.
+- JV prefix auto-sets per mode (CP-YYYY-seq, BP-YYYY-seq, CR-YYYY-seq, BR-YYYY-seq, JV-YYYY-seq).
+- Distinct print templates: PV (Payment Voucher) for CP/BP, RV (Receipt Voucher) for CR/BR, standard JV template for JV.
+
+**Print system:**
+- **`PrintHeader` (`components/PrintHeader.tsx`):** accepts `orientation?: "portrait" | "landscape"`. When `"landscape"`, a `useEffect` dynamically injects `<style data-print-landscape>@media print { @page { size: A4 landscape; margin: 12mm 15mm; } }</style>` and removes it on unmount. Portrait is the default via `globals.css` (`@page { size: A4 portrait; }`). **Do NOT use CSS classes to control `@page` size** — they have no effect in standard CSS.
+- **Orientation rules:** landscape for wide tables (aging, performance reports, product ledger, journal list, invoices/bills list, customer/vendor ledgers); portrait for all other pages (GL, cash/bank book, statements, trial balance, balance sheet, P&L, cash flow, voucher prints, CoA).
+- **Date formatting (always use these — never `toLocaleDateString()` or raw ISO strings):**
+  - `fmtDate(str: string)` in `src/lib/utils.ts` — converts ISO `"YYYY-MM-DD"` or datetime string → `"dd-mm-yy"`. Splits on `"T"` first to handle datetimes.
+  - `fmtDateJs(date: Date)` — converts a JS `Date` object → `"dd-mm-yy"`.
+- **Print hygiene classes:**
+  - `print:hidden` — hides filter controls, pagination, sort handles, toolbar buttons, action columns, checkbox columns.
+  - `@media print { td span, th span { ... } }` in `globals.css` flattens any badge pills to plain text.
+- **Column alignment in report tables:** add `whitespace-nowrap` to Date and JV#/Doc# `<td>` cells; do NOT add `max-w-xs` to description cells (let the table manage remaining width naturally).
+- **Voucher type badges:** do NOT add inline type badges (`<span>` pills) next to JV numbers in any report table. The JV number prefix already encodes the type (CP = Cash Payment, SL = Sales, BR = Bank Receipt, etc.).
+- **Amount formatting:** negative amounts display as `(1,234.56)` via the `fmt()` helper from `useFmt()`; currency code appears once in the column header, not in each cell.
+
 **In-app update check (`desktop/` + `UpdateModal`):**
 - `desktop/preload.js` — exposes `window.easybooks.checkForUpdates()`, `onUpdateAvailable(cb)`, `onUpdateDownloaded(cb)`, and `installUpdate()` to the renderer via Electron's context bridge
 - `desktop/main.js` `wireAutoUpdater()` — hooks `electron-updater`'s `autoUpdater` events to the IPC channel; checks the GitHub releases feed on launch
@@ -194,6 +227,9 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - **JWT payload** — must include both `sub` and `tenant_id`; auth middleware depends on both fields.
 - **Migrations via Alembic** — for schema changes run `uv run alembic revision --autogenerate` then `uv run alembic upgrade head`. `create_all()` still runs in dev for zero-setup boot, so new-table migrations must guard with `bind.dialect.has_table(...)`. SQLite cannot `ADD CONSTRAINT`, so strip auto-generated FK lines on ALTER (app-level tenant checks enforce integrity).
 - **WSL2 npm issue** — `dev.sh` resolves the Linux node binary automatically; never invoke Windows `npm` inside WSL2 paths.
+- **Date display** — always use `fmtDate()` / `fmtDateJs()` from `src/lib/utils.ts`; never use `toLocaleDateString()` or render raw ISO strings in the UI. Output format is `dd-mm-yy`.
+- **Print orientation** — set `orientation="landscape"` on `<PrintHeader>` only for wide multi-column tables; leave it unset (portrait) for everything else. The prop works via dynamic `<style>` injection in `useEffect` — CSS classes cannot control `@page` size.
+- **No voucher-type badges in tables** — the JV number prefix (CP / SL / BR / JV etc.) already identifies the type. Adding a separate badge span is redundant and was intentionally removed.
 
 ---
 
@@ -221,3 +257,18 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 4. Add UI input field to `frontend/src/app/(dashboard)/settings/page.tsx`
 5. Display setting value where needed (Header, PrintHeader, etc.) using `useSettings()` hook
 6. Settings are auto-persisted via `/api/settings` PATCH endpoint — no additional backend logic needed
+
+**New printable report page:**
+1. Add `<PrintHeader title="..." subtitle={fmtDate(date)} orientation="landscape" />` at the top of the page (set `orientation` only if the table is wider than ~6 columns).
+2. Import `fmtDate` from `@/lib/utils` and apply to every date cell — never render raw ISO strings.
+3. Wrap all toolbar / filter / pagination UI in `print:hidden` or the `<div className="print:hidden">` pattern.
+4. In report tables: add `whitespace-nowrap` to Date and JV#/Doc# `<td>` cells; let Description cells have no `max-w-*` so they absorb remaining width.
+5. Do not add amount currency symbols per-cell; put the currency code in the `<th>` header once.
+6. Use the `fmt()` helper from `useFmt()` for all amounts — it handles parenthesis-negative and decimal places automatically.
+
+**New section hub page:**
+1. Add a `HubConfig` entry in `frontend/src/lib/hubConfigs.ts` with `{ id, title, bands[] }`.
+2. Each band is one of `AgingBand`, `LowStockBand`, `AccountListBand` from `components/hub/`.
+3. Create `frontend/src/app/(dashboard)/[section]/page.tsx` rendering `<HubPage config={myConfig} />`.
+4. Add an entry to `TITLE_MAP` in `frontend/src/app/(dashboard)/layout.tsx` so the breadcrumb and page title resolve.
+5. Make the sidebar section header `<Link href="/[section]">` so clicking it navigates to the hub.
