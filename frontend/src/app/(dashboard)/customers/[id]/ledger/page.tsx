@@ -88,10 +88,10 @@ export default function CustomerLedgerPage({ params }: { params: Promise<{ id: s
             <Download className="w-4 h-4" /> CSV
           </button>
           <Link href={`/customers/${id}/statement?from=${start}&to=${end}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/40 rounded-lg text-sm font-bold text-[#b8943f] hover:bg-[#faf6ec]">
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/40 rounded-lg text-sm font-bold text-[#b8943f] hover:bg-[#faf6ec] print:hidden">
             <Printer className="w-4 h-4" /> Print Statement
           </Link>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
             <Printer className="w-4 h-4" /> Print Ledger
           </button>
         </div>

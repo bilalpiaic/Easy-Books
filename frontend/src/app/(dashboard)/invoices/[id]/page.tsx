@@ -165,7 +165,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           )}
           <Link
             href={`/invoices/${inv.id}/print`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden"
           >
             <Printer className="w-4 h-4" /> Print
           </Link>

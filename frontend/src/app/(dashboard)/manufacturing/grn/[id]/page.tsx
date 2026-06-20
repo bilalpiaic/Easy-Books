@@ -87,7 +87,7 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
         </div>
         <Link
           href={`/manufacturing/grn/${grn.id}/print`}
-          className="inline-flex items-center gap-2 border border-[#ede9e2] rounded-lg px-3 py-2 text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+          className="inline-flex items-center gap-2 border border-[#ede9e2] rounded-lg px-3 py-2 text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" /> Print
         </Link>

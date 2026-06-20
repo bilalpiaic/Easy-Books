@@ -180,7 +180,7 @@ export default function ProductionOrderDetailPage() {
         </Link>
         <a
           href={`/manufacturing/production-orders/${po.id}/print`}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-xl text-xs font-bold hover:bg-[#f6f3ee]"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-xl text-xs font-bold hover:bg-[#f6f3ee] print:hidden"
         >
           <Printer className="w-3.5 h-3.5" /> Print
         </a>

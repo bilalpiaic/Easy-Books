@@ -86,7 +86,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
     <div className="max-w-4xl mx-auto space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
-          <Link href={`/journal/${txn.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
+          <Link href={`/journal/${txn.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
             <Printer className="w-4 h-4" /> Print
           </Link>
           {!txn.is_reversed && (
