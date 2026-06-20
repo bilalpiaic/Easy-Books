@@ -1,9 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt, useSettings } from '@/context/SettingsContext'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
+
+const CURRENCIES = [
+  'AED','AUD','BDT','BHD','CAD','CHF','CNY','EUR','GBP',
+  'HKD','IDR','INR','JPY','KWD','MYR','OMR','PKR','QAR',
+  'SAR','SGD','THB','TRY','USD','ZAR',
+]
 
 export interface BillFull {
   id: number
@@ -78,6 +85,17 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
+  const [fetchingRate, setFetchingRate] = useState(false)
+  const [rateError, setRateError] = useState('')
+  const [rateSource, setRateSource] = useState('')
+  const currencyTouched = useRef(false)
+
+  // Sync default currency to tenant base once settings load (create mode only)
+  useEffect(() => {
+    if (mode === 'create' && !currencyTouched.current) {
+      setForm(f => ({ ...f, currency: settings.currency }))
+    }
+  }, [settings.currency])
 
   useEffect(() => {
     Promise.all([
@@ -145,6 +163,23 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
 
   const apAccounts = accounts.filter(a => a.type === 'Liability')
   const expenseAccounts = accounts.filter(a => a.type === 'Expense')
+
+  const fetchLiveRate = async (fromCurrency: string) => {
+    const toCurrency = settings.currency
+    if (fromCurrency === toCurrency) return
+    setFetchingRate(true); setRateError(''); setRateSource('')
+    try {
+      const data = await apiFetch<{ rate: number; date: string; source: string }>(
+        `/api/exchange-rates/live?from_currency=${fromCurrency}&to_currency=${toCurrency}`
+      )
+      setForm(f => ({ ...f, exchange_rate: String(data.rate) }))
+      setRateSource(`${data.date} · ${data.source}`)
+    } catch (e) {
+      setRateError(e instanceof Error ? e.message : 'Failed to fetch rate')
+    } finally {
+      setFetchingRate(false)
+    }
+  }
 
   const handleSave = async () => {
     if (lines.length === 0) { setFormError('Add at least one line item'); return }
@@ -264,19 +299,40 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Currency</label>
-            <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value, exchange_rate: e.target.value === settings.currency ? '1' : p.exchange_rate }))}
+            <select
+              value={form.currency}
+              onChange={e => {
+                const cur = e.target.value
+                currencyTouched.current = true
+                setRateError(''); setRateSource('')
+                setForm(p => ({ ...p, currency: cur, exchange_rate: cur === settings.currency ? '1' : p.exchange_rate }))
+                if (cur !== settings.currency) fetchLiveRate(cur)
+              }}
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
-              {['PKR','USD','EUR','GBP','AED','SAR','CNY'].map(c => <option key={c} value={c}>{c}</option>)}
+              {Array.from(new Set([settings.currency, ...CURRENCIES])).sort().map(c =>
+                <option key={c} value={c}>{c}</option>
+              )}
             </select>
           </div>
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
               Exchange Rate (1 {form.currency} = ? {settings.currency})
             </label>
-            <input type="number" step="0.0001" min="0" value={form.exchange_rate}
-              onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
-              disabled={form.currency === settings.currency}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm disabled:opacity-50" />
+            <div className="flex gap-2">
+              <input type="number" step="0.0001" min="0" value={form.exchange_rate}
+                onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
+                disabled={form.currency === settings.currency}
+                className="flex-1 px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm disabled:opacity-50" />
+              <button type="button"
+                onClick={() => fetchLiveRate(form.currency)}
+                disabled={form.currency === settings.currency || fetchingRate}
+                title="Fetch live rate from ECB via Frankfurter"
+                className="px-3 py-2 bg-[#f6f3ee] border border-[#ede9e2] rounded-xl text-[#b8943f] hover:bg-[#b8943f]/10 disabled:opacity-40 transition-colors">
+                {fetchingRate ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              </button>
+            </div>
+            {rateError && <p className="text-xs text-red-500 mt-1">{rateError}</p>}
+            {rateSource && !rateError && <p className="text-xs text-black/40 mt-1">{rateSource}</p>}
           </div>
         </div>
 
@@ -307,9 +363,15 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             )}
           </div>
           <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
-            <span>Total</span>
+            <span>Total ({form.currency})</span>
             <span className="font-mono text-[#1a1814]">{fmt(totalAmount)}</span>
           </div>
+          {form.currency !== settings.currency && parseFloat(form.exchange_rate) > 0 && (
+            <div className="flex justify-between text-xs text-black/50">
+              <span>≈ {settings.currency} equivalent</span>
+              <span className="font-mono">{fmt(Math.round(totalAmount * parseFloat(form.exchange_rate) * 100) / 100)}</span>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

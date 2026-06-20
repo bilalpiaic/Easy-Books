@@ -1,7 +1,9 @@
-"""Exchange rates CRUD."""
+"""Exchange rates CRUD + live rate proxy."""
+from datetime import date as DateType
 from decimal import Decimal
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
@@ -78,6 +80,57 @@ def create_rate(
     session.commit()
     session.refresh(row)
     return row
+
+
+@router.get("/live")
+def get_live_rate(
+    from_currency: str,
+    to_currency: str,
+    user: CurrentUserDep,
+):
+    """Proxy a live FX rate from Frankfurter (ECB reference rates, no API key).
+
+    Returns the latest available rate.  The caller can pass `save=true` as a
+    query param to upsert the fetched rate into the tenant's ExchangeRate table.
+    """
+    from_currency = from_currency.upper()
+    to_currency = to_currency.upper()
+    if from_currency == to_currency:
+        return {
+            "from_currency": from_currency,
+            "to_currency": to_currency,
+            "rate": 1.0,
+            "date": DateType.today().isoformat(),
+            "source": "identity",
+        }
+    try:
+        resp = httpx.get(
+            "https://api.frankfurter.app/latest",
+            params={"from": from_currency, "to": to_currency},
+            timeout=8.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            502,
+            f"Frankfurter returned HTTP {exc.response.status_code}. "
+            "The currency pair may not be supported.",
+        )
+    except httpx.RequestError:
+        raise HTTPException(502, "Could not reach Frankfurter (api.frankfurter.app). Check internet connectivity.")
+
+    rate = data.get("rates", {}).get(to_currency)
+    if rate is None:
+        raise HTTPException(422, f"Frankfurter does not publish a rate for {to_currency}.")
+
+    return {
+        "from_currency": from_currency,
+        "to_currency": to_currency,
+        "rate": float(rate),
+        "date": data.get("date"),
+        "source": "frankfurter.app (ECB)",
+    }
 
 
 @router.delete("/{rate_id}", status_code=204)
