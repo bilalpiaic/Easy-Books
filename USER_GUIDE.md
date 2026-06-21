@@ -35,6 +35,8 @@
 23. [3-Mode Voucher Entry](#23-3-mode-voucher-entry)
 24. [Printing & Report Formats](#24-printing--report-formats)
 25. [UI Preferences — Theme, Language & Layout](#25-ui-preferences--theme-language--layout)
+26. [Payroll](#26-payroll)
+27. [Attendance Register](#27-attendance-register)
 
 ---
 
@@ -1191,3 +1193,183 @@ All pages are fully usable on phone-sized screens. Key adaptations:
 - **Button toolbars** wrap so Export / Print / New buttons don't overflow.
 - **Line-item tables** gain horizontal scroll (`overflow-x-auto`) so you can swipe to see all columns.
 - **Sidebar** collapses to icon-strip by default on narrow screens; tap to expand.
+
+---
+
+## 26. PAYROLL
+
+Manage your full payroll cycle — from setting up salary components and employee structures to running, approving, posting to the GL, and printing payslips.
+
+### 26.1 Setting Up Salary Components
+
+Go to **Payroll → Salary Components** (`/payroll/components`):
+
+- Click a row to edit it inline, or use **+ Add Component** to create a new one.
+- Fill in:
+
+| Field | Description |
+|-------|-------------|
+| **Code** | Short identifier (e.g. `BASIC`, `HRA`, `INCOME_TAX`) |
+| **Name** | Display name shown on payslips |
+| **Type** | `earnings` / `deductions` / `statutory` |
+| **GL Account** | The ledger account this component posts to (e.g. 5200 Salary Expense, 2300 Salaries Payable) |
+| **Is Fixed** | When on, amount is a flat amount; when off, amount is treated as % of basic salary |
+| **Is Taxable** | Marks whether the component is subject to income tax |
+
+Salary components are a shared catalog across your organisation — each employee's structure then specifies the amounts.
+
+### 26.2 Adding Employees
+
+Go to **Employees** (`/employees`) → **+ New Employee**:
+
+- **Employee code** is auto-generated (EMP-0001 sequence).
+- Fill in: full name, department, designation, join date, CNIC, bank account, bank name.
+- Toggle **Active** to control whether the employee appears in payroll runs.
+
+Click **Save** to create the employee. Soft-deleted employees (`is_active = false`) are hidden from new runs but their historical payslips are preserved.
+
+### 26.3 Configuring an Employee's Salary Structure
+
+Open an employee → **Salary Structure** tab (`/employees/[id]/edit`):
+
+1. Click **+ Add Component** to select a component from the catalog.
+2. Enter either a flat **Amount** or a **% of Basic** depending on the component's `is_fixed` flag.
+3. Set an optional **Effective From / To** date range.
+4. Repeat for each earning, deduction, and statutory component.
+5. Click **Save Structure** — this replaces the employee's entire structure atomically.
+
+The structure is used when a payroll run is created to auto-compute each employee's gross earnings, deductions, and net pay.
+
+### 26.4 Running Payroll
+
+Go to **Payroll → New Payroll Run** (`/payroll/new`):
+
+1. Enter **Period Start** and **Period End** (e.g. 01-06-26 to 30-06-26).
+2. Set the **Pay Date**.
+3. Click **Create Run** — the system fetches every active employee's salary structure and auto-computes:
+   - Gross earnings (sum of all `earnings` components)
+   - Total deductions (sum of all `deductions` + `statutory` components)
+   - Net pay (gross − deductions)
+4. Review the computed lines in the run detail page (`/payroll/[id]`). In **Draft** status you can edit individual line amounts inline if an override is needed.
+
+### 26.5 Approve and Post to GL
+
+From the run detail page:
+
+**Approve** — marks the run `Approved`. No GL entry yet; this step is a human review gate.
+
+**Post to GL** — changes status to `Posted` and creates a balanced Transaction (voucher type `PR`, numbered PR-YYYY-seq):
+
+```
+Dr  Salary Expense (5xxx — per component GL account)   5,200.00
+  Cr  Salaries Payable (2xxx — net pay)                4,100.00
+  Cr  Income Tax Payable                                  600.00
+  Cr  EOBI Payable                                        500.00
+  ────────────────────────────────────────────────────────────
+  ∑Dr = ∑Cr = 5,200.00  ✓
+```
+
+The posted JV appears in the General Ledger and factors into the period's P&L and Balance Sheet.
+
+### 26.6 Void a Payroll Run
+
+From the run detail page, click **Void**. This:
+- Creates a reversing JV (same lines, debits and credits swapped).
+- Sets the run status to `Void`.
+- Restores the Salaries Payable balance as if the run had never been posted.
+
+Use void rather than delete to preserve the audit trail.
+
+### 26.7 Paying Employees
+
+Posting the payroll run creates the liability (`Cr Salaries Payable`). To clear it:
+1. Go to **New Entry** (`/journal/new`) → **Payment** mode.
+2. Select the **Bank** instrument account.
+3. Credit side: pick account **Salaries Payable** (2xxx).
+4. Enter the net pay amount and payee name.
+5. Post — this creates a `BP-` Bank Payment voucher.
+
+### 26.8 Printing Payslips
+
+From the run detail page, each employee row has a **Payslip** link. Clicking it opens `/payroll/[id]/payslip/[eid]` — a portrait-format printable payslip showing:
+- Employee details (name, code, department, designation)
+- Pay period and pay date
+- Earnings table (component name, amount)
+- Deductions table (component name, amount)
+- Net pay box (gross − deductions)
+
+Use **Ctrl+P** / **Cmd+P** or the **Print** button to print or save as PDF.
+
+---
+
+## 27. ATTENDANCE REGISTER
+
+Track daily employee attendance, working hours, and generate monthly summaries.
+
+### 27.1 Monthly Grid View
+
+Go to **Attendance** (`/attendance`):
+
+- The grid shows **employees as rows** and **days 1–31 as columns** for the selected month.
+- Navigate months with the **← →** arrows at the top.
+- Each cell shows a colour-coded status badge:
+
+| Colour | Status | Code |
+|--------|--------|------|
+| Green | Present | P |
+| Red | Absent | A |
+| Amber | Half Day | H |
+| Blue | Leave | L |
+| Purple | Holiday | Ho |
+| Grey | Off | O |
+
+- **Summary KPI cards** at the top show: total present days, absent days, leave days, and average hours worked for the selected month.
+- Click any cell to open a popover showing time-in, time-out, hours worked, and an **Edit** link.
+
+### 27.2 Adding a Single Record
+
+Click **Add Record** (or click a cell → **Edit**) to open `/attendance/record`:
+
+- Fields: **Employee**, **Date**, **Status**.
+- For `present` and `half_day` statuses, **Time In** and **Time Out** fields appear.
+- **Hours Worked** is shown as a live preview (auto-computed from time_in and time_out).
+- Pre-fill via query params: `/attendance/record?employee_id=5&date=2026-06-15`.
+- Click **Save** — a duplicate guard prevents two records for the same employee on the same date.
+
+### 27.3 Bulk Entry
+
+Go to **Attendance → Bulk Entry** (`/attendance/bulk`):
+
+1. Select the month.
+2. A grid of `<select>` dropdowns appears: one per employee per day.
+3. Set the status for each cell.
+4. Click **Save All** — the system performs a bulk upsert (creates new records or updates existing ones).
+
+Useful for entering a full month's attendance from a paper register or HR report in one step.
+
+### 27.4 Attendance Report
+
+Go to **Attendance → Report** (`/attendance/report`):
+
+- Filter by **Employee** and/or **Date Range**.
+- The report shows all records for the period with per-employee subtotals (present count, absent count, leave count, total hours).
+- Click **Export CSV** to download the filtered data.
+- The report is landscape-printable: click **Print** for a formatted paper copy.
+
+### 27.5 Biometric Import
+
+Go to **Attendance → Import** (`/attendance/import`):
+
+**CSV upload (manual fallback):**
+1. Click **Download Template** to get a sample CSV with the correct column layout.
+2. Fill in: `employee_code`, `date`, `time_in`, `time_out`, `status`.
+3. Upload the CSV — the page parses it client-side and shows a preview table.
+4. Click **Import** — records are matched by `employee_code`, hours are auto-computed, and source is set to `manual`.
+
+**Biometric device endpoint (`POST /api/attendance/import/biometric`):**
+- Accepts a JSON payload from a hardware time-attendance device.
+- Matches records to employees by `employee_code`.
+- Sets `source = biometric` and stores the raw device payload in `raw_data` (JSON field).
+- Delete is blocked for biometric records to preserve device audit integrity.
+
+**Future device integration:** ZKTeco / FingerTec devices can push records via TCP/IP or WebSocket. The `raw_data` field is pre-designed to store the device's native payload so no data is lost during the transition from polling to push.

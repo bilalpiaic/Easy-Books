@@ -632,6 +632,66 @@ Used for adjustments, opening balances, depreciation, accruals, prepayments, cor
 
 ---
 
+### 4.5a PAYROLL CYCLE
+
+Payroll runs against all active employees who have a salary structure configured.
+
+```
+  SETUP                    CREATE RUN               APPROVE           POST GL           PAY EMPLOYEES
+   │                          │                         │                │                   │
+   │ salary components         │ POST /api/payroll/runs  │ POST .../approve│ POST .../post      │ BP Bank Payment
+   │ employee salary structure │ (period dates)          │                │ (PR-YYYY-seq JV)  │ Dr Sal. Payable
+   │                           ▼                         ▼                ▼                   │ Cr Bank
+   │                      PayrollRun (draft)        PayrollRun        Transaction +           ▼
+   │                      + PayrollLine × N         (approved)        JournalEntry[]     Payable cleared
+   │                      + PayrollLineDetail                          balanced
+   ▼                        (auto-computed)
+  Catalog + structures
+  in place
+```
+
+**Step-by-step:**
+
+1. **Set up salary components** (Admin → Payroll → Salary Components):
+   - Define each component: code, name, type (`earnings` / `deductions` / `statutory`), GL account, fixed vs %-of-basic.
+
+2. **Assign component amounts to each employee** (Employees → Salary Structure tab):
+   - Select component, enter amount or pct_of_basic, set effective dates.
+
+3. **Create payroll run** (Payroll → New → set period):
+   - System auto-computes all lines from active structures.
+   - In Draft status: individual amounts can be overridden inline.
+
+4. **Approve** (status: Draft → Approved):
+   - Human review gate; no GL entry yet.
+
+5. **Post to GL** (status: Approved → Posted):
+
+```
+Dr  Salary Expense         5,200   (per SalaryComponent.gl_account_id, aggregated)
+  Cr  Salaries Payable     4,100   (net pay)
+  Cr  Income Tax Payable     600
+  Cr  EOBI Payable           500
+  ─────────────────────────────────
+  ∑Dr = ∑Cr = 5,200  ✓
+```
+
+6. **Pay employees** — create a Bank Payment voucher (`BP`) against Salaries Payable to clear the liability.
+
+7. **Void if needed** — creates a reversing JV; restores the Salaries Payable balance; status → Void.
+
+### 4.5b ATTENDANCE → PAYROLL INTEGRATION
+
+Attendance records feed into payroll planning:
+
+- Monthly grid shows working days, absences, leaves per employee (colour-coded: Present/Absent/Half Day/Leave/Holiday/Off).
+- Payroll run can reference attendance to validate expected working days.
+- Bulk entry grid allows setting a full month's attendance in one `POST /api/attendance/bulk` call.
+- Biometric import (`POST /api/attendance/import/biometric`) matches records by `employee_code`, stores raw device payload in `raw_data`, sets `source = biometric`; delete is blocked for biometric records to preserve device audit integrity.
+- Future: auto-deduct absent/unpaid leave days from gross pay during run computation.
+
+---
+
 ### 4.6 PERIOD-END CLOSE
 
 ```

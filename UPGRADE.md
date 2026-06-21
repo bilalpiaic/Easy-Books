@@ -141,6 +141,21 @@ cd backend && uv run alembic downgrade -1
 
 ## Version Changelog
 
+### v2.8.0 — HRM: Payroll & Attendance (2026-06-21)
+
+**Schema changes:** 3 migrations (`0023_employees`, `0024_payroll`, `0025_attendance`). All scripts/installers run `alembic upgrade head` automatically — existing data is untouched.
+
+**What's new:**
+- Payroll module: employees, salary components, payroll runs with GL posting, payslips
+- Attendance register: manual time-in/out, monthly grid, bulk entry, biometric import stub
+- 13 new frontend pages; Payroll sidebar section
+
+**Upgrade path:** `git pull && ./update.sh` — migrations run automatically.
+
+**New localStorage keys:** none.
+
+---
+
 ### v2.7.0 (2026-06-21)
 
 **No database migrations** — this release is entirely frontend. The schema stays at revision `0022_promo_rules`.

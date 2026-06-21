@@ -41,14 +41,15 @@ from db import _coa_for, engine, seed_data
 import json as _json
 
 from models import (
-    Account, AnalyticAccount, AuditLog, BankAccount, BomHeader, BomLine, Bill,
-    BillLine, BillPayment, Budget, CreditNote, CreditNoteLine, Customer,
-    CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
-    DeferredRevenueSchedule, DepreciationEntry, ExchangeRate, FixedAsset,
-    GRNLine, GoodsReceiptNote, InventoryLayer, Invoice, InvoiceLine,
-    PaymentAllocation, PaymentReceived, PaymentTerm, Product, ProductCategory,
-    ProductionOrder, PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate,
-    ReportDefinition, SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor,
+    Account, AnalyticAccount, AttendanceRecord, AuditLog, BankAccount, BomHeader,
+    BomLine, Bill, BillLine, BillPayment, Budget, CreditNote, CreditNoteLine,
+    Customer, CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
+    DeferredRevenueSchedule, DepreciationEntry, Employee, EmployeeSalaryStructure,
+    ExchangeRate, FixedAsset, GRNLine, GoodsReceiptNote, InventoryLayer, Invoice,
+    InvoiceLine, PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
+    PayrollLineDetail, PayrollRun, Product, ProductCategory, ProductionOrder,
+    PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate, ReportDefinition,
+    SalaryComponent, SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor,
     VendorAdvance,
 )
 from models_telecom import (
@@ -2260,6 +2261,363 @@ def _seed_vendor_advances(s: Session, user: User, vendors: list, bills: list,
                 s.add(adv)
 
 
+# ── HRM seed helpers ──────────────────────────────────────────────────────────
+
+EMPLOYEE_NAMES = [
+    ("Ahmed Ali",       "EMP-0001"),
+    ("Sara Khan",       "EMP-0002"),
+    ("Muhammad Raza",   "EMP-0003"),
+    ("Fatima Malik",    "EMP-0004"),
+    ("Usman Sheikh",    "EMP-0005"),
+    ("Ayesha Qureshi",  "EMP-0006"),
+    ("Bilal Ahmed",     "EMP-0007"),
+    ("Zara Hussain",    "EMP-0008"),
+    ("Tariq Mahmood",   "EMP-0009"),
+    ("Nadia Iqbal",     "EMP-0010"),
+    ("Imran Siddiqui",  "EMP-0011"),
+    ("Hina Baig",       "EMP-0012"),
+]
+
+_DEPT_ROLES: dict[str, list[tuple[str, str]]] = {
+    "simple": [
+        ("Admin", "Office Administrator"),
+        ("Admin", "Admin Assistant"),
+        ("Sales", "Sales Executive"),
+        ("Sales", "Sales Manager"),
+        ("Finance", "Accountant"),
+        ("Finance", "Finance Officer"),
+        ("Admin", "Receptionist"),
+        ("Sales", "Business Development Executive"),
+    ],
+    "services": [
+        ("Consulting", "Senior Consultant"),
+        ("Consulting", "Junior Consultant"),
+        ("Project Management", "Project Manager"),
+        ("Project Management", "Project Coordinator"),
+        ("Finance", "Accountant"),
+        ("IT Support", "IT Specialist"),
+        ("Consulting", "Principal Consultant"),
+        ("IT Support", "Systems Analyst"),
+    ],
+    "trader": [
+        ("Warehouse", "Warehouse Supervisor"),
+        ("Warehouse", "Warehouse Associate"),
+        ("Procurement", "Procurement Officer"),
+        ("Procurement", "Procurement Manager"),
+        ("Sales", "Sales Executive"),
+        ("Sales", "Account Manager"),
+        ("Finance", "Accountant"),
+        ("Warehouse", "Logistics Coordinator"),
+    ],
+    "manufacturing": [
+        ("Production", "Production Supervisor"),
+        ("Production", "Machine Operator"),
+        ("Quality Control", "QC Inspector"),
+        ("Engineering", "Process Engineer"),
+        ("Warehouse", "Store Keeper"),
+        ("Finance", "Accountant"),
+        ("Production", "Line Leader"),
+        ("Quality Control", "QA Manager"),
+    ],
+    "telecom_franchise": [
+        ("Retail", "Retail Associate"),
+        ("Retail", "Retail Supervisor"),
+        ("Field Operations", "Field Technician"),
+        ("Field Operations", "Field Operations Manager"),
+        ("Finance", "Accountant"),
+        ("Customer Service", "Customer Service Representative"),
+        ("Retail", "Store Manager"),
+        ("Customer Service", "Customer Service Manager"),
+    ],
+}
+
+_SALARY_BANDS = [50_000, 65_000, 80_000, 100_000, 120_000, 150_000]
+
+_STANDARD_COMPONENTS = [
+    ("BASIC",   "Basic Salary",         "earnings",   True,  True),
+    ("HRA",     "House Rent Allowance", "earnings",   True,  True),
+    ("CONVEY",  "Conveyance Allowance", "earnings",   False, True),
+    ("MEDICAL", "Medical Allowance",    "earnings",   False, True),
+    ("EOBI",    "EOBI Deduction",       "deductions", False, True),
+    ("TAX",     "Income Tax",           "deductions", True,  True),
+]
+
+
+def _seed_employees(s: Session, tenant_id: int, business_model: str) -> list:
+    """Seed 8 realistic employees per tenant (idempotent)."""
+    dept_roles = _DEPT_ROLES.get(business_model, _DEPT_ROLES["simple"])
+    employees: list = []
+    today = date.today()
+    for i, (name, code) in enumerate(EMPLOYEE_NAMES):
+        existing = s.exec(
+            select(Employee).where(
+                Employee.tenant_id == tenant_id,
+                Employee.employee_code == code,
+            )
+        ).first()
+        if existing:
+            employees.append(existing)
+            continue
+        dept, designation = dept_roles[i % len(dept_roles)]
+        # join date: 1–3 years ago with variety based on index
+        days_back = 365 + (i * 73) % 730
+        join_dt = today - timedelta(days=days_back)
+        emp = Employee(
+            tenant_id=tenant_id,
+            employee_code=code,
+            name=name,
+            department=dept,
+            designation=designation,
+            join_date=join_dt.isoformat(),
+            is_active=True,
+        )
+        s.add(emp)
+        s.flush()
+        employees.append(emp)
+    return employees
+
+
+def _seed_salary_components(s: Session, tenant_id: int) -> list:
+    """Seed 6 standard salary components per tenant (idempotent)."""
+    components: list = []
+    for code, name, comp_type, is_taxable, is_fixed in _STANDARD_COMPONENTS:
+        existing = s.exec(
+            select(SalaryComponent).where(
+                SalaryComponent.tenant_id == tenant_id,
+                SalaryComponent.code == code,
+            )
+        ).first()
+        if existing:
+            components.append(existing)
+            continue
+        comp = SalaryComponent(
+            tenant_id=tenant_id,
+            code=code,
+            name=name,
+            component_type=comp_type,
+            is_taxable=is_taxable,
+            is_fixed=is_fixed,
+            is_active=True,
+        )
+        s.add(comp)
+        s.flush()
+        components.append(comp)
+    return components
+
+
+def _seed_salary_structures(s: Session, employees: list, components: list) -> None:
+    """Assign salary component amounts to each employee (idempotent)."""
+    comp_by_code = {c.code: c for c in components}
+    for idx, emp in enumerate(employees):
+        basic = _SALARY_BANDS[idx % len(_SALARY_BANDS)]
+        amounts = {
+            "BASIC":   basic,
+            "HRA":     round(basic * 0.4),
+            "CONVEY":  5_000,
+            "MEDICAL": 3_000,
+            "EOBI":    round(basic * 0.05),
+            "TAX":     round(basic * 0.08),
+        }
+        for code, amount in amounts.items():
+            comp = comp_by_code.get(code)
+            if not comp:
+                continue
+            existing = s.exec(
+                select(EmployeeSalaryStructure).where(
+                    EmployeeSalaryStructure.employee_id == emp.id,
+                    EmployeeSalaryStructure.component_id == comp.id,
+                )
+            ).first()
+            if existing:
+                continue
+            s.add(EmployeeSalaryStructure(
+                employee_id=emp.id,
+                component_id=comp.id,
+                amount=float(amount),
+            ))
+
+
+def _seed_payroll_runs(
+    s: Session, tenant_id: int, user, employees: list, components: list
+) -> list:
+    """Seed 3 monthly payroll runs (last 3 months) — idempotent."""
+    today = date.today()
+    runs: list = []
+    jv_seq_start = 1
+
+    for month_offset in range(3, 0, -1):  # 3, 2, 1 months ago → oldest first
+        # Determine the target month
+        target = today.replace(day=1) - timedelta(days=1)  # last day of previous month
+        for _ in range(month_offset - 1):
+            target = target.replace(day=1) - timedelta(days=1)
+        period_end_dt = target
+        period_start_dt = period_end_dt.replace(day=1)
+
+        period_start = period_start_dt.isoformat()
+        period_end   = period_end_dt.isoformat()
+
+        existing = s.exec(
+            select(PayrollRun).where(
+                PayrollRun.tenant_id == tenant_id,
+                PayrollRun.period_start == period_start,
+            )
+        ).first()
+        if existing:
+            runs.append(existing)
+            jv_seq_start += 1
+            continue
+
+        # Most recent = approved; two before = posted
+        is_most_recent = (month_offset == 1)
+        status = "approved" if is_most_recent else "posted"
+
+        year = period_start_dt.year
+        jv_number = f"PR-{year}-{jv_seq_start:04d}"
+        jv_seq_start += 1
+
+        run = PayrollRun(
+            tenant_id=tenant_id,
+            period_start=period_start,
+            period_end=period_end,
+            pay_date=period_end,
+            status=status,
+            jv_number=jv_number,
+            transaction_id=None,
+            created_by_id=user.id,
+        )
+        s.add(run)
+        s.flush()
+
+        # Build a quick lookup: employee_id → {comp_code: amount}
+        comp_by_id = {c.id: c for c in components}
+        emp_structures: dict[int, dict[str, float]] = {}
+        for emp in employees:
+            if not emp.is_active:
+                continue
+            structs = s.exec(
+                select(EmployeeSalaryStructure).where(
+                    EmployeeSalaryStructure.employee_id == emp.id
+                )
+            ).all()
+            emp_structures[emp.id] = {
+                comp_by_id[st.component_id].code: st.amount
+                for st in structs
+                if st.component_id in comp_by_id
+            }
+
+        for emp in employees:
+            if not emp.is_active:
+                continue
+            struct = emp_structures.get(emp.id, {})
+            gross = sum(
+                v for k, v in struct.items()
+                if any(
+                    c.code == k and c.component_type == "earnings"
+                    for c in components
+                )
+            )
+            deductions = sum(
+                v for k, v in struct.items()
+                if any(
+                    c.code == k and c.component_type == "deductions"
+                    for c in components
+                )
+            )
+            net = gross - deductions
+            line = PayrollLine(
+                payroll_run_id=run.id,
+                employee_id=emp.id,
+                gross_earnings=float(gross),
+                total_deductions=float(deductions),
+                net_pay=float(net),
+            )
+            s.add(line)
+            s.flush()
+
+            for comp in components:
+                amount = struct.get(comp.code, 0.0)
+                s.add(PayrollLineDetail(
+                    payroll_line_id=line.id,
+                    component_id=comp.id,
+                    amount=float(amount),
+                    is_override=False,
+                ))
+
+        runs.append(run)
+    return runs
+
+
+def _vary_time(base_h: int, base_m: int, delta_m: int) -> str:
+    total = base_h * 60 + base_m + random.randint(-delta_m, delta_m)
+    total = max(0, min(23 * 60 + 59, total))
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def _hrs(tin: Optional[str], tout: Optional[str]) -> Optional[float]:
+    if not tin or not tout:
+        return None
+    ih, im = map(int, tin.split(":"))
+    oh, om = map(int, tout.split(":"))
+    return round(max(0.0, (oh * 60 + om - ih * 60 - im) / 60.0), 2)
+
+
+def _seed_attendance(s: Session, tenant_id: int, employees: list) -> None:
+    """Seed 2 months of daily attendance for each employee (idempotent)."""
+    today = date.today()
+    # First day of 2 calendar months ago
+    prev1 = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+    start_dt = (prev1 - timedelta(days=1)).replace(day=1)
+
+    current = start_dt
+    while current <= today:
+        dow = current.weekday()  # 0=Mon … 6=Sun
+        date_str = current.isoformat()
+
+        if dow < 5:  # weekday only
+            for emp in employees:
+                existing = s.exec(
+                    select(AttendanceRecord).where(
+                        AttendanceRecord.tenant_id == tenant_id,
+                        AttendanceRecord.employee_id == emp.id,
+                        AttendanceRecord.date == date_str,
+                    )
+                ).first()
+                if existing:
+                    continue  # skip this employee for this day
+
+                roll = random.random()
+                if roll < 0.85:
+                    status = "present"
+                    tin  = _vary_time(9, 0, 15)
+                    tout = _vary_time(18, 0, 30)
+                elif roll < 0.90:
+                    status = "absent"
+                    tin, tout = None, None
+                elif roll < 0.95:
+                    status = "half_day"
+                    tin  = "09:00"
+                    tout = "13:00"
+                elif roll < 0.98:
+                    status = "leave"
+                    tin, tout = None, None
+                else:
+                    status = "holiday"
+                    tin, tout = None, None
+
+                s.add(AttendanceRecord(
+                    tenant_id=tenant_id,
+                    employee_id=emp.id,
+                    date=date_str,
+                    time_in=tin,
+                    time_out=tout,
+                    hours_worked=_hrs(tin, tout),
+                    status=status,
+                    source="manual",
+                ))
+
+        current += timedelta(days=1)
+
+
 # ── Driver ────────────────────────────────────────────────────────────────────
 
 
@@ -2396,6 +2754,17 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _seed_report_definitions(s, tenant_id, user)
         s.commit()
 
+        # ── HRM: Employees, Payroll, Attendance ───────────────────────────────
+        employees_hrm = _seed_employees(s, tenant_id, business_model)
+        components_hrm = _seed_salary_components(s, tenant_id)
+        s.commit()
+        _seed_salary_structures(s, employees_hrm, components_hrm)
+        s.commit()
+        _seed_payroll_runs(s, tenant_id, user, employees_hrm, components_hrm)
+        s.commit()
+        _seed_attendance(s, tenant_id, employees_hrm)
+        s.commit()
+
         from models import Transaction
         return {
             "tenant":       company_name,
@@ -2422,6 +2791,9 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             "debit_notes": len(s.exec(select(DebitNote).where(DebitNote.tenant_id == tenant_id)).all()),
             "customer_advances": len(s.exec(select(CustomerAdvance).where(CustomerAdvance.tenant_id == tenant_id)).all()),
             "vendor_advances": len(s.exec(select(VendorAdvance).where(VendorAdvance.tenant_id == tenant_id)).all()),
+            "employees":          len(s.exec(select(Employee).where(Employee.tenant_id == tenant_id)).all()),
+            "payroll_runs":       len(s.exec(select(PayrollRun).where(PayrollRun.tenant_id == tenant_id)).all()),
+            "attendance_records": len(s.exec(select(AttendanceRecord).where(AttendanceRecord.tenant_id == tenant_id)).all()),
         }
 
 

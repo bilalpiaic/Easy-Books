@@ -100,6 +100,12 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Promotional discounts** — create promo rules (product, min qty, discount %); "Apply Promos" on the invoice form auto-fills the Disc% column; line amounts recalculate instantly
 - **Granular access control** — 60-resource permission matrix beyond the 4 RBAC roles; per-user "my data only" mode; module-level toggle in Settings
 
+**HRM — Payroll & Attendance**
+- **Employee master** — department/designation/join date/CNIC/bank details; soft-delete; auto-generated codes (EMP-0001)
+- **Salary components catalog** — earnings/deductions/statutory types; GL account linkage per component; per-employee fixed or %-of-basic amounts
+- **Payroll runs** — draft → approved → posted flow; auto-computes gross/deductions/net per employee from salary structures; GL posting (Dr Salary Expense / Cr Salaries Payable + Cr Tax/EOBI Payable); PR-YYYY-seq voucher; void with reversing JV; printable payslips
+- **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
+
 **Multi-tenant SaaS**
 - RBAC: `owner | admin | accountant | viewer`; team management with invite links
 - Tenant isolation at the data layer — every query filters by `tenant_id`

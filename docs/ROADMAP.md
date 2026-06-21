@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-21 (against `main` @ commit `63fe569`)._
+_Last reviewed: 2026-06-21 (against `main` @ commit `40fc6c0`)._
 
 ## Status summary
 
@@ -22,6 +22,16 @@ above. (See "Issue closure" below.)
 ---
 
 ## Shipped history (condensed)
+
+### v2.8.0 — HRM: Payroll & Attendance Register (2026-06-21)
+
+| Feature | Detail |
+|---------|--------|
+| **Payroll module** | Employee master + salary component catalog + per-employee salary structures; `PayrollRun` lifecycle (draft→approved→posted→void); auto-compute gross/deductions/net from structures; GL posting Dr Salary Expense / Cr Salaries Payable; PR-YYYY-seq voucher; printable payslips; 20 API endpoints in `routers/payroll.py` |
+| **Attendance register** | `AttendanceRecord` with time_in/time_out/hours_worked/status/source; monthly grid (employees × days); bulk entry; attendance report + CSV export; biometric import endpoint (matches by employee_code, stores raw device payload in `raw_data`); CSV upload fallback; ZKTeco/FingerTec integration planned |
+| **Migrations** | `0023_employees` + `0024_payroll` + `0025_attendance` — 7 new tables; no breaking changes |
+| **Frontend** | 13 new pages across `/payroll/*`, `/employees/*`, `/attendance/*`; Payroll sidebar section |
+| **Demo data** | Realistic HRM seed data: 8–12 employees per tenant, salary structures, 3 payroll runs (posted+approved), 2 months attendance |
 
 ### v2.7.0 — UI/UX release (2026-06-21)
 

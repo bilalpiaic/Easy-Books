@@ -294,6 +294,75 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | `loginattempt` | `ip`, `attempted_at`; sliding-window DB throttle |
 | `accountbalance` | Materialised per-account closing balance for locked periods (read-fast trial balance) |
 
+### 5.7 HRM Data Model
+
+**Migrations:** `0023_employees`, `0024_payroll`, `0025_attendance` — 7 new tables; no breaking changes to existing tables.
+
+```
+Employee
+  - tenant_id, employee_code (EMP-seq), name, department, designation
+  - join_date, cnic, bank_account, bank_name, is_active, created_by_id
+
+SalaryComponent
+  - code, name, component_type (earnings|deductions|statutory)
+  - is_taxable, is_fixed, gl_account_id → Account
+
+EmployeeSalaryStructure
+  - employee_id → Employee, component_id → SalaryComponent
+  - amount (fixed) or pct_of_basic; effective_from/to
+
+PayrollRun
+  - period_start, period_end, pay_date, status (draft→approved→posted→void)
+  - jv_number (PR-YYYY-seq), transaction_id → Transaction
+
+PayrollLine (one per employee per run)
+  - payroll_run_id → PayrollRun, employee_id → Employee
+  - gross_earnings, total_deductions, net_pay
+
+PayrollLineDetail (one per component per line)
+  - payroll_line_id → PayrollLine, component_id → SalaryComponent
+  - amount, is_override
+
+AttendanceRecord
+  - employee_id → Employee, date, time_in (HH:MM), time_out (HH:MM)
+  - hours_worked (auto-computed from time_in/time_out), notes
+  - status: present | absent | half_day | leave | holiday | off
+  - source: manual | biometric
+  - raw_data (JSON — biometric device payload; stored verbatim for audit)
+```
+
+**Payroll GL posting** (`routers/payroll.py`):
+
+```
+Dr  Salary Expense (5xxx — per SalaryComponent.gl_account_id)
+  Cr  Salaries Payable (2xxx — net pay)
+  Cr  Income Tax Payable
+  Cr  EOBI Payable
+  ─────────────────────────────
+  ∑Dr = ∑Cr  ✓   (enforced by services/posting.py)
+```
+
+One `Transaction` is created per `PayrollRun` post; component amounts are aggregated into `JournalEntry` rows per GL account. Void creates a reversing JV. Voucher type `PR` with sequence `PR-YYYY-seq`.
+
+**HRM API endpoints:**
+
+| Endpoint | Notes |
+|----------|-------|
+| `GET/POST /api/employees` | Employee list (filter active/all) + create; code auto-generated |
+| `GET/PUT/DELETE /api/employees/{id}` | Detail, update, soft-delete |
+| `GET/PUT /api/employees/{id}/salary-structure` | Replace salary structure atomically |
+| `GET/POST/PUT/DELETE /api/payroll/components` | `SalaryComponent` catalog CRUD |
+| `POST /api/payroll/runs` | Create run; auto-computes lines from salary structures |
+| `POST /api/payroll/runs/{id}/approve` | Mark approved |
+| `POST /api/payroll/runs/{id}/post` | Post to GL: `Dr Salary Expense / Cr Salaries Payable + deductions`; PR-YYYY-seq |
+| `POST /api/payroll/runs/{id}/void` | Reverse posted run (reversing JV) |
+| `GET /api/payroll/runs/{id}/payslip/{eid}` | Structured payslip data |
+| `GET/POST /api/attendance` | List with filters (employee, month, status); create with hours auto-compute; duplicate guard |
+| `GET /api/attendance/summary` | Per-employee monthly totals |
+| `PUT/DELETE /api/attendance/{id}` | Update (recomputes hours); delete blocked for biometric records |
+| `POST /api/attendance/bulk` | Upsert batch attendance records |
+| `POST /api/attendance/import/biometric` | Match by employee_code, store raw_data, source=biometric |
+
 ---
 
 ## 6. BUSINESS MODELS & ADAPTIVE UX
