@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Users, Plus, Settings2, CalendarDays, DollarSign, ClipboardList, Home } from "lucide-react"
+import { Users, Plus, Settings2, CalendarDays, DollarSign, ClipboardList, Home, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt, useCurrency } from "@/context/SettingsContext"
@@ -56,6 +56,22 @@ export default function PayrollHubPage() {
   const draftCount = runs.filter(r => r.status === "draft").length
   const recentRuns = runs.slice(0, 10)
 
+  function exportCsv() {
+    const header = ["Run #", "Period Start", "Period End", "Pay Date", "Employees", "Net Pay", "Status"]
+    const rows = runs.map(r => [
+      r.jv_number ?? `#${r.id}`,
+      r.period_start, r.period_end, r.pay_date,
+      r.total_lines, r.total_net_pay, r.status,
+    ])
+    const csv = [header, ...rows].map(row => row.join(",")).join("\n")
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: "payroll_runs.csv",
+    })
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   return (
     <div className="space-y-6">
       <PrintHeader title="Payroll" />
@@ -67,7 +83,15 @@ export default function PayrollHubPage() {
           </Link>
           <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Payroll")}</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+          <button onClick={exportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
           <Link
             href="/payroll/components"
             className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm font-medium"

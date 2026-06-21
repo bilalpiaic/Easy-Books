@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
 import {
-  ChevronLeft, ChevronRight, Plus, FileText, Upload, Printer, Users, Clock, Calendar, TrendingUp, Home,
+  ChevronLeft, ChevronRight, Plus, FileText, Upload, Printer, Users, Clock, Calendar, TrendingUp, Home, Download,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
@@ -107,6 +107,22 @@ export default function AttendancePage() {
     else setMonth(m => m + 1)
   }
 
+  function exportCsv() {
+    const header = ["Employee", ...days.map(d => `${pad2(month)}/${pad2(d)}`), "Hours", "Present", "Absent"]
+    const rows = empIds.map(empId => {
+      const sum = summaryMap[empId]
+      const dayCells = days.map(day => lookup[empId]?.[day]?.status?.slice(0, 1).toUpperCase() ?? "")
+      return [sum?.name ?? `#${empId}`, ...dayCells, sum?.total_hours.toFixed(1) ?? "0", sum?.present ?? 0, sum?.absent ?? 0]
+    })
+    const csv = [header, ...rows].map(row => row.join(",")).join("\n")
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: `attendance_${year}_${pad2(month)}.csv`,
+    })
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   function handleCellClick(empId: number, day: number, e: React.MouseEvent) {
     const rect = (e.target as HTMLElement).getBoundingClientRect()
     setPopover(p => (p?.empId === empId && p?.day === day) ? null : { empId, day, x: rect.left, y: rect.bottom })
@@ -161,6 +177,10 @@ export default function AttendancePage() {
           <button onClick={() => window.print()}
             className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[#1a1814]">
             <Printer className="w-4 h-4" /> Print
+          </button>
+          <button onClick={exportCsv}
+            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[#1a1814]">
+            <Download className="w-4 h-4" /> Export CSV
           </button>
         </div>
       </div>

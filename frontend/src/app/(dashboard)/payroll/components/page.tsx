@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Edit2, Trash2, Check, X, Home, ArrowLeft } from "lucide-react"
+import { Plus, Edit2, Trash2, Check, X, Home, ArrowLeft, Printer, Download } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Account {
   id: number
@@ -71,6 +72,21 @@ export default function SalaryComponentsPage() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  function exportCsv() {
+    const header = ["Name", "Code", "Type", "Fixed", "Taxable", "Active"]
+    const rows = components.map(c => [
+      c.name, c.code, TYPE_LABEL[c.component_type] ?? c.component_type,
+      c.is_fixed ? "Yes" : "No", c.is_taxable ? "Yes" : "No", c.is_active ? "Yes" : "No",
+    ])
+    const csv = [header, ...rows].map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: "salary_components.csv",
+    })
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
 
   const startNew = () => {
     setEditRow(emptyRow())
@@ -206,7 +222,9 @@ export default function SalaryComponentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <PrintHeader title="Salary Components" />
+
+      <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] transition-colors">
@@ -219,14 +237,24 @@ export default function SalaryComponentsPage() {
           </div>
           <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Salary Components")}</h1>
         </div>
-        <button
-          onClick={startNew}
-          disabled={editingId !== null}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
-        >
-          <Plus className="w-4 h-4" />
-          New Component
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+          <button onClick={exportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <button
+            onClick={startNew}
+            disabled={editingId !== null}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            New Component
+          </button>
+        </div>
       </div>
 
       {error && (

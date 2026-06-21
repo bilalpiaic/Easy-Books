@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Users, Plus, Search, Edit2, Home } from "lucide-react"
+import { Users, Plus, Search, Edit2, Home, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
@@ -37,6 +37,23 @@ export default function EmployeesPage() {
       .finally(() => setLoading(false))
   }, [search, showActive])
 
+  function exportCsv() {
+    const header = ["Code", "Name", "Department", "Designation", "Join Date", "Status"]
+    const rows = employees.map(e => [
+      e.employee_code, e.name,
+      e.department ?? "", e.designation ?? "",
+      e.join_date ? fmtDate(e.join_date) : "",
+      e.is_active ? "Active" : "Inactive",
+    ])
+    const csv = [header, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n")
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: "employees.csv",
+    })
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   return (
     <div className="space-y-4">
       <PrintHeader title="Employees" />
@@ -50,13 +67,23 @@ export default function EmployeesPage() {
             {t("Employees")}
           </h1>
         </div>
-        <Link
-          href="/employees/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          New Employee
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+          <button onClick={exportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm">
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <Link
+            href="/employees/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            New Employee
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
