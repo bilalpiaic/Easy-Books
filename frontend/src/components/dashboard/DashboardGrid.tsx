@@ -100,8 +100,8 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
         layouts={rglLayouts}
         breakpoints={{ lg: 1024, sm: 640, xs: 0 }}
         cols={{ lg: BP_COLS.lg, sm: BP_COLS.sm, xs: BP_COLS.xs }}
-        rowHeight={96}
-        margin={[12, 12]}
+        rowHeight={80}
+        margin={[10, 10]}
         compactType="vertical"
         isDraggable={editing}
         isResizable={editing}

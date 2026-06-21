@@ -12,22 +12,24 @@
 
 /* ── Density tokens ── */
 :root {
-  --ui-cell-px: 1rem;      --ui-cell-py: 0.55rem;
-  --ui-head-py: 0.55rem;   --ui-section-gap: 1.25rem;
-  --ui-card-pad: 1.25rem;  --ui-control-py: 0.55rem;  --ui-control-px: 0.9rem;
+  --ui-cell-px: 0.85rem;   --ui-cell-py: 0.42rem;
+  --ui-head-py: 0.42rem;   --ui-section-gap: 1rem;
+  --ui-card-pad: 1rem;     --ui-control-py: 0.45rem;  --ui-control-px: 0.8rem;
+  --ui-font-table: 0.8125rem;  /* 13px — screen table cells */
 }
 html[data-density="compact"] {
-  --ui-cell-px: 0.7rem;    --ui-cell-py: 0.32rem;
-  --ui-head-py: 0.38rem;   --ui-section-gap: 0.85rem;
-  --ui-card-pad: 0.9rem;   --ui-control-py: 0.4rem;   --ui-control-px: 0.7rem;
+  --ui-cell-px: 0.6rem;    --ui-cell-py: 0.28rem;
+  --ui-head-py: 0.32rem;   --ui-section-gap: 0.75rem;
+  --ui-card-pad: 0.75rem;  --ui-control-py: 0.35rem;  --ui-control-px: 0.6rem;
+  --ui-font-table: 0.75rem;
 }
 
 /* ── Density semantic classes (screen) ── */
-.ui-th { padding: var(--ui-head-py) var(--ui-cell-px); }
-.ui-td { padding: var(--ui-cell-py) var(--ui-cell-px); }
+.ui-th { padding: var(--ui-head-py) var(--ui-cell-px); font-size: var(--ui-font-table); }
+.ui-td { padding: var(--ui-cell-py) var(--ui-cell-px); font-size: var(--ui-font-table); }
 .ui-card { padding: var(--ui-card-pad); }
 .ui-field { padding: var(--ui-control-py) var(--ui-control-px); }
-.ui-table { width: 100%; }
+.ui-table { width: 100%; font-size: var(--ui-font-table); }
 .ui-section { gap: var(--ui-section-gap); }
 
 body {
@@ -168,8 +170,8 @@ body {
     background: white !important;
     color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 9.5pt !important;
-    line-height: 1.4 !important;
+    font-size: 8.5pt !important;
+    line-height: 1.35 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -197,9 +199,9 @@ body {
     width: 100% !important;
     border-collapse: collapse !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 9pt !important;
+    font-size: 8pt !important;
     border: 0 !important;
-    margin-bottom: 10pt !important;
+    margin-bottom: 8pt !important;
   }
   thead { display: table-header-group !important; }
   tfoot { display: table-footer-group !important; }
@@ -211,11 +213,11 @@ body {
     background: transparent !important;
     color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8.5pt !important;
+    font-size: 7.5pt !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
-    padding: 3pt 6pt !important;
+    padding: 2.5pt 5pt !important;
     border: 0 !important;
     border-top: 1pt solid #000 !important;
     border-bottom: 1pt solid #000 !important;
@@ -226,9 +228,9 @@ body {
   td, .ui-td {
     background: transparent !important;
     color: #000 !important;
-    padding: 2.5pt 6pt !important;
+    padding: 2pt 5pt !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 9pt !important;
+    font-size: 8pt !important;
     border: 0 !important;
     border-bottom: 0.3pt dotted #888 !important;
     vertical-align: middle !important;
@@ -253,7 +255,7 @@ body {
     background: transparent !important;
     color: #000 !important;
     font-weight: 700 !important;
-    font-size: 9.5pt !important;
+    font-size: 8.5pt !important;
     border: 0 !important;
     border-top: 2pt double #000 !important;
     border-bottom: 1pt solid #000 !important;
@@ -263,6 +265,7 @@ body {
   tr.gb-subtotal td {
     background: transparent !important;
     font-weight: 700 !important;
+    font-size: 8pt !important;
     border-top: 1pt solid #000 !important;
     border-bottom: 1pt solid #000 !important;
   }

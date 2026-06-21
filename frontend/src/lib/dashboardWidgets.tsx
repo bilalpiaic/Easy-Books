@@ -81,14 +81,14 @@ interface PrimaryKpiProps {
 }
 export function PrimaryKpi({ label, value, icon: Icon, bg, border, text, sub, compact }: PrimaryKpiProps) {
   return (
-    <div className={`${bg} ${border} border rounded-xl p-3.5 sm:p-4 card-lift`}>
-      <div className="flex items-start justify-between gap-2">
+    <div className={`${bg} ${border} border rounded-xl p-3 card-lift`}>
+      <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
-          <p className={`text-[10px] font-bold uppercase tracking-[0.12em] ${text} opacity-70`}>{label}</p>
-          {value === null ? <div className="shimmer h-6 w-24 rounded mt-2" /> : <p className={`${compact ? "text-xl" : "text-lg sm:text-xl"} font-bold ${text} mt-1.5 leading-none truncate`}>{value}</p>}
-          {sub && <p className={`text-[10px] ${text} opacity-55 mt-1 font-medium`}>{sub}</p>}
+          <p className={`text-[9px] font-bold uppercase tracking-[0.12em] ${text} opacity-70`}>{label}</p>
+          {value === null ? <div className="shimmer h-5 w-20 rounded mt-1.5" /> : <p className={`${compact ? "text-base" : "text-sm sm:text-base"} font-bold ${text} mt-1 leading-none truncate`}>{value}</p>}
+          {sub && <p className={`text-[9px] ${text} opacity-55 mt-0.5 font-medium`}>{sub}</p>}
         </div>
-        <Icon className={`w-5 h-5 ${text} opacity-25 flex-shrink-0 mt-0.5`} />
+        <Icon className={`w-4 h-4 ${text} opacity-25 flex-shrink-0 mt-0.5`} />
       </div>
     </div>
   )
@@ -100,12 +100,12 @@ interface SecondaryKpiProps {
 }
 export function SecondaryKpi({ label, value, icon: Icon, color, href, badge, valueClass }: SecondaryKpiProps) {
   return (
-    <Link href={href} className="bg-white border border-[#ede9e2] rounded-xl p-3 flex flex-col gap-1.5 hover:border-[#b8943f]/40 hover:shadow-sm transition-all group">
+    <Link href={href} className="bg-white border border-[#ede9e2] rounded-xl p-2.5 flex flex-col gap-1 hover:border-[#b8943f]/40 hover:shadow-sm transition-all group">
       <div className="flex items-center gap-1.5">
-        <Icon className={`w-3.5 h-3.5 ${color}`} />
-        <span className="text-[10px] font-bold uppercase tracking-[0.10em] text-[#1a1814]/50">{label}</span>
+        <Icon className={`w-3 h-3 ${color}`} />
+        <span className="text-[9px] font-bold uppercase tracking-[0.10em] text-[#1a1814]/50">{label}</span>
       </div>
-      {value === null ? <div className="shimmer h-5 w-16 rounded" /> : <p className={`text-base font-bold text-[#1a1814] leading-none ${valueClass ?? ""}`}>{value}</p>}
+      {value === null ? <div className="shimmer h-4 w-14 rounded" /> : <p className={`text-sm font-bold text-[#1a1814] leading-none ${valueClass ?? ""}`}>{value}</p>}
       {badge && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full self-start ${badge.color}`}>{badge.count} {badge.label}</span>}
     </Link>
   )
@@ -209,7 +209,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "primary_kpis",
     title: "Key Figures",
     defaultVisible: true,
-    defaultSize: { w: 4, h: 2 }, minSize: { w: 2, h: 2 },
+    defaultSize: { w: 4, h: 1 }, minSize: { w: 2, h: 1 },
     render: (ctx) => {
       const { s, fmt, netProfit, margin } = ctx
       return (
@@ -227,7 +227,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "secondary_kpis",
     title: "Receivables / Payables",
     defaultVisible: true,
-    defaultSize: { w: 4, h: 2 }, minSize: { w: 2, h: 2 },
+    defaultSize: { w: 4, h: 1 }, minSize: { w: 2, h: 1 },
     render: (ctx) => {
       const { s, fmt } = ctx
       return (

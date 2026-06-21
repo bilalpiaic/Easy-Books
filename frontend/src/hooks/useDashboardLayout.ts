@@ -120,14 +120,18 @@ export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
   if (v === 3) {
     const s = saved as GridLayoutV3
     if (!Array.isArray(s.layouts?.lg)) return { lg: defaultGrid() }
-    const lg = validateV2(s.layouts.lg, meta)
+    // Auto-clamp KPI rows: they were previously h:2 but now max h:1
+    const KPI_H1_IDS = new Set(["primary_kpis", "secondary_kpis", "quick_actions", "alerts"])
+    const clampKpi = (items: GridItem[]): GridItem[] =>
+      items.map(i => KPI_H1_IDS.has(i.id) && i.h > 1 ? { ...i, h: 1 } : i)
+    const lg = validateV2(clampKpi(s.layouts.lg), meta)
     if (lg.length === 0) return { lg: defaultGrid() }
     const lgIds = new Set(lg.map(i => i.id))
     const result: ResolvedLayouts = { lg }
     for (const bp of ["sm", "xs"] as const) {
       const raw = s.layouts[bp]
       if (!Array.isArray(raw)) continue
-      const validated = validateBreakpoint(raw, meta, lgIds, BP_COLS[bp])
+      const validated = validateBreakpoint(clampKpi(raw), meta, lgIds, BP_COLS[bp])
       if (validated.length > 0) result[bp] = validated
     }
     return result
