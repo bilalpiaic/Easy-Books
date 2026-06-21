@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
 import { NAV, ALL_SECTIONS } from "@/lib/nav"
+import { useTranslation } from "react-i18next"
 
 const SECTION_COLORS: Record<string, string> = {
   Overview:      "text-[#ffd966]",
@@ -46,6 +47,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose, pinned, onTogglePinned }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const { t } = useTranslation()
   const [orgName, setOrgName]     = useState("Easy-Books")
   const [userName, setUserName]   = useState("User")
   const [userInitial, setInitial] = useState("U")
@@ -225,7 +227,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                     sectionActive && !collapsed && "opacity-100"
                   )}
                 >
-                  <span>{section}</span>
+                  <span>{t(`section.${section}`, section)}</span>
                   <ChevronDown
                     className={cn(
                       "w-3 h-3 opacity-40 group-hover:opacity-70 transition-all duration-200",
@@ -254,7 +256,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                           )}
                         >
                           <item.icon className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span className="truncate flex-1">{item.label}</span>
+                          <span className="truncate flex-1">{t(`nav.${item.label}`, item.label)}</span>
                           {active && <ChevronRight className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />}
                         </button>
                       )
@@ -302,7 +304,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
             <div className="absolute left-0 top-3 -translate-x-full border-[6px] border-transparent border-r-[#2a2521]" />
             <div className="bg-[#2a2521] border border-white/10 rounded-lg shadow-2xl py-1.5 min-w-[180px] max-w-[220px]">
               <p className={cn("px-3 pb-1 text-[9px] font-bold uppercase tracking-[0.15em] border-b border-white/8 mb-1", color)}>
-                {tooltip.section}
+                {t(`section.${tooltip.section}`, tooltip.section)}
               </p>
               {items.map(item => (
                 <button
@@ -311,7 +313,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                   className="w-full text-left flex items-center gap-2 px-3 py-1.5 text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors"
                 >
                   <item.icon className="w-3 h-3 flex-shrink-0 opacity-60" />
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate">{t(`nav.${item.label}`, item.label)}</span>
                 </button>
               ))}
             </div>

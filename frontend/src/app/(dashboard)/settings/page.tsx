@@ -7,6 +7,8 @@ import { useSettings, AppSettings } from '@/context/SettingsContext'
 import VersionBadge from '@/components/VersionBadge'
 import UpdateModal from '@/components/UpdateModal'
 import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
+import { useLocale } from '@/context/LocaleContext'
+import { LANGUAGES, type Language } from '@/i18n/config'
 
 interface PaymentTerm {
   id: number
@@ -987,6 +989,7 @@ const COLOR_OPTIONS: { id: ColorTheme; label: string; accent: string; ring: stri
 
 function AppearanceSection() {
   const { theme, colorTheme, setTheme, setColorTheme } = useTheme()
+  const { language, setLanguage } = useLocale()
 
   const modeBtn = (t: ThemeMode, Icon: React.ElementType, label: string) => (
     <button
@@ -1049,8 +1052,35 @@ function AppearanceSection() {
         </div>
       </div>
 
+      {/* Language */}
+      <div>
+        <p className="text-xs font-semibold text-[#1a1814]/55 uppercase tracking-wide mb-3">Display Language</p>
+        <div className="flex gap-3 flex-wrap">
+          {LANGUAGES.map(lang => (
+            <button
+              key={lang.code}
+              onClick={() => setLanguage(lang.code as Language)}
+              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                language === lang.code
+                  ? "border-[#b8943f] bg-[#faf6ec] text-[#b8943f]"
+                  : "border-[#ede9e2] bg-white text-[#1a1814]/60 hover:border-[#b8943f]/40"
+              }`}
+            >
+              <span className="text-lg leading-none">
+                {lang.code === "en" ? "🇬🇧" : lang.code === "ur" ? "🇵🇰" : "🇨🇳"}
+              </span>
+              <span>{lang.nativeLabel}</span>
+              <span className="text-xs text-[#1a1814]/40">({lang.label})</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-[#1a1814]/40 mt-2">
+          Urdu enables right-to-left (RTL) layout with Nastaliq script.
+        </p>
+      </div>
+
       <p className="text-[11px] text-[#1a1814]/40">
-        Theme preference is saved per account and synced across sessions.
+        Appearance preferences are saved per account and synced across sessions.
       </p>
     </section>
   )

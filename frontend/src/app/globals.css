@@ -740,3 +740,75 @@ body {
 
 /* border-black → dark border in dark mode */
 [data-theme="dark"] .border-black       { border-color: #5a5248 !important; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   URDU — Noto Nastaliq font
+   Applied when html[lang="ur"] is set by LocaleContext / anti-flash.
+   ─────────────────────────────────────────────────────────────────── */
+
+:lang(ur),
+html[lang="ur"] *:not(.font-serif) {
+  font-family: var(--font-nastaliq), "Noto Nastaliq Urdu", serif !important;
+  line-height: 2;          /* Nastaliq glyphs have taller ascenders */
+  letter-spacing: 0;       /* Nastaliq is ligature-heavy; tracking breaks it */
+}
+
+html[lang="ur"] .text-\[9px\],
+html[lang="ur"] .text-\[10px\],
+html[lang="ur"] .text-xs {
+  font-size: 0.8rem !important; /* Nastaliq needs slightly larger minimum */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RTL LAYOUT OVERRIDES
+   direction:rtl on <html> reverses flex order automatically in browsers.
+   We only need explicit overrides for elements using absolute/fixed
+   positioning or hardcoded left/right margin/padding.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* Sidebar tooltip arrow: points right in RTL */
+[dir="rtl"] .sidebar-tooltip-arrow {
+  border-left-color: transparent;
+  border-right-color: #2a2521;
+  right: 0;
+  left: auto;
+  transform: translateX(100%);
+}
+
+/* Language dropdown: open to the left in RTL (it's at the far end of header) */
+[dir="rtl"] .lang-dropdown {
+  right: auto;
+  left: 0;
+}
+
+/* Active border accent: flip from left to right */
+[dir="rtl"] .border-l-2 {
+  border-left-width:  0 !important;
+  border-right-width: 2px !important;
+}
+
+/* ChevronRight active indicator: mirror in RTL */
+[dir="rtl"] .sidebar-chevron-active {
+  transform: scaleX(-1);
+}
+
+/* Text alignment defaults for RTL */
+[dir="rtl"] p,
+[dir="rtl"] span,
+[dir="rtl"] label,
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3 {
+  text-align: right;
+}
+
+/* Table cells default right in RTL, but numeric columns stay left-aligned */
+[dir="rtl"] td,
+[dir="rtl"] th {
+  text-align: right;
+}
+
+[dir="rtl"] td.text-right,
+[dir="rtl"] th.text-right {
+  text-align: left !important;
+}
