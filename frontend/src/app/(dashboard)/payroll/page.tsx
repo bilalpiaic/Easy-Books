@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Users, Plus, Settings2, CalendarDays, DollarSign, ClipboardList } from "lucide-react"
+import { Users, Plus, Settings2, CalendarDays, DollarSign, ClipboardList, Home } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt, useCurrency } from "@/context/SettingsContext"
@@ -61,7 +61,12 @@ export default function PayrollHubPage() {
       <PrintHeader title="Payroll" />
 
       <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Payroll")}</h1>
+        <div>
+          <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] mb-1 transition-colors">
+            <Home className="w-3 h-3" /> Dashboard
+          </Link>
+          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Payroll")}</h1>
+        </div>
         <div className="flex gap-2">
           <Link
             href="/payroll/components"

@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Edit2, Trash2, Check, X } from "lucide-react"
+import { Plus, Edit2, Trash2, Check, X, Home, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
 
@@ -206,7 +207,18 @@ export default function SalaryComponentsPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Salary Components")}</h1>
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] transition-colors">
+              <Home className="w-3 h-3" /> Dashboard
+            </Link>
+            <span className="text-black/25 text-xs">/</span>
+            <Link href="/payroll" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] transition-colors">
+              <ArrowLeft className="w-3 h-3" /> Payroll
+            </Link>
+          </div>
+          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Salary Components")}</h1>
+        </div>
         <button
           onClick={startNew}
           disabled={editingId !== null}

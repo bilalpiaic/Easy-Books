@@ -260,7 +260,7 @@ export default function EditEmployeePage() {
           </div>
 
           {structure.length === 0 ? (
-            <p className="text-gray-400 text-sm py-4 text-center">No components added yet. Click "Add Component" to start.</p>
+            <p className="text-gray-400 text-sm py-4 text-center">No components added yet. Click &quot;Add Component&quot; to start.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

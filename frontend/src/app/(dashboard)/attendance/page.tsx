@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
 import {
-  ChevronLeft, ChevronRight, Plus, FileText, Upload, Printer, Users, Clock, Calendar, TrendingUp,
+  ChevronLeft, ChevronRight, Plus, FileText, Upload, Printer, Users, Clock, Calendar, TrendingUp, Home,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
@@ -133,9 +133,14 @@ export default function AttendancePage() {
 
       {/* Header toolbar */}
       <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
-          {t("Attendance Register")}
-        </h1>
+        <div>
+          <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] mb-1 transition-colors">
+            <Home className="w-3 h-3" /> Dashboard
+          </Link>
+          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
+            {t("Attendance Register")}
+          </h1>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/attendance/record"
             className="inline-flex items-center gap-1 px-3 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium">
