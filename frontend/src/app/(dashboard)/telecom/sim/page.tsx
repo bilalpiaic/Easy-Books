@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Smartphone, Download } from "lucide-react"
+import { Smartphone, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
@@ -9,6 +9,7 @@ import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface SimBatch { id: number; batch_number: string; qty_received: number; qty_activated: number; unit_cost: string; received_date: string }
@@ -84,7 +85,16 @@ export default function SimPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Smartphone} title="SIM & Activations" subtitle="SIM batches, customer activations, counter sales and commission accrual." />
+      <PrintHeader title="SIM & Activations" orientation="landscape" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={Smartphone} title="SIM & Activations" subtitle="SIM batches, customer activations, counter sales and commission accrual." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="SIM stock vs commission" tone="tip">
         SIM <b>inventory</b> arrives via a tracker stock-debit and lives at cost (Acct 1200). When you

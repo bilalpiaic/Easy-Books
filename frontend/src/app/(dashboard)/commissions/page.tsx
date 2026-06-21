@@ -1,9 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Percent, Plus, Trash2, RefreshCw, CheckCircle, BookOpen, ChevronDown, ChevronRight, AlertCircle } from "lucide-react"
+import { Percent, Plus, Trash2, RefreshCw, CheckCircle, BookOpen, ChevronDown, ChevronRight, AlertCircle, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useDp } from "@/context/SettingsContext"
+import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -193,12 +195,30 @@ export default function CommissionsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
+      <PrintHeader title="Sales Commissions" />
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Percent className="w-6 h-6 text-[#b8943f]" />
-        <div>
-          <h1 className="text-xl font-serif font-semibold text-[#1a1814]">Sales Commissions</h1>
-          <p className="text-xs text-[#1a1814]/60">Track commission plans and monthly payables</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Percent className="w-6 h-6 text-[#b8943f]" />
+          <div>
+            <h1 className="text-xl font-serif font-semibold text-[#1a1814]">Sales Commissions</h1>
+            <p className="text-xs text-[#1a1814]/60">Track commission plans and monthly payables</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
+          <button
+            onClick={() => downloadCSV('commissions.csv', ledger.map(r => ({ Staff: r.user_name, Period: r.period, Amount: r.total_payable, Status: r.status })))}
+            disabled={ledger.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          >
+            <Download className="w-4 h-4" /> CSV
+          </button>
         </div>
       </div>
 

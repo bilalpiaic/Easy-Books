@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ShoppingCart, Plus, CheckCircle, FileText, Download } from "lucide-react"
+import { ShoppingCart, Plus, CheckCircle, FileText, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
+import PrintHeader from "@/components/PrintHeader"
 
 interface PurchaseOrder {
   id: number
@@ -49,6 +50,7 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div className="space-y-5">
+      <PrintHeader title="Purchase Orders" orientation="landscape" />
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <ShoppingCart className="w-7 h-7 text-[#b8943f]" />
@@ -57,7 +59,13 @@ export default function PurchaseOrdersPage() {
             <p className="text-sm text-[#1a1814]/60">Send orders to vendors before goods arrive.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('purchase-orders.csv', pos.map(p => ({ "PO #": p.number, Vendor: p.vendor_name ?? '', "Order Date": p.order_date, "Expected Date": p.expected_date ?? '', Total: p.total, Status: p.status })))}
             disabled={pos.length === 0}

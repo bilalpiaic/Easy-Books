@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Network, Download } from "lucide-react"
+import { Network, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
@@ -9,6 +9,7 @@ import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface RsoAgent { id: number; name: string; phone: string | null; territory: string | null }
 interface RetailOutlet { id: number; rso_id: number; shop_name: string; owner_name: string | null }
@@ -107,7 +108,16 @@ export default function RsoPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Network} title="RSO Channel" subtitle="Load distribution down MSR → RSO → Retail, and daily settlement." />
+      <PrintHeader title="RSO Channel" orientation="landscape" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={Network} title="RSO Channel" subtitle="Load distribution down MSR → RSO → Retail, and daily settlement." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="The distribution chain" tone="tip">
         Load flows from your <b>MSR tracker</b> to <b>RSO agents</b>, then to <b>retail outlets</b>. Each hop

@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Clock, Plus, Pencil, Trash2, Check, X, Download } from "lucide-react"
+import { Clock, Plus, Pencil, Trash2, Check, X, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface PaymentTerm {
   id: number
@@ -85,6 +86,7 @@ export default function PaymentTermsPage() {
 
   return (
     <div className="space-y-5 max-w-2xl">
+      <PrintHeader title="Payment Terms" />
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Clock className="w-7 h-7 text-[#b8943f]" />
@@ -93,7 +95,13 @@ export default function PaymentTermsPage() {
             <p className="text-sm text-[#1a1814]/60">Net-day terms assigned to customers and vendors.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('payment-terms.csv', terms.map(t => ({ Code: t.code, Name: t.name, Days: t.days })))}
             disabled={terms.length === 0}

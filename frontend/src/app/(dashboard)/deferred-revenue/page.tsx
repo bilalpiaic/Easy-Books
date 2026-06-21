@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Calendar, Play, CheckCircle2, Clock, XCircle, TrendingUp, Download } from "lucide-react"
+import { Calendar, Play, CheckCircle2, Clock, XCircle, TrendingUp, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface DeferredSchedule {
   id: number
@@ -86,18 +87,27 @@ export default function DeferredRevenuePage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Deferred Revenue" />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Deferred Revenue</h1>
-            <button
-              onClick={() => downloadCSV('deferred-revenue.csv', schedules.map(s => ({ "Invoice ID": s.invoice_id, "Total Amount": s.total_amount, "Recognised": s.recognised_amount, "Remaining": s.total_amount - s.recognised_amount, "Start Date": s.start_date, "End Date": s.end_date, Frequency: s.frequency, "Next Recognition": s.next_recognition_date, Status: s.status })))}
-              disabled={schedules.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
-            >
-              <Download className="w-3.5 h-3.5" /> CSV
-            </button>
+            <div className="flex items-center gap-2 print:hidden">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5" /> Print
+              </button>
+              <button
+                onClick={() => downloadCSV('deferred-revenue.csv', schedules.map(s => ({ "Invoice ID": s.invoice_id, "Total Amount": s.total_amount, "Recognised": s.recognised_amount, "Remaining": s.total_amount - s.recognised_amount, "Start Date": s.start_date, "End Date": s.end_date, Frequency: s.frequency, "Next Recognition": s.next_recognition_date, Status: s.status })))}
+                disabled={schedules.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+              >
+                <Download className="w-3.5 h-3.5" /> CSV
+              </button>
+            </div>
           </div>
           <p className="text-sm text-[#1a1814]/60 mt-0.5">
             IFRS 15 recognition schedules. Run monthly to post Dr Deferred Revenue / Cr Revenue.

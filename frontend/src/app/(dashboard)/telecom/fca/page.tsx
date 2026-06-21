@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Target, Download } from "lucide-react"
+import { Target, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
@@ -9,6 +9,7 @@ import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface TrackerAccount { id: number; account_number: string }
@@ -80,7 +81,16 @@ export default function FcaPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Target} title="FCA & Targets" subtitle="First-call activations counted toward monthly operator targets." />
+      <PrintHeader title="FCA & Targets" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={Target} title="FCA & Targets" subtitle="First-call activations counted toward monthly operator targets." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="FCA is counted, not booked per event" tone="tip">
         Each first-call activation is a <b>counter</b>, not a journal entry. Hitting the monthly target unlocks a

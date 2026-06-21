@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Users, Package, MapPin, ChevronDown, ChevronRight, Download } from "lucide-react"
+import { Users, Package, MapPin, ChevronDown, ChevronRight, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface CustodyRow {
   customer_id: number
@@ -91,6 +92,7 @@ export default function CustodyPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Customer Goods in Custody" orientation="landscape" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Customer Goods in Custody</h1>
@@ -98,7 +100,13 @@ export default function CustodyPage() {
             Inventory belonging to customers currently held at your locations.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('customer-custody.csv', rows.map(r => ({ Customer: customers.get(r.customer_id) ?? `Customer #${r.customer_id}`, Product: r.product_name, Code: r.product_code, Lot: r.lot_no ?? '', Location: locations.get(r.location_id)?.name ?? r.location_id, "Qty on Hand": r.qty_on_hand })))}
             disabled={rows.length === 0}

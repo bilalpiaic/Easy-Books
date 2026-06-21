@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ScrollText, Search } from "lucide-react"
+import { ScrollText, Search, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import DocLink, { DocKind } from "@/components/DocLink"
 import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
+import PrintHeader from "@/components/PrintHeader"
 
 interface AuditEntry {
   id: number
@@ -148,6 +149,7 @@ export default function AuditLogPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Audit Log" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814] flex items-center gap-2">
@@ -155,9 +157,17 @@ export default function AuditLogPage() {
           </h1>
           <p className="text-sm text-black/60 mt-1">Every change made in your organisation, with a link to the affected record.</p>
         </div>
-        <button onClick={exportCsv} className="px-4 py-2 text-sm font-bold border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors self-start">
-          Export CSV
-        </button>
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
+          <button onClick={exportCsv} className="px-4 py-2 text-sm font-bold border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors">
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

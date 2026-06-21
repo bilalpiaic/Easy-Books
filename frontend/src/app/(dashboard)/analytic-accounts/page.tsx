@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Layers, TrendingUp, Download } from "lucide-react"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Layers, TrendingUp, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface AnalyticAccount {
   id: number
@@ -116,6 +117,7 @@ export default function AnalyticAccountsPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Analytic Accounts" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Analytic Accounts</h1>
@@ -123,7 +125,13 @@ export default function AnalyticAccountsPage() {
             Cost centers, projects, and departments for segment reporting.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('analytic-accounts.csv', items.map(a => ({ Code: a.code, Name: a.name, Type: TYPE_LABELS[a.type] ?? a.type, Active: a.is_active ? 'Yes' : 'No' })))}
             disabled={items.length === 0}

@@ -1,12 +1,13 @@
 "use client"
 
-import { ScrollText, Download } from "lucide-react"
+import { ScrollText, Download, Printer } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Agreement {
@@ -61,7 +62,16 @@ export default function FranchisePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={ScrollText} title="Franchise Admin" subtitle="Franchise fee amortisation and operator royalty." />
+      <PrintHeader title="Franchise Admin" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={ScrollText} title="Franchise Admin" subtitle="Franchise fee amortisation and operator royalty." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="Fee is an asset, royalty is an expense" tone="tip">
         The up-front <b>franchise fee</b> is capitalised as an intangible (Acct 1300) and amortised monthly over

@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Undo2, Download } from "lucide-react"
+import { Plus, Undo2, Download, Printer } from "lucide-react"
 import { downloadCSV } from "@/lib/utils"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import PrintHeader from "@/components/PrintHeader"
 
 interface DebitNote {
   id: number
@@ -108,12 +109,19 @@ export default function DebitNotesPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Debit Notes" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Debit Notes / Purchase Returns</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">{total} total · returns goods to a vendor (IAS 2.11)</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('debit-notes.csv', items.map(n => ({ Number: n.number, Vendor: n.vendor_name ?? '', Date: n.issue_date, Total: n.total, Status: n.status })))}
             disabled={items.length === 0}

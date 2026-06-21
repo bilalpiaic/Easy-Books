@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Percent, Download } from "lucide-react"
+import { Percent, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
@@ -9,6 +9,7 @@ import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, Tile, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Statement {
@@ -59,7 +60,16 @@ export default function CommissionsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Percent} title="Commissions" subtitle="Operator commission statements, settlement and receivable aging." />
+      <PrintHeader title="Telecom Commissions" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={Percent} title="Commissions" subtitle="Operator commission statements, settlement and receivable aging." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="Accrue, then reconcile" tone="tip">
         Commission you've earned sits as a <b>receivable</b> (Acct 1110). When the operator issues a

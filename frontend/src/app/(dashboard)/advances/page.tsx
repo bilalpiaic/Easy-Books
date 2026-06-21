@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Wallet, Download } from "lucide-react"
+import { Plus, Wallet, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 type Tab = "customer" | "vendor"
 
@@ -109,12 +110,19 @@ export default function AdvancesPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Advances" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-serif text-[#1a1814]">Advances</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">Prepayments received from customers / paid to vendors</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => {
               const partyMap = new Map(parties.map(p => [p.id, p.name]))

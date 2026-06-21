@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight, ArrowLeftRight, Users, Download } from "lucide-react"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Warehouse, ChevronDown, ChevronRight, ArrowLeftRight, Users, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface StockLocation {
   id: number
@@ -142,6 +143,7 @@ export default function StockLocationsPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Stock Locations" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Stock Locations</h1>
@@ -149,7 +151,13 @@ export default function StockLocationsPage() {
             Warehouses, godowns, and WIP buckets. Click a location to view its stock.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('stock-locations.csv', locations.map(l => ({ Code: l.code, Name: l.name, Type: TYPE_LABELS[l.type] ?? l.type, Active: l.is_active ? 'Yes' : 'No' })))}
             disabled={locations.length === 0}

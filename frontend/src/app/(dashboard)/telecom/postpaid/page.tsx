@@ -1,12 +1,13 @@
 "use client"
 
-import { ReceiptText, Download } from "lucide-react"
+import { ReceiptText, Download, Printer } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Connection { id: number; msisdn: string; customer_name: string; plan_name: string; monthly_rental: string; activation_date: string }
@@ -75,7 +76,16 @@ export default function PostpaidPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={ReceiptText} title="Postpaid Billing" subtitle="Bill postpaid customers, collect, then remit net of commission." />
+      <PrintHeader title="Postpaid Billing" orientation="landscape" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={ReceiptText} title="Postpaid Billing" subtitle="Bill postpaid customers, collect, then remit net of commission." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="You collect on the operator's behalf" tone="tip">
         Postpaid revenue belongs to the operator — you bill the customer, collect the cash, then <b>remit</b> it

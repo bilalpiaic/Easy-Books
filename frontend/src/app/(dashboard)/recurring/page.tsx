@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight, Pencil, Download } from 'lucide-react'
+import { Plus, RefreshCw, Play, Trash2, ToggleLeft, ToggleRight, Pencil, Download, Printer } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useDp } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
+import PrintHeader from '@/components/PrintHeader'
 
 interface RecurringEntry {
   account_id: number
@@ -184,6 +185,7 @@ export default function RecurringPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Recurring Entries" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-medium flex items-center gap-2">
@@ -192,7 +194,13 @@ export default function RecurringPage() {
           </h1>
           <p className="text-sm text-black/75 mt-1">Scheduled journal entries that post automatically</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('recurring-templates.csv', templates.map(t => ({ Name: t.name, Description: t.description ?? '', Frequency: FREQ_LABELS[t.frequency] ?? t.frequency, "Next Run": t.next_run, "Last Run": t.last_run ?? '', Active: t.is_active ? 'Yes' : 'No' })))}
             disabled={templates.length === 0}

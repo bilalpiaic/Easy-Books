@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Trash2, TrendingUp, RefreshCw, CheckCircle, AlertCircle, Download } from "lucide-react"
+import { Plus, Trash2, TrendingUp, RefreshCw, CheckCircle, AlertCircle, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useSettings } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface ExchangeRate {
   id: number
@@ -146,6 +147,7 @@ export default function ExchangeRatesPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Exchange Rates" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Exchange Rates</h1>
@@ -153,7 +155,13 @@ export default function ExchangeRatesPage() {
             Historical FX rates used for multi-currency transactions.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('exchange-rates.csv', rates.map(r => ({ Date: r.date, From: r.from_currency, To: r.to_currency, Rate: r.rate })))}
             disabled={rates.length === 0}

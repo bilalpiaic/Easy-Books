@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Pencil, ToggleLeft, ToggleRight, Percent, Download } from "lucide-react"
+import { Plus, Pencil, ToggleLeft, ToggleRight, Percent, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface TaxCode {
   id: number
@@ -149,6 +150,7 @@ export default function TaxCodesPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Tax Codes" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Tax Codes</h1>
@@ -156,7 +158,13 @@ export default function TaxCodesPage() {
             Catalog of tax rates applied to invoice and bill lines.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+          >
+            <Printer className="w-4 h-4" /> Print
+          </button>
           <button
             onClick={() => downloadCSV('tax-codes.csv', codes.map(c => ({ Code: c.code, Name: c.name, "Rate (%)": c.rate, Type: c.type, Active: c.is_active ? 'Yes' : 'No' })))}
             disabled={codes.length === 0}

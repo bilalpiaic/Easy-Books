@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Wallet, Download } from "lucide-react"
+import { Wallet, Download, Printer } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, money, useTelecomList,
 } from "@/components/telecom/primitives"
 import { apiFetch } from "@/lib/api"
+import PrintHeader from "@/components/PrintHeader"
 import { downloadCSV } from "@/lib/utils"
 
 interface Operator { id: number; name: string; operator_code: string; commission_settlement_cycle: string }
@@ -104,7 +105,16 @@ export default function TrackerPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Wallet} title="Tracker & Load" subtitle="Operator deposit wallet, load orders, and stock procurement." />
+      <PrintHeader title="Tracker & Load" orientation="landscape" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={Wallet} title="Tracker & Load" subtitle="Operator deposit wallet, load orders, and stock procurement." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="The 3% load uplift, explained" tone="tip">
         A load order converts your Tracker deposit into spendable load float. The operator credits you

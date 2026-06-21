@@ -1,12 +1,13 @@
 "use client"
 
-import { Tablet, Download } from "lucide-react"
+import { Tablet, Download, Printer } from "lucide-react"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { ActionForm, FieldDef, SelectOption } from "@/components/telecom/ActionForm"
 import {
   PageHeader, Section, Tabs, DataTable, Column, ErrorBanner, useTelecomList,
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
+import PrintHeader from "@/components/PrintHeader"
 
 interface Product { id: number; code: string; name: string; product_type: string }
 interface DeviceImei { id: number; imei_number: string; serial_number: string | null; status: string; product_id: number }
@@ -45,7 +46,16 @@ export default function DevicesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Tablet} title="Devices (IMEI)" subtitle="Track handset & router stock by IMEI for warranty and resale." />
+      <PrintHeader title="Devices (IMEI)" orientation="landscape" />
+      <div className="flex items-center justify-between">
+        <PageHeader icon={Tablet} title="Devices (IMEI)" subtitle="Track handset & router stock by IMEI for warranty and resale." />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+        >
+          <Printer className="w-4 h-4" /> Print
+        </button>
+      </div>
 
       <HelpCallout title="IMEI is serial-level tracking" tone="tip">
         Devices are valued in inventory (Acct 1202) like any product, but each unit is also tracked by its unique
