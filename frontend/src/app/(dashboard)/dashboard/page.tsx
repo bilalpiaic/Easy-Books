@@ -142,6 +142,8 @@ export default function Dashboard() {
     data, charts, s, netProfit, margin, fmt,
     agingLabels, agingValues, chartConfigs,
     settings, reloadSettings, checklistDismissed, setChecklistDismissed, t,
+    quickActions: layout.quickActions,
+    updateQuickActions: layout.updateQuickActions,
   }
 
   const onboardingWidget = WIDGET_REGISTRY.find(w => w.id === "onboarding")

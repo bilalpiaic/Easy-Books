@@ -8,11 +8,13 @@ import BankBalancesWidget from "@/components/dashboard/widgets/BankBalancesWidge
 import TopProductsWidget from "@/components/dashboard/widgets/TopProductsWidget"
 import InventorySummaryWidget from "@/components/dashboard/widgets/InventorySummaryWidget"
 import HRMSummaryWidget from "@/components/dashboard/widgets/HRMSummaryWidget"
+import QuickActionsWidget from "@/components/dashboard/widgets/QuickActionsWidget"
 import { apiFetch } from "@/lib/api"
 import type { AppSettings } from "@/context/SettingsContext"
 import {
   TrendingUp, TrendingDown, Hash, Wallet, ArrowDownLeft, ArrowUpRight, Clock,
   Package, AlertTriangle, FileSignature, Receipt, Banknote, CalendarClock,
+  CalendarDays, Users, Briefcase, Truck, Landmark, Scale, HelpCircle,
 } from "lucide-react"
 
 // ── Shared data shapes (moved here from page.tsx; page now imports them) ──────
@@ -59,6 +61,8 @@ export interface WidgetContext {
   checklistDismissed: boolean
   setChecklistDismissed: (v: boolean) => void
   t: TFunction
+  quickActions: string[]
+  updateQuickActions: (ids: string[]) => Promise<void>
 }
 
 export interface WidgetSize { w: number; h: number }
@@ -122,13 +126,32 @@ const ONBOARDING_STEPS = [
   { key: "first_bill",      label: "Record your first bill",  href: "/bills" },
 ]
 
-const QUICK_ACTIONS = [
-  { label: "New Invoice",    href: "/invoices", icon: FileSignature, color: "text-green-600" },
-  { label: "New Bill",       href: "/bills",    icon: Receipt,       color: "text-orange-600" },
-  { label: "New Entry",      href: "/entry",    icon: Hash,          color: "text-blue-600" },
-  { label: "Products",       href: "/products", icon: Package,       color: "text-purple-600" },
-  { label: "Workflow Guide", href: "/workflow", icon: TrendingUp,    color: "text-[#b8943f]" },
-  { label: "User Guide",     href: "/guide",    icon: Wallet,        color: "text-[#1a1814]" },
+export interface QuickActionDef {
+  id: string
+  label: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  color: string
+}
+
+export const ALL_QUICK_ACTIONS: QuickActionDef[] = [
+  { id: "new_invoice",   label: "New Invoice",       href: "/invoices",          icon: FileSignature, color: "text-green-600" },
+  { id: "new_bill",      label: "New Bill",          href: "/bills",             icon: Receipt,       color: "text-orange-600" },
+  { id: "new_entry",     label: "New Entry",         href: "/entry",             icon: Hash,          color: "text-blue-600" },
+  { id: "attendance",    label: "Attendance",        href: "/attendance",        icon: CalendarDays,  color: "text-indigo-600" },
+  { id: "new_payroll",   label: "New Payroll Run",   href: "/payroll/new",       icon: Briefcase,     color: "text-violet-600" },
+  { id: "employees",     label: "Employees",         href: "/employees",         icon: Users,         color: "text-cyan-600" },
+  { id: "products",      label: "Products",          href: "/products",          icon: Package,       color: "text-purple-600" },
+  { id: "customers",     label: "Customers",         href: "/customers",         icon: ArrowDownLeft, color: "text-emerald-600" },
+  { id: "vendors",       label: "Vendors",           href: "/vendors",           icon: Truck,         color: "text-amber-700" },
+  { id: "bank",          label: "Banking",           href: "/banking",           icon: Landmark,      color: "text-slate-600" },
+  { id: "trial_balance", label: "Trial Balance",     href: "/trial-balance",     icon: Scale,         color: "text-rose-600" },
+  { id: "workflow",      label: "Workflow Guide",    href: "/workflow",          icon: TrendingUp,    color: "text-[#b8943f]" },
+  { id: "guide",         label: "User Guide",        href: "/guide",             icon: HelpCircle,    color: "text-[#1a1814]" },
+]
+
+export const DEFAULT_QUICK_ACTION_IDS = [
+  "new_invoice", "new_bill", "new_entry", "attendance", "products", "workflow", "guide",
 ]
 
 export const WIDGET_REGISTRY: WidgetDef[] = [
@@ -138,16 +161,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     defaultVisible: true,
     defaultSize: { w: 4, h: 1 }, minSize: { w: 2, h: 1 },
     render: (ctx) => (
-      <div className="bg-white border border-[#ede9e2] rounded-xl shadow-sm px-3 py-2 flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/45 mr-1">{ctx.t('dashboard.quickActions', 'Quick Actions')}</span>
-        {QUICK_ACTIONS.map(({ label, href, icon: Icon, color }) => (
-          <Link key={href} href={href}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-transparent hover:bg-[#faf8f4] hover:border-[#b8943f]/30 transition-all">
-            <Icon className={`w-4 h-4 ${color}`} />
-            <span className="text-sm font-medium text-[#1a1814]/80">{ctx.t(`nav.${label}`, label)}</span>
-          </Link>
-        ))}
-      </div>
+      <QuickActionsWidget quickActions={ctx.quickActions} updateQuickActions={ctx.updateQuickActions} />
     ),
   },
   {

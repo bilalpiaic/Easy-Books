@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
-import { WIDGET_REGISTRY, type WidgetDef } from "@/lib/dashboardWidgets"
+import { WIDGET_REGISTRY, type WidgetDef, DEFAULT_QUICK_ACTION_IDS } from "@/lib/dashboardWidgets"
 import { isShortcutId, resolveShortcut } from "@/lib/dashboardShortcuts"
 
 /** @deprecated Use BP_COLS.lg — kept for external consumers only. */
@@ -24,6 +24,8 @@ export interface GridLayoutV3 {
   layouts: ResolvedLayouts
   /** IDs explicitly removed by the user — skipped during additive default-widget injection. */
   dismissed?: string[]
+  /** Ordered quick-action IDs chosen by the user. */
+  quickActions?: string[]
 }
 
 // Phase-1 shapes (for migration only)
@@ -170,6 +172,7 @@ export interface UseDashboardLayout {
   meta: Meta
   loading: boolean
   dirty: boolean
+  quickActions: string[]
   applyLayout: (bp: Breakpoint, allLayouts: Record<string, readonly { i: string; x: number; y: number; w: number; h: number }[]>) => void
   markCustomized: (bp: Breakpoint) => void
   addWidget: (id: string) => void
@@ -177,11 +180,14 @@ export interface UseDashboardLayout {
   reset: () => void
   reload: () => void
   save: () => Promise<void>
+  /** Update quick actions and persist immediately (avoids stale-state race with save()). */
+  updateQuickActions: (ids: string[]) => Promise<void>
 }
 
 export function useDashboardLayout(): UseDashboardLayout {
   const [layouts, setLayouts] = useState<ResolvedLayouts>(() => ({ lg: defaultGrid() }))
   const [dismissed, setDismissed] = useState<string[]>([])
+  const [quickActions, setQuickActions] = useState<string[]>(DEFAULT_QUICK_ACTION_IDS)
   const [saved, setSaved] = useState<SavedAny>(null)
   const [meta, setMeta] = useState<Meta>({ model: undefined, role: getCurrentUser()?.role ?? "viewer" })
   const [loading, setLoading] = useState(true)
@@ -198,6 +204,10 @@ export function useDashboardLayout(): UseDashboardLayout {
         ? (lay.layout as GridLayoutV3).dismissed!
         : []
       setDismissed(savedDismissed)
+      const savedQuickActions = (lay.layout as GridLayoutV3)?.quickActions
+      if (Array.isArray(savedQuickActions) && savedQuickActions.length > 0) {
+        setQuickActions(savedQuickActions)
+      }
       setLayouts(resolveLayout(lay.layout, m))
     }).finally(() => setLoading(false))
   }, [])
@@ -264,12 +274,25 @@ export function useDashboardLayout(): UseDashboardLayout {
 
   const reset = () => {
     setDismissed([])
+    setQuickActions(DEFAULT_QUICK_ACTION_IDS)
     setLayouts({ lg: defaultGrid() })
   }
   const reload = () => setLayouts(resolveLayout(saved, meta))
 
   const save = async () => {
-    const payload: GridLayoutV3 = { version: 3, layouts, dismissed }
+    const payload: GridLayoutV3 = { version: 3, layouts, dismissed, quickActions }
+    await apiFetch("/api/dashboard/layout", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layout: payload }),
+    })
+    setSaved(payload)
+  }
+
+  const updateQuickActions = async (ids: string[]) => {
+    setQuickActions(ids)
+    // Build payload directly from ids to avoid stale-state race
+    const payload: GridLayoutV3 = { version: 3, layouts, dismissed, quickActions: ids }
     await apiFetch("/api/dashboard/layout", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -281,5 +304,5 @@ export function useDashboardLayout(): UseDashboardLayout {
   const baseline = resolveLayout(saved, meta)
   const dirty = JSON.stringify(layouts) !== JSON.stringify(baseline)
 
-  return { layouts, meta, loading, dirty, applyLayout, markCustomized, addWidget, removeWidget, reset, reload, save }
+  return { layouts, meta, loading, dirty, quickActions, applyLayout, markCustomized, addWidget, removeWidget, reset, reload, save, updateQuickActions }
 }
