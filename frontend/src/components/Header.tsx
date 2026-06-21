@@ -1,17 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Menu, Home } from "lucide-react"
+import { Menu, Home, Sun, Moon, Monitor } from "lucide-react"
 import Link from "next/link"
 import { getCurrentUser } from "@/lib/auth"
 import { useSettings } from "@/context/SettingsContext"
+import { useTheme, type ThemeMode } from "@/context/ThemeContext"
 
 interface HeaderProps {
   onOpenMenu: () => void
 }
 
+const THEME_CYCLE: ThemeMode[] = ["light", "dark", "system"]
+const THEME_ICON = { light: Sun, dark: Moon, system: Monitor } as const
+
 export default function Header({ onOpenMenu }: HeaderProps) {
   const { settings } = useSettings()
+  const { theme, setTheme } = useTheme()
   const [userName, setUserName] = useState("User")
   const [userInitial, setInitial] = useState("U")
 
@@ -22,6 +27,14 @@ export default function Header({ onOpenMenu }: HeaderProps) {
       setInitial(user.full_name.charAt(0).toUpperCase())
     }
   }, [])
+
+  const cycleTheme = () => {
+    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length]
+    setTheme(next)
+  }
+
+  const ThemeIcon = THEME_ICON[theme]
+  const themeLabel = { light: "Light mode", dark: "Dark mode", system: "System theme" }[theme]
 
   return (
     <header className="h-12 bg-[#1a1814] flex items-center px-3 sm:px-4 gap-3 border-b border-white/5 shrink-0 z-20">
@@ -47,7 +60,16 @@ export default function Header({ onOpenMenu }: HeaderProps) {
         <p className="font-serif text-white text-sm font-semibold truncate leading-tight">{settings.company_name}</p>
         <p className="text-[9px] text-white/40 font-bold tracking-widest uppercase hidden sm:block">{settings.business_tagline}</p>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Theme toggle — cycles Light → Dark → System */}
+        <button
+          onClick={cycleTheme}
+          title={themeLabel}
+          aria-label={`Switch theme (current: ${themeLabel})`}
+          className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-white/60 hover:text-[#ffd966] hover:bg-white/5 transition"
+        >
+          <ThemeIcon className="w-4 h-4" />
+        </button>
         <div
           className="w-8 h-8 rounded-full bg-[#b8943f] flex items-center justify-center text-black font-bold text-xs"
           title={userName}

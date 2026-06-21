@@ -44,6 +44,10 @@ export interface AppSettings {
   cost_method: string
   // User Rights Module
   user_rights_enabled: string
+  // Appearance
+  app_theme: string
+  color_theme: string
+  app_language: string
 }
 
 const defaults: AppSettings = {
@@ -77,6 +81,9 @@ const defaults: AppSettings = {
   business_model: "simple",
   cost_method: "wavg",
   user_rights_enabled: "false",
+  app_theme: "light",
+  color_theme: "gold",
+  app_language: "en",
 }
 
 interface SettingsContextValue {

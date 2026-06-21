@@ -1,11 +1,12 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import VersionBadge from '@/components/VersionBadge'
 import UpdateModal from '@/components/UpdateModal'
+import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
 
 interface PaymentTerm {
   id: number
@@ -896,6 +897,9 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* ── Appearance ── */}
+      <AppearanceSection />
+
       {/* Sample / Demo Data (evaluation) */}
       <section className="bg-white border border-[#ede9e2] rounded-xl p-5 space-y-3">
         <h2 className="text-lg font-serif text-[#1a1814]">Sample / Demo Data</h2>
@@ -969,5 +973,85 @@ export default function SettingsPage() {
         <UpdateModal onClose={() => setUpdateModalOpen(false)} />
       )}
     </div>
+  )
+}
+
+/* ── Appearance settings — theme mode + color palette ── */
+const COLOR_OPTIONS: { id: ColorTheme; label: string; accent: string; ring: string }[] = [
+  { id: "gold",  label: "Classic Gold",  accent: "#b8943f", ring: "#b8943f" },
+  { id: "blue",  label: "Ocean Blue",    accent: "#2563eb", ring: "#2563eb" },
+  { id: "green", label: "Ledger Green",  accent: "#16a34a", ring: "#16a34a" },
+  { id: "rose",  label: "Ruby Rose",     accent: "#e11d48", ring: "#e11d48" },
+  { id: "slate", label: "Slate Minimal", accent: "#475569", ring: "#475569" },
+]
+
+function AppearanceSection() {
+  const { theme, colorTheme, setTheme, setColorTheme } = useTheme()
+
+  const modeBtn = (t: ThemeMode, Icon: React.ElementType, label: string) => (
+    <button
+      key={t}
+      onClick={() => setTheme(t)}
+      className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border-2 text-xs font-semibold transition-all ${
+        theme === t
+          ? "border-[#b8943f] bg-[#faf6ec] text-[#b8943f]"
+          : "border-[#ede9e2] bg-white text-[#1a1814]/60 hover:border-[#b8943f]/40"
+      }`}
+    >
+      <Icon className="w-5 h-5" />
+      {label}
+    </button>
+  )
+
+  return (
+    <section className="bg-white border border-[#ede9e2] rounded-xl p-5 space-y-5">
+      <h2 className="text-lg font-serif text-[#1a1814] flex items-center gap-2">
+        <Palette className="w-4 h-4 text-[#b8943f]" /> Appearance
+      </h2>
+
+      {/* Light / Dark / System */}
+      <div>
+        <p className="text-xs font-semibold text-[#1a1814]/55 uppercase tracking-wide mb-3">Display Mode</p>
+        <div className="flex gap-3 flex-wrap">
+          {modeBtn("light",  Sun,     "Light")}
+          {modeBtn("dark",   Moon,    "Dark")}
+          {modeBtn("system", Monitor, "System")}
+        </div>
+      </div>
+
+      {/* Color theme swatches */}
+      <div>
+        <p className="text-xs font-semibold text-[#1a1814]/55 uppercase tracking-wide mb-3">Color Theme</p>
+        <div className="flex gap-3 flex-wrap">
+          {COLOR_OPTIONS.map(({ id, label, accent }) => (
+            <button
+              key={id}
+              onClick={() => setColorTheme(id)}
+              title={label}
+              className={`group flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 transition-all ${
+                colorTheme === id
+                  ? "border-2 shadow-sm"
+                  : "border-[#ede9e2] hover:border-current"
+              }`}
+              style={colorTheme === id ? { borderColor: accent } : {}}
+            >
+              <span
+                className="w-7 h-7 rounded-full transition-all"
+                style={{
+                  backgroundColor: accent,
+                  outline: colorTheme === id ? `3px solid ${accent}` : "3px solid transparent",
+                  outlineOffset: "2px",
+                }}
+              />
+              <span className="text-[10px] font-semibold text-[#1a1814]/60 whitespace-nowrap">{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-[11px] text-[#1a1814]/40">
+        Theme preference is saved per account and synced across sessions.
+      </p>
+    </section>
   )
 }

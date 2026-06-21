@@ -58,6 +58,10 @@ class SettingsUpdate(BaseModel):
     # Amount display precision ("2" or "4")
     decimal_places: Optional[str] = None
     user_rights_enabled: Optional[str] = None  # "true" | "false"
+    # Appearance
+    app_theme: Optional[str] = None   # "light" | "dark" | "system"
+    color_theme: Optional[str] = None  # "gold" | "blue" | "green" | "rose" | "slate"
+    app_language: Optional[str] = None  # "en" | "ur" | "zh"
 
 
 @router.get("")
@@ -100,6 +104,18 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
     if "user_rights_enabled" in updates:
         if updates["user_rights_enabled"] not in ("true", "false"):
             raise HTTPException(400, "user_rights_enabled must be 'true' or 'false'")
+
+    if "app_theme" in updates:
+        if updates["app_theme"] not in ("light", "dark", "system"):
+            raise HTTPException(400, "app_theme must be 'light', 'dark', or 'system'")
+
+    if "color_theme" in updates:
+        if updates["color_theme"] not in ("gold", "blue", "green", "rose", "slate"):
+            raise HTTPException(400, "color_theme must be one of: gold, blue, green, rose, slate")
+
+    if "app_language" in updates:
+        if updates["app_language"] not in ("en", "ur", "zh"):
+            raise HTTPException(400, "app_language must be 'en', 'ur', or 'zh'")
 
     # Keep Tenant.base_currency in sync with the "currency" KV setting
     if "currency" in updates and tenant:

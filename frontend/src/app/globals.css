@@ -441,3 +441,272 @@ body {
 /* Screen-only utility to opt a report into landscape via the
    PrintHeader (so the screen view doesn't change). */
 .print-landscape { /* meaningful only inside @media print */ }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK MODE  —  [data-theme="dark"] on <html>
+   All overrides use !important to win over Tailwind's arbitrary
+   value classes which are generated with no specificity advantage.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* ── Palette tokens for dark mode ── */
+[data-theme="dark"] {
+  --c-bg:        #141210;
+  --c-bg-card:   #1e1b17;
+  --c-bg-hover:  #252118;
+  --c-bg-tint:   #201d17;
+  --c-bg-muted:  #2a2620;
+  --c-bg-deeper: #34302a;
+  --c-border:    #3a342a;
+  --c-text:      #f0ece4;
+  --c-accent:    #d4a84c;
+  --c-accent-dk: #b8943f;
+}
+
+/* ── Main backgrounds ── */
+[data-theme="dark"] body                    { background-color: var(--c-bg)      !important; color: var(--c-text) !important; }
+[data-theme="dark"] .bg-\[\#f6f3ee\]        { background-color: var(--c-bg)      !important; }
+[data-theme="dark"] .bg-\[\#faf8f4\]        { background-color: var(--c-bg-hover)!important; }
+[data-theme="dark"] .bg-\[\#faf6ec\]        { background-color: var(--c-bg-tint) !important; }
+[data-theme="dark"] .bg-\[\#f0ede6\]        { background-color: var(--c-bg-muted)!important; }
+[data-theme="dark"] .bg-\[\#ede9e2\]        { background-color: var(--c-bg-muted)!important; }
+[data-theme="dark"] .bg-\[\#e8e4dc\]        { background-color: var(--c-bg-deeper)!important; }
+[data-theme="dark"] .bg-\[\#f0ece4\]        { background-color: var(--c-bg-hover)!important; }
+[data-theme="dark"] .bg-\[\#f5f2ed\]        { background-color: var(--c-bg-hover)!important; }
+[data-theme="dark"] .bg-\[\#f8f5ef\]        { background-color: var(--c-bg-hover)!important; }
+[data-theme="dark"] .bg-\[\#fdfcfa\]        { background-color: var(--c-bg-card) !important; }
+[data-theme="dark"] .bg-white               { background-color: var(--c-bg-card) !important; }
+
+/* ── Hover background overrides ── */
+[data-theme="dark"] .hover\:bg-\[\#f6f3ee\]:hover  { background-color: var(--c-bg-hover) !important; }
+[data-theme="dark"] .hover\:bg-\[\#faf8f4\]:hover  { background-color: var(--c-bg-tint)  !important; }
+[data-theme="dark"] .hover\:bg-\[\#faf6ec\]:hover  { background-color: var(--c-bg-tint)  !important; }
+[data-theme="dark"] .hover\:bg-\[\#f0ede6\]:hover  { background-color: var(--c-bg-muted) !important; }
+[data-theme="dark"] .hover\:bg-\[\#ede9e2\]:hover  { background-color: var(--c-bg-muted) !important; }
+
+/* ── Borders ── */
+[data-theme="dark"] .border-\[\#ede9e2\]   { border-color: var(--c-border) !important; }
+[data-theme="dark"] .border-\[\#d4cfc7\]   { border-color: var(--c-border) !important; }
+[data-theme="dark"] .border-\[\#ddd8d0\]   { border-color: var(--c-border) !important; }
+[data-theme="dark"] .border-\[\#f0ece4\]   { border-color: var(--c-border) !important; }
+[data-theme="dark"] .border-\[\#f1ede6\]   { border-color: var(--c-border) !important; }
+
+/* ── Primary text (charcoal) → light, with all opacity variants ── */
+[data-theme="dark"] .text-\[\#1a1814\]        { color: var(--c-text) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/10    { color: rgb(240 236 228 / 0.10) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/20    { color: rgb(240 236 228 / 0.20) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/25    { color: rgb(240 236 228 / 0.25) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/30    { color: rgb(240 236 228 / 0.30) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/35    { color: rgb(240 236 228 / 0.35) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/40    { color: rgb(240 236 228 / 0.40) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/45    { color: rgb(240 236 228 / 0.45) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/50    { color: rgb(240 236 228 / 0.50) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/55    { color: rgb(240 236 228 / 0.55) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/60    { color: rgb(240 236 228 / 0.60) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/65    { color: rgb(240 236 228 / 0.65) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/70    { color: rgb(240 236 228 / 0.70) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/75    { color: rgb(240 236 228 / 0.75) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/80    { color: rgb(240 236 228 / 0.80) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/85    { color: rgb(240 236 228 / 0.85) !important; }
+[data-theme="dark"] .text-\[\#1a1814\]\/90    { color: rgb(240 236 228 / 0.90) !important; }
+[data-theme="dark"] .hover\:text-\[\#1a1814\]:hover { color: var(--c-text) !important; }
+
+/* ── Accent gold ── */
+[data-theme="dark"] .bg-\[\#b8943f\]         { background-color: var(--c-accent) !important; }
+[data-theme="dark"] .text-\[\#b8943f\]        { color: var(--c-accent) !important; }
+[data-theme="dark"] .border-\[\#b8943f\]      { border-color: var(--c-accent) !important; }
+[data-theme="dark"] .ring-\[\#b8943f\]        { --tw-ring-color: var(--c-accent) !important; }
+[data-theme="dark"] .hover\:bg-\[\#b8943f\]:hover   { background-color: var(--c-accent)    !important; }
+[data-theme="dark"] .hover\:text-\[\#b8943f\]:hover { color: var(--c-accent)               !important; }
+[data-theme="dark"] .hover\:border-\[\#b8943f\]:hover { border-color: var(--c-accent)      !important; }
+/* Accent with opacity */
+[data-theme="dark"] .bg-\[\#b8943f\]\/5       { background-color: rgb(212 168 76 / 0.05) !important; }
+[data-theme="dark"] .bg-\[\#b8943f\]\/10      { background-color: rgb(212 168 76 / 0.10) !important; }
+[data-theme="dark"] .bg-\[\#b8943f\]\/15      { background-color: rgb(212 168 76 / 0.15) !important; }
+[data-theme="dark"] .bg-\[\#b8943f\]\/40      { background-color: rgb(212 168 76 / 0.40) !important; }
+[data-theme="dark"] .text-\[\#b8943f\]\/30    { color: rgb(212 168 76 / 0.30) !important; }
+[data-theme="dark"] .text-\[\#b8943f\]\/40    { color: rgb(212 168 76 / 0.40) !important; }
+[data-theme="dark"] .text-\[\#b8943f\]\/60    { color: rgb(212 168 76 / 0.60) !important; }
+[data-theme="dark"] .text-\[\#b8943f\]\/70    { color: rgb(212 168 76 / 0.70) !important; }
+[data-theme="dark"] .border-\[\#b8943f\]\/20  { border-color: rgb(212 168 76 / 0.20) !important; }
+[data-theme="dark"] .border-\[\#b8943f\]\/30  { border-color: rgb(212 168 76 / 0.30) !important; }
+[data-theme="dark"] .border-\[\#b8943f\]\/40  { border-color: rgb(212 168 76 / 0.40) !important; }
+[data-theme="dark"] .border-\[\#b8943f\]\/50  { border-color: rgb(212 168 76 / 0.50) !important; }
+[data-theme="dark"] .border-\[\#b8943f\]\/60  { border-color: rgb(212 168 76 / 0.60) !important; }
+[data-theme="dark"] .ring-\[\#b8943f\]\/50    { --tw-ring-color: rgb(212 168 76 / 0.50) !important; }
+/* Dark accent hover variants */
+[data-theme="dark"] .bg-\[\#a07c32\]          { background-color: var(--c-accent)    !important; }
+[data-theme="dark"] .bg-\[\#a07c35\]          { background-color: var(--c-accent)    !important; }
+[data-theme="dark"] .bg-\[\#a07835\]          { background-color: var(--c-accent)    !important; }
+[data-theme="dark"] .bg-\[\#a07f33\]          { background-color: var(--c-accent)    !important; }
+[data-theme="dark"] .bg-\[\#a38338\]          { background-color: var(--c-accent)    !important; }
+[data-theme="dark"] .bg-\[\#d4af60\]          { background-color: #e0c878           !important; }
+[data-theme="dark"] .hover\:bg-\[\#a07c32\]:hover { background-color: var(--c-accent-dk) !important; }
+[data-theme="dark"] .hover\:bg-\[\#a07c35\]:hover { background-color: var(--c-accent-dk) !important; }
+[data-theme="dark"] .hover\:bg-\[\#a07835\]:hover { background-color: var(--c-accent-dk) !important; }
+[data-theme="dark"] .hover\:bg-\[\#d4af60\]:hover { background-color: #d4a84c           !important; }
+[data-theme="dark"] .text-\[\#8a6d2e\]        { color: var(--c-accent-dk) !important; }
+[data-theme="dark"] .text-\[\#a07f33\]        { color: var(--c-accent-dk) !important; }
+[data-theme="dark"] .text-\[\#7a5c1e\]        { color: var(--c-accent)    !important; }
+/* Gold highlight */
+[data-theme="dark"] .text-\[\#ffd966\]        { color: #ffe680 !important; }
+[data-theme="dark"] .bg-\[\#ffd966\]          { background-color: #ffe680 !important; }
+[data-theme="dark"] .hover\:text-\[\#ffd966\]:hover { color: #ffe680 !important; }
+/* Sidebar stays dark — only adjust bg-[#1a1814] to deeper shade */
+[data-theme="dark"] nav.bg-\[\#1a1814\],
+[data-theme="dark"] header.bg-\[\#1a1814\],
+[data-theme="dark"] aside.bg-\[\#1a1814\]     { background-color: #0f0e0b !important; }
+/* Dark borders on sidebar elements stay as-is */
+[data-theme="dark"] .border-\[\#1a1814\]      { border-color: #3a342a !important; }
+/* bg-[#2a2521] already dark — keep but shift slightly */
+[data-theme="dark"] .bg-\[\#2a2521\]          { background-color: #1e1b17 !important; }
+
+/* ── Form inputs, selects in dark mode ── */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: #252118 !important;
+  color: #f0ece4 !important;
+  border-color: #3a342a !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: rgb(240 236 228 / 0.35) !important; }
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus { border-color: #d4a84c !important; outline-color: #d4a84c !important; }
+
+/* ── Scrollbar in dark mode ── */
+[data-theme="dark"] ::-webkit-scrollbar-track { background: #1e1b17; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3a342a; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #d4a84c; }
+
+/* ─────────────────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   COLOR THEMES  —  [data-color="*"] on <html>
+   Only accent + sidebar colors change per theme. Dark/light mode
+   continues to work as the outer layer.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* ── Ocean Blue ── */
+[data-color="blue"] {
+  --c-accent:    #2563eb;
+  --c-accent-dk: #1d4ed8;
+}
+[data-color="blue"] .bg-\[\#b8943f\],
+[data-color="blue"] .hover\:bg-\[\#b8943f\]:hover,
+[data-color="blue"] .bg-\[\#a07c32\],
+[data-color="blue"] .bg-\[\#a07c35\],
+[data-color="blue"] .bg-\[\#a07835\],
+[data-color="blue"] .bg-\[\#a07f33\],
+[data-color="blue"] .bg-\[\#a38338\]                 { background-color: #2563eb !important; }
+[data-color="blue"] .hover\:bg-\[\#a07c32\]:hover,
+[data-color="blue"] .hover\:bg-\[\#a07c35\]:hover,
+[data-color="blue"] .hover\:bg-\[\#a07835\]:hover    { background-color: #1d4ed8 !important; }
+[data-color="blue"] .text-\[\#b8943f\]               { color: #2563eb !important; }
+[data-color="blue"] .border-\[\#b8943f\],
+[data-color="blue"] .ring-\[\#b8943f\]               { border-color: #2563eb !important; }
+[data-color="blue"] .hover\:text-\[\#b8943f\]:hover  { color: #2563eb !important; }
+[data-color="blue"] .hover\:border-\[\#b8943f\]:hover { border-color: #2563eb !important; }
+[data-color="blue"] .border-\[\#b8943f\]\/40          { border-color: rgb(37 99 235 / 0.4) !important; }
+[data-color="blue"] .text-\[\#8a6d2e\],
+[data-color="blue"] .text-\[\#a07f33\],
+[data-color="blue"] .text-\[\#7a5c1e\]               { color: #1d4ed8 !important; }
+[data-color="blue"] .bg-\[\#faf6ec\]                 { background-color: #eff6ff !important; }
+[data-color="blue"] .bg-\[\#faf8f4\]                 { background-color: #f0f4ff !important; }
+[data-color="blue"][data-theme="dark"] .bg-\[\#faf6ec\]   { background-color: #1e2535 !important; }
+[data-color="blue"][data-theme="dark"] .bg-\[\#faf8f4\]   { background-color: #1a2030 !important; }
+[data-color="blue"][data-theme="dark"] { --c-accent: #60a5fa; --c-accent-dk: #3b82f6; }
+[data-color="blue"][data-theme="dark"] .bg-\[\#b8943f\]   { background-color: #60a5fa !important; }
+[data-color="blue"][data-theme="dark"] .text-\[\#b8943f\] { color: #60a5fa !important; }
+
+/* ── Ledger Green ── */
+[data-color="green"] {
+  --c-accent:    #16a34a;
+  --c-accent-dk: #15803d;
+}
+[data-color="green"] .bg-\[\#b8943f\],
+[data-color="green"] .hover\:bg-\[\#b8943f\]:hover,
+[data-color="green"] .bg-\[\#a07c32\],
+[data-color="green"] .bg-\[\#a07c35\],
+[data-color="green"] .bg-\[\#a07835\],
+[data-color="green"] .bg-\[\#a07f33\],
+[data-color="green"] .bg-\[\#a38338\]                 { background-color: #16a34a !important; }
+[data-color="green"] .hover\:bg-\[\#a07c32\]:hover,
+[data-color="green"] .hover\:bg-\[\#a07c35\]:hover,
+[data-color="green"] .hover\:bg-\[\#a07835\]:hover    { background-color: #15803d !important; }
+[data-color="green"] .text-\[\#b8943f\]               { color: #16a34a !important; }
+[data-color="green"] .border-\[\#b8943f\],
+[data-color="green"] .ring-\[\#b8943f\]               { border-color: #16a34a !important; }
+[data-color="green"] .hover\:text-\[\#b8943f\]:hover  { color: #16a34a !important; }
+[data-color="green"] .hover\:border-\[\#b8943f\]:hover { border-color: #16a34a !important; }
+[data-color="green"] .border-\[\#b8943f\]\/40          { border-color: rgb(22 163 74 / 0.4) !important; }
+[data-color="green"] .text-\[\#8a6d2e\],
+[data-color="green"] .text-\[\#a07f33\],
+[data-color="green"] .text-\[\#7a5c1e\]               { color: #15803d !important; }
+[data-color="green"] .bg-\[\#faf6ec\]                 { background-color: #f0fdf4 !important; }
+[data-color="green"] .bg-\[\#faf8f4\]                 { background-color: #f0fdf4 !important; }
+[data-color="green"][data-theme="dark"] { --c-accent: #4ade80; --c-accent-dk: #22c55e; }
+[data-color="green"][data-theme="dark"] .bg-\[\#b8943f\]   { background-color: #4ade80 !important; }
+[data-color="green"][data-theme="dark"] .text-\[\#b8943f\] { color: #4ade80 !important; }
+[data-color="green"][data-theme="dark"] .bg-\[\#faf6ec\]   { background-color: #0e1f14 !important; }
+
+/* ── Ruby Rose ── */
+[data-color="rose"] {
+  --c-accent:    #e11d48;
+  --c-accent-dk: #be123c;
+}
+[data-color="rose"] .bg-\[\#b8943f\],
+[data-color="rose"] .hover\:bg-\[\#b8943f\]:hover,
+[data-color="rose"] .bg-\[\#a07c32\],
+[data-color="rose"] .bg-\[\#a07c35\],
+[data-color="rose"] .bg-\[\#a07835\],
+[data-color="rose"] .bg-\[\#a07f33\],
+[data-color="rose"] .bg-\[\#a38338\]                  { background-color: #e11d48 !important; }
+[data-color="rose"] .hover\:bg-\[\#a07c32\]:hover,
+[data-color="rose"] .hover\:bg-\[\#a07c35\]:hover,
+[data-color="rose"] .hover\:bg-\[\#a07835\]:hover     { background-color: #be123c !important; }
+[data-color="rose"] .text-\[\#b8943f\]                { color: #e11d48 !important; }
+[data-color="rose"] .border-\[\#b8943f\],
+[data-color="rose"] .ring-\[\#b8943f\]                { border-color: #e11d48 !important; }
+[data-color="rose"] .hover\:text-\[\#b8943f\]:hover   { color: #e11d48 !important; }
+[data-color="rose"] .hover\:border-\[\#b8943f\]:hover  { border-color: #e11d48 !important; }
+[data-color="rose"] .border-\[\#b8943f\]\/40           { border-color: rgb(225 29 72 / 0.4) !important; }
+[data-color="rose"] .text-\[\#8a6d2e\],
+[data-color="rose"] .text-\[\#a07f33\],
+[data-color="rose"] .text-\[\#7a5c1e\]                { color: #be123c !important; }
+[data-color="rose"] .bg-\[\#faf6ec\]                  { background-color: #fff1f2 !important; }
+[data-color="rose"] .bg-\[\#faf8f4\]                  { background-color: #fff5f6 !important; }
+[data-color="rose"][data-theme="dark"] { --c-accent: #fb7185; --c-accent-dk: #f43f5e; }
+[data-color="rose"][data-theme="dark"] .bg-\[\#b8943f\]   { background-color: #fb7185 !important; }
+[data-color="rose"][data-theme="dark"] .text-\[\#b8943f\] { color: #fb7185 !important; }
+[data-color="rose"][data-theme="dark"] .bg-\[\#faf6ec\]   { background-color: #200d12 !important; }
+
+/* ── Slate Minimal ── */
+[data-color="slate"] {
+  --c-accent:    #475569;
+  --c-accent-dk: #334155;
+}
+[data-color="slate"] .bg-\[\#b8943f\],
+[data-color="slate"] .hover\:bg-\[\#b8943f\]:hover,
+[data-color="slate"] .bg-\[\#a07c32\],
+[data-color="slate"] .bg-\[\#a07c35\],
+[data-color="slate"] .bg-\[\#a07835\],
+[data-color="slate"] .bg-\[\#a07f33\],
+[data-color="slate"] .bg-\[\#a38338\]                  { background-color: #475569 !important; }
+[data-color="slate"] .hover\:bg-\[\#a07c32\]:hover,
+[data-color="slate"] .hover\:bg-\[\#a07c35\]:hover,
+[data-color="slate"] .hover\:bg-\[\#a07835\]:hover     { background-color: #334155 !important; }
+[data-color="slate"] .text-\[\#b8943f\]                { color: #475569 !important; }
+[data-color="slate"] .border-\[\#b8943f\],
+[data-color="slate"] .ring-\[\#b8943f\]                { border-color: #475569 !important; }
+[data-color="slate"] .hover\:text-\[\#b8943f\]:hover   { color: #475569 !important; }
+[data-color="slate"] .hover\:border-\[\#b8943f\]:hover  { border-color: #475569 !important; }
+[data-color="slate"] .border-\[\#b8943f\]\/40           { border-color: rgb(71 85 105 / 0.4) !important; }
+[data-color="slate"] .text-\[\#8a6d2e\],
+[data-color="slate"] .text-\[\#a07f33\],
+[data-color="slate"] .text-\[\#7a5c1e\]                { color: #334155 !important; }
+[data-color="slate"] .bg-\[\#faf6ec\]                  { background-color: #f8fafc !important; }
+[data-color="slate"] .bg-\[\#faf8f4\]                  { background-color: #f8fafc !important; }
+[data-color="slate"][data-theme="dark"] { --c-accent: #94a3b8; --c-accent-dk: #64748b; }
+[data-color="slate"][data-theme="dark"] .bg-\[\#b8943f\]   { background-color: #94a3b8 !important; }
+[data-color="slate"][data-theme="dark"] .text-\[\#b8943f\] { color: #94a3b8 !important; }
