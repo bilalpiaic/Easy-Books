@@ -4,6 +4,7 @@ import {
   Receipt, Percent, Tags, TrendingUp, FileText, ArrowUpRight,
   Truck, Undo2, CalendarCheck, ShoppingCart, Package,
   BookOpen, PieChart, Landmark, Upload, CheckCheck, Wallet,
+  Briefcase, UserCog, CalendarDays, Settings2,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import type { HubConfig, HubRawData } from "@/components/hub/HubPage"
@@ -246,5 +247,55 @@ export const BANKING_CONFIG: HubConfig = {
     { label: "Cash Book",       href: "/cash-book",       icon: Wallet                    },
     { label: "Bank Book",       href: "/bank-book",       icon: BookOpen                  },
     { label: "Exchange Rates",  href: "/exchange-rates",  icon: TrendingUp                },
+  ],
+}
+
+export const HRM_CONFIG: HubConfig = {
+  section: "Payroll",
+  title: "HRM & Payroll",
+  icon: Briefcase,
+  fetch: () =>
+    apiFetch<Record<string, unknown>>("/api/payroll/summary").then(r => [r]),
+  kpis: [
+    {
+      label: "Active Employees",
+      value: ([data]) => (data as { active_employees: number }).active_employees ?? 0,
+    },
+    {
+      label: "Last Payroll Net",
+      format: "currency",
+      value: ([data]) => (data as { last_payroll_net: number }).last_payroll_net ?? 0,
+    },
+    {
+      label: "Pending Runs",
+      value: ([data]) => (data as { pending_runs: number }).pending_runs ?? 0,
+      tone: ([data]) =>
+        ((data as { pending_runs: number }).pending_runs ?? 0) > 0 ? "warning" : "normal",
+    },
+    {
+      label: "Attendance % (MTD)",
+      value: ([data]) => {
+        const pct = (data as { avg_attendance_pct: number }).avg_attendance_pct ?? 0
+        return `${pct}%`
+      },
+      tone: ([data]) => {
+        const pct = (data as { avg_attendance_pct: number }).avg_attendance_pct ?? 0
+        return pct < 70 ? "danger" : pct < 85 ? "warning" : "normal"
+      },
+    },
+  ],
+  band: "payroll-runs",
+  bandData: ([data]) => ({
+    runs: (data as { recent_runs: unknown[] }).recent_runs ?? [],
+  }),
+  actions: [
+    { label: "New Payroll Run",    href: "/payroll/new",        icon: PlusCircle, primary: true },
+    { label: "Payroll Runs",       href: "/payroll",            icon: Briefcase               },
+    { label: "Employees",          href: "/employees",          icon: UserCog                 },
+    { label: "Attendance",         href: "/attendance",         icon: CalendarDays            },
+    { label: "Salary Components",  href: "/payroll/components", icon: Settings2               },
+    { label: "Attendance Report",  href: "/attendance/report",  icon: TrendingUp              },
+    { label: "Biometric Import",   href: "/attendance/import",  icon: Upload                  },
+    { label: "Bulk Attendance",    href: "/attendance/bulk",    icon: CalendarCheck           },
   ],
 }

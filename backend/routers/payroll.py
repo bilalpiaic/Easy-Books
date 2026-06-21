@@ -1,15 +1,16 @@
 """Payroll module — employees, salary components, structures, and payroll runs."""
 from __future__ import annotations
 
+from datetime import date
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from models import (
-    Account, Employee, EmployeeSalaryStructure, PayrollLine, PayrollLineDetail,
-    PayrollRun, SalaryComponent,
+    Account, AttendanceRecord, Employee, EmployeeSalaryStructure, PayrollLine,
+    PayrollLineDetail, PayrollRun, SalaryComponent,
 )
 from routers.common import CurrentUserDep, SessionDep, next_number
 from services.permissions import perm_dep
@@ -513,6 +514,75 @@ def delete_component(comp_id: int, user: CurrentUserDep, session: SessionDep):
     session.delete(comp)
     session.commit()
     return {"ok": True}
+
+
+# ── HRM Summary (hub overview) ────────────────────────────────────────────────
+
+@payroll_router.get("/summary")
+def hrm_summary(user: CurrentUserDep, session: SessionDep):
+    tid = user.tenant_id
+    today = date.today()
+    month_start = today.replace(day=1)
+
+    active_employees = session.exec(
+        select(func.count(Employee.id)).where(  # type: ignore[arg-type]
+            Employee.tenant_id == tid, Employee.is_active == True  # noqa: E712
+        )
+    ).one() or 0
+
+    last_posted = session.exec(
+        select(PayrollRun)
+        .where(PayrollRun.tenant_id == tid, PayrollRun.status == "posted")
+        .order_by(PayrollRun.pay_date.desc())  # type: ignore[attr-defined]
+        .limit(1)
+    ).first()
+
+    pending_runs = session.exec(
+        select(func.count(PayrollRun.id)).where(  # type: ignore[arg-type]
+            PayrollRun.tenant_id == tid,
+            PayrollRun.status.in_(["draft", "approved"]),  # type: ignore[attr-defined]
+        )
+    ).one() or 0
+
+    att_recs = session.exec(
+        select(AttendanceRecord).where(
+            AttendanceRecord.tenant_id == tid,
+            AttendanceRecord.date >= month_start.isoformat(),
+            AttendanceRecord.date <= today.isoformat(),
+        )
+    ).all()
+
+    present_count = sum(1 for r in att_recs if r.status in ("present", "half_day"))
+    days_so_far = max((today - month_start).days + 1, 1)
+    max_possible = (active_employees or 1) * days_so_far
+    avg_attendance_pct = round(present_count / max_possible * 100, 1) if att_recs else 0.0
+
+    recent_runs = session.exec(
+        select(PayrollRun)
+        .where(PayrollRun.tenant_id == tid)
+        .order_by(PayrollRun.pay_date.desc())  # type: ignore[attr-defined]
+        .limit(5)
+    ).all()
+
+    return {
+        "active_employees": active_employees,
+        "last_payroll_net": float(last_posted.total_net_pay) if last_posted else 0.0,
+        "pending_runs": pending_runs,
+        "avg_attendance_pct": avg_attendance_pct,
+        "recent_runs": [
+            {
+                "id": r.id,
+                "jv_number": r.jv_number,
+                "period_start": r.period_start,
+                "period_end": r.period_end,
+                "pay_date": r.pay_date,
+                "status": r.status,
+                "total_net_pay": float(r.total_net_pay),
+                "total_lines": r.total_lines,
+            }
+            for r in recent_runs
+        ],
+    }
 
 
 # ── Payroll Runs ──────────────────────────────────────────────────────────────

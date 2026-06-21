@@ -99,7 +99,8 @@ export const TITLE_MAP: Record<string, string> = {
   "/telecom/devices":           "Devices (IMEI)",
   "/imports":          "CSV Bulk Import",
   "/payment-terms":    "Payment Terms",
-  // Payroll
+  // Payroll / HRM
+  "/hrm":                          "HRM Overview",
   "/payroll":                      "Payroll",
   "/payroll/new":                  "New Payroll Run",
   "/payroll/":                     "Payroll Run",

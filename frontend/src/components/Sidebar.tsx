@@ -28,6 +28,7 @@ const HUB_ROUTES: Record<string, string> = {
   Payable:    "/payable",
   Inventory:  "/inventory",
   Banking:    "/banking",
+  Payroll:    "/hrm",
 }
 
 // Hub hrefs only highlight on exact pathname match to avoid conflicting with sub-page nav items

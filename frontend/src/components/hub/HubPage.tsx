@@ -9,6 +9,7 @@ import { useFmt } from "@/context/SettingsContext"
 import AgingBand, { type AgingBandProps } from "./AgingBand"
 import LowStockBand, { type LowStockBandProps } from "./LowStockBand"
 import AccountListBand, { type AccountListBandProps } from "./AccountListBand"
+import PayrollBand, { type PayrollBandProps } from "./PayrollBand"
 import { useTranslation } from "react-i18next"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,7 +30,7 @@ export interface ActionDef {
   primary?: boolean
 }
 
-export type BandType = "aging" | "low-stock" | "account-list"
+export type BandType = "aging" | "low-stock" | "account-list" | "payroll-runs"
 
 export interface HubConfig {
   section: string
@@ -122,6 +123,9 @@ export default function HubPage({ config }: { config: HubConfig }) {
         )}
         {!loading && raw && config.band === "account-list" && (
           <AccountListBand {...(config.bandData(raw) as AccountListBandProps)} />
+        )}
+        {!loading && raw && config.band === "payroll-runs" && (
+          <PayrollBand {...(config.bandData(raw) as PayrollBandProps)} />
         )}
       </div>
 

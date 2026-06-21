@@ -95,6 +95,7 @@ export const NAV: NavItem[] = [
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
   // Payroll
+  { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll" },
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll" },
   { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll" },
   { label: "Attendance",       href: "/attendance",        icon: CalendarDays,     section: "Payroll" },

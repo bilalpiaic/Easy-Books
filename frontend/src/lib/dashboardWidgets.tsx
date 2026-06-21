@@ -7,6 +7,7 @@ import RecentTransactions from "@/components/RecentTransactions"
 import BankBalancesWidget from "@/components/dashboard/widgets/BankBalancesWidget"
 import TopProductsWidget from "@/components/dashboard/widgets/TopProductsWidget"
 import InventorySummaryWidget from "@/components/dashboard/widgets/InventorySummaryWidget"
+import HRMSummaryWidget from "@/components/dashboard/widgets/HRMSummaryWidget"
 import { apiFetch } from "@/lib/api"
 import type { AppSettings } from "@/context/SettingsContext"
 import {
@@ -409,5 +410,10 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "inventory_summary", title: "Inventory Summary", defaultVisible: true, defaultOnGrid: false,
     defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
     render: () => <InventorySummaryWidget />,
+  },
+  {
+    id: "hrm_summary", title: "HRM & Payroll", defaultVisible: true, defaultOnGrid: false,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    render: () => <HRMSummaryWidget />,
   },
 ]
