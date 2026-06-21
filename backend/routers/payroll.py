@@ -564,24 +564,21 @@ def hrm_summary(user: CurrentUserDep, session: SessionDep):
         .limit(5)
     ).all()
 
+    # _serialize_run computes total_net_pay and total_lines from PayrollLine rows
+    serialized_runs = [_serialize_run(r, session) for r in recent_runs]
+    last_posted_net = 0.0
+    if last_posted:
+        last_lines = session.exec(
+            select(PayrollLine).where(PayrollLine.payroll_run_id == last_posted.id)
+        ).all()
+        last_posted_net = sum(l.net_pay for l in last_lines)
+
     return {
         "active_employees": active_employees,
-        "last_payroll_net": float(last_posted.total_net_pay) if last_posted else 0.0,
+        "last_payroll_net": last_posted_net,
         "pending_runs": pending_runs,
         "avg_attendance_pct": avg_attendance_pct,
-        "recent_runs": [
-            {
-                "id": r.id,
-                "jv_number": r.jv_number,
-                "period_start": r.period_start,
-                "period_end": r.period_end,
-                "pay_date": r.pay_date,
-                "status": r.status,
-                "total_net_pay": float(r.total_net_pay),
-                "total_lines": r.total_lines,
-            }
-            for r in recent_runs
-        ],
+        "recent_runs": serialized_runs,
     }
 
 
