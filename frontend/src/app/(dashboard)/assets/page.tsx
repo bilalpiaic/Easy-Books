@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface FixedAsset {
   id: number
@@ -48,6 +49,8 @@ const emptyForm: AssetForm = {
 }
 
 export default function AssetsPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [items, setItems] = useState<FixedAsset[]>([])
   const [total, setTotal] = useState(0)
@@ -148,8 +151,7 @@ export default function AssetsPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('fixed-assets.csv', items.map(a => ({ Name: a.name, Code: a.code ?? '', "Acquisition Date": a.acquisition_date, "Acquisition Cost": a.acquisition_cost, "Accum. Depr.": a.accumulated_depreciation, "Book Value": a.book_value, Method: a.method, "Useful Life (months)": a.useful_life_months, Status: a.is_disposed ? "Disposed" : "Active" })))}
             disabled={items.length === 0}
@@ -175,7 +177,7 @@ export default function AssetsPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="ui-td text-center text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={7} className="ui-td text-center text-[#1a1814]/40 italic">{t('common.loading', 'Loading...')}</td></tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={7} className="ui-td text-center">

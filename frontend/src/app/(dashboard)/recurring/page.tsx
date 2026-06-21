@@ -7,6 +7,7 @@ import { useDp } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
 import PrintHeader from '@/components/PrintHeader'
+import { useTranslation } from "react-i18next"
 
 interface RecurringEntry {
   account_id: number
@@ -50,6 +51,8 @@ const FREQ_LABELS: Record<string, string> = {
 }
 
 export default function RecurringPage() {
+  const { t: tr } = useTranslation()
+
   const [templates, setTemplates] = useState<RecurringTemplate[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
@@ -199,10 +202,9 @@ export default function RecurringPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{tr('common.print', 'Print')}</button>
           <button
-            onClick={() => downloadCSV('recurring-templates.csv', templates.map(t => ({ Name: t.name, Description: t.description ?? '', Frequency: FREQ_LABELS[t.frequency] ?? t.frequency, "Next Run": t.next_run, "Last Run": t.last_run ?? '', Active: t.is_active ? 'Yes' : 'No' })))}
+            onClick={() => downloadCSV('recurring-templates.csv', templates.map(tmpl => ({ Name: tmpl.name, Description: tmpl.description ?? '', Frequency: FREQ_LABELS[tmpl.frequency] ?? tmpl.frequency, "Next Run": tmpl.next_run, "Last Run": tmpl.last_run ?? '', Active: tmpl.is_active ? 'Yes' : 'No' })))}
             disabled={templates.length === 0}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
           >
@@ -237,7 +239,7 @@ export default function RecurringPage() {
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Frequency</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Next Run</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Last Run</th>
-              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">{tr('col.status', 'Status')}</th>
               <th className="ui-th" />
             </tr>
           </thead>
@@ -255,13 +257,13 @@ export default function RecurringPage() {
                   </button>
                 </td>
               </tr>
-            ) : templates.map(t => (
-              <tr key={t.id} className={`hover:bg-[#f6f3ee]/50 ${!t.is_active ? 'opacity-50' : ''}`}>
+            ) : templates.map(tmpl => (
+              <tr key={tmpl.id} className={`hover:bg-[#f6f3ee]/50 ${!tmpl.is_active ? 'opacity-50' : ''}`}>
                 <td className="ui-td">
-                  <p className="font-medium">{t.name}</p>
-                  {t.description && <p className="text-xs text-black/50 mt-0.5">{t.description}</p>}
+                  <p className="font-medium">{tmpl.name}</p>
+                  {tmpl.description && <p className="text-xs text-black/50 mt-0.5">{tmpl.description}</p>}
                   <p className="text-xs text-black/40 mt-0.5 flex flex-wrap gap-x-2">
-                    {t.entries.map((e, i) => {
+                    {tmpl.entries.map((e, i) => {
                       const acc = accounts.find(a => a.id === e.account_id)
                       return acc
                         ? <DocLink key={i} type="account" id={acc.code} label={`${acc.code} ${acc.name}`} className="text-xs text-black/45" />
@@ -271,30 +273,30 @@ export default function RecurringPage() {
                 </td>
                 <td className="ui-td">
                   <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-blue-100 text-blue-700">
-                    {FREQ_LABELS[t.frequency] ?? t.frequency}
+                    {FREQ_LABELS[tmpl.frequency] ?? tmpl.frequency}
                   </span>
                 </td>
-                <td className={`ui-td font-mono text-sm ${now && new Date(t.next_run) <= now && t.is_active ? 'text-red-600 font-bold' : 'text-black/70'}`}>
-                  {t.next_run}
+                <td className={`ui-td font-mono text-sm ${now && new Date(tmpl.next_run) <= now && tmpl.is_active ? 'text-red-600 font-bold' : 'text-black/70'}`}>
+                  {tmpl.next_run}
                 </td>
-                <td className="ui-td font-mono text-sm text-black/50">{t.last_run ?? '—'}</td>
+                <td className="ui-td font-mono text-sm text-black/50">{tmpl.last_run ?? '—'}</td>
                 <td className="ui-td text-center">
                   <button
-                    onClick={() => handleToggle(t)}
-                    title={t.is_active ? 'Deactivate' : 'Activate'}
+                    onClick={() => handleToggle(tmpl)}
+                    title={tmpl.is_active ? 'Deactivate' : 'Activate'}
                     className="inline-flex items-center gap-1.5 text-xs font-medium"
                   >
-                    {t.is_active
-                      ? <><ToggleRight className="w-5 h-5 text-green-500" /><span className="text-green-600">Active</span></>
-                      : <><ToggleLeft className="w-5 h-5 text-black/30" /><span className="text-black/40">Inactive</span></>}
+                    {tmpl.is_active
+                      ? <><ToggleRight className="w-5 h-5 text-green-500" /><span className="text-green-600">{tr('status.active', 'Active')}</span></>
+                      : <><ToggleLeft className="w-5 h-5 text-black/30" /><span className="text-black/40">{tr('status.inactive', 'Inactive')}</span></>}
                   </button>
                 </td>
                 <td className="ui-td">
                   <div className="flex items-center gap-2 justify-end">
-                    <button onClick={() => openEdit(t)} title="Edit template" className="text-[#1a1814]/40 hover:text-[#b8943f]">
+                    <button onClick={() => openEdit(tmpl)} title="Edit template" className="text-[#1a1814]/40 hover:text-[#b8943f]">
                       <Pencil className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleDelete(t)} title="Delete template" className="text-red-400 hover:text-red-600">
+                    <button onClick={() => handleDelete(tmpl)} title="Delete template" className="text-red-400 hover:text-red-600">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -349,9 +351,9 @@ export default function RecurringPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-[#f6f3ee]">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-black/50">Account</th>
-                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/50 w-28">Debit</th>
-                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/50 w-28">Credit</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-black/50">{tr('col.account', 'Account')}</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/50 w-28">{tr('col.debit', 'Debit')}</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/50 w-28">{tr('col.credit', 'Credit')}</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -415,9 +417,7 @@ export default function RecurringPage() {
 
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">
-                  Cancel
-                </button>
+                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">{tr('common.cancel', 'Cancel')}</button>
                 <button onClick={handleSave} disabled={saving}
                   className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
                   {saving ? 'Saving…' : editingId != null ? 'Save Changes' : 'Create Template'}

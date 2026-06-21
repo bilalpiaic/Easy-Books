@@ -5,6 +5,7 @@ import { Plus, Trash2, Pencil, Tags, Check, X, Download, Printer } from "lucide-
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface PromoRule {
   id: number
@@ -43,6 +44,8 @@ const EMPTY: Omit<PromoRule, "id"> = {
 }
 
 export default function PromoDiscountsPage() {
+  const { t } = useTranslation()
+
   const [rules, setRules] = useState<PromoRule[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -143,8 +146,7 @@ export default function PromoDiscountsPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('promo-discounts.csv', rules.map(r => ({ Rule: r.name, Product: r.product_id ? products.find(p => p.id === r.product_id)?.name ?? '' : 'All', "Min Qty": r.min_qty ?? '', Discount: discountLabel(r), Active: r.is_active ? 'Yes' : 'No' })))}
             disabled={rules.length === 0}
@@ -179,7 +181,7 @@ export default function PromoDiscountsPage() {
                   className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder="e.g. Summer Sale 20%" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Description</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.description', 'Description')}</label>
                 <input value={form.description ?? ""} onChange={e => set("description", e.target.value || null)}
                   className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder="Optional note" />
               </div>
@@ -267,17 +269,13 @@ export default function PromoDiscountsPage() {
 
               {editing && (
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={form.is_active} onChange={e => set("is_active", e.target.checked)} className="accent-[#b8943f]" />
-                  Active
-                </label>
+                  <input type="checkbox" checked={form.is_active} onChange={e => set("is_active", e.target.checked)} className="accent-[#b8943f]" />{t('status.active', 'Active')}</label>
               )}
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <button onClick={() => setShowForm(false)}
-                className="px-4 py-2 bg-[#f6f3ee] border border-[#ede9e2] rounded-lg text-sm font-semibold hover:bg-[#ede9e2]">
-                Cancel
-              </button>
+                className="px-4 py-2 bg-[#f6f3ee] border border-[#ede9e2] rounded-lg text-sm font-semibold hover:bg-[#ede9e2]">{t('common.cancel', 'Cancel')}</button>
               <button onClick={handleSave} disabled={saving}
                 className="px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-semibold hover:bg-[#b8943f] hover:text-black disabled:opacity-50">
                 {saving ? "Saving…" : editing ? "Update" : "Create"}
@@ -301,7 +299,7 @@ export default function PromoDiscountsPage() {
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 hidden md:table-cell">Scope</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 hidden sm:table-cell">Dates</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Discount</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Active</th>
+                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('status.active', 'Active')}</th>
                 <th className="w-20"></th>
               </tr>
             </thead>

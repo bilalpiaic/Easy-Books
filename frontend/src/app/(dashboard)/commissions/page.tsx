@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { useDp } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ function thisMonth(): string {
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function CommissionsPage() {
+  const { t } = useTranslation()
+
   const dp = useDp()
   const [tab, setTab] = useState<"plans" | "ledger">("ledger")
   const [plans, setPlans] = useState<Plan[]>([])
@@ -210,8 +213,7 @@ export default function CommissionsPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('commissions.csv', ledger.map(r => ({ Staff: r.user_name, Period: r.period, Amount: r.total_payable, Status: r.status })))}
             disabled={ledger.length === 0}
@@ -382,9 +384,7 @@ export default function CommissionsPage() {
                                 <button
                                   onClick={() => setPostingId(null)}
                                   className="px-3 py-2 text-sm text-[#1a1814]/60 hover:text-[#1a1814]"
-                                >
-                                  Cancel
-                                </button>
+                                >{t('common.cancel', 'Cancel')}</button>
                               </div>
                             </td>
                           </tr>
@@ -454,7 +454,7 @@ export default function CommissionsPage() {
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <button onClick={() => setShowPlanForm(false)} className="px-4 py-2 bg-white border border-[#ede9e2] rounded-lg text-sm font-semibold hover:bg-[#f6f3ee]">Cancel</button>
+                <button onClick={() => setShowPlanForm(false)} className="px-4 py-2 bg-white border border-[#ede9e2] rounded-lg text-sm font-semibold hover:bg-[#f6f3ee]">{t('common.cancel', 'Cancel')}</button>
                 <button onClick={createPlan} className="px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-semibold hover:bg-[#b8943f]">Save Plan</button>
               </div>
             </div>

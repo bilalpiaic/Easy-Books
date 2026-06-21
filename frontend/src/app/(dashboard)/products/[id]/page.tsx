@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { useTranslation } from "react-i18next"
 
 interface Product {
   id: number
@@ -49,6 +50,8 @@ interface Bom {
 }
 
 export default function ProductHubPage() {
+  const { t } = useTranslation()
+
   const params = useParams()
   const id = params.id as string
   const fmt = useFmt()
@@ -135,9 +138,7 @@ export default function ProductHubPage() {
             </p>
           </div>
           {!product.is_active && (
-            <span className="inline-block bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-0.5 rounded-full border border-slate-200">
-              Inactive
-            </span>
+            <span className="inline-block bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-0.5 rounded-full border border-slate-200">{t('status.inactive', 'Inactive')}</span>
           )}
         </div>
         <Link
@@ -323,9 +324,7 @@ export default function ProductHubPage() {
                 </div>
                 {adjErr && <p className="text-xs text-red-600">{adjErr}</p>}
                 <div className="flex gap-2 pt-1">
-                  <button onClick={() => setAdjOpen(false)} className="flex-1 border border-[#ede9e2] py-2.5 rounded-lg text-sm text-[#1a1814]/60 hover:bg-[#f6f3ee]">
-                    Cancel
-                  </button>
+                  <button onClick={() => setAdjOpen(false)} className="flex-1 border border-[#ede9e2] py-2.5 rounded-lg text-sm text-[#1a1814]/60 hover:bg-[#f6f3ee]">{t('common.cancel', 'Cancel')}</button>
                   <button onClick={submitAdjustment} disabled={adjBusy} className="flex-1 bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-[#a07c32] disabled:opacity-50">
                     {adjBusy ? "Posting…" : "Post Adjustment"}
                   </button>
@@ -343,7 +342,7 @@ export default function ProductHubPage() {
           <p className="capitalize font-medium text-[#1a1814]">{product.product_type}</p>
         </div>
         <div>
-          <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Unit</p>
+          <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">{t('col.unit', 'Unit')}</p>
           <p className="font-medium text-[#1a1814]">{product.unit}</p>
         </div>
         {product.code && (
@@ -426,7 +425,7 @@ export default function ProductHubPage() {
                       )
                     })}
                     <tr className="bg-[#f6f3ee] font-semibold">
-                      <td colSpan={4} className="ui-td text-right text-xs uppercase tracking-widest text-black/50">Total</td>
+                      <td colSpan={4} className="ui-td text-right text-xs uppercase tracking-widest text-black/50">{t('col.total', 'Total')}</td>
                       <td className="ui-td text-right font-mono">
                         {layers.reduce((s, l) => s + parseFloat(l.qty_remaining), 0).toFixed(3)}
                       </td>

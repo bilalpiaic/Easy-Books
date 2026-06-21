@@ -6,12 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import BillForm from '@/components/bills/BillForm'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 function NewBillContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const vendorId = searchParams.get('vendor_id')
   useBreadcrumb('New Bill')
+  const { t } = useTranslation()
   return (
     <div className="space-y-6">
       <div>

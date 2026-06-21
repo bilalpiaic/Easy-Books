@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface Product {
   id: number
@@ -104,6 +105,7 @@ function ProductLedgerInner() {
     `Period: ${start} – ${end}`,
   ].filter(Boolean).join("  |  ")
 
+  const { t } = useTranslation()
   return (
     <div className="max-w-5xl mx-auto">
       <PrintHeader title="Product Ledger" subtitle={printSubtitle} orientation="landscape" />
@@ -143,7 +145,7 @@ function ProductLedgerInner() {
       {/* Filters — hidden in print; plain-text summary shown via PrintHeader subtitle */}
       <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Product</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">{t('col.product', 'Product')}</label>
           <select
             value={productId}
             onChange={e => setProductId(e.target.value)}
@@ -207,7 +209,7 @@ function ProductLedgerInner() {
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty Out</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Running Qty</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Unit Cost</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Location</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.location', 'Location')}</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Source</th>
               </tr>
             </thead>
@@ -220,7 +222,7 @@ function ProductLedgerInner() {
                 </tr>
               ) : isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/75">Loading...</td>
+                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/75">{t('common.loading', 'Loading...')}</td>
                 </tr>
               ) : !data || data.items.length === 0 ? (
                 <tr>

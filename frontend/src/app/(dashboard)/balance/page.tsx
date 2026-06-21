@@ -8,6 +8,7 @@ import { useSettings } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
+import { useTranslation } from "react-i18next"
 
 interface BalanceItem {
   code: string
@@ -107,6 +108,8 @@ function BalanceSection({
 }
 
 export default function BalanceSheetPage() {
+  const { t } = useTranslation()
+
   const { settings } = useSettings()
 
   // Flat state for comparison mode (unchanged)

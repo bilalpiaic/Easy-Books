@@ -9,6 +9,7 @@ import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import DocLink from "@/components/DocLink"
 import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
+import { useTranslation } from "react-i18next"
 
 interface PnLItem {
   name: string
@@ -42,6 +43,8 @@ function priorYearRange(start: string, end: string) {
 }
 
 export default function PnLPage() {
+  const { t } = useTranslation()
+
   const { settings } = useSettings()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
@@ -182,7 +185,7 @@ export default function PnLPage() {
             <section className="space-y-4">
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Revenue</h3>
               {isLoading ? (
-                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+                <div className="text-sm text-[#1a1814]/75 italic">{t('common.loading', 'Loading...')}</div>
               ) : revenueItems.length === 0 ? (
                 <div className="text-sm text-[#1a1814]/75 italic">No revenue in selected period.</div>
               ) : (
@@ -212,7 +215,7 @@ export default function PnLPage() {
             <section className="space-y-4">
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Expenses</h3>
               {isLoading ? (
-                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+                <div className="text-sm text-[#1a1814]/75 italic">{t('common.loading', 'Loading...')}</div>
               ) : expenseItems.length === 0 ? (
                 <div className="text-sm text-[#1a1814]/75 italic">No expenses in selected period.</div>
               ) : (
@@ -264,7 +267,7 @@ export default function PnLPage() {
             <section className="space-y-2">
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Revenue</h3>
               {isLoading ? (
-                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+                <div className="text-sm text-[#1a1814]/75 italic">{t('common.loading', 'Loading...')}</div>
               ) : treeRevenue.length === 0 ? (
                 <div className="text-sm text-[#1a1814]/75 italic">No revenue in selected period.</div>
               ) : (
@@ -291,7 +294,7 @@ export default function PnLPage() {
             <section className="space-y-2">
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">Expenses</h3>
               {isLoading ? (
-                <div className="text-sm text-[#1a1814]/75 italic">Loading...</div>
+                <div className="text-sm text-[#1a1814]/75 italic">{t('common.loading', 'Loading...')}</div>
               ) : treeExpenses.length === 0 ? (
                 <div className="text-sm text-[#1a1814]/75 italic">No expenses in selected period.</div>
               ) : (

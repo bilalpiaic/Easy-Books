@@ -7,6 +7,7 @@ import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface DebitNote {
   id: number
@@ -42,6 +43,8 @@ const statusColors: Record<string, string> = {
 }
 
 export default function DebitNotesPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [items, setItems] = useState<DebitNote[]>([])
   const [total, setTotal] = useState(0)
@@ -120,8 +123,7 @@ export default function DebitNotesPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('debit-notes.csv', items.map(n => ({ Number: n.number, Vendor: n.vendor_name ?? '', Date: n.issue_date, Total: n.total, Status: n.status })))}
             disabled={items.length === 0}
@@ -144,7 +146,7 @@ export default function DebitNotesPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="ui-td text-center text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={5} className="ui-td text-center text-[#1a1814]/40 italic">{t('common.loading', 'Loading...')}</td></tr>
             ) : items.length === 0 ? (
               <tr><td colSpan={5} className="ui-td text-center">
                 <Undo2 className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
@@ -174,7 +176,7 @@ export default function DebitNotesPage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">{t('col.vendor', 'Vendor')}</label>
                   <select value={form.vendor_id} onChange={e => setForm(f => ({ ...f, vendor_id: e.target.value, bill_id: '' }))}
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
                     <option value="">Select vendor</option>

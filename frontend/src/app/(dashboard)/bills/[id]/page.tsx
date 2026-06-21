@@ -7,6 +7,7 @@ import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import { useTranslation } from "react-i18next"
 
 interface AuditEntry {
   id: number
@@ -64,6 +65,8 @@ const STATUS_TONE: Record<string, string> = {
 }
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { id } = use(params)
   const [bill, setBill]   = useState<Bill | null>(null)
@@ -149,8 +152,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             </button>
           )}
           <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
-            <Printer className="w-4 h-4" /> Print
-          </Link>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
           {bill.transaction_id && bill.status !== "reversed" && (
             <button onClick={reverse} disabled={busy}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
@@ -180,7 +182,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Vendor</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.vendor', 'Vendor')}</div>
           {bill.vendor_id ? (
             <Link href={`/vendors/${bill.vendor_id}/ledger`} className="font-semibold text-[#1a1814] hover:text-[#b8943f] hover:underline">
               {bill.vendor_name ?? `#${bill.vendor_id}`}
@@ -203,10 +205,10 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
         <table className="w-full text-sm">
           <thead className="bg-[#faf6ec]">
             <tr>
-              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
+              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
               <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
               <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Rate</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Amount</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.amount', 'Amount')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -230,7 +232,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {bill.notes && (
             <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</div>
               <p className="text-sm text-[#1a1814]/80 whitespace-pre-wrap">{bill.notes}</p>
             </div>
           )}

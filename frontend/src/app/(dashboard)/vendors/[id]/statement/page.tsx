@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV, fmtDate, fmtDateJs } from '@/lib/utils'
 import PrintHeader from '@/components/PrintHeader'
+import { useTranslation } from "react-i18next"
 
 interface StatementBill {
   id: number
@@ -71,6 +72,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
   const v = data.vendor
   const closingNum = Number(data.closing_balance)
 
+  const { t } = useTranslation()
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <PrintHeader title={`Statement — ${v.name}`} subtitle={`Period: ${fmtDate(data.period.from)} to ${fmtDate(data.period.to)}`} />
@@ -99,8 +101,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
           </button>
           <button onClick={() => window.print()}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </div>
 
@@ -155,8 +156,8 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                   <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Bill #</th>
                   <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Date</th>
                   <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Due</th>
-                  <th className="py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/50">Status</th>
-                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">Total</th>
+                  <th className="py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.status', 'Status')}</th>
+                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.total', 'Total')}</th>
                   <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">Outstanding</th>
                 </tr>
               </thead>
@@ -193,8 +194,8 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                 <tr className="border-b border-[#ede9e2]">
                   <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Date</th>
                   <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Method</th>
-                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Reference</th>
-                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">Amount</th>
+                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.reference', 'Ref #')}</th>
+                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.amount', 'Amount')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f6f3ee]">

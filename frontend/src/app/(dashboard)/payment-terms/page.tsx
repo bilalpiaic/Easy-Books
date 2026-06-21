@@ -5,6 +5,7 @@ import { Clock, Plus, Pencil, Trash2, Check, X, Download, Printer } from "lucide
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface PaymentTerm {
   id: number
@@ -22,6 +23,8 @@ interface TermForm {
 const emptyForm: TermForm = { code: "", name: "", days: "" }
 
 export default function PaymentTermsPage() {
+  const { t } = useTranslation()
+
   const [terms, setTerms]       = useState<PaymentTerm[]>([])
   const [modalOpen, setModal]   = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -100,8 +103,7 @@ export default function PaymentTermsPage() {
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('payment-terms.csv', terms.map(t => ({ Code: t.code, Name: t.name, Days: t.days })))}
             disabled={terms.length === 0}
@@ -226,9 +228,7 @@ export default function PaymentTermsPage() {
                   {saving ? "Saving…" : editingId != null ? "Save Changes" : "Create Term"}
                 </button>
                 <button type="button" onClick={closeModal}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
-                  Cancel
-                </button>
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
           </div>

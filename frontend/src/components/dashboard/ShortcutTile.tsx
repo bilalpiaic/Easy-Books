@@ -4,11 +4,14 @@ import React from "react"
 import Link from "next/link"
 import { resolveShortcut, shortcutHref } from "@/lib/dashboardShortcuts"
 import type { TileMetric } from "@/lib/dashboardTileMetrics"
+import { useTranslation } from "react-i18next"
 
 export default function ShortcutTile({ id, model, role, editing, metric }: {
   id: string; model: string | undefined; role: string; editing: boolean
   metric?: TileMetric | null
 }) {
+  const { t } = useTranslation()
+
   const item = resolveShortcut(id, model, role)
   if (!item) {
     return (

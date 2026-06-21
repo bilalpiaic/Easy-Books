@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import BillPaymentForm from '@/components/payments/BillPaymentForm'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 export default function NewBillPaymentPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
   useBreadcrumb('Pay Bill')
   return (

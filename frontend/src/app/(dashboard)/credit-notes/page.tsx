@@ -8,6 +8,7 @@ import { useFmt } from "@/context/SettingsContext"
 import { useSettings } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface CreditNote {
   id: number
@@ -50,6 +51,8 @@ const statusColors: Record<string, string> = {
 }
 
 export default function CreditNotesPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { settings } = useSettings()
   const [items, setItems] = useState<CreditNote[]>([])
@@ -151,8 +154,7 @@ export default function CreditNotesPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('credit-notes.csv', items.map(n => ({ Number: n.number, Customer: n.customer_name ?? '', Date: n.issue_date, Total: n.total, Status: n.status })))}
             disabled={items.length === 0}
@@ -178,7 +180,7 @@ export default function CreditNotesPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="ui-td text-center text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={5} className="ui-td text-center text-[#1a1814]/40 italic">{t('common.loading', 'Loading...')}</td></tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={5} className="ui-td text-center">
@@ -213,7 +215,7 @@ export default function CreditNotesPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">{t('col.customer', 'Customer')}</label>
                 <select value={form.customer_id}
                   onChange={e => {
                     const id = e.target.value

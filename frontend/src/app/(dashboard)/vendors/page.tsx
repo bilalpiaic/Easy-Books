@@ -15,6 +15,7 @@ import SkeletonRow from '@/components/SkeletonRow'
 import CsvImportButton from '@/components/CsvImportButton'
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
+import { useTranslation } from "react-i18next"
 
 interface Vendor {
   id: number
@@ -29,6 +30,8 @@ interface Vendor {
 const PAGE_SIZE = 50
 
 export default function Vendors() {
+  const { t } = useTranslation()
+
   const { can } = usePermission()
   if (!can("vendors")) return <NoAccessBanner resource="vendors" />
   const fmt = useFmt()
@@ -104,9 +107,7 @@ export default function Vendors() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
             title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button onClick={openAdd} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" />
             Add Vendor
@@ -152,7 +153,7 @@ export default function Vendors() {
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Email</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Phone</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">Opening Bal.</th>
-              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/75">Status</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/75">{t('col.status', 'Status')}</th>
               <th className="ui-th"></th>
             </tr>
           </thead>

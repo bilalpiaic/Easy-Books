@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { Upload, Download, CheckCircle, XCircle, AlertTriangle, FileText } from 'lucide-react'
 import { apiBase } from '@/lib/api'
 import { getAuthHeader } from '@/lib/auth'
+import { useTranslation } from "react-i18next"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -278,6 +279,8 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ImportsPage() {
+  const { t } = useTranslation()
+
   const [active, setActive] = useState<Entity>('accounts')
   const entity = ENTITIES.find(e => e.key === active)!
 

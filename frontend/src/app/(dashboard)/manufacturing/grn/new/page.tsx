@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Plus, Trash2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 interface Customer { id: number; name: string }
 interface Product  { id: number; code: string; name: string }
@@ -23,6 +24,8 @@ const emptyLine = (): LineState => ({
 })
 
 export default function NewGrnPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
 
   const [customers, setCustomers]   = useState<Customer[]>([])
@@ -124,7 +127,7 @@ export default function NewGrnPage() {
         <div className="bg-white border border-[#ede9e2] rounded-xl p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Customer</label>
+              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.customer', 'Customer')}</label>
               <select
                 value={customerId}
                 onChange={e => setCustomerId(e.target.value)}
@@ -162,7 +165,7 @@ export default function NewGrnPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Notes</label>
+              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.notes', 'Notes')}</label>
               <input
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
@@ -191,11 +194,11 @@ export default function NewGrnPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-                  <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">Product</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">{t('col.product', 'Product')}</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70 w-24">Qty</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70 w-28">Lot No.</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70 w-28">Declared Value</th>
-                  <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70">Notes</th>
+                  <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70">{t('col.notes', 'Notes')}</th>
                   <th className="w-8 px-2" />
                 </tr>
               </thead>
@@ -348,9 +351,7 @@ export default function NewGrnPage() {
           <Link
             href="/manufacturing/grn"
             className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
-          >
-            Cancel
-          </Link>
+          >{t('common.cancel', 'Cancel')}</Link>
         </div>
       </form>
     </div>

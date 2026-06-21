@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { useSettings } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface ExchangeRate {
   id: number
@@ -32,6 +33,8 @@ const emptyForm = (): FormState => ({
 })
 
 export default function ExchangeRatesPage() {
+  const { t } = useTranslation()
+
   const { settings }          = useSettings()
   const baseCurrency          = settings.currency || "PKR"
 
@@ -160,8 +163,7 @@ export default function ExchangeRatesPage() {
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('exchange-rates.csv', rates.map(r => ({ Date: r.date, From: r.from_currency, To: r.to_currency, Rate: r.rate })))}
             disabled={rates.length === 0}
@@ -397,9 +399,7 @@ export default function ExchangeRatesPage() {
                   type="button"
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
-                >
-                  Cancel
-                </button>
+                >{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
           </div>

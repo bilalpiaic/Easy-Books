@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
 const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise"]
@@ -927,6 +928,8 @@ function DashboardCustomizationFlow() {
 }
 
 export default function WorkflowPage() {
+  const { t } = useTranslation()
+
   const handlePrint = () => window.print()
   const [businessModel, setBusinessModel] = useState<BusinessModel | null>(null)
 
@@ -965,9 +968,7 @@ export default function WorkflowPage() {
           onClick={handlePrint}
           className="flex items-center gap-2 px-4 py-2 bg-white border border-[#ede9e2] rounded-xl text-sm text-[#1a1814]/70 hover:border-[#b8943f]/50 hover:text-[#b8943f] transition-all print:hidden shadow-sm self-start"
         >
-          <Printer className="w-4 h-4" />
-          Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       {/* Double-Entry callout */}

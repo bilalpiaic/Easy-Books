@@ -8,6 +8,7 @@ import { downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import LedgerEntriesTable, { LedgerPayload } from "@/components/LedgerEntriesTable"
+import { useTranslation } from "react-i18next"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,8 @@ function defaultRange() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BankBookPage() {
+  const { t } = useTranslation()
+
   const range = defaultRange()
 
   const [start, setStart] = useState(range.start)

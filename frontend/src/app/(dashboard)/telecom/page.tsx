@@ -9,6 +9,7 @@ import {
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { Tile, Section, PageHeader, ErrorBanner, money } from "@/components/telecom/primitives"
+import { useTranslation } from "react-i18next"
 
 interface Dashboard {
   as_of: string
@@ -40,6 +41,8 @@ interface StockTotals {
 interface StockResp { items: StockRow[]; totals: StockTotals; period: { start: string | null; end: string | null } }
 
 export default function TelecomDashboardPage() {
+  const { t } = useTranslation()
+
   const [data, setData] = useState<Dashboard | null>(null)
   const [rev, setRev] = useState<RevenueResp | null>(null)
   const [error, setError] = useState<string | null>(null)

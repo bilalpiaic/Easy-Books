@@ -7,6 +7,7 @@ import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import { useTranslation } from "react-i18next"
 
 interface Allocation {
   id: number
@@ -27,6 +28,8 @@ interface BillPayment {
 }
 
 export default function BillPaymentDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { id } = use(params)
   const [pay, setPay] = useState<BillPayment | null>(null)
@@ -47,8 +50,7 @@ export default function BillPaymentDetail({ params }: { params: Promise<{ id: st
     <div className="max-w-4xl mx-auto space-y-4">
       <div className="flex justify-end print:hidden">
         <Link href={`/bill-payments/${pay.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
-          <Printer className="w-4 h-4" /> Print
-        </Link>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
       </div>
 
       <header className="bg-white border border-[#ede9e2] rounded-xl p-5 flex items-start gap-3">

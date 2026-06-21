@@ -7,6 +7,7 @@ import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
+import { useTranslation } from "react-i18next"
 
 interface Line { id: number; description: string; qty: number; rate: number; amount: number; unit: string | null }
 interface CreditNoteDetail {
@@ -26,6 +27,8 @@ interface CreditNoteDetail {
 }
 
 export default function CreditNoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const fmt = useFmt()
   const [cn, setCn] = useState<CreditNoteDetail | null>(null)
@@ -61,7 +64,7 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
 
       <div className="bg-white border border-[#ede9e2] rounded-xl p-5 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-[#1a1814]/50">Customer</p>
+          <p className="text-[10px] uppercase tracking-widest text-[#1a1814]/50">{t('col.customer', 'Customer')}</p>
           <p className="mt-0.5">{cn.customer_id
             ? <DocLink type="customer" id={cn.customer_id} label={cn.customer_name ?? "Customer"} />
             : (cn.customer_name ?? "—")}</p>

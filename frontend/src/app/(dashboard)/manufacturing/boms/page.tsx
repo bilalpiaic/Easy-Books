@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
+import { useTranslation } from "react-i18next"
 
 interface BomLine {
   id: number; component_product_id: number; qty_per_output: string
@@ -20,6 +21,8 @@ interface Bom {
 interface Product { id: number; code: string; name: string }
 
 export default function BomsListPage() {
+  const { t } = useTranslation()
+
   const [boms, setBoms]         = useState<Bom[]>([])
   const [products, setProducts] = useState<Map<number, Product>>(new Map())
   const [loading, setLoading]   = useState(true)
@@ -82,9 +85,7 @@ export default function BomsListPage() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
             title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </header>
 
@@ -123,11 +124,11 @@ export default function BomsListPage() {
             <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">Output product</th>
-                <th className="text-left px-4 py-2">Description</th>
+                <th className="text-left px-4 py-2">{t('col.description', 'Description')}</th>
                 <th className="text-right px-4 py-2">Output qty</th>
                 <th className="text-center px-4 py-2">Lines</th>
                 <th className="text-center px-4 py-2">Ver.</th>
-                <th className="text-center px-4 py-2">Status</th>
+                <th className="text-center px-4 py-2">{t('col.status', 'Status')}</th>
                 <th className="px-4 py-2 print:hidden" />
               </tr>
             </thead>
@@ -153,7 +154,7 @@ export default function BomsListPage() {
                     <td className="px-4 py-2.5 text-center">
                       <div className="flex flex-col items-center gap-0.5">
                         {b.is_active
-                          ? <span className="text-emerald-700 font-semibold text-xs">Active</span>
+                          ? <span className="text-emerald-700 font-semibold text-xs">{t('status.active', 'Active')}</span>
                           : <span className="text-[#1a1814]/40 text-xs">Archived</span>}
                         {b.explode_on_invoice && (
                           <span className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 text-[10px] font-medium">Kit</span>

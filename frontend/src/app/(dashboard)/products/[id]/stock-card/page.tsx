@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface MovementEntry {
   date: string
@@ -63,6 +64,8 @@ function defaultRange() {
 }
 
 export default function ProductStockCardPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { id } = use(params)
   const r0 = defaultRange()
@@ -88,8 +91,7 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <Link href={`/products/${id}`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
-          <ArrowLeft className="w-4 h-4" /> Product
-        </Link>
+          <ArrowLeft className="w-4 h-4" />{t('col.product', 'Product')}</Link>
         <div className="flex items-center gap-2">
           <button
             onClick={() => data && downloadCSV(`stock-card-${data.product.code ?? data.product.name}.csv`, data.entries.map(e => ({ Date: e.date, Direction: e.direction, "Lot #": e.lot_no ?? '', "Qty In": e.qty_in ?? '', "Qty Out": e.qty_out ?? '', "Unit Cost": e.unit_cost, "Total Cost": e.total_cost, "Running Qty": e.running_qty, "Running Value": e.running_value, Source: e.source_doc_type ?? '' })))}
@@ -99,8 +101,7 @@ export default function ProductStockCardPage({ params }: { params: Promise<{ id:
             <Download className="w-4 h-4" /> CSV
           </button>
           <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </div>
 

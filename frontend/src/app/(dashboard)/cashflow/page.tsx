@@ -8,6 +8,7 @@ import { useSettings } from '@/context/SettingsContext'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
 import DocLink from '@/components/DocLink'
+import { useTranslation } from "react-i18next"
 
 interface CashFlowData {
   period: { start: string; end: string }
@@ -75,6 +76,8 @@ function Row({ label, current, comparison, showCmp, indent = false, bold = false
 }
 
 export default function CashFlow() {
+  const { t } = useTranslation()
+
   const { settings } = useSettings()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
@@ -181,7 +184,7 @@ export default function CashFlow() {
       {error && <div className="text-red-600 font-semibold">{error}</div>}
 
       {isLoading ? (
-        <div className="text-center py-12 text-black/40">Loading...</div>
+        <div className="text-center py-12 text-black/40">{t('common.loading', 'Loading...')}</div>
       ) : !data ? (
         <div className="text-center py-12 text-black/40">No data available.</div>
       ) : (

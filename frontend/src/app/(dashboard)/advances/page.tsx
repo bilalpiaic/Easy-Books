@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 type Tab = "customer" | "vendor"
 
@@ -24,6 +25,8 @@ interface Party { id: number; name: string }
 interface Doc { id: number; number: string; total: number; customer_id?: number | null; vendor_id?: number | null }
 
 export default function AdvancesPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [tab, setTab] = useState<Tab>("customer")
   const [rows, setRows] = useState<Advance[]>([])
@@ -121,8 +124,7 @@ export default function AdvancesPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => {
               const partyMap = new Map(parties.map(p => [p.id, p.name]))
@@ -157,7 +159,7 @@ export default function AdvancesPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="ui-td py-10 text-center text-[#1a1814]/40 italic">Loading...</td></tr>
+              <tr><td colSpan={7} className="ui-td py-10 text-center text-[#1a1814]/40 italic">{t('common.loading', 'Loading...')}</td></tr>
             ) : rows.length === 0 ? (
               <tr><td colSpan={7} className="ui-td py-16 text-center">
                 <Wallet className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
@@ -207,7 +209,7 @@ export default function AdvancesPage() {
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Amount</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">{t('col.amount', 'Amount')}</label>
                   <input type="number" min="0" value={recForm.amount} onChange={e => setRecForm(f => ({ ...f, amount: e.target.value }))}
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
                 </div>
@@ -246,7 +248,7 @@ export default function AdvancesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Amount</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">{t('col.amount', 'Amount')}</label>
                 <input type="number" min="0" value={applyForm.amount} onChange={e => setApplyForm(f => ({ ...f, amount: e.target.value }))}
                   className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
               </div>

@@ -6,6 +6,7 @@ import { WIDGET_REGISTRY } from "@/lib/dashboardWidgets"
 import { shortcutCatalog, shortcutId } from "@/lib/dashboardShortcuts"
 import { ALL_SECTIONS } from "@/lib/nav"
 import type { GridItem } from "@/hooks/useDashboardLayout"
+import { useTranslation } from "react-i18next"
 
 export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
   items: GridItem[]
@@ -13,6 +14,8 @@ export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
   onAdd: (id: string) => void
   onClose: () => void
 }) {
+  const { t } = useTranslation()
+
   const [tab, setTab] = useState<"widgets" | "shortcuts">("widgets")
   const present = useMemo(() => new Set(items.map(i => i.id)), [items])
 

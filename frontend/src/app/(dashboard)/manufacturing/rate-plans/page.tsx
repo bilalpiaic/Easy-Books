@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { downloadCSV } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface RatePlan {
   id: number; code: string; name: string; version: number; is_active: boolean
@@ -31,6 +32,8 @@ const emptyPlanForm = (): PlanForm => ({
 })
 
 export default function RatePlansPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [plans, setPlans]           = useState<RatePlan[]>([])
   const [customers, setCustomers]   = useState<Customer[]>([])
@@ -183,8 +186,7 @@ export default function RatePlansPage() {
           </button>
           <button onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm hover:bg-[#f6f3ee] transition-colors">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </header>
 
@@ -227,7 +229,7 @@ total    = base + overhead + margin`}
                 <th className="text-right px-4 py-2">Ovh %</th>
                 <th className="text-right px-4 py-2">Margin %</th>
                 <th className="text-center px-4 py-2">Ver.</th>
-                <th className="text-center px-4 py-2">Status</th>
+                <th className="text-center px-4 py-2">{t('col.status', 'Status')}</th>
                 <th className="px-4 py-2 print:hidden" />
               </tr>
             </thead>
@@ -243,7 +245,7 @@ total    = base + overhead + margin`}
                   <td className="px-4 py-2.5 text-center text-xs text-[#1a1814]/60">v{p.version}</td>
                   <td className="px-4 py-2.5 text-center">
                     {p.is_active
-                      ? <span className="text-emerald-700 text-xs font-semibold">Active</span>
+                      ? <span className="text-emerald-700 text-xs font-semibold">{t('status.active', 'Active')}</span>
                       : <span className="text-[#1a1814]/40 text-xs">Archived</span>}
                   </td>
                   <td className="px-4 py-2.5 print:hidden">
@@ -341,9 +343,7 @@ total    = base + overhead + margin`}
                   {planSaving ? "Saving…" : editingPlan ? "Save Changes" : "Create Rate Plan"}
                 </button>
                 <button type="button" onClick={() => setPlanModal(false)}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
-                  Cancel
-                </button>
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
           </div>
@@ -363,7 +363,7 @@ total    = base + overhead + margin`}
             </div>
             <form onSubmit={handleAssign} className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Customer</label>
+                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.customer', 'Customer')}</label>
                 <select value={assignCustomer} onChange={e => setAssignCustomer(e.target.value)}
                   className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]">
                   <option value="">— Select customer —</option>

@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDateJs } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface AgingItem {
   id: number
@@ -37,6 +38,8 @@ const BUCKETS = [
 ] as const
 
 export default function APAgingPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [data, setData] = useState<AgingData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -107,9 +110,9 @@ export default function APAgingPage() {
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Vendor</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.vendor', 'Vendor')}</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Bill #</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Due Date</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.dueDate', 'Due Date')}</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Days Past</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Bucket</th>
@@ -118,7 +121,7 @@ export default function APAgingPage() {
             <tbody className="divide-y divide-[#1a1814]/5">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-[#1a1814]/75">Loading...</td>
+                  <td colSpan={6} className="px-6 py-10 text-center text-[#1a1814]/75">{t('common.loading', 'Loading...')}</td>
                 </tr>
               ) : !data || data.items.length === 0 ? (
                 <tr>

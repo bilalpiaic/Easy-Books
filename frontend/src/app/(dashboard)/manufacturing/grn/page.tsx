@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
+import { useTranslation } from "react-i18next"
 
 interface GrnLine { id: number; product_id: number; qty: string; lot_no: string | null }
 interface Grn {
@@ -18,6 +19,8 @@ interface Grn {
 interface Customer { id: number; name: string }
 
 export default function GrnPage() {
+  const { t } = useTranslation()
+
   const [grns, setGrns]           = useState<Grn[]>([])
   const [customers, setCustomers] = useState<Map<number, string>>(new Map())
   const [customerList, setCustomerList] = useState<Customer[]>([])
@@ -83,9 +86,7 @@ export default function GrnPage() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
             title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </header>
 
@@ -144,11 +145,11 @@ export default function GrnPage() {
             <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">GRN #</th>
-                <th className="text-left px-4 py-2">Customer</th>
+                <th className="text-left px-4 py-2">{t('col.customer', 'Customer')}</th>
                 <th className="text-left px-4 py-2">Received</th>
                 <th className="text-left px-4 py-2">Lines</th>
                 <th className="text-left px-4 py-2">Declared value</th>
-                <th className="text-right px-4 py-2 w-16 print:hidden">Print</th>
+                <th className="text-right px-4 py-2 w-16 print:hidden">{t('common.print', 'Print')}</th>
               </tr>
             </thead>
             <tbody>

@@ -10,6 +10,7 @@ import {
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface TrackerAccount { id: number; account_number: string }
@@ -18,6 +19,8 @@ interface KpiTarget { id: number; target_month: string; metric: string; target_v
 interface FcaProgress { month: string; target: string; actual: number; achievement_pct: string | null; delta: string }
 
 export default function FcaPage() {
+  const { t } = useTranslation()
+
   const operators = useTelecomList<Operator>("/api/telecom/operators")
   const accounts = useTelecomList<TrackerAccount>("/api/telecom/tracker-accounts")
   const events = useTelecomList<FcaEvent>("/api/telecom/fca/events")
@@ -88,8 +91,7 @@ export default function FcaPage() {
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <HelpCallout title="FCA is counted, not booked per event" tone="tip">

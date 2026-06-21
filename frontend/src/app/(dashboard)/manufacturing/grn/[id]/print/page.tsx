@@ -6,6 +6,7 @@ import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface GrnLine {
   id: number
@@ -35,6 +36,8 @@ const fmt = (v: string | number) => {
 }
 
 export default function GrnPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [grn, setGrn]     = useState<Grn | null>(null)
@@ -59,8 +62,7 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
@@ -78,7 +80,7 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
               <p className="font-semibold">#{grn.customer_id}</p>
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Location</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.location', 'Location')}</div>
               <p className="font-semibold">#{grn.location_id} (godown)</p>
             </div>
           </div>
@@ -91,7 +93,7 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
           <table className="w-full text-sm border border-[#ede9e2] mb-6">
             <thead className="bg-[#faf6ec]">
               <tr>
-                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Product</th>
+                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.product', 'Product')}</th>
                 <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Lot</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Declared Value</th>
@@ -118,7 +120,7 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
 
           {grn.notes && (
             <div className="mb-6">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</h2>
               <p className="text-sm whitespace-pre-wrap">{grn.notes}</p>
             </div>
           )}

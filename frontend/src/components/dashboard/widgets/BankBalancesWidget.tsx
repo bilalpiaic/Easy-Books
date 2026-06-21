@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react"
 import { useFmt } from "@/context/SettingsContext"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 interface BankAccountRow { id: number; name: string; bank_name?: string | null; balance: number | string }
 
 export default function BankBalancesWidget() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [rows, setRows] = useState<BankAccountRow[] | null>(null)
   const [error, setError] = useState(false)
@@ -39,7 +42,7 @@ export default function BankBalancesWidget() {
             ))}
           </div>
           <div className="flex items-center justify-between pt-2 mt-1 border-t-2 border-[#b8943f]/30 text-sm font-bold">
-            <span>Total</span>
+            <span>{t('col.total', 'Total')}</span>
             <span className="tabular-nums">{fmt(total)}</span>
           </div>
         </>

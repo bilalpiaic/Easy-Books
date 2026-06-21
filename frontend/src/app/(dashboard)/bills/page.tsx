@@ -16,6 +16,7 @@ import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
+import { useTranslation } from "react-i18next"
 
 interface Bill {
   id: number
@@ -47,6 +48,7 @@ const PAGE_SIZE = 50
 const BILL_STATUSES = ['draft', 'received', 'partial', 'paid', 'overdue']
 
 function BillsContent() {
+  const { t } = useTranslation()
   const { can } = usePermission()
   if (!can("bills")) return <NoAccessBanner resource="bills" />
   const fmt = useFmt()
@@ -164,8 +166,7 @@ function BillsContent() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" /> New Bill
           </button>

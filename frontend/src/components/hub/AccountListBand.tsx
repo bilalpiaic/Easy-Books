@@ -1,6 +1,7 @@
 "use client"
 import Link from "next/link"
 import { useFmt } from "@/context/SettingsContext"
+import { useTranslation } from "react-i18next"
 
 export interface BankAccountRow {
   id: number
@@ -13,6 +14,8 @@ export interface AccountListBandProps {
 }
 
 export default function AccountListBand({ accounts }: AccountListBandProps) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const sorted = [...accounts].sort((a, b) => b.balance - a.balance)
   const shown = sorted.slice(0, 5)

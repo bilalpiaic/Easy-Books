@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface POLine {
   id: number
@@ -47,6 +48,8 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const [po, setPo] = useState<PurchaseOrder | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,8 +77,7 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-xl text-sm font-bold hover:bg-[#a07c35] transition-colors"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <PrintHeader title="Purchase Order" />
@@ -94,7 +96,7 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
       {/* Vendor + dates */}
       <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/50 mb-1">Vendor</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/50 mb-1">{t('col.vendor', 'Vendor')}</p>
           <p className="font-semibold">{po.vendor_name ?? "—"}</p>
         </div>
         <div className="text-right">
@@ -119,11 +121,11 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
       <table className="w-full text-sm border-collapse mb-6">
         <thead>
           <tr className="border-b-2 border-[#1a1814]">
-            <th className="text-left py-2 font-bold uppercase tracking-wide text-xs">Description</th>
+            <th className="text-left py-2 font-bold uppercase tracking-wide text-xs">{t('col.description', 'Description')}</th>
             <th className="text-right py-2 w-16 font-bold uppercase tracking-wide text-xs">Qty</th>
-            <th className="text-left py-2 w-16 pl-2 font-bold uppercase tracking-wide text-xs">Unit</th>
+            <th className="text-left py-2 w-16 pl-2 font-bold uppercase tracking-wide text-xs">{t('col.unit', 'Unit')}</th>
             <th className="text-right py-2 w-24 font-bold uppercase tracking-wide text-xs">Unit Rate</th>
-            <th className="text-right py-2 w-28 font-bold uppercase tracking-wide text-xs">Amount</th>
+            <th className="text-right py-2 w-28 font-bold uppercase tracking-wide text-xs">{t('col.amount', 'Amount')}</th>
           </tr>
         </thead>
         <tbody>
@@ -139,7 +141,7 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-[#1a1814]">
-            <td colSpan={4} className="py-2 text-right text-xs font-bold uppercase tracking-widest">Total</td>
+            <td colSpan={4} className="py-2 text-right text-xs font-bold uppercase tracking-widest">{t('col.total', 'Total')}</td>
             <td className="py-2 text-right font-mono font-bold">{fmtNum(po.total)}</td>
           </tr>
         </tfoot>
@@ -147,7 +149,7 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
 
       {po.notes && (
         <div className="border border-[#ede9e2] rounded-lg px-4 py-3 text-sm text-[#1a1814]/70 mb-6">
-          <p className="font-semibold text-xs uppercase tracking-widest mb-1">Notes</p>
+          <p className="font-semibold text-xs uppercase tracking-widest mb-1">{t('col.notes', 'Notes')}</p>
           <p>{po.notes}</p>
         </div>
       )}

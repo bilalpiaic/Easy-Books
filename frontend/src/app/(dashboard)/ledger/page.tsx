@@ -11,6 +11,7 @@ import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
+import { useTranslation } from "react-i18next"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ type ControlType = "ar" | "ap"
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function defaultRange() {
+  const { t } = useTranslation()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
@@ -101,6 +103,7 @@ interface ExpandedRowProps {
 }
 
 function SubledgerRows({ control, start, end, fmt, onLoaded, cached }: ExpandedRowProps) {
+  const { t } = useTranslation()
   const [data, setData] = useState<SubledgerResult | null>(cached)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
@@ -144,8 +147,8 @@ function SubledgerRows({ control, start, end, fmt, onLoaded, cached }: ExpandedR
         <th className="ui-th" />
         <th className="ui-th pl-10 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Name</th>
         <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Opening</th>
-        <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Debit</th>
-        <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Credit</th>
+        <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.debit', 'Debit')}</th>
+        <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.credit', 'Credit')}</th>
         <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Closing</th>
       </tr>
       {data.items.map(item => (
@@ -194,6 +197,7 @@ interface AllAccountsTableProps {
 }
 
 function AllAccountsTable({ allLedger, start, end, fmt, subledgerCache, onSubledgerLoaded }: AllAccountsTableProps) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const toggle = (key: string) => {
@@ -211,10 +215,10 @@ function AllAccountsTable({ allLedger, start, end, fmt, subledgerCache, onSubled
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
               <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Code</th>
-              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Account</th>
+              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.account', 'Account')}</th>
               <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Opening</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.debit', 'Debit')}</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.credit', 'Credit')}</th>
               <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Closing</th>
             </tr>
           </thead>
@@ -289,6 +293,7 @@ function AllAccountsTable({ allLedger, start, end, fmt, subledgerCache, onSubled
 // ─── Main page inner ──────────────────────────────────────────────────────────
 
 function LedgerPageInner() {
+  const { t } = useTranslation()
   const fmt = useFmt()
   const searchParams = useSearchParams()
   const range = defaultRange()
@@ -446,9 +451,7 @@ function LedgerPageInner() {
         {/* Account LOV — consolidated only */}
         {view === "consolidated" && (
           <div className="relative">
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
-              Account
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.account', 'Account')}</label>
             <div
               className="flex items-center gap-2 px-3 py-2.5 border border-[#ede9e2] rounded-lg bg-white cursor-pointer hover:border-[#b8943f] transition-colors"
               onClick={() => setShowDropdown(v => !v)}
@@ -583,10 +586,10 @@ function LedgerPageInner() {
                     <tr>
                       <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Date</th>
                       <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">JV #</th>
-                      <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
-                      <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit</th>
-                      <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit</th>
-                      <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Balance</th>
+                      <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
+                      <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.debit', 'Debit')}</th>
+                      <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.credit', 'Credit')}</th>
+                      <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.balance', 'Balance')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#f6f3ee]">
@@ -689,6 +692,7 @@ function LedgerPageInner() {
 }
 
 export default function LedgerPage() {
+
   const { can } = usePermission()
   if (!can("report.general_ledger")) return <NoAccessBanner resource="the General Ledger" />
   return (

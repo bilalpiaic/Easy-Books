@@ -6,6 +6,7 @@ import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -114,6 +115,7 @@ const VOUCHER_LABELS: Record<string, string> = {
 // ── TEMPLATE: Journal / Contra ────────────────────────────────────────────
 
 function JvTemplate({ txn }: { txn: Txn }) {
+  const { t } = useTranslation()
   const totalDr = txn.entries.reduce((s, e) => s + (Number(e.debit)  || 0), 0)
   const totalCr = txn.entries.reduce((s, e) => s + (Number(e.credit) || 0), 0)
 
@@ -134,10 +136,10 @@ function JvTemplate({ txn }: { txn: Txn }) {
       <table className="w-full text-sm border border-[#ede9e2] mb-5">
         <thead className="bg-[#faf6ec]">
           <tr>
-            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Account</th>
+            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.account', 'Account')}</th>
             <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Type</th>
-            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit</th>
-            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit</th>
+            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.debit', 'Debit')}</th>
+            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.credit', 'Credit')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#ede9e2]">
@@ -161,7 +163,7 @@ function JvTemplate({ txn }: { txn: Txn }) {
 
       {txn.notes && (
         <div className="mb-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</p>
           <p className="text-sm whitespace-pre-wrap">{txn.notes}</p>
         </div>
       )}
@@ -175,6 +177,7 @@ function JvTemplate({ txn }: { txn: Txn }) {
 // Dr entries = items paid for; Cr entry = cash/bank paid from
 
 function PvTemplate({ txn }: { txn: Txn }) {
+  const { t } = useTranslation()
   const payToEntries = txn.entries.filter(e => Number(e.debit)  > 0)
   const payFromEntry = txn.entries.find(e  => Number(e.credit) > 0)
   const total        = payToEntries.reduce((s, e) => s + Number(e.debit), 0)
@@ -215,7 +218,7 @@ function PvTemplate({ txn }: { txn: Txn }) {
           <tr>
             <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-8">#</th>
             <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Account / Particulars</th>
-            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">Amount</th>
+            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">{t('col.amount', 'Amount')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#ede9e2]">
@@ -257,7 +260,7 @@ function PvTemplate({ txn }: { txn: Txn }) {
 
       {txn.notes && (
         <div className="mb-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</p>
           <p className="text-sm whitespace-pre-wrap">{txn.notes}</p>
         </div>
       )}
@@ -271,6 +274,7 @@ function PvTemplate({ txn }: { txn: Txn }) {
 // Dr entry = cash/bank received into; Cr entries = income/sources
 
 function RvTemplate({ txn }: { txn: Txn }) {
+  const { t } = useTranslation()
   const receivedIntoEntry   = txn.entries.find(e  => Number(e.debit)  > 0)
   const receivedFromEntries = txn.entries.filter(e => Number(e.credit) > 0)
   const total               = receivedFromEntries.reduce((s, e) => s + Number(e.credit), 0)
@@ -311,7 +315,7 @@ function RvTemplate({ txn }: { txn: Txn }) {
           <tr>
             <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-8">#</th>
             <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Account / Particulars</th>
-            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">Amount</th>
+            <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">{t('col.amount', 'Amount')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#ede9e2]">
@@ -353,7 +357,7 @@ function RvTemplate({ txn }: { txn: Txn }) {
 
       {txn.notes && (
         <div className="mb-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</p>
           <p className="text-sm whitespace-pre-wrap">{txn.notes}</p>
         </div>
       )}
@@ -366,6 +370,8 @@ function RvTemplate({ txn }: { txn: Txn }) {
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default function VoucherPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router  = useRouter()
   const [txn,   setTxn]   = useState<Txn | null>(null)
@@ -397,8 +403,7 @@ export default function VoucherPrintPage({ params }: { params: Promise<{ id: str
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">

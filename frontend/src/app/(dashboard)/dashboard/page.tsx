@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Settings2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement, LineElement,
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [charts, setCharts] = useState<ChartData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { settings, reload: reloadSettings } = useSettings()
+  const { t } = useTranslation()
   const [checklistDismissed, setChecklistDismissed] = useState(false)
 
   const layout = useDashboardLayout()
@@ -139,7 +141,7 @@ export default function Dashboard() {
   const ctx: WidgetContext = {
     data, charts, s, netProfit, margin, fmt,
     agingLabels, agingValues, chartConfigs,
-    settings, reloadSettings, checklistDismissed, setChecklistDismissed,
+    settings, reloadSettings, checklistDismissed, setChecklistDismissed, t,
   }
 
   const onboardingWidget = WIDGET_REGISTRY.find(w => w.id === "onboarding")
@@ -149,19 +151,19 @@ export default function Dashboard() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">Dashboard</h1>
-          <p className="text-xs text-[#1a1814]/50 mt-0.5 font-medium tracking-wide uppercase">Financial Overview</p>
+          <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">{t('nav.Dashboard', 'Dashboard')}</h1>
+          <p className="text-xs text-[#1a1814]/50 mt-0.5 font-medium tracking-wide uppercase">{t('common.financialOverview', 'Financial Overview')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="bg-white border border-[#ede9e2] rounded-xl px-3 py-2 shadow-sm">
-            <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
+            <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label={t('common.period', 'Period')} />
           </div>
           {!editing && (
             <button
               onClick={() => setEditing(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#ede9e2] bg-white shadow-sm text-sm font-medium text-[#1a1814]/75 hover:border-[#b8943f]/40 transition-colors"
             >
-              <Settings2 className="w-4 h-4 text-[#b8943f]" /> Customize
+              <Settings2 className="w-4 h-4 text-[#b8943f]" /> {t('common.customize', 'Customize')}
             </button>
           )}
         </div>

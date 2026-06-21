@@ -1,4 +1,5 @@
 import React from "react"
+import type { TFunction } from "i18next"
 import Link from "next/link"
 import { Bar, Doughnut, Line } from "react-chartjs-2"
 import type { ChartOptions, ChartData as ChartJsData } from "chart.js"
@@ -56,6 +57,7 @@ export interface WidgetContext {
   reloadSettings: () => void
   checklistDismissed: boolean
   setChecklistDismissed: (v: boolean) => void
+  t: TFunction
 }
 
 export interface WidgetSize { w: number; h: number }
@@ -134,14 +136,14 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     title: "Quick Actions",
     defaultVisible: true,
     defaultSize: { w: 4, h: 1 }, minSize: { w: 2, h: 1 },
-    render: () => (
+    render: (ctx) => (
       <div className="bg-white border border-[#ede9e2] rounded-xl shadow-sm px-3 py-2 flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/45 mr-1">Quick Actions</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/45 mr-1">{ctx.t('dashboard.quickActions', 'Quick Actions')}</span>
         {QUICK_ACTIONS.map(({ label, href, icon: Icon, color }) => (
           <Link key={href} href={href}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-transparent hover:bg-[#faf8f4] hover:border-[#b8943f]/30 transition-all">
             <Icon className={`w-4 h-4 ${color}`} />
-            <span className="text-sm font-medium text-[#1a1814]/80">{label}</span>
+            <span className="text-sm font-medium text-[#1a1814]/80">{ctx.t(`nav.${label}`, label)}</span>
           </Link>
         ))}
       </div>
@@ -167,7 +169,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-3">
                 <FileSignature className="w-4 h-4 text-amber-600" />
-                <h3 className="text-sm font-bold text-amber-900">Setup Checklist — {done} of {total} complete</h3>
+                <h3 className="text-sm font-bold text-amber-900">{ctx.t('common.setupChecklist', 'Setup Checklist')} — {done} of {total} complete</h3>
                 <div className="flex-1 bg-amber-200 rounded-full h-1.5 max-w-[120px]">
                   <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${done / total * 100}%` }} />
                 </div>
@@ -214,11 +216,11 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
       const { s, fmt, netProfit, margin } = ctx
       return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <PrimaryKpi label="Revenue"    value={s ? fmt(s.total_revenue) : null}           icon={TrendingUp}  bg="bg-green-50"   border="border-green-200"   text="text-green-800"   sub={margin ? `${margin}% margin` : undefined} />
-          <PrimaryKpi label="Expenses"   value={s ? fmt(s.total_expense) : null}           icon={TrendingDown} bg="bg-red-50"     border="border-red-200"     text="text-red-800" />
-          <PrimaryKpi label="Net Profit" value={s ? fmt(netProfit) : null}                 icon={Wallet}      bg={netProfit < 0 ? "bg-red-50" : "bg-amber-50"} border={netProfit < 0 ? "border-red-200" : "border-amber-200"} text={netProfit < 0 ? "text-red-800" : "text-amber-800"} sub={netProfit < 0 ? "Net loss" : "Net gain"} />
-          <PrimaryKpi label="Cash & Bank" value={s ? fmt(s.cash_balance ?? 0) : null}     icon={Banknote}    bg="bg-emerald-50" border="border-emerald-200"   text="text-emerald-800" sub="available balance" />
-          <PrimaryKpi label="Vouchers"   value={s ? s.transaction_count.toString() : null}    icon={Hash}        bg="bg-blue-50"    border="border-blue-200"     text="text-blue-800"    sub="posted" compact />
+          <PrimaryKpi label={ctx.t('dashboard.revenue', 'Revenue')}    value={s ? fmt(s.total_revenue) : null}           icon={TrendingUp}  bg="bg-green-50"   border="border-green-200"   text="text-green-800"   sub={margin ? `${margin}% ${ctx.t('common.margin', 'margin')}` : undefined} />
+          <PrimaryKpi label={ctx.t('dashboard.expenses', 'Expenses')}   value={s ? fmt(s.total_expense) : null}           icon={TrendingDown} bg="bg-red-50"     border="border-red-200"     text="text-red-800" />
+          <PrimaryKpi label={ctx.t('dashboard.netProfit', 'Net Profit')} value={s ? fmt(netProfit) : null}                 icon={Wallet}      bg={netProfit < 0 ? "bg-red-50" : "bg-amber-50"} border={netProfit < 0 ? "border-red-200" : "border-amber-200"} text={netProfit < 0 ? "text-red-800" : "text-amber-800"} sub={netProfit < 0 ? ctx.t('common.netLoss', 'Net loss') : ctx.t('common.netGain', 'Net gain')} />
+          <PrimaryKpi label={ctx.t('dashboard.cashAndBank', 'Cash & Bank')} value={s ? fmt(s.cash_balance ?? 0) : null}     icon={Banknote}    bg="bg-emerald-50" border="border-emerald-200"   text="text-emerald-800" sub={ctx.t('common.availableBalance', 'available balance')} />
+          <PrimaryKpi label={ctx.t('common.vouchers', 'Vouchers')}   value={s ? s.transaction_count.toString() : null}    icon={Hash}        bg="bg-blue-50"    border="border-blue-200"     text="text-blue-800"    sub={ctx.t('common.posted_count', 'posted')} compact />
         </div>
       )
     },
@@ -232,11 +234,11 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
       const { s, fmt } = ctx
       return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <SecondaryKpi label="AR Outstanding"   value={s ? fmt(s.ar_outstanding) : null}       icon={ArrowDownLeft}  color="text-green-700"  href="/invoices"                badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", color: "bg-red-100 text-red-700" } : undefined} />
-          <SecondaryKpi label="AP Outstanding"   value={s ? fmt(s.ap_outstanding) : null}       icon={ArrowUpRight}   color="text-orange-700" href="/bills"                   badge={s?.unpaid_bills ? { count: s.unpaid_bills, label: "unpaid", color: "bg-orange-100 text-orange-700" } : undefined} />
-          <SecondaryKpi label="Overdue Invoices" value={s ? s.overdue_invoices.toString() : null}   icon={Clock}          color="text-red-600"    href="/invoices"                valueClass={s && s.overdue_invoices > 0 ? "text-red-600 font-bold" : undefined} />
-          <SecondaryKpi label="Low Stock Items"  value={s ? s.low_stock_items.toString() : null}    icon={Package}        color="text-purple-600" href="/products?low_stock=true" valueClass={s && s.low_stock_items > 0 ? "text-amber-600 font-bold" : undefined} />
-          <SecondaryKpi label="AP Due This Week" value={s ? fmt(s.ap_due_week ?? 0) : null}     icon={CalendarClock}  color="text-rose-600"   href="/bills"                   valueClass={s && (s.ap_due_week ?? 0) > 0 ? "text-rose-600 font-bold" : undefined} />
+          <SecondaryKpi label={ctx.t('dashboard.outstandingAr', 'AR Outstanding')}   value={s ? fmt(s.ar_outstanding) : null}       icon={ArrowDownLeft}  color="text-green-700"  href="/invoices"                badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", color: "bg-red-100 text-red-700" } : undefined} />
+          <SecondaryKpi label={ctx.t('dashboard.outstandingAp', 'AP Outstanding')}   value={s ? fmt(s.ap_outstanding) : null}       icon={ArrowUpRight}   color="text-orange-700" href="/bills"                   badge={s?.unpaid_bills ? { count: s.unpaid_bills, label: "unpaid", color: "bg-orange-100 text-orange-700" } : undefined} />
+          <SecondaryKpi label={ctx.t('dashboard.openInvoices', 'Overdue Invoices')} value={s ? s.overdue_invoices.toString() : null}   icon={Clock}          color="text-red-600"    href="/invoices"                valueClass={s && s.overdue_invoices > 0 ? "text-red-600 font-bold" : undefined} />
+          <SecondaryKpi label={ctx.t('dashboard.lowStock', 'Low Stock Items')}  value={s ? s.low_stock_items.toString() : null}    icon={Package}        color="text-purple-600" href="/products?low_stock=true" valueClass={s && s.low_stock_items > 0 ? "text-amber-600 font-bold" : undefined} />
+          <SecondaryKpi label={ctx.t('dashboard.apDueWeek', 'AP Due This Week')} value={s ? fmt(s.ap_due_week ?? 0) : null}     icon={CalendarClock}  color="text-rose-600"   href="/bills"                   valueClass={s && (s.ap_due_week ?? 0) > 0 ? "text-rose-600 font-bold" : undefined} />
         </div>
       )
     },
@@ -254,10 +256,10 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
         <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm h-full flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">AR Aging (Receivables)</p>
-              <p className="text-[10px] text-[#1a1814]/40 mt-0.5">Outstanding invoice amounts by age bucket</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">{ctx.t('page.arAging', 'AR Aging')} (Receivables)</p>
+              <p className="text-[10px] text-[#1a1814]/40 mt-0.5">{ctx.t('dashboard.arAgingSubtitle', 'Outstanding invoice amounts by age bucket')}</p>
             </div>
-            <Link href="/invoices" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">View invoices →</Link>
+            <Link href="/invoices" className="text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e]">{ctx.t('page.invoices', 'Invoices')} →</Link>
           </div>
           <div className="flex-1 min-h-0">
             <Bar data={agingBarData as ChartJsData<"bar">} options={{

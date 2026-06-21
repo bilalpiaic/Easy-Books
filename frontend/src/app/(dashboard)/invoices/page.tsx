@@ -16,6 +16,7 @@ import Pagination from '@/components/Pagination'
 import SkeletonRow from '@/components/SkeletonRow'
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
+import { useTranslation } from "react-i18next"
 
 interface Invoice {
   id: number
@@ -50,6 +51,7 @@ const PAGE_SIZE = 50
 const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 
 function InvoicesContent() {
+  const { t } = useTranslation()
   const { can } = usePermission()
   if (!can("invoices")) return <NoAccessBanner resource="invoices" />
   const fmt = useFmt()
@@ -168,9 +170,7 @@ function InvoicesContent() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button onClick={openCreate} disabled={!can("invoices", "edit")} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35] disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus className="w-4 h-4" />
             New Invoice
@@ -335,9 +335,9 @@ function InvoicesContent() {
                 <thead className="bg-[#f6f3ee]">
                   <tr>
                     <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Invoice</th>
-                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Customer</th>
+                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">{t('col.customer', 'Customer')}</th>
                     <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Due</th>
-                    <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-black/50">Amount</th>
+                    <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-black/50">{t('col.amount', 'Amount')}</th>
                     <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-red-600">Days Overdue</th>
                   </tr>
                 </thead>

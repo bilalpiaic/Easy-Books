@@ -9,6 +9,7 @@ import { useFmt } from "@/context/SettingsContext"
 import AgingBand, { type AgingBandProps } from "./AgingBand"
 import LowStockBand, { type LowStockBandProps } from "./LowStockBand"
 import AccountListBand, { type AccountListBandProps } from "./AccountListBand"
+import { useTranslation } from "react-i18next"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type HubRawData = any[]
@@ -48,6 +49,8 @@ const TONE: Record<string, string> = {
 }
 
 export default function HubPage({ config }: { config: HubConfig }) {
+  const { t } = useTranslation()
+
   const router = useRouter()
   const fmt = useFmt()
   const [raw, setRaw] = useState<HubRawData | null>(null)

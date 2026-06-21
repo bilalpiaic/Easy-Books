@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2, ShieldCheck } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
+import { useTranslation } from "react-i18next"
 
 interface Me {
   id: number
@@ -41,6 +42,7 @@ function useAuthedImage(path: string | null | undefined): string | null {
       .then(r => (r.ok ? r.blob() : Promise.reject()))
       .then(b => { if (!revoked) { objectUrl = URL.createObjectURL(b); setUrl(objectUrl) } })
       .catch(() => setUrl(null))
+  const { t } = useTranslation()
     return () => { revoked = true; if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [path])
   return url

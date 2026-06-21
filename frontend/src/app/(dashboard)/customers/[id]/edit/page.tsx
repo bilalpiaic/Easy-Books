@@ -7,8 +7,11 @@ import { ArrowLeft } from 'lucide-react'
 import CustomerForm, { CustomerFull } from '@/components/customers/CustomerForm'
 import { apiFetch } from '@/lib/api'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 export default function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [customer, setCustomer] = useState<CustomerFull | null>(null)

@@ -6,6 +6,7 @@ import { Users, Package, MapPin, ChevronDown, ChevronRight, Download, Printer } 
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface CustodyRow {
   customer_id: number
@@ -36,6 +37,8 @@ interface CustomerGroup {
 }
 
 export default function CustodyPage() {
+  const { t } = useTranslation()
+
   const [rows, setRows]         = useState<CustodyRow[]>([])
   const [locations, setLocations] = useState<Map<number, StockLocation>>(new Map())
   const [customers, setCustomers] = useState<Map<number, string>>(new Map())
@@ -105,8 +108,7 @@ export default function CustodyPage() {
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('customer-custody.csv', rows.map(r => ({ Customer: customers.get(r.customer_id) ?? `Customer #${r.customer_id}`, Product: r.product_name, Code: r.product_code, Lot: r.lot_no ?? '', Location: locations.get(r.location_id)?.name ?? r.location_id, "Qty on Hand": r.qty_on_hand })))}
             disabled={rows.length === 0}
@@ -170,9 +172,9 @@ export default function CustodyPage() {
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-                          <th className="text-left px-6 py-2 font-semibold text-[#1a1814]/60">Product</th>
+                          <th className="text-left px-6 py-2 font-semibold text-[#1a1814]/60">{t('col.product', 'Product')}</th>
                           <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Lot / Batch</th>
-                          <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Location</th>
+                          <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">{t('col.location', 'Location')}</th>
                           <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Qty on Hand</th>
                         </tr>
                       </thead>

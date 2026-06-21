@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import { useTranslation } from "react-i18next"
 
 interface AuditEntry {
   id: number
@@ -64,6 +65,8 @@ const STATUS_TONE: Record<string, string> = {
 }
 
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { id } = use(params)
   const [inv, setInv]       = useState<Invoice | null>(null)
@@ -167,8 +170,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             href={`/invoices/${inv.id}/print`}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden"
           >
-            <Printer className="w-4 h-4" /> Print
-          </Link>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
           <button
             onClick={async () => {
               const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
@@ -211,8 +213,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               disabled={busy}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 disabled:opacity-50"
             >
-              <Ban className="w-4 h-4" /> Void
-            </button>
+              <Ban className="w-4 h-4" />{t('status.void', 'Void')}</button>
           )}
           {inv.transaction_id && inv.status !== "reversed" && (
             <button
@@ -276,10 +277,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <table className="w-full text-sm">
           <thead className="bg-[#faf6ec]">
             <tr>
-              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
+              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
               <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
               <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Rate</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Amount</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.amount', 'Amount')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -306,7 +307,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {inv.notes && (
             <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</div>
               <p className="text-sm text-[#1a1814]/80 whitespace-pre-wrap">{inv.notes}</p>
             </div>
           )}

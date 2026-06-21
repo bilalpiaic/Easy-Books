@@ -10,6 +10,7 @@ import {
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface RsoAgent { id: number; name: string; phone: string | null; territory: string | null }
 interface RetailOutlet { id: number; rso_id: number; shop_name: string; owner_name: string | null }
@@ -24,6 +25,8 @@ interface LedgerRow {
 }
 
 export default function RsoPage() {
+  const { t } = useTranslation()
+
   const agents = useTelecomList<RsoAgent>("/api/telecom/rso/agents")
   const outlets = useTelecomList<RetailOutlet>("/api/telecom/rso/retail-outlets")
   const accounts = useTelecomList<TrackerAccount>("/api/telecom/tracker-accounts")
@@ -115,8 +118,7 @@ export default function RsoPage() {
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <HelpCallout title="The distribution chain" tone="tip">

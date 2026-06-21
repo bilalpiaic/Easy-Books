@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import ProductForm from '@/components/products/ProductForm'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 export default function NewProductPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
   useBreadcrumb('Add Product')
   return (

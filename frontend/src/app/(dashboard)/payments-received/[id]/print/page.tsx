@@ -6,6 +6,7 @@ import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface Allocation {
   id: number
@@ -33,6 +34,8 @@ const fmt = (v: string | number) => {
 }
 
 export default function ReceiptPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [pay, setPay]     = useState<Payment | null>(null)
@@ -57,8 +60,7 @@ export default function ReceiptPrintPage({ params }: { params: Promise<{ id: str
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
@@ -96,7 +98,7 @@ export default function ReceiptPrintPage({ params }: { params: Promise<{ id: str
                 <thead className="bg-[#faf6ec]">
                   <tr>
                     <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Invoice</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Amount</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.amount', 'Amount')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ede9e2]">

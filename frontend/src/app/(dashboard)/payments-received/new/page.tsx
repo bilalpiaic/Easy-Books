@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import PaymentReceivedForm from '@/components/payments/PaymentReceivedForm'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 export default function NewPaymentReceivedPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
   useBreadcrumb('Record Payment')
   return (

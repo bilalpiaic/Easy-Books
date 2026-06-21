@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ShoppingCart, Plus, Trash2, Save, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { useTranslation } from "react-i18next"
 
 interface Vendor { id: number; name: string }
 interface Product { id: number; name: string; code: string; default_rate: string }
@@ -20,6 +21,8 @@ interface POLine {
 const emptyLine = (): POLine => ({ product_id: "", description: "", qty: "1", unit: "", rate: "" })
 
 export default function NewPurchaseOrderPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
   const fmt = useFmt()
 
@@ -113,7 +116,7 @@ export default function NewPurchaseOrderPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-black/85 mb-1.5">Vendor</label>
+            <label className="block text-sm font-semibold text-black/85 mb-1.5">{t('col.vendor', 'Vendor')}</label>
             <select
               value={vendorId}
               onChange={e => { setVendorId(e.target.value); setVendorName("") }}
@@ -157,7 +160,7 @@ export default function NewPurchaseOrderPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-black/85 mb-1.5">Description</label>
+          <label className="block text-sm font-semibold text-black/85 mb-1.5">{t('col.description', 'Description')}</label>
           <input
             type="text"
             value={description}
@@ -176,12 +179,12 @@ export default function NewPurchaseOrderPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
-                <th className="text-left pb-2 pr-2 min-w-[160px]">Product</th>
-                <th className="text-left pb-2 pr-2 min-w-[200px]">Description <span className="text-red-500">*</span></th>
+                <th className="text-left pb-2 pr-2 min-w-[160px]">{t('col.product', 'Product')}</th>
+                <th className="text-left pb-2 pr-2 min-w-[200px]">{t('col.description', 'Description')}<span className="text-red-500">*</span></th>
                 <th className="text-right pb-2 pr-2 w-20">Qty</th>
-                <th className="text-left pb-2 pr-2 w-20">Unit</th>
+                <th className="text-left pb-2 pr-2 w-20">{t('col.unit', 'Unit')}</th>
                 <th className="text-right pb-2 pr-2 w-28">Rate</th>
-                <th className="text-right pb-2 w-28">Amount</th>
+                <th className="text-right pb-2 w-28">{t('col.amount', 'Amount')}</th>
                 <th className="w-10"></th>
               </tr>
             </thead>
@@ -288,9 +291,7 @@ export default function NewPurchaseOrderPage() {
           type="button"
           onClick={() => router.back()}
           className="px-5 py-2.5 bg-white border border-[#ede9e2] rounded-lg font-semibold hover:bg-[#f6f3ee] transition-colors text-sm"
-        >
-          Cancel
-        </button>
+        >{t('common.cancel', 'Cancel')}</button>
         <button
           type="submit"
           disabled={saving}

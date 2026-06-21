@@ -15,6 +15,7 @@ import SkeletonRow from '@/components/SkeletonRow'
 import CsvImportButton from '@/components/CsvImportButton'
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
+import { useTranslation } from "react-i18next"
 
 interface Product {
   id: number
@@ -52,6 +53,7 @@ function stockBadge(p: Product) {
 }
 
 function ProductsInner() {
+  const { t } = useTranslation()
   const fmt = useFmt()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -182,8 +184,7 @@ function ProductsInner() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
             title="Print"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" /> Add Product
           </button>
@@ -255,13 +256,13 @@ function ProductsInner() {
               </th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Category</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">{t('col.category', 'Category')}</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Unit</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">{t('col.unit', 'Unit')}</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Selling Price</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Cost Price</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Stock Qty</th>
-              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Status</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">{t('col.status', 'Status')}</th>
               <th className="ui-th" />
             </tr>
           </thead>
@@ -424,6 +425,7 @@ function TreeSub({ sub, fmt }: { sub: CoaSub; fmt: (n: number) => string }) {
 }
 
 export default function Products() {
+
   const { can } = usePermission()
   if (!can("products")) return <NoAccessBanner resource="products" />
   return <Suspense><ProductsInner /></Suspense>

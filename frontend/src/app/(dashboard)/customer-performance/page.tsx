@@ -12,6 +12,7 @@ import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
@@ -74,6 +75,8 @@ function defaultRange() {
 }
 
 export default function CustomerPerformancePage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [data, setData] = useState<CustomerRow[]>([])
   const [detail, setDetail] = useState<CustomerDetail | null>(null)
@@ -272,8 +275,8 @@ export default function CustomerPerformancePage() {
                 <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
                     <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Category</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Product</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.category', 'Category')}</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.product', 'Product')}</th>
                       <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty</th>
                       <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Revenue</th>
                       <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">COGS</th>
@@ -329,7 +332,7 @@ export default function CustomerPerformancePage() {
                 <thead>
                   <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
                     <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">#</th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Customer</th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.customer', 'Customer')}</th>
                     <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Revenue</th>
                     <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Invoices</th>
                     <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
@@ -387,9 +390,7 @@ export default function CustomerPerformancePage() {
                 {!isLoading && sorted.length > 0 && (
                   <tfoot>
                     <tr className="bg-[#1a1814] text-white">
-                      <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={2}>
-                        Total
-                      </td>
+                      <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={2}>{t('col.total', 'Total')}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(totalRevenue)}</td>
                       <td className="ui-td text-right font-mono font-bold">{totalInvoices}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(totalOutstanding)}</td>

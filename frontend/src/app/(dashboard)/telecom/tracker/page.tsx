@@ -10,6 +10,7 @@ import {
 import { apiFetch } from "@/lib/api"
 import PrintHeader from "@/components/PrintHeader"
 import { downloadCSV } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface Operator { id: number; name: string; operator_code: string; commission_settlement_cycle: string }
 interface TrackerAccount { id: number; operator_id: number; account_number: string; deposit_balance: string; load_balance: string }
@@ -26,6 +27,8 @@ interface TrackerStatement {
 }
 
 export default function TrackerPage() {
+  const { t } = useTranslation()
+
   const operators = useTelecomList<Operator>("/api/telecom/operators")
   const accounts = useTelecomList<TrackerAccount>("/api/telecom/tracker-accounts")
   const txns = useTelecomList<TrackerTxn>("/api/telecom/tracker/transactions")
@@ -112,8 +115,7 @@ export default function TrackerPage() {
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <HelpCallout title="The 3% load uplift, explained" tone="tip">
@@ -178,7 +180,7 @@ export default function TrackerPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[#ede9e2]">
-                        <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Account</th>
+                        <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">{t('col.account', 'Account')}</th>
                         <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Sub-ledger sum</th>
                         <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">GL balance</th>
                         <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Difference</th>

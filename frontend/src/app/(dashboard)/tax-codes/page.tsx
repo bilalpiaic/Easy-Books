@@ -5,6 +5,7 @@ import { Plus, Pencil, ToggleLeft, ToggleRight, Percent, Download, Printer } fro
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface TaxCode {
   id: number
@@ -39,6 +40,8 @@ interface FormState {
 const emptyForm: FormState = { code: "", name: "", rate: "", type: "output", gl_account_id: "" }
 
 export default function TaxCodesPage() {
+  const { t } = useTranslation()
+
   const [codes, setCodes]         = useState<TaxCode[]>([])
   const [accounts, setAccounts]   = useState<Account[]>([])
   const [loading, setLoading]     = useState(true)
@@ -163,8 +166,7 @@ export default function TaxCodesPage() {
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('tax-codes.csv', codes.map(c => ({ Code: c.code, Name: c.name, "Rate (%)": c.rate, Type: c.type, Active: c.is_active ? 'Yes' : 'No' })))}
             disabled={codes.length === 0}
@@ -337,9 +339,7 @@ export default function TaxCodesPage() {
                   type="button"
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
-                >
-                  Cancel
-                </button>
+                >{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
           </div>

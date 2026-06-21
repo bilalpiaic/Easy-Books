@@ -6,6 +6,7 @@ import { ChevronRight, Undo2, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
+import { useTranslation } from "react-i18next"
 
 interface Line { id: number; description: string; qty: number; rate: number; amount: number; unit: string | null }
 interface DebitNoteDetail {
@@ -25,6 +26,8 @@ interface DebitNoteDetail {
 }
 
 export default function DebitNoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const fmt = useFmt()
   const [dn, setDn] = useState<DebitNoteDetail | null>(null)
@@ -66,7 +69,7 @@ export default function DebitNoteDetailPage({ params }: { params: Promise<{ id: 
 
       <div className="bg-white border border-[#ede9e2] rounded-xl p-5 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-[#1a1814]/50">Vendor</p>
+          <p className="text-[10px] uppercase tracking-widest text-[#1a1814]/50">{t('col.vendor', 'Vendor')}</p>
           <p className="mt-0.5">{dn.vendor_id
             ? <DocLink type="vendor" id={dn.vendor_id} label={dn.vendor_name ?? "Vendor"} />
             : (dn.vendor_name ?? "—")}</p>

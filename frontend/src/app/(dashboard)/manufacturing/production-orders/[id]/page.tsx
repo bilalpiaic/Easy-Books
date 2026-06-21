@@ -8,6 +8,7 @@ import DocLink from '@/components/DocLink'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from '@/components/AttachmentPanel'
+import { useTranslation } from "react-i18next"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,8 @@ function fmt_date(iso: string | null) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ProductionOrderDetailPage() {
+  const { t } = useTranslation()
+
   const { id } = useParams<{ id: string }>()
   const router  = useRouter()
   const fmt     = useFmt()
@@ -182,8 +185,7 @@ export default function ProductionOrderDetailPage() {
           href={`/manufacturing/production-orders/${po.id}/print`}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-xl text-xs font-bold hover:bg-[#f6f3ee] print:hidden"
         >
-          <Printer className="w-3.5 h-3.5" /> Print
-        </a>
+          <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</a>
       </div>
 
       {/* Header card */}
@@ -267,7 +269,7 @@ export default function ProductionOrderDetailPage() {
       {/* Actions */}
       {(nxt || po.state === 'draft') && (
         <div className="bg-white border border-[#ede9e2] rounded-2xl p-6 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60">Actions</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60">{t('col.actions', 'Actions')}</h2>
           {actionError && (
             <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />

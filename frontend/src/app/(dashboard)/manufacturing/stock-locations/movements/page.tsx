@@ -7,6 +7,7 @@ import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface Movement {
   id: number
@@ -56,6 +57,8 @@ function sourceLink(docType: string | null, docId: number | null): { href: strin
 }
 
 export default function StockMovementsPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
 
   const [movements, setMovements] = useState<Movement[]>([])
@@ -173,12 +176,12 @@ export default function StockMovementsPage() {
             <tr>
               <th className="text-left px-4 py-2">Date</th>
               <th className="text-left px-4 py-2">Direction</th>
-              <th className="text-left px-4 py-2">Product</th>
+              <th className="text-left px-4 py-2">{t('col.product', 'Product')}</th>
               <th className="text-right px-4 py-2">Qty</th>
               <th className="text-left px-4 py-2">From</th>
               <th className="text-left px-4 py-2">To</th>
               <th className="text-right px-4 py-2">Unit cost</th>
-              <th className="text-right px-4 py-2">Total</th>
+              <th className="text-right px-4 py-2">{t('col.total', 'Total')}</th>
               <th className="text-left px-4 py-2">Source</th>
             </tr>
           </thead>

@@ -7,6 +7,7 @@ import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface BudgetRow {
   account_id: number
@@ -48,6 +49,8 @@ function varianceTone(v: number, budgeted: number): string {
 }
 
 export default function BudgetsPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [year, setYear] = useState(CURRENT_YEAR)
   const [month, setMonth] = useState<number | "">("")
@@ -163,8 +166,7 @@ export default function BudgetsPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           {tab === "variance" && rows.length > 0 && (
             <button
               onClick={() => downloadCSV(`budget-vs-actual.csv`, rows.map(r => ({
@@ -240,7 +242,7 @@ export default function BudgetsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-[#faf6ec] text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
                   <tr>
-                    <th className="text-left px-4 py-2">Account</th>
+                    <th className="text-left px-4 py-2">{t('col.account', 'Account')}</th>
                     <th className="text-left px-4 py-2 w-24">Type</th>
                     {month !== "" && <th className="text-left px-4 py-2 w-16">Month</th>}
                     <th className="text-right px-4 py-2 w-32">Budget</th>
@@ -271,7 +273,7 @@ export default function BudgetsPage() {
                 </tbody>
                 <tfoot className="border-t-2 border-[#ede9e2] bg-[#faf8f4] text-xs font-bold">
                   <tr>
-                    <td colSpan={month !== "" ? 3 : 2} className="px-4 py-2 uppercase tracking-wide text-[#1a1814]/55">Total</td>
+                    <td colSpan={month !== "" ? 3 : 2} className="px-4 py-2 uppercase tracking-wide text-[#1a1814]/55">{t('col.total', 'Total')}</td>
                     <td className="px-4 py-2 text-right font-mono">{fmt(rows.reduce((s, r) => s + r.budget, 0))}</td>
                     <td className="px-4 py-2 text-right font-mono">{fmt(rows.reduce((s, r) => s + r.actual, 0))}</td>
                     <td className="px-4 py-2 text-right font-mono">
@@ -333,7 +335,7 @@ export default function BudgetsPage() {
               <table className="w-full text-xs">
                 <thead className="bg-[#faf6ec] text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
                   <tr>
-                    <th className="text-left px-3 py-2 sticky left-0 bg-[#faf6ec] min-w-[180px]">Account</th>
+                    <th className="text-left px-3 py-2 sticky left-0 bg-[#faf6ec] min-w-[180px]">{t('col.account', 'Account')}</th>
                     {MONTHS.map(m => <th key={m} className="text-right px-2 py-2 w-20">{m}</th>)}
                     <th className="text-right px-3 py-2 w-28">Annual Total</th>
                     <th className="w-8 px-2"></th>

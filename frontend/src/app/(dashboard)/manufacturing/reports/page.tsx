@@ -7,6 +7,7 @@ import PrintHeader from "@/components/PrintHeader"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 /* ── Types ── */
 
@@ -59,6 +60,8 @@ function fmt0(v: string) {
 type Tab = "wip-aging" | "production-summary" | "customer-custody"
 
 export default function ManufacturingReportsPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
 
   const [tab, setTab] = useState<Tab>("wip-aging")
@@ -133,8 +136,7 @@ export default function ManufacturingReportsPage() {
           </button>
           <button onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm hover:bg-[#f6f3ee] transition-colors">
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </header>
 
@@ -196,7 +198,7 @@ export default function ManufacturingReportsPage() {
                   <thead className="bg-[#faf8f4] text-[#1a1814]/60 text-xs">
                     <tr>
                       <th className="text-left px-4 py-2">PO #</th>
-                      <th className="text-left px-4 py-2">Customer</th>
+                      <th className="text-left px-4 py-2">{t('col.customer', 'Customer')}</th>
                       <th className="text-right px-4 py-2">Output Qty</th>
                       <th className="text-right px-4 py-2">WIP Cost</th>
                       <th className="text-right px-4 py-2">Age (days)</th>
@@ -269,7 +271,7 @@ export default function ManufacturingReportsPage() {
                 const totalCost  = STATE_ORDER.reduce((s, k) => s + Number(summary[k]?.cost ?? 0), 0)
                 return (
                   <tr className="border-t-2 border-[#b8943f]/40 bg-[#faf6ec] font-semibold">
-                    <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-[#1a1814]/70">Total</td>
+                    <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-[#1a1814]/70">{t('col.total', 'Total')}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{totalCount}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{totalQty.toFixed(0)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{fmt(totalCost)}</td>
@@ -307,10 +309,10 @@ export default function ManufacturingReportsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
                   <tr>
-                    <th className="text-left px-4 py-3">Customer</th>
-                    <th className="text-left px-4 py-3">Product</th>
+                    <th className="text-left px-4 py-3">{t('col.customer', 'Customer')}</th>
+                    <th className="text-left px-4 py-3">{t('col.product', 'Product')}</th>
                     <th className="text-right px-4 py-3">Qty on Hand</th>
-                    <th className="text-right px-4 py-3">Unit</th>
+                    <th className="text-right px-4 py-3">{t('col.unit', 'Unit')}</th>
                     <th className="text-right px-4 py-3">Declared Value (open GRNs)</th>
                   </tr>
                 </thead>

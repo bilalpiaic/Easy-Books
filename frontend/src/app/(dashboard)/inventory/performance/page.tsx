@@ -9,6 +9,7 @@ import { getAuthHeader } from "@/lib/auth"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 // ── Legacy endpoint (on-hand / reorder / last-movement) ─────────────────────
 interface InventoryItem {
@@ -78,6 +79,8 @@ async function downloadPerfExport(format: "csv" | "xlsx", start: string, end: st
 }
 
 export default function InventoryPerformancePage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
 
   // Stock view state
@@ -322,9 +325,7 @@ export default function InventoryPerformancePage() {
                     >
                       Stock Value{sortIndicator("stock_value")}
                     </th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-center">
-                      Status
-                    </th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-center">{t('col.status', 'Status')}</th>
                     <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
                       Last Movement
                     </th>
@@ -407,9 +408,7 @@ export default function InventoryPerformancePage() {
                 {!isLoadingStock && sorted.length > 0 && (
                   <tfoot>
                     <tr className="bg-[#1a1814] text-white">
-                      <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={3}>
-                        Total
-                      </td>
+                      <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={3}>{t('col.total', 'Total')}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(totalValue)}</td>
                       <td colSpan={3} />
                       <td className="ui-td text-right font-mono font-bold">{fmt(totalCogs)}</td>
@@ -608,9 +607,7 @@ export default function InventoryPerformancePage() {
                 {!isLoadingPerf && !groupByCategory && perfSorted.length > 0 && (
                   <tfoot>
                     <tr className="bg-[#1a1814] text-white">
-                      <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={5}>
-                        Total
-                      </td>
+                      <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={5}>{t('col.total', 'Total')}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(perfTotalGP)}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(perfTotalClosingValue)}</td>
                     </tr>

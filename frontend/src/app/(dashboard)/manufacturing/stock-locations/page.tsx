@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface StockLocation {
   id: number
@@ -47,6 +48,8 @@ interface FormState { code: string; name: string; type: string }
 const emptyForm: FormState = { code: "", name: "", type: "own" }
 
 export default function StockLocationsPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
 
   const [locations, setLocations]     = useState<StockLocation[]>([])
@@ -156,8 +159,7 @@ export default function StockLocationsPage() {
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('stock-locations.csv', locations.map(l => ({ Code: l.code, Name: l.name, Type: TYPE_LABELS[l.type] ?? l.type, Active: l.is_active ? 'Yes' : 'No' })))}
             disabled={locations.length === 0}
@@ -289,9 +291,7 @@ export default function StockLocationsPage() {
                   type="button"
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
-                >
-                  Cancel
-                </button>
+                >{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
           </div>
@@ -313,6 +313,7 @@ function LocationGroup({
   onToggle: (loc: StockLocation) => void
   onExpand: (loc: StockLocation) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div>
       <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">{title}</h2>
@@ -372,7 +373,7 @@ function LocationGroup({
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-[#ede9e2]">
-                          <th className="text-left px-8 py-2 font-semibold text-[#1a1814]/60">Product</th>
+                          <th className="text-left px-8 py-2 font-semibold text-[#1a1814]/60">{t('col.product', 'Product')}</th>
                           <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Lot</th>
                           <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Qty</th>
                           <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Value</th>

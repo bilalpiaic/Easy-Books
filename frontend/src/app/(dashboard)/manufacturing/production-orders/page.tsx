@@ -10,6 +10,7 @@ import { downloadCSV } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
+import { useTranslation } from "react-i18next"
 
 interface Po {
   id: number; number: string; state: string
@@ -32,6 +33,8 @@ const STATE_TONE: Record<string, string> = {
 }
 
 export default function ProductionOrdersPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [pos, setPos]             = useState<Po[]>([])
   const [customers, setCustomers] = useState<Map<number, string>>(new Map())
@@ -116,9 +119,7 @@ export default function ProductionOrdersPage() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
             title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </header>
 
@@ -143,7 +144,7 @@ export default function ProductionOrdersPage() {
 
       <HelpCallout title="The 5-step lifecycle" tone="tip">
         <ol className="list-decimal pl-4 space-y-1">
-          <li><b>Draft</b> — PO created, references a BoM + customer + rate plan. No GL entries yet.</li>
+          <li><b>{t('status.draft', 'Draft')}</b> — PO created, references a BoM + customer + rate plan. No GL entries yet.</li>
           <li><b>Started</b> — material issued to WIP. Dr WIP / Cr Raw Material (own-stock only).</li>
           <li><b>Completed</b> — output capitalised. Dr Finished Goods / Cr WIP at total cost basis.</li>
           <li><b>Delivered</b> — FG ships out. Dr COGS / Cr Finished Goods. Custodial memo released.</li>
@@ -176,7 +177,7 @@ export default function ProductionOrdersPage() {
             <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">PO #</th>
-                <th className="text-left px-4 py-2">Customer</th>
+                <th className="text-left px-4 py-2">{t('col.customer', 'Customer')}</th>
                 <th className="text-left px-4 py-2">Rate Plan</th>
                 <th className="text-right px-4 py-2">Output qty</th>
                 <th className="text-right px-4 py-2">WIP cost</th>

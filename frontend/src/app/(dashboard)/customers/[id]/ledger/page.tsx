@@ -9,6 +9,7 @@ import { downloadCSV, fmtDate } from "@/lib/utils"
 import { VOUCHER_TYPES } from "@/lib/voucherTypes"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface LedgerEntry {
   date: string
@@ -47,6 +48,8 @@ function defaultRange() {
 }
 
 export default function CustomerLedgerPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { id } = use(params)
   const r0 = defaultRange()
@@ -165,11 +168,11 @@ export default function CustomerLedgerPage({ params }: { params: Promise<{ id: s
             <tr>
               <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Date</th>
               <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Document</th>
-              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
+              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
               <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
-              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Debit</th>
-              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Credit</th>
-              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Balance</th>
+              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.debit', 'Debit')}</th>
+              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.credit', 'Credit')}</th>
+              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.balance', 'Balance')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">

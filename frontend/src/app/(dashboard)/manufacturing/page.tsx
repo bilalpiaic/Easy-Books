@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Factory, Package, Warehouse, Layers, Wrench, ShoppingCart, BarChart2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
+import { useTranslation } from "react-i18next"
 
 interface Dashboard {
   pipeline: {
@@ -23,6 +24,8 @@ const STAGES: { key: keyof Dashboard["pipeline"]; label: string; tone: string }[
 ]
 
 export default function ManufacturingDashboardPage() {
+  const { t } = useTranslation()
+
   const [data, setData]   = useState<Dashboard | null>(null)
   const [error, setError] = useState<string | null>(null)
 

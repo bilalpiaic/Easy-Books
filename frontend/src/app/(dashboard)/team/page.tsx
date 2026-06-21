@@ -5,6 +5,7 @@ import { Users, UserPlus, Mail, Loader2, Copy, Check, KeyRound, ShieldAlert, Tra
 import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
 import { downloadCSV } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface Member {
   id: number
@@ -39,6 +40,7 @@ function fmtDate(s: string | null): string {
 }
 
 export default function TeamPage() {
+
   const meRole = getCurrentUser()?.role ?? "viewer"
   const meEmail = getCurrentUser()?.email ?? ""
   const isOwner = meRole === "owner"
@@ -110,6 +112,7 @@ function RoleBadge({ role }: { role: string }) {
 function MembersTable({ members, meEmail, isOwner, onChange }: {
   members: Member[]; meEmail: string; isOwner: boolean; onChange: () => void
 }) {
+  const { t } = useTranslation()
   const [busyId, setBusyId] = useState<number | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [resetInfo, setResetInfo] = useState<{ email: string; pwd: string } | null>(null)
@@ -147,9 +150,9 @@ function MembersTable({ members, meEmail, isOwner, onChange }: {
             <tr>
               <th className="text-left px-4 py-2 font-semibold">Member</th>
               <th className="text-left px-4 py-2 font-semibold">Role</th>
-              <th className="text-left px-4 py-2 font-semibold">Status</th>
+              <th className="text-left px-4 py-2 font-semibold">{t('col.status', 'Status')}</th>
               <th className="text-left px-4 py-2 font-semibold">Last login</th>
-              <th className="text-right px-4 py-2 font-semibold">Actions</th>
+              <th className="text-right px-4 py-2 font-semibold">{t('col.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -179,8 +182,8 @@ function MembersTable({ members, meEmail, isOwner, onChange }: {
                   </td>
                   <td className="px-4 py-2.5">
                     {m.is_active
-                      ? <span className="text-emerald-700 text-xs font-semibold">Active</span>
-                      : <span className="text-[#1a1814]/45 text-xs font-semibold">Inactive</span>}
+                      ? <span className="text-emerald-700 text-xs font-semibold">{t('status.active', 'Active')}</span>
+                      : <span className="text-[#1a1814]/45 text-xs font-semibold">{t('status.inactive', 'Inactive')}</span>}
                     {m.must_change_password && <span className="block text-[10px] text-amber-700">temp password</span>}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-[#1a1814]/60">{fmtDate(m.last_login_at)}</td>
@@ -288,6 +291,7 @@ function AddMember({ isOwner, onChange }: { isOwner: boolean; onChange: () => vo
 }
 
 function Invites({ invites, isOwner, onChange }: { invites: Invite[]; isOwner: boolean; onChange: () => void }) {
+  const { t } = useTranslation()
   const [busyId, setBusyId] = useState<number | null>(null)
   async function revoke(id: number) {
     setBusyId(id)
@@ -305,7 +309,7 @@ function Invites({ invites, isOwner, onChange }: { invites: Invite[]; isOwner: b
               <th className="text-left px-4 py-2 font-semibold">Email</th>
               <th className="text-left px-4 py-2 font-semibold">Role</th>
               <th className="text-left px-4 py-2 font-semibold">Link</th>
-              <th className="text-right px-4 py-2 font-semibold">Actions</th>
+              <th className="text-right px-4 py-2 font-semibold">{t('col.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>

@@ -5,6 +5,7 @@ import { ArrowLeft, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
+import { useTranslation } from "react-i18next"
 
 interface Row {
   product_id: number
@@ -17,6 +18,8 @@ interface Row {
 }
 
 export default function CustomerProducts({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const fmt = useFmt()
   const [rows, setRows] = useState<Row[]>([])
@@ -46,7 +49,7 @@ export default function CustomerProducts({ params }: { params: Promise<{ id: str
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
             <tr>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Product</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">{t('col.product', 'Product')}</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Price</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Date</th>
               <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Total Qty</th>

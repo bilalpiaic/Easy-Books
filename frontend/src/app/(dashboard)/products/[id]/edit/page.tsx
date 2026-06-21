@@ -7,8 +7,11 @@ import { ArrowLeft } from 'lucide-react'
 import ProductForm, { ProductFull } from '@/components/products/ProductForm'
 import { apiFetch } from '@/lib/api'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [product, setProduct] = useState<ProductFull | null>(null)
@@ -32,8 +35,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     <div className="space-y-6">
       <div>
         <Link href={`/products/${id}`} className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
-          <ArrowLeft className="w-4 h-4" /> Product
-        </Link>
+          <ArrowLeft className="w-4 h-4" />{t('col.product', 'Product')}</Link>
         <h1 className="text-3xl font-serif font-medium">Edit {product.name}</h1>
       </div>
       <ProductForm

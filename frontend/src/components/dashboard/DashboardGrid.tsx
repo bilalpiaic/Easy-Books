@@ -11,6 +11,7 @@ import ShortcutTile from "@/components/dashboard/ShortcutTile"
 import AddWidgetPanel from "@/components/dashboard/AddWidgetPanel"
 import type { GridItem, UseDashboardLayout } from "@/hooks/useDashboardLayout"
 import { BP_COLS, type Breakpoint } from "@/hooks/useDashboardLayout"
+import { useTranslation } from "react-i18next"
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, w]))
@@ -30,6 +31,8 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
   editing: boolean
   onExitEditing: () => void
 }) {
+  const { t } = useTranslation()
+
   const [saving, setSaving] = useState(false)
   const [adding, setAdding] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -76,8 +79,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
               <RotateCcw className="w-3.5 h-3.5" /> Reset all
             </button>
             <button onClick={() => { reload(); onExitEditing() }} className="inline-flex items-center gap-1 text-xs text-[#1a1814]/60 hover:text-[#1a1814] px-2 py-1">
-              <X className="w-3.5 h-3.5" /> Cancel
-            </button>
+              <X className="w-3.5 h-3.5" />{t('common.cancel', 'Cancel')}</button>
             <button onClick={handleDone} disabled={saving} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#b8943f] hover:bg-[#a07f33] rounded-lg px-3 py-1.5 disabled:opacity-60">
               <Check className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Done"}
             </button>

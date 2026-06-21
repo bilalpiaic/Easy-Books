@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 interface BomOption {
   id: number
@@ -18,6 +19,8 @@ interface Customer { id: number; name: string }
 interface RatePlan { id: number; code: string; name: string; is_active: boolean }
 
 export default function NewProductionOrderPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
 
   const [boms, setBoms]           = useState<BomOption[]>([])
@@ -114,9 +117,7 @@ export default function NewProductionOrderPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">
-            Customer
-          </label>
+          <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.customer', 'Customer')}</label>
           <select value={customerId} onChange={e => setCustomerId(e.target.value)}
             className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]">
             <option value="">Select customer…</option>
@@ -150,7 +151,7 @@ export default function NewProductionOrderPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Notes</label>
+          <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.notes', 'Notes')}</label>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
             placeholder="Optional internal notes"
             className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-[#b8943f]" />
@@ -158,7 +159,7 @@ export default function NewProductionOrderPage() {
 
         <div className="bg-[#faf8f4] border border-[#ede9e2] rounded-lg px-4 py-3 text-xs text-[#1a1814]/70 space-y-1">
           <p className="font-semibold text-[#1a1814]/90">After creation</p>
-          <p>The PO starts in <b>Draft</b> state. Walk it through: <b>Start → Complete → Deliver → Bill</b> using the action buttons on the list page.</p>
+          <p>The PO starts in <b>{t('status.draft', 'Draft')}</b> state. Walk it through: <b>Start → Complete → Deliver → Bill</b> using the action buttons on the list page.</p>
         </div>
 
         {error && (
@@ -171,9 +172,7 @@ export default function NewProductionOrderPage() {
             {saving ? "Creating…" : "Create Production Order"}
           </button>
           <Link href="/manufacturing/production-orders"
-            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
-            Cancel
-          </Link>
+            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</Link>
         </div>
       </form>
     </div>

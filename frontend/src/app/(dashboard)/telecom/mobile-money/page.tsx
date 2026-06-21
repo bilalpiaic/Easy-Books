@@ -10,6 +10,7 @@ import {
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface MmAccount { id: number; account_number: string; account_type: string; current_float_balance: string }
@@ -20,6 +21,8 @@ interface FloatStatement {
 }
 
 export default function MobileMoneyPage() {
+  const { t } = useTranslation()
+
   const operators = useTelecomList<Operator>("/api/telecom/operators")
   const mmAccounts = useTelecomList<MmAccount>("/api/telecom/mm/accounts")
   const txns = useTelecomList<MmTxn>("/api/telecom/mm/transactions")
@@ -82,8 +85,7 @@ export default function MobileMoneyPage() {
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <HelpCallout title="Float moves opposite to cash" tone="tip">

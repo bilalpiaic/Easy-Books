@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Shield, ChevronDown, ChevronRight, Save, Users, ShieldCheck, Database } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 interface ResourceInfo {
   key: string
@@ -40,6 +41,8 @@ const LEVEL_COLORS: Record<string, string> = {
 }
 
 export default function PermissionsPage() {
+  const { t } = useTranslation()
+
   const [resources, setResources] = useState<ResourceInfo[]>([])
   const [members, setMembers] = useState<TeamMember[]>([])
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)

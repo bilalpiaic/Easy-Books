@@ -7,6 +7,7 @@ import { ChevronLeft, TrendingUp, TrendingDown, Minus, Download } from 'lucide-r
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
+import { useTranslation } from "react-i18next"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,8 @@ const TYPE_LABELS: Record<string, string> = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AnalyticPlPage() {
+  const { t } = useTranslation()
+
   const { id } = useParams<{ id: string }>()
   const fmt     = useFmt()
   const { start: defStart, end: defEnd } = thisYear()
@@ -103,8 +106,8 @@ export default function AnalyticPlPage() {
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee]/50">
             <tr>
-              <th className="px-6 py-2 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">Account</th>
-              <th className="px-6 py-2 text-right text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">Amount</th>
+              <th className="px-6 py-2 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{t('col.account', 'Account')}</th>
+              <th className="px-6 py-2 text-right text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{t('col.amount', 'Amount')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">

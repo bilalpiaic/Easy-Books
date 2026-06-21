@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Plus, Trash2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 interface Product { id: number; code: string; name: string }
 interface StockLocation { id: number; code: string; name: string; type: string }
@@ -24,6 +25,8 @@ const emptyLine = (): LineState => ({
 })
 
 export default function NewBomPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
 
   const [products, setProducts]     = useState<Product[]>([])
@@ -107,7 +110,7 @@ export default function NewBomPage() {
           <h2 className="text-sm font-semibold text-[#1a1814]">Output (Finished Good)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Product</label>
+              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.product', 'Product')}</label>
               <select value={outputProductId} onChange={e => setOutputProductId(e.target.value)}
                 className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]">
                 <option value="">Select output product…</option>
@@ -124,7 +127,7 @@ export default function NewBomPage() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Description</label>
+            <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.description', 'Description')}</label>
             <input value={description} onChange={e => setDescription(e.target.value)}
               placeholder="Optional description / version note"
               className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]" />
@@ -265,9 +268,7 @@ export default function NewBomPage() {
             {saving ? "Saving…" : "Create BOM"}
           </button>
           <Link href="/manufacturing/boms"
-            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
-            Cancel
-          </Link>
+            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</Link>
         </div>
       </form>
     </div>

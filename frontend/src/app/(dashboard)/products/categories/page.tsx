@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Tag, Plus, Pencil, Trash2, Check, X, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { downloadCSV } from '@/lib/utils'
+import { useTranslation } from "react-i18next"
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
 
@@ -13,6 +14,8 @@ type ModalMode =
   | null
 
 export default function CategoriesPage() {
+  const { t } = useTranslation()
+
   const [tree, setTree] = useState<Cat[]>([])
   const [modal, setModal]     = useState<ModalMode>(null)
   const [inputVal, setInputVal] = useState('')
@@ -192,9 +195,7 @@ export default function CategoriesPage() {
                   {saving ? 'Saving…' : modal.kind === 'edit' ? 'Rename' : 'Create'}
                 </button>
                 <button onClick={closeModal}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
-                  Cancel
-                </button>
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</button>
               </div>
             </div>
           </div>

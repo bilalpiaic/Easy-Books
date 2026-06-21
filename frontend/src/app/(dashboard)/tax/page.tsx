@@ -7,6 +7,7 @@ import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import DateRangePicker from '@/components/DateRangePicker'
 import PrintHeader from '@/components/PrintHeader'
+import { useTranslation } from "react-i18next"
 
 interface TaxSummary {
   period: { start: string; end: string }
@@ -33,6 +34,8 @@ function defaultRange() {
 }
 
 export default function TaxReports() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
@@ -83,7 +86,7 @@ export default function TaxReports() {
       {error && <div className="text-red-600 font-semibold">{error}</div>}
 
       {!data ? (
-        <div className="text-center py-12 text-black/40">Loading...</div>
+        <div className="text-center py-12 text-black/40">{t('common.loading', 'Loading...')}</div>
       ) : (
         <>
           {/* GST Section */}

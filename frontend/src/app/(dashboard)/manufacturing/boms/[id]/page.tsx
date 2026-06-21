@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Package, Archive } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 interface BomLine {
   id: number
@@ -36,6 +37,8 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 export default function BomDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
 
   const [bom, setBom]           = useState<Bom | null>(null)
@@ -95,7 +98,7 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
             </h1>
             <p className="text-sm text-[#1a1814]/55 mt-0.5 flex items-center gap-2">
               {bom.is_active
-                ? <span className="text-emerald-700 font-medium">Active</span>
+                ? <span className="text-emerald-700 font-medium">{t('status.active', 'Active')}</span>
                 : <span className="text-[#1a1814]/40">Archived</span>}
               {bom.explode_on_invoice && (
                 <span className="bg-amber-100 text-amber-800 text-xs font-medium px-1.5 py-0.5 rounded">
@@ -141,13 +144,13 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
         </div>
         {bom.description && (
           <div className="col-span-2 sm:col-span-4">
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Description</p>
+            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">{t('col.description', 'Description')}</p>
             <p className="text-[#1a1814]">{bom.description}</p>
           </div>
         )}
         {bom.notes && (
           <div className="col-span-2 sm:col-span-4">
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Notes</p>
+            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">{t('col.notes', 'Notes')}</p>
             <p className="text-[#1a1814]/70 whitespace-pre-wrap">{bom.notes}</p>
           </div>
         )}
@@ -169,7 +172,7 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
                 <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Qty / Batch</th>
                 <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Default Location</th>
                 <th className="text-center px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Optional</th>
-                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Notes</th>
+                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.notes', 'Notes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">

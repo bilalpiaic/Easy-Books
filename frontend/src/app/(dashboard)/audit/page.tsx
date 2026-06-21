@@ -7,6 +7,7 @@ import DocLink, { DocKind } from "@/components/DocLink"
 import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface AuditEntry {
   id: number
@@ -90,6 +91,8 @@ function ActionBadge({ action }: { action: string }) {
 }
 
 export default function AuditLogPage() {
+  const { t } = useTranslation()
+
   const [items, setItems] = useState<AuditEntry[]>([])
   const [total, setTotal] = useState(0)
   const [entityFilter, setEntityFilter] = useState("")
@@ -162,11 +165,8 @@ export default function AuditLogPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
-          <button onClick={exportCsv} className="px-4 py-2 text-sm font-bold border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors">
-            Export CSV
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
+          <button onClick={exportCsv} className="px-4 py-2 text-sm font-bold border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors">{t('common.exportCsv', 'Export CSV')}</button>
         </div>
       </div>
 

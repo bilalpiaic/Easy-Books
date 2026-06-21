@@ -7,8 +7,11 @@ import { ArrowLeft } from 'lucide-react'
 import VendorForm, { VendorFull } from '@/components/vendors/VendorForm'
 import { apiFetch } from '@/lib/api'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 export default function EditVendorPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [vendor, setVendor] = useState<VendorFull | null>(null)

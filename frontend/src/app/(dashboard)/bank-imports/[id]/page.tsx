@@ -7,6 +7,7 @@ import { CheckCircle2, Clock, Zap, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface BankImport {
   id: number
@@ -39,6 +40,8 @@ interface JournalLine {
 }
 
 export default function BankImportDetailPage() {
+  const { t } = useTranslation()
+
   const { id }    = useParams<{ id: string }>()
   const fmt       = useFmt()
 
@@ -212,10 +215,10 @@ export default function BankImportDetailPage() {
           <thead>
             <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
               <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">Date</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">Description</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">Debit</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">Credit</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">Balance</th>
+              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.description', 'Description')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.debit', 'Debit')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.credit', 'Credit')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.balance', 'Balance')}</th>
               <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70 w-56">Match</th>
             </tr>
           </thead>

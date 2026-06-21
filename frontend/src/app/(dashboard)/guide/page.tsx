@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 import {
   ChevronRight, BookOpen, LogIn, BarChart3, FileSignature,
   Receipt, Package, PenLine, TrendingUp, Upload,
@@ -220,6 +221,7 @@ function GettingStartedPanel() {
 }
 
 function CoaPanel() {
+  const { t } = useTranslation()
   return (
     <div>
       <p className="text-sm text-[#1a1814]/70 leading-relaxed">
@@ -279,7 +281,7 @@ function CoaPanel() {
             <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
               <th className="px-4 py-2.5 text-left">Codes</th>
               <th className="px-4 py-2.5 text-left">Layer</th>
-              <th className="px-4 py-2.5 text-left">Account</th>
+              <th className="px-4 py-2.5 text-left">{t('col.account', 'Account')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -1301,6 +1303,7 @@ function SubLedgersPanel() {
 }
 
 function ManufacturingPanel() {
+  const { t } = useTranslation()
   return (
     <div>
       <p className="text-sm text-[#1a1814]/70 leading-relaxed">
@@ -1325,8 +1328,8 @@ function ManufacturingPanel() {
           <thead>
             <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
               <th className="px-4 py-2.5 text-left">Stage</th>
-              <th className="px-4 py-2.5 text-left">Debit</th>
-              <th className="px-4 py-2.5 text-left">Credit</th>
+              <th className="px-4 py-2.5 text-left">{t('col.debit', 'Debit')}</th>
+              <th className="px-4 py-2.5 text-left">{t('col.credit', 'Credit')}</th>
               <th className="px-4 py-2.5 text-left">Movement</th>
             </tr>
           </thead>
@@ -1387,6 +1390,7 @@ total      = subtotal + margin            (excl. GST)`}
 }
 
 function TelecomFranchisePanel() {
+  const { t } = useTranslation()
   return (
     <div>
       <p className="text-sm text-[#1a1814]/70 leading-relaxed">
@@ -1414,8 +1418,8 @@ function TelecomFranchisePanel() {
           <thead>
             <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
               <th className="px-4 py-2.5 text-left">Operation</th>
-              <th className="px-4 py-2.5 text-left">Debit</th>
-              <th className="px-4 py-2.5 text-left">Credit</th>
+              <th className="px-4 py-2.5 text-left">{t('col.debit', 'Debit')}</th>
+              <th className="px-4 py-2.5 text-left">{t('col.credit', 'Credit')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -1847,6 +1851,7 @@ function BudgetsPanel() {
 }
 
 function DashboardCustomizationPanel() {
+  const { t } = useTranslation()
   return (
     <div>
       <p className="text-sm text-[#1a1814]/70 leading-relaxed">
@@ -1898,7 +1903,7 @@ function DashboardCustomizationPanel() {
       <SectionHeading>Saving and resetting</SectionHeading>
       <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Done</b> — saves your layout and exits customize mode</li>
-        <li><b>Cancel</b> — discards unsaved changes</li>
+        <li><b>{t('common.cancel', 'Cancel')}</b> — discards unsaved changes</li>
         <li><b>Reset all</b> — removes all customizations and returns to the default grid for all screen sizes</li>
       </ul>
 
@@ -1952,6 +1957,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function GuidePage() {
+
   const [activeTab, setActiveTab] = useState<string>("getting-started")
   const [businessModel, setBusinessModel] = useState<BusinessModel | null>(null)
 

@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface DeferredSchedule {
   id: number
@@ -41,6 +42,8 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 const today = () => new Date().toISOString().slice(0, 10)
 
 export default function DeferredRevenuePage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
 
   const [schedules, setSchedules]   = useState<DeferredSchedule[]>([])
@@ -98,8 +101,7 @@ export default function DeferredRevenuePage() {
                 onClick={() => window.print()}
                 className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] transition-colors"
               >
-                <Printer className="w-3.5 h-3.5" /> Print
-              </button>
+                <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</button>
               <button
                 onClick={() => downloadCSV('deferred-revenue.csv', schedules.map(s => ({ "Invoice ID": s.invoice_id, "Total Amount": s.total_amount, "Recognised": s.recognised_amount, "Remaining": s.total_amount - s.recognised_amount, "Start Date": s.start_date, "End Date": s.end_date, Frequency: s.frequency, "Next Recognition": s.next_recognition_date, Status: s.status })))}
                 disabled={schedules.length === 0}

@@ -7,8 +7,11 @@ import { ArrowLeft } from 'lucide-react'
 import BillForm, { BillFull } from '@/components/bills/BillForm'
 import { apiFetch } from '@/lib/api'
 import { useBreadcrumb } from '@/context/BreadcrumbContext'
+import { useTranslation } from "react-i18next"
 
 export default function EditBillPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [bill, setBill] = useState<BillFull | null>(null)

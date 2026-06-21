@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { useTranslation } from "react-i18next"
 
 interface Vendor {
   id: number
@@ -40,6 +41,8 @@ const STATUS_TONE: Record<string, string> = {
 }
 
 export default function VendorHubPage() {
+  const { t } = useTranslation()
+
   const params = useParams()
   const id = params.id as string
   const fmt = useFmt()
@@ -87,9 +90,7 @@ export default function VendorHubPage() {
             <p className="text-sm text-[#1a1814]/55 mt-0.5">Vendor profile</p>
           </div>
           {!vendor.is_active && (
-            <span className="inline-block bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-0.5 rounded-full border border-slate-200">
-              Inactive
-            </span>
+            <span className="inline-block bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-0.5 rounded-full border border-slate-200">{t('status.inactive', 'Inactive')}</span>
           )}
         </div>
         <Link
@@ -141,7 +142,7 @@ export default function VendorHubPage() {
             <p className="text-xl font-bold tabular-nums text-[#1a1814]">{fmt(totalBilled)}</p>
           </div>
           <div className="bg-white border border-[#ede9e2] rounded-xl p-4 text-center">
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-1">Overdue</p>
+            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-1">{t('status.overdue', 'Overdue')}</p>
             <p className={`text-xl font-bold tabular-nums ${overdueCount > 0 ? "text-red-600" : "text-emerald-600"}`}>
               {overdueCount}
             </p>
@@ -200,8 +201,8 @@ export default function VendorHubPage() {
                 <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Number</th>
                 <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Date</th>
                 <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Due</th>
-                <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Status</th>
-                <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">Total</th>
+                <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">{t('col.status', 'Status')}</th>
+                <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60 text-xs">{t('col.total', 'Total')}</th>
               </tr>
             </thead>
             <tbody>

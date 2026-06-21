@@ -10,6 +10,7 @@ import SavedReportsMenu from "@/components/report-builder/SavedReportsMenu"
 import ExportMenu from "@/components/report-builder/ExportMenu"
 import { emptyConfig } from "@/lib/reportTypes"
 import type { SourceMeta, ReportConfig, RunResult, SavedReport } from "@/lib/reportTypes"
+import { useTranslation } from "react-i18next"
 
 const PAGE_SIZE = 100
 
@@ -22,6 +23,8 @@ const PERIOD_OPTIONS = [
 ]
 
 export default function ReportBuilderPage() {
+  const { t } = useTranslation()
+
   const [sources, setSources] = useState<SourceMeta[]>([])
   const [sourceKey, setSourceKey] = useState("")
   const [config, setConfig] = useState<ReportConfig>(emptyConfig())

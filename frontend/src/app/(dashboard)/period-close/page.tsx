@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface Period {
   id: number
@@ -29,6 +30,8 @@ function pad(n: number) { return String(n).padStart(2, "0") }
 function lastDay(year: number, month0: number) { return new Date(year, month0 + 1, 0).getDate() }
 
 export default function PeriodClosePage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { settings } = useSettings()
   const [periods, setPeriods] = useState<Period[]>([])
@@ -122,8 +125,7 @@ export default function PeriodClosePage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('periods.csv', periods.map(p => ({ Name: p.name ?? '', "Period Start": p.period_start, "Period End": p.period_end, Status: p.is_locked ? 'Locked' : 'Open' })))}
             disabled={periods.length === 0}

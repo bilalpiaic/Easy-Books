@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface PO {
   id: number
@@ -44,6 +45,8 @@ const STATE_TONE: Record<string, string> = {
 }
 
 export default function POPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [po, setPo]       = useState<PO | null>(null)
@@ -76,8 +79,7 @@ export default function POPrintPage({ params }: { params: Promise<{ id: string }
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
@@ -127,7 +129,7 @@ export default function POPrintPage({ params }: { params: Promise<{ id: string }
 
           {po.notes && (
             <section className="mb-6">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-2">Notes</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-2">{t('col.notes', 'Notes')}</h2>
               <p className="text-sm text-[#1a1814]/80 whitespace-pre-wrap">{po.notes}</p>
             </section>
           )}

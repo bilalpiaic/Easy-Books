@@ -10,6 +10,7 @@ import {
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface SimBatch { id: number; batch_number: string; qty_received: number; qty_activated: number; unit_cost: string; received_date: string }
@@ -20,6 +21,8 @@ interface SimActivation {
 interface UtilRow { id: number; batch_number: string; qty_received: number; qty_activated: number; qty_available: number; unit_cost: string }
 
 export default function SimPage() {
+  const { t } = useTranslation()
+
   const operators = useTelecomList<Operator>("/api/telecom/operators")
   const batches = useTelecomList<SimBatch>("/api/telecom/sim/batches")
   const activations = useTelecomList<SimActivation>("/api/telecom/sim/activations")
@@ -92,8 +95,7 @@ export default function SimPage() {
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <HelpCallout title="SIM stock vs commission" tone="tip">

@@ -6,6 +6,7 @@ import { ShoppingCart, CheckCircle, FileText, AlertCircle, ArrowLeft, Printer } 
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
+import { useTranslation } from "react-i18next"
 
 interface POLine {
   id: number
@@ -40,6 +41,8 @@ const STATUS_TONE: Record<string, string> = {
 }
 
 export default function PurchaseOrderDetailPage() {
+  const { t } = useTranslation()
+
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const fmt = useFmt()
@@ -115,8 +118,7 @@ export default function PurchaseOrderDetailPage() {
             href={`/manufacturing/purchase-orders/${id}/print`}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-xl text-xs font-bold hover:bg-[#f6f3ee] print:hidden"
           >
-            <Printer className="w-3.5 h-3.5" /> Print
-          </Link>
+            <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</Link>
           <Link
             href="/manufacturing/purchase-orders"
             className="flex items-center gap-1.5 text-sm text-[#1a1814]/60 hover:text-[#1a1814] transition-colors"
@@ -177,10 +179,10 @@ export default function PurchaseOrderDetailPage() {
       <div className="bg-white border border-[#ede9e2] rounded-2xl p-5 space-y-4">
         <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50">Order Details</h2>
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div><dt className="text-[#1a1814]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">Vendor</dt><dd>{po.vendor_name ?? "—"}</dd></div>
+          <div><dt className="text-[#1a1814]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">{t('col.vendor', 'Vendor')}</dt><dd>{po.vendor_name ?? "—"}</dd></div>
           <div><dt className="text-[#1a1814]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">Order Date</dt><dd>{po.order_date}</dd></div>
           <div><dt className="text-[#1a1814]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">Expected</dt><dd>{po.expected_date ?? "—"}</dd></div>
-          <div><dt className="text-[#1a1814]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">Total</dt><dd className="font-mono font-bold">{fmt(Number(po.total))}</dd></div>
+          <div><dt className="text-[#1a1814]/55 text-xs font-semibold uppercase tracking-wide mb-0.5">{t('col.total', 'Total')}</dt><dd className="font-mono font-bold">{fmt(Number(po.total))}</dd></div>
         </dl>
         {po.description && <p className="text-sm text-[#1a1814]/75">{po.description}</p>}
         {po.notes && (
@@ -196,11 +198,11 @@ export default function PurchaseOrderDetailPage() {
         <table className="w-full text-sm">
           <thead className="bg-[#faf6ec] text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
             <tr>
-              <th className="text-left px-4 py-2">Description</th>
+              <th className="text-left px-4 py-2">{t('col.description', 'Description')}</th>
               <th className="text-right px-4 py-2 w-20">Qty</th>
-              <th className="text-left px-4 py-2 w-20">Unit</th>
+              <th className="text-left px-4 py-2 w-20">{t('col.unit', 'Unit')}</th>
               <th className="text-right px-4 py-2 w-28">Rate</th>
-              <th className="text-right px-4 py-2 w-28">Amount</th>
+              <th className="text-right px-4 py-2 w-28">{t('col.amount', 'Amount')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -216,7 +218,7 @@ export default function PurchaseOrderDetailPage() {
           </tbody>
           <tfoot className="border-t-2 border-[#ede9e2] bg-[#faf8f4]">
             <tr>
-              <td colSpan={4} className="px-4 py-2 text-right text-xs font-bold uppercase tracking-wide text-[#1a1814]/55">Total</td>
+              <td colSpan={4} className="px-4 py-2 text-right text-xs font-bold uppercase tracking-wide text-[#1a1814]/55">{t('col.total', 'Total')}</td>
               <td className="px-4 py-2 text-right font-mono font-bold text-[#1a1814]">{fmt(Number(po.total))}</td>
             </tr>
           </tfoot>
@@ -245,7 +247,7 @@ export default function PurchaseOrderDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-black/85 mb-1.5">Due Date <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-semibold text-black/85 mb-1.5">{t('col.dueDate', 'Due Date')}<span className="text-red-500">*</span></label>
                 <input
                   type="date"
                   value={dueDate}
@@ -259,9 +261,7 @@ export default function PurchaseOrderDetailPage() {
               <button
                 onClick={() => { setShowConvert(false); setConvertError("") }}
                 className="flex-1 px-4 py-2.5 bg-white border border-[#ede9e2] rounded-lg font-semibold text-sm hover:bg-[#f6f3ee] transition-colors"
-              >
-                Cancel
-              </button>
+              >{t('common.cancel', 'Cancel')}</button>
               <button
                 onClick={convertToBill}
                 disabled={busy}

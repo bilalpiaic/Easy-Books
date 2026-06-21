@@ -6,6 +6,7 @@ import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface BillLine {
   id: number
@@ -44,6 +45,8 @@ const fmt = (v: string | number) => {
 }
 
 export default function BillPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const router = useRouter()
   const [bill, setBill]   = useState<Bill | null>(null)
@@ -68,8 +71,7 @@ export default function BillPrintPage({ params }: { params: Promise<{ id: string
           onClick={() => window.print()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
@@ -83,11 +85,11 @@ export default function BillPrintPage({ params }: { params: Promise<{ id: string
 
           <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Vendor</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.vendor', 'Vendor')}</div>
               <p className="font-semibold">{bill.vendor_name ?? "—"}</p>
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Status</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.status', 'Status')}</div>
               <p className="font-semibold uppercase">{bill.status}</p>
               <p className="text-xs text-[#1a1814]/55 mt-1">Currency: {bill.currency}</p>
             </div>
@@ -100,10 +102,10 @@ export default function BillPrintPage({ params }: { params: Promise<{ id: string
           <table className="w-full text-sm border border-[#ede9e2] mb-6">
             <thead className="bg-[#faf6ec]">
               <tr>
-                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
+                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-20">Qty</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Rate</th>
-                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Amount</th>
+                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.amount', 'Amount')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">

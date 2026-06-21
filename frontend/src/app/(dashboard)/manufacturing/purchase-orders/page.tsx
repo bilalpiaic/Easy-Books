@@ -8,6 +8,7 @@ import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface PurchaseOrder {
   id: number
@@ -29,6 +30,8 @@ const STATUS_TONE: Record<string, string> = {
 const STATUSES = ["all", "draft", "approved", "billed", "cancelled"]
 
 export default function PurchaseOrdersPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [pos, setPos] = useState<PurchaseOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,8 +67,7 @@ export default function PurchaseOrdersPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('purchase-orders.csv', pos.map(p => ({ "PO #": p.number, Vendor: p.vendor_name ?? '', "Order Date": p.order_date, "Expected Date": p.expected_date ?? '', Total: p.total, Status: p.status })))}
             disabled={pos.length === 0}
@@ -122,11 +124,11 @@ export default function PurchaseOrdersPage() {
             <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">PO #</th>
-                <th className="text-left px-4 py-2">Vendor</th>
+                <th className="text-left px-4 py-2">{t('col.vendor', 'Vendor')}</th>
                 <th className="text-left px-4 py-2">Order Date</th>
                 <th className="text-left px-4 py-2">Expected</th>
-                <th className="text-right px-4 py-2">Total</th>
-                <th className="text-center px-4 py-2">Status</th>
+                <th className="text-right px-4 py-2">{t('col.total', 'Total')}</th>
+                <th className="text-center px-4 py-2">{t('col.status', 'Status')}</th>
                 <th className="text-right px-4 py-2 w-16"></th>
               </tr>
             </thead>

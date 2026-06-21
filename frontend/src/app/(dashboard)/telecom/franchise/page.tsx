@@ -8,6 +8,7 @@ import {
 } from "@/components/telecom/primitives"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface Operator { id: number; name: string; operator_code: string }
 interface Agreement {
@@ -16,6 +17,8 @@ interface Agreement {
 }
 
 export default function FranchisePage() {
+  const { t } = useTranslation()
+
   const operators = useTelecomList<Operator>("/api/telecom/operators")
   const agreements = useTelecomList<Agreement>("/api/telecom/franchise/agreements")
 
@@ -69,8 +72,7 @@ export default function FranchisePage() {
           onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
         >
-          <Printer className="w-4 h-4" /> Print
-        </button>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
 
       <HelpCallout title="Fee is an asset, royalty is an expense" tone="tip">

@@ -10,6 +10,7 @@ import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV, fmtDate } from '@/lib/utils'
 import Pagination from '@/components/Pagination'
+import { useTranslation } from "react-i18next"
 
 interface Payment {
   id: number
@@ -24,6 +25,8 @@ interface Payment {
 const PAGE_SIZE = 50
 
 export default function PaymentsReceived() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const router = useRouter()
   const [payments, setPayments] = useState<Payment[]>([])
@@ -71,8 +74,7 @@ export default function PaymentsReceived() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" /> Record Payment
           </button>
@@ -97,16 +99,16 @@ export default function PaymentsReceived() {
             <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
               <tr>
                 <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Date</th>
-                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Customer</th>
-                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Reference</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">{t('col.customer', 'Customer')}</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">{t('col.reference', 'Ref #')}</th>
                 <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
-                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">Amount</th>
-                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16 print:hidden">Print</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">{t('col.amount', 'Amount')}</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16 print:hidden">{t('common.print', 'Print')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">{t('common.loading', 'Loading...')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">No payments recorded.</td></tr>
               ) : filtered.map(p => (

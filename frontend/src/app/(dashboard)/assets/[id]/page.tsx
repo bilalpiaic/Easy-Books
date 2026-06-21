@@ -6,6 +6,7 @@ import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
+import { useTranslation } from "react-i18next"
 
 interface DepreciationEntry {
   id: number
@@ -29,6 +30,8 @@ interface AssetDetail {
 }
 
 export default function FixedAssetRegisterPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const fmt = useFmt()
   const [asset, setAsset] = useState<AssetDetail | null>(null)
@@ -134,7 +137,7 @@ export default function FixedAssetRegisterPage({ params }: { params: Promise<{ i
       {/* Actions */}
       {!asset.is_disposed && (
         <div className="bg-white border border-[#ede9e2] rounded-2xl p-5 print:hidden space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60">Actions</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60">{t('col.actions', 'Actions')}</h2>
 
           {actionMsg && (
             <div className={`flex items-start gap-2 p-3 rounded-xl text-sm ${

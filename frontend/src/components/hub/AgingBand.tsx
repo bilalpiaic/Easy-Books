@@ -1,5 +1,6 @@
 "use client"
 import { useFmt } from "@/context/SettingsContext"
+import { useTranslation } from "react-i18next"
 
 export interface AgingBandProps {
   current: number
@@ -16,6 +17,8 @@ const SEGMENTS = [
 ]
 
 export default function AgingBand(props: AgingBandProps) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const total = props.current + props.d1_30 + props.d31_60 + props.d60plus
   if (total === 0)

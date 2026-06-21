@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Upload, FileText, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { useTranslation } from "react-i18next"
 
 interface BankAccount {
   id: number
@@ -14,6 +15,8 @@ interface BankAccount {
 }
 
 export default function NewBankImportPage() {
+  const { t } = useTranslation()
+
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -151,9 +154,7 @@ export default function NewBankImportPage() {
           <Link
             href="/bank-imports"
             className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
-          >
-            Cancel
-          </Link>
+          >{t('common.cancel', 'Cancel')}</Link>
         </div>
       </form>
     </div>

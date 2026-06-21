@@ -13,6 +13,7 @@ import { TabProvider } from "@/context/TabContext"
 import NavBar from "@/components/NavBar"
 import { BreadcrumbProvider } from "@/context/BreadcrumbContext"
 import { resolveTitle } from "@/lib/navTitles"
+import { useTranslation } from "react-i18next"
 
 const LS_KEY_PINNED = "eb_sidebar_pinned"
 
@@ -21,6 +22,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  const { t } = useTranslation()
+
   const router   = useRouter()
   const pathname = usePathname()
   const [open, setOpen]     = useState(false)

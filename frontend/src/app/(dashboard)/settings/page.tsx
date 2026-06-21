@@ -9,6 +9,7 @@ import UpdateModal from '@/components/UpdateModal'
 import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
 import { useLocale } from '@/context/LocaleContext'
 import { LANGUAGES, type Language } from '@/i18n/config'
+import { useTranslation } from "react-i18next"
 
 interface PaymentTerm {
   id: number
@@ -33,6 +34,8 @@ interface AccountingPeriod {
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
+
   const { settings: ctxSettings, reload } = useSettings()
   const [form, setForm] = useState<AppSettings>(ctxSettings)
   const [saving, setSaving] = useState(false)
@@ -255,7 +258,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-black/85 mb-2">Currency</label>
+              <label className="block text-sm font-semibold text-black/85 mb-2">{t('col.currency', 'Currency')}</label>
               <select
                 value={form.currency}
                 onChange={e => handleChange('currency', e.target.value)}
@@ -880,9 +883,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => setBmConfirm(false)}
                 className="px-4 py-1.5 border border-amber-300 text-amber-800 rounded-lg text-sm font-medium hover:bg-amber-100"
-              >
-                Cancel
-              </button>
+              >{t('common.cancel', 'Cancel')}</button>
             </div>
           </div>
         )}

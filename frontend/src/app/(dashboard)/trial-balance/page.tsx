@@ -9,6 +9,7 @@ import { downloadCSV } from "@/lib/utils"
 import DateRangePicker from "@/components/DateRangePicker"
 import PrintHeader from "@/components/PrintHeader"
 import { AccountTreeRows, type TreeNode } from "@/components/AccountTree"
+import { useTranslation } from "react-i18next"
 
 interface TrialBalanceTotals {
   debit: number
@@ -41,6 +42,8 @@ function flatten(nodes: TreeNode[]): TreeNode[] {
 }
 
 export default function TrialBalancePage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [tree, setTree] = useState<TreeNode[]>([])
   const [totals, setTotals] = useState<TrialBalanceTotals>({ debit: 0, credit: 0 })
@@ -91,9 +94,9 @@ export default function TrialBalancePage() {
         <table className="w-full text-left border-collapse min-w-[480px]">
           <thead>
             <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Debit</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Credit</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.account', 'Account')}</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">{t('col.debit', 'Debit')}</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">{t('col.credit', 'Credit')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1a1814]/5">

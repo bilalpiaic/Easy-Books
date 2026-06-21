@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
+import { useTranslation } from "react-i18next"
 
 interface BankAccount {
   id: number
@@ -30,6 +31,8 @@ interface BankForm {
 const emptyForm: BankForm = { name: '', bank_name: '', account_number: '', coa_account_id: '' }
 
 export default function BankAccounts() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,9 +144,7 @@ export default function BankAccounts() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
             title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" />
             Add Account
@@ -160,7 +161,7 @@ export default function BankAccounts() {
 
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
-          <div className="text-center py-12 text-black/40">Loading...</div>
+          <div className="text-center py-12 text-black/40">{t('common.loading', 'Loading...')}</div>
         ) : accounts.length === 0 ? (
           <div className="text-center py-12 text-black/40">No bank accounts configured. Add one to track balances.</div>
         ) : accounts.map(ba => (
@@ -228,7 +229,7 @@ export default function BankAccounts() {
               </div>
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">{t('common.cancel', 'Cancel')}</button>
                 <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
                   {saving ? 'Saving...' : 'Save'}
                 </button>

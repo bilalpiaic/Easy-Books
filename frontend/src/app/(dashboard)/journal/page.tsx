@@ -12,6 +12,7 @@ import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
 import PrintHeader from "@/components/PrintHeader"
 import CsvImportButton from "@/components/CsvImportButton"
+import { useTranslation } from "react-i18next"
 
 interface JournalEntry {
   id: number
@@ -41,6 +42,8 @@ function defaultRange() {
 const PAGE_SIZE = 50
 
 export default function JournalPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
@@ -96,9 +99,7 @@ export default function JournalPage() {
             onClick={() => downloadCSV(`journal-${start}-${end}.csv`, entries.map(e => ({ Date: e.date, JV: e.jv_number, Account: e.account_name, Description: e.description, Debit: e.debit, Credit: e.credit })))}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
+            <Download className="w-4 h-4" />{t('common.exportCsv', 'Export CSV')}</button>
         </div>
       </div>
 
@@ -138,8 +139,8 @@ export default function JournalPage() {
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 w-24">Date</th>
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 w-28">JV #</th>
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account &amp; Description</th>
-              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right w-24">Debit</th>
-              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right w-24">Credit</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right w-24">{t('col.debit', 'Debit')}</th>
+              <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right w-24">{t('col.credit', 'Credit')}</th>
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 print:hidden"></th>
             </tr>
           </thead>

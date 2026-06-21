@@ -7,6 +7,7 @@ import { filterAccountsForSide, VOUCHER_SIDE_FILTERS } from "@/lib/voucherTypes"
 import { useDp } from "@/context/SettingsContext"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ function groupByType(accounts: Account[], order: string[]): { type: string; acco
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function NewEntryPage() {
+  const { t } = useTranslation()
+
   const router  = useRouter()
   const dp      = useDp()
 
@@ -351,8 +354,7 @@ export default function NewEntryPage() {
       )}
       {showAr && customers.length > 0 && (
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
-            Customer <span className="font-normal normal-case">(optional)</span>
+          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.customer', 'Customer')}<span className="font-normal normal-case">(optional)</span>
           </label>
           <select value={customerId} onChange={e => setCustomerId(e.target.value)}
             className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm">
@@ -363,8 +365,7 @@ export default function NewEntryPage() {
       )}
       {showAp && vendors.length > 0 && (
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
-            Vendor <span className="font-normal normal-case">(optional)</span>
+          <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.vendor', 'Vendor')}<span className="font-normal normal-case">(optional)</span>
           </label>
           <select value={vendorId} onChange={e => setVendorId(e.target.value)}
             className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm">
@@ -543,9 +544,9 @@ export default function NewEntryPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-[#faf6ec]">
                     <tr>
-                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Account</th>
-                      <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">Debit</th>
-                      <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">Credit</th>
+                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.account', 'Account')}</th>
+                      <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">{t('col.debit', 'Debit')}</th>
+                      <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">{t('col.credit', 'Credit')}</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
@@ -620,13 +621,13 @@ export default function NewEntryPage() {
                       </select>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Debit</label>
+                          <label className="block text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.debit', 'Debit')}</label>
                           <input type="number" step="0.01" inputMode="decimal" value={row.debit}
                             onChange={e => updateJvRow(idx, "debit", e.target.value)} placeholder="0.00"
                             className="w-full px-2 py-2 bg-white border border-[#ede9e2] rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-right font-mono text-sm" />
                         </div>
                         <div>
-                          <label className="block text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Credit</label>
+                          <label className="block text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.credit', 'Credit')}</label>
                           <input type="number" step="0.01" inputMode="decimal" value={row.credit}
                             onChange={e => updateJvRow(idx, "credit", e.target.value)} placeholder="0.00"
                             className="w-full px-2 py-2 bg-white border border-[#ede9e2] rounded-md focus:ring-2 focus:ring-[#b8943f] outline-none text-right font-mono text-sm" />
@@ -647,11 +648,11 @@ export default function NewEntryPage() {
             <div className="pt-3 border-t border-[#ede9e2]">
               <div className="grid grid-cols-3 gap-2 sm:gap-4 text-right font-mono">
                 <div>
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Debit</div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">{t('col.debit', 'Debit')}</div>
                   <div className="text-sm sm:text-base font-bold text-[#1a1814]">{totalDebit.toFixed(dp)}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Credit</div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">{t('col.credit', 'Credit')}</div>
                   <div className="text-sm sm:text-base font-bold text-[#1a1814]">{totalCredit.toFixed(dp)}</div>
                 </div>
                 <div className="border-l border-[#ede9e2] pl-2 sm:pl-4">
@@ -690,7 +691,7 @@ export default function NewEntryPage() {
                   </select>
                 </div>
                 <div className="text-right shrink-0 pt-5">
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Total</div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">{t('col.total', 'Total')}</div>
                   <div className="text-lg font-bold font-mono text-[#1a1814]">{payTotal.toFixed(dp)}</div>
                 </div>
               </div>
@@ -761,7 +762,7 @@ export default function NewEntryPage() {
                   </select>
                 </div>
                 <div className="text-right shrink-0 pt-5">
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Total</div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">{t('col.total', 'Total')}</div>
                   <div className="text-lg font-bold font-mono text-[#1a1814]">{recTotal.toFixed(dp)}</div>
                 </div>
               </div>
@@ -818,9 +819,7 @@ export default function NewEntryPage() {
         {/* Actions */}
         <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 sticky bottom-0 sm:static bg-[#f6f3ee] sm:bg-transparent py-2 sm:py-0 -mx-3 sm:mx-0 px-3 sm:px-0 border-t sm:border-t-0 border-[#ede9e2]">
           <button type="button" onClick={() => router.back()}
-            className="px-5 py-2.5 bg-white border border-[#ede9e2] rounded-lg font-semibold hover:bg-[#f6f3ee] transition-colors text-sm">
-            Cancel
-          </button>
+            className="px-5 py-2.5 bg-white border border-[#ede9e2] rounded-lg font-semibold hover:bg-[#f6f3ee] transition-colors text-sm">{t('common.cancel', 'Cancel')}</button>
           <button type="submit"
             disabled={isSubmitting || (mode === "journal" && !balanced)}
             className="px-5 py-2.5 bg-[#1a1814] text-white rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50 text-sm">

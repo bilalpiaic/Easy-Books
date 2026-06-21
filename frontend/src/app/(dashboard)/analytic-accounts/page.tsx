@@ -6,6 +6,7 @@ import { Plus, Pencil, ToggleLeft, ToggleRight, Layers, TrendingUp, Download, Pr
 import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import { useTranslation } from "react-i18next"
 
 interface AnalyticAccount {
   id: number
@@ -36,6 +37,8 @@ interface FormState {
 const emptyForm: FormState = { code: "", name: "", type: "cost_center" }
 
 export default function AnalyticAccountsPage() {
+  const { t } = useTranslation()
+
   const [items, setItems]         = useState<AnalyticAccount[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
@@ -130,8 +133,7 @@ export default function AnalyticAccountsPage() {
             onClick={() => window.print()}
             className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('analytic-accounts.csv', items.map(a => ({ Code: a.code, Name: a.name, Type: TYPE_LABELS[a.type] ?? a.type, Active: a.is_active ? 'Yes' : 'No' })))}
             disabled={items.length === 0}
@@ -248,9 +250,7 @@ export default function AnalyticAccountsPage() {
                   type="button"
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
-                >
-                  Cancel
-                </button>
+                >{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
           </div>

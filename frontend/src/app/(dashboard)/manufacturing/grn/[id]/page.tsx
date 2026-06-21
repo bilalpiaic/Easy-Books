@@ -6,6 +6,7 @@ import { Printer, Package } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import { useTranslation } from "react-i18next"
 
 interface GrnLine {
   id: number
@@ -34,6 +35,8 @@ interface Product  { id: number; code: string; name: string }
 interface StockLocation { id: number; code: string; name: string }
 
 export default function GrnDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const { id } = use(params)
   const fmt     = useFmt()
 
@@ -89,8 +92,7 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
           href={`/manufacturing/grn/${grn.id}/print`}
           className="inline-flex items-center gap-2 border border-[#ede9e2] rounded-lg px-3 py-2 text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors print:hidden"
         >
-          <Printer className="w-4 h-4" /> Print
-        </Link>
+          <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
       </div>
 
       {/* Header card */}
@@ -133,11 +135,11 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-              <th className="text-left px-5 py-2.5 font-semibold text-[#1a1814]/70">Product</th>
+              <th className="text-left px-5 py-2.5 font-semibold text-[#1a1814]/70">{t('col.product', 'Product')}</th>
               <th className="text-right px-4 py-2.5 font-semibold text-[#1a1814]/70">Qty</th>
               <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">Lot No.</th>
               <th className="text-right px-4 py-2.5 font-semibold text-[#1a1814]/70">Declared Value</th>
-              <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">Notes</th>
+              <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">{t('col.notes', 'Notes')}</th>
             </tr>
           </thead>
           <tbody>

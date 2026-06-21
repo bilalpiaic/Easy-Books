@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import AccountFormModal from "@/components/AccountFormModal"
 import SkeletonRow from "@/components/SkeletonRow"
 import CsvImportButton from "@/components/CsvImportButton"
+import { useTranslation } from "react-i18next"
 
 interface Account {
   id: number
@@ -58,6 +59,8 @@ function buildTree(accounts: Account[]): Account[] {
 }
 
 export default function COAPage() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [search, setSearch] = useState("")
@@ -164,9 +167,7 @@ export default function COAPage() {
             className="border border-[#ede9e2] px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#f6f3ee] transition-colors font-bold text-sm"
             title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => { setEditAccount(null); setModalOpen(true) }}
             className="bg-[#b8943f] text-black font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-[#a38338] transition-colors"
@@ -196,9 +197,9 @@ export default function COAPage() {
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Code</th>
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Account Name</th>
                 <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Type</th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Status</th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Balance</th>
-                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 print:hidden">Actions</th>
+                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.status', 'Status')}</th>
+                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">{t('col.balance', 'Balance')}</th>
+                <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 print:hidden">{t('col.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1a1814]/5">
@@ -281,9 +282,7 @@ export default function COAPage() {
                             </span>
                           )}
                           {isInactive && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-gray-100 text-gray-500">
-                              Inactive
-                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-gray-100 text-gray-500">{t('status.inactive', 'Inactive')}</span>
                           )}
                         </div>
                       </td>

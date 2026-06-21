@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { topByUnitsSold, type InventoryPerfItem } from "@/lib/inventorySummary"
+import { useTranslation } from "react-i18next"
 
 export default function TopProductsWidget() {
+  const { t } = useTranslation()
+
   const [items, setItems] = useState<InventoryPerfItem[] | null>(null)
   const [error, setError] = useState(false)
 

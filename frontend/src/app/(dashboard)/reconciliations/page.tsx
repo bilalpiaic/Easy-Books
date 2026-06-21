@@ -6,6 +6,7 @@ import PrintHeader from '@/components/PrintHeader'
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV, fmtDate } from '@/lib/utils'
+import { useTranslation } from "react-i18next"
 
 interface Reconciliation {
   id: number
@@ -41,6 +42,8 @@ const emptyForm: NewRecForm = {
 }
 
 export default function Reconciliations() {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const [recs, setRecs] = useState<Reconciliation[]>([])
   const [loading, setLoading] = useState(true)
@@ -168,9 +171,7 @@ export default function Reconciliations() {
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
             title="Print"
           >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
             <Plus className="w-4 h-4" />
             New Reconciliation
@@ -191,7 +192,7 @@ export default function Reconciliations() {
 
       <div className="space-y-3">
         {loading ? (
-          <div className="text-center py-12 text-black/40">Loading...</div>
+          <div className="text-center py-12 text-black/40">{t('common.loading', 'Loading...')}</div>
         ) : recs.length === 0 ? (
           <div className="text-center py-12 text-black/40">No reconciliations yet. Create one to verify your cash balance.</div>
         ) : recs.map(rec => (
@@ -252,7 +253,7 @@ export default function Reconciliations() {
               </div>
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">{t('common.cancel', 'Cancel')}</button>
                 <button onClick={handleCreate} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
                   {saving ? 'Creating...' : 'Create'}
                 </button>
@@ -301,7 +302,7 @@ export default function Reconciliations() {
                 {adjOpen && (
                   <div className="mt-3 pt-3 border-t border-amber-200 space-y-3">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-amber-900/70 mb-1">Description</label>
+                      <label className="block text-xs font-bold uppercase tracking-widest text-amber-900/70 mb-1">{t('col.description', 'Description')}</label>
                       <input type="text" value={adjForm.description}
                         onChange={e => setAdjForm(f => ({ ...f, description: e.target.value }))}
                         className="w-full ui-field bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
@@ -342,9 +343,9 @@ export default function Reconciliations() {
                 <thead>
                   <tr className="bg-[#f6f3ee]">
                     <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Date</th>
-                    <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Description</th>
-                    <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Debit</th>
-                    <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Credit</th>
+                    <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">{t('col.description', 'Description')}</th>
+                    <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">{t('col.debit', 'Debit')}</th>
+                    <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">{t('col.credit', 'Credit')}</th>
                     <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">Clear</th>
                   </tr>
                 </thead>

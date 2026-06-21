@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Plus, Upload, CheckCircle2, Clock, FileText, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { downloadCSV, fmtDate } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface BankImport {
   id: number
@@ -29,6 +30,8 @@ const STATUS_TONE: Record<string, string> = {
 }
 
 export default function BankImportsPage() {
+  const { t } = useTranslation()
+
   const [imports, setImports]     = useState<BankImport[]>([])
   const [accounts, setAccounts]   = useState<Record<number, BankAccount>>({})
   const [loading, setLoading]     = useState(true)
@@ -106,7 +109,7 @@ export default function BankImportsPage() {
                 <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">Uploaded</th>
                 <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">Lines</th>
                 <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">Matched</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.status', 'Status')}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>

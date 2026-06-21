@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import { useTranslation } from "react-i18next"
 
 interface Entry {
   account_id: number
@@ -46,6 +47,8 @@ const DOC_HREF: Record<string, (id: number) => string> = {
 }
 
 export default function JvDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
+
   const fmt = useFmt()
   const { id } = use(params)
   const [txn, setTxn]     = useState<Txn | null>(null)
@@ -88,8 +91,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           <Link href={`/journal/${txn.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
-            <Printer className="w-4 h-4" /> Print
-          </Link>
+            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
           {!txn.is_reversed && (
             <button onClick={reverse} disabled={busy}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
@@ -158,10 +160,10 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
         <table className="w-full text-sm">
           <thead className="bg-[#faf6ec]">
             <tr>
-              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Account</th>
+              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.account', 'Account')}</th>
               <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Type</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.debit', 'Debit')}</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.credit', 'Credit')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#ede9e2]">
@@ -190,7 +192,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
 
       {txn.notes && (
         <section className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Notes</h2>
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</h2>
           <p className="text-sm whitespace-pre-wrap">{txn.notes}</p>
         </section>
       )}
