@@ -191,13 +191,13 @@ export default function RecurringPage() {
       <PrintHeader title="Recurring Entries" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-serif font-medium flex items-center gap-2">
+          <h1 className="text-xl sm:text-3xl font-serif font-medium flex items-center gap-2">
             <RefreshCw className="w-7 h-7 text-[#b8943f]" />
             Recurring Entries
           </h1>
           <p className="text-sm text-black/75 mt-1">Scheduled journal entries that post automatically</p>
         </div>
-        <div className="flex items-center gap-3 print:hidden">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"

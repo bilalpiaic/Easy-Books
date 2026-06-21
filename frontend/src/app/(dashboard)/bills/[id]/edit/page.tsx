@@ -37,7 +37,7 @@ export default function EditBillPage({ params }: { params: Promise<{ id: string 
         <Link href={`/bills/${bill.id}`} className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
           <ArrowLeft className="w-4 h-4" /> Bill {bill.number}
         </Link>
-        <h1 className="text-3xl font-serif font-medium">Edit Bill {bill.number}</h1>
+        <h1 className="text-xl sm:text-3xl font-serif font-medium">Edit Bill {bill.number}</h1>
       </div>
       <BillForm
         mode="edit"

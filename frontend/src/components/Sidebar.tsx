@@ -141,7 +141,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   //   wide, content sits next to it.
   // - When open + unpinned: the drawer overlays content with a backdrop.
 
-  const drawerWidth = "w-[220px]"
+  const drawerWidth = "w-[196px]"
 
   return (
     <>

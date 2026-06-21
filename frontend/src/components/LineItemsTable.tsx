@@ -126,8 +126,8 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
   const totalCols = totalDataCols + actionCol
 
   return (
-    <div className="border border-[#ede9e2] rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="border border-[#ede9e2] rounded-xl overflow-x-auto">
+      <table className="w-full text-sm min-w-[640px]">
         <thead className="bg-[#f6f3ee]">
           <tr>
             {hasProducts && (

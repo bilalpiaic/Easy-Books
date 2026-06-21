@@ -18,7 +18,7 @@ export default function NewVendorPage() {
         <Link href="/vendors" className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
           <ArrowLeft className="w-4 h-4" /> Vendors
         </Link>
-        <h1 className="text-3xl font-serif font-medium">Add Vendor</h1>
+        <h1 className="text-xl sm:text-3xl font-serif font-medium">Add Vendor</h1>
         <p className="text-sm text-black/75 mt-1">Create a supplier account</p>
       </div>
       <VendorForm

@@ -91,7 +91,7 @@ export default function GrnPage() {
       </header>
 
       {/* Customer filter */}
-      <div className="flex items-center gap-3 print:hidden">
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
         <select
           value={filterCustomer}
           onChange={e => handleCustomerFilter(e.target.value)}

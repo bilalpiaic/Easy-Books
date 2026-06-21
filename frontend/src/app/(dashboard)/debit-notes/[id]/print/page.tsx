@@ -66,7 +66,7 @@ export default function DebitNotePrintPage({ params }: { params: Promise<{ id: s
 
         <article className="text-[#1a1814]">
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
-            <h1 className="text-2xl font-serif font-semibold">Debit Note {dn.number}</h1>
+            <h1 className="text-lg sm:text-2xl font-serif font-semibold">Debit Note {dn.number}</h1>
             <p className="text-sm text-[#1a1814]/60">Issued {fmtDate(dn.issue_date)} · {dn.status}</p>
           </header>
 

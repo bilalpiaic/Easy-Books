@@ -187,7 +187,7 @@ export default function InventoryPerformancePage() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Inventory Performance</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Inventory Performance</h1>
           <p className="text-[#1a1814]/60">Stock valuation, movement analysis and low-stock alerts</p>
         </div>
         <div className="flex gap-3">

@@ -124,7 +124,7 @@ export default function ProductionOrdersPage() {
       </header>
 
       {/* State filter */}
-      <div className="flex items-center gap-3 print:hidden">
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
         <select
           value={filterState}
           onChange={e => handleStateFilter(e.target.value)}

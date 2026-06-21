@@ -124,7 +124,7 @@ export default function BankAccounts() {
       <PrintHeader title="Bank Accounts" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium">Bank Accounts</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-medium">Bank Accounts</h1>
           <p className="text-sm text-black/75 mt-1">Monitor bank balances and track cash positions</p>
         </div>
         <div className="flex gap-3">

@@ -201,7 +201,7 @@ export default function BalanceSheetPage() {
       <PrintHeader title="Balance Sheet" subtitle={`As of ${fmtDate(asOf)}`} />
       <div className="flex justify-between items-center mb-8 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
           <p className="text-[#1a1814]/60">Financial position as of {fmtDate(asOf)}</p>
         </div>
         <div className="flex items-center gap-2">

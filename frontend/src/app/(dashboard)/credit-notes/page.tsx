@@ -146,7 +146,7 @@ export default function CreditNotesPage() {
       <PrintHeader title="Credit Notes" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Credit Notes</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Credit Notes</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">{total} total</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
@@ -227,7 +227,7 @@ export default function CreditNotesPage() {
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Original Invoice (optional)</label>
                   <select value={form.invoice_id} onChange={e => setForm(f => ({ ...f, invoice_id: e.target.value }))}

@@ -172,7 +172,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
   return (
     <div className="bg-white rounded-2xl border border-[#ede9e2] p-8 max-w-2xl mx-auto">
       <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Code</label>
             <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
@@ -212,7 +212,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
           </div>
         </div>
         {categories.length > 0 && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Category</label>
               <select
@@ -243,7 +243,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
             )}
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Selling Price</label>
             <input type="number" min="0" step="0.01" value={form.default_rate}

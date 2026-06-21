@@ -238,9 +238,9 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-8 max-w-3xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-8 max-w-3xl mx-auto">
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor</label>
             <select value={form.vendor_id}
@@ -257,7 +257,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Bill Date</label>
             <input type="date" value={form.bill_date} onChange={e => setForm(p => ({ ...p, bill_date: e.target.value }))}
@@ -298,7 +298,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Currency</label>
             <select
@@ -391,7 +391,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">AP Account</label>
             <select value={form.ap_account_id} onChange={e => setForm(p => ({ ...p, ap_account_id: e.target.value }))}

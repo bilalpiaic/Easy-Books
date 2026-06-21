@@ -143,7 +143,7 @@ export default function AssetsPage() {
       <PrintHeader title="Fixed Assets" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Fixed Assets</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Fixed Assets</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">{total} assets · IAS 16</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
@@ -282,7 +282,7 @@ export default function AssetsPage() {
                     className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Salvage Value</label>
                   <input type="number" min="0" value={form.salvage_value} onChange={e => setForm(f => ({ ...f, salvage_value: e.target.value }))}

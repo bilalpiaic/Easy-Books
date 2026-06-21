@@ -152,10 +152,10 @@ function BillsContent() {
       <PrintHeader title="Bills" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium">Bills</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-medium">Bills</h1>
           <p className="text-sm text-black/75 mt-1">Vendor bills and purchase liabilities</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => downloadCSV('bills.csv', bills.map(b => ({ Number: b.number, Vendor: b.vendor_name, Date: b.bill_date, Due: b.due_date, Subtotal: b.subtotal, GST: b.gst_amount, Total: b.total, Status: b.status })))}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
@@ -173,7 +173,7 @@ function BillsContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Payable</p>
           <p className="text-2xl font-bold text-orange-600 mt-2">{fmt(payable)}</p>

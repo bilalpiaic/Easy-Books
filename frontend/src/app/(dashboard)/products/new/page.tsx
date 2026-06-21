@@ -18,7 +18,7 @@ export default function NewProductPage() {
         <Link href="/products" className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
           <ArrowLeft className="w-4 h-4" /> Products
         </Link>
-        <h1 className="text-3xl font-serif font-medium">Add Product</h1>
+        <h1 className="text-xl sm:text-3xl font-serif font-medium">Add Product</h1>
         <p className="text-sm text-black/75 mt-1">Add an item to the product catalog</p>
       </div>
       <ProductForm

@@ -88,7 +88,7 @@ export default function POPrintPage({ params }: { params: Promise<{ id: string }
         <article className="text-[#1a1814]">
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4 flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-serif font-semibold">Production Order {po.number}</h1>
+              <h1 className="text-lg sm:text-2xl font-serif font-semibold">Production Order {po.number}</h1>
               <p className="text-sm text-[#1a1814]/60">For customer #{po.customer_id}</p>
             </div>
             <span className={`inline-block border rounded-full px-3 py-1 text-xs font-semibold ${STATE_TONE[po.state] ?? ""}`}>

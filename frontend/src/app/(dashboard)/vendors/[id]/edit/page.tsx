@@ -37,7 +37,7 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
         <Link href="/vendors" className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
           <ArrowLeft className="w-4 h-4" /> Vendors
         </Link>
-        <h1 className="text-3xl font-serif font-medium">Edit {vendor.name}</h1>
+        <h1 className="text-xl sm:text-3xl font-serif font-medium">Edit {vendor.name}</h1>
       </div>
       <VendorForm
         mode="edit"

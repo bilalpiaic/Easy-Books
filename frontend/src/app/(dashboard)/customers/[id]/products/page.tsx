@@ -44,7 +44,7 @@ export default function CustomerProducts({ params }: { params: Promise<{ id: str
           <Download className="w-4 h-4" /> CSV
         </button>
       </div>
-      <h1 className="text-3xl font-serif font-medium">Products Sold</h1>
+      <h1 className="text-xl sm:text-3xl font-serif font-medium">Products Sold</h1>
       <div className="bg-white rounded-xl border border-[#ede9e2] overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">

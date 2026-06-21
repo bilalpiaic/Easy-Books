@@ -59,7 +59,7 @@ export default function BillPayments() {
       <PrintHeader title="Bill Payments" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium">Bill Payments</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-medium">Bill Payments</h1>
           <p className="text-sm text-black/75 mt-1">Record vendor payments and track cash outflows</p>
         </div>
         <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export default function BillPayments() {
 
       <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
         <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Paid (this page)</p>
-        <p className="text-3xl font-bold text-red-600 mt-2">{fmt(filtered.reduce((s, p) => s + p.amount, 0))}</p>
+        <p className="text-xl sm:text-3xl font-bold text-red-600 mt-2">{fmt(filtered.reduce((s, p) => s + p.amount, 0))}</p>
       </div>
 
       <div className="relative">

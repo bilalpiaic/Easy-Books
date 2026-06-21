@@ -144,10 +144,10 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const cashAccounts = accounts.filter(a => a.type === 'Asset')
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-8 max-w-3xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-8 max-w-3xl mx-auto">
       <div className="space-y-4">
         {/* Header fields */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor *</label>
             <select
@@ -166,7 +166,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Amount Paid</label>
             <input type="number" step="0.01" value={form.amount}

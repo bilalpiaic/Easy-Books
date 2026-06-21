@@ -116,7 +116,7 @@ export default function AdvancesPage() {
       <PrintHeader title="Advances" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Advances</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Advances</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">Prepayments received from customers / paid to vendors</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">

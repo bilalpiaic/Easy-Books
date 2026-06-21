@@ -90,7 +90,7 @@ export default function JournalPage() {
       <PrintHeader title="General Journal" subtitle={`Period: ${fmtDate(start)} — ${fmtDate(end)}`} orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">General Journal</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">General Journal</h1>
           <p className="text-[#1a1814]/60">Chronological record of all financial transactions</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">

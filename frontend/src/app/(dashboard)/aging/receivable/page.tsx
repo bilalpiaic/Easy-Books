@@ -67,7 +67,7 @@ export default function ARAgingPage() {
     <div className="max-w-5xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">AR Aging</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">AR Aging</h1>
           <p className="text-[#1a1814]/60">Outstanding receivables by age bucket</p>
         </div>
         <div className="flex items-center gap-2">

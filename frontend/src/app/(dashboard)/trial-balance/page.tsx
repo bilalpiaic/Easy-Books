@@ -68,7 +68,7 @@ export default function TrialBalancePage() {
       <PrintHeader title="Trial Balance" subtitle={`Period: ${start} — ${end}`} />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Trial Balance</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Trial Balance</h1>
           <p className="text-[#1a1814]/60">Debit and credit totals per account</p>
         </div>
         <div className="flex gap-3">

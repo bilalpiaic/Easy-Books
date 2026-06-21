@@ -155,10 +155,10 @@ function InvoicesContent() {
       <PrintHeader title="Invoices" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium">Invoices</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-medium">Invoices</h1>
           <p className="text-sm text-black/75 mt-1">Sales invoices to customers</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => downloadCSV('invoices.csv', invoices.map(i => ({ Number: i.number, Customer: i.customer_name, Date: i.issue_date, Due: i.due_date, Subtotal: i.subtotal, GST: i.gst_amount, Total: i.total, Status: i.status })))}
             className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
@@ -178,7 +178,7 @@ function InvoicesContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Outstanding</p>
           <p className="text-2xl font-bold text-[#b8943f] mt-2">{fmt(outstanding)}</p>

@@ -148,7 +148,7 @@ export default function COAPage() {
       <PrintHeader title="Chart of Accounts" />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Chart of Accounts</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Chart of Accounts</h1>
           <p className="text-[#1a1814]/60">Manage your organisation&apos;s ledger accounts</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

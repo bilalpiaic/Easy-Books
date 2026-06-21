@@ -90,7 +90,7 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
 
           {/* On-screen document title (the PrintHeader handles the printed one) */}
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
-            <h1 className="text-2xl font-serif font-semibold">Invoice {inv.number}</h1>
+            <h1 className="text-lg sm:text-2xl font-serif font-semibold">Invoice {inv.number}</h1>
             <p className="text-sm text-[#1a1814]/60">Issued {fmtDate(inv.issue_date)} · Due {fmtDate(inv.due_date)}</p>
           </header>
 

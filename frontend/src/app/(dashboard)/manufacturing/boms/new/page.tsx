@@ -237,7 +237,7 @@ export default function NewBomPage() {
                     <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                   ))}
                 </select>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-[#1a1814]/60 mb-1 block">Qty / batch</label>
                     <input type="number" min="0.001" step="any" value={line.qty_per_output}

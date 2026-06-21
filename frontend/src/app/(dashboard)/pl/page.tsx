@@ -134,7 +134,7 @@ export default function PnLPage() {
       <PrintHeader title="Income Statement" subtitle={`Period: ${start} — ${end}`} />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Income Statement</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Income Statement</h1>
           <p className="text-[#1a1814]/60">Revenue and expenses for the selected period</p>
         </div>
         <div className="flex items-center gap-2">

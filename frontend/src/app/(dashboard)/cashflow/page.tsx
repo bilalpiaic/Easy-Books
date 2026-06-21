@@ -143,7 +143,7 @@ export default function CashFlow() {
       <PrintHeader title="Cash Flow Statement" subtitle={`Period: ${start} — ${end}`} />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium">Cash Flow Statement</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-medium">Cash Flow Statement</h1>
           <p className="text-sm text-black/75 mt-1">Sources and uses of cash — Indirect Method</p>
         </div>
         <div className="flex items-center gap-2">

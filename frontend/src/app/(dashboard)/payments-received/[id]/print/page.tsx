@@ -68,7 +68,7 @@ export default function ReceiptPrintPage({ params }: { params: Promise<{ id: str
 
         <article className="text-[#1a1814]">
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
-            <h1 className="text-2xl font-serif font-semibold">Receipt #{pay.id}</h1>
+            <h1 className="text-lg sm:text-2xl font-serif font-semibold">Receipt #{pay.id}</h1>
             <p className="text-sm text-[#1a1814]/60">Received on {fmtDate(pay.payment_date)}</p>
           </header>
 
@@ -88,7 +88,7 @@ export default function ReceiptPrintPage({ params }: { params: Promise<{ id: str
 
           <div className="bg-[#faf6ec] border border-[#ede9e2] rounded p-5 mb-6 flex items-end justify-between">
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Amount Received</span>
-            <span className="text-3xl font-bold font-mono text-[#1a1814]">{fmt(pay.amount)}</span>
+            <span className="text-xl sm:text-3xl font-bold font-mono text-[#1a1814]">{fmt(pay.amount)}</span>
           </div>
 
           {pay.allocations.length > 0 ? (

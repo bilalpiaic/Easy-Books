@@ -92,7 +92,7 @@ export default function Customers() {
       <PrintHeader title="Customers" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium">Customers</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-medium">Customers</h1>
           <p className="text-sm text-black/75 mt-1">Manage customers and track credit accounts</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

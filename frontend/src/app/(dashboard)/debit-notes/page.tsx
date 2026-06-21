@@ -115,7 +115,7 @@ export default function DebitNotesPage() {
       <PrintHeader title="Debit Notes" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Debit Notes / Purchase Returns</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Debit Notes / Purchase Returns</h1>
           <p className="text-[#1a1814]/60 text-sm mt-1">{total} total · returns goods to a vendor (IAS 2.11)</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">

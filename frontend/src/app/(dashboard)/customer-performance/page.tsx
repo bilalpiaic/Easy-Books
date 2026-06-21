@@ -145,7 +145,7 @@ export default function CustomerPerformancePage() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">Customer Performance</h1>
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Customer Performance</h1>
           <p className="text-[#1a1814]/60">Revenue, invoicing and payment speed ranked by top customers</p>
         </div>
         <div className="flex gap-3">

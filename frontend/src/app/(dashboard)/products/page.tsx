@@ -147,7 +147,7 @@ function ProductsInner() {
       <PrintHeader title="Products" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium flex items-center gap-2">
+          <h1 className="text-xl sm:text-3xl font-serif font-medium flex items-center gap-2">
             <Package className="w-7 h-7 text-[#b8943f]" /> Products
           </h1>
           <p className="text-sm text-black/75 mt-1">Manage product catalog and track inventory</p>

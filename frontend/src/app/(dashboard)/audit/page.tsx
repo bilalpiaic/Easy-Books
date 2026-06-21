@@ -155,7 +155,7 @@ export default function AuditLogPage() {
       <PrintHeader title="Audit Log" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-serif text-[#1a1814] flex items-center gap-2">
+          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814] flex items-center gap-2">
             <ScrollText className="w-7 h-7 text-[#b8943f]" /> Audit Log
           </h1>
           <p className="text-sm text-black/60 mt-1">Every change made in your organisation, with a link to the affected record.</p>

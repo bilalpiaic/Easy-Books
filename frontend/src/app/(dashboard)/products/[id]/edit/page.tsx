@@ -36,7 +36,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       <div>
         <Link href={`/products/${id}`} className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
           <ArrowLeft className="w-4 h-4" />{t('col.product', 'Product')}</Link>
-        <h1 className="text-3xl font-serif font-medium">Edit {product.name}</h1>
+        <h1 className="text-xl sm:text-3xl font-serif font-medium">Edit {product.name}</h1>
       </div>
       <ProductForm
         mode="edit"

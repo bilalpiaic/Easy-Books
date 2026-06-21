@@ -155,7 +155,7 @@ export default function Reconciliations() {
       <PrintHeader title="Reconciliations" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-serif font-medium">Reconciliations</h1>
+          <h1 className="text-xl sm:text-3xl font-serif font-medium">Reconciliations</h1>
           <p className="text-sm text-black/75 mt-1">Bank reconciliation and cash verification</p>
         </div>
         <div className="flex items-center gap-2">
@@ -182,11 +182,11 @@ export default function Reconciliations() {
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Completed</p>
-          <p className="text-3xl font-bold text-green-600 mt-2">{recs.filter(r => r.status === 'closed').length}</p>
+          <p className="text-xl sm:text-3xl font-bold text-green-600 mt-2">{recs.filter(r => r.status === 'closed').length}</p>
         </div>
         <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
           <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Open</p>
-          <p className="text-3xl font-bold text-blue-600 mt-2">{recs.filter(r => r.status === 'open').length}</p>
+          <p className="text-xl sm:text-3xl font-bold text-blue-600 mt-2">{recs.filter(r => r.status === 'open').length}</p>
         </div>
       </div>
 
