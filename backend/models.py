@@ -1541,6 +1541,77 @@ class ReportDefinition(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+# ── Payroll models ────────────────────────────────────────────────────────────
+
+class Employee(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    employee_code: str
+    name: str
+    department: Optional[str] = None
+    designation: Optional[str] = None
+    join_date: Optional[str] = None          # ISO date string
+    cnic: Optional[str] = None
+    bank_account: Optional[str] = None
+    bank_name: Optional[str] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class SalaryComponent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    name: str
+    code: str                                # e.g. BASIC, HRA, TAX, EOBI
+    component_type: str                      # "earnings" | "deductions" | "statutory"
+    is_taxable: bool = False
+    is_fixed: bool = True                    # fixed amount vs % of basic
+    gl_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    is_active: bool = True
+
+
+class EmployeeSalaryStructure(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(index=True, foreign_key="employee.id")
+    component_id: int = Field(foreign_key="salarycomponent.id")
+    amount: float = 0.0
+    pct_of_basic: Optional[float] = None    # if not is_fixed, compute as pct
+    effective_from: Optional[str] = None
+    effective_to: Optional[str] = None
+
+
+class PayrollRun(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    period_start: str
+    period_end: str
+    pay_date: str
+    status: str = "draft"                   # draft | approved | posted | void
+    notes: Optional[str] = None
+    jv_number: Optional[str] = None
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class PayrollLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    payroll_run_id: int = Field(index=True, foreign_key="payrollrun.id")
+    employee_id: int = Field(foreign_key="employee.id")
+    gross_earnings: float = 0.0
+    total_deductions: float = 0.0
+    net_pay: float = 0.0
+
+
+class PayrollLineDetail(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    payroll_line_id: int = Field(index=True, foreign_key="payrollline.id")
+    component_id: int = Field(foreign_key="salarycomponent.id")
+    amount: float = 0.0
+    is_override: bool = False
+
+
 # Re-export telecom-franchise tables so SQLModel.metadata.create_all() picks
 # them up at boot and existing `from models import X` imports keep working.
 from models_telecom import (  # noqa: E402,F401

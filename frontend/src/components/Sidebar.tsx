@@ -20,6 +20,7 @@ const SECTION_COLORS: Record<string, string> = {
   Banking:       "text-purple-400",
   Reports:       "text-cyan-400",
   System:        "text-white/40",
+  Payroll:       "text-indigo-400",
 }
 
 const HUB_ROUTES: Record<string, string> = {

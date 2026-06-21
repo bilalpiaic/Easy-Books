@@ -80,6 +80,10 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "telecom.commissions":    {"label": "Commissions",             "category": "Telecom"},
     "telecom.franchise":      {"label": "Franchise Admin",         "category": "Telecom"},
     "telecom.devices":        {"label": "Devices (IMEI)",          "category": "Telecom"},
+    # Payroll
+    "employees":              {"label": "Employees",              "category": "Payroll"},
+    "payroll":                {"label": "Payroll Runs",           "category": "Payroll"},
+    "payroll.components":     {"label": "Salary Components",      "category": "Payroll"},
 }
 
 # Role defaults: owner/admin/accountant → edit, viewer → view

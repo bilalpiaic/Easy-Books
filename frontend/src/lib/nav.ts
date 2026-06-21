@@ -7,7 +7,7 @@ import {
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
-  ShieldCheck,
+  ShieldCheck, Briefcase, UserCog, Settings2,
 } from "lucide-react"
 
 export type NavItem = {
@@ -94,9 +94,13 @@ export const NAV: NavItem[] = [
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
+  // Payroll
+  { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll" },
+  { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll" },
+  { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","System"]
+export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","System","Payroll"]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.
