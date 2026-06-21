@@ -1,8 +1,8 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
+import { I18nextProvider } from "react-i18next"
 import { apiFetch } from "@/lib/api"
-import "@/i18n/config"
 import i18n, { type Language, LANGUAGES } from "@/i18n/config"
 
 interface LocaleCtxValue {
@@ -46,7 +46,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   return (
     <LocaleCtx.Provider value={{ language, setLanguage }}>
-      {children}
+      {/* I18nextProvider explicitly wires our i18n instance to all
+          useTranslation() hooks below, ensuring re-renders on changeLanguage */}
+      <I18nextProvider i18n={i18n}>
+        {children}
+      </I18nextProvider>
     </LocaleCtx.Provider>
   )
 }
