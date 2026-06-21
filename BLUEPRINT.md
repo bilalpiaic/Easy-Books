@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-06-20 · **Branch:** `main`
+> **Last updated:** 2026-06-21 · **Branch:** `main`
 
 ---
 
@@ -888,6 +888,7 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 - `Sidebar.tsx` fetches `/api/auth/me` on mount.
 - `NAV` items can carry `forModel: "manufacturing"`. Filtered out unless tenant's business_model matches.
 - `SECTIONS` is filtered to those with at least one visible item — sections with no items disappear.
+- **3-state collapsible** (v2.7): collapsed (icon strip, 196 px wide) / open (labels visible) / pinned (always open); state stored in `localStorage` (`eb.sidebar.pinned`, `eb.sidebar.open`). Hover over the collapsed strip shows a floating tooltip nav panel. Auto-pins at `window.innerWidth >= 1280`. Sidebar section headers link to their hub page.
 
 ### 14.5 Dashboard grid (react-grid-layout)
 - Import as `import ReactGridLayout from 'react-grid-layout/legacy'` — this is the **v2 API** (React 19 compatible, self-typed). Do **not** import from `'react-grid-layout'` (v1 API) and do **not** install `@types/react-grid-layout` (types incompatible with v2, will cause TS errors).
@@ -899,6 +900,50 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 - Text: `#1a1814` (charcoal)
 - Fonts: DM Sans (UI), DM Serif Display (headings)
 - Icons: `lucide-react` only.
+
+### 14.7 Theme System (v2.7)
+
+`src/context/ThemeContext.tsx` — provides `{mode, setMode, color, setColor}` app-wide.
+
+**Display modes (3):** `light` | `dark` | `system` (follows `prefers-color-scheme`). Stored in `localStorage` key `eb.theme`. The header theme icon cycles Light → Dark → System. The `layout.tsx` shell includes an anti-flash inline script that reads `eb.theme` and sets `[data-theme]` on `<html>` before hydration to prevent a flash of wrong color scheme.
+
+**Color themes (5):** `gold` (default) | `emerald` | `sapphire` | `rose` | `slate`. Stored in `localStorage` key `eb.color`. Applied as `[data-color="<name>"]` on `<html>`; Tailwind CSS custom properties per-theme control the accent palette. Color swatches are in **Settings → Appearance**.
+
+**CSS implementation:** `globals.css` uses `[data-theme="dark"]` selectors to invert backgrounds and text; no `dark:` Tailwind prefix is used so the theme applies to both JS-rendered and server-rendered markup consistently.
+
+### 14.8 Internationalisation (v2.7)
+
+`src/i18n/config.ts` — `react-i18next` + `i18next` initialised client-side only (no SSR restructure). `I18nextProvider` wraps the dashboard layout.
+
+`src/context/LocaleContext.tsx` — provides `{locale, setLocale}`. Switching locale calls `i18next.changeLanguage(code)`, updates `localStorage` (`eb.lang`), and PATCHes `app_language` to `/api/settings` so the preference persists server-side.
+
+**Supported languages:**
+
+| Code | Name | Script | Direction |
+|------|------|--------|-----------|
+| `en` | English | Latin | LTR |
+| `ur` | Urdu (اردو) | Noto Nastaliq Urdu | RTL — `<html dir="rtl">` applied automatically |
+| `zh` | Chinese (中文) | Simplified Han | LTR |
+
+**Translation keys:** 314 keys across 10 namespaces — `nav.*`, `section.*`, `common.*`, `status.*`, `dashboard.*`, `hub.*`, `auth.*`, `settings.*`, `col.*`, `page.*`. Translation files live in `src/i18n/locales/{en,ur,zh}/`. 134 pages and components are translated.
+
+**RTL support:** when `locale === "ur"`, the layout sets `document.dir = "rtl"` and loads Noto Nastaliq Urdu from `next/font/google`.
+
+### 14.9 Mobile Responsiveness (v2.7)
+
+All 54 authenticated pages were updated to apply responsive Tailwind breakpoints:
+
+| Element | Before | After |
+|---------|--------|-------|
+| Page titles | `text-3xl` | `text-xl sm:text-3xl` |
+| Stats grids | `grid-cols-3` / `grid-cols-4` | `grid-cols-2 sm:grid-cols-3` / `sm:grid-cols-4` |
+| Aging grids | `grid-cols-2 md:grid-cols-5` | `grid-cols-2 sm:grid-cols-3 md:grid-cols-5` |
+| Form grids | 2–3 col fixed | stack on phones via `sm:grid-cols-2` |
+| Button toolbars | fixed row | `flex-wrap` so buttons wrap on narrow screens |
+| Line-item tables | overflow clips | `overflow-x-auto` + `min-w-[640px]` on the inner table |
+| Sidebar | 220 px | 196 px (more compact) |
+
+61 files updated; 0 TypeScript errors introduced.
 
 ---
 

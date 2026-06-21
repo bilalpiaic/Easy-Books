@@ -139,6 +139,25 @@ cd backend && uv run alembic downgrade -1
 
 ---
 
+## Version Changelog
+
+### v2.7.0 (2026-06-21)
+
+**No database migrations** — this release is entirely frontend. The schema stays at revision `0022_promo_rules`.
+
+| Change | Detail |
+|--------|--------|
+| **Dark Mode + Themes** | 3 display modes (Light / Dark / System) and 5 color themes (Gold / Emerald / Sapphire / Rose / Slate). Theme icon in the header; color swatches in Settings → Appearance. User preference stored in `localStorage` — no migration, no data loss. |
+| **Multi-language support** | English, Urdu (اردو, RTL), and Chinese (中文) via `react-i18next`. Globe icon in the header. Preference stored in `localStorage` and synced to `/api/settings` (`app_language` setting key). |
+| **Mobile responsiveness overhaul** | 61 frontend files updated with responsive Tailwind breakpoints. Sidebar width reduced from 220 px to 196 px. All pages now render correctly on phone-sized screens. |
+| **442+ backend tests** | Test count grew from 404 to 442+ passing; no schema changes. |
+
+**Upgrade path:** standard `./update.sh` / `update.bat` — `git pull` + rebuild frontend. No `alembic upgrade head` step is required for this release (schema unchanged), but the installer runs it anyway as a safety check.
+
+**User preferences** (theme, language) are stored in `localStorage` and survive updates automatically — no data migration is needed and no existing accounting data is affected.
+
+---
+
 ## Verifying a Successful Upgrade
 
 After upgrading, confirm:

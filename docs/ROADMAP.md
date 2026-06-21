@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-20 (against `main` @ commit `63fe569`)._
+_Last reviewed: 2026-06-21 (against `main` @ commit `63fe569`)._
 
 ## Status summary
 
@@ -22,6 +22,14 @@ above. (See "Issue closure" below.)
 ---
 
 ## Shipped history (condensed)
+
+### v2.7.0 — UI/UX release (2026-06-21)
+
+| Feature | Detail |
+|---------|--------|
+| **Dark Mode + Themes** | 3 display modes (Light / Dark / System) × 5 color themes (Gold / Emerald / Sapphire / Rose / Slate); `ThemeContext`; `[data-theme]`/`[data-color]` CSS; anti-flash script in `layout.tsx`; `localStorage` persistence (`eb.theme`, `eb.color`); theme icon in header; color swatches in Settings → Appearance |
+| **Multi-language support** | English, Urdu (RTL Nastaliq), Chinese; `LocaleContext` + `react-i18next`; 314 keys across 10 namespaces; 134 pages/components translated; globe icon in header; `eb.lang` localStorage + `/api/settings` `app_language` sync; RTL layout auto-applied; Noto Nastaliq Urdu font via `next/font/google` |
+| **Mobile responsiveness** | Sidebar 220 → 196 px; `text-xl sm:text-3xl` titles on all 54 pages; `grid-cols-2 sm:grid-cols-3/4` stats grids; `flex-wrap` button toolbars; `overflow-x-auto` line-item tables; responsive form grids; 61 files updated, 0 TS errors |
 
 v2.1.0 → v2.6.0 + post-v2.6.0:
 - **Reporting & GL:** #43 (financial/inventory/sales reports), #45 (consolidated/sub-ledger GL), #44 (voucher series P1+P2), hierarchical TB/BS/P&L (#53 P2), report-builder, audit log.

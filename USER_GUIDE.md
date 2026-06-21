@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-20 · **Version:** 2.7
+**Last updated:** 2026-06-21 · **Version:** 2.7.0
 
 ---
 
@@ -34,6 +34,7 @@
 22. [Section Hub Pages](#22-section-hub-pages)
 23. [3-Mode Voucher Entry](#23-3-mode-voucher-entry)
 24. [Printing & Report Formats](#24-printing--report-formats)
+25. [UI Preferences — Theme, Language & Layout](#25-ui-preferences--theme-language--layout)
 
 ---
 
@@ -1134,3 +1135,59 @@ All dates are displayed as **`dd-mm-yy`** (e.g. `20-06-26` for 20 June 2026) acr
 
 JV numbers carry their type as a prefix (e.g. `CP-2026-001` = Cash Payment, `SL-2026-042` = Sales Invoice). There are no separate "type" badge labels in report tables — the prefix is the type indicator.
 - `GET /api/permissions/resources` — full list of 60 protected resource keys.
+
+---
+
+## 25. UI PREFERENCES — THEME, LANGUAGE & LAYOUT
+
+### 25.1 Dark Mode
+
+Easy-Books supports three display modes that you can cycle through by clicking the **theme icon** (sun/moon) in the top-right header:
+
+| Mode | Behaviour |
+|------|-----------|
+| **Light** | Always light background regardless of OS setting |
+| **Dark** | Always dark background and inverted text colours |
+| **System** | Follows your operating system's light/dark preference automatically |
+
+The active mode is stored in your browser (`localStorage` key `eb.theme`) and remembered across sessions. It applies per-browser — other users in the same tenant are not affected.
+
+### 25.2 Color Themes
+
+Five color themes are available under **Settings → Appearance**:
+
+| Theme | Accent color |
+|-------|-------------|
+| **Gold** (default) | `#b8943f` — the classic Easy-Books gold palette |
+| **Emerald** | Green accent |
+| **Sapphire** | Blue accent |
+| **Rose** | Pink/red accent |
+| **Slate** | Neutral grey accent |
+
+Click a color swatch in the Appearance card to switch instantly. The preference is stored in `localStorage` (`eb.color`) and persists across sessions. It is per-browser and does not affect other users.
+
+### 25.3 Language
+
+Click the **globe icon** in the top-right header to open the language dropdown:
+
+| Language | Script | Direction |
+|----------|--------|-----------|
+| **English** | Latin | LTR |
+| **Urdu** (اردو) | Nastaliq | RTL — the entire layout mirrors right-to-left automatically |
+| **Chinese** (中文) | Simplified Han | LTR |
+
+Switching language re-renders all 134 translated pages and components immediately — no page reload required. The preference is saved in `localStorage` (`eb.lang`) and synced to your account settings (`app_language`) so it persists when you log in from a different browser.
+
+**Coverage:** 314 translation keys across 10 namespaces: navigation labels, section titles, common action buttons (Save / Cancel / Print / Export CSV), status badges (Draft / Posted / Paid / Partial / Overdue), table column headers, page titles, dashboard KPI labels, hub page text, auth screens, and all settings labels.
+
+**RTL note:** When Urdu is selected, the sidebar appears on the right, page padding mirrors, and the Noto Nastaliq Urdu font is loaded automatically for correct Nastaliq calligraphy rendering.
+
+### 25.4 Mobile Layout
+
+All pages are fully usable on phone-sized screens. Key adaptations:
+- **Page titles** scale down on small screens (`text-xl` on phones, `text-3xl` on desktop).
+- **Stats grids** stack 2-per-row on phones rather than showing 3 or 4 columns side-by-side.
+- **Form grids** collapse to single-column on narrow screens (invoice form, bill form, payment forms, product form).
+- **Button toolbars** wrap so Export / Print / New buttons don't overflow.
+- **Line-item tables** gain horizontal scroll (`overflow-x-auto`) so you can swipe to see all columns.
+- **Sidebar** collapses to icon-strip by default on narrow screens; tap to expand.

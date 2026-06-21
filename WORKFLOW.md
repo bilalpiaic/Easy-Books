@@ -55,13 +55,42 @@
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
 | Demo tenants | 5 pre-seeded: simple/services/trader/manufacturing/telecom_franchise (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
-| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+) |
+| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
 | Storage | SQLite (dev) → Postgres (prod) via SQLModel; **Alembic** migrations are the schema source of truth (`create_all()` still bootstraps a fresh dev DB; installers run `alembic upgrade head` on launch) |
 | Reports | Live from `JournalEntry`; closed periods read materialised `AccountBalance` (**ISA 230** audit documentation) |
 | API surface | 80+ endpoints, mounted twice at `/api/*` and `/api/v1/*` |
+
+---
+
+## 1.1 UI SYSTEM — DEVELOPER REFERENCE (v2.7)
+
+### Theme system
+
+`ThemeContext` (`src/context/ThemeContext.tsx`) manages display mode and color theme globally.
+
+- **Modes:** `light` | `dark` | `system`. Stored in `localStorage` key `eb.theme`. Applied as `[data-theme]` on `<html>`. An inline anti-flash script in `layout.tsx` sets this attribute before hydration so there is no visible flash.
+- **Colors:** `gold` (default) | `emerald` | `sapphire` | `rose` | `slate`. Stored in `localStorage` key `eb.color`. Applied as `[data-color]` on `<html>`. CSS custom properties in `globals.css` provide per-theme accent variables.
+- When adding a new component: use Tailwind classes that respect the `[data-theme]` and `[data-color]` selectors; do not hard-code hex colors for interactive or accent elements.
+
+### Internationalisation (i18n)
+
+`LocaleContext` (`src/context/LocaleContext.tsx`) wraps `react-i18next`. Translation files are in `src/i18n/locales/{en,ur,zh}/`.
+
+- **Adding a translated string:** add the key to all three locale JSON files; use `const { t } = useTranslation('namespace')` in the component.
+- **RTL:** `locale === "ur"` sets `document.dir = "rtl"` automatically — no manual RTL CSS is needed in new components as long as they use logical CSS properties or standard Tailwind classes.
+- **Namespaces:** `nav`, `section`, `common`, `status`, `dashboard`, `hub`, `auth`, `settings`, `col`, `page`.
+- The globe icon in the header (`components/Header.tsx`) opens the language picker; preference is saved to both `localStorage` and `/api/settings` (`app_language`).
+
+### Mobile layout rules
+
+- Use `text-xl sm:text-3xl` for page `<h1>` titles.
+- Use `grid-cols-2 sm:grid-cols-3` (or `sm:grid-cols-4`) for stats grids — never bare `grid-cols-3` or `grid-cols-4`.
+- Add `flex-wrap` to all button toolbars.
+- Wrap line-item tables in `<div className="overflow-x-auto">` and set `min-w-[640px]` on the inner `<table>`.
+- Form grids: use `grid-cols-1 sm:grid-cols-2` (or `sm:grid-cols-3`) so fields stack on phones.
 
 ---
 
