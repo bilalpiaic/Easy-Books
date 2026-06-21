@@ -112,8 +112,8 @@ class RunLinesUpdate(BaseModel):
 
 def _find_salary_expense_account(session: Session, tenant_id: int) -> Optional[Account]:
     """Find best-match salary expense account for the tenant."""
-    # Try code 5100 first (common payroll expense code)
-    for code in ("5100", "5200", "51", "5"):
+    # 5100 = Salary Expense in _COA_COMMON (seeded for every tenant)
+    for code in ("5100", "5200", "5000"):
         acct = session.exec(
             select(Account).where(
                 Account.tenant_id == tenant_id,
@@ -137,7 +137,8 @@ def _find_salary_expense_account(session: Session, tenant_id: int) -> Optional[A
 
 def _find_salaries_payable_account(session: Session, tenant_id: int) -> Optional[Account]:
     """Find best-match salaries payable liability account for the tenant."""
-    for code in ("2200", "2100", "21"):
+    # 2250 = Salaries Payable in _COA_COMMON (seeded for every tenant)
+    for code in ("2250", "2000"):
         acct = session.exec(
             select(Account).where(
                 Account.tenant_id == tenant_id,

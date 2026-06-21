@@ -2467,21 +2467,16 @@ def _seed_payroll_runs(
             jv_seq_start += 1
             continue
 
-        # Most recent = approved; two before = posted
+        # Most recent month = approved; two older months = posted with real GL entries
         is_most_recent = (month_offset == 1)
-        status = "approved" if is_most_recent else "posted"
-
-        year = period_start_dt.year
-        jv_number = f"PR-{year}-{jv_seq_start:04d}"
-        jv_seq_start += 1
 
         run = PayrollRun(
             tenant_id=tenant_id,
             period_start=period_start,
             period_end=period_end,
             pay_date=period_end,
-            status=status,
-            jv_number=jv_number,
+            status="approved",
+            jv_number=None,
             transaction_id=None,
             created_by_id=user.id,
         )
@@ -2542,6 +2537,54 @@ def _seed_payroll_runs(
                     amount=float(amount),
                     is_override=False,
                 ))
+
+        s.flush()
+
+        # Post real GL entry for older (non-most-recent) runs
+        if not is_most_recent:
+            all_lines = s.exec(
+                select(PayrollLine).where(PayrollLine.payroll_run_id == run.id)
+            ).all()
+            total_gross = sum(l.gross_earnings for l in all_lines)
+            total_net   = sum(l.net_pay for l in all_lines)
+            total_ded   = sum(l.total_deductions for l in all_lines)
+
+            expense_acct = s.exec(
+                select(Account).where(Account.tenant_id == tenant_id, Account.code == "5100")
+            ).first()
+            payable_acct = s.exec(
+                select(Account).where(Account.tenant_id == tenant_id, Account.code == "2250")
+            ).first()
+
+            if expense_acct and payable_acct and total_gross > 0:
+                entries: list[EntryInput] = [
+                    EntryInput(account_id=expense_acct.id, debit=float(total_gross), credit=0.0),
+                    EntryInput(account_id=payable_acct.id, debit=0.0, credit=float(total_net)),
+                ]
+                if total_ded > 0:
+                    entries.append(
+                        EntryInput(account_id=payable_acct.id, debit=0.0, credit=float(total_ded))
+                    )
+                dr_sum = sum(e.debit for e in entries)
+                cr_sum = sum(e.credit for e in entries)
+                if abs(dr_sum - cr_sum) > 0.005:
+                    diff = dr_sum - cr_sum
+                    if diff > 0:
+                        entries.append(EntryInput(account_id=payable_acct.id, debit=0.0, credit=diff))
+                    else:
+                        entries.append(EntryInput(account_id=expense_acct.id, debit=-diff, credit=0.0))
+                txn = post_transaction(
+                    s, user,
+                    date=period_end,
+                    description=f"Payroll — {period_start} to {period_end}",
+                    voucher_type="JV",
+                    entries=entries,
+                    audit_detail={"payroll_run_id": run.id},
+                )
+                run.transaction_id = txn.id
+                run.jv_number = txn.jv_number
+                run.status = "posted"
+                s.add(run)
 
         runs.append(run)
     return runs

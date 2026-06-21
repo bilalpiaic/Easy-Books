@@ -210,6 +210,7 @@ _COA_COMMON: list[tuple[str, str, str, bool, str]] = [
     ("1260", "Advances to Vendors",     "Asset",     False, "11"),
     ("2000", "Accounts Payable",        "Liability", False, "21"),
     ("2200", "GST Payable (Output)",    "Liability", False, "21"),
+    ("2250", "Salaries Payable",        "Liability", False, "21"),
     ("2310", "Customer Advances",       "Liability", False, "21"),
     ("3000", "Owner Capital",           "Equity",    False, "3"),
     ("3010", "Drawings",                "Equity",    False, "3"),
@@ -219,6 +220,7 @@ _COA_COMMON: list[tuple[str, str, str, bool, str]] = [
     ("4901", "Unrealised FX Gain/Loss", "Revenue",   False, "49"),
     ("5000", "General Expenses",        "Expense",   False, "52"),
     ("5050", "Depreciation Expense",    "Expense",   False, "52"),
+    ("5100", "Salary Expense",          "Expense",   False, "52"),
     ("5900", "Other Expenses",          "Expense",   False, "59"),
 ]
 
