@@ -22,6 +22,8 @@ export interface ResolvedLayouts {
 export interface GridLayoutV3 {
   version: 3
   layouts: ResolvedLayouts
+  /** IDs explicitly removed by the user — skipped during additive default-widget injection. */
+  dismissed?: string[]
 }
 
 // Phase-1 shapes (for migration only)
@@ -112,6 +114,21 @@ function validateBreakpoint(
   return out
 }
 
+/**
+ * Inject any default-on-grid widgets missing from an existing layout.
+ * Skips widgets the user has explicitly dismissed via removeWidget.
+ */
+function injectMissingDefaults(lg: GridItem[], dismissed: Set<string>): GridItem[] {
+  const present = new Set(lg.map(i => i.id))
+  const missing = gridDefs.filter(
+    d => d.defaultOnGrid !== false && !present.has(d.id) && !dismissed.has(d.id),
+  )
+  if (missing.length === 0) return lg
+  const baseY = lg.reduce((m, i) => Math.max(m, i.y + i.h), 0)
+  const packed = packItems(missing.map(d => ({ id: d.id, w: d.defaultSize.w, h: d.defaultSize.h })))
+  return [...lg, ...packed.map(i => ({ ...i, y: i.y + baseY }))]
+}
+
 /** Resolve a saved blob (null | v1 | v2 | v3) into validated layouts by breakpoint. */
 export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
   if (!saved || typeof saved !== "object") return { lg: defaultGrid() }
@@ -124,15 +141,17 @@ export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
     const KPI_H1_IDS = new Set(["primary_kpis", "secondary_kpis", "quick_actions", "alerts"])
     const clampKpi = (items: GridItem[]): GridItem[] =>
       items.map(i => KPI_H1_IDS.has(i.id) && i.h > 1 ? { ...i, h: 1 } : i)
-    const lg = validateV2(clampKpi(s.layouts.lg), meta)
-    if (lg.length === 0) return { lg: defaultGrid() }
+    const dismissed = new Set<string>(Array.isArray(s.dismissed) ? s.dismissed : [])
+    const validated = validateV2(clampKpi(s.layouts.lg), meta)
+    if (validated.length === 0) return { lg: defaultGrid() }
+    const lg = injectMissingDefaults(validated, dismissed)
     const lgIds = new Set(lg.map(i => i.id))
     const result: ResolvedLayouts = { lg }
     for (const bp of ["sm", "xs"] as const) {
       const raw = s.layouts[bp]
       if (!Array.isArray(raw)) continue
-      const validated = validateBreakpoint(clampKpi(raw), meta, lgIds, BP_COLS[bp])
-      if (validated.length > 0) result[bp] = validated
+      const bpValidated = validateBreakpoint(clampKpi(raw), meta, lgIds, BP_COLS[bp])
+      if (bpValidated.length > 0) result[bp] = bpValidated
     }
     return result
   }
@@ -162,6 +181,7 @@ export interface UseDashboardLayout {
 
 export function useDashboardLayout(): UseDashboardLayout {
   const [layouts, setLayouts] = useState<ResolvedLayouts>(() => ({ lg: defaultGrid() }))
+  const [dismissed, setDismissed] = useState<string[]>([])
   const [saved, setSaved] = useState<SavedAny>(null)
   const [meta, setMeta] = useState<Meta>({ model: undefined, role: getCurrentUser()?.role ?? "viewer" })
   const [loading, setLoading] = useState(true)
@@ -174,6 +194,10 @@ export function useDashboardLayout(): UseDashboardLayout {
       const m: Meta = { model: me?.tenant?.business_model, role: me?.role ?? getCurrentUser()?.role ?? "viewer" }
       setMeta(m)
       setSaved(lay.layout)
+      const savedDismissed: string[] = Array.isArray((lay.layout as GridLayoutV3)?.dismissed)
+        ? (lay.layout as GridLayoutV3).dismissed!
+        : []
+      setDismissed(savedDismissed)
       setLayouts(resolveLayout(lay.layout, m))
     }).finally(() => setLoading(false))
   }, [])
@@ -205,38 +229,47 @@ export function useDashboardLayout(): UseDashboardLayout {
     })
   }
 
-  const addWidget = (id: string) => setLayouts(prev => {
-    if (prev.lg.some(i => i.id === id)) return prev
-    const def = registryById.get(id)
-    const size = def ? def.defaultSize : { w: 1, h: 1 }
-    const newLg: GridItem[] = [
-      ...prev.lg,
-      { id, x: 0, y: prev.lg.reduce((m, i) => Math.max(m, i.y + i.h), 0), w: size.w, h: size.h }
-    ]
-    const next: ResolvedLayouts = { lg: newLg }
-    for (const bp of ["sm", "xs"] as const) {
-      if (!prev[bp]) continue
-      const cols = BP_COLS[bp]
-      const w = Math.min(size.w, cols)
-      const y = prev[bp]!.reduce((m, i) => Math.max(m, i.y + i.h), 0)
-      next[bp] = [...prev[bp]!, { id, x: 0, y, w, h: size.h }]
-    }
-    return next
-  })
+  const addWidget = (id: string) => {
+    setDismissed(prev => prev.filter(d => d !== id))
+    setLayouts(prev => {
+      if (prev.lg.some(i => i.id === id)) return prev
+      const def = registryById.get(id)
+      const size = def ? def.defaultSize : { w: 1, h: 1 }
+      const newLg: GridItem[] = [
+        ...prev.lg,
+        { id, x: 0, y: prev.lg.reduce((m, i) => Math.max(m, i.y + i.h), 0), w: size.w, h: size.h }
+      ]
+      const next: ResolvedLayouts = { lg: newLg }
+      for (const bp of ["sm", "xs"] as const) {
+        if (!prev[bp]) continue
+        const cols = BP_COLS[bp]
+        const w = Math.min(size.w, cols)
+        const y = prev[bp]!.reduce((m, i) => Math.max(m, i.y + i.h), 0)
+        next[bp] = [...prev[bp]!, { id, x: 0, y, w, h: size.h }]
+      }
+      return next
+    })
+  }
 
-  const removeWidget = (id: string) => setLayouts(prev => {
-    const next: ResolvedLayouts = { lg: prev.lg.filter(i => i.id !== id) }
-    for (const bp of ["sm", "xs"] as const) {
-      if (prev[bp]) next[bp] = prev[bp]!.filter(i => i.id !== id)
-    }
-    return next
-  })
+  const removeWidget = (id: string) => {
+    setDismissed(prev => prev.includes(id) ? prev : [...prev, id])
+    setLayouts(prev => {
+      const next: ResolvedLayouts = { lg: prev.lg.filter(i => i.id !== id) }
+      for (const bp of ["sm", "xs"] as const) {
+        if (prev[bp]) next[bp] = prev[bp]!.filter(i => i.id !== id)
+      }
+      return next
+    })
+  }
 
-  const reset = () => setLayouts({ lg: defaultGrid() })
+  const reset = () => {
+    setDismissed([])
+    setLayouts({ lg: defaultGrid() })
+  }
   const reload = () => setLayouts(resolveLayout(saved, meta))
 
   const save = async () => {
-    const payload: GridLayoutV3 = { version: 3, layouts }
+    const payload: GridLayoutV3 = { version: 3, layouts, dismissed }
     await apiFetch("/api/dashboard/layout", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

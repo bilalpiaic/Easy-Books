@@ -412,7 +412,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     render: () => <InventorySummaryWidget />,
   },
   {
-    id: "hrm_summary", title: "HRM & Payroll", defaultVisible: true, defaultOnGrid: false,
+    id: "hrm_summary", title: "HRM & Payroll", defaultVisible: true,
     defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
     render: () => <HRMSummaryWidget />,
   },
