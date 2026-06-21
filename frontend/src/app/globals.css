@@ -710,3 +710,33 @@ body {
 [data-color="slate"][data-theme="dark"] { --c-accent: #94a3b8; --c-accent-dk: #64748b; }
 [data-color="slate"][data-theme="dark"] .bg-\[\#b8943f\]   { background-color: #94a3b8 !important; }
 [data-color="slate"][data-theme="dark"] .text-\[\#b8943f\] { color: #94a3b8 !important; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK MODE — text-black / text-slate-800 inversions
+   These classes use Tailwind's standard black token (not our brand
+   charcoal #1a1814) and were missed in the first dark-mode block.
+   ─────────────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] .text-black         { color: #f0ece4 !important; }
+[data-theme="dark"] .text-black\/10     { color: rgb(240 236 228 / 0.10) !important; }
+[data-theme="dark"] .text-black\/20     { color: rgb(240 236 228 / 0.20) !important; }
+[data-theme="dark"] .text-black\/25     { color: rgb(240 236 228 / 0.25) !important; }
+[data-theme="dark"] .text-black\/30     { color: rgb(240 236 228 / 0.30) !important; }
+[data-theme="dark"] .text-black\/40     { color: rgb(240 236 228 / 0.40) !important; }
+[data-theme="dark"] .text-black\/45     { color: rgb(240 236 228 / 0.45) !important; }
+[data-theme="dark"] .text-black\/50     { color: rgb(240 236 228 / 0.50) !important; }
+[data-theme="dark"] .text-black\/55     { color: rgb(240 236 228 / 0.55) !important; }
+[data-theme="dark"] .text-black\/60     { color: rgb(240 236 228 / 0.60) !important; }
+[data-theme="dark"] .text-black\/65     { color: rgb(240 236 228 / 0.65) !important; }
+[data-theme="dark"] .text-black\/70     { color: rgb(240 236 228 / 0.70) !important; }
+[data-theme="dark"] .text-black\/75     { color: rgb(240 236 228 / 0.75) !important; }
+[data-theme="dark"] .text-black\/80     { color: rgb(240 236 228 / 0.80) !important; }
+[data-theme="dark"] .text-black\/85     { color: rgb(240 236 228 / 0.85) !important; }
+[data-theme="dark"] .text-black\/90     { color: rgb(240 236 228 / 0.90) !important; }
+[data-theme="dark"] .hover\:text-black:hover { color: #f0ece4 !important; }
+
+/* Slate-800 dark text */
+[data-theme="dark"] .text-slate-800     { color: #cbd5e1 !important; }
+
+/* border-black → dark border in dark mode */
+[data-theme="dark"] .border-black       { border-color: #5a5248 !important; }
