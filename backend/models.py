@@ -1612,6 +1612,22 @@ class PayrollLineDetail(SQLModel, table=True):
     is_override: bool = False
 
 
+class AttendanceRecord(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    employee_id: int = Field(index=True, foreign_key="employee.id")
+    date: str                               # ISO date "YYYY-MM-DD"
+    time_in: Optional[str] = None          # "HH:MM" 24h
+    time_out: Optional[str] = None         # "HH:MM" 24h
+    hours_worked: Optional[float] = None   # computed on save
+    status: str = "present"                # present|absent|half_day|leave|holiday|off
+    notes: Optional[str] = None
+    source: str = "manual"                 # manual|biometric
+    raw_data: Optional[str] = None         # JSON string — future biometric payload
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
 # Re-export telecom-franchise tables so SQLModel.metadata.create_all() picks
 # them up at boot and existing `from models import X` imports keep working.
 from models_telecom import (  # noqa: E402,F401

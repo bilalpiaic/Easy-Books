@@ -84,6 +84,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "employees":              {"label": "Employees",              "category": "Payroll"},
     "payroll":                {"label": "Payroll Runs",           "category": "Payroll"},
     "payroll.components":     {"label": "Salary Components",      "category": "Payroll"},
+    "attendance":             {"label": "Attendance Register",    "category": "Payroll"},
 }
 
 # Role defaults: owner/admin/accountant → edit, viewer → view

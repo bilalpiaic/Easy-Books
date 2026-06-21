@@ -107,6 +107,12 @@ export const TITLE_MAP: Record<string, string> = {
   "/employees":                    "Employees",
   "/employees/new":                "New Employee",
   "/employees/":                   "Edit Employee",
+  // Attendance
+  "/attendance":                   "Attendance Register",
+  "/attendance/record":            "Attendance Record",
+  "/attendance/bulk":              "Bulk Attendance Entry",
+  "/attendance/report":            "Attendance Report",
+  "/attendance/import":            "Biometric Import",
 }
 
 /**
