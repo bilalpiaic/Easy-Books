@@ -8,6 +8,7 @@ import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
 import { NAV, ALL_SECTIONS } from "@/lib/nav"
 import { useTranslation } from "react-i18next"
+import { usePRAPortal } from "@/hooks/usePRAPortal"
 
 const SECTION_COLORS: Record<string, string> = {
   Overview:      "text-[#ffd966]",
@@ -119,9 +120,19 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   }, [pathname])
 
   const isAdmin = role === "admin" || role === "owner"
-  const visibleNav = NAV.filter(i =>
-    (!i.forModel || i.forModel === businessModel) && (!i.adminOnly || isAdmin)
-  )
+  const { isPortal } = usePRAPortal()
+
+  const PRA_PORTAL_HREFS = new Set([
+    "/invoices", "/customers", "/products", "/credit-notes",
+    "/customer-performance", "/pra-logs", "/settings",
+  ])
+
+  const visibleNav = NAV.filter(i => {
+    if (i.forModel && i.forModel !== businessModel) return false
+    if (i.adminOnly && !isAdmin) return false
+    if (isPortal) return PRA_PORTAL_HREFS.has(i.href)
+    return true
+  })
   const SECTIONS = ALL_SECTIONS.filter(s => visibleNav.some(i => i.section === s))
 
   const logout = () => {
@@ -180,7 +191,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
         {/* Header row inside drawer */}
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/10 shrink-0">
           <button
-            onClick={() => { router.push("/dashboard"); if (!pinned) onClose() }}
+            onClick={() => { router.push(isPortal ? "/invoices" : "/dashboard"); if (!pinned) onClose() }}
             className="w-8 h-8 bg-[#b8943f] rounded-lg flex items-center justify-center font-serif text-black font-bold text-sm hover:bg-[#d4af60] transition-colors"
             title={orgName}
           >
