@@ -54,7 +54,7 @@
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
-| Demo tenants | 5 pre-seeded: simple/services/trader/manufacturing/telecom_franchise (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
+| Demo tenants | 6 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
@@ -303,11 +303,11 @@ Easy-Books implements the following international accounting standards and best 
 
 ### Demo Tenant Initialization
 
-**Both standalone script installs** (`install-and-run.*`) **and the desktop (Electron) app auto-load the 5 demo companies on first install** (`SEED_DEMO=true` default). Both run `scripts.autoseed_demo` after `alembic upgrade head`; the guard skips if any user already exists, so **updating an existing install is migrate-only — no demo data is added**. Set `SEED_DEMO=false` for a clean install with no demo data. Log in immediately with `demo1234` — no signup required.
+**Both standalone script installs** (`install-and-run.*`) **and the desktop (Electron) app auto-load the 6 demo companies on first install** (`SEED_DEMO=true` default). Both run `scripts.autoseed_demo` after `alembic upgrade head`; the guard skips if any user already exists, so **updating an existing install is migrate-only — no demo data is added**. Set `SEED_DEMO=false` for a clean install with no demo data. Log in immediately with `demo1234` — no signup required.
 
 **Settings → Sample / Demo Data** lets you **Load** or **Remove** the demo companies at any time on any install type. (Admin/owner only.)
 
-**Dev / cloud installs** (`dev.sh` / hosted): Easy-Books auto-creates 5 pre-seeded demo tenants (one per business model) on first database run. `dev.sh` also seeds each with 50+ records per entity type:
+**Dev / cloud installs** (`dev.sh` / hosted): Easy-Books auto-creates 6 pre-seeded demo tenants (one per business model) on first database run. `dev.sh` also seeds each with 50+ records per entity type:
 
 | Tenant | Email | Model | Use Case |
 |---|---|---|---|
@@ -315,6 +315,8 @@ Easy-Books implements the following international accounting standards and best 
 | Demo Services Ltd. | `demo.services@easy-books.app` | Services | Agencies & consultancies (recurring revenue) |
 | Demo Trading Co. | `demo.trader@easy-books.app` | Trader | Buy-and-resell (inventory + COGS) |
 | Demo Mfg Co. | `demo.manufacturing@easy-books.app` | Manufacturing | Value-addition (BoMs, GRN, PO lifecycle) |
+| Demo Telecom Co. | `demo.telecom@easy-books.app` | Telecom Franchise | Operator franchise — Tracker, RSO chain, FCA targets |
+| Demo PRA Co. | `demo.pra@easy-books.app` | PRA e-Invoice | Pakistani retail — PRA eIMS, PKR, NTN/CNIC, PCT codes |
 
 **Password (all):** `demo1234`
 
