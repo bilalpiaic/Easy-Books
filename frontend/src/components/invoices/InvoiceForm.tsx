@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt, useSettings } from '@/context/SettingsContext'
+import { usePRAPortal } from '@/hooks/usePRAPortal'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 
 const CURRENCIES = [
@@ -32,10 +33,12 @@ export interface InvoiceFull {
   exchange_rate: number
   assigned_to_id: number | null
   payment_mode: number | null
+  buyer_ntn?: string | null
+  buyer_cnic?: string | null
   lines: (LineItem & { tax_code_id?: number | null })[]
 }
 
-interface Customer { id: number; name: string }
+interface Customer { id: number; name: string; ntn?: string | null; cnic?: string | null }
 interface StaffUser { id: number; name: string; email: string }
 interface Account { id: number; code: string; name: string; type: string }
 interface AnalyticAccount { id: number; code: string; name: string; type: string }
@@ -59,6 +62,8 @@ interface FormState {
   exchange_rate: string
   assigned_to_id: string
   payment_mode: string   // PRA: 1=Cash 2=Card 3=Gift Voucher 4=Loyalty 5=Mixed 6=Cheque
+  buyer_ntn: string
+  buyer_cnic: string
 }
 
 const emptyForm: FormState = {
@@ -67,6 +72,7 @@ const emptyForm: FormState = {
   ar_account_id: '', revenue_account_id: '', analytic_account_id: '',
   currency: 'PKR', exchange_rate: '1',
   assigned_to_id: '', payment_mode: '1',
+  buyer_ntn: '', buyer_cnic: '',
 }
 
 interface Props {
@@ -79,6 +85,7 @@ interface Props {
 
 export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved, onCancel }: Props) {
   const fmt = useFmt()
+  const { isPortal } = usePRAPortal()
   const { settings } = useSettings()
   const [form, setForm] = useState<FormState>(emptyForm)
   const [lines, setLines] = useState<LineItem[]>([])
@@ -105,6 +112,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
     if (mode === 'create' && !currencyTouched.current) {
       setForm(f => ({ ...f, currency: settings.currency }))
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.currency])
 
   useEffect(() => {
@@ -126,6 +134,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         if (cust) setForm(f => ({ ...f, customer_id: String(cust.id), customer_name: cust.name }))
       }
     }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -147,6 +156,8 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         exchange_rate: String(invoice.exchange_rate ?? 1),
         assigned_to_id: invoice.assigned_to_id ? String(invoice.assigned_to_id) : '',
         payment_mode: invoice.payment_mode ? String(invoice.payment_mode) : '1',
+        buyer_ntn: invoice.buyer_ntn ?? '',
+        buyer_cnic: invoice.buyer_cnic ?? '',
       })
       setLines((invoice.lines ?? []).map(l => ({
         product_id: l.product_id ?? undefined,
@@ -295,6 +306,8 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
       assigned_to_id: form.assigned_to_id ? parseInt(form.assigned_to_id) : null,
       payment_mode: form.payment_mode ? parseInt(form.payment_mode) : null,
+      buyer_ntn: form.buyer_ntn || null,
+      buyer_cnic: form.buyer_cnic || null,
     }
     try {
       if (mode === 'edit' && invoice) {
@@ -324,7 +337,13 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             <select value={form.customer_id}
               onChange={e => {
                 const c = customers.find(c => c.id === parseInt(e.target.value))
-                setForm(p => ({ ...p, customer_id: e.target.value, customer_name: c?.name ?? '' }))
+                setForm(p => ({
+                  ...p,
+                  customer_id: e.target.value,
+                  customer_name: c?.name ?? '',
+                  buyer_ntn: c?.ntn ?? '',
+                  buyer_cnic: c?.cnic ?? '',
+                }))
                 setCustomerBalance(null)
                 if (e.target.value) {
                   apiFetch<{ closing_balance?: number; balance?: number }>(`/api/customers/${e.target.value}/ledger`)
@@ -347,6 +366,32 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
           </div>
         </div>
+        {(isPortal || form.buyer_ntn || form.buyer_cnic) && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                Buyer NTN <span className="font-normal normal-case text-[#1a1814]/40">(7-digit business)</span>
+              </label>
+              <input
+                value={form.buyer_ntn}
+                onChange={e => setForm(p => ({ ...p, buyer_ntn: e.target.value }))}
+                placeholder="1234567-8"
+                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                Buyer CNIC <span className="font-normal normal-case text-[#1a1814]/40">(13-digit consumer)</span>
+              </label>
+              <input
+                value={form.buyer_cnic}
+                onChange={e => setForm(p => ({ ...p, buyer_cnic: e.target.value }))}
+                placeholder="3520212345678"
+                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm font-mono"
+              />
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Issue Date</label>
@@ -381,6 +426,24 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
           </div>
         </div>
+        {isPortal && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                Payment Mode
+              </label>
+              <select value={form.payment_mode} onChange={e => setForm(p => ({ ...p, payment_mode: e.target.value }))}
+                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                <option value="1">Cash</option>
+                <option value="2">Card / Bank Transfer</option>
+                <option value="3">Gift Voucher</option>
+                <option value="4">Loyalty Card</option>
+                <option value="5">Mixed</option>
+                <option value="6">Cheque</option>
+              </select>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Description</label>
@@ -397,22 +460,24 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             </select>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
-              Payment Mode <span className="font-normal normal-case text-[#1a1814]/40">(PRA e-Invoice)</span>
-            </label>
-            <select value={form.payment_mode} onChange={e => setForm(p => ({ ...p, payment_mode: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
-              <option value="1">Cash</option>
-              <option value="2">Card / Bank Transfer</option>
-              <option value="3">Gift Voucher</option>
-              <option value="4">Loyalty Card</option>
-              <option value="5">Mixed</option>
-              <option value="6">Cheque</option>
-            </select>
+        {!isPortal && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+                Payment Mode <span className="font-normal normal-case text-[#1a1814]/40">(PRA e-Invoice)</span>
+              </label>
+              <select value={form.payment_mode} onChange={e => setForm(p => ({ ...p, payment_mode: e.target.value }))}
+                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                <option value="1">Cash</option>
+                <option value="2">Card / Bank Transfer</option>
+                <option value="3">Gift Voucher</option>
+                <option value="4">Loyalty Card</option>
+                <option value="5">Mixed</option>
+                <option value="6">Cheque</option>
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
