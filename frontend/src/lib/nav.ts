@@ -7,7 +7,7 @@ import {
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
-  ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays,
+  ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck,
 } from "lucide-react"
 
 export type NavItem = {
@@ -94,6 +94,7 @@ export const NAV: NavItem[] = [
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
+  { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System" },
   // Payroll
   { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll" },
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll" },
