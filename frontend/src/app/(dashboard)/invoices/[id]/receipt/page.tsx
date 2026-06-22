@@ -170,13 +170,13 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
         <p className="text-center text-[9px] text-[#1a1814]/50">Thank you for your business</p>
       </div>
 
-      {/* 80mm page CSS — injected print style */}
+      {/* 80mm page CSS — visibility toggling works at any DOM nesting depth */}
       <style>{`
         @media print {
           @page { size: 80mm auto; margin: 0; }
-          body > *:not(.receipt-body) { display: none !important; }
-          .receipt-body { display: block !important; }
-          .print\\:hidden { display: none !important; }
+          body * { visibility: hidden; }
+          .receipt-body, .receipt-body * { visibility: visible; }
+          .receipt-body { position: fixed; top: 0; left: 0; width: 80mm; }
         }
       `}</style>
     </>

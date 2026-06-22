@@ -282,10 +282,10 @@ function InvoicesContent() {
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
               {loading ? (
-                <SkeletonRow cols={8} />
+                <SkeletonRow cols={isPortal ? 9 : 8} />
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center">
+                  <td colSpan={isPortal ? 9 : 8} className="px-6 py-16 text-center">
                     <div className="inline-flex flex-col items-center gap-3">
                       <FileSignature className="w-10 h-10 text-black/20" />
                       <p className="text-sm text-black/40 font-medium">No invoices yet</p>

@@ -464,7 +464,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
-                Payment Mode <span className="font-normal normal-case text-[#1a1814]/40">(PRA e-Invoice)</span>
+                Payment Mode
               </label>
               <select value={form.payment_mode} onChange={e => setForm(p => ({ ...p, payment_mode: e.target.value }))}
                 className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
