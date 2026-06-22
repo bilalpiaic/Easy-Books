@@ -134,7 +134,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
               <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 min-w-[160px] w-[18%]">Product</th>
             )}
             <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 min-w-[200px] w-[28%]">Description</th>
-            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Qty</th>
+            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Qty</th>
             <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Unit</th>
             <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-32">Rate ({currency})</th>
             <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Disc %</th>
@@ -196,11 +196,11 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                       const oversell = warnOversell && line.qty > onHand
                       return (
                         <div className="text-[10px] mt-0.5 text-center">
-                          <span className={oversell ? "text-amber-600 font-semibold" : "text-black/45"}>
+                          <span className={`whitespace-nowrap ${oversell ? "text-amber-600 font-semibold" : "text-black/45"}`}>
                             On hand: {onHand}
                           </span>
                           {oversell && (
-                            <span className="block text-amber-600 font-semibold">exceeds on-hand</span>
+                            <span className="block text-amber-600 font-semibold whitespace-nowrap">↑ exceeds stock</span>
                           )}
                         </div>
                       )
