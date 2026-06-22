@@ -239,13 +239,28 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
     lines = session.exec(
         select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id).order_by(InvoiceLine.id)
     ).all()
-    # Enrich lines with product hs_code for FBR-compliant print output
+    # Enrich lines with product hs_code/pct_code and tax_rate for PRA/FBR print output
     product_ids = [ln.product_id for ln in lines if ln.product_id]
     hs_map: dict[int, str | None] = {}
+    pct_map: dict[int, str | None] = {}
     if product_ids:
         prods = session.exec(select(Product).where(Product.id.in_(product_ids))).all()
         hs_map = {p.id: p.hs_code for p in prods}
-    enriched_lines = [{**ln.model_dump(), "hs_code": hs_map.get(ln.product_id)} for ln in lines]
+        pct_map = {p.id: p.pct_code for p in prods}
+    tax_code_ids = [ln.tax_code_id for ln in lines if ln.tax_code_id]
+    tax_rate_map: dict[int, float | None] = {}
+    if tax_code_ids:
+        tax_codes = session.exec(select(TaxCode).where(TaxCode.id.in_(tax_code_ids))).all()
+        tax_rate_map = {tc.id: float(tc.rate) for tc in tax_codes}
+    enriched_lines = [
+        {
+            **ln.model_dump(),
+            "hs_code": hs_map.get(ln.product_id),
+            "pct_code": pct_map.get(ln.product_id),
+            "tax_rate": tax_rate_map.get(ln.tax_code_id),
+        }
+        for ln in lines
+    ]
     return {**inv.model_dump(), "lines": enriched_lines}
 
 
