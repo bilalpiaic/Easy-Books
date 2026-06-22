@@ -20,6 +20,7 @@ const DEMO_OPTIONS: DemoOption[] = [
   { label: "Trader",        email: "demo.trader@easy-books.app",        model: "trader",        blurb: "Buy-and-resell — inventory + COGS" },
   { label: "Manufacturing", email: "demo.manufacturing@easy-books.app", model: "manufacturing", blurb: "Value-addition — BoMs, GRN, PO lifecycle" },
   { label: "Telecom Franchise", email: "demo.telecom@easy-books.app", model: "telecom_franchise", blurb: "Operator franchise — Tracker, RSO chain, FCA targets" },
+  { label: "PRA e-Invoice",     email: "demo.pra@easy-books.app",    model: "pra_einvoice",     blurb: "Pakistani retail — PRA e-Invoice, PKR, sandbox mode" },
 ]
 const DEMO_PASSWORD = "demo1234"
 
@@ -178,7 +179,7 @@ export default function LoginPage() {
             {demoOpenMobile && (
               <div className="bg-gradient-to-br from-[#1a1814] to-[#2d2620] text-white rounded-2xl p-4 mt-2 shadow-lg">
                 <p className="text-[11px] text-white/55 mb-3 leading-relaxed">
-                  Pick one of four pre-seeded tenants. Each has 12+ customers,
+                  Pick one of six pre-seeded tenants. Each has 12+ customers,
                   vendors, invoices and bills.
                 </p>
                 {demoButtons}
@@ -203,7 +204,7 @@ export default function LoginPage() {
           </div>
           <h2 className="text-lg font-serif mb-1">Try in seconds</h2>
           <p className="text-[11px] text-white/55 mb-4 leading-relaxed">
-            Four pre-seeded tenants — one per business model. Each has 12+
+            Six pre-seeded tenants — one per business model. Each has 12+
             customers, vendors, invoices and bills.
           </p>
           {demoButtons}
