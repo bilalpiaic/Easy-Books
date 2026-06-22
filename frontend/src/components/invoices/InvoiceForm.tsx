@@ -329,7 +329,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-8 max-w-3xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

@@ -95,7 +95,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
     if (mode === 'create' && !currencyTouched.current) {
       setForm(f => ({ ...f, currency: settings.currency }))
     }
-  }, [settings.currency])
+  }, [settings.currency]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     Promise.all([
@@ -115,7 +115,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
         if (vend) setForm(f => ({ ...f, vendor_id: String(vend.id), vendor_name: vend.name }))
       }
     }).catch(() => {})
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (mode === 'edit' && bill) {
@@ -238,7 +238,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-8 max-w-3xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

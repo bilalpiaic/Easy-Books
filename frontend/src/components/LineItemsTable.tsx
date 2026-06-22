@@ -127,21 +127,21 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
 
   return (
     <div className="border border-[#ede9e2] rounded-xl overflow-x-auto">
-      <table className="w-full text-sm min-w-[640px]">
+      <table className="w-full text-sm min-w-[860px]">
         <thead className="bg-[#f6f3ee]">
           <tr>
             {hasProducts && (
-              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Product</th>
+              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 min-w-[180px] w-[22%]">Product</th>
             )}
             <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Description</th>
-            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Qty</th>
-            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Unit</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Rate ({currency})</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Disc %</th>
+            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-24">Qty</th>
+            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-24">Unit</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-32">Rate ({currency})</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-24">Disc %</th>
             {hasTax && (
-              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 w-32">Tax</th>
+              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 w-40">Tax</th>
             )}
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Amount ({currency})</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-36">Amount ({currency})</th>
             {!readOnly && <th className="w-8" />}
           </tr>
         </thead>
