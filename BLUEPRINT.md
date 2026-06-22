@@ -921,6 +921,18 @@ The invoice save never waits for PRA — accounting correctness is independent o
 - `pra_status` defaults to `"not_required"` — no badge shown unless tenant has `pra_enabled = "true"`.
 - Migration `0026_pra_integration` follows the SQLite-safe pattern: no `ADD CONSTRAINT` ALTER, `has_table` guard on `prasubmissionlog`.
 
+### 10B.6 Portal Mode
+
+PRA-enabled tenants have a dedicated portal mode that surfaces only PRA-relevant UI.
+
+| Symbol | Details |
+|--------|---------|
+| `usePRAPortal()` hook | Returns `{ isPortal, canToggle, togglePortal, settled }`. `settled` is `false` until the hook has read `localStorage`, preventing an SSR/hydration redirect loop. |
+| `PORTAL_NAV` | 7-item nav array defined in `Sidebar.tsx` — New Invoice / Invoice Queue / Credit Notes / Customers / Products / Submission Logs / Settings. |
+| `/pra-dashboard` | Portal home page — KPI cards (Today's Sales, PRA Submitted, Failed/Pending, Cash/Card split) + today's invoice table with drill-down. |
+| `localStorage` key | `eb.pra_portal_mode` = `"1"` (portal) or `"0"` (full accounting). Per-browser; does not sync across devices. |
+| Admin/owner gate | Only users with role `admin` or `owner` see the toggle button and can switch to Full Accounting view. All other roles always land in Portal mode. |
+
 ---
 
 ## 11. REPORTS
@@ -1162,6 +1174,42 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md). Quick form:
 - Frontend → Vercel static + edge functions.
 - DB → Vercel Postgres / Neon / Supabase.
 - Env vars to set in production: `DATABASE_URL`, `JWT_SECRET_KEY`, `APP_ENV=production`, `FRONTEND_ORIGIN`, `NEXT_PUBLIC_API_URL`.
+
+### 18.1 Release Pipeline
+
+The CI/CD release pipeline lives at `.github/workflows/release.yml` and is triggered by any `v*` tag push.
+
+```
+Trigger: git tag vX.Y.Z && git push origin vX.Y.Z
+
+Stage 1 (validate):
+  - Reads frontend/package.json, desktop/package.json, backend/pyproject.toml
+  - Fails if any version does not match the tag
+  - Prevents mismatched binaries from reaching users
+
+Stage 2a (build-windows):
+  - Always runs
+  - Produces .exe installer + latest.yml auto-update manifest
+
+Stage 2b (build-macos):
+  - Runs only when APPLE_ID repository secret is set
+  - Produces .dmg installer + latest-mac.yml manifest
+  - Skipped gracefully if secret absent; Windows-only release still publishes
+  - fail-fast disabled — Windows and macOS build independently
+
+Stage 3 (publish):
+  - Single job; waits on build-windows (required) and build-macos (optional)
+  - gh release create with all artifacts
+  - Tags with a hyphen (e.g. v2.9.0-beta.1) are auto-flagged --prerelease
+  - workflow_dispatch input allows manual re-run for any existing tag
+```
+
+**Version file sync requirement:** All three files (`frontend/package.json`, `desktop/package.json`, `backend/pyproject.toml`) must carry the same version string as the tag before pushing. The validate stage fails fast otherwise.
+
+**Secrets:**
+- `GITHUB_TOKEN` — auto-provided by Actions
+- `CSC_LINK` / `CSC_KEY_PASSWORD` — Windows code-signing (optional)
+- `APPLE_ID` / `APPLE_ID_PASSWORD` / `APPLE_TEAM_ID` — macOS notarization (optional)
 
 ---
 

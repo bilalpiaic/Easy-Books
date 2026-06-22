@@ -92,7 +92,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Company profile: name, tagline, address, logo — all printed via `PrintHeader`
 - Document number formats with `{prefix}`, `{YYYY}`, `{MM}`, `{seq:04d}` tokens and live preview
 - Default GL accounts per tenant (AR, AP, Revenue, COGS overrides)
-- **Check for Updates** — compares running version to the latest GitHub release; on the desktop app downloads + installs via `electron-updater` (Restart to apply); on script installs shows the `update.bat`/`update.sh` command; data preserved in both paths
+- **Check for Updates** — compares running version to the latest GitHub release; on the desktop app downloads + installs via `electron-updater` (Restart to apply); on script installs shows the `update.bat`/`update.sh` command; data preserved in both paths. The `VersionBadge` in Settings shows the live running version — fetches `/api/version` in dev mode, reads `NEXT_PUBLIC_APP_VERSION` in production builds (injected by the installer at build time)
 - Onboarding checklist, audit log (timeline / by-user / by-entity, CSV export)
 
 **Sales operations**
@@ -147,7 +147,7 @@ Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a
 
 #### Electron desktop app
 
-A bundled Electron desktop app (Phase 2) packages the FastAPI backend as a PyInstaller binary and the Next.js standalone server with a bundled Node into a signed Windows `.exe` / macOS `.dmg` installer — no terminal, no internet fetch. See [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md#phase-2--bundled-desktop-installer-build--release) for build and release details.
+A bundled Electron desktop app (Phase 2) packages the FastAPI backend as a PyInstaller binary and the Next.js standalone server with a bundled Node into a signed Windows `.exe` / macOS `.dmg` installer — no terminal, no internet fetch. Releases are published automatically to GitHub Releases by the CI pipeline (`.github/workflows/release.yml`) when a `v*` tag is pushed. See [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md#phase-2--bundled-desktop-installer-build--release) for build and release details.
 
 ---
 
@@ -271,7 +271,7 @@ update.bat          # double-click in Explorer
 
 ### Updating the desktop app
 
-The Electron desktop app uses `electron-updater` and checks for a new release on every launch. When an update is available you will be prompted to restart — the next launch re-runs `alembic upgrade head`.
+The Electron desktop app checks for updates on every launch via `electron-updater`. When a newer GitHub Release with a `latest.yml` manifest is available you will see an in-app prompt. Click **Download** to fetch the installer in the background, then **Restart** to apply it. The next launch re-runs `alembic upgrade head` automatically — data is preserved. You can also trigger a manual check at any time via **Settings → Check for Updates**.
 
 ### Back up before a major update
 
@@ -290,6 +290,7 @@ See [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) for full details.
 | Database | SQLite (dev / local) · PostgreSQL via `DATABASE_URL` (production) |
 | Auth | JWT (HS256) + bcrypt · HttpOnly cookie · CSRF double-submit |
 | PDF / Email | WeasyPrint (server-side PDF) · SMTP |
+| CI/CD | GitHub Actions (`.github/workflows/release.yml`) — validates 3 version files (frontend/package.json, desktop/package.json, backend/pyproject.toml), builds Windows `.exe` + macOS `.dmg` (optional), publishes to GitHub Releases |
 
 ---
 

@@ -55,7 +55,7 @@
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
 | Demo tenants | 6 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
-| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+) |
+| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
@@ -1693,7 +1693,55 @@ All 37+ date-bearing pages import and use these helpers.
 
 ---
 
-> **Last updated:** 2026-06-20
+---
+
+## UPGRADE WORKFLOW
+
+### Three paths to upgrade
+
+**Script install (macOS / Linux):**
+```bash
+cd ~/easy-books
+./update.sh
+```
+
+**Script install (Windows):** Double-click `update.bat` in the Easy-Books folder.
+
+**Desktop app:** The app checks for updates automatically on every launch. When a new release is available you will see an in-app prompt — click **Download** then **Restart** to apply. Manual check: **Settings → Check for Updates**.
+
+**Developer mode:**
+```bash
+git pull
+cd backend && uv sync && uv run alembic upgrade head
+cd ../frontend && npm install && npm run build
+# Restart servers
+```
+
+### What happens under the hood
+
+1. `git pull --ff-only` — fetches the new code.
+2. `uv sync` — updates backend Python dependencies.
+3. `alembic upgrade head` — applies any pending schema migrations forward; existing data is preserved.
+4. Frontend rebuild — triggered automatically when the commit hash differs from `frontend/.next/.built-commit`; `NEXT_PUBLIC_APP_VERSION` is injected at build time so the version badge is accurate.
+5. Servers restart.
+
+### Data safety guarantee
+
+User data lives in `~/.easy-books` (Linux/macOS) or `%USERPROFILE%\.easy-books` (Windows) — completely outside the app folder. No update step ever touches this directory.
+
+### Auto-backup before migrations
+
+Before each `alembic upgrade head` run the installer writes a timestamped backup of the SQLite database to `~/.easy-books/backups/database_YYYYMMDD_HHMMSS.bak`. Restore by stopping the app and copying the `.bak` file back to `~/.easy-books/database.db`.
+
+### Version check
+
+- **In-app:** Settings → About — shows the version badge (reads `NEXT_PUBLIC_APP_VERSION` in production, live-fetches `/api/version` in dev mode).
+- **API:** `GET /api/version` — returns `{"version": "x.y.z", "alembic_head": "..."}`.
+- **Settings → Check for Updates** — compares running version to latest GitHub Release.
+
+---
+
+> **Last updated:** 2026-06-22
 > **Branch:** `main`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

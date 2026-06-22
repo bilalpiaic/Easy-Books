@@ -141,6 +141,27 @@ cd backend && uv run alembic downgrade -1
 
 ## Version Changelog
 
+### v2.8.1 — Version Badge, CI Pipeline & PRA Portal Mode (2026-06-22)
+
+**No schema changes** — this release is entirely frontend/tooling. The schema stays at revision `0026_pra_integration`.
+
+**What's new:**
+
+| Area | Change |
+|------|--------|
+| **Version badge** | `VersionBadge` in Settings now live-fetches `/api/version` in dev mode (no `NEXT_PUBLIC_APP_VERSION` set). Script and desktop builds inject the env var at build time — no more "dev" badge in production. |
+| **Script installers** | `install-and-run.sh` and `install-and-run.ps1` now inject `NEXT_PUBLIC_APP_VERSION` before `next build` so the correct version string appears in Settings on all script installs. |
+| **Version sync** | `desktop/package.json` and `backend/pyproject.toml` were at 2.6.0; now synced to 2.8.0. |
+| **GitHub Actions** | `.github/workflows/release.yml` improved: validates all 3 version files against the tag; macOS build is conditional on `APPLE_ID` secret (skipped gracefully if absent); `fail-fast` removed; prerelease detection (tags with hyphen auto-flag `--prerelease`); `workflow_dispatch` added to re-run any tag manually. |
+| **PRA portal mode** | Admin/owner users on PRA-enabled tenants can toggle between Full Accounting and PRA Portal views via a button at the bottom of the sidebar. Non-admin users always land in Portal view. `usePRAPortal()` hook with `settled` flag prevents redirect loops. `/pra-dashboard` is the portal home page (KPI cards + today's invoice table). `PORTAL_NAV` is a clean 7-item nav (New Invoice / Invoice Queue / Credit Notes / Customers / Products / Submission Logs / Settings). |
+| **Form widening** | Invoice and Bill forms widened from `max-w-3xl` to `max-w-6xl`. `LineItemsTable` column widths rebalanced: Product 18% / Description 28% / Qty `w-28` with "On hand" hint on one line. |
+
+**New localStorage keys:** `eb.pra_portal_mode` (`"1"` = portal, `"0"` = full accounting).
+
+**Upgrade path:** `git pull && ./update.sh` — no migrations; the installer rebuilds the frontend automatically.
+
+---
+
 ### v2.8.0 — HRM: Payroll & Attendance (2026-06-21)
 
 **Schema changes:** 3 migrations (`0023_employees`, `0024_payroll`, `0025_attendance`). All scripts/installers run `alembic upgrade head` automatically — existing data is untouched.
@@ -173,6 +194,32 @@ cd backend && uv run alembic downgrade -1
 
 ---
 
+## How to Trigger a Release (contributors)
+
+1. **Sync all three version files** — `frontend/package.json`, `desktop/package.json`, and `backend/pyproject.toml` must all contain the same version string that matches the tag you are about to push (e.g. `2.9.0`).
+
+2. **Tag and push:**
+   ```bash
+   git tag v2.9.0
+   git push origin v2.9.0
+   ```
+   The GitHub Actions workflow (`.github/workflows/release.yml`) fires automatically on any `v*` tag push.
+
+3. **Workflow stages:**
+   - **Stage 1 — validate:** Reads all 3 version files and fails if any of them does not match the tag. This prevents mismatched binaries.
+   - **Stage 2a — build-windows:** Always runs; produces the `.exe` installer and `latest.yml` manifest.
+   - **Stage 2b — build-macos:** Runs only when the `APPLE_ID` repository secret is set. Produces the `.dmg` and `latest-mac.yml`. Skipped gracefully when the secret is absent — the Windows-only release still publishes.
+   - **Stage 3 — publish:** Creates the GitHub Release with all artifacts. Tags containing a hyphen (e.g. `v2.9.0-beta.1`) are automatically flagged as pre-releases.
+
+4. **Secrets needed:**
+   - `GITHUB_TOKEN` — provided automatically by Actions; needed to create the release.
+   - `CSC_LINK` / `CSC_KEY_PASSWORD` — Windows code-signing certificate (optional; skip for unsigned builds).
+   - `APPLE_ID` / `APPLE_ID_PASSWORD` / `APPLE_TEAM_ID` — macOS notarization (optional; skip to produce Windows-only releases).
+
+5. **Re-running a tag manually:** Go to **Actions → Release** on GitHub and click **Run workflow**, then enter the tag name. Useful for rebuilding an existing release after a build failure without re-tagging.
+
+---
+
 ## Verifying a Successful Upgrade
 
 After upgrading, confirm:
@@ -197,4 +244,4 @@ After upgrading, confirm:
 
 ---
 
-*Last reviewed: 2026-06-21 · Branch: `main`*
+*Last reviewed: 2026-06-22 · Branch: `main`*

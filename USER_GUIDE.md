@@ -2,13 +2,14 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-22 · **Version:** 2.9.0
+**Last updated:** 2026-06-22 · **Version:** 2.8.1
 
 ---
 
 ## Table of Contents
 
 1. [Getting Started](#1-getting-started)
+   - 1.4 [Keeping Easy-Books Up to Date](#14-keeping-easy-books-up-to-date)
 2. [Company Setup & Branding](#2-company-setup--branding)
 3. [Accounting Fundamentals](#3-accounting-fundamentals)
 4. [Sales Workflow (AR)](#4-sales-workflow-ar)
@@ -98,6 +99,28 @@ The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the
 4. Click **Start Free Trial**
 
 Easy-Books creates your isolated tenant, seeds the COA, and logs you in as `owner`.
+
+### 1.4 Keeping Easy-Books Up to Date
+
+Your accounting data is never deleted during an update — migrations run automatically and add new columns/tables while leaving existing data in place.
+
+**Script install (Windows):** Double-click `update.bat` in the Easy-Books folder.
+
+**Script install (macOS / Linux):** Run `./update.sh` in the Easy-Books folder.
+
+Both scripts run `git pull` then re-invoke the installer, which rebuilds the frontend when the code has changed and runs `alembic upgrade head` before restarting. Your data in `~/.easy-books` (or `%USERPROFILE%\.easy-books`) is never touched.
+
+**Desktop app:** The app checks for updates on every launch. When a newer release is available you will see an in-app prompt — click **Download** then **Restart** to apply. You can also check manually via **Settings → Check for Updates**.
+
+**Developer mode:**
+```bash
+git pull
+cd backend && uv sync && uv run alembic upgrade head
+cd ../frontend && npm install
+# Restart both servers
+```
+
+**Version:** You can always check the running version at **Settings → About** or by calling `GET /api/version`.
 
 ---
 
@@ -1496,3 +1519,36 @@ Log in as `demo.pra@easy-books.app` / `demo1234` to explore a pre-configured Pak
 - 25 customers — half with NTN/CNIC (B2B), half without (B2C)
 - 8 retail products with PCT codes (rice, sugar, oil, flour, tea, milk powder, soap, detergent)
 - 90 invoices already submitted with sample FINs and varied payment modes
+
+### 28.12 Portal Mode (admin / owner only)
+
+PRA-enabled tenants have a dedicated **Portal Mode** that presents a clean, PRA-focused interface without the full accounting sidebar.
+
+**Toggling portal mode:**
+- Admin and owner users see a toggle button at the bottom of the sidebar labelled **Portal View** (or **Full View** when already in portal mode).
+- Clicking it switches the view immediately. The preference is stored per browser in `localStorage` key `eb.pra_portal_mode`.
+- Non-admin / non-owner users always land in Portal mode and cannot switch to Full Accounting view.
+- Switching on one device does not affect other sessions — the toggle is local.
+
+**Portal sidebar (7 items):**
+
+| Item | Destination |
+|------|-------------|
+| New Invoice | `/invoices/new` |
+| Invoice Queue | `/invoices` (PRA queue filter) |
+| Credit Notes | `/credit-notes` |
+| Customers | `/customers` |
+| Products | `/products` |
+| Submission Logs | `/pra/logs` |
+| Settings | `/settings` |
+
+**Portal home page (`/pra-dashboard`):**
+
+The portal home replaces the standard dashboard for portal-mode users. It shows:
+- **Today's Sales** — total invoice value created today
+- **PRA Submitted** — count of invoices with `pra_status = "submitted"` today
+- **Failed / Pending** — count needing attention (click to filter the queue)
+- **Cash / Card split** — breakdown by payment mode
+- A **today's invoice table** with invoice number, customer, amount, payment mode, and PRA status badge
+
+Drill into any invoice from the table to retry a failed submission or view the FIN.
