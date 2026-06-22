@@ -344,7 +344,7 @@ def _revenue_pool(s: Session, tid: int, model: str) -> list[Account]:
 # ── Basic entity seeders ──────────────────────────────────────────────────────
 
 
-def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int) -> User:
+def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int, role: str = "owner") -> User:
     u = s.exec(select(User).where(User.email == email)).first()
     if u:
         # Convergent reseed: always restore the canonical demo credentials so a
@@ -352,6 +352,7 @@ def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int) ->
         # out. (Idempotency must guarantee correct STATE, not just existence.)
         u.hashed_password = get_password_hash(DEMO_PASSWORD)
         u.is_active = True
+        u.role = role
         if hasattr(u, "must_change_password"):
             u.must_change_password = False
         s.add(u); s.flush()
@@ -361,7 +362,7 @@ def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int) ->
         hashed_password=get_password_hash(DEMO_PASSWORD),
         full_name=full_name,
         tenant_id=tenant_id,
-        role="owner",
+        role=role,
     )
     s.add(u); s.flush()
     return u
@@ -2869,9 +2870,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
 
         # Multiple actors so the Audit Log shows realistic attribution.
+        # Accountant/clerk get non-owner roles so portal-mode features activate correctly.
         base, domain = email.split("@", 1)
-        accountant = _get_or_make_user(s, f"{base}+accountant@{domain}", "Demo Accountant", tenant_id)
-        clerk = _get_or_make_user(s, f"{base}+clerk@{domain}", "Demo Clerk", tenant_id)
+        accountant = _get_or_make_user(s, f"{base}+accountant@{domain}", "Demo Accountant", tenant_id, role="accountant")
+        clerk = _get_or_make_user(s, f"{base}+clerk@{domain}", "Demo Clerk", tenant_id, role="viewer")
         s.commit()
         owner = s.exec(select(User).where(User.email == email)).first()
 

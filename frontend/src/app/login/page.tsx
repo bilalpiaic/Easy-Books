@@ -20,7 +20,7 @@ const DEMO_OPTIONS: DemoOption[] = [
   { label: "Trader",        email: "demo.trader@easy-books.app",        model: "trader",        blurb: "Buy-and-resell — inventory + COGS" },
   { label: "Manufacturing", email: "demo.manufacturing@easy-books.app", model: "manufacturing", blurb: "Value-addition — BoMs, GRN, PO lifecycle" },
   { label: "Telecom Franchise", email: "demo.telecom@easy-books.app", model: "telecom_franchise", blurb: "Operator franchise — Tracker, RSO chain, FCA targets" },
-  { label: "PRA e-Invoice",     email: "demo.pra@easy-books.app",    model: "pra_einvoice",     blurb: "Pakistani retail — PRA e-Invoice, PKR, sandbox mode" },
+  { label: "PRA e-Invoice (Portal)", email: "demo.pra+accountant@easy-books.app", model: "pra_einvoice", blurb: "Sales portal view — simplified sidebar, invoice queue, thermal receipt. Owner: demo.pra@easy-books.app" },
 ]
 const DEMO_PASSWORD = "demo1234"
 
