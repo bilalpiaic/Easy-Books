@@ -926,12 +926,14 @@ export default function SettingsPage() {
             <label className="block text-xs font-medium text-[#1a1814]/60 mb-1">PNTN / NTN</label>
             <input className="w-full border border-[#ede9e2] rounded-lg px-3 py-2 text-sm"
               placeholder="e.g. 1234567-8"
+              autoComplete="off"
               value={form.pra_ntn} onChange={e => handleChange("pra_ntn", e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-medium text-[#1a1814]/60 mb-1">POS ID</label>
             <input className="w-full border border-[#ede9e2] rounded-lg px-3 py-2 text-sm"
               placeholder="6-digit POS ID from PRA portal"
+              autoComplete="off"
               value={form.pra_pos_id} onChange={e => handleChange("pra_pos_id", e.target.value)} />
           </div>
           <div className="sm:col-span-2">
@@ -940,6 +942,7 @@ export default function SettingsPage() {
               <input className="flex-1 border border-[#ede9e2] rounded-lg px-3 py-2 text-sm font-mono"
                 type={praShowToken ? "text" : "password"}
                 placeholder="Bearer token from POS Details tab"
+                autoComplete="new-password"
                 value={form.pra_api_token} onChange={e => handleChange("pra_api_token", e.target.value)} />
               <button type="button" onClick={() => setPraShowToken(v => !v)}
                 className="px-3 py-2 border border-[#ede9e2] rounded-lg text-xs text-[#1a1814]/60 hover:border-[#b8943f]/40">
