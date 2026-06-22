@@ -86,17 +86,17 @@ export const NAV: NavItem[] = [
   { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Reports" },
   { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp,   section: "Reports" },
   { label: "Report Builder",      href: "/reports/builder",      icon: Table2,         section: "Reports" },
+  { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "CSV Import",        href: "/imports",           icon: Upload,           section: "System" },
   { label: "Payment Terms",    href: "/payment-terms",     icon: Clock,            section: "System", adminOnly: true },
-  { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Permissions",      href: "/settings/permissions", icon: ShieldCheck,   section: "System", adminOnly: true },
   { label: "Audit Log",        href: "/audit",             icon: ScrollText,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
-  { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System",    forModule: "pra" },
   { label: "Apps",             href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
+  { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System",    forModule: "pra" },
   // Payroll
   { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll",   forModule: "hrm" },
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll",   forModule: "hrm" },
@@ -105,7 +105,7 @@ export const NAV: NavItem[] = [
   { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll",   forModule: "hrm" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","System","Payroll"]
+export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","Payroll","System"]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.

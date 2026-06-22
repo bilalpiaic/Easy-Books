@@ -328,7 +328,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
             </div>
             <div className="min-w-0">
               <p className="text-white text-xs font-medium truncate">{userName}</p>
-              <p className="text-white/40 text-[10px]">Admin</p>
+              <p className="text-white/40 text-[10px]">{role === "owner" ? "Owner" : role === "admin" ? "Admin" : "User"}</p>
             </div>
           </div>
           <button
