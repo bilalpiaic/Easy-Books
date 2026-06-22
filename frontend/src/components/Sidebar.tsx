@@ -76,11 +76,14 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const [businessModel, setBusinessModel] = useState<string>("simple")
   const [role, setRole] = useState<string>(() => getCurrentUser()?.role ?? "viewer")
 
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+  // Start with empty set (matches server render), then restore from localStorage after mount
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  useEffect(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem("sidebar-collapsed") ?? "[]"))
-    } catch { return new Set() }
-  })
+      const stored = JSON.parse(localStorage.getItem("sidebar-collapsed") ?? "[]")
+      if (stored.length > 0) setCollapsedSections(new Set(stored))
+    } catch { /* ignore */ }
+  }, [])
 
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => {
@@ -207,6 +210,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
           open ? "translate-x-0" : "-translate-x-full"
         )}
         aria-hidden={!open}
+        suppressHydrationWarning
       >
         {/* Header row inside drawer */}
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/10 shrink-0">

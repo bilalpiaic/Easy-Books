@@ -46,7 +46,7 @@ export default function Dashboard() {
   const [charts, setCharts] = useState<ChartData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { settings, reload: reloadSettings } = useSettings()
-  const { isPortal } = usePRAPortal()
+  const { isPortal, settled } = usePRAPortal()
   const router = useRouter()
   const { t } = useTranslation()
   const [checklistDismissed, setChecklistDismissed] = useState(false)
@@ -55,8 +55,8 @@ export default function Dashboard() {
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
-    if (isPortal) router.replace("/pra-dashboard")
-  }, [isPortal, router])
+    if (settled && isPortal) router.replace("/pra-dashboard")
+  }, [settled, isPortal, router])
 
   useEffect(() => {
     setData(null)
@@ -71,7 +71,7 @@ export default function Dashboard() {
       .catch(() => {})
   }, [])
 
-  if (isPortal) return null
+  if (settled && isPortal) return null
 
   const s = data?.summary
   const netProfit = s ? s.total_revenue - s.total_expense : 0

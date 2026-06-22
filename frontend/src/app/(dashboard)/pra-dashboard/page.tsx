@@ -43,7 +43,7 @@ function paymentLabel(mode: number | null) {
 }
 
 export default function PRADashboardPage() {
-  const { isPortal } = usePRAPortal()
+  const { isPortal, settled } = usePRAPortal()
   const router = useRouter()
   const fmt = useFmt()
   const { settings } = useSettings()
@@ -54,8 +54,8 @@ export default function PRADashboardPage() {
 
   // Non-portal users shouldn't land here
   useEffect(() => {
-    if (!isPortal) router.replace("/dashboard")
-  }, [isPortal, router])
+    if (settled && !isPortal) router.replace("/dashboard")
+  }, [settled, isPortal, router])
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
