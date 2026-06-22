@@ -17,6 +17,8 @@ interface InvoiceLine {
   rate: string | number
   amount: string | number
   hs_code: string | null
+  pct_code: string | null
+  tax_rate: string | number | null
 }
 interface Invoice {
   id: number
@@ -35,6 +37,9 @@ interface Invoice {
   status: string
   lines: InvoiceLine[]
   pra_fiscal_number?: string | null
+  buyer_ntn?: string | null
+  buyer_cnic?: string | null
+  payment_mode?: number | null
 }
 
 const fmt = (v: string | number) => {
@@ -97,10 +102,11 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
               <p className="text-xs text-[#1a1814]/60 mt-0.5">PRA Fiscal Invoice No: <span className="font-mono">{inv.pra_fiscal_number}</span></p>
             )}
           </header>
-          {/* PRA Fiscal Invoice Number — print only */}
+          {/* PRA Fiscal Invoice Number badge */}
           {inv.pra_fiscal_number && (
-            <div className="hidden print:block mb-4 text-xs text-[#1a1814]/70">
-              PRA Fiscal Invoice No: <span className="font-mono font-semibold">{inv.pra_fiscal_number}</span>
+            <div className="mb-4 border border-[#b8943f]/40 rounded-lg px-4 py-2 bg-[#faf6ec]">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">Fiscal Invoice No (PRA)</p>
+              <p className="text-sm font-bold font-mono text-[#b8943f]">{inv.pra_fiscal_number}</p>
             </div>
           )}
 
@@ -109,6 +115,12 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Bill To</div>
               <p className="font-semibold">{inv.customer_name ?? "—"}</p>
+              {inv.buyer_ntn && (
+                <p className="text-xs text-[#1a1814]/60 font-mono mt-0.5">NTN: {inv.buyer_ntn}</p>
+              )}
+              {inv.buyer_cnic && (
+                <p className="text-xs text-[#1a1814]/60 font-mono mt-0.5">CNIC: {inv.buyer_cnic}</p>
+              )}
             </div>
             <div className="text-right">
               <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.status', 'Status')}</div>
@@ -129,6 +141,8 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-20">Qty</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Rate</th>
                 <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.amount', 'Amount')}</th>
+                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-20 hidden print:table-cell">PCT Code</th>
+                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-16 hidden print:table-cell">Tax %</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#ede9e2]">
@@ -141,6 +155,8 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.qty)} {ln.unit ?? ""}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.rate)}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.amount)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs hidden print:table-cell">{ln.pct_code ?? "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs hidden print:table-cell">{ln.tax_rate != null ? `${ln.tax_rate}%` : "—"}</td>
                 </tr>
               ))}
             </tbody>
