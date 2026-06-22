@@ -220,7 +220,7 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 
 | Table | Notes |
 |---|---|
-| `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing/telecom_franchise` CHECK), `enabled_modules` (JSON array string), `created_at` |
+| `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing/telecom_franchise/pra_einvoice` CHECK), `enabled_modules` (JSON array string), `created_at` |
 | `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `phone`, `avatar_url`, `is_active`, `must_change_password`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id`, **`created_by_id?`** (set on create), `created_at`, `last_login_at` |
 | `userinvite` | Pending tenant invite — `email`, `role` (CHECK), `token` (unique), `invited_by_id`, `expires_at`, `accepted_at`. Consumed by `POST /api/auth/accept-invite` |
 | `userpermission` | Granular access override — `(tenant_id, user_id, resource_key)` unique; `access_level` (`none/view/edit`); `my_data_only` bool. Sparse — only rows with non-default access exist; missing row = role default. Module-gated by `settings.user_rights_enabled` |
@@ -599,7 +599,7 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - CSV upload for Products, Customers, Vendors, Accounts. Validates required columns; row-level error reporting.
 
 ### Admin (`/api/admin`)
-- `POST /demo/seed` *(admin+)* — load all 5 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
+- `POST /demo/seed` *(admin+)* — load all 6 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
 
 ---
 

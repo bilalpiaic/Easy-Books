@@ -45,7 +45,7 @@
 
 ### 1.1 First-Time Login
 
-Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
+Easy-Books provides **6 pre-seeded demo tenants** for immediate exploration:
 
 | Email | Password | Business Model |
 |-------|----------|---|
@@ -54,6 +54,7 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 | `demo.trader@easy-books.app` | `demo1234` | Trading company (buy/resell, inventory) |
 | `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing (BoMs, production orders) |
 | `demo.telecom@easy-books.app` | `demo1234` | Telecom Franchise (Tracker, RSO chain, FCA, SIM) |
+| `demo.pra@easy-books.app` | `demo1234` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
 
 **Rich mock data included (full year coverage):**
 - Each tenant has **100 invoices, 100 bills, 70 payments received, 70 bill payments**
@@ -62,10 +63,11 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 - All invoices and bills have notes, payment terms, and realistic status distributions
 - Manufacturing tenant: 50 BoMs, 50 GRNs, 50 production orders, 50 rate plans
 - Telecom tenant: full RSO chain, SIM activations, FCA events, franchise agreement
+- PRA tenant: invoices with FINs, PKR currency, NTN/CNIC on customers, PCT codes on products
 
 ### 1.2 Sample / Demo Data (standalone and desktop installs)
 
-**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 5 demo companies on first install** — log straight in with password `demo1234`, no setup required:
+**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 6 demo companies on first install** — log straight in with password `demo1234`, no setup required:
 
 | Email | Business Model |
 |-------|---------------|
@@ -74,6 +76,7 @@ Easy-Books provides **5 pre-seeded demo tenants** for immediate exploration:
 | `demo.trader@easy-books.app` | Trader |
 | `demo.manufacturing@easy-books.app` | Manufacturing |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
+| `demo.pra@easy-books.app` | PRA e-Invoice |
 
 The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. **Updating an existing install does not add demo data** — the database is migrated forward in place and your data is left untouched. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer or launching the desktop app.
 
@@ -91,6 +94,7 @@ The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the
    - **Trader** — + inventory, COGS, GST input/output
    - **Manufacturing** — + Raw Materials, WIP, Finished Goods, direct labour, overhead
    - **Telecom Franchise** — 56-account franchise template
+   - **PRA e-Invoice** — Pakistani retail (PKR, PRA eIMS real-time submission, FIN printing)
 4. Click **Start Free Trial**
 
 Easy-Books creates your isolated tenant, seeds the COA, and logs you in as `owner`.
@@ -911,14 +915,15 @@ Account names, document numbers, and balances are clickable throughout: P&L / Ba
 
 The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) now adapt to your **business model** — you only see the sections relevant to how your business operates:
 
-| Section | Simple | Services | Trader | Manufacturing | Telecom |
-|---------|:------:|:--------:|:------:|:-------------:|:-------:|
-| Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ |
-| Deferred Revenue | — | ✓ | — | — | — |
-| Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — |
-| Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ |
+| Section | Simple | Services | Trader | Manufacturing | Telecom | PRA |
+|---------|:------:|:--------:|:------:|:-------------:|:-------:|:---:|
+| Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ | ✓ |
+| Deferred Revenue | — | ✓ | — | — | — | — |
+| Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — | — |
+| Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ | — |
+| PRA e-Invoice (FIN, NTN/CNIC, PCT codes, pra_status) | — | — | — | — | — | ✓ |
 
 The model is read from your tenant at login; switching business model (admin API) re-tailors both pages automatically.
 
