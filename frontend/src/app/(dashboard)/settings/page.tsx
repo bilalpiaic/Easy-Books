@@ -960,7 +960,7 @@ export default function SettingsPage() {
             onClick={async () => {
               setPraTesting(true); setPraTestResult(null)
               try {
-                const r = await apiFetch<{ pra_code: string; pra_response: string; sandbox: boolean }>("/api/pra/test")
+                const r = await apiFetch<{ pra_code: string; pra_response: string; sandbox: boolean }>("/api/pra/test", { method: "POST" })
                 const ok = r.pra_code === "100"
                 setPraTestResult({ ok, msg: `Code ${r.pra_code}: ${r.pra_response}${r.sandbox ? " (sandbox)" : " (production)"}` })
               } catch (e: unknown) {
