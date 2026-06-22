@@ -7,6 +7,7 @@ import { shortcutCatalog, shortcutId } from "@/lib/dashboardShortcuts"
 import { ALL_SECTIONS } from "@/lib/nav"
 import type { GridItem } from "@/hooks/useDashboardLayout"
 import { useTranslation } from "react-i18next"
+import { useModules } from "@/context/ModuleContext"
 
 export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
   items: GridItem[]
@@ -15,12 +16,13 @@ export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
   onClose: () => void
 }) {
   const { t } = useTranslation()
+  const { installedModules } = useModules()
 
   const [tab, setTab] = useState<"widgets" | "shortcuts">("widgets")
   const present = useMemo(() => new Set(items.map(i => i.id)), [items])
 
   const coreWidgets = WIDGET_REGISTRY.filter(w => !w.pinned && !present.has(w.id))
-  const catalog = useMemo(() => shortcutCatalog(meta.model, meta.role), [meta.model, meta.role])
+  const catalog = useMemo(() => shortcutCatalog(installedModules, meta.role), [installedModules, meta.role])
 
   return (
     <div className="bg-white border border-[#ede9e2] rounded-xl p-3 shadow-sm">

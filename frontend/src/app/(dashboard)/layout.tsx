@@ -9,6 +9,7 @@ import TabBar from "@/components/TabBar"
 import { isAuthenticated } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
 import { PermissionProvider } from "@/context/PermissionContext"
+import { ModuleProvider } from "@/context/ModuleContext"
 import { TabProvider } from "@/context/TabContext"
 import NavBar from "@/components/NavBar"
 import { BreadcrumbProvider } from "@/context/BreadcrumbContext"
@@ -82,6 +83,7 @@ export default function DashboardLayout({
 
   return (
     <SettingsProvider>
+      <ModuleProvider>
       <PermissionProvider>
       <BreadcrumbProvider>
       <TabProvider>
@@ -106,6 +108,7 @@ export default function DashboardLayout({
       </TabProvider>
       </BreadcrumbProvider>
       </PermissionProvider>
+      </ModuleProvider>
     </SettingsProvider>
   )
 }

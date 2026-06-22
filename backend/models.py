@@ -29,7 +29,7 @@ def money_col(default: Decimal = ZERO, **kw):
 class Tenant(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(
-            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise')",
+            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise','pra_einvoice')",
             name="ck_tenant_business_model",
         ),
         CheckConstraint(
@@ -41,10 +41,13 @@ class Tenant(SQLModel, table=True):
     name: str = Field(index=True)
     base_currency: str = Field(default="USD")  # ISO 4217; reporting currency
     business_model: str = Field(default="simple", index=True)
-    # JSON-serialised list of enabled module names. Derived from business_model
-    # at signup but persisted so it can be edited later (e.g. a 'simple' tenant
-    # can enable the 'inventory' module without becoming a 'trader').
-    enabled_modules: str = Field(default="[]")
+    # JSON list of enabled module IDs. Set from MODULES_BY_MODEL at signup;
+    # managed independently via POST /api/modules/{id}/install|uninstall after that.
+    enabled_modules: str = Field(default='["base"]')
+    # JSON dict: {module_id: {tier, installed_at, expires_at}} — billing metadata.
+    # tier is "free" | "pro" | "enterprise". expires_at null = perpetual.
+    # Shape is intentionally flexible so billing logic can be added without schema changes.
+    module_meta: str = Field(default="{}")
     # IAS 2.25: FIFO or weighted-average; applied consistently to all products.
     cost_method: str = Field(default="wavg")
     created_at: datetime = Field(default_factory=datetime.utcnow)

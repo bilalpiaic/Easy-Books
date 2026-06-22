@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
 import { WIDGET_REGISTRY, type WidgetDef, DEFAULT_QUICK_ACTION_IDS } from "@/lib/dashboardWidgets"
 import { isShortcutId, resolveShortcut } from "@/lib/dashboardShortcuts"
+import { useModules } from "@/context/ModuleContext"
 
 /** @deprecated Use BP_COLS.lg — kept for external consumers only. */
 export const GRID_COLS = 4
@@ -32,7 +33,7 @@ export interface GridLayoutV3 {
 interface StoredWidgetV1 { id: string; visible: boolean }
 interface StoredLayoutV1 { version: 1; widgets: StoredWidgetV1[] }
 
-type Meta = { model: string | undefined; role: string }
+type Meta = { model: string | undefined; role: string; installedModules: Set<string> }
 type SavedAny = GridLayoutV3 | GridLayoutV2 | StoredLayoutV1 | Record<string, unknown> | null
 
 const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, w]))
@@ -74,7 +75,7 @@ function validateV2(items: GridItem[], meta: Meta): GridItem[] {
   for (let it of items) {
     if (!it || typeof it.id !== "string" || seen.has(it.id)) continue
     if (isShortcutId(it.id)) {
-      if (!resolveShortcut(it.id, meta.model, meta.role)) continue
+      if (!resolveShortcut(it.id, meta.installedModules, meta.role)) continue
     } else {
       const def = registryById.get(it.id)
       if (!def || def.pinned) continue
@@ -99,7 +100,7 @@ function validateBreakpoint(
     if (!it || typeof it.id !== "string" || seen.has(it.id)) continue
     if (!lgIds.has(it.id)) continue  // shared-membership invariant
     if (isShortcutId(it.id)) {
-      if (!resolveShortcut(it.id, meta.model, meta.role)) continue
+      if (!resolveShortcut(it.id, meta.installedModules, meta.role)) continue
     } else {
       const def = registryById.get(it.id)
       if (!def || def.pinned) continue
@@ -185,11 +186,12 @@ export interface UseDashboardLayout {
 }
 
 export function useDashboardLayout(): UseDashboardLayout {
+  const { installedModules } = useModules()
   const [layouts, setLayouts] = useState<ResolvedLayouts>(() => ({ lg: defaultGrid() }))
   const [dismissed, setDismissed] = useState<string[]>([])
   const [quickActions, setQuickActions] = useState<string[]>(DEFAULT_QUICK_ACTION_IDS)
   const [saved, setSaved] = useState<SavedAny>(null)
-  const [meta, setMeta] = useState<Meta>({ model: undefined, role: getCurrentUser()?.role ?? "viewer" })
+  const [meta, setMeta] = useState<Meta>({ model: undefined, role: getCurrentUser()?.role ?? "viewer", installedModules })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -197,7 +199,7 @@ export function useDashboardLayout(): UseDashboardLayout {
       apiFetch<{ layout: SavedAny }>("/api/dashboard/layout").catch(() => ({ layout: null })),
       apiFetch<{ role?: string; tenant?: { business_model?: string } }>("/api/auth/me").catch(() => ({} as { role?: string; tenant?: { business_model?: string } })),
     ]).then(([lay, me]) => {
-      const m: Meta = { model: me?.tenant?.business_model, role: me?.role ?? getCurrentUser()?.role ?? "viewer" }
+      const m: Meta = { model: me?.tenant?.business_model, role: me?.role ?? getCurrentUser()?.role ?? "viewer", installedModules }
       setMeta(m)
       setSaved(lay.layout)
       const savedDismissed: string[] = Array.isArray((lay.layout as GridLayoutV3)?.dismissed)

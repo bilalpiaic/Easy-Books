@@ -338,21 +338,97 @@ def _coa_for(business_model: str):
     return sorted(groups, key=lambda r: (len(r[0]), r[0])) + sorted(leaves, key=lambda r: r[0])
 
 
-# Module activation per business model. Module names are conventions used by
-# the frontend sidebar and (later) endpoint guards — they are NOT enforced at
-# the backend yet (V2.4 wires them up).
+# ── Module Registry ──────────────────────────────────────────────────────────
+# Single source of truth for every installable module.
+# Fields:
+#   label       Human-readable name shown in the Apps page
+#   description One-line description shown on the module card
+#   category    Groups modules on the Apps page (Core / Accounting / Operations / HR / Industry)
+#   icon        lucide-react icon name (used by frontend)
+#   deps        Module IDs that must be installed first
+#   always      If True, the module cannot be uninstalled (locked)
+#   default     If True, installed on every new tenant regardless of business_model
+#   tier        "free" | "pro" | "enterprise" — reserved for future billing
+#   nav_sections Sidebar sections this module adds (informational; frontend drives the actual filter)
+MODULE_REGISTRY: dict[str, dict] = {
+    "base": {
+        "label":       "Base Accounting",
+        "description": "Core GL, Chart of Accounts, journal entries, AR/AP, banking, and all financial reports. Required by every other module.",
+        "category":    "Core",
+        "icon":        "BookOpen",
+        "deps":        [],
+        "always":      True,
+        "default":     True,
+        "tier":        "free",
+        "nav_sections": ["Overview", "Ledger", "Receivable", "Payable", "Banking", "Reports"],
+    },
+    "inventory": {
+        "label":       "Inventory",
+        "description": "Products, product categories, stock locations, product ledger, and inventory performance analytics.",
+        "category":    "Operations",
+        "icon":        "Package",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Inventory"],
+    },
+    "production": {
+        "label":       "Manufacturing",
+        "description": "Bills of Material, Production Orders, Goods Receipt Notes, Rate Plans, and job-costing reports.",
+        "category":    "Operations",
+        "icon":        "Factory",
+        "deps":        ["inventory"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Manufacturing"],
+    },
+    "hrm": {
+        "label":       "HRM & Payroll",
+        "description": "Employee master, salary components, payroll runs with GL posting, attendance register, and printable payslips.",
+        "category":    "HR",
+        "icon":        "Users",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Payroll"],
+    },
+    "telecom": {
+        "label":       "Telecom Franchise",
+        "description": "Franchise wallet (Tracker), MSR/RSO distributor chain, SIM & airtime, FCA targets, mobile money, and postpaid billing.",
+        "category":    "Industry",
+        "icon":        "Radio",
+        "deps":        ["inventory"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Telecom"],
+    },
+    "pra": {
+        "label":       "PRA e-Invoice",
+        "description": "Punjab Revenue Authority real-time invoice submission (Pakistan), Fiscal Invoice Numbers, portal mode, NTN/CNIC fields, and PCT product codes.",
+        "category":    "Industry",
+        "icon":        "FileCheck",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["PRA"],
+    },
+}
+
+# Maps legacy business_model → sensible default module set.
+# Used ONLY at tenant creation / model-switch to pre-select modules.
+# After that the user manages modules independently via /api/modules.
 MODULES_BY_MODEL: dict[str, list[str]] = {
-    "simple":            ["invoicing", "billing", "manual_jv"],
-    "services":          ["invoicing", "billing", "manual_jv", "service_catalogue"],
-    "trader":            ["invoicing", "billing", "manual_jv", "inventory"],
-    "manufacturing":     ["invoicing", "billing", "manual_jv", "inventory",
-                          "stores", "bom", "production", "customer_goods"],
-    "telecom_franchise": [
-        "invoicing", "billing", "manual_jv", "inventory",
-        "tracker", "sim_airtime", "mobile_money", "device_sales",
-        "postpaid_billing", "commission_tracking", "rso_channel",
-        "franchise_admin",
-    ],
+    "simple":            ["base"],
+    "services":          ["base"],
+    "trader":            ["base", "inventory"],
+    "manufacturing":     ["base", "inventory", "production"],
+    "telecom_franchise": ["base", "inventory", "telecom"],
+    "pra_einvoice":      ["base", "pra"],
 }
 
 

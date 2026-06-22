@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api"
 import { NAV, ALL_SECTIONS } from "@/lib/nav"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
+import { useModules } from "@/context/ModuleContext"
 
 const SECTION_COLORS: Record<string, string> = {
   Overview:      "text-[#ffd966]",
@@ -73,8 +74,8 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const [orgName, setOrgName]     = useState("Easy-Books")
   const [userName, setUserName]   = useState("User")
   const [userInitial, setInitial] = useState("U")
-  const [businessModel, setBusinessModel] = useState<string>("simple")
   const [role, setRole] = useState<string>(() => getCurrentUser()?.role ?? "viewer")
+  const { installedModules } = useModules()
 
   // Start with empty set (matches server render), then restore from localStorage after mount
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
@@ -120,10 +121,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
       .then(d => { if (d?.company_name) setOrgName(d.company_name) })
       .catch(() => {})
     apiFetch<Me>("/api/auth/me")
-      .then(d => {
-        if (d?.tenant?.business_model) setBusinessModel(d.tenant.business_model)
-        if (d?.role) setRole(d.role)
-      })
+      .then(d => { if (d?.role) setRole(d.role) })
       .catch(() => {})
   }, [])
 
@@ -148,7 +146,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const visibleNav = isPortal
     ? PORTAL_NAV
     : NAV.filter(i => {
-        if (i.forModel && i.forModel !== businessModel) return false
+        if (i.forModule && !installedModules.has(i.forModule)) return false
         if (i.adminOnly && !isAdmin) return false
         return true
       })

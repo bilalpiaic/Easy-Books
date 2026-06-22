@@ -7,7 +7,7 @@ import {
   Radio, Wallet, Network, Smartphone, Target, Banknote, ReceiptText,
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
-  ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck,
+  ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
 } from "lucide-react"
 
 export type NavItem = {
@@ -15,7 +15,8 @@ export type NavItem = {
   href: string
   icon: React.ElementType
   section: string
-  forModel?: "manufacturing" | "telecom_franchise"
+  /** Module ID — item is hidden when this module is not installed. */
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra"
   /** Only shown to admin+ (admin or owner). */
   adminOnly?: boolean
 }
@@ -41,29 +42,29 @@ export const NAV: NavItem[] = [
   { label: "Debit Notes",      href: "/debit-notes",       icon: Undo2,            section: "Payable" },
   { label: "Vendors",          href: "/vendors",           icon: Truck,            section: "Payable" },
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
-  { label: "Overview",         href: "/inventory",         icon: LayoutGrid,       section: "Inventory" },
-  { label: "Products",          href: "/products",            icon: Package,          section: "Inventory" },
-  { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory" },
-  { label: "Product Ledger",    href: "/products/ledger",    icon: BookOpen,         section: "Inventory" },
-  { label: "Inventory Report",  href: "/inventory/performance", icon: PieChart,      section: "Inventory" },
-  { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Mfg Reports",     href: "/manufacturing/reports",           icon: BarChart2, section: "Manufacturing", forModel: "manufacturing" },
-  { label: "Telecom Overview", href: "/telecom",                icon: Radio,       section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Tracker & Load",   href: "/telecom/tracker",        icon: Wallet,      section: "Telecom", forModel: "telecom_franchise" },
-  { label: "RSO Channel",      href: "/telecom/rso",            icon: Network,     section: "Telecom", forModel: "telecom_franchise" },
-  { label: "SIM & Activations",href: "/telecom/sim",            icon: Smartphone,  section: "Telecom", forModel: "telecom_franchise" },
-  { label: "FCA & Targets",    href: "/telecom/fca",            icon: Target,      section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Mobile Money",     href: "/telecom/mobile-money",   icon: Banknote,    section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Postpaid Billing", href: "/telecom/postpaid",       icon: ReceiptText, section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Commissions",      href: "/telecom/commissions",    icon: Percent,     section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Franchise Admin",  href: "/telecom/franchise",      icon: ScrollText,  section: "Telecom", forModel: "telecom_franchise" },
-  { label: "Devices (IMEI)",   href: "/telecom/devices",        icon: Tablet,      section: "Telecom", forModel: "telecom_franchise" },
+  { label: "Overview",         href: "/inventory",         icon: LayoutGrid,       section: "Inventory",      forModule: "inventory" },
+  { label: "Products",          href: "/products",            icon: Package,          section: "Inventory",      forModule: "inventory" },
+  { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory",      forModule: "inventory" },
+  { label: "Product Ledger",    href: "/products/ledger",    icon: BookOpen,         section: "Inventory",      forModule: "inventory" },
+  { label: "Inventory Report",  href: "/inventory/performance", icon: PieChart,      section: "Inventory",      forModule: "inventory" },
+  { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing",    forModule: "production" },
+  { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing",    forModule: "production" },
+  { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing",    forModule: "production" },
+  { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Manufacturing", forModule: "production" },
+  { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Manufacturing", forModule: "production" },
+  { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing",    forModule: "production" },
+  { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModule: "production" },
+  { label: "Mfg Reports",     href: "/manufacturing/reports",           icon: BarChart2, section: "Manufacturing", forModule: "production" },
+  { label: "Telecom Overview", href: "/telecom",                icon: Radio,       section: "Telecom",          forModule: "telecom" },
+  { label: "Tracker & Load",   href: "/telecom/tracker",        icon: Wallet,      section: "Telecom",          forModule: "telecom" },
+  { label: "RSO Channel",      href: "/telecom/rso",            icon: Network,     section: "Telecom",          forModule: "telecom" },
+  { label: "SIM & Activations",href: "/telecom/sim",            icon: Smartphone,  section: "Telecom",          forModule: "telecom" },
+  { label: "FCA & Targets",    href: "/telecom/fca",            icon: Target,      section: "Telecom",          forModule: "telecom" },
+  { label: "Mobile Money",     href: "/telecom/mobile-money",   icon: Banknote,    section: "Telecom",          forModule: "telecom" },
+  { label: "Postpaid Billing", href: "/telecom/postpaid",       icon: ReceiptText, section: "Telecom",          forModule: "telecom" },
+  { label: "Commissions",      href: "/telecom/commissions",    icon: Percent,     section: "Telecom",          forModule: "telecom" },
+  { label: "Franchise Admin",  href: "/telecom/franchise",      icon: ScrollText,  section: "Telecom",          forModule: "telecom" },
+  { label: "Devices (IMEI)",   href: "/telecom/devices",        icon: Tablet,      section: "Telecom",          forModule: "telecom" },
   { label: "Overview",         href: "/banking",           icon: LayoutGrid,       section: "Banking" },
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
   { label: "Exchange Rates",   href: "/exchange-rates",    icon: TrendingUp,       section: "Banking" },
@@ -94,13 +95,14 @@ export const NAV: NavItem[] = [
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
-  { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System" },
+  { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System",    forModule: "pra" },
+  { label: "Apps",             href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
   // Payroll
-  { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll" },
-  { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll" },
-  { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll" },
-  { label: "Attendance",       href: "/attendance",        icon: CalendarDays,     section: "Payroll" },
-  { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll" },
+  { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll",   forModule: "hrm" },
+  { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll",   forModule: "hrm" },
+  { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll",   forModule: "hrm" },
+  { label: "Attendance",       href: "/attendance",        icon: CalendarDays,     section: "Payroll",   forModule: "hrm" },
+  { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll",   forModule: "hrm" },
 ]
 
 export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","System","Payroll"]

@@ -21,7 +21,7 @@ from routers import (
     accounts, admin, advances, aging, analytic_accounts, assets, attachments,
     audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets,
     credit_notes, dashboard_layout, customers, debit_notes, deferred_revenue, exchange_rates, grn,
-    imports, invoices, manufacturing_reports, payment_terms, payments, periods,
+    imports, invoices, manufacturing_reports, modules, payment_terms, payments, periods,
     product_categories, production_orders, products, purchase_orders, rate_plans,
     reconciliations, recurring, report_builder, reports, settings, stock_locations,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
@@ -68,7 +68,7 @@ app.add_middleware(
 # breaking changes ship under /api/v2/ without disturbing the legacy
 # surface.
 _ROUTERS = [
-    auth.router, settings.router, accounts.router, customers.router,
+    auth.router, settings.router, modules.router, accounts.router, customers.router,
     vendors.router, products.router, product_categories.router, aging.router, invoices.router, bills.router,
     report_builder.router,
     payments.router, payment_terms.router, bank_accounts.router,

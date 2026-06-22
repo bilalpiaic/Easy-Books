@@ -5,14 +5,16 @@ import Link from "next/link"
 import { resolveShortcut, shortcutHref } from "@/lib/dashboardShortcuts"
 import type { TileMetric } from "@/lib/dashboardTileMetrics"
 import { useTranslation } from "react-i18next"
+import { useModules } from "@/context/ModuleContext"
 
 export default function ShortcutTile({ id, model, role, editing, metric }: {
   id: string; model: string | undefined; role: string; editing: boolean
   metric?: TileMetric | null
 }) {
   const { t } = useTranslation()
+  const { installedModules } = useModules()
 
-  const item = resolveShortcut(id, model, role)
+  const item = resolveShortcut(id, installedModules, role)
   if (!item) {
     return (
       <div className="h-full flex items-center justify-center bg-white border border-[#ede9e2] rounded-xl text-[10px] text-[#1a1814]/40 text-center p-2">
