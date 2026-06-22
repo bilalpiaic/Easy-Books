@@ -15,11 +15,12 @@ from sqlmodel import select
 from models import Invoice, PRASubmissionLog
 from routers.common import CurrentUserDep, SessionDep
 from services.pra import get_pra_config, submit_to_pra
+from services.permissions import perm_dep, apply_own_filter
 
-pra_router = APIRouter(prefix="/pra", tags=["pra"])
+pra_router = APIRouter(prefix="/pra", tags=["pra"], dependencies=[perm_dep("invoices")])
 
 
-@pra_router.post("/test")
+@pra_router.post("/test", dependencies=[perm_dep("invoices", "edit")])
 def test_pra_connection(user: CurrentUserDep, session: SessionDep):
     """Send a minimal test payload to PRA sandbox to verify credentials."""
     config = get_pra_config(session, user.tenant_id)
@@ -73,7 +74,7 @@ def get_invoice_pra_status(invoice_id: int, user: CurrentUserDep, session: Sessi
     }
 
 
-@pra_router.post("/invoices/{invoice_id}/submit")
+@pra_router.post("/invoices/{invoice_id}/submit", dependencies=[perm_dep("invoices", "edit")])
 def retry_pra_submission(invoice_id: int, user: CurrentUserDep, session: SessionDep):
     """Manually (re-)submit an invoice to PRA. Safe to retry."""
     invoice = session.exec(
@@ -103,7 +104,15 @@ def list_pra_logs(
     invoice_id: Optional[int] = Query(None),
     limit: int = Query(50, le=200),
 ):
-    q = select(PRASubmissionLog).where(PRASubmissionLog.tenant_id == user.tenant_id)
+    # Join through Invoice so that my_data_only users only see logs for their own invoices
+    inv_q = select(Invoice).where(Invoice.tenant_id == user.tenant_id)
+    inv_q = apply_own_filter(inv_q, Invoice, user, session)
+    allowed_invoice_ids = [r.id for r in session.exec(inv_q).all()]
+
+    q = select(PRASubmissionLog).where(
+        PRASubmissionLog.tenant_id == user.tenant_id,
+        PRASubmissionLog.invoice_id.in_(allowed_invoice_ids),  # type: ignore[attr-defined]
+    )
     if invoice_id:
         q = q.where(PRASubmissionLog.invoice_id == invoice_id)
     q = q.order_by(PRASubmissionLog.attempt_at.desc()).limit(limit)  # type: ignore[attr-defined]
