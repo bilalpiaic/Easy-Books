@@ -62,6 +62,12 @@ class SettingsUpdate(BaseModel):
     app_theme: Optional[str] = None   # "light" | "dark" | "system"
     color_theme: Optional[str] = None  # "gold" | "blue" | "green" | "rose" | "slate"
     app_language: Optional[str] = None  # "en" | "ur" | "zh"
+    # PRA e-Invoice (Punjab Revenue Authority) — Pakistan tax compliance
+    pra_enabled: Optional[str] = None        # "true" | "false"
+    pra_ntn: Optional[str] = None            # Business PNTN / NTN
+    pra_pos_id: Optional[str] = None         # 6-digit POS ID from PRA portal
+    pra_api_token: Optional[str] = None      # Production Bearer token (kept secret)
+    pra_sandbox_mode: Optional[str] = None   # "true" = use sandbox endpoint
 
 
 @router.get("")

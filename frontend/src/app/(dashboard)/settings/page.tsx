@@ -59,6 +59,9 @@ export default function SettingsPage() {
   const [bmConfirm, setBmConfirm] = useState(false)
   const [bmResult, setBmResult] = useState<string | null>(null)
   const [bmErr, setBmErr] = useState<string | null>(null)
+  const [praTesting, setPraTesting] = useState(false)
+  const [praTestResult, setPraTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [praShowToken, setPraShowToken] = useState(false)
 
   useEffect(() => {
     setForm(ctxSettings)
@@ -899,6 +902,83 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* ── PRA e-Invoice (Pakistan) ── */}
+      <section className="bg-white border border-[#ede9e2] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-serif text-[#1a1814]">PRA e-Invoice <span className="text-sm font-sans font-normal text-[#1a1814]/50">(Punjab Revenue Authority, Pakistan)</span></h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm text-[#1a1814]/70">{form.pra_enabled === "true" ? "Enabled" : "Disabled"}</span>
+            <div
+              onClick={() => handleChange("pra_enabled", form.pra_enabled === "true" ? "false" : "true")}
+              className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.pra_enabled === "true" ? "bg-[#b8943f]" : "bg-[#1a1814]/20"}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-0.5 shadow transition-transform ${form.pra_enabled === "true" ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </label>
+        </div>
+        <p className="text-xs text-[#1a1814]/50">
+          When enabled, every new sales invoice is submitted to PRA eIMS in real-time and a Fiscal Invoice Number (FIN) is printed on the invoice.
+          Register at <span className="font-mono">reg.pra.punjab.gov.pk</span> to obtain your POS ID and production token.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[#1a1814]/60 mb-1">PNTN / NTN</label>
+            <input className="w-full border border-[#ede9e2] rounded-lg px-3 py-2 text-sm"
+              placeholder="e.g. 1234567-8"
+              value={form.pra_ntn} onChange={e => handleChange("pra_ntn", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#1a1814]/60 mb-1">POS ID</label>
+            <input className="w-full border border-[#ede9e2] rounded-lg px-3 py-2 text-sm"
+              placeholder="6-digit POS ID from PRA portal"
+              value={form.pra_pos_id} onChange={e => handleChange("pra_pos_id", e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-[#1a1814]/60 mb-1">Production API Token</label>
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[#ede9e2] rounded-lg px-3 py-2 text-sm font-mono"
+                type={praShowToken ? "text" : "password"}
+                placeholder="Bearer token from POS Details tab"
+                value={form.pra_api_token} onChange={e => handleChange("pra_api_token", e.target.value)} />
+              <button type="button" onClick={() => setPraShowToken(v => !v)}
+                className="px-3 py-2 border border-[#ede9e2] rounded-lg text-xs text-[#1a1814]/60 hover:border-[#b8943f]/40">
+                {praShowToken ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="rounded border-[#ede9e2]"
+            checked={form.pra_sandbox_mode === "true"}
+            onChange={e => handleChange("pra_sandbox_mode", e.target.checked ? "true" : "false")} />
+          <span className="text-[#1a1814]/70">Use Sandbox (test) environment</span>
+          <span className="text-xs text-[#1a1814]/40 font-mono">ims.pral.com.pk/ims/sandbox/…</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setPraTesting(true); setPraTestResult(null)
+              try {
+                const r = await apiFetch<{ pra_code: string; pra_response: string; sandbox: boolean }>("/api/pra/test")
+                const ok = r.pra_code === "100"
+                setPraTestResult({ ok, msg: `Code ${r.pra_code}: ${r.pra_response}${r.sandbox ? " (sandbox)" : " (production)"}` })
+              } catch (e: unknown) {
+                setPraTestResult({ ok: false, msg: String((e as Error).message ?? e) })
+              } finally { setPraTesting(false) }
+            }}
+            disabled={praTesting || !form.pra_pos_id}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[#1a1814] text-white hover:bg-[#1a1814]/80 disabled:opacity-50 transition-colors"
+          >
+            {praTesting ? "Testing…" : "Test Connection"}
+          </button>
+          {praTestResult && (
+            <span className={`text-sm ${praTestResult.ok ? "text-green-700" : "text-red-600"}`}>
+              {praTestResult.ok ? "✓" : "✗"} {praTestResult.msg}
+            </span>
+          )}
+        </div>
+      </section>
 
       {/* ── Appearance ── */}
       <AppearanceSection />

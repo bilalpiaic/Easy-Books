@@ -3,7 +3,7 @@ from datetime import date as DateType
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
@@ -23,6 +23,9 @@ from services.posting import EntryInput, post_transaction
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
 from services.permissions import perm_dep, apply_own_filter
+from services.pra import get_pra_config, submit_to_pra
+from db import engine as _db_engine
+from sqlmodel import Session as _Session
 router = APIRouter(tags=["invoices"], dependencies=[perm_dep("invoices")])
 
 
@@ -100,6 +103,7 @@ class InvoiceCreate(BaseModel):
     exchange_rate: Optional[Decimal] = None  # override; else resolved from ExchangeRate
     assigned_to_id: Optional[int] = None  # sales person (for commission tracking)
     analytic_account_id: Optional[int] = None
+    payment_mode: Optional[int] = None   # PRA: 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -244,7 +248,8 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
 
 
 @router.post("/api/invoices", status_code=201, dependencies=[perm_dep("invoices", "edit")])
-def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate):
+def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
+                   background_tasks: BackgroundTasks):
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix"
@@ -335,6 +340,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         created_by_id=user.id,
         assigned_to_id=body.assigned_to_id,
         analytic_account_id=body.analytic_account_id,
+        payment_mode=body.payment_mode,
     )
     session.add(invoice)
     session.flush()
@@ -494,8 +500,21 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate)
         {"number": invoice.number, "total": str(total)},
     )
     mark_onboarding_step(session, user.tenant_id, "first_invoice")
+
+    # Stamp PRA USIN and queue real-time e-Invoice submission (fire-and-forget)
+    if get_pra_config(session, user.tenant_id):
+        invoice.pra_status = "pending"
+        invoice.pra_usin = invoice.number
+        session.add(invoice)
     session.commit()
     session.refresh(invoice)
+
+    if invoice.pra_status == "pending":
+        invoice_id_for_bg = invoice.id
+        def _pra_task():
+            with _Session(_db_engine) as bg_session:
+                submit_to_pra(bg_session, invoice_id_for_bg)
+        background_tasks.add_task(_pra_task)
 
     lines_out = session.exec(
         select(InvoiceLine).where(InvoiceLine.invoice_id == invoice.id)

@@ -278,6 +278,9 @@ class Customer(SQLModel, table=True):
     opening_balance: Money = money_col()
     is_active: bool = Field(default=True)
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
+    # PRA e-Invoice buyer identification
+    ntn: Optional[str] = None   # 7-digit NTN e.g. "1234567-8" (maps to BuyerPNTN)
+    cnic: Optional[str] = None  # 13-digit CNIC (maps to BuyerCNIC)
 
 
 class Vendor(SQLModel, table=True):
@@ -323,6 +326,13 @@ class Invoice(SQLModel, table=True):
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     assigned_to_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    # PRA e-Invoice fields
+    payment_mode: Optional[int] = None  # 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
+    pra_usin: Optional[str] = None          # User Serial Invoice Number sent to PRA (= invoice.number)
+    pra_fiscal_number: Optional[str] = None # Fiscal Invoice Number returned by PRA on success
+    pra_status: str = Field(default="not_required")  # not_required|pending|submitted|failed
+    pra_submitted_at: Optional[datetime] = None
+    pra_response_raw: Optional[str] = None  # raw JSON response for audit trail
 
 
 class Bill(SQLModel, table=True):
@@ -453,6 +463,7 @@ class Product(SQLModel, table=True):
     is_deferred: bool = Field(default=False)
     recognition_months: int = Field(default=12)
     hs_code: Optional[str] = Field(default=None)  # Harmonized System code for FBR / customs
+    pct_code: Optional[str] = Field(default=None)  # 8-digit PRA product classification (PCTCode)
     # IAS 2.25: per-product cost-flow override. None → inherit from Tenant.cost_method.
     cost_method: Optional[str] = Field(default=None)  # 'wavg' | 'fifo' | None
 
@@ -1208,6 +1219,21 @@ class IdempotencyKey(SQLModel, table=True):
     status_code: int
     response_body: str          # JSON-serialised response
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PRASubmissionLog(SQLModel, table=True):
+    """Audit trail of every outbound call to the PRA e-IMS API."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True)
+    invoice_id: int = Field(index=True)
+    attempt_at: datetime = Field(default_factory=datetime.utcnow)
+    endpoint: str
+    request_json: str
+    response_code: Optional[str] = None   # PRA code "100" = success
+    response_json: Optional[str] = None
+    http_status: Optional[int] = None
+    success: bool = Field(default=False)
+    error_message: Optional[str] = None
 
 
 class Attachment(SQLModel, table=True):

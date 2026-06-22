@@ -53,6 +53,12 @@ interface Invoice {
   status: string
   transaction_id: number | null
   lines: InvoiceLine[]
+  // PRA e-Invoice fields
+  payment_mode: number | null
+  pra_status: string | null
+  pra_fiscal_number: string | null
+  pra_usin: string | null
+  pra_submitted_at: string | null
 }
 
 const STATUS_TONE: Record<string, string> = {
@@ -64,6 +70,19 @@ const STATUS_TONE: Record<string, string> = {
   reversed: "bg-gray-100 text-gray-600 border-gray-300",
 }
 
+const PRA_STATUS_TONE: Record<string, string> = {
+  not_required: "hidden",
+  pending:      "bg-amber-50 text-amber-800 border-amber-300",
+  submitted:    "bg-emerald-50 text-emerald-800 border-emerald-300",
+  failed:       "bg-red-50 text-red-800 border-red-300",
+}
+
+const PRA_STATUS_LABEL: Record<string, string> = {
+  pending:   "PRA Pending",
+  submitted: "PRA Submitted",
+  failed:    "PRA Failed",
+}
+
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = useTranslation()
 
@@ -72,6 +91,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [inv, setInv]       = useState<Invoice | null>(null)
   const [error, setError]   = useState<string | null>(null)
   const [busy, setBusy]     = useState(false)
+  const [praRetrying, setPraRetrying] = useState(false)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
   useBreadcrumb(inv ? inv.number : undefined)
@@ -239,9 +259,39 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             </p>
           </div>
         </div>
-        <span className={`inline-block border rounded-full px-3 py-1 text-xs font-semibold uppercase ${STATUS_TONE[inv.status] ?? STATUS_TONE.posted}`}>
-          {inv.status}
-        </span>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className={`inline-block border rounded-full px-3 py-1 text-xs font-semibold uppercase ${STATUS_TONE[inv.status] ?? STATUS_TONE.posted}`}>
+            {inv.status}
+          </span>
+          {inv.pra_status && inv.pra_status !== "not_required" && (
+            <div className="flex items-center gap-1.5">
+              <span className={`inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold ${PRA_STATUS_TONE[inv.pra_status] ?? ""}`}>
+                {PRA_STATUS_LABEL[inv.pra_status] ?? inv.pra_status}
+              </span>
+              {inv.pra_status === "failed" && (
+                <button
+                  onClick={async () => {
+                    setPraRetrying(true)
+                    try {
+                      const r = await apiFetch<{ success: boolean; pra_fiscal_number?: string; pra_status?: string }>(
+                        `/api/pra/invoices/${inv.id}/submit`, { method: "POST" }
+                      )
+                      setInv(prev => prev ? { ...prev, pra_status: r.pra_status ?? prev.pra_status, pra_fiscal_number: r.pra_fiscal_number ?? prev.pra_fiscal_number } : prev)
+                    } catch { /* silent — status badge already shows failed */ }
+                    finally { setPraRetrying(false) }
+                  }}
+                  disabled={praRetrying}
+                  className="text-[10px] text-red-700 hover:underline disabled:opacity-50"
+                >
+                  {praRetrying ? "Retrying…" : "Retry"}
+                </button>
+              )}
+            </div>
+          )}
+          {inv.pra_fiscal_number && (
+            <div className="text-[10px] text-[#1a1814]/50 font-mono">FIN: {inv.pra_fiscal_number}</div>
+          )}
+        </div>
       </header>
 
       {error && (

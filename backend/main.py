@@ -27,6 +27,7 @@ from routers import (
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
     permissions, commissions, promo_rules, payroll, attendance,
 )
+from routers.pra import pra_router
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 
@@ -99,6 +100,9 @@ _ROUTERS = [
     payroll.router,
     attendance.router,
 ]
+
+# PRA e-Invoice router mounted separately (not in the shared prefix list above)
+app.include_router(pra_router, prefix="/api")
 
 for r in _ROUTERS:
     app.include_router(r)

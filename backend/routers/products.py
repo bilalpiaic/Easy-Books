@@ -31,6 +31,7 @@ class ProductCreate(BaseModel):
     is_deferred: bool = False
     recognition_months: int = 12
     hs_code: Optional[str] = None
+    pct_code: Optional[str] = None     # PRA 8-digit product classification (PCTCode)
     cost_method: Optional[str] = None  # 'wavg' | 'fifo' | None (inherit from tenant)
     opening_qty: Decimal = Decimal("0")
     opening_cost: Decimal = Decimal("0")

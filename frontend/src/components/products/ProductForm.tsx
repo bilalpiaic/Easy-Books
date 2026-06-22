@@ -19,6 +19,7 @@ export interface ProductFull {
   is_deferred: boolean
   recognition_months: number
   hs_code: string | null
+  pct_code: string | null
   cost_method: string | null
 }
 
@@ -41,6 +42,7 @@ interface FormState {
   opening_qty: string
   opening_cost: string
   hs_code: string
+  pct_code: string    // PRA 8-digit product classification
   cost_method: string  // '' = inherit from tenant, 'wavg', 'fifo'
 }
 
@@ -53,7 +55,7 @@ const emptyForm: FormState = {
   category_id: '',
   is_deferred: false, recognition_months: '12',
   opening_qty: '0', opening_cost: '0',
-  hs_code: '',
+  hs_code: '', pct_code: '',
   cost_method: '',
 }
 
@@ -120,6 +122,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       opening_qty: '0',
       opening_cost: '0',
       hs_code: product.hs_code ?? '',
+      pct_code: product.pct_code ?? '',
       cost_method: product.cost_method ?? '',
     })
   }, [mode, product, categories])
@@ -142,6 +145,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         is_deferred: form.is_deferred,
         recognition_months: parseInt(form.recognition_months) || 12,
         hs_code: form.hs_code.trim() || null,
+        pct_code: form.pct_code.trim() || null,
         cost_method: form.cost_method || null,
       }
       if (mode === 'edit' && product) {
@@ -183,6 +187,12 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
             <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">HS Code <span className="normal-case font-normal">(FBR)</span></label>
             <input value={form.hs_code} onChange={e => setForm(p => ({ ...p, hs_code: e.target.value }))}
               placeholder="e.g. 8471.30"
+              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">PCT Code <span className="normal-case font-normal">(PRA)</span></label>
+            <input value={form.pct_code} onChange={e => setForm(p => ({ ...p, pct_code: e.target.value }))}
+              placeholder="8-digit PRA code"
               className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]" />
           </div>
           <div>

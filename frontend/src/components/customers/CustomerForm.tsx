@@ -12,6 +12,8 @@ export interface CustomerFull {
   opening_balance: number
   is_active: boolean
   payment_term_id: number | null
+  ntn?: string | null
+  cnic?: string | null
 }
 
 interface PaymentTerm { id: number; code: string; name: string; days: number }
@@ -23,10 +25,13 @@ interface FormState {
   address: string
   opening_balance: string
   payment_term_id: string
+  ntn: string    // PRA BuyerPNTN (7-digit NTN)
+  cnic: string   // PRA BuyerCNIC (13 digits)
 }
 
 const emptyForm: FormState = {
   name: '', email: '', phone: '', address: '', opening_balance: '0', payment_term_id: '',
+  ntn: '', cnic: '',
 }
 
 interface Props {
@@ -55,6 +60,8 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         address: customer.address ?? '',
         opening_balance: String(customer.opening_balance),
         payment_term_id: customer.payment_term_id ? String(customer.payment_term_id) : '',
+        ntn: customer.ntn ?? '',
+        cnic: customer.cnic ?? '',
       })
     }
   }, [mode, customer])
@@ -70,6 +77,8 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         address: form.address || null,
         opening_balance: parseFloat(form.opening_balance) || 0,
         payment_term_id: form.payment_term_id ? parseInt(form.payment_term_id) : null,
+        ntn: form.ntn || null,
+        cnic: form.cnic || null,
       }
       if (mode === 'edit' && customer) {
         await apiFetch(`/api/customers/${customer.id}`, {
@@ -140,6 +149,30 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
           <p className="text-xs text-[#1a1814]/50 mt-1">
             Applied to new invoices for this customer when no term is chosen on the invoice.
           </p>
+        </div>
+        {/* PRA e-Invoice identification (optional) */}
+        <div className="border-t border-[#ede9e2] pt-4 space-y-3">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">PRA e-Invoice (optional)</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">NTN / PNTN</label>
+              <input
+                value={form.ntn}
+                onChange={e => setForm(p => ({ ...p, ntn: e.target.value }))}
+                placeholder="e.g. 1234567-8"
+                className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">CNIC</label>
+              <input
+                value={form.cnic}
+                onChange={e => setForm(p => ({ ...p, cnic: e.target.value }))}
+                placeholder="13 digits"
+                className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              />
+            </div>
+          </div>
         </div>
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <div className="flex justify-end gap-3 pt-2">

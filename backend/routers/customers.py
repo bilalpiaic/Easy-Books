@@ -21,6 +21,8 @@ class CustomerCreate(BaseModel):
     address: Optional[str] = None
     opening_balance: Decimal = Decimal("0")
     payment_term_id: Optional[int] = None
+    ntn: Optional[str] = None   # PRA BuyerPNTN (7-digit NTN e.g. "1234567-8")
+    cnic: Optional[str] = None  # PRA BuyerCNIC (13 digits)
 
 
 class CustomerUpdate(BaseModel):
@@ -31,6 +33,8 @@ class CustomerUpdate(BaseModel):
     opening_balance: Optional[Decimal] = None
     is_active: Optional[bool] = None
     payment_term_id: Optional[int] = None
+    ntn: Optional[str] = None
+    cnic: Optional[str] = None
 
 
 @router.get("")

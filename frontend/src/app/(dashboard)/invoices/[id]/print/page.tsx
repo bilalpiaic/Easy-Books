@@ -34,6 +34,7 @@ interface Invoice {
   currency: string
   status: string
   lines: InvoiceLine[]
+  pra_fiscal_number?: string | null
 }
 
 const fmt = (v: string | number) => {
@@ -92,7 +93,16 @@ export default function InvoicePrintPage({ params }: { params: Promise<{ id: str
           <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
             <h1 className="text-lg sm:text-2xl font-serif font-semibold">Invoice {inv.number}</h1>
             <p className="text-sm text-[#1a1814]/60">Issued {fmtDate(inv.issue_date)} · Due {fmtDate(inv.due_date)}</p>
+            {inv.pra_fiscal_number && (
+              <p className="text-xs text-[#1a1814]/60 mt-0.5">PRA Fiscal Invoice No: <span className="font-mono">{inv.pra_fiscal_number}</span></p>
+            )}
           </header>
+          {/* PRA Fiscal Invoice Number — print only */}
+          {inv.pra_fiscal_number && (
+            <div className="hidden print:block mb-4 text-xs text-[#1a1814]/70">
+              PRA Fiscal Invoice No: <span className="font-mono font-semibold">{inv.pra_fiscal_number}</span>
+            </div>
+          )}
 
           {/* Customer block */}
           <div className="grid grid-cols-2 gap-6 mb-6 text-sm">

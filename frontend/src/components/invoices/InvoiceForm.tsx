@@ -31,6 +31,7 @@ export interface InvoiceFull {
   currency: string
   exchange_rate: number
   assigned_to_id: number | null
+  payment_mode: number | null
   lines: (LineItem & { tax_code_id?: number | null })[]
 }
 
@@ -57,6 +58,7 @@ interface FormState {
   currency: string
   exchange_rate: string
   assigned_to_id: string
+  payment_mode: string   // PRA: 1=Cash 2=Card 3=Gift Voucher 4=Loyalty 5=Mixed 6=Cheque
 }
 
 const emptyForm: FormState = {
@@ -64,7 +66,7 @@ const emptyForm: FormState = {
   due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
   ar_account_id: '', revenue_account_id: '', analytic_account_id: '',
   currency: 'PKR', exchange_rate: '1',
-  assigned_to_id: '',
+  assigned_to_id: '', payment_mode: '1',
 }
 
 interface Props {
@@ -144,6 +146,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         currency: invoice.currency ?? 'PKR',
         exchange_rate: String(invoice.exchange_rate ?? 1),
         assigned_to_id: invoice.assigned_to_id ? String(invoice.assigned_to_id) : '',
+        payment_mode: invoice.payment_mode ? String(invoice.payment_mode) : '1',
       })
       setLines((invoice.lines ?? []).map(l => ({
         product_id: l.product_id ?? undefined,
@@ -291,6 +294,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       currency: form.currency || settings.currency,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
       assigned_to_id: form.assigned_to_id ? parseInt(form.assigned_to_id) : null,
+      payment_mode: form.payment_mode ? parseInt(form.payment_mode) : null,
     }
     try {
       if (mode === 'edit' && invoice) {
@@ -390,6 +394,22 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
               <option value="">None</option>
               {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+              Payment Mode <span className="font-normal normal-case text-[#1a1814]/40">(PRA e-Invoice)</span>
+            </label>
+            <select value={form.payment_mode} onChange={e => setForm(p => ({ ...p, payment_mode: e.target.value }))}
+              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              <option value="1">Cash</option>
+              <option value="2">Card / Bank Transfer</option>
+              <option value="3">Gift Voucher</option>
+              <option value="4">Loyalty Card</option>
+              <option value="5">Mixed</option>
+              <option value="6">Cheque</option>
             </select>
           </div>
         </div>

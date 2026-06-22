@@ -48,6 +48,12 @@ export interface AppSettings {
   app_theme: string
   color_theme: string
   app_language: string
+  // PRA e-Invoice (Punjab Revenue Authority) — Pakistan tax compliance
+  pra_enabled: string
+  pra_ntn: string
+  pra_pos_id: string
+  pra_api_token: string
+  pra_sandbox_mode: string
 }
 
 const defaults: AppSettings = {
@@ -84,6 +90,11 @@ const defaults: AppSettings = {
   app_theme: "light",
   color_theme: "gold",
   app_language: "en",
+  pra_enabled: "false",
+  pra_ntn: "",
+  pra_pos_id: "",
+  pra_api_token: "",
+  pra_sandbox_mode: "true",
 }
 
 interface SettingsContextValue {
