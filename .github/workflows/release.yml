@@ -5,31 +5,40 @@
 #
 # Stages:
 #   1. validate  — fail fast if tag ≠ desktop/package.json ≠ frontend/package.json
-#   2. build     — parallel Windows + macOS builds (--publish never; artifacts only)
-#   3. publish   — single job creates the GitHub Release and uploads all assets
+#                  ≠ backend/pyproject.toml (all 3 must match the pushed tag)
+#   2. build     — Windows (always) + macOS (only when APPLE_ID secret is set)
+#                  Both run `--publish never` to produce local artifacts only.
+#   3. publish   — single job creates/updates the GitHub Release and uploads
+#                  all artifacts. Single writer avoids latest.yml race.
 #
-# Why 3 stages?  The old workflow had macOS and Windows both running
-# `--publish always` concurrently, causing a race on latest.yml / latest-mac.yml.
-# Now only the publish stage touches the release, so there is exactly one writer.
-#
-# Secrets required:
-#   GH_TOKEN              — automatically provided by Actions (repo write)
-#   CSC_LINK              — base64-encoded .p12 code-signing cert (Win + macOS)
-#   CSC_KEY_PASSWORD      — cert password
-#   APPLE_ID              — macOS notarization (optional; omit for unsigned builds)
+# Secrets required (set in repo Settings → Secrets → Actions):
+#   GITHUB_TOKEN          — auto-provided by Actions (needs `contents: write`)
+#   CSC_LINK              — base64-encoded .p12 code-signing cert (optional; skip = unsigned)
+#   CSC_KEY_PASSWORD      — cert password (optional)
+#   APPLE_ID              — notarization email — if ABSENT, macOS build is skipped entirely
 #   APPLE_APP_SPECIFIC_PASSWORD
 #   APPLE_TEAM_ID
 #
-# macOS note:  electron-builder.yml has `notarize: true` and `hardenedRuntime: true`.
-# Without the Apple secrets the macOS build job will fail at notarization.
-# For unsigned/dev builds, set `notarize: false` in electron-builder.yml.
+# macOS note:
+#   electron-builder.yml has `notarize: true` + `hardenedRuntime: true`.
+#   Without the Apple secrets the macOS job is skipped rather than failing —
+#   a Windows-only release is published automatically. Set all three Apple
+#   secrets to enable signed + notarized macOS DMGs.
+#
+# Pre-release detection:
+#   Tags containing a hyphen (v2.9.0-beta.1, v3.0.0-rc.2) are published as
+#   GitHub pre-releases automatically.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Release
 
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v2.8.0) — must already exist in the repo"
+        required: true
 
 permissions:
   contents: write
@@ -41,52 +50,82 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.vtag.outputs.version }}
+      is_prerelease: ${{ steps.vtag.outputs.is_prerelease }}
+      macos_enabled: ${{ steps.check_apple.outputs.enabled }}
     steps:
       - uses: actions/checkout@v4
 
       - id: vtag
         name: Extract version from tag
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-
-      - name: Verify desktop/package.json matches tag
         run: |
-          pkg=$(node -p "require('./desktop/package.json').version")
-          tag="${{ steps.vtag.outputs.version }}"
-          if [ "$pkg" != "$tag" ]; then
-            echo "::error file=desktop/package.json::version $pkg does not match tag v$tag — update desktop/package.json before tagging"
-            exit 1
+          # Support both automatic tag push and manual workflow_dispatch
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            REF="${{ github.event.inputs.tag }}"
+          else
+            REF="${GITHUB_REF#refs/tags/}"
           fi
-          echo "✅  desktop/package.json: $pkg"
+          VERSION="${REF#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          # Pre-release if the version contains a hyphen (e.g. 2.9.0-beta.1)
+          if echo "$VERSION" | grep -q '-'; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Tag: ${REF}  →  version: ${VERSION}"
 
       - name: Verify frontend/package.json matches tag
         run: |
           pkg=$(node -p "require('./frontend/package.json').version")
           tag="${{ steps.vtag.outputs.version }}"
           if [ "$pkg" != "$tag" ]; then
-            echo "::error file=frontend/package.json::version $pkg does not match tag v$tag — update frontend/package.json before tagging"
+            echo "::error file=frontend/package.json::version '$pkg' does not match tag 'v$tag' — bump frontend/package.json before tagging"
             exit 1
           fi
           echo "✅  frontend/package.json: $pkg"
 
-# ── Stage 2: Build (parallel, no publish) ─────────────────────────────────────
-  build:
-    name: Build (${{ matrix.os }})
+      - name: Verify desktop/package.json matches tag
+        run: |
+          pkg=$(node -p "require('./desktop/package.json').version")
+          tag="${{ steps.vtag.outputs.version }}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error file=desktop/package.json::version '$pkg' does not match tag 'v$tag' — bump desktop/package.json before tagging"
+            exit 1
+          fi
+          echo "✅  desktop/package.json: $pkg"
+
+      - name: Verify backend/pyproject.toml matches tag
+        run: |
+          pkg=$(python3 -c "import re; t=open('backend/pyproject.toml').read(); print(re.search(r'version\s*=\s*\"([^\"]+)\"', t).group(1))")
+          tag="${{ steps.vtag.outputs.version }}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error file=backend/pyproject.toml::version '$pkg' does not match tag 'v$tag' — bump backend/pyproject.toml before tagging"
+            exit 1
+          fi
+          echo "✅  backend/pyproject.toml: $pkg"
+
+      - id: check_apple
+        name: Check whether Apple secrets are available
+        # Secrets cannot be read in `if:` conditions directly, but they can be
+        # tested in a run step and emitted as an output.
+        run: |
+          if [ -n "${{ secrets.APPLE_ID }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "✅  Apple secrets present — macOS build will run"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  APPLE_ID secret not set — macOS build will be skipped (Windows-only release)"
+          fi
+
+# ── Stage 2a: Build — Windows (always) ────────────────────────────────────────
+  build-windows:
+    name: Build (Windows)
     needs: validate
-    strategy:
-      fail-fast: true          # abort the other platform if one fails
-      matrix:
-        include:
-          - os: windows-latest
-            artifact: windows
-            stage_cmd: pwsh -File desktop/scripts/prepare-resources.ps1
-          - os: macos-latest
-            artifact: macos
-            stage_cmd: bash desktop/scripts/prepare-resources.sh
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0       # full history so PyInstaller spec has git metadata
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -96,20 +135,70 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20.18.1"
+          node-version: "20"
 
       - name: Sync backend Python environment
         working-directory: backend
         run: uv sync
 
       - name: Stage desktop resources (PyInstaller + Next.js + portable Node)
-        run: ${{ matrix.stage_cmd }}
+        run: pwsh -File desktop/scripts/prepare-resources.ps1
 
       - name: Install desktop (Electron) dependencies
         working-directory: desktop
         run: npm install
 
-      - name: Build installer — no publish
+      - name: Build Windows installer
+        working-directory: desktop
+        run: npx electron-builder --config electron-builder.yml --publish never
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.exe.blockmap
+            desktop/dist/latest.yml
+          if-no-files-found: error
+          retention-days: 1
+
+# ── Stage 2b: Build — macOS (only when Apple secrets are present) ─────────────
+  build-macos:
+    name: Build (macOS)
+    needs: validate
+    if: needs.validate.outputs.macos_enabled == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sync backend Python environment
+        working-directory: backend
+        run: uv sync
+
+      - name: Stage desktop resources (PyInstaller + Next.js + portable Node)
+        run: bash desktop/scripts/prepare-resources.sh
+
+      - name: Install desktop (Electron) dependencies
+        working-directory: desktop
+        run: npm install
+
+      - name: Build macOS installer
         working-directory: desktop
         run: npx electron-builder --config electron-builder.yml --publish never
         env:
@@ -119,23 +208,24 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Upload build artifacts
+      - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.artifact }}
+          name: dist-macos
           path: |
-            desktop/dist/*.exe
-            desktop/dist/*.exe.blockmap
             desktop/dist/*.dmg
             desktop/dist/*.dmg.blockmap
-            desktop/dist/latest*.yml
+            desktop/dist/latest-mac.yml
           if-no-files-found: error
-          retention-days: 1    # only needed long enough for the publish job
+          retention-days: 1
 
 # ── Stage 3: Publish (single job — no race on latest.yml) ─────────────────────
   publish:
     name: Publish GitHub release
-    needs: [validate, build]   # both matrix variants of build must succeed
+    # Wait for Windows (always required). macOS is optional — `always()` lets
+    # this job proceed even when build-macos was skipped or absent.
+    needs: [validate, build-windows, build-macos]
+    if: always() && needs.build-windows.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -146,20 +236,33 @@ jobs:
           name: dist-windows
           path: release-assets
 
-      - name: Download macOS artifacts
+      - name: Download macOS artifacts (if built)
         uses: actions/download-artifact@v4
+        if: needs.build-macos.result == 'success'
         with:
           name: dist-macos
           path: release-assets
+
+      - name: List assets to be published
+        run: ls -lh release-assets/
 
       - name: Create GitHub release and upload all assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
-          echo "Publishing Easy-Books v${VERSION}"
-          ls -lh release-assets/
+          PRERELEASE="${{ needs.validate.outputs.is_prerelease }}"
+          echo "Publishing Easy-Books v${VERSION} (pre-release: ${PRERELEASE})"
+
+          PRERELEASE_FLAG=""
+          if [ "$PRERELEASE" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          # Create the release (fails if it already exists — intentional: don't
+          # silently overwrite a release that may already have been downloaded).
           gh release create "v${VERSION}" release-assets/* \
             --title "Easy-Books v${VERSION}" \
             --generate-notes \
-            --verify-tag
+            --verify-tag \
+            $PRERELEASE_FLAG
