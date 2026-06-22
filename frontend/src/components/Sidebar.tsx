@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { X, ChevronRight, ChevronDown, Pin, PinOff, LogOut } from "lucide-react"
+import { X, ChevronRight, ChevronDown, Pin, PinOff, LogOut, PlusCircle, FileSignature, Receipt, Users, Package, FileCheck, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
@@ -34,6 +34,25 @@ const HUB_ROUTES: Record<string, string> = {
 
 // Hub hrefs only highlight on exact pathname match to avoid conflicting with sub-page nav items
 const HUB_HREFS = new Set(Object.values(HUB_ROUTES))
+
+// Dedicated nav for PRA portal mode — clean sections, no accounting noise
+const PORTAL_NAV = [
+  { label: "New Invoice",     href: "/invoices/new",  icon: PlusCircle,    section: "Sales" },
+  { label: "Invoice Queue",   href: "/invoices",      icon: FileSignature, section: "Sales" },
+  { label: "Credit Notes",    href: "/credit-notes",  icon: Receipt,       section: "Sales" },
+  { label: "Customers",       href: "/customers",     icon: Users,         section: "Customers" },
+  { label: "Products",        href: "/products",      icon: Package,       section: "Inventory" },
+  { label: "Submission Logs", href: "/pra-logs",      icon: FileCheck,     section: "PRA" },
+  { label: "Settings",        href: "/settings",      icon: Settings,      section: "System" },
+] as const
+
+const PORTAL_SECTION_COLORS: Record<string, string> = {
+  Sales:     "text-green-400",
+  Customers: "text-blue-400",
+  Inventory: "text-amber-400",
+  PRA:       "text-[#ffd966]",
+  System:    "text-white/40",
+}
 
 type Me = { role?: string; tenant?: { business_model?: string } }
 
@@ -122,18 +141,19 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const isAdmin = role === "admin" || role === "owner"
   const { isPortal, canToggle, togglePortal } = usePRAPortal()
 
-  const PRA_PORTAL_HREFS = new Set([
-    "/invoices", "/customers", "/products", "/credit-notes",
-    "/customer-performance", "/pra-logs", "/settings",
-  ])
+  // Portal mode: use dedicated slim nav; full mode: use standard filtered nav
+  const visibleNav = isPortal
+    ? PORTAL_NAV
+    : NAV.filter(i => {
+        if (i.forModel && i.forModel !== businessModel) return false
+        if (i.adminOnly && !isAdmin) return false
+        return true
+      })
 
-  const visibleNav = NAV.filter(i => {
-    if (i.forModel && i.forModel !== businessModel) return false
-    if (i.adminOnly && !isAdmin) return false
-    if (isPortal) return PRA_PORTAL_HREFS.has(i.href)
-    return true
-  })
-  const SECTIONS = ALL_SECTIONS.filter(s => visibleNav.some(i => i.section === s))
+  const activeSectionColors = isPortal ? PORTAL_SECTION_COLORS : SECTION_COLORS
+  const SECTIONS = isPortal
+    ? [...new Set(PORTAL_NAV.map(i => i.section))]
+    : ALL_SECTIONS.filter(s => visibleNav.some(i => i.section === s))
 
   const logout = () => {
     if (!window.confirm("Log out?")) return
@@ -191,7 +211,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
         {/* Header row inside drawer */}
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/10 shrink-0">
           <button
-            onClick={() => { router.push(isPortal ? "/invoices" : "/dashboard"); if (!pinned) onClose() }}
+            onClick={() => { router.push(isPortal ? "/pra-dashboard" : "/dashboard"); if (!pinned) onClose() }}
             className="w-8 h-8 bg-[#b8943f] rounded-lg flex items-center justify-center font-serif text-black font-bold text-sm hover:bg-[#d4af60] transition-colors"
             title={orgName}
           >
@@ -236,7 +256,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                     "w-full flex items-center justify-between px-3 pt-2.5 pb-1",
                     "text-[9px] font-bold uppercase tracking-[0.15em]",
                     "hover:opacity-80 transition-opacity group",
-                    SECTION_COLORS[section],
+                    activeSectionColors[section],
                     sectionActive && !collapsed && "opacity-100"
                   )}
                 >
@@ -322,7 +342,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
       {/* Section tooltip — fixed so it escapes the sidebar's overflow-y-auto */}
       {tooltip && (() => {
         const items = visibleNav.filter(i => i.section === tooltip.section)
-        const color = SECTION_COLORS[tooltip.section] ?? "text-white/60"
+        const color = activeSectionColors[tooltip.section] ?? "text-white/60"
         return (
           <div
             style={{ top: tooltip.y, left: 224 }}

@@ -55,7 +55,7 @@ export default function Dashboard() {
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
-    if (isPortal) router.replace("/invoices")
+    if (isPortal) router.replace("/pra-dashboard")
   }, [isPortal, router])
 
   useEffect(() => {
