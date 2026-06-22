@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-21 (against `main` @ commit `40fc6c0`)._
+_Last reviewed: 2026-06-22 (against `main` @ commit `40fc6c0`)._
 
 ## Status summary
 
@@ -22,6 +22,22 @@ above. (See "Issue closure" below.)
 ---
 
 ## Shipped history (condensed)
+
+### v2.9.0 — PRA e-Invoice Integration (Pakistan, 2026-06-22)
+
+| Feature | Detail |
+|---------|--------|
+| **PRA eIMS submission** | Real-time invoice filing with Punjab Revenue Authority via `POST /api/Live/PostData`; sandbox + production endpoints; non-blocking `BackgroundTasks` so invoice save is never delayed by PRA API latency |
+| **Fiscal Invoice Number (FIN)** | PRA returns a FIN on success (`Code: "100"`); stored in `invoice.pra_fiscal_number`; displayed on the invoice detail badge and printed below the invoice number on every printed invoice |
+| **PRA status lifecycle** | `pra_status`: `not_required → pending → submitted / failed`; colour-coded badge (amber/green/red) on invoice detail; manual retry button for failed submissions |
+| **Payment Mode** | New field on Invoice (`1=Cash`, `2=Card/Bank Transfer`, `3=Gift Voucher`, `4=Loyalty`, `5=Mixed`, `6=Cheque`); sent as `PaymentMode` in the PRA payload; dropdown on the invoice form |
+| **Customer PRA fields** | `ntn` (7-digit Business NTN e.g. `1234567-8`, mapped to `BuyerPNTN`) and `cnic` (13-digit consumer CNIC, mapped to `BuyerCNIC`); editable on the customer form |
+| **Product PCT codes** | `pct_code` (8-digit PRA product classification code, mapped to `PCTCode` per line); editable on the product form alongside the existing HS Code field |
+| **Settings section** | PRA e-Invoice card in Settings: enable toggle, PNTN/NTN, POS ID, API token (password field with show/hide), sandbox mode, **Test Connection** button that pings the live sandbox and shows the PRA response code |
+| **Submission audit log** | `PRASubmissionLog` table records every API call: endpoint, request JSON, HTTP status, PRA code, response JSON, success flag; viewable via `GET /api/pra/logs` |
+| **Permission gates** | `perm_dep("invoices")` at router level; `perm_dep("invoices", "edit")` on mutating endpoints; `apply_own_filter` row-level scoping on `/logs` via Invoice join |
+| **Migration** | `0026_pra_integration` — 6 new columns on `invoice`, 2 on `customer`, 1 on `product`; new `prasubmissionlog` table; SQLite-safe (no FK ALTER, `has_table` guard) |
+| **PRA demo tenant** | Sixth demo company: `demo.pra@easy-books.app` / `demo1234` — *Lahore Retail Traders*, PKR currency; 25 customers with NTN/CNIC; 8 retail products with PCT codes; 90 invoices pre-stamped with FINs and varied payment modes |
 
 ### v2.8.0 — HRM: Payroll & Attendance Register (2026-06-21)
 

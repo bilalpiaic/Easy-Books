@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-21 · **Version:** 2.7.0
+**Last updated:** 2026-06-22 · **Version:** 2.9.0
 
 ---
 
@@ -37,6 +37,7 @@
 25. [UI Preferences — Theme, Language & Layout](#25-ui-preferences--theme-language--layout)
 26. [Payroll](#26-payroll)
 27. [Attendance Register](#27-attendance-register)
+28. [PRA e-Invoice (Pakistan)](#28-pra-e-invoice-pakistan)
 
 ---
 
@@ -1373,3 +1374,120 @@ Go to **Attendance → Import** (`/attendance/import`):
 - Delete is blocked for biometric records to preserve device audit integrity.
 
 **Future device integration:** ZKTeco / FingerTec devices can push records via TCP/IP or WebSocket. The `raw_data` field is pre-designed to store the device's native payload so no data is lost during the transition from polling to push.
+
+---
+
+## 28. PRA e-Invoice (Pakistan)
+
+Businesses registered with the **Punjab Revenue Authority (PRA)** are required to submit every sales invoice to the PRA eIMS system in real-time. Easy-Books integrates with the PRA API so this happens automatically in the background — you keep working without waiting for a PRA response.
+
+### 28.1 What is a Fiscal Invoice Number (FIN)?
+
+When PRA accepts your invoice it returns a **Fiscal Invoice Number (FIN)** — e.g. `100001FFPK5137899`. This number must be printed on every issued invoice as proof of compliance. Easy-Books stores it and prints it automatically.
+
+### 28.2 Enable PRA e-Invoice
+
+Go to **Settings → PRA e-Invoice (Pakistan)**:
+
+| Field | What to enter |
+|-------|--------------|
+| **Enable PRA e-Invoice** | Toggle ON to activate real-time submission |
+| **PNTN / NTN** | Your 7-digit business NTN (e.g. `1234567-8`) |
+| **POS ID** | 6-digit POS ID from the PRA portal (e.g. `100001`) |
+| **API Token** | Bearer token from the PRA eIMS portal (paste and hide with the eye icon) |
+| **Sandbox mode** | ON = use the PRA test environment; OFF = live production submission |
+
+Click **Test Connection** to verify your credentials before going live. A green "Connected" response (code 102 is normal — it means credentials are valid but no items were sent in the test ping) confirms the token and POS ID are correct.
+
+### 28.3 Add Customer NTN / CNIC
+
+Open any customer and click **Edit**. Scroll to the **PRA e-Invoice** section at the bottom of the form:
+
+- **NTN** — Business buyer NTN (7 digits, e.g. `1234567-8`). Required for B2B invoices to unlock GST input credit for your customer.
+- **CNIC** — Consumer 13-digit ID card number. Required for B2C invoices above the PRA threshold.
+
+Leave both blank for customers who are not registered (Easy-Books will still submit; PRA marks it as unregistered buyer).
+
+### 28.4 Add PCT Code to Products
+
+Open any product and click **Edit**. The **PCT Code** field (8-digit PRA product classification code) appears next to the HS Code field. PRA uses this to categorise each line item in the submitted invoice.
+
+Common PCT codes:
+| Product | PCT Code |
+|---------|----------|
+| Basmati Rice | `10063000` |
+| Sugar | `17011200` |
+| Cooking Oil | `15071000` |
+| Tea | `09021000` |
+
+If a product has no PCT code, Easy-Books sends `00000000` (unclassified) which PRA accepts.
+
+### 28.5 Create an Invoice — Payment Mode
+
+On the **New Invoice** form, the **Payment Mode** field (labelled *PRA e-Invoice*) tells PRA how the buyer paid:
+
+| Code | Mode |
+|------|------|
+| 1 | Cash |
+| 2 | Card / Bank Transfer |
+| 3 | Gift Voucher |
+| 4 | Loyalty Card |
+| 5 | Mixed |
+| 6 | Cheque |
+
+Default is Cash. Change it before saving if the customer pays by card or cheque.
+
+### 28.6 Submission Flow
+
+When you **Save & Post** an invoice:
+
+1. Easy-Books posts the GL entry and saves the invoice immediately (the UI confirms in under a second).
+2. In the background, the PRA payload is built from the invoice lines, customer NTN/CNIC, product PCT codes, POS ID, and payment mode.
+3. The payload is submitted to the PRA API with your Bearer token.
+4. On success (PRA code `100`), the FIN is stored and the invoice status changes to **PRA Submitted** (green badge).
+5. On failure, the status changes to **PRA Failed** (red badge) — click **Retry** on the invoice detail page to re-submit.
+
+The submission always uses your invoice number as the USIN (Unique Serial Invoice Number), which makes retries safe — PRA is idempotent on USIN.
+
+### 28.7 Reading the PRA Status Badge
+
+On the invoice detail page, a badge appears below the main status:
+
+| Badge | Meaning |
+|-------|---------|
+| (hidden) | PRA is not enabled for this tenant |
+| 🟡 **PRA Pending** | Submission queued / in progress |
+| 🟢 **PRA Submitted** | FIN received; invoice is compliant |
+| 🔴 **PRA Failed** | Submission failed; Retry button visible |
+
+When submitted, the FIN is shown below the badge: **FIN: 100001FFPK5137899**.
+
+### 28.8 Printed Invoice
+
+Every printed invoice automatically includes the FIN below the invoice number when one has been assigned:
+
+```
+Invoice No:   INV-0042
+PRA Fiscal Invoice No: 100001FFPK5137899
+```
+
+No extra setup is needed — the print template reads the stored FIN.
+
+### 28.9 Submission Log
+
+Go to **Settings → PRA e-Invoice** or use the API at `/api/pra/logs` to view every submission attempt: timestamp, endpoint (sandbox vs production), HTTP status, PRA response code, and the full request/response JSON for auditing.
+
+### 28.10 Sandbox vs Production
+
+- **Sandbox** (`pra_sandbox_mode = true`): Points to `ims.pral.com.pk/ims/sandbox/…`. Use this during setup and testing. The sandbox token is `24d8fab3-f2e9-398f-ae17-b387125ec4a2` (shared/public).
+- **Production** (`pra_sandbox_mode = false`): Points to `ims.pral.com.pk/ims/production/…`. Requires your real per-tenant Bearer token from the PRA portal.
+
+Switch Sandbox OFF only after a successful Test Connection with your real production token.
+
+### 28.11 Demo Tenant
+
+Log in as `demo.pra@easy-books.app` / `demo1234` to explore a pre-configured Pakistani retail business (*Lahore Retail Traders*) with:
+- PKR currency, POS ID 100001, NTN 1234567-8
+- 25 customers — half with NTN/CNIC (B2B), half without (B2C)
+- 8 retail products with PCT codes (rice, sugar, oil, flour, tea, milk powder, soap, detergent)
+- 90 invoices already submitted with sample FINs and varied payment modes

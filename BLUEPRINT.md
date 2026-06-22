@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-06-21 · **Branch:** `main`
+> **Last updated:** 2026-06-22 · **Branch:** `main`
 
 ---
 
@@ -27,6 +27,7 @@
 9. [Accounting Cycles & GL Postings](#9-accounting-cycles--gl-postings)
 10. [Manufacturing Track (V2)](#10-manufacturing-track-v2)
 10A. [Telecom Franchise Track (V3)](#10a-telecom-franchise-track-v3)
+10B. [PRA e-Invoice Track (Pakistan)](#10b-pra-e-invoice-track-pakistan)
 11. [Reports](#11-reports)
 12. [Security Model](#12-security-model)
 13. [Cross-Cutting Concerns](#13-cross-cutting-concerns)
@@ -838,6 +839,87 @@ Operator · TrackerAccount (deposit/load balances) · TrackerTransaction · SimB
 
 ### 10A.3 Invariants
 `tc_tracker_account.deposit_balance == GL 1210` · `tc_tracker_account.load_balance == GL 1211` · load order balances exactly · FCA events are counted, never journalised per event · trial balance nets to zero. Full Dr/Cr table in WORKFLOW §4.8.
+
+---
+
+## 10B. PRA e-INVOICE TRACK (Pakistan)
+
+Punjab Revenue Authority (PRA) requires registered businesses in Punjab, Pakistan to submit every sales invoice to the eIMS system in real-time and print the returned Fiscal Invoice Number (FIN) on all invoices.
+
+### 10B.1 New fields
+
+| Model | Column | Purpose |
+|-------|--------|---------|
+| `Invoice` | `payment_mode` | Int 1–6 (Cash/Card/GiftVoucher/Loyalty/Mixed/Cheque) sent to PRA |
+| `Invoice` | `pra_usin` | User Serial Invoice Number sent to PRA (= `invoice.number`) |
+| `Invoice` | `pra_fiscal_number` | FIN returned by PRA on success |
+| `Invoice` | `pra_status` | `not_required` / `pending` / `submitted` / `failed` |
+| `Invoice` | `pra_submitted_at` | Timestamp of successful submission |
+| `Invoice` | `pra_response_raw` | Raw JSON response (audit trail) |
+| `Customer` | `ntn` | 7-digit Business NTN (BuyerPNTN in PRA payload) |
+| `Customer` | `cnic` | 13-digit Consumer CNIC (BuyerCNIC in PRA payload) |
+| `Product` | `pct_code` | 8-digit PRA product classification code (PCTCode per line) |
+
+**New table:** `PRASubmissionLog` — one row per API call; records endpoint, request JSON, HTTP status, PRA code, response JSON, success flag.
+
+**New settings keys:** `pra_enabled`, `pra_ntn`, `pra_pos_id`, `pra_api_token`, `pra_sandbox_mode` — stored in the tenant `AppSettings` KV store.
+
+### 10B.2 Submission flow
+
+```
+POST /api/invoices  →  GL post  →  invoice.pra_status = "pending"
+                              ↓ (BackgroundTasks — non-blocking)
+                    services/pra.py::submit_to_pra()
+                              ↓
+                    build_pra_payload(invoice, lines, customer, products)
+                              ↓
+                    POST https://ims.pral.com.pk/ims/{mode}/api/Live/PostData
+                              ↓
+                    Code "100" → pra_status = "submitted", pra_fiscal_number = FIN
+                    other      → pra_status = "failed"
+                              ↓
+                    PRASubmissionLog row inserted
+```
+
+The invoice save never waits for PRA — accounting correctness is independent of tax reporting.
+
+### 10B.3 API endpoints (`backend/routers/pra.py`)
+
+| Method | Path | Permission | Purpose |
+|--------|------|-----------|---------|
+| `POST` | `/api/pra/test` | `invoices:edit` | Ping sandbox/production and return PRA code |
+| `GET` | `/api/pra/invoices/{id}/status` | `invoices:view` | Return `pra_status`, FIN, USIN, submitted_at |
+| `POST` | `/api/pra/invoices/{id}/submit` | `invoices:edit` | Manual retry / re-submission |
+| `GET` | `/api/pra/logs` | `invoices:view` | List `PRASubmissionLog`; row-scoped via Invoice join when `my_data_only=true` |
+
+### 10B.4 Payload mapping
+
+| PRA field | Easy-Books source |
+|-----------|------------------|
+| `POSID` | `settings["pra_pos_id"]` |
+| `USIN` | `invoice.number` (unique per tenant → idempotent retries) |
+| `DateTime` | `invoice.issue_date + " 00:00:00"` |
+| `BuyerName` | `customer.name` |
+| `BuyerPNTN` | `customer.ntn` |
+| `BuyerCNIC` | `customer.cnic` |
+| `BuyerPhoneNumber` | `customer.phone` |
+| `TotalSaleValue` | Invoice subtotal (pre-tax) |
+| `TotalTaxCharged` | `invoice.gst_amount` |
+| `TotalBillAmount` | `invoice.total` |
+| `TotalQuantity` | Sum of all line qty values |
+| `Discount` | Sum of per-line discount amounts |
+| `PaymentMode` | `invoice.payment_mode` (default 1 = Cash) |
+| `InvoiceType` | 1 = standard; 2 = debit note; 3 = credit note |
+| `Items[].PCTCode` | `product.pct_code` or `"00000000"` |
+| `Items[].TaxRate` | `tax_code.rate` or `invoice.gst_rate` |
+
+### 10B.5 Invariants
+
+- Invoice save is **never blocked** by PRA API latency — `BackgroundTasks` decouples the two.
+- USIN = `invoice.number` (already unique per-tenant) → retries are safe and idempotent.
+- Sandbox token `24d8fab3-f2e9-398f-ae17-b387125ec4a2` is static/shared — only production token is tenant-specific; **never logged**.
+- `pra_status` defaults to `"not_required"` — no badge shown unless tenant has `pra_enabled = "true"`.
+- Migration `0026_pra_integration` follows the SQLite-safe pattern: no `ADD CONSTRAINT` ALTER, `has_table` guard on `prasubmissionlog`.
 
 ---
 

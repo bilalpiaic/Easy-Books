@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. It supports five business models: **Simple**, **Services**, **Trader**, **Manufacturing**, and **Telecom Franchise** — all with IAS/IFRS-aligned accounting, an enforced ∑Dr = ∑Cr invariant, and live reports computed directly from the General Ledger.
+**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. It supports six business models: **Simple**, **Services**, **Trader**, **Manufacturing**, **Telecom Franchise**, and **PRA e-Invoice (Pakistan)** — all with IAS/IFRS-aligned accounting, an enforced ∑Dr = ∑Cr invariant, and live reports computed directly from the General Ledger.
 
 Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend) · SQLite for dev/local, PostgreSQL for production.
 
@@ -114,6 +114,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 **Business-model tracks**
 - **Manufacturing (V2):** multi-location inventory, Bills of Material, Rate Plans, GRN, Production Order lifecycle (draft→started→completed→delivered→billed) with full GL postings
 - **Telecom Franchise (V3):** 56-account franchise CoA, Tracker wallet & load orders, MSR→RSO→Retail chain, SIM inventory, FCA targets, Mobile Money agency, Postpaid billing, Commission reconciliation, 9 telecom reports
+- **PRA e-Invoice (Pakistan):** real-time invoice submission to Punjab Revenue Authority (PRA eIMS); FIN (Fiscal Invoice Number) returned and printed on invoices; `pra_status` badge (pending/submitted/failed) with retry; Payment Mode field; customer NTN/CNIC fields; product PCT codes; Settings card with Test Connection; non-blocking `BackgroundTasks` submission so invoice save is never delayed
 
 ---
 
@@ -140,7 +141,7 @@ Your data lives **outside** the app folder:
 | macOS / Linux | `~/.easy-books` (override: `EB_DATA_DIR`) |
 | Windows | `%USERPROFILE%\.easy-books` (override: `%EB_DATA_DIR%`) |
 
-On first install the 5 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
+On first install the 6 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
 
 Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a source update.
 
@@ -201,13 +202,13 @@ npm install
 npm run dev
 ```
 
-`dev.sh` auto-seeds five demo tenants with rich mock data on each run (idempotent).
+`dev.sh` auto-seeds six demo tenants with rich mock data on each run (idempotent).
 
 ---
 
 ## Demo / sample data
 
-**Standalone script installs** (`install-and-run.bat` / `.sh`) **auto-load the 5 demo companies on first install** — sign in immediately with password `demo1234`, no signup required:
+**Standalone script installs** (`install-and-run.bat` / `.sh`) **auto-load the 6 demo companies on first install** — sign in immediately with password `demo1234`, no signup required:
 
 | Email | Business model |
 |---|---|
@@ -216,10 +217,11 @@ npm run dev
 | `demo.trader@easy-books.app` | Inventory / buy-and-resell |
 | `demo.manufacturing@easy-books.app` | Manufacturing / value-addition |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
+| `demo.pra@easy-books.app` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
 
 The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 
-The **desktop (Electron) app** also auto-loads the 5 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
+The **desktop (Electron) app** also auto-loads the 6 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 
 The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time.
 
