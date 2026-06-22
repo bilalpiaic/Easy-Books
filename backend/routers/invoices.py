@@ -104,6 +104,8 @@ class InvoiceCreate(BaseModel):
     assigned_to_id: Optional[int] = None  # sales person (for commission tracking)
     analytic_account_id: Optional[int] = None
     payment_mode: Optional[int] = None   # PRA: 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
+    buyer_ntn: Optional[str] = None      # walk-in NTN override for PRA payload
+    buyer_cnic: Optional[str] = None     # walk-in CNIC override for PRA payload
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -237,13 +239,28 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
     lines = session.exec(
         select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id).order_by(InvoiceLine.id)
     ).all()
-    # Enrich lines with product hs_code for FBR-compliant print output
+    # Enrich lines with product hs_code/pct_code and tax_rate for PRA/FBR print output
     product_ids = [ln.product_id for ln in lines if ln.product_id]
     hs_map: dict[int, str | None] = {}
+    pct_map: dict[int, str | None] = {}
     if product_ids:
         prods = session.exec(select(Product).where(Product.id.in_(product_ids))).all()
         hs_map = {p.id: p.hs_code for p in prods}
-    enriched_lines = [{**ln.model_dump(), "hs_code": hs_map.get(ln.product_id)} for ln in lines]
+        pct_map = {p.id: p.pct_code for p in prods}
+    tax_code_ids = [ln.tax_code_id for ln in lines if ln.tax_code_id]
+    tax_rate_map: dict[int, float | None] = {}
+    if tax_code_ids:
+        tax_codes = session.exec(select(TaxCode).where(TaxCode.id.in_(tax_code_ids))).all()
+        tax_rate_map = {tc.id: float(tc.rate) for tc in tax_codes}
+    enriched_lines = [
+        {
+            **ln.model_dump(),
+            "hs_code": hs_map.get(ln.product_id),
+            "pct_code": pct_map.get(ln.product_id),
+            "tax_rate": tax_rate_map.get(ln.tax_code_id),
+        }
+        for ln in lines
+    ]
     return {**inv.model_dump(), "lines": enriched_lines}
 
 
@@ -341,6 +358,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         assigned_to_id=body.assigned_to_id,
         analytic_account_id=body.analytic_account_id,
         payment_mode=body.payment_mode,
+        buyer_ntn=body.buyer_ntn,
+        buyer_cnic=body.buyer_cnic,
     )
     session.add(invoice)
     session.flush()
@@ -727,6 +746,9 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.revenue_account_id = body.revenue_account_id
     inv.assigned_to_id = body.assigned_to_id
     inv.analytic_account_id = body.analytic_account_id
+    inv.payment_mode = body.payment_mode
+    inv.buyer_ntn = body.buyer_ntn
+    inv.buyer_cnic = body.buyer_cnic
     session.add(inv)
     session.flush()
 

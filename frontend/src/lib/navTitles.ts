@@ -114,6 +114,8 @@ export const TITLE_MAP: Record<string, string> = {
   "/attendance/bulk":              "Bulk Attendance Entry",
   "/attendance/report":            "Attendance Report",
   "/attendance/import":            "Biometric Import",
+  // PRA e-Invoice
+  "/pra-logs":                     "PRA Logs",
 }
 
 /**

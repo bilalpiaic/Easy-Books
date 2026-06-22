@@ -333,6 +333,8 @@ class Invoice(SQLModel, table=True):
     pra_status: str = Field(default="not_required")  # not_required|pending|submitted|failed
     pra_submitted_at: Optional[datetime] = None
     pra_response_raw: Optional[str] = None  # raw JSON response for audit trail
+    buyer_ntn: Optional[str] = None   # walk-in NTN override (takes priority over customer.ntn)
+    buyer_cnic: Optional[str] = None  # walk-in CNIC override (takes priority over customer.cnic)
 
 
 class Bill(SQLModel, table=True):

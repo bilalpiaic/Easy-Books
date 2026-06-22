@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { usePRAPortal } from "@/hooks/usePRAPortal"
 import { Settings2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
@@ -44,11 +46,17 @@ export default function Dashboard() {
   const [charts, setCharts] = useState<ChartData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { settings, reload: reloadSettings } = useSettings()
+  const { isPortal } = usePRAPortal()
+  const router = useRouter()
   const { t } = useTranslation()
   const [checklistDismissed, setChecklistDismissed] = useState(false)
 
   const layout = useDashboardLayout()
   const [editing, setEditing] = useState(false)
+
+  useEffect(() => {
+    if (isPortal) router.replace("/invoices")
+  }, [isPortal, router])
 
   useEffect(() => {
     setData(null)
@@ -62,6 +70,8 @@ export default function Dashboard() {
       .then(setCharts)
       .catch(() => {})
   }, [])
+
+  if (isPortal) return null
 
   const s = data?.summary
   const netProfit = s ? s.total_revenue - s.total_expense : 0

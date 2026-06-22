@@ -9,6 +9,7 @@ import { getAuthHeader } from "@/lib/auth"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
+import { usePRAPortal } from "@/hooks/usePRAPortal"
 
 interface AuditEntry {
   id: number
@@ -87,6 +88,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const { t } = useTranslation()
 
   const fmt = useFmt()
+  const { isPortal } = usePRAPortal()
   const { id } = use(params)
   const [inv, setInv]       = useState<Invoice | null>(null)
   const [error, setError]   = useState<string | null>(null)
@@ -191,6 +193,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+          {isPortal && inv.pra_fiscal_number && (
+            <Link
+              href={`/invoices/${inv.id}/receipt`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#faf6ec] text-[#1a1814]/70"
+            >
+              <Printer className="w-4 h-4" /> Print Receipt
+            </Link>
+          )}
           <button
             onClick={async () => {
               const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
