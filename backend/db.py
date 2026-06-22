@@ -80,6 +80,7 @@ def create_db_and_tables():
                 ("demo.trader@easy-books.app", "trader", "Demo - Trader", "Demo User"),
                 ("demo.manufacturing@easy-books.app", "manufacturing", "Demo - Manufacturing", "Demo User"),
                 ("demo.telecom@easy-books.app", "telecom_franchise", "Demo - Telecom Franchise", "Demo User"),
+                ("demo.pra@easy-books.app", "trader", "Lahore Retail Traders (PRA Demo)", "Demo User"),
             ]
             demo_password_hash = get_password_hash("demo1234")
             created = 0
@@ -112,7 +113,7 @@ def create_db_and_tables():
             )
             print(
                 f"[seed] SEED_DEMO=true: {created} demo account(s) created this boot, "
-                f"{total} present (login demo.simple@easy-books.app / demo1234)",
+                f"{total} present (login demo.simple@easy-books.app / demo1234, or demo.pra@easy-books.app for PRA demo)",
                 flush=True,
             )
         else:

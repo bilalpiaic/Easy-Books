@@ -18,12 +18,13 @@ DEMO_EMAILS = [
     "demo.trader@easy-books.app",
     "demo.manufacturing@easy-books.app",
     "demo.telecom@easy-books.app",
+    "demo.pra@easy-books.app",
 ]
 
 
 @router.post("/demo/seed")
 def seed_demo(session: SessionDep, user: AdminUserDep):
-    """Create the 5 demo companies (login: each email / demo1234) with rich data.
+    """Create the 6 demo companies (login: each email / demo1234) with rich data.
 
     Idempotent — safe to call multiple times. Each call returns a per-tenant
     report dict that includes the 'email' key so the caller can confirm which

@@ -1,4 +1,4 @@
-"""Seed five demo tenants (one per business model) with rich mock data spanning
+"""Seed six demo tenants (one per business model) with rich mock data spanning
 a full calendar year.
 
 Idempotent — if a demo tenant already exists, the script reuses it and
@@ -16,6 +16,9 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap):
     (G-10), purchase orders incl. convert-to-bill (G-06), analytic accounts
     (G-07), and deferred-revenue schedules for services tenants (G-08)
   (G-07) Analytic Accounts: 7 dimensions per tenant, ~30 % of invoices/bills/payments/JVs tagged
+  • PRA e-Invoice demo tenant (demo.pra@easy-books.app) — Pakistani retail trader
+    with PRA sandbox enabled, PKR currency, NTN/CNIC on customers, PCT codes on
+    products, payment_mode set on invoices, and realistic FINs stamped
 
 Usage:
     PYTHONPATH=. uv run python -m scripts.seed_demo
@@ -26,6 +29,7 @@ Credentials:
     demo.trader@easy-books.app         / demo1234
     demo.manufacturing@easy-books.app  / demo1234
     demo.telecom@easy-books.app        / demo1234
+    demo.pra@easy-books.app            / demo1234  (PRA e-Invoice / Pakistan)
 """
 from __future__ import annotations
 
@@ -49,7 +53,7 @@ from models import (
     InvoiceLine, PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
     PayrollLineDetail, PayrollRun, Product, ProductCategory, ProductionOrder,
     PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate, ReportDefinition,
-    SalaryComponent, SequenceCounter, StockLocation, TaxCode, Tenant, User, Vendor,
+    SalaryComponent, SequenceCounter, Settings, StockLocation, TaxCode, Tenant, User, Vendor,
     VendorAdvance,
 )
 from models_telecom import (
@@ -88,6 +92,47 @@ DEMO_TENANTS = [
     ("demo.trader@easy-books.app",        "Demo Trading Co.",       "trader"),
     ("demo.manufacturing@easy-books.app", "Demo Manufacturing Co.", "manufacturing"),
     ("demo.telecom@easy-books.app",       "Demo Telecom Franchise", "telecom_franchise"),
+    ("demo.pra@easy-books.app",           "Lahore Retail Traders (PRA Demo)", "trader"),
+]
+
+# PRA demo tenant — Pakistani customers with NTN/CNIC
+PRA_CUSTOMER_NAMES = [
+    "Al-Noor Traders", "Bismillah General Store", "Crescent Distributors",
+    "Dawn Wholesale", "Excellence Retail", "Faisal Brothers",
+    "Golden Bazaar", "Hamid & Sons", "Ibrahim Traders",
+    "Johar Town Mart", "Khalid Enterprises", "Liberty Market Co.",
+    "Moon Light Goods", "National Merchandise", "Orient Traders",
+    "Punjab Distributors", "Quality Goods Pk", "Raja Brothers",
+    "Sardar Traders", "Taj General Store", "United Traders Pak",
+    "Vision Retail", "Western Goods", "Xpert Traders",
+    "Zahid Enterprises",
+]
+# (NTN, CNIC) pairs — dummy but realistic-format
+PRA_CUSTOMER_IDS = [
+    ("1234567-8", "3520112345671"), ("2345678-9", "3520223456782"),
+    ("3456789-0", "3510334567893"), ("4567890-1", "3520445678904"),
+    ("5678901-2", "3510556789015"), ("6789012-3", "3520667890126"),
+    ("7890123-4", "3510778901237"), ("8901234-5", "3520889012348"),
+    ("9012345-6", "3510990123459"), ("0123456-7", "3520001234560"),
+    ("1234560-1", "3520112345601"), ("2345671-2", "3520223456712"),
+    ("3456782-3", "3510334567823"), ("4567893-4", "3520445678934"),
+    ("5678904-5", "3510556789045"), ("6789015-6", "3520667890156"),
+    ("7890126-7", "3510778901267"), ("8901237-8", "3520889012378"),
+    ("9012348-9", "3510990123489"), ("0123459-0", "3520001234590"),
+    ("1234561-2", "3520112345612"), ("2345672-3", "3520223456723"),
+    ("3456783-4", "3510334567834"), ("4567894-5", "3520445678945"),
+    ("5678905-6", "3510556789056"),
+]
+# Pakistani retail products with PCT codes
+PRA_PRODUCTS = [
+    ("PKR-A1", "Basmati Rice (50kg)",    "bag",  8500, 3800, "10063000"),
+    ("PKR-A2", "Sugar (50kg)",           "bag",  7200, 3200, "17011200"),
+    ("PKR-A3", "Cooking Oil (15L)",      "tin",  5800, 2600, "15071000"),
+    ("PKR-A4", "Wheat Flour (20kg)",     "bag",  2200,  900, "11010000"),
+    ("PKR-A5", "Tea (200g)",             "pkt",   450,  180, "09021000"),
+    ("PKR-A6", "Milk Powder (900g)",     "tin",  2800, 1200, "04021000"),
+    ("PKR-A7", "Laundry Detergent (1kg)","ea",    380,  150, "34012000"),
+    ("PKR-A8", "Soap Bars (6pk)",        "pk",    320,  120, "34011100"),
 ]
 
 CUSTOMER_NAMES = [
@@ -2693,6 +2738,104 @@ def _seed_report_definitions(s: Session, tenant_id: int, user: User) -> None:
     ))
 
 
+def _seed_pra_settings(s: Session, tenant_id: int) -> None:
+    """Write PRA e-Invoice settings for the PRA demo tenant (sandbox mode)."""
+    pra_kvs = {
+        "currency":        "PKR",
+        "pra_enabled":     "true",
+        "pra_ntn":         "1234567-8",          # dummy PNTN matching the business
+        "pra_pos_id":      "100001",              # sandbox POS ID
+        "pra_sandbox_mode": "true",
+        "pra_api_token":   "",                    # sandbox uses a shared static token
+        "company_name":    "Lahore Retail Traders (PRA Demo)",
+        "tax_id":          "1234567-8",
+        "business_tagline": "Easy-Books · PRA e-Invoice Demo · Punjab, Pakistan",
+    }
+    for key, value in pra_kvs.items():
+        row = s.exec(
+            select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)
+        ).first()
+        if row:
+            row.value = value
+        else:
+            row = Settings(key=key, value=value, tenant_id=tenant_id)
+        s.add(row)
+
+
+def _seed_pra_customers(s: Session, tenant_id: int) -> list[Customer]:
+    """Seed Pakistani customers with NTN and CNIC for PRA BuyerPNTN/BuyerCNIC."""
+    out: list[Customer] = []
+    for i, name in enumerate(PRA_CUSTOMER_NAMES):
+        existing = s.exec(
+            select(Customer).where(Customer.tenant_id == tenant_id, Customer.name == name)
+        ).first()
+        if existing:
+            # Backfill NTN/CNIC if missing
+            ntn, cnic = PRA_CUSTOMER_IDS[i % len(PRA_CUSTOMER_IDS)]
+            if not existing.ntn:
+                existing.ntn = ntn
+                existing.cnic = cnic
+                s.add(existing)
+            out.append(existing)
+            continue
+        ntn, cnic = PRA_CUSTOMER_IDS[i % len(PRA_CUSTOMER_IDS)]
+        c = Customer(
+            tenant_id=tenant_id, name=name,
+            email=name.lower().replace(" ", ".").replace("(", "").replace(")", "") + "@pk.example",
+            phone=f"+92-{random.randint(300,349)}-{random.randint(1000000,9999999)}",
+            ntn=ntn,
+            cnic=cnic,
+        )
+        s.add(c)
+        s.flush()
+        out.append(c)
+    return out
+
+
+def _seed_pra_products(s: Session, tenant_id: int) -> list[Product]:
+    """Seed Pakistani retail stock products with PCT codes for PRA ItemCode mapping."""
+    out: list[Product] = []
+    for code, name, unit, rate, cost, pct_code in PRA_PRODUCTS:
+        existing = s.exec(
+            select(Product).where(Product.tenant_id == tenant_id, Product.code == code)
+        ).first()
+        if existing:
+            if not existing.pct_code:
+                existing.pct_code = pct_code
+                s.add(existing)
+            out.append(existing)
+            continue
+        p = Product(
+            tenant_id=tenant_id, code=code, name=name, unit=unit,
+            product_type="stock", default_rate=D(rate), avg_cost=D(cost),
+            stock_qty=D(random.randint(50, 500)), reorder_level=D(20),
+            pct_code=pct_code,
+        )
+        s.add(p)
+        s.flush()
+        out.append(p)
+    return out
+
+
+def _stamp_pra_invoices(s: Session, invoices: list[Invoice]) -> None:
+    """Stamp realistic PRA fiscal numbers on posted invoices (sandbox demo data)."""
+    import hashlib
+    fin_counter = 1000001
+    for inv in invoices:
+        if inv.pra_status in ("submitted",) or inv.status == "draft":
+            continue
+        inv.pra_usin = inv.number
+        inv.payment_mode = random.choice([1, 1, 1, 2, 6])   # mostly Cash
+        # Generate a deterministic but realistic-looking FIN
+        h = hashlib.md5(f"DEMO-{inv.number}".encode()).hexdigest()[:8].upper()
+        inv.pra_fiscal_number = f"PRA-{fin_counter}-{h}"
+        inv.pra_status = "submitted"
+        from datetime import datetime as _dt
+        inv.pra_submitted_at = _dt.fromisoformat(inv.issue_date + "T09:30:00")
+        s.add(inv)
+        fin_counter += 1
+
+
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
@@ -2791,6 +2934,22 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
 
         if business_model == "telecom_franchise":
             _seed_telecom_franchise(s, user)
+            s.commit()
+
+        # ── PRA e-Invoice demo (Pakistani retail trader) ───────────────────────
+        if email == "demo.pra@easy-books.app":
+            _seed_pra_settings(s, tenant_id)
+            s.commit()
+            # Replace customers/products with PRA-specific data (NTN/CNIC/PCT)
+            pra_customers = _seed_pra_customers(s, tenant_id)
+            s.commit()
+            pra_products = _seed_pra_products(s, tenant_id)
+            s.commit()
+            # Stamp FINs on all already-seeded posted invoices
+            all_invoices = s.exec(
+                select(Invoice).where(Invoice.tenant_id == tenant_id)
+            ).all()
+            _stamp_pra_invoices(s, list(all_invoices))
             s.commit()
 
         # ── Starter saved report (Report Builder) ──────────────────────────────

@@ -102,7 +102,7 @@ npm install && node server.js    # runs on root package.json
 
 Demo data is also loadable/removable at any time via **Settings → Sample / Demo Data** regardless of install type.
 
-All five demo tenants use password `demo1234`:
+All six demo tenants use password `demo1234`:
 
 | Email | Model |
 |-------|-------|
@@ -111,6 +111,7 @@ All five demo tenants use password `demo1234`:
 | `demo.trader@easy-books.app` | Trader |
 | `demo.manufacturing@easy-books.app` | Manufacturing |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
+| `demo.pra@easy-books.app` | PRA e-Invoice (Pakistani retail, PKR, PRA sandbox enabled) |
 
 To run the rich mock-data seeder manually:
 ```bash

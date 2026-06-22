@@ -1,7 +1,7 @@
 """First-run demo data loader for standalone installs.
 
 The standalone installers (`install-and-run.*`) call this AFTER `alembic upgrade
-head` and BEFORE launching the servers. It populates the 5 fully-featured demo
+head` and BEFORE launching the servers. It populates the 6 fully-featured demo
 companies (the rich data — customers, invoices, bills, JVs — from
 `scripts.seed_demo`) so the advertised demo logins work immediately on a fresh
 install, then never re-runs (it skips when the demo data is already present).
@@ -16,7 +16,7 @@ Controlled by the SEED_DEMO env var (the installers default it to "true"):
 
 Demo logins (all password `demo1234`):
     demo.simple@easy-books.app, demo.services@…, demo.trader@…,
-    demo.manufacturing@…, demo.telecom@…
+    demo.manufacturing@…, demo.telecom@…, demo.pra@…  (PRA e-Invoice/Pakistan)
 """
 from __future__ import annotations
 
