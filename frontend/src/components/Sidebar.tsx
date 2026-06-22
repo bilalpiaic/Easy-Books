@@ -120,7 +120,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   }, [pathname])
 
   const isAdmin = role === "admin" || role === "owner"
-  const { isPortal } = usePRAPortal()
+  const { isPortal, canToggle, togglePortal } = usePRAPortal()
 
   const PRA_PORTAL_HREFS = new Set([
     "/invoices", "/customers", "/products", "/credit-notes",
@@ -280,6 +280,23 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
             )
           })}
         </nav>
+
+        {/* PRA portal mode toggle — admin/owner on PRA-enabled tenants only */}
+        {canToggle && (
+          <div className="px-3 pb-2 shrink-0">
+            <button
+              onClick={togglePortal}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#b8943f]/15 hover:bg-[#b8943f]/25 border border-[#b8943f]/30 transition-colors text-left"
+            >
+              <span className="text-[11px] font-bold text-[#ffd966] uppercase tracking-widest">
+                {isPortal ? "Portal View" : "Full View"}
+              </span>
+              <span className="text-[10px] text-white/50 shrink-0">
+                {isPortal ? "Switch to Full →" : "Switch to Portal →"}
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Footer: user + logout */}
         <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between shrink-0">
