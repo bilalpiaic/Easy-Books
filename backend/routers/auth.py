@@ -203,9 +203,17 @@ def login(
     _set_access_cookie(response, token)
     csrf = secrets.token_urlsafe(32)
     _set_csrf_cookie(response, csrf)
+    tenant = session.get(Tenant, user.tenant_id)
+    try:
+        _mods = _json.loads(tenant.enabled_modules) if tenant else []
+        _meta = _json.loads(tenant.module_meta) if tenant else {}
+    except (TypeError, ValueError):
+        _mods, _meta = [], {}
+    onboarding_required = (set(_mods) == {"base"} or not _mods) and not _meta
     return {
         "access_token": token, "token_type": "bearer", "role": user.role,
         "csrf_token": csrf, "must_change_password": user.must_change_password,
+        "onboarding_required": onboarding_required,
     }
 
 
