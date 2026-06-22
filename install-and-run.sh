@@ -62,10 +62,13 @@ log "Installing backend dependencies…"
 # stale bundle must never hide new features).
 HEAD_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)"
 BUILT_COMMIT="$(cat frontend/.next/.built-commit 2>/dev/null || true)"
+# Read the app version from frontend/package.json so the UI version badge shows
+# the correct release string, not the fallback "dev".
+APP_VERSION="$(uv run python3 -c "import json; print(json.load(open('frontend/package.json'))['version'],end='')" 2>/dev/null || echo "dev")"
 if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ] \
    || { [ -n "$HEAD_COMMIT" ] && [ "$HEAD_COMMIT" != "$BUILT_COMMIT" ]; }; then
   log "Building the app (first run or update can take a few minutes)…"
-  ( cd frontend && npm install && npx next build )
+  ( cd frontend && npm install && NEXT_PUBLIC_APP_VERSION="$APP_VERSION" npx next build )
   # Next 'standalone' does not copy these — required for the server to serve them.
   cp -r frontend/.next/static  frontend/.next/standalone/.next/static
   cp -r frontend/public        frontend/.next/standalone/public
