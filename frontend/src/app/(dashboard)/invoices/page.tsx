@@ -17,6 +17,7 @@ import SkeletonRow from '@/components/SkeletonRow'
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
+import { usePRAPortal } from "@/hooks/usePRAPortal"
 
 interface Invoice {
   id: number
@@ -32,6 +33,8 @@ interface Invoice {
   description: string | null
   notes: string | null
   internal_memo: string | null
+  pra_status: string | null
+  pra_fiscal_number: string | null
 }
 
 interface AgingBuckets {
@@ -53,8 +56,8 @@ const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 function InvoicesContent() {
   const { t } = useTranslation()
   const { can } = usePermission()
-  if (!can("invoices")) return <NoAccessBanner resource="invoices" />
   const fmt = useFmt()
+  const { isPortal } = usePRAPortal()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [customerFilter, setCustomerFilter] = useState<{ id: number; name: string } | null>(null)
@@ -70,16 +73,6 @@ function InvoicesContent() {
   const [loading, setLoading] = useState(true)
   const [aging, setAging] = useState<AgingBuckets | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-
-  useEffect(() => {
-    const customerId = searchParams.get('customer_id')
-    if (customerId) {
-      apiFetch<{ id: number; name: string }>(`/api/customers/${customerId}`)
-        .then(c => setCustomerFilter({ id: c.id, name: c.name }))
-        .catch(() => {})
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const load = () => {
     setLoading(true)
@@ -104,20 +97,30 @@ function InvoicesContent() {
     setSortBy(field); setSortDir(dir); setPage(1)
   }
 
+  const openCreate = () => router.push('/invoices/new')
+
+  useEffect(() => {
+    const customerId = searchParams.get('customer_id')
+    if (customerId) {
+      apiFetch<{ id: number; name: string }>(`/api/customers/${customerId}`)
+        .then(c => setCustomerFilter({ id: c.id, name: c.name }))
+        .catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo, customerFilter])
   useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir, customerFilter])
   useEffect(() => {
     apiFetch<AgingBuckets>('/api/invoices/aging').then(setAging).catch(() => {})
   }, [])
-
-  const openCreate = () => router.push('/invoices/new')
-
   useEffect(() => {
     const h = () => openCreate()
     window.addEventListener("kbd:new", h)
     return () => window.removeEventListener("kbd:new", h)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  if (!can("invoices")) return <NoAccessBanner resource="invoices" />
 
   const handleBulkAction = async (action: string) => {
     const ids = Array.from(selectedIds)
@@ -193,6 +196,44 @@ function InvoicesContent() {
         </div>
       </div>
 
+      {isPortal && (() => {
+        const today = new Date().toISOString().split("T")[0]
+        const todayInvoices = invoices.filter(i => i.issue_date === today)
+        const todaySales = todayInvoices.reduce((s, i) => s + i.total, 0)
+        const submitted = invoices.filter(i => i.pra_status === "submitted").length
+        const failed    = invoices.filter(i => i.pra_status === "failed")
+        const pending   = invoices.filter(i => i.pra_status === "pending").length
+        return (
+          <div className="bg-[#1a1814] text-white rounded-xl px-6 py-4 flex flex-wrap items-center gap-6 print:hidden">
+            <div>
+              <p className="text-xs text-white/50 uppercase tracking-widest font-bold">Today&apos;s Sales</p>
+              <p className="text-xl font-bold font-mono mt-0.5">{fmt(todaySales)}</p>
+              <p className="text-[10px] text-white/40 mt-0.5">{todayInvoices.length} invoice{todayInvoices.length !== 1 ? "s" : ""}</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/50 uppercase tracking-widest font-bold">PRA Submitted</p>
+              <p className="text-xl font-bold text-emerald-400 mt-0.5">{submitted} ✓</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/50 uppercase tracking-widest font-bold">Failed</p>
+              <p className="text-xl font-bold text-red-400 mt-0.5">{failed.length} ✗</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/50 uppercase tracking-widest font-bold">Pending</p>
+              <p className="text-xl font-bold text-amber-400 mt-0.5">{pending} ⏳</p>
+            </div>
+            {failed.length > 0 && (
+              <Link
+                href={`/invoices/${failed[0].id}`}
+                className="ml-auto text-xs text-red-300 border border-red-400/40 rounded-lg px-3 py-1.5 hover:bg-red-900/30 transition-colors"
+              >
+                Fix Failed →
+              </Link>
+            )}
+          </div>
+        )
+      })()}
+
       {customerFilter && (
         <div className="flex items-center gap-2 text-sm">
           <span className="bg-[#b8943f]/10 text-[#b8943f] border border-[#b8943f]/20 rounded-full px-3 py-1 font-medium">
@@ -233,6 +274,9 @@ function InvoicesContent() {
                 <SortableHeader label="Due Date"   field="due_date"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Total"      field="total"         sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
                 <SortableHeader label="Status"     field="status"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
+                {isPortal && (
+                  <th className="px-4 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">PRA</th>
+                )}
                 <th className="ui-th print:hidden" />
               </tr>
             </thead>
@@ -259,7 +303,7 @@ function InvoicesContent() {
                       checked={selectedIds.has(inv.id)}
                       onChange={e => setSelectedIds(prev => {
                         const next = new Set(prev)
-                        e.target.checked ? next.add(inv.id) : next.delete(inv.id)
+                        if (e.target.checked) { next.add(inv.id) } else { next.delete(inv.id) }
                         return next
                       })}
                     />
@@ -280,6 +324,19 @@ function InvoicesContent() {
                       {inv.status}
                     </span>
                   </td>
+                  {isPortal && (
+                    <td className="ui-td text-xs">
+                      {inv.pra_status === "submitted" && (
+                        <span className="text-emerald-700 font-mono">✓ {inv.pra_fiscal_number ?? "FIN"}</span>
+                      )}
+                      {inv.pra_status === "pending" && (
+                        <span className="text-amber-600">⏳ Pending</span>
+                      )}
+                      {inv.pra_status === "failed" && (
+                        <span className="text-red-600 font-medium">✗ Failed</span>
+                      )}
+                    </td>
+                  )}
                   <td className="ui-td print:hidden">
                     <div className="flex items-center justify-end gap-2">
                       {(inv.status === 'draft' || inv.status === 'sent' || inv.status === 'posted' || inv.status === 'overdue') && (
