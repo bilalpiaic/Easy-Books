@@ -1,7 +1,7 @@
 """Unit tests for PRA payload builder (no DB required)."""
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -40,12 +40,12 @@ def _make_config():
 
 
 def test_datetime_is_not_midnight():
-    """DateTime must include actual time, not 00:00:00."""
-    payload = build_pra_payload(_make_invoice(), [], None, {}, {}, _make_config())
-    assert payload["DateTime"] != f"2026-06-22 00:00:00"
-    # Must match YYYY-MM-DD HH:MM:SS pattern
-    import re
-    assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", payload["DateTime"])
+    """DateTime must be actual UTC time, not midnight placeholder."""
+    fixed_dt = datetime(2026, 6, 22, 14, 30, 45)
+    with patch("services.pra.datetime") as mock_dt:
+        mock_dt.utcnow.return_value = fixed_dt
+        payload = build_pra_payload(_make_invoice(), [], None, {}, {}, _make_config())
+    assert payload["DateTime"] == "2026-06-22 14:30:45"
 
 
 def test_buyer_ntn_invoice_overrides_customer():
