@@ -104,6 +104,8 @@ class InvoiceCreate(BaseModel):
     assigned_to_id: Optional[int] = None  # sales person (for commission tracking)
     analytic_account_id: Optional[int] = None
     payment_mode: Optional[int] = None   # PRA: 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
+    buyer_ntn: Optional[str] = None      # walk-in NTN override for PRA payload
+    buyer_cnic: Optional[str] = None     # walk-in CNIC override for PRA payload
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -341,6 +343,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         assigned_to_id=body.assigned_to_id,
         analytic_account_id=body.analytic_account_id,
         payment_mode=body.payment_mode,
+        buyer_ntn=body.buyer_ntn,
+        buyer_cnic=body.buyer_cnic,
     )
     session.add(invoice)
     session.flush()
@@ -727,6 +731,9 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.revenue_account_id = body.revenue_account_id
     inv.assigned_to_id = body.assigned_to_id
     inv.analytic_account_id = body.analytic_account_id
+    inv.payment_mode = body.payment_mode
+    inv.buyer_ntn = body.buyer_ntn
+    inv.buyer_cnic = body.buyer_cnic
     session.add(inv)
     session.flush()
 
