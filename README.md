@@ -106,6 +106,13 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Payroll runs** — draft → approved → posted flow; auto-computes gross/deductions/net per employee from salary structures; GL posting (Dr Salary Expense / Cr Salaries Payable + Cr Tax/EOBI Payable); PR-YYYY-seq voucher; void with reversing JV; printable payslips
 - **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
 
+**Module system (v2.9)**
+- **Odoo-style installable modules** — 6 modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`. Each module gates a sidebar section; sections with no active module are hidden
+- **Apps page** (`/apps`) — module store grid grouped by category (Core / Operations / HR / Industry); install/uninstall with dependency resolution and a confirmation dialog before removal; admin/owner only
+- **Post-login onboarding splash** — fresh accounts land on `/onboarding` (full-page, no sidebar) to pick their modules before reaching the dashboard; "Skip for now" available; shown once per account; demo tenants bypass it automatically
+- `Tenant.module_meta` JSON column records `{tier, installed_at, expires_at}` per module — billing-ready schema without a future destructive migration
+- Legacy `enabled_modules` strings auto-normalized on read — zero-downtime upgrade for existing installs
+
 **Multi-tenant SaaS**
 - RBAC: `owner | admin | accountant | viewer`; team management with invite links
 - Tenant isolation at the data layer — every query filters by `tenant_id`

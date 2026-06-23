@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-06-22 · **Branch:** `main`
+> **Last updated:** 2026-06-23 · **Branch:** `main`
 
 ---
 
@@ -145,15 +145,21 @@ Easy-Books/
         │       │   ├── grn/                 Goods receipts
         │       │   └── production-orders/   PO list + one-click advance
         │       ├── settings/ · workflow/ · guide/
+        │       ├── apps/                    Module store (install/uninstall; admin only)
+        │       └── onboarding/              First-run module selection (no sidebar)
         ├── components/
-        │   ├── Sidebar.tsx                  adaptive; hides Mfg unless business_model='manufacturing'
+        │   ├── Sidebar.tsx                  adaptive; filters NAV by installedModules (forModule gate)
+        │   ├── OnboardingGuard.tsx          redirects fresh accounts to /onboarding
         │   ├── BusinessModelPicker.tsx      signup wizard step 1
         │   ├── guidance/                    HelpCallout, FieldHint, EmptyStateGuide
         │   └── …                            Header, modals, charts, CsvImportButton, …
-        ├── context/SettingsContext.tsx      currency + company-name from /api/settings
+        ├── context/
+        │   ├── SettingsContext.tsx          currency + company-name from /api/settings
+        │   └── ModuleContext.tsx            installedModules Set + install/uninstall/refresh
         └── lib/
             ├── api.ts                       apiFetch (auto Authorization header)
             ├── auth.ts                      token storage, isAuthenticated
+            ├── nav.ts                       NAV array; forModule field gates sidebar items
             └── utils.ts                     cn(), formatters
 ```
 
@@ -220,7 +226,7 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 
 | Table | Notes |
 |---|---|
-| `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing/telecom_franchise/pra_einvoice` CHECK), `enabled_modules` (JSON array string), `created_at` |
+| `tenant` | `name`, `base_currency`, **`business_model`** (`simple/services/trader/manufacturing/telecom_franchise/pra_einvoice` CHECK), `enabled_modules` (JSON array of module IDs — see §6), **`module_meta`** (JSON dict: `{module_id: {tier, installed_at, expires_at}}` — billing metadata), `created_at` |
 | `user` | `email` (unique), `hashed_password` (bcrypt), `full_name`, `phone`, `avatar_url`, `is_active`, `must_change_password`, `role` (`owner/admin/accountant/viewer` CHECK), `tenant_id`, **`created_by_id?`** (set on create), `created_at`, `last_login_at` |
 | `userinvite` | Pending tenant invite — `email`, `role` (CHECK), `token` (unique), `invited_by_id`, `expires_at`, `accepted_at`. Consumed by `POST /api/auth/accept-invite` |
 | `userpermission` | Granular access override — `(tenant_id, user_id, resource_key)` unique; `access_level` (`none/view/edit`); `my_data_only` bool. Sparse — only rows with non-default access exist; missing row = role default. Module-gated by `settings.user_rights_enabled` |
@@ -368,7 +374,9 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 
 ## 6. BUSINESS MODELS & ADAPTIVE UX
 
-`Tenant.business_model` is one of:
+### 6.1 Business Model (CoA template)
+
+`Tenant.business_model` is set once at signup and seeds the Chart of Accounts. It is **structural and irreversible** — switching later adds accounts but never removes them.
 
 | Model | Use case | Extras |
 |---|---|---|
@@ -377,23 +385,64 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `trader` | Goods buy-resell | + Finished Goods Inventory, COGS, Freight In, Storage, Inventory Adjustments, GST Receivable |
 | `manufacturing` | Value-addition / contract mfg | + RM/WIP/FG inventory, Customer Goods on Hand (memo 1210), Customer Goods Liability (memo 2150), Direct Labour, Manufacturing Overhead, Indirect Materials, Service Revenue (Value-Add) |
 | `telecom_franchise` | Mobile-operator franchise | + 56-account franchise CoA: Tracker Deposit `1210`, Load Float `1211`, RSO/Retail load receivables `1212/1213`, MM float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue `4000–4061` (3% load uplift `4020`, FCA target `4060`); fee amortisation `5030`, royalty `5040`, variance `5070`, penalty `5090`. See WORKFLOW §4.8 |
+| `pra_einvoice` | Pakistani retail (PRA-registered) | Same CoA as `simple`; PRA module pre-installed |
 
-`Tenant.enabled_modules` is a JSON-serialised list. Derived from `business_model` at signup, but admins can override via `PATCH /api/settings/modules`. Frontend uses it to gate UI sections.
+### 6.2 Module System (UI visibility & billing)
 
-`MODULES_BY_MODEL`:
+`Tenant.enabled_modules` is a JSON list of module IDs. Derived from `business_model` at signup via `MODULES_BY_MODEL`, but managed independently afterward via `GET/POST /api/modules`. This is **orthogonal to business_model** — the CoA is seeded once; modules control what the UI shows.
+
+**`MODULE_REGISTRY`** (defined in `backend/db.py`):
+
+| Module ID | Label | Category | Deps | Always | Gates |
+|---|---|---|---|---|---|
+| `base` | Base Accounting | Core | — | ✓ | Overview, Ledger, Receivable, Payable, Banking, Reports |
+| `inventory` | Inventory | Operations | base | — | Inventory section |
+| `production` | Manufacturing | Operations | inventory | — | Manufacturing section |
+| `hrm` | HRM & Payroll | HR | base | — | Payroll section |
+| `telecom` | Telecom Franchise | Industry | inventory | — | Telecom section |
+| `pra` | PRA e-Invoice | Industry | base | — | PRA Logs in System section |
+
+**`MODULES_BY_MODEL`** (default module set assigned at signup):
 
 ```python
-"simple":        ["invoicing","billing","manual_jv"]
-"services":      ["invoicing","billing","manual_jv","service_catalogue"]
-"trader":        ["invoicing","billing","manual_jv","inventory"]
-"manufacturing": ["invoicing","billing","manual_jv","inventory",
-                  "stores","bom","production","customer_goods"]
-"telecom_franchise": ["invoicing","billing","manual_jv","inventory",
-                  "tracker","sim_airtime","mobile_money","device_sales",
-                  "postpaid_billing","commission_tracking","rso_channel","franchise_admin"]
+"simple":            ["base"]
+"services":          ["base"]
+"trader":            ["base", "inventory"]
+"manufacturing":     ["base", "inventory", "production"]
+"telecom_franchise": ["base", "inventory", "telecom"]
+"pra_einvoice":      ["base", "pra"]
 ```
 
-The sidebar reads `/api/auth/me` → `tenant.business_model` and filters its NAV array; sections with no visible items are hidden entirely.
+**Module rules:**
+- `base` is always locked — it cannot be uninstalled.
+- Installing a module auto-installs all transitive deps.
+- Uninstalling is blocked if any installed module depends on the target.
+- Only `admin` and `owner` roles may install or uninstall.
+- `module_meta` stores `{tier, installed_at, expires_at}` per module — reserved for future SaaS per-module billing.
+
+**Sidebar filtering:** `NAV` items carry a `forModule?: string` field. The `Sidebar` component reads `installedModules` from `ModuleContext` and hides any item whose `forModule` is not in the installed set.
+
+### 6.3 Onboarding Flow
+
+Fresh accounts (only `base` installed, `module_meta == {}`) are routed through `/onboarding` immediately after login:
+
+```
+POST /api/auth/login
+  → onboarding_required: true   (backend flag when only base installed & module_meta empty)
+  → login page redirects to /onboarding
+
+/onboarding (standalone — no sidebar, no header)
+  → user selects optional modules
+  → POST /api/modules/{id}/install for each selection
+  → sets localStorage["eb.onboarded.<email>"] = "1"
+  → redirects to /dashboard
+
+OnboardingGuard (inside ModuleProvider in DashboardLayout)
+  → safety-net: redirects to /onboarding if user navigates directly to /dashboard
+     without the localStorage flag and only base is installed
+```
+
+Demo tenants are unaffected — their `enabled_modules` is already populated, so `onboarding_required` is always `false`.
 
 ---
 
@@ -440,6 +489,11 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - `GET /` list · `POST /` create (temp password, returned once) · `PATCH /{id}` role/active/name · `POST /{id}/reset-password` · `DELETE /{id}` deactivate.
 - `GET`/`POST /invites`, `DELETE /invites/{id}` — tokenized invitations (7-day expiry).
 - Guards: no self-role-change / self-deactivation; owner role is owner-grantable only; last active owner protected.
+
+### Modules (`/api/modules`)
+- `GET /` — list all modules in `MODULE_REGISTRY` with `installed: bool`, `installed_at`, `expires_at` for the current tenant. Stable category order: Core → Accounting → Operations → HR → Industry.
+- `POST /{module_id}/install` — install a module. Resolves transitive deps and installs them first. Sets `module_meta[id].installed_at` + `tier`. Returns `{enabled_modules, installed, message}`. Admin/owner only.
+- `POST /{module_id}/uninstall` — remove a module. Blocked if `module.always == True` (base). Blocked if any installed module lists this one in its deps. Returns `{enabled_modules, uninstalled, message}`. Admin/owner only.
 
 ### Settings (`/api/settings`)
 - `GET /` — KV map. Includes:

@@ -1552,3 +1552,50 @@ The portal home replaces the standard dashboard for portal-mode users. It shows:
 - A **today's invoice table** with invoice number, customer, amount, payment mode, and PRA status badge
 
 Drill into any invoice from the table to retry a failed submission or view the FIN.
+
+---
+
+## 29. MODULES & THE APPS PAGE
+
+Easy-Books uses an installable module system — similar to Odoo — so every tenant only sees the features they actually need.
+
+### 29.1 What is a module?
+
+A module is a bundle of related features and sidebar sections. The six modules are:
+
+| Module | What it enables | Always active? |
+|--------|----------------|---------------|
+| **Base Accounting** | GL, Chart of Accounts, invoicing, AR/AP, banking, all reports | Yes (cannot be removed) |
+| **Inventory** | Products, stock, warehouses, product categories, inventory reports | No |
+| **Manufacturing** | BOM, production orders, manufacturing workflows | No — requires Inventory |
+| **HRM & Payroll** | Employees, salary structures, payroll runs, attendance register | No |
+| **Telecom Franchise** | Full telecom module: trackers, RSOs, MSR, MFS, FCA workflow | No — requires Inventory |
+| **PRA e-Invoice** | PRA e-invoice submission, fiscal invoice numbers, submission logs | No |
+
+### 29.2 The Apps page
+
+Go to **System → Apps** (admin and owner only) to browse all modules. Each card shows:
+- Name and description
+- Category (Core / Operations / Human Resources / Industry)
+- Which other modules it depends on
+- Whether it is currently installed
+- An **Install** or **Uninstall** button
+
+**Installing** a module also installs its dependencies automatically. For example, installing Manufacturing also installs Inventory if it is not already active.
+
+**Uninstalling** is blocked if another installed module depends on the one you want to remove (you must remove the dependent first). The Base module cannot be uninstalled.
+
+### 29.3 First-time onboarding
+
+When you create a new account, Easy-Books shows you a full-page module picker before you reach the dashboard:
+
+1. **Base Accounting** is shown as always included (no choice needed).
+2. Optional modules are grouped by category — toggle the ones you need.
+3. Click **Get Started** — Easy-Books installs your selections and takes you to the dashboard.
+4. Click **Skip for now** if you want to start with Base only; you can install more modules anytime from the Apps page.
+
+The onboarding screen appears only once per account. If you skip it and want to add modules later, go to **System → Apps**.
+
+### 29.4 After changing modules
+
+Sidebar sections appear and disappear immediately when modules are installed or uninstalled — no page reload is required. Reports and data that were created while a module was active remain in the database even after the module is uninstalled; reinstalling the module makes them visible again.

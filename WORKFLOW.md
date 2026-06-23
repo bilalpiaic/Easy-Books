@@ -1695,6 +1695,91 @@ All 37+ date-bearing pages import and use these helpers.
 
 ---
 
+## MODULE SYSTEM — DEVELOPER REFERENCE
+
+### Overview
+
+Easy-Books uses an installable module system modelled after Odoo's App Store. Modules are defined statically in `backend/db.py` (`MODULE_REGISTRY`) and control:
+
+1. Which sidebar sections are visible (via `forModule` in `frontend/src/lib/nav.ts`)
+2. Which modules a tenant has enabled (stored as a JSON list in `Tenant.enabled_modules`)
+3. Future per-module billing metadata (`Tenant.module_meta`)
+
+### Adding a new module
+
+1. **Register it in `MODULE_REGISTRY`** (`backend/db.py`):
+   ```python
+   "my_module": {
+       "label": "My Module",
+       "description": "One-line description for the Apps card.",
+       "category": "Operations",      # Core | Operations | HR | Industry
+       "icon": "Package",             # lucide-react icon name (string)
+       "deps": ["base"],              # IDs of required modules (transitive)
+       "always": False,               # True = cannot be uninstalled
+       "tier": "free",                # billing tier (future use)
+       "nav_sections": ["MySection"], # sidebar section names it enables
+   }
+   ```
+
+2. **Add it to `MODULES_BY_MODEL`** if it should be included by default for a business model.
+
+3. **Add the nav items** in `frontend/src/lib/nav.ts`:
+   - Add each nav item with `forModule: "my_module"`.
+   - Add the section name to `ALL_SECTIONS` (controls render order; System stays last).
+
+4. **Add the icon to `ICON_MAP`** in `frontend/src/app/onboarding/page.tsx` so it renders in the onboarding module picker.
+
+5. **No migration needed** — `enabled_modules` is a freeform JSON string; the new module ID is simply absent from existing tenants until they install it.
+
+### `forModule` nav gate pattern
+
+Every nav item that belongs to an optional module carries:
+```ts
+{ label: "My Feature", href: "/my-feature", icon: SomeIcon, section: "MySection", forModule: "my_module" }
+```
+
+`Sidebar.tsx` reads `installedModules` from `ModuleContext` and calls:
+```ts
+if (i.forModule && !installedModules.has(i.forModule)) return false
+```
+
+Items with no `forModule` (or `forModule: undefined`) are always visible.
+
+### Module API endpoints
+
+| Endpoint | Behaviour |
+|----------|-----------|
+| `GET /api/modules` | Lists all `MODULE_REGISTRY` entries with `installed` flag and metadata for the current tenant |
+| `POST /api/modules/{id}/install` | Resolves transitive deps via `_all_deps()`, adds all to `enabled_modules`, writes `module_meta[id].installed_at` |
+| `POST /api/modules/{id}/uninstall` | Blocks if `module.always` or if any installed module lists this one in its deps |
+
+Both mutating endpoints require `role in ("admin", "owner")`.
+
+### Legacy `enabled_modules` normalization
+
+Old tenants stored strings like `["invoicing","billing","manual_jv"]`. `_get_enabled()` in `routers/modules.py` detects this by checking if any stored value appears in `MODULE_REGISTRY`. If none match, it falls back to `MODULES_BY_MODEL.get(tenant.business_model, ["base"])`. No data migration SQL is needed.
+
+### Onboarding flow (developer view)
+
+```
+POST /api/auth/login
+  → backend: if enabled_modules == ["base"] AND module_meta == {} → onboarding_required: true
+  → frontend: login page detects flag → router.push("/onboarding")
+
+/onboarding page (standalone, no sidebar):
+  → GET /api/modules
+  → user toggles optional modules (deps auto-added client-side + server-side)
+  → POST /api/modules/{id}/install for each selection (sequentially; server resolves deps again)
+  → localStorage.setItem("eb.onboarded.<email>", "1")
+  → router.replace("/dashboard")
+
+OnboardingGuard (in DashboardLayout, inside ModuleProvider):
+  → safety net for direct URL navigation
+  → if installedModules.size === 1 && has("base") && no localStorage flag → redirect to /onboarding
+```
+
+---
+
 ## UPGRADE WORKFLOW
 
 ### Three paths to upgrade
@@ -1741,7 +1826,7 @@ Before each `alembic upgrade head` run the installer writes a timestamped backup
 
 ---
 
-> **Last updated:** 2026-06-22
+> **Last updated:** 2026-06-23
 > **Branch:** `main`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

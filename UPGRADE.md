@@ -141,6 +141,28 @@ cd backend && uv run alembic downgrade -1
 
 ## Version Changelog
 
+### v2.9.0 — Module System, Apps Page & Onboarding Splash (2026-06-23)
+
+**Schema changes:** Alembic migration `9a704c7672d5` adds `tenant.module_meta` (JSON column). Applied automatically by all installers.
+
+**What's new:**
+
+| Area | Change |
+|------|--------|
+| **Module registry** | 6 installable modules: `base` (always locked), `inventory`, `production`, `hrm`, `telecom`, `pra`. Defined in `MODULE_REGISTRY` in `backend/db.py` with label, description, category, icon, deps, tier, and `nav_sections`. |
+| **`/api/modules` endpoints** | `GET /api/modules` — list all modules with install status. `POST /api/modules/{id}/install` — dep-aware install (transitive deps auto-installed). `POST /api/modules/{id}/uninstall` — blocked when dependents are installed or module is always-locked. Admin/owner only. |
+| **Tenant.module_meta** | New JSON column: `{module_id: {tier, installed_at, expires_at}}` — shape ready for per-module SaaS billing without a future destructive migration. |
+| **Apps page** | New page at `/apps` (System → Apps, admin only): module store grid grouped by category, install/uninstall buttons, dependency display, confirm-before-uninstall dialog. |
+| **Onboarding splash** | Fresh accounts (only `base` installed, never onboarded) are redirected to `/onboarding` immediately after login. Full-page module selection — pick what you need, click "Get Started". `OnboardingGuard` in the dashboard layout is a safety net for direct URL navigation. Demo tenants are unaffected (already have modules configured). |
+| **Sidebar** | `System` section moved to the bottom of the nav (after Payroll). Nav items now use `forModule` (module ID gate) instead of the old `forModel` (business model string). |
+| **Legacy modules** | Old `enabled_modules` strings (`"invoicing"`, `"billing"`, etc.) auto-normalized on read — no manual data migration needed for existing installations. |
+
+**Upgrade path:** `git pull && ./update.sh` — the Alembic migration runs automatically. Existing tenants keep their data; `module_meta` defaults to `{}`.
+
+**New localStorage keys:** `eb.onboarded.<email>` — set after onboarding is completed or skipped; prevents the onboarding page from showing again for that account.
+
+---
+
 ### v2.8.1 — Version Badge, CI Pipeline & PRA Portal Mode (2026-06-22)
 
 **No schema changes** — this release is entirely frontend/tooling. The schema stays at revision `0026_pra_integration`.
@@ -244,4 +266,4 @@ After upgrading, confirm:
 
 ---
 
-*Last reviewed: 2026-06-22 · Branch: `main`*
+*Last reviewed: 2026-06-23 · Branch: `main`*
