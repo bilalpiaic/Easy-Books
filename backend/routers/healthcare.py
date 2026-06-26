@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -958,8 +958,10 @@ def delete_charge(user: WriteUserDep, session: SessionDep, admission_id: int, ch
 @router.post("/admissions/{admission_id}/discharge",
              dependencies=[perm_dep("healthcare.ipd", "edit")])
 def discharge_patient(user: WriteUserDep, session: SessionDep, admission_id: int,
-                      discharge_date: str):
+                      discharge_date: str = ""):
     """Roll up all charges into one invoice, settle deposit, free the bed."""
+    if not discharge_date:
+        discharge_date = date.today().isoformat()
     adm = session.exec(
         select(HcAdmission).where(
             HcAdmission.id == admission_id, HcAdmission.tenant_id == user.tenant_id
