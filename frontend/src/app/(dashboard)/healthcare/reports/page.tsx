@@ -133,7 +133,7 @@ function ReportContent({ tab, data, from, to }: { tab: Tab; data: unknown; from:
   }
 
   if (tab === "doctors") {
-    const rows = data as Array<{ doctor_name: string; specialization?: string; total_visits: number; billed_visits: number; estimated_revenue: string }>
+    const rows = Array.isArray(data) ? data as Array<{ doctor_name: string; specialization?: string; total_visits: number; billed_visits: number; estimated_revenue: string }> : []
     return (
       <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-neutral-100 font-medium text-sm">Doctor Collections — {fmtDate(from)} to {fmtDate(to)}</div>
@@ -198,7 +198,7 @@ function ReportContent({ tab, data, from, to }: { tab: Tab; data: unknown; from:
   }
 
   if (tab === "ipd") {
-    const rows = data as Array<{ ward_name: string; ward_type: string; admissions: number; discharges: number; avg_length_of_stay_days: number; occupied_beds: number; total_beds: number }>
+    const rows = Array.isArray(data) ? data as Array<{ ward_name: string; ward_type: string; admissions: number; discharges: number; avg_length_of_stay_days: number; occupied_beds: number; total_beds: number }> : []
     return (
       <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-neutral-100 font-medium text-sm">IPD Census — {fmtDate(from)} to {fmtDate(to)}</div>
