@@ -16,6 +16,7 @@ export default function HcReportsPage() {
 
   async function loadReport() {
     setLoading(true)
+    setData(null)
     const qs = new URLSearchParams({ from_date: from, to_date: to })
     const endpointMap: Record<Tab, string> = {
       opd: "opd-summary",
@@ -229,8 +230,9 @@ function ReportContent({ tab, data, from, to }: { tab: Tab; data: unknown; from:
     )
   }
 
-  // OPD summary fallback
-  const rows = data as Array<{ doctor: string; date: string; visits: number }>
+  // OPD summary
+  if (tab !== "opd") return null
+  const rows = Array.isArray(data) ? data as Array<{ doctor: string; date: string; visits: number }> : []
   return (
     <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-neutral-100 font-medium text-sm">OPD Summary</div>

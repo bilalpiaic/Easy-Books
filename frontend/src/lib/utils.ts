@@ -26,6 +26,13 @@ export function fmtDate(dateStr: string | null | undefined): string {
 }
 
 /** Format a JS Date object as "dd-mm-yy". */
+/** Returns today's date as YYYY-MM-DD in the browser's local timezone.
+ *  Use instead of new Date().toISOString().split("T")[0] which gives UTC. */
+export function todayLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
 export function fmtDateJs(date: Date): string {
   const dd = String(date.getDate()).padStart(2, "0")
   const mm = String(date.getMonth() + 1).padStart(2, "0")

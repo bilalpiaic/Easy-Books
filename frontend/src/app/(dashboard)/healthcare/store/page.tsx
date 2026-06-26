@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { Warehouse, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HcCard } from "@/components/healthcare/primitives"
-import { fmtDate } from "@/lib/utils"
+import { fmtDate, todayLocal } from "@/lib/utils"
 
 type StoreIssue = { id: number; issue_number: string; issue_date: string; purpose: string; from_location_id: number }
 type Product = { id: number; name: string }
@@ -13,7 +13,7 @@ type PendingRx = { id: number; medicine_name: string; qty: number; dispensed_qty
 type Tab = "issues" | "pending"
 
 export default function HcStorePage() {
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayLocal()
   const [tab, setTab] = useState<Tab>("issues")
   const [issues, setIssues] = useState<StoreIssue[]>([])
   const [pending, setPending] = useState<PendingRx[]>([])
