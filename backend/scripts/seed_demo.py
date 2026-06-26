@@ -3113,6 +3113,21 @@ def _seed_healthcare(s: Session, user: User) -> None:
 
     s.flush()
 
+    # ── Sync SequenceCounters so API calls after seeding don't collide ─────────
+    # 50 patients → next MR is 51; 20 admissions → next ADM is 21
+    for seq_name, next_val in [("hc_mr", 51), ("hc_adm", 21)]:
+        row = s.exec(
+            select(SequenceCounter).where(
+                SequenceCounter.tenant_id == tid,
+                SequenceCounter.name == seq_name,
+            )
+        ).first()
+        if row:
+            row.next_value = max(row.next_value, next_val)
+        else:
+            s.add(SequenceCounter(tenant_id=tid, name=seq_name, next_value=next_val))
+    s.flush()
+
 
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
