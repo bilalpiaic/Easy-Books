@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Plus, ChevronRight } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/healthcare/primitives"
-import { fmtDate } from "@/lib/utils"
+import { fmtDate, todayLocal } from "@/lib/utils"
 
 type Doctor = { id: number; name: string; specialization?: string; opd_fee: number }
 type Token = { id: number; token_number: number; patient_name?: string; patient_id?: number; status: string; visit_date: string }
@@ -13,7 +13,7 @@ type Visit = { id: number; patient_id: number; visit_type: string; diagnosis?: s
 type Tab = "queue" | "visit"
 
 export default function OpdPage() {
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayLocal()
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [tokens, setTokens] = useState<Token[]>([])

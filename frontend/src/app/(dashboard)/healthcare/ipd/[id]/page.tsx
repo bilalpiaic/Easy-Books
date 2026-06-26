@@ -5,12 +5,12 @@ import { ArrowLeft, Plus, LogOut } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/healthcare/primitives"
-import { fmtDate } from "@/lib/utils"
+import { fmtDate, todayLocal } from "@/lib/utils"
 
 type Admission = {
   id: number; admission_number: string; patient_id: number; ward_id: number; bed_id: number
   admission_date: string; discharge_date?: string; diagnosis?: string; admission_type: string
-  status: string; deposit_amount: number
+  status: string; deposit_amount: number; charges?: Charge[]
 }
 type Charge = { id: number; charge_date: string; charge_type: string; description: string; amount: number }
 type LabOrder = { id: number; order_number: string; order_date: string; status: string }
@@ -20,7 +20,7 @@ type Tab = "charges" | "lab" | "procedures"
 
 export default function AdmissionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayLocal()
   const [admission, setAdmission] = useState<Admission | null>(null)
   const [charges, setCharges] = useState<Charge[]>([])
   const [labOrders, setLabOrders] = useState<LabOrder[]>([])
@@ -36,14 +36,13 @@ export default function AdmissionDetailPage({ params }: { params: Promise<{ id: 
 
   async function load() {
     setLoading(true)
-    const [adm, ch, lab, proc] = await Promise.all([
+    const [adm, lab, proc] = await Promise.all([
       apiFetch<Admission>(`/api/healthcare/admissions/${id}`).catch(() => null),
-      apiFetch<Charge[] | { items: Charge[] }>(`/api/healthcare/admissions/${id}/charges`).catch(() => [] as Charge[]),
       apiFetch<LabOrder[] | { items: LabOrder[] }>(`/api/healthcare/lab/orders?admission_id=${id}`).catch(() => [] as LabOrder[]),
       apiFetch<ProcedureOrder[] | { items: ProcedureOrder[] }>(`/api/healthcare/procedure-orders?admission_id=${id}`).catch(() => [] as ProcedureOrder[]),
     ])
     setAdmission(adm)
-    setCharges(Array.isArray(ch) ? ch : (ch as { items: Charge[] }).items ?? [])
+    setCharges(adm?.charges ?? [])
     setLabOrders(Array.isArray(lab) ? lab : (lab as { items: LabOrder[] }).items ?? [])
     setProcOrders(Array.isArray(proc) ? proc : (proc as { items: ProcedureOrder[] }).items ?? [])
     setLoading(false)

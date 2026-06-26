@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { BedDouble } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { BedGrid, Bed, StatusBadge, HcCard } from "@/components/healthcare/primitives"
-import { fmtDate } from "@/lib/utils"
+import { fmtDate, todayLocal } from "@/lib/utils"
 
 type Ward = { id: number; name: string; ward_type: string; daily_charge: number; available_beds: number; occupied_beds: number }
 type Admission = { id: number; admission_number: string; patient_id: number; ward_id: number; admission_date: string; status: string; diagnosis?: string; deposit_amount: number }
@@ -11,7 +11,7 @@ type Patient = { id: number; mr_number: string; name: string }
 type Doctor = { id: number; name: string }
 
 export default function IpdPage() {
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayLocal()
   const [wards, setWards] = useState<Ward[]>([])
   const [admissions, setAdmissions] = useState<Admission[]>([])
   const [selectedWard, setSelectedWard] = useState<Ward | null>(null)

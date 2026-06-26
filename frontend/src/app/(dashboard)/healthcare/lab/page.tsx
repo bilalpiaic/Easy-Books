@@ -3,14 +3,14 @@ import { useState, useEffect } from "react"
 import { FlaskConical, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/healthcare/primitives"
-import { fmtDate } from "@/lib/utils"
+import { fmtDate, todayLocal } from "@/lib/utils"
 
 type LabOrder = { id: number; order_number: string; order_date: string; source: string; status: string; patient_id: number }
 type LabTest = { id: number; code: string; name: string; standard_fee: number; category: string }
 type Patient = { id: number; mr_number: string; name: string }
 
 export default function LabPage() {
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayLocal()
   const [orders, setOrders] = useState<LabOrder[]>([])
   const [tests, setTests] = useState<LabTest[]>([])
   const [patients, setPatients] = useState<Patient[]>([])

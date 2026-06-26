@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/healthcare/primitives"
-import { fmtDate } from "@/lib/utils"
+import { fmtDate, todayLocal } from "@/lib/utils"
 
 type Procedure = { id: number; code: string; name: string; category: string; standard_fee: number; is_active: boolean }
 type ProcedureOrder = { id: number; order_date: string; status: string; fee: number; procedure_id: number; patient_id: number }
@@ -11,7 +11,7 @@ type Patient = { id: number; mr_number: string; name: string }
 type Doctor = { id: number; name: string }
 
 export default function ProceduresPage() {
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayLocal()
   const [procs, setProcs] = useState<Procedure[]>([])
   const [orders, setOrders] = useState<ProcedureOrder[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
