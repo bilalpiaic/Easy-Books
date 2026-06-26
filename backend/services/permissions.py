@@ -85,6 +85,14 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "payroll":                {"label": "Payroll Runs",           "category": "Payroll"},
     "payroll.components":     {"label": "Salary Components",      "category": "Payroll"},
     "attendance":             {"label": "Attendance Register",    "category": "Payroll"},
+    # Healthcare
+    "healthcare.patients":    {"label": "Patients",              "category": "Healthcare"},
+    "healthcare.opd":         {"label": "OPD / Outpatient",      "category": "Healthcare"},
+    "healthcare.ipd":         {"label": "IPD / Inpatient",       "category": "Healthcare"},
+    "healthcare.lab":         {"label": "Laboratory",            "category": "Healthcare"},
+    "healthcare.procedures":  {"label": "Procedures & Services", "category": "Healthcare"},
+    "healthcare.store":       {"label": "Hospital Store",        "category": "Healthcare"},
+    "healthcare.reports":     {"label": "Healthcare Reports",    "category": "Healthcare"},
 }
 
 # Role defaults: owner/admin/accountant → edit, viewer → view

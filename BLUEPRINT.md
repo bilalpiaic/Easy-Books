@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-06-23 · **Branch:** `main`
+> **Last updated:** 2026-06-26 · **Branch:** `main`
 
 ---
 
@@ -28,6 +28,7 @@
 10. [Manufacturing Track (V2)](#10-manufacturing-track-v2)
 10A. [Telecom Franchise Track (V3)](#10a-telecom-franchise-track-v3)
 10B. [PRA e-Invoice Track (Pakistan)](#10b-pra-e-invoice-track-pakistan)
+10C. [Healthcare / Hospital Track (V4)](#10c-healthcare--hospital-track-v4)
 11. [Reports](#11-reports)
 12. [Security Model](#12-security-model)
 13. [Cross-Cutting Concerns](#13-cross-cutting-concerns)
@@ -301,6 +302,100 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | `loginattempt` | `ip`, `attempted_at`; sliding-window DB throttle |
 | `accountbalance` | Materialised per-account closing balance for locked periods (read-fast trial balance) |
 
+### 5.8 Healthcare Data Model
+
+**Migrations:** `0027_healthcare` (19 `hc_*` tables) + `0028_tenant_hospital_model` (adds `'hospital'` to the `business_model` CHECK).
+
+```
+HcPatient
+  - tenant_id, mr_number (MR-YYYYNNNN auto), customer_id → Customer (auto-linked on create)
+  - name, dob, gender, blood_group, phone, address, notes
+
+HcDoctor
+  - tenant_id, name, specialization, phone, email, is_active
+
+HcWard
+  - tenant_id, name, ward_type (general|private|icu|maternity), capacity
+
+HcBed
+  - ward_id → HcWard, bed_number
+  - status: available | occupied | maintenance   (state machine via PUT /beds/{id})
+
+HcProcedureCatalog
+  - tenant_id, code, name, procedure_type, base_rate, revenue_account_id
+
+HcOpdToken
+  - tenant_id, token_number (OPD-YYYYNNNN), patient_id → HcPatient, doctor_id → HcDoctor
+  - visit_date, queue_number, status (waiting|in_progress|completed|cancelled)
+  - fee, transaction_id (set on fee posting)
+
+HcOpdVisit
+  - opd_token_id → HcOpdToken; chief_complaint, diagnosis, notes, vital_signs (JSON)
+
+HcPrescription
+  - opd_visit_id → HcOpdVisit; notes
+HcPrescriptionItem
+  - prescription_id → HcPrescription; drug_name, dosage, frequency, duration, instructions
+
+HcAdmission
+  - tenant_id, admission_number (ADM-YYYYNNNN), patient_id, ward_id, bed_id, admitting_doctor_id
+  - admission_date, discharge_date?, diagnosis, deposit_amount, deposit_transaction_id
+  - discharge_invoice_id (Invoice FK — set at discharge), status (admitted|discharged)
+
+HcAdmissionCharge
+  - admission_id → HcAdmission; charge_date, description, amount, charge_type
+  - (charges accumulate; no per-charge GL post — one consolidated invoice at discharge)
+
+HcLabTest
+  - tenant_id, code, name, category, sample_type, normal_range, unit, turnaround_hours, rate
+
+HcLabOrder (LO-YYYYNNNN)
+  - tenant_id, order_number, patient_id, requesting_doctor_id, order_date
+  - status (pending|collected|resulted|delivered), transaction_id (set on billing)
+
+HcLabOrderItem
+  - lab_order_id → HcLabOrder, lab_test_id → HcLabTest; result_value, result_notes, is_abnormal
+
+HcSampleCollection
+  - lab_order_id → HcLabOrder; collected_at, collected_by, sample_notes
+
+HcProcedureOrder
+  - tenant_id, patient_id, doctor_id, procedure_id → HcProcedureCatalog
+  - scheduled_at, performed_at?, status, notes, transaction_id (set on posting)
+
+HcStoreIssue / HcStoreIssueItem
+  - Pharmacy / store dispense linked to a patient; product_id → Product; qty, unit_cost
+
+HcProcedureConsumable
+  - procedure_order_id → HcProcedureOrder; product_id → Product; qty
+```
+
+**Healthcare GL postings** (all route through `services/healthcare_posting.py`):
+
+```
+OPD visit fee:
+  Dr 1100 AR         / Cr 4100 OPD Revenue
+
+IPD deposit received:
+  Dr 1000 Cash/Bank  / Cr 2350 Patient Deposit Liability
+
+IPD discharge (consolidated invoice):
+  Dr 1100 AR         / Cr 4110 IPD Ward Revenue
+  Dr 1100 AR         / Cr 4112 Nursing/Misc Charges
+  Dr 2350 Patient Deposit / Cr AR  (settle deposit)
+
+Lab order billing:
+  Dr 1100 AR         / Cr 4115 Lab Revenue
+
+Procedure billing:
+  Dr 1100 AR         / Cr 4120 Procedure Revenue
+
+Pharmacy dispense:
+  Dr 5010 COGS       / Cr 1200 Drug/Supply Inventory  (via consume_stock)
+```
+
+---
+
 ### 5.7 HRM Data Model
 
 **Migrations:** `0023_employees`, `0024_payroll`, `0025_attendance` — 7 new tables; no breaking changes to existing tables.
@@ -386,6 +481,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `manufacturing` | Value-addition / contract mfg | + RM/WIP/FG inventory, Customer Goods on Hand (memo 1210), Customer Goods Liability (memo 2150), Direct Labour, Manufacturing Overhead, Indirect Materials, Service Revenue (Value-Add) |
 | `telecom_franchise` | Mobile-operator franchise | + 56-account franchise CoA: Tracker Deposit `1210`, Load Float `1211`, RSO/Retail load receivables `1212/1213`, MM float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue `4000–4061` (3% load uplift `4020`, FCA target `4060`); fee amortisation `5030`, royalty `5040`, variance `5070`, penalty `5090`. See WORKFLOW §4.8 |
 | `pra_einvoice` | Pakistani retail (PRA-registered) | Same CoA as `simple`; PRA module pre-installed |
+| `hospital` | Healthcare / Hospital | + Hospital CoA: `1100` AR, `2350` Patient Deposit Liability; revenue `4100` OPD / `4110` IPD Ward / `4112` Nursing / `4115` Lab / `4120` Procedures / `4121` Pharmacy; `5010` COGS (drug/supply inventory). Healthcare module pre-installed |
 
 ### 6.2 Module System (UI visibility & billing)
 
@@ -401,6 +497,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `hrm` | HRM & Payroll | HR | base | — | Payroll section |
 | `telecom` | Telecom Franchise | Industry | inventory | — | Telecom section |
 | `pra` | PRA e-Invoice | Industry | base | — | PRA Logs in System section |
+| `healthcare` | Healthcare | Industry | base | — | Healthcare section (OPD/IPD/Lab/Procedures/Store/Reports) |
 
 **`MODULES_BY_MODEL`** (default module set assigned at signup):
 
@@ -411,6 +508,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 "manufacturing":     ["base", "inventory", "production"]
 "telecom_franchise": ["base", "inventory", "telecom"]
 "pra_einvoice":      ["base", "pra"]
+"hospital":          ["base", "healthcare"]
 ```
 
 **Module rules:**
@@ -652,8 +750,51 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 ### Imports (`/api/imports`)
 - CSV upload for Products, Customers, Vendors, Accounts. Validates required columns; row-level error reporting.
 
+### Healthcare (`/api/healthcare`, `forModule: "healthcare"`)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| `GET/POST` | `/patients` | List (search, active filter) + create; MR-YYYYNNNN auto; auto-links to `Customer` row |
+| `GET/PUT` | `/patients/{id}` | Detail + update |
+| `GET` | `/patients/{id}/visits` | OPD visit history |
+| `GET` | `/patients/{id}/admissions` | IPD admission history |
+| `GET` | `/patients/{id}/lab-orders` | Lab order history |
+| `GET/POST` | `/doctors` | Doctor list + create |
+| `GET/POST` | `/wards` | Ward list + create |
+| `GET` | `/beds` | All beds with status |
+| `PUT` | `/beds/{id}` | Status machine: `available → occupied → available`; `maintenance` bypass |
+| `GET/POST` | `/opd/tokens` | Token queue + create (posts `Dr 1100 / Cr 4100`) |
+| `PUT` | `/opd/tokens/{id}` | Advance status (waiting→in_progress→completed) |
+| `POST` | `/opd/tokens/{id}/visit` | Record OPD visit details + vitals |
+| `POST` | `/opd/visits/{id}/prescription` | Create prescription |
+| `GET/POST` | `/admissions` | IPD admission list + admit (deposit posts `Dr Cash / Cr 2350`) |
+| `POST` | `/admissions/{id}/charges` | Add charge to running tab |
+| `POST` | `/admissions/{id}/discharge` | Consolidated invoice for all charges + deposit settlement |
+| `GET/POST` | `/lab/tests` | Lab test catalogue CRUD |
+| `GET/POST` | `/lab/orders` | Lab order list + create (LO-YYYYNNNN) |
+| `POST` | `/lab/orders/{id}/collect` | Record sample collection |
+| `PUT` | `/lab/orders/{id}/items/{item_id}` | Enter result; sets `is_abnormal` flag |
+| `POST` | `/lab/orders/{id}/deliver` | Mark delivered + bill (posts `Dr 1100 / Cr 4115`) |
+| `GET/POST` | `/procedures` | Procedure catalogue CRUD |
+| `POST` | `/procedure-orders` | Schedule procedure |
+| `POST` | `/procedure-orders/{id}/perform` | Record performance + bill |
+| `GET/POST` | `/store/issues` | Pharmacy/store dispense (calls `consume_stock`) |
+| `GET` | `/store/pharmacy/dispense` | Pending pharmacy dispense queue |
+
+### Healthcare Reports (`/api/healthcare/reports/`)
+
+| Endpoint | Notes |
+|----------|-------|
+| `GET /dashboard` | KPI cards: today's OPD, occupied beds, pending labs, revenue MTD |
+| `GET /opd-summary` | OPD visits by date range, doctor, status |
+| `GET /doctor-collections` | Revenue collected per doctor |
+| `GET /lab-summary` | Lab orders by status, turnaround time |
+| `GET /ipd-census` | Active admissions, ward occupancy, average LOS |
+| `GET /revenue-by-type` | GL accounts 4100–4121 breakdown |
+| `GET /patient-statement/{id}` | Full financial statement for one patient |
+
 ### Admin (`/api/admin`)
-- `POST /demo/seed` *(admin+)* — load all 6 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
+- `POST /demo/seed` *(admin+)* — load all 7 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
 
 ---
 
@@ -989,6 +1130,75 @@ PRA-enabled tenants have a dedicated portal mode that surfaces only PRA-relevant
 
 ---
 
+## 10C. HEALTHCARE / HOSPITAL TRACK (V4)
+
+Applies to `business_model == 'hospital'`. 19 `hc_*` tables (`models_healthcare.py`). Routes in `routers/healthcare.py` (25+ endpoints) and `routers/healthcare_reports.py` (7 reports). GL writes flow through `services/healthcare_posting.py` → `services/posting.py`. Frontend in `src/app/(dashboard)/healthcare/` (11 pages) using `components/healthcare/primitives`.
+
+### 10C.1 Entities (`hc_*`)
+
+HcPatient · HcDoctor · HcWard · HcBed · HcProcedureCatalog · HcOpdToken · HcOpdVisit · HcPrescription · HcPrescriptionItem · HcAdmission · HcAdmissionCharge · HcLabTest · HcLabOrder · HcLabOrderItem · HcSampleCollection · HcProcedureOrder · HcStoreIssue · HcStoreIssueItem · HcProcedureConsumable
+
+### 10C.2 OPD Cycle
+
+```
+1. Token issued → queue_number assigned (OPD-YYYYNNNN)
+      Dr 1100 AR  / Cr 4100 OPD Revenue
+
+2. Patient called → token status: waiting → in_progress
+
+3. Doctor records HcOpdVisit (diagnosis, vitals, ICD notes)
+   → optional HcPrescription + HcPrescriptionItems
+   → token status: completed
+```
+
+### 10C.3 IPD Cycle
+
+```
+1. Admit:
+      Dr 1000 Cash / Cr 2350 Patient Deposit Liability  (deposit)
+      HcBed.status → occupied
+
+2. Accumulate charges (HcAdmissionCharge — no per-charge GL):
+      Ward charges, nursing, diet, pharmacy dispenses, procedures
+
+3. Discharge:
+      Consolidated Invoice = Σ all admission charges
+      Dr 1100 AR / Cr 4110 IPD Ward Revenue (and sub-lines per type)
+      Dr 2350 Patient Deposit / Cr 1100 AR  (offset deposit)
+      HcAdmission.status → discharged
+      HcBed.status → available
+```
+
+### 10C.4 Lab Cycle
+
+```
+Order created → LO-YYYYNNNN
+Sample collected → HcSampleCollection row
+Results entered → HcLabOrderItem.result_value + is_abnormal flag
+Delivered to requesting doctor →
+      Dr 1100 AR / Cr 4115 Lab Revenue
+```
+
+### 10C.5 Pharmacy / Store Dispense
+
+Pharmacy dispense calls `consume_stock(product_id, qty)` (the same inventory engine used by Sales). GL:
+```
+Dr 5010 COGS  / Cr 1200 Drug/Supply Inventory
+```
+Store issues are linked to a patient (`HcStoreIssue`) or a procedure order (`HcProcedureConsumable`).
+
+### 10C.6 Demo seed
+
+The `demo.hospital@easy-books.app` tenant is seeded with:
+- 5 doctors (4 specialisations)
+- 4 wards (General × 2, ICU, Maternity) with 10 beds each
+- 50 patients (MR-2026-0001 … MR-2026-0050), each linked to a Customer row
+- 200 OPD tokens (spread over the last 90 days) with visit records
+- 20 IPD admissions (10 active, 10 discharged with invoices)
+- 80 lab orders (various statuses)
+
+---
+
 ## 11. REPORTS
 
 | Endpoint | Source | Notes |
@@ -1009,6 +1219,13 @@ PRA-enabled tenants have a dedicated portal mode that surfaces only PRA-relevant
 | `GET /api/manufacturing/wip-aging` | ProductionOrder | Days since `started_at` |
 | `GET /api/manufacturing/production-summary` | ProductionOrder | By state |
 | `GET /api/manufacturing/customer-custody` | InventoryLayer + GoodsReceiptNote | Per-(customer, product) |
+| `GET /api/healthcare/reports/dashboard` | HcOpdToken, HcAdmission, HcLabOrder, GL | Today's OPD, occupied beds, pending labs, revenue MTD |
+| `GET /api/healthcare/reports/opd-summary` | HcOpdToken | Visits by date range / doctor / status |
+| `GET /api/healthcare/reports/doctor-collections` | HcOpdToken + Invoice | Revenue per doctor |
+| `GET /api/healthcare/reports/lab-summary` | HcLabOrder | Orders by status + turnaround |
+| `GET /api/healthcare/reports/ipd-census` | HcAdmission + HcBed | Active admissions, ward occupancy, avg LOS |
+| `GET /api/healthcare/reports/revenue-by-type` | JournalEntry grouped by GL 4100–4121 | OPD/IPD/Lab/Procedure/Pharmacy revenue split |
+| `GET /api/healthcare/reports/patient-statement/{id}` | HcPatient + all transactions | Full financial history for one patient |
 
 ---
 
@@ -1185,6 +1402,12 @@ All 54 authenticated pages were updated to apply responsive Tailwind breakpoints
 | `0020_user_rights` | #70 | `UserPermission` (tenant/user/resource/access_level/my_data_only); `User.created_by_id`; `User.my_data_only` |
 | `0021_commissions` | #71 | `CommissionPlan`, `CommissionLedger` |
 | `0022_promo_rules` | #72 | `PromoRule`, `InvoiceLine.discount_pct`, `InvoiceLine.promo_rule_id` |
+| `0023_employees` | HRM | `Employee` |
+| `0024_payroll` | HRM | `SalaryComponent`, `EmployeeSalaryStructure`, `PayrollRun`, `PayrollLine`, `PayrollLineDetail` |
+| `0025_attendance` | HRM | `AttendanceRecord` |
+| `0026_pra_integration` | PRA | `Invoice.pra_*` fields, `Customer.ntn/cnic`, `Product.pct_code`, `PRASubmissionLog` |
+| `0027_healthcare` | V4 | 19 `hc_*` tables (HcPatient … HcProcedureConsumable); SQLite-safe `has_table` guard |
+| `0028_tenant_hospital_model` | V4 | Adds `'hospital'` to `Tenant.business_model` CHECK via raw SQL recreation (SQLite) |
 
 ---
 
@@ -1270,11 +1493,14 @@ Stage 3 (publish):
 ## 18.1. DEMO DATA & SEEDING
 
 **Automatic Demo Tenants (on first run):**
-- On database init (`db.py`), five demo tenants are auto-created, one per business model. `dev.sh` seeds each with 50+ records per entity type:
+- On database init (`db.py`), seven demo tenants are auto-created, one per business model. `dev.sh` seeds each with 50+ records per entity type:
   - `demo.simple@easy-books.app` (Simple model)
   - `demo.services@easy-books.app` (Services model)
   - `demo.trader@easy-books.app` (Trader model)
   - `demo.manufacturing@easy-books.app` (Manufacturing model)
+  - `demo.telecom@easy-books.app` (Telecom Franchise model)
+  - `demo.pra@easy-books.app` (PRA e-Invoice model)
+  - `demo.hospital@easy-books.app` (Healthcare / Hospital model — 50 patients, 5 doctors, 4 wards, 200 OPD tokens, 20 IPD admissions, 80 lab orders)
   - All use password: `demo1234`
 - Each demo tenant has a Chart of Accounts, sequence counters, and stock locations pre-seeded.
 
@@ -1447,6 +1673,18 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | **Collapsible sidebar** | 3-state (collapsed / open / pinned) via `localStorage`; hover expands with tooltip nav panel; auto-pin on wide screens; backdrop excludes `top-12` header; z-index layering corrected |
 | **3-mode voucher form** | New Entry supports Journal / Payment (CP/BP) / Receipt (CR/BR); mode-specific Cash/Bank GL pickers; JV prefix auto-applies per mode; distinct PV/RV print templates |
 | **Print system overhaul** | Dot-matrix B&W format; `dd-mm-yy` date format via `fmtDate()`/`fmtDateJs()` across 37+ files; dynamic `@page { size: A4 landscape }` injection in `PrintHeader` via `useEffect`; print hygiene (filter UI, pagination, sort, action cols, checkboxes all `print:hidden`); currency prefix in column headers only; negative amounts as `(1,234.56)`; `whitespace-nowrap` on Date/JV# cells; voucher type badges removed |
+
+### Sprint 19 Shipped ✅ (Healthcare / Hospital Track V4)
+
+| Feature | Notes |
+|---------|-------|
+| **19 `hc_*` tables** | `HcPatient` (MR-YYYYNNNN, auto-linked Customer), `HcDoctor`, `HcWard`, `HcBed` (status machine), `HcProcedureCatalog`, `HcOpdToken`, `HcOpdVisit`, `HcPrescription`/`Item`, `HcAdmission` (ADM-YYYYNNNN), `HcAdmissionCharge`, `HcLabTest`, `HcLabOrder` (LO-YYYYNNNN), `HcLabOrderItem`, `HcSampleCollection`, `HcProcedureOrder`, `HcStoreIssue`/`Item`, `HcProcedureConsumable` |
+| **Alembic migrations** | `0027_healthcare` (19 tables, `has_table` guard) + `0028_tenant_hospital_model` (adds `'hospital'` CHECK value via raw SQL recreation) |
+| **Backend routers** | `routers/healthcare.py` (25+ endpoints, full OPD/IPD/Lab/Procedure/Store cycles), `routers/healthcare_reports.py` (7 KPI/summary reports) |
+| **GL posting service** | `services/healthcare_posting.py` — all financial events flow through `services/posting.py` |
+| **`healthcare` module** | Added to `MODULE_REGISTRY`; sidebar gated via `forModule: "healthcare"`; `hospital` business model pre-installs it |
+| **Frontend** | 11 pages under `/healthcare/` (HC Overview, Patients with `[id]` detail, OPD, IPD with `[id]` detail, Lab, Lab Tests, Procedures, HC Store, HC Reports) + `components/healthcare/primitives.tsx` |
+| **Demo tenant** | `demo.hospital@easy-books.app` — 50 patients, 5 doctors, 4 wards, 200 OPD tokens, 20 IPD admissions, 80 lab orders |
 
 ### Still Pending
 

@@ -22,6 +22,7 @@
    - 6.6 [Period-End Close](#46-period-end-close)
    - 6.7 [Manufacturing (V2)](#47-manufacturing-v2)
    - 6.8 [Telecom Franchise (V3)](#48-telecom-franchise-v3)
+   - 6.9 [Healthcare / Hospital (V3.0)](#49-healthcare--hospital-v30)
 7. [Cross-Cutting Features](#5-cross-cutting-features)
    - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 7.2 [Tax Codes](#52-tax-codes)
@@ -54,7 +55,7 @@
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
-| Demo tenants | 6 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates |
+| Demo tenants | 7 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates; hospital tenant additionally has 5 doctors, 4 wards, 50 patients, 200 OPD tokens, 20 admissions, 80 lab orders |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
@@ -865,6 +866,64 @@ The model mirrors a real mobile-operator franchise: you pre-fund a **Tracker** w
 | `GET /api/telecom/reports/revenue-by-stream` | Revenue per franchise stream (CoA 4xxx), sign-flipped + total |
 | `GET /api/telecom/reports/fca-target` | Current-month FCA actual vs target, achievement %, delta |
 | `GET /api/telecom/reports/tracker-statement` | Tracker txn ledger + GL-vs-denormalised deposit/load reconciliation |
+
+---
+
+### 4.9 HEALTHCARE / HOSPITAL (V3.0)
+
+Applies only to tenants where `Tenant.business_model == 'hospital'` with the `healthcare` module installed (`deps: ["base","hrm","inventory"]`). Signup seeds a hospital CoA (accounts 2310, 4100–4122, 5120–5130) in addition to the standard backbone. All 19 `hc_*` clinical tables live in `models_healthcare.py`; GL writing still goes through `services/posting.py`.
+
+**The central design decision: Patient = Customer.** Every `POST /api/healthcare/patients` auto-creates a matching `Customer` record. This means AR aging, customer statements, payment allocation, and receivables reports all work without modification for hospital AR.
+
+```
+  REGISTER PATIENT          OPD VISIT                  LAB / PROCEDURE            IPD ADMISSION → DISCHARGE
+   │                         │                          │                           │
+   │ create patient           │ token → visit           │ walk-in order → bill      │ admit: Dr Cash / Cr 2310 Deposit
+   │ → auto-creates Customer  │ → Dr 1100 / Cr 4100    │   Dr 1100 / Cr 4110       │ charges accumulate (no GL per row)
+   │   in AR system           │ OPD Revenue             │   Lab Revenue             │ discharge: single consolidated invoice
+   │                          │                         │                           │   Dr 1100 / Cr 4100–4122
+   │                          │                         │ procedure order → bill    │ deposit settled:
+   │                          │                         │   Dr 1100 / Cr 4120       │   Dr 2310 / Cr 1100
+   ▼                          ▼                         ▼                           ▼
+  MR-YYYYNNNN issued        visit recorded            invoice in AR              bed freed; ADM-YYYYNNNN closed
+  customer_id linked        prescription written      results entered            consolidated invoice in AR
+```
+
+**GL posting reference (healthcare):**
+
+| Event | Dr | Cr | Voucher Prefix |
+|---|---|---|---|
+| OPD consultation billed | 1100 AR | 4100 OPD Revenue | HC-OPD |
+| OPD follow-up billed | 1100 AR | 4100 OPD Revenue | HC-OPD |
+| IPD deposit received | 1000 Cash | 2310 Patient Advances | HC-DEP |
+| Lab order billed (walk-in/OPD) | 1100 AR | 4110 Lab Revenue | HC-LAB |
+| Procedure billed (OPD/walk-in) | 1100 AR | 4120 Procedure Revenue | HC-PROC |
+| IPD discharge — ward charges | 1100 AR | 4121 Ward/Bed Charges | HC-IPD |
+| IPD discharge — deposit settled | 2310 Patient Advances | 1100 AR | HC-IPD |
+| Medical supply issue (internal) | 5120 Medical Supplies | 1300 Inventory | HC-ISS |
+| Lab reagent consumption | 5130 Lab Reagents | 1300 Inventory | HC-ISS |
+
+**IPD charge accumulation (key invariant):** `hc_admission_charge` rows are **never individually GL-posted**. They accumulate cost records only. At discharge, `POST /api/healthcare/admissions/{id}/discharge` rolls all charges into one balanced JV. This prevents micro-JV sprawl (a 5-day stay might have 20+ nursing charges).
+
+**OPD token queue:** token numbers reset daily per doctor (`MAX(token_number) WHERE visit_date = today AND doctor_id = X`). No "OPD session" table; the date + doctor_id composite is sufficient.
+
+**Ward/bed state machine:**
+```
+available → occupied  (POST /admissions, bed_id supplied)
+occupied  → available (POST /admissions/{id}/discharge)
+any       → maintenance (PUT /beds/{id} status=maintenance — admin only)
+```
+
+**Healthcare reports (`/api/healthcare/reports/`):**
+
+| Endpoint | Returns |
+|---|---|
+| `dashboard` | KPIs: tokens today, patients admitted, bed occupancy %, revenue today |
+| `opd-summary` | Tokens issued / visits by date range; top complaints |
+| `doctor-collections` | Visits + revenue per doctor in period |
+| `lab-summary` | Lab orders by status + source; revenue |
+| `ipd-census` | Ward-level admissions/discharges/avg LOS, bed utilisation |
+| `revenue-by-type` | GL credits 4100–4121 by account (OPD/Lab/Procedure/Ward) |
 
 ---
 

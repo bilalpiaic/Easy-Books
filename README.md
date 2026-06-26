@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. It supports six business models: **Simple**, **Services**, **Trader**, **Manufacturing**, **Telecom Franchise**, and **PRA e-Invoice (Pakistan)** — all with IAS/IFRS-aligned accounting, an enforced ∑Dr = ∑Cr invariant, and live reports computed directly from the General Ledger.
+**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. It supports seven business models: **Simple**, **Services**, **Trader**, **Manufacturing**, **Telecom Franchise**, **PRA e-Invoice (Pakistan)**, and **Healthcare / Hospital** — all with IAS/IFRS-aligned accounting, an enforced ∑Dr = ∑Cr invariant, and live reports computed directly from the General Ledger.
 
 Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend) · SQLite for dev/local, PostgreSQL for production.
 
@@ -107,11 +107,21 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
 
 **Module system (v2.9)**
-- **Odoo-style installable modules** — 6 modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`. Each module gates a sidebar section; sections with no active module are hidden
+- **Odoo-style installable modules** — 7 modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`. Each module gates a sidebar section; sections with no active module are hidden
 - **Apps page** (`/apps`) — module store grid grouped by category (Core / Operations / HR / Industry); install/uninstall with dependency resolution and a confirmation dialog before removal; admin/owner only
 - **Post-login onboarding splash** — fresh accounts land on `/onboarding` (full-page, no sidebar) to pick their modules before reaching the dashboard; "Skip for now" available; shown once per account; demo tenants bypass it automatically
 - `Tenant.module_meta` JSON column records `{tier, installed_at, expires_at}` per module — billing-ready schema without a future destructive migration
 - Legacy `enabled_modules` strings auto-normalized on read — zero-downtime upgrade for existing installs
+
+**Healthcare module (v3.0)**
+- **Patient registry** — MR-YYYYNNNN numbering; every patient auto-creates a `Customer` record so AR aging, statements, and payment allocation work out-of-the-box
+- **OPD (multi-doctor)** — token queue per doctor per day; visit recording (complaint, diagnosis, prescription); auto-bills consultation fee via GL (`Dr AR / Cr OPD Revenue 4100`)
+- **IPD / Inpatient** — ward & bed management (general/ICU/private/maternity); patient admissions with deposit; daily charge accumulation (`hc_admission_charge`); single consolidated invoice at discharge; deposit settled via GL at discharge
+- **Laboratory** — test catalogue (hematology/biochemistry/microbiology/radiology); lab orders with source tracking (walk-in/OPD/IPD/collection centre); sample collection workflow; result entry per test item; auto-bills walk-in and OPD orders
+- **Procedures** — catalogue with category (minor/surgery/diagnostic/therapy); procedure orders billed at creation; "Mark Performed" action
+- **Hospital Store** — stock issues from `hc_store_issue`; integrates with existing `Product` / `StockMovement` / `StockLocation` inventory system; pharmacy prescription dispensing queue
+- **HC Reports** — dashboard KPIs, OPD summary, doctor collections, lab summary, IPD census, revenue by type (accounts 4100–4121)
+- **Demo tenant** — `demo.hospital@easy-books.app` / `demo1234` — 5 doctors, 4 wards (38 beds), 50 patients, ~200 OPD tokens, 20 admissions, 80 lab orders, 25 procedure orders
 
 **Multi-tenant SaaS**
 - RBAC: `owner | admin | accountant | viewer`; team management with invite links
@@ -209,13 +219,13 @@ npm install
 npm run dev
 ```
 
-`dev.sh` auto-seeds six demo tenants with rich mock data on each run (idempotent).
+`dev.sh` auto-seeds seven demo tenants with rich mock data on each run (idempotent).
 
 ---
 
 ## Demo / sample data
 
-**Standalone script installs** (`install-and-run.bat` / `.sh`) **auto-load the 6 demo companies on first install** — sign in immediately with password `demo1234`, no signup required:
+**Standalone script installs** (`install-and-run.bat` / `.sh`) **auto-load the 7 demo companies on first install** — sign in immediately with password `demo1234`, no signup required:
 
 | Email | Business model |
 |---|---|
@@ -225,14 +235,15 @@ npm run dev
 | `demo.manufacturing@easy-books.app` | Manufacturing / value-addition |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 | `demo.pra@easy-books.app` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
+| `demo.hospital@easy-books.app` | Healthcare — hospital/clinic (OPD, IPD, Lab, Procedures, Store) |
 
 The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 
-The **desktop (Electron) app** also auto-loads the 6 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
+The **desktop (Electron) app** also auto-loads the 7 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 
 The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time.
 
-Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across **two fiscal years** (so comparative reports have a prior period). Transactions carry their correct voucher types, the services tenant demonstrates **deferred-revenue origination with partial recognition**, and each tenant has **multiple users** (owner / accountant / clerk) so the Audit Log shows realistic attribution.
+Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across **two fiscal years** (so comparative reports have a prior period). The hospital tenant additionally contains 5 doctors, 4 wards, 50 patients, ~200 OPD visits, 20 IPD admissions, 80 lab orders, and 25 procedure orders. Transactions carry their correct voucher types, the services tenant demonstrates **deferred-revenue origination with partial recognition**, and each tenant has **multiple users** (owner / accountant / clerk) so the Audit Log shows realistic attribution.
 
 In **developer mode**, `dev.sh` seeds these tenants automatically on every run. To seed manually:
 

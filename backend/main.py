@@ -28,6 +28,7 @@ from routers import (
     permissions, commissions, promo_rules, payroll, attendance,
 )
 from routers.pra import pra_router
+from routers import healthcare, healthcare_reports
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 
@@ -99,6 +100,8 @@ _ROUTERS = [
     promo_rules.router,
     payroll.router,
     attendance.router,
+    healthcare.router,
+    healthcare_reports.router,
 ]
 
 # PRA e-Invoice router mounted separately (not in the shared prefix list above)

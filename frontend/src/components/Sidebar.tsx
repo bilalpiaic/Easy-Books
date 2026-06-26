@@ -23,14 +23,16 @@ const SECTION_COLORS: Record<string, string> = {
   Reports:       "text-cyan-400",
   System:        "text-white/40",
   Payroll:       "text-indigo-400",
+  Healthcare:    "text-rose-400",
 }
 
 const HUB_ROUTES: Record<string, string> = {
-  Receivable: "/receivable",
-  Payable:    "/payable",
-  Inventory:  "/inventory",
-  Banking:    "/banking",
-  Payroll:    "/hrm",
+  Receivable:  "/receivable",
+  Payable:     "/payable",
+  Inventory:   "/inventory",
+  Banking:     "/banking",
+  Payroll:     "/hrm",
+  Healthcare:  "/healthcare",
 }
 
 // Hub hrefs only highlight on exact pathname match to avoid conflicting with sub-page nav items

@@ -60,6 +60,12 @@ from models_telecom import (
     FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
     RsoAgent, SimActivation, TrackerAccount,
 )
+from models_healthcare import (
+    HcPatient, HcDoctor, HcWard, HcBed, HcProcedureCatalog,
+    HcOpdToken, HcOpdVisit, HcPrescription, HcPrescriptionItem,
+    HcAdmission, HcAdmissionCharge, HcLabTest, HcLabOrder, HcLabOrderItem,
+    HcSampleCollection, HcProcedureOrder,
+)
 from routers.common import next_number
 from services.franchise_posting import (
     post_commission_accrual, post_franchise_fee_amortisation,
@@ -87,12 +93,13 @@ from services.tracker_posting import (
 
 DEMO_PASSWORD = "demo1234"
 DEMO_TENANTS = [
-    ("demo.simple@easy-books.app",        "Demo Simple Co.",        "simple"),
-    ("demo.services@easy-books.app",      "Demo Services Ltd.",     "services"),
-    ("demo.trader@easy-books.app",        "Demo Trading Co.",       "trader"),
-    ("demo.manufacturing@easy-books.app", "Demo Manufacturing Co.", "manufacturing"),
-    ("demo.telecom@easy-books.app",       "Demo Telecom Franchise", "telecom_franchise"),
+    ("demo.simple@easy-books.app",        "Demo Simple Co.",                   "simple"),
+    ("demo.services@easy-books.app",      "Demo Services Ltd.",                "services"),
+    ("demo.trader@easy-books.app",        "Demo Trading Co.",                  "trader"),
+    ("demo.manufacturing@easy-books.app", "Demo Manufacturing Co.",            "manufacturing"),
+    ("demo.telecom@easy-books.app",       "Demo Telecom Franchise",            "telecom_franchise"),
     ("demo.pra@easy-books.app",           "Lahore Retail Traders (PRA Demo)", "trader"),
+    ("demo.hospital@easy-books.app",      "City General Hospital (Demo)",      "hospital"),
 ]
 
 # PRA demo tenant — Pakistani customers with NTN/CNIC
@@ -2837,6 +2844,276 @@ def _stamp_pra_invoices(s: Session, invoices: list[Invoice]) -> None:
         fin_counter += 1
 
 
+def _seed_healthcare(s: Session, user: User) -> None:
+    """Seed hospital demo data: doctors, wards, beds, patients, OPD, IPD, lab, procedures.
+    Idempotent — skips if HcDoctor rows already exist for this tenant."""
+    tid = user.tenant_id
+    today = date.today()
+
+    if s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tid)).first():
+        return
+
+    # ── Doctors ───────────────────────────────────────────────────────────────
+    DOCTOR_DATA = [
+        ("Dr. Asim Karim",     "Cardiology",      "MBBS, FCPS",  "0300-1111001", 1500),
+        ("Dr. Rabia Siddiqui", "Gynecology",      "MBBS, FCPS",  "0300-1111002", 1200),
+        ("Dr. Tariq Mehmood",  "General Surgery", "MBBS, FRCS",  "0300-1111003", 1000),
+        ("Dr. Nadia Farooq",   "Pediatrics",      "MBBS, DCH",   "0300-1111004",  800),
+        ("Dr. Khalid Hussain", "ENT",             "MBBS, DLO",   "0300-1111005",  700),
+    ]
+    doctors = []
+    for nm, spec, qual, ph, fee in DOCTOR_DATA:
+        doc = HcDoctor(tenant_id=tid, name=nm, specialization=spec,
+                       qualification=qual, phone=ph, opd_fee=Decimal(fee))
+        s.add(doc); s.flush(); doctors.append(doc)
+
+    # ── Wards + Beds ──────────────────────────────────────────────────────────
+    WARD_DATA = [
+        ("Male General Ward",   "general",  12, Decimal("500")),
+        ("Female General Ward", "general",  12, Decimal("500")),
+        ("Private Suite",       "private",   8, Decimal("3000")),
+        ("ICU",                 "icu",       6, Decimal("5000")),
+    ]
+    all_beds: list[HcBed] = []
+    for wname, wtype, nbed, dcharge in WARD_DATA:
+        ward = HcWard(tenant_id=tid, name=wname, ward_type=wtype,
+                      total_beds=nbed, daily_charge=dcharge)
+        s.add(ward); s.flush()
+        for b in range(1, nbed + 1):
+            bed = HcBed(tenant_id=tid, ward_id=ward.id,
+                        bed_number=f"{wname[0]}{b:02d}", status="available")
+            s.add(bed); s.flush()
+            all_beds.append(bed)
+
+    # ── Procedure Catalogue ───────────────────────────────────────────────────
+    PROC_DATA = [
+        ("PROC-001", "Dressing Change",    "minor",      Decimal("300")),
+        ("PROC-002", "Suturing",           "minor",      Decimal("800")),
+        ("PROC-003", "IV Cannulation",     "minor",      Decimal("200")),
+        ("PROC-004", "Nebulisation",       "therapy",    Decimal("400")),
+        ("PROC-005", "Appendectomy",       "surgery",    Decimal("25000")),
+        ("PROC-006", "Cesarean Section",   "surgery",    Decimal("40000")),
+        ("PROC-007", "ECG",                "diagnostic", Decimal("500")),
+        ("PROC-008", "Ultrasound Abdomen", "diagnostic", Decimal("1500")),
+        ("PROC-009", "X-Ray Chest PA",     "diagnostic", Decimal("700")),
+        ("PROC-010", "Tonsillectomy",      "surgery",    Decimal("18000")),
+    ]
+    procedures = []
+    for code, nm, cat, fee in PROC_DATA:
+        p = HcProcedureCatalog(tenant_id=tid, code=code, name=nm, category=cat,
+                               standard_fee=fee)
+        s.add(p); s.flush(); procedures.append(p)
+
+    # ── Lab Tests (20) ────────────────────────────────────────────────────────
+    LAB_DATA = [
+        ("CBC",      "Complete Blood Count",          "hematology",   "4.0–11.0", "×10³/μL", Decimal("400")),
+        ("HB",       "Haemoglobin",                   "hematology",   "12–17",    "g/dL",     Decimal("200")),
+        ("ESR",      "Erythrocyte Sedimentation Rate","hematology",   "0–20",     "mm/hr",    Decimal("200")),
+        ("PT-INR",   "Prothrombin Time",              "hematology",   "11–13.5",  "sec",      Decimal("400")),
+        ("BS-F",     "Blood Sugar Fasting",           "biochemistry", "70–100",   "mg/dL",    Decimal("150")),
+        ("BS-R",     "Blood Sugar Random",            "biochemistry", "<140",     "mg/dL",    Decimal("150")),
+        ("LFT",      "Liver Function Tests",          "biochemistry", "varies",   "U/L",      Decimal("900")),
+        ("RFT",      "Renal Function Tests",          "biochemistry", "varies",   "mg/dL",    Decimal("800")),
+        ("TSH",      "Thyroid Stimulating Hormone",   "biochemistry", "0.4–4.0",  "mIU/L",    Decimal("700")),
+        ("LIPID",    "Lipid Profile",                 "biochemistry", "varies",   "mg/dL",    Decimal("1000")),
+        ("URINE-R",  "Urine Routine",                 "microbiology", "negative", "",          Decimal("200")),
+        ("C/S",      "Culture & Sensitivity",         "microbiology", "varies",   "",          Decimal("600")),
+        ("HBsAG",    "Hepatitis B Surface Antigen",   "microbiology", "negative", "",          Decimal("350")),
+        ("HCV-AB",   "Hepatitis C Antibodies",        "microbiology", "negative", "",          Decimal("400")),
+        ("COVID-AG", "COVID-19 Antigen",              "microbiology", "negative", "",          Decimal("500")),
+        ("DENGUE",   "Dengue NS1 Antigen",            "microbiology", "negative", "",          Decimal("800")),
+        ("PREG",     "Pregnancy Test (urine)",        "other",        "negative", "",          Decimal("200")),
+        ("CHEST-PA", "X-Ray Chest PA",                "radiology",    "normal",   "",          Decimal("700")),
+        ("USG-ABD",  "Ultrasound Abdomen",            "radiology",    "normal",   "",          Decimal("1500")),
+        ("ECG-LAB",  "Electrocardiogram",             "radiology",    "normal",   "",          Decimal("500")),
+    ]
+    lab_tests = []
+    for code, nm, cat, rng, unit, fee in LAB_DATA:
+        t = HcLabTest(tenant_id=tid, code=code, name=nm, category=cat,
+                      normal_range=rng, unit=unit, standard_fee=fee)
+        s.add(t); s.flush(); lab_tests.append(t)
+
+    # ── Patients (50 Pakistani names) ─────────────────────────────────────────
+    PAK_NAMES_M = [
+        "Muhammad Ali", "Ahmed Hassan", "Usman Tariq", "Bilal Anwar", "Faisal Mahmood",
+        "Zubair Khan", "Imran Ashraf", "Tahir Raza", "Salman Iqbal", "Kamran Butt",
+        "Adeel Sarwar", "Junaid Malik", "Waseem Akram", "Naeem Akhtar", "Rizwan Aslam",
+        "Shafiq Rehman", "Irfan Chaudhry", "Pervez Mirza", "Saeed Baig", "Hamid Sohail",
+        "Asad Qureshi", "Waqas Ilyas", "Sohail Ahmed", "Javed Iqbal", "Naveed Zaman",
+    ]
+    PAK_NAMES_F = [
+        "Fatima Bibi", "Ayesha Siddiqua", "Zainab Batool", "Maryam Noor", "Sana Rasheed",
+        "Hina Tariq", "Nadia Aslam", "Rabia Parveen", "Amina Shahid", "Rukhsana Begum",
+        "Saima Anwar", "Farzana Akbar", "Bushra Malik", "Naseem Akhtar", "Tahira Jabeen",
+        "Shaista Bano", "Rehana Sultana", "Uzma Fayyaz", "Mehnaz Riaz", "Asma Cheema",
+        "Lubna Wahid", "Samina Baig", "Nighat Mehmood", "Parveen Iqbal", "Khurshid Bibi",
+    ]
+    BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+    patients = []
+    for idx, nm in enumerate(PAK_NAMES_M + PAK_NAMES_F):
+        gender = "male" if idx < 25 else "female"
+        dob = (today - timedelta(days=random.randint(365 * 18, 365 * 75))).isoformat()
+        cust = Customer(tenant_id=tid, name=nm,
+                        phone=f"03{random.randint(10,49):02d}-{random.randint(1000000,9999999)}",
+                        email="")
+        s.add(cust); s.flush()
+        mr = f"MR-{today.year}{idx + 1:04d}"
+        pat = HcPatient(
+            tenant_id=tid, customer_id=cust.id, mr_number=mr, name=nm,
+            dob=dob, gender=gender,
+            blood_group=random.choice(BLOOD_GROUPS),
+            phone=cust.phone,
+            created_by_id=user.id,
+        )
+        s.add(pat); s.flush(); patients.append(pat)
+
+    # ── OPD Tokens + Visits (200 tokens, ~160 visits over 90 days) ───────────
+    DIAGNOSES = [
+        "Acute upper respiratory infection", "Type 2 Diabetes mellitus",
+        "Hypertension, essential", "Acute gastroenteritis", "Anaemia",
+        "Dengue fever", "Urinary tract infection", "Migraine",
+        "Chest pain — non-cardiac", "Back pain, lumbar",
+        "Pneumonia", "Asthma exacerbation", "Hypothyroidism",
+        "Allergic rhinitis", "Dyspepsia",
+    ]
+    COMPLAINTS = ["Fever & chills", "Cough & cold", "Chest pain", "Abdominal pain",
+                  "Headache", "Body aches", "Vomiting", "Diarrhoea", "Dizziness"]
+    MEDICINES  = ["Tab Paracetamol 500mg", "Syp Augmentin", "Cap Amoxicillin 500mg",
+                  "Tab Metronidazole 400mg", "ORS Sachets", "Tab Ibuprofen 400mg",
+                  "Syp Benadryl", "Tab Omeprazole 20mg", "Tab Ciprofloxacin 500mg"]
+    token_seq: dict[int, int] = {}
+    visit_counter = 0
+    for day_offset in range(90, 0, -1):
+        visit_date = (today - timedelta(days=day_offset)).isoformat()
+        for _ in range(random.randint(1, 4)):
+            doc = random.choice(doctors)
+            pat = random.choice(patients)
+            dn = token_seq.get(doc.id, 0) + 1
+            token_seq[doc.id] = dn
+            tok = HcOpdToken(
+                tenant_id=tid, doctor_id=doc.id, patient_id=pat.id,
+                patient_name=pat.name, token_number=dn,
+                visit_date=visit_date, status="visited",
+            )
+            s.add(tok); s.flush()
+            if visit_counter < 160:
+                visit = HcOpdVisit(
+                    tenant_id=tid, token_id=tok.id, patient_id=pat.id,
+                    doctor_id=doc.id, visit_date=visit_date,
+                    visit_type=random.choice(["first", "follow_up"]),
+                    chief_complaint=random.choice(COMPLAINTS),
+                    diagnosis=random.choice(DIAGNOSES),
+                    advice="Rest, fluids, follow-up in 1 week.",
+                )
+                s.add(visit); s.flush()
+                rx = HcPrescription(
+                    tenant_id=tid, visit_id=visit.id,
+                    patient_id=pat.id, doctor_id=doc.id,
+                    prescribed_date=visit_date,
+                )
+                s.add(rx); s.flush()
+                for med in random.sample(MEDICINES, k=random.randint(1, 3)):
+                    s.add(HcPrescriptionItem(
+                        tenant_id=tid, prescription_id=rx.id,
+                        medicine_name=med, dosage="1 tablet",
+                        frequency="TDS", duration="5 days",
+                        route="oral", qty=Decimal("15"),
+                    ))
+                visit_counter += 1
+
+    # ── IPD Admissions (20: 15 discharged, 5 active) ─────────────────────────
+    available_beds = list(all_beds)
+    random.shuffle(available_beds)
+    for i in range(20):
+        pat    = random.choice(patients)
+        doc    = random.choice(doctors[:3])
+        days_ago = random.randint(5 + i * 4, 10 + i * 4)
+        adm_date = (today - timedelta(days=days_ago)).isoformat()
+        adm_num  = f"ADM-{today.year}{i + 1:04d}"
+        bed      = available_beds[i % len(available_beds)]
+        deposit  = Decimal(random.choice([5000, 10000, 15000, 20000]))
+        discharged = i < 15
+        dis_date = (today - timedelta(days=random.randint(1, days_ago - 1))).isoformat() if discharged else None
+        adm = HcAdmission(
+            tenant_id=tid, admission_number=adm_num,
+            patient_id=pat.id, doctor_id=doc.id,
+            ward_id=bed.ward_id, bed_id=bed.id,
+            admission_date=adm_date, discharge_date=dis_date,
+            diagnosis=random.choice(DIAGNOSES),
+            admission_type=random.choice(["planned", "emergency", "referred"]),
+            status="discharged" if discharged else "admitted",
+            deposit_amount=deposit,
+        )
+        s.add(adm); s.flush()
+        if not discharged:
+            bed.status = "occupied"
+            bed.current_admission_id = adm.id
+            s.add(bed)
+        stay_days = random.randint(2, 7) if discharged else days_ago
+        for d in range(stay_days):
+            charge_date = (today - timedelta(days=days_ago - d)).isoformat()
+            s.add(HcAdmissionCharge(
+                tenant_id=tid, admission_id=adm.id, charge_date=charge_date,
+                charge_type="bed", description="Ward bed charge", amount=Decimal("500"),
+            ))
+        for _ in range(random.randint(0, 2)):
+            proc = random.choice(procedures[:6])
+            s.add(HcAdmissionCharge(
+                tenant_id=tid, admission_id=adm.id, charge_date=adm_date,
+                charge_type="procedure", description=proc.name, amount=proc.standard_fee,
+            ))
+
+    # ── Lab Orders (80) ───────────────────────────────────────────────────────
+    SOURCES   = ["walkin", "opd", "opd", "opd", "collection_centre"]
+    STATUSES  = ["delivered", "delivered", "delivered", "resulted", "sample_collected"]
+    for _ in range(80):
+        order_date = (today - timedelta(days=random.randint(1, 89))).isoformat()
+        pat    = random.choice(patients)
+        source = random.choice(SOURCES)
+        status = random.choice(STATUSES)
+        lo_num = next_number(s, tid, "hc_lab_order", "LO")
+        order = HcLabOrder(
+            tenant_id=tid, order_number=lo_num, patient_id=pat.id,
+            order_date=order_date, source=source, status=status,
+        )
+        s.add(order); s.flush()
+        for test in random.sample(lab_tests, k=random.randint(1, 4)):
+            item = HcLabOrderItem(
+                tenant_id=tid, lab_order_id=order.id,
+                test_id=test.id, fee=test.standard_fee,
+            )
+            if status in ("resulted", "delivered"):
+                item.result_value  = f"{random.randint(5, 15)}.{random.randint(0, 9)}"
+                item.result_unit   = test.unit or ""
+                item.reference_range = test.normal_range or ""
+                item.is_abnormal   = random.random() < 0.15
+                item.resulted_at   = datetime.utcnow()
+                item.resulted_by_id = user.id
+            s.add(item)
+        if source != "walkin" and status != "ordered":
+            s.add(HcSampleCollection(
+                tenant_id=tid, lab_order_id=order.id,
+                collected_by_id=user.id, collected_at=datetime.utcnow(),
+                collection_point="lab", specimen_type="blood", status="received",
+            ))
+
+    # ── Procedure Orders (25) ─────────────────────────────────────────────────
+    for _ in range(25):
+        order_date = (today - timedelta(days=random.randint(1, 89))).isoformat()
+        pat  = random.choice(patients)
+        proc = random.choice(procedures)
+        doc  = random.choice(doctors)
+        status = random.choice(["performed", "performed", "ordered"])
+        s.add(HcProcedureOrder(
+            tenant_id=tid, patient_id=pat.id, doctor_id=doc.id,
+            procedure_id=proc.id, order_date=order_date,
+            status=status, fee=proc.standard_fee,
+            performed_date=order_date if status == "performed" else None,
+        ))
+
+    s.flush()
+
+
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
@@ -2938,6 +3215,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             _seed_telecom_franchise(s, user)
             s.commit()
 
+        if business_model == "hospital":
+            _seed_healthcare(s, user)
+            s.commit()
+
         # ── PRA e-Invoice demo (Pakistani retail trader) ───────────────────────
         if email == "demo.pra@easy-books.app":
             _seed_pra_settings(s, tenant_id)
@@ -2998,6 +3279,9 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             "employees":          len(s.exec(select(Employee).where(Employee.tenant_id == tenant_id)).all()),
             "payroll_runs":       len(s.exec(select(PayrollRun).where(PayrollRun.tenant_id == tenant_id)).all()),
             "attendance_records": len(s.exec(select(AttendanceRecord).where(AttendanceRecord.tenant_id == tenant_id)).all()),
+            "hc_patients":        len(s.exec(select(HcPatient).where(HcPatient.tenant_id == tenant_id)).all()),
+            "hc_doctors":         len(s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tenant_id)).all()),
+            "hc_lab_orders":      len(s.exec(select(HcLabOrder).where(HcLabOrder.tenant_id == tenant_id)).all()),
         }
 
 

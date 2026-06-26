@@ -81,6 +81,7 @@ def create_db_and_tables():
                 ("demo.manufacturing@easy-books.app", "manufacturing", "Demo - Manufacturing", "Demo User"),
                 ("demo.telecom@easy-books.app", "telecom_franchise", "Demo - Telecom Franchise", "Demo User"),
                 ("demo.pra@easy-books.app", "trader", "Lahore Retail Traders (PRA Demo)", "Demo User"),
+                ("demo.hospital@easy-books.app", "hospital", "City General Hospital (Demo)", "Demo User"),
             ]
             demo_password_hash = get_password_hash("demo1234")
             created = 0
@@ -113,7 +114,7 @@ def create_db_and_tables():
             )
             print(
                 f"[seed] SEED_DEMO=true: {created} demo account(s) created this boot, "
-                f"{total} present (login demo.simple@easy-books.app / demo1234, or demo.pra@easy-books.app for PRA demo)",
+                f"{total} present (login demo.simple@easy-books.app / demo1234, or demo.hospital@easy-books.app for Healthcare demo)",
                 flush=True,
             )
         else:
@@ -317,6 +318,32 @@ _COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool, str]] = [
 ]
 
 
+# Healthcare CoA — patient AR, deposit liability, multi-stream revenue, supply expenses
+_COA_HEALTHCARE_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    # Assets
+    ("1102", "Lab Receivable",              "Asset",     False, "11"),
+    ("1200", "Medical Supplies Inventory",  "Asset",     False, "11"),
+    ("1250", "GST Receivable (Input)",      "Asset",     False, "11"),
+    # Liabilities
+    ("2310", "Patient Advance / Deposit",   "Liability", False, "21"),
+    # Revenue — OPD
+    ("4100", "OPD Consultation Revenue",    "Revenue",   False, "41"),
+    ("4101", "OPD Follow-up Revenue",       "Revenue",   False, "41"),
+    # Revenue — Lab
+    ("4110", "Laboratory Revenue",          "Revenue",   False, "41"),
+    ("4111", "Sample Collection Revenue",   "Revenue",   False, "41"),
+    # Revenue — IPD / Procedures
+    ("4120", "Surgical / Procedure Revenue","Revenue",   False, "41"),
+    ("4121", "Ward / Bed Charges Revenue",  "Revenue",   False, "41"),
+    ("4122", "Nursing & Allied Services",   "Revenue",   False, "41"),
+    ("4130", "Pharmacy Revenue",            "Revenue",   False, "41"),
+    # Expenses
+    ("5010", "Cost of Medicines Sold",      "Expense",   False, "51"),
+    ("5120", "Medical Supplies & Consumables","Expense", False, "52"),
+    ("5130", "Lab Reagents & Chemicals",    "Expense",   False, "52"),
+]
+
+
 def _coa_for(business_model: str):
     """CoA template: shared group set + universal leaves + model leaves.
     Returns (code, name, type, is_memo, parent_code, is_group); groups first
@@ -331,6 +358,7 @@ def _coa_for(business_model: str):
         "trader":            _COA_TRADER_EXTRA,
         "manufacturing":     _COA_MANUFACTURING_EXTRA,
         "telecom_franchise": _COA_TELECOM_FRANCHISE_EXTRA,
+        "hospital":          _COA_HEALTHCARE_EXTRA,
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
@@ -417,6 +445,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["PRA"],
     },
+    "healthcare": {
+        "label":       "Healthcare",
+        "description": "OPD/IPD management, lab orders & results, pharmacy store, procedure billing, ward management, and patient records for hospitals and clinics.",
+        "category":    "Industry",
+        "icon":        "Stethoscope",
+        "deps":        ["base", "hrm", "inventory"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Healthcare"],
+    },
 }
 
 # Maps legacy business_model → sensible default module set.
@@ -429,6 +468,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "manufacturing":     ["base", "inventory", "production"],
     "telecom_franchise": ["base", "inventory", "telecom"],
     "pra_einvoice":      ["base", "pra"],
+    "hospital":          ["base", "hrm", "inventory", "healthcare"],
 }
 
 
