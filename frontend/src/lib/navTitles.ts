@@ -118,6 +118,18 @@ export const TITLE_MAP: Record<string, string> = {
   // PRA e-Invoice
   "/pra-logs":                     "PRA Submission Logs",
   "/pra-dashboard":                "PRA Sales Dashboard",
+  // Healthcare
+  "/healthcare":                   "Healthcare Overview",
+  "/healthcare/patients":          "Patient Registry",
+  "/healthcare/patients/":         "Patient Detail",
+  "/healthcare/opd":               "OPD Queue",
+  "/healthcare/ipd":               "Ward / IPD",
+  "/healthcare/ipd/":              "Admission Detail",
+  "/healthcare/lab":               "Laboratory",
+  "/healthcare/lab/tests":         "Lab Test Catalogue",
+  "/healthcare/procedures":        "Procedures",
+  "/healthcare/store":             "Hospital Store",
+  "/healthcare/reports":           "HC Reports",
 }
 
 /**

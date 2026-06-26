@@ -8,6 +8,7 @@ import {
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
+  Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe,
 } from "lucide-react"
 
 export type NavItem = {
@@ -16,7 +17,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare"
   /** Only shown to admin+ (admin or owner). */
   adminOnly?: boolean
 }
@@ -103,9 +104,19 @@ export const NAV: NavItem[] = [
   { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll",   forModule: "hrm" },
   { label: "Attendance",       href: "/attendance",        icon: CalendarDays,     section: "Payroll",   forModule: "hrm" },
   { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll",   forModule: "hrm" },
+  // Healthcare
+  { label: "HC Overview",       href: "/healthcare",              icon: Stethoscope,  section: "Healthcare", forModule: "healthcare" },
+  { label: "Patients",          href: "/healthcare/patients",     icon: FileHeart,    section: "Healthcare", forModule: "healthcare" },
+  { label: "OPD",               href: "/healthcare/opd",          icon: Activity,     section: "Healthcare", forModule: "healthcare" },
+  { label: "IPD / Inpatient",   href: "/healthcare/ipd",          icon: BedDouble,    section: "Healthcare", forModule: "healthcare" },
+  { label: "Laboratory",        href: "/healthcare/lab",          icon: FlaskConical, section: "Healthcare", forModule: "healthcare" },
+  { label: "Lab Tests",         href: "/healthcare/lab/tests",    icon: FlaskConical, section: "Healthcare", forModule: "healthcare" },
+  { label: "Procedures",        href: "/healthcare/procedures",   icon: Syringe,      section: "Healthcare", forModule: "healthcare" },
+  { label: "HC Store",          href: "/healthcare/store",        icon: Warehouse,    section: "Healthcare", forModule: "healthcare" },
+  { label: "HC Reports",        href: "/healthcare/reports",      icon: BarChart2,    section: "Healthcare", forModule: "healthcare" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Banking","Reports","Payroll","System"]
+export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Healthcare","Banking","Reports","Payroll","System"]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.

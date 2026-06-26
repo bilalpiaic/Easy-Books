@@ -55,11 +55,14 @@ npm install && node server.js    # runs on root package.json
 | `main.py` | FastAPI bootstrap — middleware wiring and router mounts (~80 lines) |
 | `models.py` | SQLModel table + schema definitions (includes `ProductCategory` for the 2-level product taxonomy). `Account` has `parent_id` + `is_group` (multi-level CoA; posting to active leaves only). `Product` has `is_deferred` + `recognition_months` (deferred revenue). `DeferredRevenueSchedule` tracks IFRS-15 recognition per invoice. `UserPermission` — sparse override table keyed by `(tenant_id, user_id, resource_key)` with `access_level` (`none/view/edit`) and `my_data_only` flag; module-gated via `settings.user_rights_enabled`. `CommissionPlan` + `CommissionLedger` — rate/target plans per user; compute → approve → post GL entry flow. `PromoRule` — product/min-qty/discount-pct rules; `InvoiceLine.discount_pct` + `promo_rule_id` apply the discount (`amount = qty × rate × (1 − discount_pct/100)`). `Employee` + 5 HRM tables (`SalaryComponent`, `EmployeeSalaryStructure`, `PayrollRun`, `PayrollLine`, `PayrollLineDetail`) — full payroll cycle; `AttendanceRecord` — manual/biometric time-in/out with hours_worked, status (present|absent|half_day|leave|holiday|off), source field ready for ZKTeco device integration. |
 | `models_telecom.py` | 23 `tc_*` tables for the Telecom Franchise business model |
+| `models_healthcare.py` | 19 `hc_*` tables for the Healthcare / Hospital business model: `HcPatient` (MR-YYYYNNNN + auto-linked Customer), `HcDoctor`, `HcWard`, `HcBed` (status: available/occupied/maintenance), `HcProcedureCatalog`, `HcOpdToken`, `HcOpdVisit`, `HcPrescription`, `HcPrescriptionItem`, `HcAdmission` (ADM-YYYYNNNN, deposit + discharge invoice), `HcAdmissionCharge` (accumulate until discharge — no individual GL post), `HcLabTest`, `HcLabOrder` (LO-YYYYNNNN), `HcLabOrderItem` (result per test), `HcSampleCollection`, `HcProcedureOrder`, `HcStoreIssue`, `HcStoreIssueItem`, `HcProcedureConsumable` |
 | `models.py` (`UserDashboardLayout`) | Per-user dashboard layout KV — `(tenant_id, user_id)` → opaque `layout` JSON; schema-agnostic (v3 sparse breakpoint overrides). `GET/PUT /api/dashboard/layout`. |
 | `db.py` | Engine creation, startup seeding (default tenant + CoA + admin user + 6 demo tenants). **The default Chart of Accounts is hierarchical** — a shared group skeleton (`_COA_GROUPS`: `1`/`11`/`12`/`2`/`21`/`3`/`4`/`41`/`49`/`5`/`51`/`52`/`59`) + leaf accounts carrying `parent_code`; `_coa_for()` yields 6-tuples `(code,name,type,is_memo,parent_code,is_group)`; `seed_data` inserts in two passes (create all → wire `parent_id`). Posting is restricted to active leaf accounts. The three `_coa_for` consumers (`seed_data`, `seed_demo._ensure_coa`, settings model-switch) all do this two-pass wiring. **`MODULE_REGISTRY`** — dict of all 6 installable modules (base/inventory/production/hrm/telecom/pra) with label, description, category, icon, deps, always, tier fields; **`MODULES_BY_MODEL`** — maps business_model → default module list (new module IDs, not legacy strings). |
 | `auth.py` | JWT encoding/decoding, bcrypt password hashing |
-| `routers/` | 40+ domain routers (accounts, invoices, bills, payments, users, telecom, reports, credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, commissions, promo_rules, permissions, …) |
-| `routers/admin.py` | Demo-data management: seed all 6 demo tenants on demand / purge them (admin+). Backs the **Settings → Sample / Demo Data** card. |
+| `routers/` | 40+ domain routers (accounts, invoices, bills, payments, users, telecom, healthcare, reports, credit_notes, debit_notes, advances, assets, budgets, purchase_orders, analytic_accounts, deferred_revenue, commissions, promo_rules, permissions, …) |
+| `routers/admin.py` | Demo-data management: seed all 7 demo tenants on demand / purge them (admin+). Backs the **Settings → Sample / Demo Data** card. |
+| `routers/healthcare.py` | Patients (`GET/POST /patients`, `GET/PUT /patients/{id}`, `/patients/{id}/visits|admissions|lab-orders`), Doctors, Wards/Beds (`PUT /beds/{id}` status machine), OPD tokens + visits (bill on record: `Dr 1100 / Cr 4100`), Prescriptions, IPD admissions (`POST /admissions/{id}/charges`, `POST /admissions/{id}/discharge` — consolidated invoice + deposit settlement), Lab tests catalogue, Lab orders (`POST /lab/orders/{id}/collect`, result entry, deliver), Procedure catalogue + orders, Store issues (`/store/issues`), Pharmacy dispense queue (`/store/pharmacy/dispense`). |
+| `routers/healthcare_reports.py` | 7 endpoints under `/api/healthcare/reports/`: `dashboard` (KPIs), `opd-summary`, `doctor-collections`, `lab-summary`, `ipd-census`, `revenue-by-type` (GL accounts 4100–4121), `patient-statement/{id}`. |
 | `routers/product_categories.py` | `ProductCategory` CRUD — 2-level taxonomy (parent category → sub-category). Delete blocked while sub-categories or products exist. |
 | `routers/commissions.py` | `CommissionPlan` CRUD + `GET /api/commissions/staff` (users eligible for commissions) + `GET /api/commissions/ledger` + `POST /compute` (period commission calculation) + `POST /ledger/{id}/approve` + `POST /ledger/{id}/post` (creates `Dr Commission Expense / Cr Commissions Payable` GL entry). |
 | `routers/promo_rules.py` | `PromoRule` CRUD + `POST /api/promo-rules/check` — given a list of invoice lines returns applicable discount suggestions; "Apply Promos" button on InvoiceForm applies them. |
@@ -102,7 +105,7 @@ npm install && node server.js    # runs on root package.json
 
 Demo data is also loadable/removable at any time via **Settings → Sample / Demo Data** regardless of install type.
 
-All six demo tenants use password `demo1234`:
+All seven demo tenants use password `demo1234`:
 
 | Email | Model |
 |-------|-------|
@@ -112,6 +115,7 @@ All six demo tenants use password `demo1234`:
 | `demo.manufacturing@easy-books.app` | Manufacturing |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 | `demo.pra@easy-books.app` | PRA e-Invoice (Pakistani retail, PKR, PRA sandbox enabled) |
+| `demo.hospital@easy-books.app` | Healthcare / Hospital (OPD/IPD/Lab/Procedures, 50 patients, 5 doctors, 4 wards) |
 
 To run the rich mock-data seeder manually:
 ```bash

@@ -29,7 +29,7 @@ def money_col(default: Decimal = ZERO, **kw):
 class Tenant(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(
-            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise','pra_einvoice')",
+            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise','pra_einvoice','hospital')",
             name="ck_tenant_business_model",
         ),
         CheckConstraint(
@@ -1668,4 +1668,11 @@ from models_telecom import (  # noqa: E402,F401
     PostpaidBillCycle, PostpaidConnection, RetailOutlet, RsoAgent,
     RsoDailyCollection, RsoStockIssue, RsoTarget, SimActivation, SimBatch,
     TrackerAccount, TrackerTransaction,
+)
+from models_healthcare import (  # noqa: E402,F401
+    HcPatient, HcDoctor, HcWard, HcBed, HcProcedureCatalog, HcProcedureConsumable,
+    HcOpdToken, HcOpdVisit, HcPrescription, HcPrescriptionItem,
+    HcAdmission, HcAdmissionCharge,
+    HcLabTest, HcLabOrder, HcLabOrderItem, HcSampleCollection,
+    HcProcedureOrder, HcStoreIssue, HcStoreIssueItem,
 )

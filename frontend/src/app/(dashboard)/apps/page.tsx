@@ -1,10 +1,10 @@
 "use client"
 import { useState } from "react"
-import { BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock, AlertTriangle } from "lucide-react"
+import { BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock, AlertTriangle, Stethoscope } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Package, Factory, Users, Radio, FileCheck,
+  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope,
 }
 
 const CATEGORY_ORDER = ["Core", "Accounting", "Operations", "HR", "Industry"]

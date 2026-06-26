@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-22 · **Version:** 2.8.1
+**Last updated:** 2026-06-24 · **Version:** 3.0.0
 
 ---
 
@@ -39,6 +39,8 @@
 26. [Payroll](#26-payroll)
 27. [Attendance Register](#27-attendance-register)
 28. [PRA e-Invoice (Pakistan)](#28-pra-e-invoice-pakistan)
+29. [Modules & the Apps Page](#29-modules--the-apps-page)
+30. [Healthcare Module](#30-healthcare-module)
 
 ---
 
@@ -46,7 +48,7 @@
 
 ### 1.1 First-Time Login
 
-Easy-Books provides **6 pre-seeded demo tenants** for immediate exploration:
+Easy-Books provides **7 pre-seeded demo tenants** for immediate exploration:
 
 | Email | Password | Business Model |
 |-------|----------|---|
@@ -56,6 +58,7 @@ Easy-Books provides **6 pre-seeded demo tenants** for immediate exploration:
 | `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing (BoMs, production orders) |
 | `demo.telecom@easy-books.app` | `demo1234` | Telecom Franchise (Tracker, RSO chain, FCA, SIM) |
 | `demo.pra@easy-books.app` | `demo1234` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
+| `demo.hospital@easy-books.app` | `demo1234` | Healthcare — hospital/clinic (OPD, IPD, Lab, Procedures, Store) |
 
 **Rich mock data included (full year coverage):**
 - Each tenant has **100 invoices, 100 bills, 70 payments received, 70 bill payments**
@@ -65,10 +68,11 @@ Easy-Books provides **6 pre-seeded demo tenants** for immediate exploration:
 - Manufacturing tenant: 50 BoMs, 50 GRNs, 50 production orders, 50 rate plans
 - Telecom tenant: full RSO chain, SIM activations, FCA events, franchise agreement
 - PRA tenant: invoices with FINs, PKR currency, NTN/CNIC on customers, PCT codes on products
+- **Hospital tenant: 5 doctors, 4 wards (38 beds), 50 patients, ~200 OPD tokens/visits, 20 admissions, 80 lab orders, 25 procedure orders**
 
 ### 1.2 Sample / Demo Data (standalone and desktop installs)
 
-**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 6 demo companies on first install** — log straight in with password `demo1234`, no setup required:
+**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 7 demo companies on first install** — log straight in with password `demo1234`, no setup required:
 
 | Email | Business Model |
 |-------|---------------|
@@ -78,6 +82,7 @@ Easy-Books provides **6 pre-seeded demo tenants** for immediate exploration:
 | `demo.manufacturing@easy-books.app` | Manufacturing |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 | `demo.pra@easy-books.app` | PRA e-Invoice |
+| `demo.hospital@easy-books.app` | Healthcare / Hospital |
 
 The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. **Updating an existing install does not add demo data** — the database is migrated forward in place and your data is left untouched. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer or launching the desktop app.
 
@@ -1599,3 +1604,124 @@ The onboarding screen appears only once per account. If you skip it and want to 
 ### 29.4 After changing modules
 
 Sidebar sections appear and disappear immediately when modules are installed or uninstalled — no page reload is required. Reports and data that were created while a module was active remain in the database even after the module is uninstalled; reinstalling the module makes them visible again.
+
+---
+
+## 30. HEALTHCARE MODULE
+
+> Requires: **Base**, **HRM**, **Inventory** modules installed.  
+> Demo tenant: `demo.hospital@easy-books.app` / `demo1234`
+
+The Healthcare module transforms Easy-Books into a full hospital/clinic management system while keeping every financial event wired to the same double-entry GL used by all other modules.
+
+### 30.1 Patient Registry (`/healthcare/patients`)
+
+Every patient gets:
+- A unique **MR number** (MR-YYYYNNNN, auto-generated)
+- A linked **Customer record** — so AR aging, customer statements, and payment allocation all work without modification
+- Demographics: gender, date of birth, blood group, CNIC, emergency contact, allergies
+
+**New Patient** opens a modal; fill name + phone minimum. The Customer record is created silently in the background.
+
+### 30.2 OPD — Outpatient Department (`/healthcare/opd`)
+
+1. **Select a doctor** using the button row at the top. Each doctor button shows their specialization.
+2. **Token Queue tab**: issue a token (registered patient or walk-in name). Token numbers reset daily per doctor. Call the next token with the **Call** button.
+3. **Record Visit tab**: select patient, doctor, date, visit type (first/follow-up), enter chief complaint, diagnosis, and advice. Submit → the system auto-creates the OPD visit and posts the consultation fee:
+   - `Dr 1100 Accounts Receivable / Cr 4100 OPD Consultation Revenue`
+4. After the visit is saved a prescription can be written inline (medicine name, dosage, frequency, duration).
+5. **Today's Visits** panel (right side) shows all visits recorded for the selected doctor on the selected date.
+
+### 30.3 IPD — Inpatient Department (`/healthcare/ipd`)
+
+**Ward cards** at the top show each ward (type, available/occupied bed counts). Click a ward to load its bed grid.
+
+**Bed grid**: green = available (click to admit), red = occupied (click does nothing), grey = maintenance.
+
+**Admit Patient** modal (opens on clicking an available bed):
+- Select patient, doctor, admission type (planned/emergency/referred), admission date, and deposit amount
+- The system posts the deposit: `Dr 1000 Cash / Cr 2310 Patient Advances`
+- The bed status flips to Occupied
+
+**Active admissions table** lists all currently admitted patients with a **View Details** link.
+
+#### Admission Detail page (`/healthcare/ipd/[id]`)
+
+Three tabs:
+- **Daily Charges** — accumulate ward/nursing/procedure/lab/pharmacy charges with **Add Charge** button; no individual GL post (IPD cost-accumulation pattern)
+- **Lab Orders** — lab orders linked to this admission
+- **Procedures** — procedure orders linked to this admission
+
+**Discharge** button (top-right, active admissions only):
+1. Rolls up all `hc_admission_charge` rows into a single consolidated invoice
+2. Settles the deposit: `Dr 2310 Patient Advances / Cr 1100 AR`
+3. Posts remaining balance to AR: `Dr 1100 AR / Cr 4121 Ward Charges + 4100–4120 per charge type`
+4. Frees the bed (status → available)
+
+### 30.4 Laboratory (`/healthcare/lab`)
+
+**Status filters**: All / ordered / sample_collected / processing / resulted / delivered
+
+**New Order** modal:
+- Select patient, date, source (walk-in/OPD/IPD/Collection Centre)
+- Tick the tests from the catalogue (grouped by category with fees shown)
+- Walk-in orders are auto-billed on creation: `Dr 1100 AR / Cr 4110 Lab Revenue`
+
+**Collect** button (on *ordered* rows): records sample collection (point, specimen type, barcode)  
+**Deliver** button (on *resulted* rows): marks results delivered to patient
+
+#### Lab Test Catalogue (`/healthcare/lab/tests`)
+
+Grouped by category (Hematology / Biochemistry / Microbiology / Radiology / Other). Inline row editing for name, normal range, unit, and fee. Toggle active/inactive with the checkbox. **Add Test** button opens a modal.
+
+### 30.5 Procedures (`/healthcare/procedures`)
+
+Two sections:
+- **Procedure Catalogue**: code, name, category, fee; **Add Procedure** and **Order** buttons per row
+- **Recent Procedure Orders**: date, fee, status; **Mark Performed** action on ordered rows
+
+Walk-in/OPD procedures are billed immediately: `Dr 1100 AR / Cr 4120 Procedure Revenue`  
+IPD procedure orders are added to `hc_admission_charge` instead (no individual invoice).
+
+### 30.6 Hospital Store (`/healthcare/store`)
+
+Two tabs:
+- **Stock Issues**: create internal stock transfers from a store location (Main Store → Lab/Pharmacy/Ward); items can be flagged *Charge to Patient* with a markup amount which adds to the admission charges
+- **Pending Dispense**: prescription items awaiting pharmacy dispensing; one-click dispense records the dispensing and decrements the pharmacy stock location
+
+The store integrates with the existing **Inventory** module — the same `Product`, `StockLocation`, and `StockMovement` tables are used. Any product in inventory can be issued from any location.
+
+### 30.7 HC Reports (`/healthcare/reports`)
+
+Date-range picker at top. Five tabs:
+
+| Tab | Content |
+|-----|---------|
+| Revenue by Type | GL credits to accounts 4100–4121 broken down by account |
+| OPD Summary | Tokens issued, visits recorded, revenue by date range |
+| Doctor Collections | Visits, billed amount, estimated revenue per doctor |
+| Lab Summary | Orders by status and by source; total lab revenue |
+| IPD Census | Ward-level admissions, discharges, avg length of stay, bed utilisation |
+
+### 30.8 GL Accounts (Healthcare)
+
+| Code | Name | Type |
+|------|------|------|
+| 2310 | Patient Advance / Deposit | Liability |
+| 4100 | OPD Consultation Revenue | Revenue |
+| 4110 | Laboratory Revenue | Revenue |
+| 4120 | Surgical / Procedure Revenue | Revenue |
+| 4121 | Ward / Bed Charges Revenue | Revenue |
+
+### 30.9 Demo Hospital Tenant
+
+Login: `demo.hospital@easy-books.app` / `demo1234`
+
+Pre-seeded data:
+- **5 doctors** (Cardiology, Gynecology, General Surgery, Pediatrics, ENT)
+- **4 wards** (Male General × 12 beds, Female General × 12 beds, Private Suite × 8 beds, ICU × 6 beds)
+- **50 patients** (Pakistani names with MR numbers)
+- **~200 OPD tokens** and **~160 OPD visits** over the past 90 days with diagnoses and prescriptions
+- **20 IPD admissions** (15 discharged with charges, 5 currently admitted)
+- **80 lab orders** with results entered for most; sample collection records for non-walk-in orders
+- **25 procedure orders** (most marked performed)
