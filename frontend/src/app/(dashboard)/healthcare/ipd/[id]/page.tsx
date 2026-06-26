@@ -74,8 +74,8 @@ export default function AdmissionDetailPage({ params }: { params: Promise<{ id: 
     setDischarging(true)
     setMsg("")
     try {
-      const result = await apiFetch<{ invoice_id: number; net_amount: number }>(`/api/healthcare/admissions/${id}/discharge`, { method: "POST" })
-      setMsg(`Discharged. Invoice #${result.invoice_id}, net amount: ${result.net_amount.toLocaleString()}`)
+      const result = await apiFetch<{ message: string; total_charges: string; deposit_amount: string; balance_due: string }>(`/api/healthcare/admissions/${id}/discharge`, { method: "POST" })
+      setMsg(`Discharged. Total charges: ${parseFloat(result.total_charges).toLocaleString()}, balance due: ${parseFloat(result.balance_due).toLocaleString()}`)
       setShowDischarge(false)
       load()
     } catch (e: unknown) {
