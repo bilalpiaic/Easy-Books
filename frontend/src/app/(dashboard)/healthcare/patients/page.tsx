@@ -133,7 +133,7 @@ export default function PatientsPage() {
                   ) : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={p.is_active ? "available" : "maintenance"} />
+                  <StatusBadge status={p.is_active ? "active" : "inactive"} />
                 </td>
               </tr>
             ))}
