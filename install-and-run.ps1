@@ -63,7 +63,7 @@ $builtMarker = 'frontend\.next\.built-commit'
 $headCommit  = (git rev-parse HEAD 2>$null)
 $builtCommit = if (Test-Path $builtMarker) { (Get-Content $builtMarker -ErrorAction SilentlyContinue) } else { '' }
 $stale = $headCommit -and ($headCommit -ne $builtCommit)
-$appVersion = (uv run python3 -c "import json; print(json.load(open('frontend/package.json'))['version'],end='')" 2>$null)
+$appVersion = (uv run python -c "import json; print(json.load(open('frontend/package.json'))['version'],end='')" 2>$null)
 if (-not $appVersion) { $appVersion = 'dev' }
 if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   Log 'Building the app (first run or update can take a few minutes)...'
