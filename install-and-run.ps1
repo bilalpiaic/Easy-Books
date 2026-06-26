@@ -54,7 +54,15 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 Log 'Installing backend dependencies...'
 Push-Location backend; uv sync; Pop-Location
 
-# --- 4. Frontend build (skipped if already built; -Rebuild forces it) --------
+# --- 4. Stop any running instance so the build can replace locked files ------
+foreach ($port in 8000, 3000) {
+  try {
+    Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
+      ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+  } catch { }
+}
+
+# --- 4b. Frontend build (skipped if already built; -Rebuild forces it) -------
 $server = 'frontend\.next\standalone\server.js'
 # Rebuild when forced, when there's no build yet, OR when the code has moved on
 # since the last build (so a git pull / update always recompiles the UI — a
@@ -82,15 +90,6 @@ if (-not $env:SEED_DEMO)   { $env:SEED_DEMO   = 'true' }    # auto-load full dem
 if (-not $env:FRONTEND_ORIGIN) { $env:FRONTEND_ORIGIN = 'http://localhost:3000,http://127.0.0.1:3000' }  # allow both hosts so the browser is not CORS-blocked
 if (-not $env:APP_ENV)     { $env:APP_ENV     = 'local' }
 New-Item -ItemType Directory -Force -Path $env:EB_DATA_DIR | Out-Null
-
-# Free ports from any previous run so the fresh backend binds — and so no stale
-# process holds the SQLite file lock when we migrate next.
-foreach ($port in 8000, 3000) {
-  try {
-    Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
-      ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
-  } catch { }
-}
 
 # Migrate the user's DB forward so updates apply new columns (not just tables).
 # Fail loud rather than start the app on a half-migrated schema.
