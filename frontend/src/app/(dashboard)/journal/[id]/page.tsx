@@ -51,6 +51,12 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
 
   const fmt = useFmt()
   const { id } = use(params)
+
+  // /journal/new is not a valid route — entry form lives at /entry
+  if (id === "new") {
+    if (typeof window !== "undefined") window.location.replace("/entry")
+    return null
+  }
   const [txn, setTxn]     = useState<Txn | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy]   = useState(false)

@@ -21,7 +21,13 @@ export async function apiFetch<T = unknown>(
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error((data as { detail?: string }).detail ?? `HTTP ${res.status}`)
+    const detail = (data as { detail?: unknown }).detail
+    const msg = Array.isArray(detail)
+      ? (detail as { msg?: string }[]).map(d => d.msg ?? String(d)).join(", ")
+      : typeof detail === "string"
+        ? detail
+        : `HTTP ${res.status}`
+    throw new Error(msg)
   }
   return res.json() as Promise<T>
 }
