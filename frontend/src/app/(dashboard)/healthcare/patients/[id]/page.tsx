@@ -10,7 +10,7 @@ import { fmtDate } from "@/lib/utils"
 type Patient = {
   id: number; mr_number: string; name: string; gender: string; dob?: string
   blood_group?: string; cnic?: string; phone?: string; address?: string
-  allergies?: string; emergency_contact?: string; status: string; customer_id: number
+  allergies?: string; emergency_contact?: string; is_active: boolean; customer_id: number
 }
 type Visit = { id: number; visit_date: string; visit_type: string; doctor_id: number; diagnosis?: string }
 type Admission = { id: number; admission_number: string; admission_date: string; discharge_date?: string; status: string; ward_id: number }
@@ -60,7 +60,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           <p className="text-sm text-neutral-500">{patient.mr_number}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <StatusBadge status={patient.status} />
+          <StatusBadge status={patient.is_active ? "active" : "inactive"} />
           {patient.blood_group && (
             <span className="text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded font-medium">
               {patient.blood_group}
@@ -125,7 +125,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
               ) : visits.map(v => (
                 <tr key={v.id}>
                   <td className="px-4 py-3 whitespace-nowrap">{fmtDate(v.visit_date)}</td>
-                  <td className="px-4 py-3 capitalize">{v.visit_type.replace("_", " ")}</td>
+                  <td className="px-4 py-3 capitalize">{v.visit_type?.replace("_", " ") ?? "—"}</td>
                   <td className="px-4 py-3 text-neutral-600">{v.diagnosis || "—"}</td>
                 </tr>
               ))}

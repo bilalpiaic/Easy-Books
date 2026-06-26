@@ -76,7 +76,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const [orgName, setOrgName]     = useState("Easy-Books")
   const [userName, setUserName]   = useState("User")
   const [userInitial, setInitial] = useState("U")
-  const [role, setRole] = useState<string>(() => getCurrentUser()?.role ?? "viewer")
+  const [role, setRole] = useState<string>("viewer")
   const { installedModules } = useModules()
 
   // Start with empty set (matches server render), then restore from localStorage after mount

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Search, Plus, User } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { PatientBadge, StatusBadge } from "@/components/healthcare/primitives"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { fmtDate } from "@/lib/utils"
 
 type Patient = {
@@ -21,6 +21,7 @@ type Patient = {
 type PatientListResponse = { items: Patient[]; total: number } | Patient[]
 
 export default function PatientsPage() {
+  const router = useRouter()
   const [search, setSearch] = useState("")
   const [patients, setPatients] = useState<Patient[]>([])
   const [total, setTotal] = useState(0)
@@ -115,11 +116,13 @@ export default function PatientsPage() {
                 No patients found
               </td></tr>
             ) : patients.map(p => (
-              <tr key={p.id} className="hover:bg-neutral-50">
+              <tr
+                key={p.id}
+                onClick={() => router.push(`/healthcare/patients/${p.id}`)}
+                className="hover:bg-neutral-50 cursor-pointer"
+              >
                 <td className="px-4 py-3">
-                  <Link href={`/healthcare/patients/${p.id}`} className="hover:text-rose-600">
-                    <PatientBadge name={p.name} mr={p.mr_number} />
-                  </Link>
+                  <PatientBadge name={p.name} mr={p.mr_number} />
                 </td>
                 <td className="px-4 py-3 capitalize text-neutral-600">{p.gender}</td>
                 <td className="px-4 py-3 text-neutral-600">{p.dob ? fmtDate(p.dob) : "—"}</td>
