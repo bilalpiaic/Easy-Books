@@ -71,6 +71,10 @@ from services.franchise_posting import (
     post_commission_accrual, post_franchise_fee_amortisation,
     post_franchise_fee_capitalisation,
 )
+from services.healthcare_posting import (
+    post_opd_consultation, post_ipd_deposit, post_lab_order,
+    post_discharge_bill,
+)
 from services.inventory import (
     InventoryError, consume_stock, record_movement, record_purchase,
     return_to_vendor, reverse_consumption,
@@ -2983,20 +2987,28 @@ def _seed_healthcare(s: Session, user: User) -> None:
                   "Syp Benadryl", "Tab Omeprazole 20mg", "Tab Ciprofloxacin 500mg"]
     token_seq: dict[int, int] = {}
     visit_counter = 0
-    for day_offset in range(90, 0, -1):
+    # range(90, -1, -1) → days 90 down to 0 (today), so OPD queue shows live activity
+    for day_offset in range(90, -1, -1):
         visit_date = (today - timedelta(days=day_offset)).isoformat()
-        for _ in range(random.randint(1, 4)):
+        # Fewer tokens today (3–5 waiting), more on past days
+        n_tokens = random.randint(3, 5) if day_offset == 0 else random.randint(1, 4)
+        for token_idx in range(n_tokens):
             doc = random.choice(doctors)
             pat = random.choice(patients)
             dn = token_seq.get(doc.id, 0) + 1
             token_seq[doc.id] = dn
+            # Today's tokens are waiting/called; past tokens are visited
+            if day_offset == 0:
+                tok_status = "waiting" if token_idx < 2 else "called"
+            else:
+                tok_status = "visited"
             tok = HcOpdToken(
                 tenant_id=tid, doctor_id=doc.id, patient_id=pat.id,
                 patient_name=pat.name, token_number=dn,
-                visit_date=visit_date, status="visited",
+                visit_date=visit_date, status=tok_status,
             )
             s.add(tok); s.flush()
-            if visit_counter < 160:
+            if day_offset > 0 and visit_counter < 160:
                 visit = HcOpdVisit(
                     tenant_id=tid, token_id=tok.id, patient_id=pat.id,
                     doctor_id=doc.id, visit_date=visit_date,
@@ -3006,6 +3018,16 @@ def _seed_healthcare(s: Session, user: User) -> None:
                     advice="Rest, fluids, follow-up in 1 week.",
                 )
                 s.add(visit); s.flush()
+                # Post OPD consultation GL: Dr 1100 AR / Cr 4100 Revenue
+                rev_code = "4101" if visit.visit_type == "follow_up" else "4100"
+                txn = post_opd_consultation(
+                    s, user, amount=doc.opd_fee, date=visit_date,
+                    patient_name=pat.name, doctor_name=doc.name,
+                    revenue_account_code=rev_code,
+                    customer_id=pat.customer_id,
+                )
+                visit.transaction_id = txn.id
+                s.add(visit)
                 rx = HcPrescription(
                     tenant_id=tid, visit_id=visit.id,
                     patient_id=pat.id, doctor_id=doc.id,
@@ -3049,19 +3071,43 @@ def _seed_healthcare(s: Session, user: User) -> None:
             bed.status = "occupied"
             bed.current_admission_id = adm.id
             s.add(bed)
+
+        # Post admission deposit GL: Dr 1000 Cash / Cr 2310 Patient Advances
+        dep_txn = post_ipd_deposit(
+            s, user, amount=deposit, date=adm_date,
+            patient_name=pat.name, admission_number=adm_num,
+        )
+        adm.deposit_transaction_id = dep_txn.id
+        s.add(adm)
+
         stay_days = random.randint(2, 7) if discharged else days_ago
+        total_charges = Decimal("0")
         for d in range(stay_days):
             charge_date = (today - timedelta(days=days_ago - d)).isoformat()
             s.add(HcAdmissionCharge(
                 tenant_id=tid, admission_id=adm.id, charge_date=charge_date,
                 charge_type="bed", description="Ward bed charge", amount=Decimal("500"),
             ))
+            total_charges += Decimal("500")
         for _ in range(random.randint(0, 2)):
             proc = random.choice(procedures[:6])
             s.add(HcAdmissionCharge(
                 tenant_id=tid, admission_id=adm.id, charge_date=adm_date,
                 charge_type="procedure", description=proc.name, amount=proc.standard_fee,
             ))
+            total_charges += proc.standard_fee
+
+        # Post discharge GL for discharged admissions
+        if discharged and total_charges > 0:
+            dis_txn = post_discharge_bill(
+                s, user,
+                total_charges=total_charges, deposit_amount=deposit,
+                date=dis_date, patient_name=pat.name, admission_number=adm_num,
+                customer_id=pat.customer_id,
+                charge_breakdown={"bed": str(total_charges)},
+            )
+            adm.discharge_invoice_id = dis_txn.id
+            s.add(adm)
 
     # ── Lab Orders (80) ───────────────────────────────────────────────────────
     SOURCES   = ["walkin", "opd", "opd", "opd", "collection_centre"]
@@ -3077,7 +3123,9 @@ def _seed_healthcare(s: Session, user: User) -> None:
             order_date=order_date, source=source, status=status,
         )
         s.add(order); s.flush()
-        for test in random.sample(lab_tests, k=random.randint(1, 4)):
+        tests_chosen = random.sample(lab_tests, k=random.randint(1, 4))
+        lab_total = Decimal("0")
+        for test in tests_chosen:
             item = HcLabOrderItem(
                 tenant_id=tid, lab_order_id=order.id,
                 test_id=test.id, fee=test.standard_fee,
@@ -3090,12 +3138,22 @@ def _seed_healthcare(s: Session, user: User) -> None:
                 item.resulted_at   = datetime.utcnow()
                 item.resulted_by_id = user.id
             s.add(item)
+            lab_total += test.standard_fee
         if source != "walkin" and status != "ordered":
             s.add(HcSampleCollection(
                 tenant_id=tid, lab_order_id=order.id,
                 collected_by_id=user.id, collected_at=datetime.utcnow(),
                 collection_point="lab", specimen_type="blood", status="received",
             ))
+        # Post lab GL for billed orders (delivered/resulted)
+        if status in ("delivered", "resulted") and lab_total > 0:
+            lab_txn = post_lab_order(
+                s, user, amount=lab_total, date=order_date,
+                patient_name=pat.name, order_number=lo_num,
+                customer_id=pat.customer_id,
+            )
+            order.transaction_id = lab_txn.id
+            s.add(order)
 
     # ── Procedure Orders (25) ─────────────────────────────────────────────────
     for _ in range(25):
