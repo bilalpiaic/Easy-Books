@@ -109,12 +109,21 @@ def wip_aging(session: SessionDep, user: CurrentUserDep):
             return "15-30d"
         return "30d+"
 
+    customer_ids = {po.customer_id for po in pos if po.customer_id}
+    cust_map: dict[int, str] = {}
+    if customer_ids:
+        custs = session.exec(
+            select(Customer).where(Customer.id.in_(customer_ids))
+        ).all()
+        cust_map = {c.id: c.name for c in custs}
+
     for po in pos:
         started = po.started_at or po.created_at
         age = (now - started).days
         buckets[_bucket_for(age)].append({
             "id": po.id, "number": po.number,
             "customer_id": po.customer_id,
+            "customer_name": cust_map.get(po.customer_id, "") if po.customer_id else "",
             "output_qty": str(D(po.output_qty)),
             "own_material_cost": str(D(po.own_material_cost)),
             "started_at": started.isoformat(),

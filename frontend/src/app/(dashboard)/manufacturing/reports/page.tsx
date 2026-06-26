@@ -15,7 +15,7 @@ interface WipBucket { count: number; total_wip_cost: string }
 interface WipAging {
   summary: Record<string, WipBucket>
   buckets: Record<string, Array<{
-    id: number; number: string; customer_id: number
+    id: number; number: string; customer_id: number; customer_name: string
     output_qty: string; own_material_cost: string
     started_at: string; age_days: number
   }>>
@@ -212,7 +212,7 @@ export default function ManufacturingReportsPage() {
                             {po.number}
                           </Link>
                         </td>
-                        <td className="px-4 py-2 text-sm">#{po.customer_id}</td>
+                        <td className="px-4 py-2 text-sm">{po.customer_name || `#${po.customer_id}`}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{fmt0(po.output_qty)}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{fmt(Number(po.own_material_cost))}</td>
                         <td className={`px-4 py-2 text-right tabular-nums font-semibold ${po.age_days > 30 ? "text-red-700" : po.age_days > 14 ? "text-orange-700" : ""}`}>
