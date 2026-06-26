@@ -8,7 +8,7 @@ import {
   ScrollText, Tablet, UserCircle, UsersRound, RefreshCw,
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
-  Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe,
+  Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
 } from "lucide-react"
 
 export type NavItem = {
@@ -107,6 +107,7 @@ export const NAV: NavItem[] = [
   // Healthcare
   { label: "HC Overview",       href: "/healthcare",              icon: Stethoscope,  section: "Healthcare", forModule: "healthcare" },
   { label: "Patients",          href: "/healthcare/patients",     icon: FileHeart,    section: "Healthcare", forModule: "healthcare" },
+  { label: "Doctors",           href: "/healthcare/doctors",      icon: UserRound,    section: "Healthcare", forModule: "healthcare" },
   { label: "OPD",               href: "/healthcare/opd",          icon: Activity,     section: "Healthcare", forModule: "healthcare" },
   { label: "IPD / Inpatient",   href: "/healthcare/ipd",          icon: BedDouble,    section: "Healthcare", forModule: "healthcare" },
   { label: "Laboratory",        href: "/healthcare/lab",          icon: FlaskConical, section: "Healthcare", forModule: "healthcare" },
