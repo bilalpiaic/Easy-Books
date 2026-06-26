@@ -20,6 +20,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        # SQLite has no ADD COLUMN IF NOT EXISTS — check PRAGMA first
+        existing = [row[1] for row in bind.execute(sa.text("PRAGMA table_info(tenant)"))]
+        if "module_meta" in existing:
+            return
+    elif bind.dialect.name == "postgresql":
+        bind.execute(sa.text(
+            "ALTER TABLE tenant ADD COLUMN IF NOT EXISTS"
+            " module_meta VARCHAR NOT NULL DEFAULT '{}'"
+        ))
+        return
     with op.batch_alter_table("tenant") as batch_op:
         batch_op.add_column(
             sa.Column("module_meta", sqlmodel.sql.sqltypes.AutoString(),
