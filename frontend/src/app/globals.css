@@ -71,6 +71,7 @@ html[data-density="compact"] {
 .ui-field { padding: var(--ui-control-py) var(--ui-control-px); }
 .ui-table { width: 100%; font-size: var(--ui-font-table); }
 .ui-section { gap: var(--ui-section-gap); }
+.qb-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 
 body {
   background: var(--bg-page);
