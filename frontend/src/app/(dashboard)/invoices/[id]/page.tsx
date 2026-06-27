@@ -10,6 +10,7 @@ import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
+import StatusBadge from "@/components/StatusBadge"
 
 interface AuditEntry {
   id: number
@@ -60,15 +61,6 @@ interface Invoice {
   pra_fiscal_number: string | null
   pra_usin: string | null
   pra_submitted_at: string | null
-}
-
-const STATUS_TONE: Record<string, string> = {
-  draft:    "bg-slate-100 text-slate-800 border-slate-300",
-  posted:   "bg-blue-100 text-blue-900 border-blue-300",
-  partial:  "bg-amber-100 text-amber-900 border-amber-300",
-  paid:     "bg-emerald-100 text-emerald-900 border-emerald-300",
-  overdue:  "bg-red-100 text-red-900 border-red-300",
-  reversed: "bg-gray-100 text-gray-600 border-gray-300",
 }
 
 const PRA_STATUS_TONE: Record<string, string> = {
@@ -270,9 +262,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <span className={`inline-block border rounded-full px-3 py-1 text-xs font-semibold uppercase ${STATUS_TONE[inv.status] ?? STATUS_TONE.posted}`}>
-            {inv.status}
-          </span>
+          <StatusBadge status={inv.status} />
           {inv.pra_status && inv.pra_status !== "not_required" && (
             <div className="flex items-center gap-1.5">
               <span className={`inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold ${PRA_STATUS_TONE[inv.pra_status] ?? ""}`}>
