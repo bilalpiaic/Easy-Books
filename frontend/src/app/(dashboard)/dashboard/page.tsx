@@ -27,8 +27,8 @@ ChartJS.register(
 )
 
 const DOUGHNUT_COLORS = [
-  "#b8943f","#2563eb","#16a34a","#dc2626","#7c3aed",
-  "#0891b2","#ea580c","#db2777","#65a30d",
+  "#2CA01C","#2563eb","#dc2626","#7c3aed","#0891b2",
+  "#ea580c","#db2777","#65a30d","#65a30d",
 ]
 
 function defaultRange() {
@@ -91,7 +91,7 @@ export default function Dashboard() {
   }
   const lineData = {
     labels: monthLabels,
-    datasets: [{ label: "Net Profit", data: charts?.monthly.map(m => m.profit) ?? [], borderColor: "#b8943f", backgroundColor: "rgba(184,148,63,0.10)", pointBackgroundColor: "#b8943f", pointRadius: 4, tension: 0.4, fill: true }],
+    datasets: [{ label: "Net Profit", data: charts?.monthly.map(m => m.profit) ?? [], borderColor: "#2CA01C", backgroundColor: "rgba(44,160,28,0.10)", pointBackgroundColor: "#2CA01C", pointRadius: 4, tension: 0.4, fill: true }],
   }
   const doughnutData = {
     labels: charts?.expense_breakdown.map(e => e.account) ?? [],
@@ -99,7 +99,7 @@ export default function Dashboard() {
   }
   const customerBarData = {
     labels: charts?.top_customers.map(c => c.name.length > 14 ? c.name.slice(0, 12) + "…" : c.name) ?? [],
-    datasets: [{ label: "Invoice Total", data: charts?.top_customers.map(c => c.total) ?? [], backgroundColor: "rgba(184,148,63,0.80)", borderRadius: 4 }],
+    datasets: [{ label: "Invoice Total", data: charts?.top_customers.map(c => c.total) ?? [], backgroundColor: "rgba(44,160,28,0.80)", borderRadius: 4 }],
   }
 
   const agingLabels = ["Current", "1–30d", "31–60d", "61–90d", "90d+"]
@@ -163,19 +163,19 @@ export default function Dashboard() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">{t('nav.Dashboard', 'Dashboard')}</h1>
-          <p className="text-xs text-[#1a1814]/50 mt-0.5 font-medium tracking-wide uppercase">{t('common.financialOverview', 'Financial Overview')}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">{t('nav.Dashboard', 'Dashboard')}</h1>
+          <p className="text-xs text-[var(--text-primary)]/50 mt-0.5 font-medium tracking-wide uppercase">{t('common.financialOverview', 'Financial Overview')}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="bg-white border border-[#ede9e2] rounded-xl px-3 py-2 shadow-sm">
+          <div className="bg-white border border-[var(--border)] rounded-xl px-3 py-2 shadow-sm">
             <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label={t('common.period', 'Period')} />
           </div>
           {!editing && (
             <button
               onClick={() => setEditing(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#ede9e2] bg-white shadow-sm text-sm font-medium text-[#1a1814]/75 hover:border-[#b8943f]/40 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white shadow-sm text-sm font-medium text-[var(--text-primary)]/75 hover:border-[var(--primary)]/40 transition-colors"
             >
-              <Settings2 className="w-4 h-4 text-[#b8943f]" /> {t('common.customize', 'Customize')}
+              <Settings2 className="w-4 h-4 text-[var(--primary)]" /> {t('common.customize', 'Customize')}
             </button>
           )}
         </div>
