@@ -15,6 +15,7 @@ const BADGE: Record<string, { bg: string; fg: string }> = {
   received:   { bg: "var(--badge-yellow-bg)", fg: "#D97706" },
   overdue:    { bg: "var(--badge-red-bg)",    fg: "var(--danger)" },
   void:       { bg: "var(--badge-red-bg)",    fg: "var(--danger)" },
+  reversed:   { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
   rejected:   { bg: "var(--badge-red-bg)",    fg: "var(--danger)" },
   draft:      { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
   inactive:   { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
