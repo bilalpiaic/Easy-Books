@@ -216,12 +216,12 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/10 shrink-0">
           <button
             onClick={() => { router.push(isPortal ? "/pra-dashboard" : "/dashboard"); if (!pinned) onClose() }}
-            className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center font-bold text-black font-bold text-sm hover:bg-[#d4af60] transition-colors"
+            className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center text-black font-bold text-sm hover:bg-[#d4af60] transition-colors"
             title={orgName}
           >
             {orgName.charAt(0)}
           </button>
-          <span className="flex-1 font-bold text-white text-sm truncate font-semibold" title={orgName}>
+          <span className="flex-1 text-white text-sm truncate font-semibold" title={orgName}>
             {orgName}
           </span>
           {/* Pin toggle — only meaningful on md+ */}

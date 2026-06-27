@@ -90,7 +90,7 @@ export function Tile({ icon: Icon, label, value, hint, href }: TileProps) {
       </div>
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-primary)]/55">{label}</div>
-        <div className="text-lg font-bold font-bold text-[var(--text-primary)] truncate">{value}</div>
+        <div className="text-lg font-bold text-[var(--text-primary)] truncate">{value}</div>
         {hint && <div className="text-[10px] text-[var(--text-primary)]/45 truncate">{hint}</div>}
       </div>
     </>

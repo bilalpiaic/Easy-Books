@@ -27,7 +27,7 @@ export default function FilterBar({
     <div className="flex flex-wrap items-center gap-2 print:hidden">
       {/* Search */}
       <div className="relative flex-1 min-w-48">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--border)] pointer-events-none" />
         <input
           type="text"
           value={search}
