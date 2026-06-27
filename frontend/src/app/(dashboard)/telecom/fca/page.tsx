@@ -89,7 +89,7 @@ export default function FcaPage() {
         <PageHeader icon={Target} title="FCA & Targets" subtitle="First-call activations counted toward monthly operator targets." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -104,15 +104,15 @@ export default function FcaPage() {
 
       {progress && (
         <Section title={`Progress — ${progress.month}`}>
-          <div className="bg-white border border-[#ede9e2] rounded-2xl px-4 py-4">
+          <div className="bg-white border border-[var(--border)] rounded-2xl px-4 py-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[#1a1814]/60">Activations this month</span>
-              <span className="font-serif font-bold">{progress.actual} / {money(progress.target)}</span>
+              <span className="text-[var(--text-primary)]/60">Activations this month</span>
+              <span className="font-bold font-bold">{progress.actual} / {money(progress.target)}</span>
             </div>
-            <div className="mt-2 h-2.5 rounded-full bg-[#f0ece4] overflow-hidden">
-              <div className="h-full bg-[#b8943f]" style={{ width: pct !== null ? `${Math.min(pct, 100)}%` : "0%" }} />
+            <div className="mt-2 h-2.5 rounded-full bg-[var(--border)] overflow-hidden">
+              <div className="h-full bg-[var(--primary)]" style={{ width: pct !== null ? `${Math.min(pct, 100)}%` : "0%" }} />
             </div>
-            <div className="mt-1.5 text-xs text-[#1a1814]/55">
+            <div className="mt-1.5 text-xs text-[var(--text-primary)]/55">
               {pct !== null ? `${pct}% — delta ${progress.delta}` : "No target set for this month."}
             </div>
           </div>
@@ -125,7 +125,7 @@ export default function FcaPage() {
             <Section title="Log a first-call activation">
               <ActionForm endpoint="/api/telecom/fca/events" fields={eventFields} submitLabel="Log event" successText={() => "FCA event logged."} onSuccess={events.refetch} />
             </Section>
-            <Section title="Recent events" action={<button onClick={() => downloadCSV('fca-events.csv', events.items.map(e => ({ MSISDN: e.msisdn, Date: e.event_date, Channel: e.source_channel })))} disabled={events.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={eventCols} rows={events.items} empty="No FCA events yet." /></Section>
+            <Section title="Recent events" action={<button onClick={() => downloadCSV('fca-events.csv', events.items.map(e => ({ MSISDN: e.msisdn, Date: e.event_date, Channel: e.source_channel })))} disabled={events.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={eventCols} rows={events.items} empty="No FCA events yet." /></Section>
           </div>
         )},
         { id: "target", label: "Targets", content: (
@@ -133,7 +133,7 @@ export default function FcaPage() {
             <Section title="Set a monthly target">
               <ActionForm endpoint="/api/telecom/kpi/targets" fields={targetFields} submitLabel="Save target" successText={() => "Target saved."} onSuccess={targets.refetch} />
             </Section>
-            <Section title="Targets" action={<button onClick={() => downloadCSV('fca-targets.csv', targets.items.map(t => ({ Month: t.target_month, Metric: t.metric, Target: t.target_value })))} disabled={targets.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={targetCols} rows={targets.items} empty="No targets set yet." /></Section>
+            <Section title="Targets" action={<button onClick={() => downloadCSV('fca-targets.csv', targets.items.map(t => ({ Month: t.target_month, Metric: t.metric, Target: t.target_value })))} disabled={targets.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={targetCols} rows={targets.items} empty="No targets set yet." /></Section>
           </div>
         )},
         { id: "commission", label: "Target commission", content: (

@@ -83,7 +83,7 @@ export default function MobileMoneyPage() {
         <PageHeader icon={Banknote} title="Mobile Money" subtitle="Agency float for JazzCash / Easypaisa deposits, withdrawals and commission." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -98,7 +98,7 @@ export default function MobileMoneyPage() {
 
       {stmt && (
         <Section title="Float reconciliation" action={
-          <button onClick={loadStmt} className="text-xs text-[#b8943f] hover:underline">Refresh</button>
+          <button onClick={loadStmt} className="text-xs text-[var(--primary)] hover:underline">Refresh</button>
         }>
           <div className="grid grid-cols-2 gap-3">
             <Tile icon={Banknote} label="GL float (1214)" value={money(stmt.gl_balance_1214)} />
@@ -155,7 +155,7 @@ export default function MobileMoneyPage() {
           </div>
         )},
         { id: "txns", label: "Transactions", content: (
-          <Section title="Mobile money transactions" action={<button onClick={() => downloadCSV('mm-transactions.csv', txns.items.map(t => ({ Date: t.txn_date, Type: t.txn_type, Amount: t.amount, Reference: t.customer_reference ?? '' })))} disabled={txns.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
+          <Section title="Mobile money transactions" action={<button onClick={() => downloadCSV('mm-transactions.csv', txns.items.map(t => ({ Date: t.txn_date, Type: t.txn_type, Amount: t.amount, Reference: t.customer_reference ?? '' })))} disabled={txns.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
             <DataTable columns={txnCols} rows={txns.items} empty="No transactions yet." />
           </Section>
         )},

@@ -70,7 +70,7 @@ export default function FranchisePage() {
         <PageHeader icon={ScrollText} title="Franchise Admin" subtitle="Franchise fee amortisation and operator royalty." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -106,7 +106,7 @@ export default function FranchisePage() {
         )},
         { id: "agreements", label: "Agreements", content: (
           <div className="space-y-4">
-            <Section title="Agreements" action={<button onClick={() => downloadCSV('franchise-agreements.csv', agreements.items.map(a => ({ "Agreement #": a.agreement_number, Start: a.start_date, End: a.end_date ?? '', Fee: a.franchise_fee_paid, "Royalty %": a.royalty_rate_pct, "Min Target": a.min_monthly_target, "Amort Months": a.amortisation_months })))} disabled={agreements.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={agCols} rows={agreements.items} empty="No agreements yet." /></Section>
+            <Section title="Agreements" action={<button onClick={() => downloadCSV('franchise-agreements.csv', agreements.items.map(a => ({ "Agreement #": a.agreement_number, Start: a.start_date, End: a.end_date ?? '', Fee: a.franchise_fee_paid, "Royalty %": a.royalty_rate_pct, "Min Target": a.min_monthly_target, "Amort Months": a.amortisation_months })))} disabled={agreements.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}><DataTable columns={agCols} rows={agreements.items} empty="No agreements yet." /></Section>
             <Section title="Add a franchise agreement">
               <ActionForm endpoint="/api/telecom/franchise/agreements" fields={agFields} submitLabel="Add agreement" successText={() => "Agreement added."} onSuccess={agreements.refetch} />
             </Section>

@@ -113,7 +113,7 @@ export default function TrackerPage() {
         <PageHeader icon={Wallet} title="Tracker & Load" subtitle="Operator deposit wallet, load orders, and stock procurement." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -148,7 +148,7 @@ export default function TrackerPage() {
         )},
         { id: "accounts", label: "Accounts", content: (
           <div className="space-y-4">
-            <Section title="Tracker accounts" action={<button onClick={() => downloadCSV('tracker-accounts.csv', accounts.items.map(a => ({ "Account #": a.account_number, "Deposit Balance": a.deposit_balance, "Load Balance": a.load_balance })))} disabled={accounts.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
+            <Section title="Tracker accounts" action={<button onClick={() => downloadCSV('tracker-accounts.csv', accounts.items.map(a => ({ "Account #": a.account_number, "Deposit Balance": a.deposit_balance, "Load Balance": a.load_balance })))} disabled={accounts.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
               <DataTable columns={acctCols} rows={accounts.items} empty="No tracker accounts yet." />
             </Section>
             <Section title="Register a tracker account">
@@ -158,7 +158,7 @@ export default function TrackerPage() {
         )},
         { id: "operators", label: "Operators", content: (
           <div className="space-y-4">
-            <Section title="Operators" action={<button onClick={() => downloadCSV('tracker-operators.csv', operators.items.map(o => ({ Name: o.name, Code: o.operator_code, "Settlement Cycle": o.commission_settlement_cycle })))} disabled={operators.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
+            <Section title="Operators" action={<button onClick={() => downloadCSV('tracker-operators.csv', operators.items.map(o => ({ Name: o.name, Code: o.operator_code, "Settlement Cycle": o.commission_settlement_cycle })))} disabled={operators.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
               <DataTable columns={opCols} rows={operators.items} empty="No operators yet." />
             </Section>
             <Section title="Add an operator">
@@ -167,7 +167,7 @@ export default function TrackerPage() {
           </div>
         )},
         { id: "txns", label: "Transactions", content: (
-          <Section title="Tracker transaction ledger" action={<button onClick={() => downloadCSV('tracker-transactions.csv', txns.items.map(t => ({ Date: t.txn_date, Type: t.txn_type, Amount: t.amount, "Load Disbursed": t.load_disbursed, Commission: t.commission_earned, Reference: t.tracker_reference ?? '' })))} disabled={txns.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
+          <Section title="Tracker transaction ledger" action={<button onClick={() => downloadCSV('tracker-transactions.csv', txns.items.map(t => ({ Date: t.txn_date, Type: t.txn_type, Amount: t.amount, "Load Disbursed": t.load_disbursed, Commission: t.commission_earned, Reference: t.tracker_reference ?? '' })))} disabled={txns.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
             <DataTable columns={txnCols} rows={txns.items} empty="No tracker transactions yet." />
           </Section>
         )},
@@ -179,11 +179,11 @@ export default function TrackerPage() {
                 <Section title="GL control totals">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[#ede9e2]">
-                        <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">{t('col.account', 'Account')}</th>
-                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Sub-ledger sum</th>
-                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">GL balance</th>
-                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Difference</th>
+                      <tr className="border-b border-[var(--border)]">
+                        <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60">{t('col.account', 'Account')}</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">Sub-ledger sum</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">GL balance</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">Difference</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -196,8 +196,8 @@ export default function TrackerPage() {
                         const loadDiff = loadSum - glLoad
                         return (
                           <>
-                            <tr className="border-b border-[#ede9e2]">
-                              <td className="px-4 py-2 text-[#1a1814]">1210 — Tracker Deposit</td>
+                            <tr className="border-b border-[var(--border)]">
+                              <td className="px-4 py-2 text-[var(--text-primary)]">1210 — Tracker Deposit</td>
                               <td className="px-4 py-2 text-right tabular-nums">{money(depositSum.toFixed(2))}</td>
                               <td className="px-4 py-2 text-right tabular-nums">{money(stmt.gl_deposit_balance)}</td>
                               <td className={`px-4 py-2 text-right tabular-nums font-semibold ${Math.abs(depDiff) > 0.01 ? "text-red-600" : "text-emerald-600"}`}>
@@ -205,7 +205,7 @@ export default function TrackerPage() {
                               </td>
                             </tr>
                             <tr>
-                              <td className="px-4 py-2 text-[#1a1814]">1211 — Load Float</td>
+                              <td className="px-4 py-2 text-[var(--text-primary)]">1211 — Load Float</td>
                               <td className="px-4 py-2 text-right tabular-nums">{money(loadSum.toFixed(2))}</td>
                               <td className="px-4 py-2 text-right tabular-nums">{money(stmt.gl_load_balance)}</td>
                               <td className={`px-4 py-2 text-right tabular-nums font-semibold ${Math.abs(loadDiff) > 0.01 ? "text-red-600" : "text-emerald-600"}`}>
@@ -221,22 +221,22 @@ export default function TrackerPage() {
                 <Section title="Per-account balances">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[#ede9e2]">
-                        <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Tracker account</th>
-                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Deposit balance</th>
-                        <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Load balance</th>
+                      <tr className="border-b border-[var(--border)]">
+                        <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60">Tracker account</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">Deposit balance</th>
+                        <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">Load balance</th>
                       </tr>
                     </thead>
                     <tbody>
                       {stmt.tracker_accounts.map(a => (
-                        <tr key={a.id} className="border-b border-[#ede9e2] last:border-0">
-                          <td className="px-4 py-2 font-mono text-[#1a1814]/80">{a.account_number}</td>
+                        <tr key={a.id} className="border-b border-[var(--border)] last:border-0">
+                          <td className="px-4 py-2 font-mono text-[var(--text-primary)]/80">{a.account_number}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{money(a.deposit_balance)}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{money(a.load_balance)}</td>
                         </tr>
                       ))}
                       {stmt.tracker_accounts.length === 0 && (
-                        <tr><td colSpan={3} className="px-4 py-4 text-center text-[#1a1814]/40 text-sm">No tracker accounts yet.</td></tr>
+                        <tr><td colSpan={3} className="px-4 py-4 text-center text-[var(--text-primary)]/40 text-sm">No tracker accounts yet.</td></tr>
                       )}
                     </tbody>
                   </table>

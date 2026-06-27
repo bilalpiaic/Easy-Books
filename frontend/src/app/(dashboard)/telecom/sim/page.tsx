@@ -80,7 +80,7 @@ export default function SimPage() {
     { header: "Customer", cell: a => a.customer_name ?? "—" },
     { header: "Commission", cell: a => money(a.commission_rate) },
     { header: "Status", cell: a => (
-      <span className={a.commission_status === "settled" ? "text-emerald-700" : a.commission_status === "accrued" ? "text-amber-700" : "text-[#1a1814]/50"}>
+      <span className={a.commission_status === "settled" ? "text-emerald-700" : a.commission_status === "accrued" ? "text-amber-700" : "text-[var(--text-primary)]/50"}>
         {a.commission_status}
       </span>
     )},
@@ -93,7 +93,7 @@ export default function SimPage() {
         <PageHeader icon={Smartphone} title="SIM & Activations" subtitle="SIM batches, customer activations, counter sales and commission accrual." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -113,7 +113,7 @@ export default function SimPage() {
               <ActionForm endpoint="/api/telecom/sim/activations" fields={activationFields} submitLabel="Activate" successText={() => "Activation recorded."} onSuccess={activations.refetch} />
             </Section>
             <Section title="Recent activations" action={
-              <button onClick={() => downloadCSV('sim-activations.csv', activations.items.map(a => ({ "SIM/MSISDN": a.sim_number, Date: a.activation_date, Type: a.activation_type, Customer: a.customer_name ?? '', Commission: a.commission_rate, "Commission Status": a.commission_status, Status: a.status })))} disabled={activations.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+              <button onClick={() => downloadCSV('sim-activations.csv', activations.items.map(a => ({ "SIM/MSISDN": a.sim_number, Date: a.activation_date, Type: a.activation_type, Customer: a.customer_name ?? '', Commission: a.commission_rate, "Commission Status": a.commission_status, Status: a.status })))} disabled={activations.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
             }>
               <DataTable columns={actCols} rows={activations.items} empty="No activations yet." />
             </Section>
@@ -134,7 +134,7 @@ export default function SimPage() {
         )},
         { id: "batches", label: "Batches", content: (
           <Section title="SIM batch utilisation" action={
-            <button onClick={() => downloadCSV('sim-batches.csv', util.map(b => ({ Batch: b.batch_number, Received: b.qty_received, Activated: b.qty_activated, Available: b.qty_available, "Unit Cost": b.unit_cost })))} disabled={util.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+            <button onClick={() => downloadCSV('sim-batches.csv', util.map(b => ({ Batch: b.batch_number, Received: b.qty_received, Activated: b.qty_activated, Available: b.qty_available, "Unit Cost": b.unit_cost })))} disabled={util.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
           }>
             <DataTable columns={batchCols} rows={util} empty="No SIM batches yet — procure stock via Tracker → Stock debit." />
           </Section>

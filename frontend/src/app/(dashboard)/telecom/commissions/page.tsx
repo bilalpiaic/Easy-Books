@@ -68,7 +68,7 @@ export default function CommissionsPage() {
         <PageHeader icon={Percent} title="Commissions" subtitle="Operator commission statements, settlement and receivable aging." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -102,7 +102,7 @@ export default function CommissionsPage() {
         { id: "statements", label: "Statements", content: (
           <div className="space-y-4">
             <Section title="Commission statements" action={
-              <button onClick={() => downloadCSV('commissions.csv', statements.items.map(s => ({ Date: s.statement_date, "Period From": s.period_from, "Period To": s.period_to, Reference: s.statement_reference ?? '', Total: s.total_commission, Status: s.status })))} disabled={statements.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+              <button onClick={() => downloadCSV('commissions.csv', statements.items.map(s => ({ Date: s.statement_date, "Period From": s.period_from, "Period To": s.period_to, Reference: s.statement_reference ?? '', Total: s.total_commission, Status: s.status })))} disabled={statements.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
             }><DataTable columns={stmtCols} rows={statements.items} empty="No statements yet." /></Section>
             <Section title="Record a commission statement">
               <ActionForm endpoint="/api/telecom/commissions/statements" fields={stmtFields} submitLabel="Record statement" successText={() => "Statement recorded."} onSuccess={statements.refetch} />

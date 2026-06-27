@@ -113,46 +113,46 @@ export default function TelecomDashboardPage() {
       </Section>
 
       <Section title={`FCA target — ${fca?.month ?? "this month"}`}>
-        <div className="bg-white border border-[#ede9e2] rounded-2xl px-4 py-4">
+        <div className="bg-white border border-[var(--border)] rounded-2xl px-4 py-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#1a1814]/60">First-call activations</span>
-            <span className="font-serif font-bold text-[#1a1814]">
+            <span className="text-[var(--text-primary)]/60">First-call activations</span>
+            <span className="font-bold font-bold text-[var(--text-primary)]">
               {fca?.actual ?? 0}{fca?.target ? ` / ${fca.target}` : ""}
             </span>
           </div>
-          <div className="mt-2 h-2.5 rounded-full bg-[#f0ece4] overflow-hidden">
+          <div className="mt-2 h-2.5 rounded-full bg-[var(--border)] overflow-hidden">
             <div
-              className="h-full bg-[#b8943f] transition-all"
+              className="h-full bg-[var(--primary)] transition-all"
               style={{ width: pct !== null ? `${Math.min(pct, 100)}%` : "0%" }}
             />
           </div>
-          <div className="mt-1.5 text-xs text-[#1a1814]/55">
+          <div className="mt-1.5 text-xs text-[var(--text-primary)]/55">
             {pct !== null ? `${pct}% of monthly target` : "No target set for this month — add one under FCA & Targets."}
           </div>
         </div>
       </Section>
 
       <Section title="Revenue by stream">
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
               {(rev?.items ?? []).filter(s => Number(s.amount) !== 0).map(s => (
-                <tr key={s.code} className="border-t border-[#ede9e2] first:border-t-0">
-                  <td className="px-4 py-2 font-mono text-xs text-[#1a1814]/60">{s.code}</td>
+                <tr key={s.code} className="border-t border-[var(--border)] first:border-t-0">
+                  <td className="px-4 py-2 font-mono text-xs text-[var(--text-primary)]/60">{s.code}</td>
                   <td className="px-4 py-2">{s.name}</td>
                   <td className="px-4 py-2 text-right font-medium">{money(s.amount)}</td>
                 </tr>
               ))}
               {rev && rev.items.every(s => Number(s.amount) === 0) && (
-                <tr><td className="px-4 py-6 text-center text-[#1a1814]/50" colSpan={3}>No revenue posted yet.</td></tr>
+                <tr><td className="px-4 py-6 text-center text-[var(--text-primary)]/50" colSpan={3}>No revenue posted yet.</td></tr>
               )}
             </tbody>
             {rev && (
               <tfoot>
-                <tr className="border-t-2 border-[#b8943f]/30 bg-[#faf6ec] font-bold">
+                <tr className="border-t-2 border-[var(--primary)]/30 bg-[var(--bg-page)] font-bold">
                   <td className="px-4 py-2" colSpan={2}>Total revenue</td>
                   <td className="px-4 py-2 text-right flex items-center justify-end gap-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-[#b8943f]" />{money(rev.total_revenue)}
+                    <TrendingUp className="w-3.5 h-3.5 text-[var(--primary)]" />{money(rev.total_revenue)}
                   </td>
                 </tr>
               </tfoot>
@@ -163,24 +163,24 @@ export default function TelecomDashboardPage() {
 
       <Section title="Stock & Issuance (per RSO)">
         <div className="flex flex-wrap items-end gap-3 mb-3">
-          <label className="text-xs text-[#1a1814]/60">
+          <label className="text-xs text-[var(--text-primary)]/60">
             From
             <input type="date" value={siStart} onChange={e => setSiStart(e.target.value)}
-              className="block mt-1 px-2 py-1 border border-[#ede9e2] rounded-lg text-sm" />
+              className="block mt-1 px-2 py-1 border border-[var(--border)] rounded-lg text-sm" />
           </label>
-          <label className="text-xs text-[#1a1814]/60">
+          <label className="text-xs text-[var(--text-primary)]/60">
             To
             <input type="date" value={siEnd} onChange={e => setSiEnd(e.target.value)}
-              className="block mt-1 px-2 py-1 border border-[#ede9e2] rounded-lg text-sm" />
+              className="block mt-1 px-2 py-1 border border-[var(--border)] rounded-lg text-sm" />
           </label>
           {(siStart || siEnd) && (
             <button onClick={() => { setSiStart(""); setSiEnd("") }}
-              className="text-xs text-[#b8943f] hover:underline">Clear</button>
+              className="text-xs text-[var(--primary)] hover:underline">Clear</button>
           )}
         </div>
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-x-auto">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto">
           <table className="w-full text-sm min-w-[920px]">
-            <thead className="bg-[#f6f3ee] text-[10px] uppercase tracking-widest text-[#1a1814]/60">
+            <thead className="bg-[var(--bg-page)] text-[10px] uppercase tracking-widest text-[var(--text-primary)]/60">
               <tr>
                 <th className="px-3 py-2 text-left">RSO</th>
                 <th className="px-3 py-2 text-right">Stock Iss.</th>
@@ -196,7 +196,7 @@ export default function TelecomDashboardPage() {
             </thead>
             <tbody>
               {(stock?.items ?? []).map(r => (
-                <tr key={r.rso_id} className="border-t border-[#ede9e2]">
+                <tr key={r.rso_id} className="border-t border-[var(--border)]">
                   <td className="px-3 py-2">{r.name}{r.territory ? ` · ${r.territory}` : ""}</td>
                   <td className="px-3 py-2 text-right">{money(r.stock_issuance)}</td>
                   <td className="px-3 py-2 text-right">{money(r.load_issued)}</td>
@@ -204,18 +204,18 @@ export default function TelecomDashboardPage() {
                   <td className="px-3 py-2 text-right">{money(r.other_stock)}</td>
                   <td className="px-3 py-2 text-right">{r.sim_issued_qty}</td>
                   <td className="px-3 py-2 text-right">{money(r.bank_deposits)}</td>
-                  <td className="px-3 py-2 text-right text-[#1a1814]/35">—</td>
-                  <td className="px-3 py-2 text-right text-[#1a1814]/35">—</td>
+                  <td className="px-3 py-2 text-right text-[var(--text-primary)]/35">—</td>
+                  <td className="px-3 py-2 text-right text-[var(--text-primary)]/35">—</td>
                   <td className="px-3 py-2 text-right">{money(r.closing_hlr_load_dep)}</td>
                 </tr>
               ))}
               {stock && stock.items.length === 0 && (
-                <tr><td className="px-4 py-6 text-center text-[#1a1814]/50" colSpan={10}>No RSO activity for this period.</td></tr>
+                <tr><td className="px-4 py-6 text-center text-[var(--text-primary)]/50" colSpan={10}>No RSO activity for this period.</td></tr>
               )}
             </tbody>
             {stock && stock.items.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-[#b8943f]/30 bg-[#faf6ec] font-bold">
+                <tr className="border-t-2 border-[var(--primary)]/30 bg-[var(--bg-page)] font-bold">
                   <td className="px-3 py-2">TOTAL</td>
                   <td className="px-3 py-2 text-right">{money(stock.totals.stock_issuance)}</td>
                   <td className="px-3 py-2 text-right">{money(stock.totals.load_issued)}</td>
@@ -253,12 +253,12 @@ function QuickLink({ href, icon: Icon, title, subtitle }: {
   href: string; icon: React.ElementType; title: string; subtitle: string
 }) {
   return (
-    <Link href={href} className="bg-white border border-[#ede9e2] rounded-xl px-4 py-3 hover:border-[#b8943f]/60 transition-colors block">
+    <Link href={href} className="bg-white border border-[var(--border)] rounded-xl px-4 py-3 hover:border-[var(--primary)]/60 transition-colors block">
       <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-[#b8943f]" />
-        <div className="text-sm font-semibold text-[#1a1814]">{title}</div>
+        <Icon className="w-4 h-4 text-[var(--primary)]" />
+        <div className="text-sm font-semibold text-[var(--text-primary)]">{title}</div>
       </div>
-      <p className="text-xs text-[#1a1814]/60 mt-1.5">{subtitle}</p>
+      <p className="text-xs text-[var(--text-primary)]/60 mt-1.5">{subtitle}</p>
     </Link>
   )
 }

@@ -116,7 +116,7 @@ export default function RsoPage() {
         <PageHeader icon={Network} title="RSO Channel" subtitle="Load distribution down MSR → RSO → Retail, and daily settlement." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -145,7 +145,7 @@ export default function RsoPage() {
             <Section title="Record daily RSO collection">
               <ActionForm endpoint="/api/telecom/rso/collections" fields={collectionFields} submitLabel="Post collection" onSuccess={collections.refetch} />
             </Section>
-            <Section title="Recent collections" action={<button onClick={() => downloadCSV('rso-collections.csv', collections.items.map(c => ({ Date: c.collection_date, Load: c.load_portion, Stock: c.stock_portion, Deposited: c.total_deposited, Variance: c.variance })))} disabled={collections.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
+            <Section title="Recent collections" action={<button onClick={() => downloadCSV('rso-collections.csv', collections.items.map(c => ({ Date: c.collection_date, Load: c.load_portion, Stock: c.stock_portion, Deposited: c.total_deposited, Variance: c.variance })))} disabled={collections.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
               <DataTable columns={collCols} rows={collections.items} empty="No collections yet." />
             </Section>
           </div>
@@ -156,7 +156,7 @@ export default function RsoPage() {
           </Section>
         )},
         { id: "ledger", label: "RSO ledger", content: (
-          <Section title="Per-RSO position" action={<button onClick={() => downloadCSV('rso-ledger.csv', ledger.map(r => ({ RSO: r.name, Territory: r.territory ?? '', "Load In": r.load_in_msr, "Load Out": r.load_out_retail, "Cash Collected": r.cash_collected_total, "Open Balance": r.open_load_balance })))} disabled={ledger.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
+          <Section title="Per-RSO position" action={<button onClick={() => downloadCSV('rso-ledger.csv', ledger.map(r => ({ RSO: r.name, Territory: r.territory ?? '', "Load In": r.load_in_msr, "Load Out": r.load_out_retail, "Cash Collected": r.cash_collected_total, "Open Balance": r.open_load_balance })))} disabled={ledger.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>}>
             <DataTable columns={ledgerCols} rows={ledger} empty="No RSO activity yet." />
           </Section>
         )},

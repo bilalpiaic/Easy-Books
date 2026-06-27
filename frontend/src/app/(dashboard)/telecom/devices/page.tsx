@@ -41,7 +41,7 @@ export default function DevicesPage() {
     { header: "Model", cell: d => productById.get(d.product_id)?.name ?? `#${d.product_id}` },
     { header: "Serial", cell: d => d.serial_number ?? "—" },
     { header: "Status", cell: d => (
-      <span className={d.status === "in_stock" ? "text-emerald-700" : d.status === "sold" ? "text-[#1a1814]/60" : "text-amber-700"}>
+      <span className={d.status === "in_stock" ? "text-emerald-700" : d.status === "sold" ? "text-[var(--text-primary)]/60" : "text-amber-700"}>
         {d.status}
       </span>
     )},
@@ -54,7 +54,7 @@ export default function DevicesPage() {
         <PageHeader icon={Tablet} title="Devices (IMEI)" subtitle="Track handset & router stock by IMEI for warranty and resale." />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -74,7 +74,7 @@ export default function DevicesPage() {
         )},
         { id: "inventory", label: "Inventory", content: (
           <Section title="Device inventory" action={
-            <button onClick={() => downloadCSV('devices.csv', imeis.items.map(d => ({ IMEI: d.imei_number, Model: productById.get(d.product_id)?.name ?? `#${d.product_id}`, Serial: d.serial_number ?? '', Status: d.status })))} disabled={imeis.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
+            <button onClick={() => downloadCSV('devices.csv', imeis.items.map(d => ({ IMEI: d.imei_number, Model: productById.get(d.product_id)?.name ?? `#${d.product_id}`, Serial: d.serial_number ?? '', Status: d.status })))} disabled={imeis.items.length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"><Download className="w-3.5 h-3.5" /> CSV</button>
           }>
             <DataTable columns={imeiCols} rows={imeis.items} empty="No devices registered yet." />
           </Section>
