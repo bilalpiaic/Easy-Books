@@ -205,7 +205,7 @@ function BillsContent() {
       />
 
       <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead className="sticky top-0 z-10 bg-[var(--bg-page)] border-b border-[var(--border)]">
               <tr>
@@ -298,6 +298,31 @@ function BillsContent() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-[var(--border)]">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">Loading…</div>
+          ) : bills.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">No bills yet</div>
+          ) : bills.map(b => (
+            <Link
+              key={b.id}
+              href={`/bills/${b.id}`}
+              className="flex items-start justify-between px-4 py-3 hover:bg-[var(--bg-row-hover)] transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{b.vendor_name ?? "—"}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{b.number} · {fmtDate(b.bill_date)}</p>
+              </div>
+              <div className="flex flex-col items-end gap-1 ml-3 shrink-0">
+                <span className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(b.total)}</span>
+                <StatusBadge status={b.status} />
+              </div>
+            </Link>
+          ))}
+        </div>
+
         <div className="border-t border-[var(--border)] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
