@@ -68,16 +68,16 @@ export default function TrialBalancePage() {
       <PrintHeader title="Trial Balance" subtitle={`Period: ${start} — ${end}`} />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Trial Balance</h1>
-          <p className="text-[#1a1814]/60">Debit and credit totals per account</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Trial Balance</h1>
+          <p className="text-[var(--text-primary)]/60">Debit and credit totals per account</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden" title="Print">
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 print:hidden" title="Print">
             <Printer className="w-5 h-5" />
           </button>
           <button
             onClick={() => downloadCSV(`trial-balance-${start}-${end}.csv`, flatten(tree).map(d => ({ Code: d.code, Name: d.name, Type: d.type, Debit: d.debit, Credit: d.credit })))}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 print:hidden"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 print:hidden"
             title="Export CSV"
           >
             <Download className="w-5 h-5" />
@@ -85,39 +85,39 @@ export default function TrialBalancePage() {
         </div>
       </div>
 
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl">
+      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
       </div>
 
-      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
         <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[480px]">
           <thead>
-            <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.account', 'Account')}</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">{t('col.debit', 'Debit')}</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">{t('col.credit', 'Credit')}</th>
+            <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.account', 'Account')}</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">{t('col.debit', 'Debit')}</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">{t('col.credit', 'Credit')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1a1814]/5">
+          <tbody className="divide-y divide-[var(--text-primary)]/5">
             {isLoading ? (
-              <tr><td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/75">Generating report...</td></tr>
+              <tr><td colSpan={3} className="px-8 py-10 text-center text-[var(--text-primary)]/75">Generating report...</td></tr>
             ) : !hasData ? (
-              <tr><td colSpan={3} className="px-8 py-10 text-center text-[#1a1814]/75">No balances found for selected period.</td></tr>
+              <tr><td colSpan={3} className="px-8 py-10 text-center text-[var(--text-primary)]/75">No balances found for selected period.</td></tr>
             ) : (
               <AccountTreeRows
                 nodes={tree}
                 columns={[{ key: "debit", align: "right" }, { key: "credit", align: "right" }]}
                 renderLeafLabel={(n) => (
                   <Link href={`/ledger?account=${encodeURIComponent(n.code)}&start=${start}&end=${end}`}
-                        className="hover:text-[#b8943f] hover:underline">{n.name}</Link>
+                        className="hover:text-[var(--primary)] hover:underline">{n.name}</Link>
                 )}
               />
             )}
           </tbody>
           {!isLoading && hasData && (
             <tfoot>
-              <tr className="bg-[#1a1814] text-white">
+              <tr className="bg-[var(--text-primary)] text-white">
                 <td className="px-8 py-5 font-bold uppercase tracking-widest text-xs">Grand Total</td>
                 <td className="px-8 py-5 text-right font-mono font-bold">{fmt(grandTotalDebit)}</td>
                 <td className="px-8 py-5 text-right font-mono font-bold">{fmt(grandTotalCredit)}</td>

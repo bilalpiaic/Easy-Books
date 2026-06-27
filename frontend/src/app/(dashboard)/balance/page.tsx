@@ -44,22 +44,22 @@ function TreeSection({
 }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">{title}</h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/75 border-b border-[var(--text-primary)]/5 pb-2">{title}</h3>
       <table className="w-full text-left border-collapse">
-        <tbody className="divide-y divide-[#1a1814]/5">
+        <tbody className="divide-y divide-[var(--text-primary)]/5">
           <AccountTreeRows
             nodes={nodes}
             columns={[{ key: "balance", align: "right" }]}
             renderLeafLabel={(n) =>
               n.id != null
-                ? <DocLink type="account" id={n.code} label={n.name} className="text-[#1a1814]/60" />
-                : <span className="text-[#1a1814] font-medium italic">{n.name}</span>
+                ? <DocLink type="account" id={n.code} label={n.name} className="text-[var(--text-primary)]/60" />
+                : <span className="text-[var(--text-primary)] font-medium italic">{n.name}</span>
             }
           />
         </tbody>
       </table>
-      <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
-        <span className="text-[#1a1814]">{totalLabel}</span>
+      <div className="flex justify-between pt-4 border-t border-[var(--text-primary)]/5 font-bold">
+        <span className="text-[var(--text-primary)]">{totalLabel}</span>
         <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(total)}</span>
       </div>
     </section>
@@ -84,23 +84,23 @@ function BalanceSection({
   }
   return (
     <section className="space-y-4">
-      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2">{title}</h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/75 border-b border-[var(--text-primary)]/5 pb-2">{title}</h3>
       {items.map(item => (
         <div key={item.code} className="flex justify-between text-sm">
           {item.code === "RE-CUR"
-            ? <span className="text-[#1a1814] font-medium italic">{item.name}</span>
-            : <DocLink type="account" id={item.code} label={item.name} className="text-[#1a1814]/60" />}
+            ? <span className="text-[var(--text-primary)] font-medium italic">{item.name}</span>
+            : <DocLink type="account" id={item.code} label={item.name} className="text-[var(--text-primary)]/60" />}
           <div className="flex gap-8">
             <span className="font-mono w-36 text-right">{fmt(item.balance)}</span>
-            {showCmp && <span className="font-mono w-36 text-right text-[#1a1814]/35">{fmt(cmpBal(item.code))}</span>}
+            {showCmp && <span className="font-mono w-36 text-right text-[var(--text-primary)]/35">{fmt(cmpBal(item.code))}</span>}
           </div>
         </div>
       ))}
-      <div className="flex justify-between pt-4 border-t border-[#1a1814]/5 font-bold">
-        <span className="text-[#1a1814]">{totalLabel}</span>
+      <div className="flex justify-between pt-4 border-t border-[var(--text-primary)]/5 font-bold">
+        <span className="text-[var(--text-primary)]">{totalLabel}</span>
         <div className="flex gap-8">
           <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(total)}</span>
-          {showCmp && <span className="font-mono w-36 text-right underline decoration-double underline-offset-4 text-[#1a1814]/35">{fmt(cmpTotal)}</span>}
+          {showCmp && <span className="font-mono w-36 text-right underline decoration-double underline-offset-4 text-[var(--text-primary)]/35">{fmt(cmpTotal)}</span>}
         </div>
       </div>
     </section>
@@ -201,50 +201,50 @@ export default function BalanceSheetPage() {
       <PrintHeader title="Balance Sheet" subtitle={`As of ${fmtDate(asOf)}`} />
       <div className="flex justify-between items-center mb-8 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Balance Sheet</h1>
-          <p className="text-[#1a1814]/60">Financial position as of {fmtDate(asOf)}</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Balance Sheet</h1>
+          <p className="text-[var(--text-primary)]/60">Financial position as of {fmtDate(asOf)}</p>
         </div>
         <div className="flex items-center gap-2">
           {!compareMode && (
-            <button onClick={exportCsv} disabled={isLoading} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40" title="Export CSV">
+            <button onClick={exportCsv} disabled={isLoading} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40" title="Export CSV">
               <Download className="w-5 h-5" />
             </button>
           )}
-          <button onClick={() => window.print()} className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60" title="Print">
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" title="Print">
             <Printer className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
+      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl space-y-3 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-bold uppercase tracking-widest text-black/50">As of</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">As of</span>
           <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)}
-                 className="px-3 py-1.5 text-sm border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]" />
+                 className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" />
         </div>
-        <label className="flex items-center gap-2 text-sm text-[#1a1814]/70 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]/70 cursor-pointer">
           <input type="checkbox" checked={compareMode} onChange={e => setCompareMode(e.target.checked)} className="rounded" />
           Compare with prior period
         </label>
         {compareMode && (
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-[#1a1814]/50">Prior period as of:</span>
+            <span className="text-[var(--text-primary)]/50">Prior period as of:</span>
             <input type="date" value={cmpEnd} onChange={e => setCmpEnd(e.target.value)}
-                   className="border border-[#ede9e2] rounded px-2 py-1 text-sm" />
+                   className="border border-[var(--border)] rounded px-2 py-1 text-sm" />
           </div>
         )}
       </div>
 
       {isLoading ? (
-        <div className="text-center py-20 text-[#1a1814]/75">Generating report...</div>
+        <div className="text-center py-20 text-[var(--text-primary)]/75">Generating report...</div>
       ) : (
-        <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-12">
+        <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 p-10 space-y-12">
           {compareMode ? (
             <>
               {comparison && (
-                <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
+                <div className="flex justify-end gap-8 text-xs font-bold text-[var(--text-primary)]/50 uppercase tracking-widest">
                   <span className="w-36 text-right">Current Period</span>
-                  <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
+                  <span className="w-36 text-right text-[var(--text-primary)]/30">Comparative Period</span>
                 </div>
               )}
 
@@ -273,12 +273,12 @@ export default function BalanceSheetPage() {
             </>
           )}
 
-          <section className="pt-8 border-t-2 border-[#1a1814] flex justify-between items-center bg-[#f6f3ee]/30 -mx-10 px-10 py-6">
-            <h2 className="text-xl font-serif text-[#1a1814]">Total Liabilities &amp; Equity</h2>
+          <section className="pt-8 border-t-2 border-[var(--text-primary)] flex justify-between items-center bg-[var(--bg-page)]/30 -mx-10 px-10 py-6">
+            <h2 className="text-xl font-bold text-[var(--text-primary)]">Total Liabilities &amp; Equity</h2>
             <div className="flex gap-8">
-              <div className="text-2xl font-serif w-36 text-right text-[#1a1814]">{fmt(totalLE)}</div>
+              <div className="text-2xl font-bold w-36 text-right text-[var(--text-primary)]">{fmt(totalLE)}</div>
               {compareMode && comparison && (
-                <div className="text-xl font-serif w-36 text-right text-[#1a1814]/35">{fmt(cmpTotalLiabilities + cmpTotalEquity)}</div>
+                <div className="text-xl font-bold w-36 text-right text-[var(--text-primary)]/35">{fmt(cmpTotalLiabilities + cmpTotalEquity)}</div>
               )}
             </div>
           </section>
