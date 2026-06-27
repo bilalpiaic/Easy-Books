@@ -427,7 +427,7 @@ export default function NewEntryPage() {
           className={cn(
             "px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all",
             value === opt
-              ? "bg-[#1a1814] text-white shadow-sm"
+              ? "bg-[var(--text-primary)] text-white shadow-sm"
               : "text-[var(--text-primary)]/50 hover:text-[var(--text-primary)]",
           )}>
           {opt === "cash" ? "💵 Cash" : "🏦 Bank"}
@@ -822,7 +822,7 @@ export default function NewEntryPage() {
             className="px-5 py-2.5 bg-white border border-[var(--border)] rounded-lg font-semibold hover:bg-[var(--bg-page)] transition-colors text-sm">{t('common.cancel', 'Cancel')}</button>
           <button type="submit"
             disabled={isSubmitting || (mode === "journal" && !balanced)}
-            className="px-5 py-2.5 bg-[#1a1814] text-white rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50 text-sm">
+            className="px-5 py-2.5 bg-[var(--text-primary)] text-white rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50 text-sm">
             <Save className="w-4 h-4" />
             {isSubmitting ? "Saving…" : "Post Transaction"}
           </button>

@@ -144,7 +144,7 @@ export default function JournalPage() {
               <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 print:hidden"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1a1814]/5">
+          <tbody className="divide-y divide-[var(--text-primary)]/5">
             {isLoading ? (
               <SkeletonRow cols={6} />
             ) : entries.length === 0 ? (
