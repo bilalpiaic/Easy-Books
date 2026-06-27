@@ -21,6 +21,9 @@ const BADGE: Record<string, { bg: string; fg: string }> = {
   inactive:   { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
   cancelled:  { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
   processing: { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
+  parsed:     { bg: "var(--badge-yellow-bg)", fg: "#D97706" },
+  matched:    { bg: "var(--badge-green-bg)",  fg: "var(--success)" },
+  reconciled: { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
   info:       { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
   approved:   { bg: "var(--badge-purple-bg)", fg: "#7C3AED" },
 }
