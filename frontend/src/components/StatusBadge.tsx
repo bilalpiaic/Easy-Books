@@ -26,6 +26,8 @@ const BADGE: Record<string, { bg: string; fg: string }> = {
   reconciled: { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
   info:       { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
   approved:   { bg: "var(--badge-purple-bg)", fg: "#7C3AED" },
+  applied:    { bg: "var(--badge-green-bg)",  fg: "var(--success)" },
+  open:       { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },
 }
 
 const FALLBACK = { bg: "var(--badge-gray-bg)", fg: "var(--text-muted)" }

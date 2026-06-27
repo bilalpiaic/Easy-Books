@@ -33,44 +33,44 @@ export default function CustomerProducts({ params }: { params: Promise<{ id: str
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between print:hidden">
-        <Link href="/customers" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
+        <Link href="/customers" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--text-primary)]/65 hover:text-[var(--primary)]">
           <ArrowLeft className="w-4 h-4" /> Customers
         </Link>
         <button
           onClick={() => downloadCSV('customer-products.csv', rows.map(r => ({ Product: r.name, Code: r.code ?? '', "Last Price": r.last_rate, "Last Date": r.last_date, "Total Qty": r.total_qty, Invoices: r.invoice_count })))}
           disabled={rows.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"
         >
           <Download className="w-4 h-4" /> CSV
         </button>
       </div>
-      <h1 className="text-xl sm:text-3xl font-serif font-medium">Products Sold</h1>
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-x-auto">
+      <h1 className="text-xl sm:text-3xl font-bold">Products Sold</h1>
+      <div className="bg-white rounded-xl border border-[var(--border)] overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+          <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">{t('col.product', 'Product')}</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Price</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Last Date</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Total Qty</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Invoices</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.product', 'Product')}</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Last Price</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Last Date</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Total Qty</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Invoices</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-black/50">No products sold yet.</td>
+                <td colSpan={5} className="px-6 py-10 text-center text-[var(--text-muted)]">No products sold yet.</td>
               </tr>
             ) : rows.map(r => (
-              <tr key={r.product_id} className="hover:bg-[#f6f3ee]/50">
+              <tr key={r.product_id} className="hover:bg-[var(--bg-page)]/50">
                 <td className="ui-td">
-                  <Link href={`/products/ledger?product=${r.product_id}`} className="hover:text-[#b8943f] hover:underline">
+                  <Link href={`/products/ledger?product=${r.product_id}`} className="hover:text-[var(--primary)] hover:underline">
                     {r.name}
                   </Link>
-                  {r.code && <span className="ml-2 font-mono text-xs text-[#b8943f]">{r.code}</span>}
+                  {r.code && <span className="ml-2 font-mono text-xs text-[var(--primary)]">{r.code}</span>}
                 </td>
                 <td className="ui-td text-right font-mono">{fmt(r.last_rate)}</td>
-                <td className="ui-td text-right text-black/60">{r.last_date}</td>
+                <td className="ui-td text-right text-[var(--text-muted)]">{r.last_date}</td>
                 <td className="ui-td text-right font-mono">{r.total_qty.toLocaleString()}</td>
                 <td className="ui-td text-right">{r.invoice_count}</td>
               </tr>

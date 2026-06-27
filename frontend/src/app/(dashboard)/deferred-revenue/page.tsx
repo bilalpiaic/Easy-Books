@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Calendar, Play, CheckCircle2, Clock, XCircle, TrendingUp, Download, Printer } from "lucide-react"
+import { Calendar, Play, TrendingUp, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import StatusBadge from "@/components/StatusBadge"
 
 interface DeferredSchedule {
   id: number
@@ -27,17 +28,6 @@ interface RecognitionResult {
   details: { schedule_id: number; charge: string; jv: string }[]
 }
 
-const STATUS_TONE: Record<string, string> = {
-  active:    "bg-emerald-50 text-emerald-800 border-emerald-200",
-  completed: "bg-blue-50 text-blue-800 border-blue-200",
-  cancelled: "bg-slate-100 text-slate-600 border-slate-200",
-}
-
-const STATUS_ICON: Record<string, React.ReactNode> = {
-  active:    <Clock className="w-3 h-3" />,
-  completed: <CheckCircle2 className="w-3 h-3" />,
-  cancelled: <XCircle className="w-3 h-3" />,
-}
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -95,40 +85,40 @@ export default function DeferredRevenuePage() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Deferred Revenue</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Deferred Revenue</h1>
             <div className="flex items-center gap-2 print:hidden">
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] transition-colors"
               >
                 <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</button>
               <button
                 onClick={() => downloadCSV('deferred-revenue.csv', schedules.map(s => ({ "Invoice ID": s.invoice_id, "Total Amount": s.total_amount, "Recognised": s.recognised_amount, "Remaining": s.total_amount - s.recognised_amount, "Start Date": s.start_date, "End Date": s.end_date, Frequency: s.frequency, "Next Recognition": s.next_recognition_date, Status: s.status })))}
                 disabled={schedules.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-lg text-xs font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-lg text-xs font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
               >
                 <Download className="w-3.5 h-3.5" /> CSV
               </button>
             </div>
           </div>
-          <p className="text-sm text-[#1a1814]/60 mt-0.5">
+          <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
             IFRS 15 recognition schedules. Run monthly to post Dr Deferred Revenue / Cr Revenue.
           </p>
         </div>
 
         {/* Run Recognition panel */}
-        <div className="flex items-center gap-2 bg-white border border-[#ede9e2] rounded-xl px-4 py-3 shrink-0">
-          <Calendar className="w-4 h-4 text-[#b8943f] shrink-0" />
+        <div className="flex items-center gap-2 bg-white border border-[var(--border)] rounded-xl px-4 py-3 shrink-0">
+          <Calendar className="w-4 h-4 text-[var(--primary)] shrink-0" />
           <input
             type="date"
             value={runDate}
             onChange={e => setRunDate(e.target.value)}
-            className="border-0 outline-none text-sm text-[#1a1814] bg-transparent w-36"
+            className="border-0 outline-none text-sm text-[var(--text-primary)] bg-transparent w-36"
           />
           <button
             onClick={runRecognition}
             disabled={running || !runDate}
-            className="inline-flex items-center gap-1.5 bg-[#b8943f] text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 bg-[var(--primary)] text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors"
           >
             <Play className="w-3 h-3" />
             {running ? "Running…" : "Run"}
@@ -171,14 +161,14 @@ export default function DeferredRevenuePage() {
             onClick={() => setStatusFilter(s)}
             className={`rounded-xl border px-4 py-3 text-left transition-colors ${
               statusFilter === s
-                ? "border-[#b8943f] bg-[#faf6ec]"
-                : "border-[#ede9e2] bg-white hover:border-[#b8943f]/40"
+                ? "border-[var(--primary)] bg-[var(--bg-page)]"
+                : "border-[var(--border)] bg-white hover:border-[var(--primary)]/40"
             }`}
           >
-            <div className="text-xs font-semibold uppercase tracking-wide text-[#1a1814]/55 capitalize">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-primary)]/55 capitalize">
               {s === "all" ? "All" : s}
             </div>
-            <div className="text-2xl font-serif font-bold text-[#1a1814] mt-0.5">
+            <div className="text-2xl font-bold font-bold text-[var(--text-primary)] mt-0.5">
               {s === "active" ? activeCount : s === "completed" ? completedCount : schedules.length}
             </div>
           </button>
@@ -187,14 +177,14 @@ export default function DeferredRevenuePage() {
 
       {/* Schedules */}
       {loading ? (
-        <div className="text-sm text-[#1a1814]/50 py-8 text-center">Loading…</div>
+        <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
       ) : schedules.length === 0 ? (
-        <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-12 text-center">
-          <TrendingUp className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]">
+        <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-12 text-center">
+          <TrendingUp className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]">
             {statusFilter === "active" ? "No active schedules" : "No schedules found"}
           </p>
-          <p className="text-xs text-[#1a1814]/55 mt-1">
+          <p className="text-xs text-[var(--text-primary)]/55 mt-1">
             Schedules are created automatically when invoicing products marked as <em>deferred revenue</em>.
           </p>
         </div>
@@ -206,47 +196,44 @@ export default function DeferredRevenuePage() {
             const remaining  = Math.max(0, total - recognised)
             const pct        = total > 0 ? Math.min(100, Math.round((recognised / total) * 100)) : 0
             return (
-              <div key={s.id} className="bg-white border border-[#ede9e2] rounded-xl px-5 py-4 space-y-3">
+              <div key={s.id} className="bg-white border border-[var(--border)] rounded-xl px-5 py-4 space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-[#1a1814]">Schedule #{s.id}</span>
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">Schedule #{s.id}</span>
                     <Link
                       href={`/invoices/${s.invoice_id}`}
-                      className="text-xs text-[#b8943f] hover:underline"
+                      className="text-xs text-[var(--primary)] hover:underline"
                     >
                       Invoice #{s.invoice_id} →
                     </Link>
                   </div>
-                  <span className={`inline-flex items-center gap-1 border rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_TONE[s.status] ?? "bg-slate-50 text-slate-700 border-slate-200"}`}>
-                    {STATUS_ICON[s.status]}
-                    {s.status}
-                  </span>
+                  <StatusBadge status={s.status} />
                 </div>
 
                 {/* Progress bar */}
                 <div>
-                  <div className="flex justify-between text-xs text-[#1a1814]/60 mb-1">
+                  <div className="flex justify-between text-xs text-[var(--text-primary)]/60 mb-1">
                     <span>{fmt(recognised)} recognised</span>
                     <span>{pct}% of {fmt(total)}</span>
                   </div>
-                  <div className="h-2 bg-[#ede9e2] rounded-full overflow-hidden">
+                  <div className="h-2 bg-[var(--border)] rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${s.status === "completed" ? "bg-blue-500" : "bg-[#b8943f]"}`}
+                      className={`h-full rounded-full transition-all ${s.status === "completed" ? "bg-blue-500" : "bg-[var(--primary)]"}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
                   {remaining > 0 && (
-                    <div className="text-xs text-[#1a1814]/50 mt-1">{fmt(remaining)} remaining</div>
+                    <div className="text-xs text-[var(--text-primary)]/50 mt-1">{fmt(remaining)} remaining</div>
                   )}
                 </div>
 
                 {/* Metadata row */}
-                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[#1a1814]/60">
-                  <span><span className="font-medium text-[#1a1814]/80">Period:</span> {s.start_date} → {s.end_date}</span>
-                  <span className="capitalize"><span className="font-medium text-[#1a1814]/80">Frequency:</span> {s.frequency}</span>
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--text-primary)]/60">
+                  <span><span className="font-medium text-[var(--text-primary)]/80">Period:</span> {s.start_date} → {s.end_date}</span>
+                  <span className="capitalize"><span className="font-medium text-[var(--text-primary)]/80">Frequency:</span> {s.frequency}</span>
                   {s.status === "active" && (
                     <span>
-                      <span className="font-medium text-[#1a1814]/80">Next recognition:</span>{" "}
+                      <span className="font-medium text-[var(--text-primary)]/80">Next recognition:</span>{" "}
                       <span className={s.next_recognition_date <= today() ? "text-amber-600 font-semibold" : ""}>
                         {s.next_recognition_date}
                       </span>

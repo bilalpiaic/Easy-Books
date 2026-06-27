@@ -9,6 +9,7 @@ import { useSettings } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import StatusBadge from "@/components/StatusBadge"
 
 interface CreditNote {
   id: number
@@ -44,11 +45,6 @@ const emptyForm: CNForm = {
   lines: [{ product_id: '', description: '', qty: '1', rate: '0' }],
 }
 
-const statusColors: Record<string, string> = {
-  draft:   'bg-gray-100 text-gray-600',
-  posted:  'bg-blue-100 text-blue-700',
-  applied: 'bg-green-100 text-green-700',
-}
 
 export default function CreditNotesPage() {
   const { t } = useTranslation()
@@ -146,59 +142,57 @@ export default function CreditNotesPage() {
       <PrintHeader title="Credit Notes" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Credit Notes</h1>
-          <p className="text-[#1a1814]/60 text-sm mt-1">{total} total</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Credit Notes</h1>
+          <p className="text-[var(--text-primary)]/60 text-sm mt-1">{total} total</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('credit-notes.csv', items.map(n => ({ Number: n.number, Customer: n.customer_name ?? '', Date: n.issue_date, Total: n.total, Status: n.status })))}
             disabled={items.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download size={16} /> CSV
           </button>
           <button onClick={openModal}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all print:hidden">
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--text-primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all print:hidden">
             <Plus size={16} /> New Credit Note
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#1a1814]/5 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#f6f3ee]">
+          <thead className="bg-[var(--bg-page)]">
             <tr>
               {['Number', 'Customer', 'Date', 'Total', 'Status'].map(h => (
-                <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">{h}</th>
+                <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="ui-td text-center text-[#1a1814]/40 italic">{t('common.loading', 'Loading...')}</td></tr>
+              <tr><td colSpan={5} className="ui-td text-center text-[var(--text-primary)]/40 italic">{t('common.loading', 'Loading...')}</td></tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={5} className="ui-td text-center">
-                  <Receipt className="w-8 h-8 mx-auto text-[#1a1814]/20 mb-3" />
-                  <p className="text-[#1a1814]/50 text-sm">No credit notes yet</p>
-                  <button onClick={openModal} className="mt-3 text-[#b8943f] text-sm underline">Issue your first credit note</button>
+                  <Receipt className="w-8 h-8 mx-auto text-[var(--text-primary)]/20 mb-3" />
+                  <p className="text-[var(--text-primary)]/50 text-sm">No credit notes yet</p>
+                  <button onClick={openModal} className="mt-3 text-[var(--primary)] text-sm underline">Issue your first credit note</button>
                 </td>
               </tr>
             ) : items.map(cn => (
-              <tr key={cn.id} className="border-t border-[#1a1814]/5 hover:bg-[#f6f3ee]/50">
-                <td className="ui-td font-mono font-bold"><DocLink type="credit_note" id={cn.id} label={cn.number} className="text-[#b8943f]" /></td>
-                <td className="ui-td text-[#1a1814]/70">{cn.customer_name ?? '—'}</td>
-                <td className="ui-td text-[#1a1814]/70">{cn.issue_date}</td>
+              <tr key={cn.id} className="border-t border-[var(--text-primary)]/5 hover:bg-[var(--bg-page)]/50">
+                <td className="ui-td font-mono font-bold"><DocLink type="credit_note" id={cn.id} label={cn.number} className="text-[var(--primary)]" /></td>
+                <td className="ui-td text-[var(--text-primary)]/70">{cn.customer_name ?? '—'}</td>
+                <td className="ui-td text-[var(--text-primary)]/70">{cn.issue_date}</td>
                 <td className="ui-td font-mono">{fmt(cn.total)}</td>
                 <td className="ui-td">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[cn.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {cn.status}
-                  </span>
+                  <StatusBadge status={cn.status} />
                 </td>
               </tr>
             ))}
@@ -209,29 +203,29 @@ export default function CreditNotesPage() {
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-[#ede9e2] flex justify-between items-center">
-              <h2 className="text-xl font-serif text-[#1a1814]">New Credit Note</h2>
-              <button onClick={() => setModalOpen(false)} className="text-[#1a1814]/40 hover:text-[#1a1814] text-xl">✕</button>
+            <div className="p-6 border-b border-[var(--border)] flex justify-between items-center">
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">New Credit Note</h2>
+              <button onClick={() => setModalOpen(false)} className="text-[var(--text-primary)]/40 hover:text-[var(--text-primary)] text-xl">✕</button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">{t('col.customer', 'Customer')}</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">{t('col.customer', 'Customer')}</label>
                 <select value={form.customer_id}
                   onChange={e => {
                     const id = e.target.value
                     const name = customers.find(c => String(c.id) === id)?.name ?? ''
                     setForm(f => ({ ...f, customer_id: id, customer_name: name }))
                   }}
-                  className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                  className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
                   <option value="">Select customer</option>
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Original Invoice (optional)</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Original Invoice (optional)</label>
                   <select value={form.invoice_id} onChange={e => setForm(f => ({ ...f, invoice_id: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                    className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
                     <option value="">No linked invoice</option>
                     {invoices
                       .filter(inv => !form.customer_id || true) // show all; filter by customer optionally
@@ -239,20 +233,20 @@ export default function CreditNotesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Issue Date</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Issue Date</label>
                   <input type="date" value={form.issue_date} onChange={e => setForm(f => ({ ...f, issue_date: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                    className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Reason</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Reason</label>
                 <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="e.g. Return — defective goods"
-                  className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                  className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Lines</label>
-                <p className="text-[10px] text-black/40 mb-2">Pick a stock product to also restock inventory + reverse COGS (sales return).</p>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">Lines</label>
+                <p className="text-[10px] text-[var(--text-muted)] mb-2">Pick a stock product to also restock inventory + reverse COGS (sales return).</p>
                 <div className="space-y-2">
                   {form.lines.map((l, i) => (
                     <div key={i} className="grid grid-cols-12 gap-2 items-center">
@@ -263,43 +257,43 @@ export default function CreditNotesPage() {
                           updateLine(i, 'product_id', pid)
                           if (p && !form.lines[i].description) updateLine(i, 'description', p.name)
                         }}
-                        className="col-span-3 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-xs outline-none focus:ring-1 focus:ring-[#b8943f]">
+                        className="col-span-3 px-2 py-1.5 bg-[var(--bg-page)] rounded-lg text-xs outline-none focus:ring-1 focus:ring-[var(--primary)]">
                         <option value="">(no product)</option>
                         {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.product_type === 'stock' ? ' ⬡' : ''}</option>)}
                       </select>
                       <input value={l.description} onChange={e => updateLine(i, 'description', e.target.value)}
                         placeholder="Description"
-                        className="col-span-4 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm outline-none focus:ring-1 focus:ring-[#b8943f]" />
+                        className="col-span-4 px-2 py-1.5 bg-[var(--bg-page)] rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)]" />
                       <input type="number" value={l.qty} onChange={e => updateLine(i, 'qty', e.target.value)}
                         placeholder="Qty" min="0"
-                        className="col-span-2 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[#b8943f]" />
+                        className="col-span-2 px-2 py-1.5 bg-[var(--bg-page)] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[var(--primary)]" />
                       <input type="number" value={l.rate} onChange={e => updateLine(i, 'rate', e.target.value)}
                         placeholder="Rate" min="0"
-                        className="col-span-2 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[#b8943f]" />
+                        className="col-span-2 px-2 py-1.5 bg-[var(--bg-page)] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[var(--primary)]" />
                       <button onClick={() => removeLine(i)} disabled={form.lines.length === 1}
                         className="col-span-1 text-red-400 hover:text-red-600 disabled:opacity-20 text-lg leading-none">×</button>
                     </div>
                   ))}
                 </div>
-                <button onClick={addLine} className="mt-2 text-xs text-[#b8943f] underline">+ Add line</button>
+                <button onClick={addLine} className="mt-2 text-xs text-[var(--primary)] underline">+ Add line</button>
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">GST to reverse</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">GST to reverse</label>
                 <input type="number" min="0" value={form.gst_amount}
                   onChange={e => setForm(f => ({ ...f, gst_amount: e.target.value }))}
-                  className="w-32 px-2 py-1.5 bg-[#f6f3ee] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[#b8943f]" />
-                <span className="text-[10px] text-black/40">optional — reverses output GST on a sales return</span>
+                  className="w-32 px-2 py-1.5 bg-[var(--bg-page)] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[var(--primary)]" />
+                <span className="text-[10px] text-[var(--text-muted)]">optional — reverses output GST on a sales return</span>
               </div>
-              <div className="flex justify-between font-bold text-sm border-t border-[#ede9e2] pt-3">
+              <div className="flex justify-between font-bold text-sm border-t border-[var(--border)] pt-3">
                 <span>Total Credit</span>
                 <span className="font-mono text-red-600">({fmt(subtotal + (parseFloat(form.gst_amount) || 0))})</span>
               </div>
-              <p className="text-xs text-black/40 italic">
+              <p className="text-xs text-[var(--text-muted)] italic">
                 GL: Dr Sales Revenue (+ Dr GST Payable) / Cr Accounts Receivable. Stock lines also Dr Inventory / Cr COGS and restock.
               </p>
               {formError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>}
               <button onClick={handleSave} disabled={saving}
-                className="w-full py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                className="w-full py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">
                 {saving ? 'Issuing…' : 'Issue Credit Note'}
               </button>
             </div>

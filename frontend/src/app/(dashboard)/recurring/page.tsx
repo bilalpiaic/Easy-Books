@@ -191,34 +191,34 @@ export default function RecurringPage() {
       <PrintHeader title="Recurring Entries" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif font-medium flex items-center gap-2">
-            <RefreshCw className="w-7 h-7 text-[#b8943f]" />
+          <h1 className="text-xl sm:text-3xl font-bold flex items-center gap-2">
+            <RefreshCw className="w-7 h-7 text-[var(--primary)]" />
             Recurring Entries
           </h1>
-          <p className="text-sm text-black/75 mt-1">Scheduled journal entries that post automatically</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Scheduled journal entries that post automatically</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{tr('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('recurring-templates.csv', templates.map(tmpl => ({ Name: tmpl.name, Description: tmpl.description ?? '', Frequency: FREQ_LABELS[tmpl.frequency] ?? tmpl.frequency, "Next Run": tmpl.next_run, "Last Run": tmpl.last_run ?? '', Active: tmpl.is_active ? 'Yes' : 'No' })))}
             disabled={templates.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={handleRunDue}
             disabled={running}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-50"
           >
             <Play className="w-4 h-4" />
             {running ? 'Running…' : 'Run Due Now'}
           </button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)]">
             <Plus className="w-4 h-4" />
             New Template
           </button>
@@ -231,42 +231,42 @@ export default function RecurringPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+          <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Frequency</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Next Run</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Last Run</th>
-              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">{tr('col.status', 'Status')}</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Name</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Frequency</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Next Run</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Last Run</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{tr('col.status', 'Status')}</th>
               <th className="ui-th" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-black/40 animate-pulse">Loading…</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-[var(--text-muted)] animate-pulse">Loading…</td>
               </tr>
             ) : templates.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center">
-                  <p className="text-black/40 mb-3">No recurring templates yet.</p>
-                  <button onClick={openCreate} className="text-sm text-[#b8943f] hover:underline font-medium">
+                  <p className="text-[var(--text-muted)] mb-3">No recurring templates yet.</p>
+                  <button onClick={openCreate} className="text-sm text-[var(--primary)] hover:underline font-medium">
                     + Create your first template
                   </button>
                 </td>
               </tr>
             ) : templates.map(tmpl => (
-              <tr key={tmpl.id} className={`hover:bg-[#f6f3ee]/50 ${!tmpl.is_active ? 'opacity-50' : ''}`}>
+              <tr key={tmpl.id} className={`hover:bg-[var(--bg-page)]/50 ${!tmpl.is_active ? 'opacity-50' : ''}`}>
                 <td className="ui-td">
                   <p className="font-medium">{tmpl.name}</p>
-                  {tmpl.description && <p className="text-xs text-black/50 mt-0.5">{tmpl.description}</p>}
-                  <p className="text-xs text-black/40 mt-0.5 flex flex-wrap gap-x-2">
+                  {tmpl.description && <p className="text-xs text-[var(--text-muted)] mt-0.5">{tmpl.description}</p>}
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5 flex flex-wrap gap-x-2">
                     {tmpl.entries.map((e, i) => {
                       const acc = accounts.find(a => a.id === e.account_id)
                       return acc
-                        ? <DocLink key={i} type="account" id={acc.code} label={`${acc.code} ${acc.name}`} className="text-xs text-black/45" />
+                        ? <DocLink key={i} type="account" id={acc.code} label={`${acc.code} ${acc.name}`} className="text-xs text-[var(--text-muted)]" />
                         : <span key={i}>line {i + 1}</span>
                     })}
                   </p>
@@ -276,10 +276,10 @@ export default function RecurringPage() {
                     {FREQ_LABELS[tmpl.frequency] ?? tmpl.frequency}
                   </span>
                 </td>
-                <td className={`ui-td font-mono text-sm ${now && new Date(tmpl.next_run) <= now && tmpl.is_active ? 'text-red-600 font-bold' : 'text-black/70'}`}>
+                <td className={`ui-td font-mono text-sm ${now && new Date(tmpl.next_run) <= now && tmpl.is_active ? 'text-red-600 font-bold' : 'text-[var(--text-muted)]'}`}>
                   {tmpl.next_run}
                 </td>
-                <td className="ui-td font-mono text-sm text-black/50">{tmpl.last_run ?? '—'}</td>
+                <td className="ui-td font-mono text-sm text-[var(--text-muted)]">{tmpl.last_run ?? '—'}</td>
                 <td className="ui-td text-center">
                   <button
                     onClick={() => handleToggle(tmpl)}
@@ -288,12 +288,12 @@ export default function RecurringPage() {
                   >
                     {tmpl.is_active
                       ? <><ToggleRight className="w-5 h-5 text-green-500" /><span className="text-green-600">{tr('status.active', 'Active')}</span></>
-                      : <><ToggleLeft className="w-5 h-5 text-black/30" /><span className="text-black/40">{tr('status.inactive', 'Inactive')}</span></>}
+                      : <><ToggleLeft className="w-5 h-5 text-[var(--border)]" /><span className="text-[var(--text-muted)]">{tr('status.inactive', 'Inactive')}</span></>}
                   </button>
                 </td>
                 <td className="ui-td">
                   <div className="flex items-center gap-2 justify-end">
-                    <button onClick={() => openEdit(tmpl)} title="Edit template" className="text-[#1a1814]/40 hover:text-[#b8943f]">
+                    <button onClick={() => openEdit(tmpl)} title="Edit template" className="text-[var(--text-primary)]/40 hover:text-[var(--primary)]">
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDelete(tmpl)} title="Delete template" className="text-red-400 hover:text-red-600">
@@ -312,59 +312,59 @@ export default function RecurringPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-8 overflow-y-auto max-h-[92vh]">
-            <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">
               {editingId != null ? 'Edit Recurring Template' : 'New Recurring Template'}
             </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Name</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Name</label>
                   <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                     placeholder="e.g. Monthly Office Rent"
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                    className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Frequency</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Frequency</label>
                   <select value={form.frequency} onChange={e => setForm(p => ({ ...p, frequency: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                    className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
                     {Object.entries(FREQ_LABELS).map(([v, l]) => (
                       <option key={v} value={v}>{l}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">First Run Date</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">First Run Date</label>
                   <input type="date" value={form.next_run} onChange={e => setForm(p => ({ ...p, next_run: e.target.value }))}
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                    className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Description (optional)</label>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Description (optional)</label>
                   <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                     placeholder="Internal note about this recurring entry"
-                    className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+                    className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Journal Lines</label>
-                <div className="border border-[#ede9e2] rounded-xl overflow-hidden">
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">Journal Lines</label>
+                <div className="border border-[var(--border)] rounded-xl overflow-hidden">
                   <table className="w-full text-sm">
-                    <thead className="bg-[#f6f3ee]">
+                    <thead className="bg-[var(--bg-page)]">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-black/50">{tr('col.account', 'Account')}</th>
-                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/50 w-28">{tr('col.debit', 'Debit')}</th>
-                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/50 w-28">{tr('col.credit', 'Credit')}</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{tr('col.account', 'Account')}</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] w-28">{tr('col.debit', 'Debit')}</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] w-28">{tr('col.credit', 'Credit')}</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#ede9e2]">
+                    <tbody className="divide-y divide-[var(--border)]">
                       {form.entries.map((e, i) => (
                         <tr key={i}>
                           <td className="px-4 py-2">
                             <select
                               value={e.account_id || ''}
                               onChange={ev => updateEntry(i, 'account_id', ev.target.value)}
-                              className="w-full px-2 py-1 bg-[#f6f3ee] rounded-lg outline-none focus:ring-1 focus:ring-[#b8943f] text-xs"
+                              className="w-full px-2 py-1 bg-[var(--bg-page)] rounded-lg outline-none focus:ring-1 focus:ring-[var(--primary)] text-xs"
                             >
                               <option value="">— select account —</option>
                               {accounts.map(a => (
@@ -376,13 +376,13 @@ export default function RecurringPage() {
                             <input type="number" min="0" step="0.01"
                               value={e.debit || ''}
                               onChange={ev => updateEntry(i, 'debit', ev.target.value)}
-                              className="w-full px-2 py-1 bg-[#f6f3ee] rounded-lg outline-none focus:ring-1 focus:ring-[#b8943f] text-xs text-right font-mono" />
+                              className="w-full px-2 py-1 bg-[var(--bg-page)] rounded-lg outline-none focus:ring-1 focus:ring-[var(--primary)] text-xs text-right font-mono" />
                           </td>
                           <td className="px-4 py-2">
                             <input type="number" min="0" step="0.01"
                               value={e.credit || ''}
                               onChange={ev => updateEntry(i, 'credit', ev.target.value)}
-                              className="w-full px-2 py-1 bg-[#f6f3ee] rounded-lg outline-none focus:ring-1 focus:ring-[#b8943f] text-xs text-right font-mono" />
+                              className="w-full px-2 py-1 bg-[var(--bg-page)] rounded-lg outline-none focus:ring-1 focus:ring-[var(--primary)] text-xs text-right font-mono" />
                           </td>
                           <td className="px-2 py-2">
                             {form.entries.length > 2 && (
@@ -392,10 +392,10 @@ export default function RecurringPage() {
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-[#f6f3ee] border-t border-[#ede9e2]">
+                    <tfoot className="bg-[var(--bg-page)] border-t border-[var(--border)]">
                       <tr>
                         <td className="px-4 py-2">
-                          <button onClick={addEntryRow} className="text-xs text-[#b8943f] hover:underline font-medium">
+                          <button onClick={addEntryRow} className="text-xs text-[var(--primary)] hover:underline font-medium">
                             + Add line
                           </button>
                         </td>
@@ -417,9 +417,9 @@ export default function RecurringPage() {
 
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">{tr('common.cancel', 'Cancel')}</button>
+                <button onClick={() => setModalOpen(false)} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">{tr('common.cancel', 'Cancel')}</button>
                 <button onClick={handleSave} disabled={saving}
-                  className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                  className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">
                   {saving ? 'Saving…' : editingId != null ? 'Save Changes' : 'Create Template'}
                 </button>
               </div>

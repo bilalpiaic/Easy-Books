@@ -115,8 +115,8 @@ export default function CustomerPerformancePage() {
   const sorted = [...data].sort((a, b) => b.revenue - a.revenue)
 
   const rowHighlight = (idx: number) => {
-    if (idx === 0) return "bg-[#b8943f]/10 border-l-4 border-[#b8943f]"
-    if (idx === 1) return "bg-[#1a1814]/5 border-l-4 border-[#1a1814]/30"
+    if (idx === 0) return "bg-[var(--primary)]/10 border-l-4 border-[var(--primary)]"
+    if (idx === 1) return "bg-[var(--text-primary)]/5 border-l-4 border-[var(--text-primary)]/30"
     if (idx === 2) return "bg-amber-50 border-l-4 border-amber-300"
     return ""
   }
@@ -127,7 +127,7 @@ export default function CustomerPerformancePage() {
       {
         label: "Revenue",
         data: detail.monthly.map(m => m.revenue),
-        backgroundColor: "#b8943f",
+        backgroundColor: "#2CA01C",
         borderRadius: 4,
       },
     ],
@@ -145,13 +145,13 @@ export default function CustomerPerformancePage() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Customer Performance</h1>
-          <p className="text-[#1a1814]/60">Revenue, invoicing and payment speed ranked by top customers</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Customer Performance</h1>
+          <p className="text-[var(--text-primary)]/60">Revenue, invoicing and payment speed ranked by top customers</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={() => window.print()}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
             title="Print"
           >
             <Printer className="w-5 h-5" />
@@ -168,7 +168,7 @@ export default function CustomerPerformancePage() {
                 }))
               )
             }
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
             title="Export CSV"
           >
             <Download className="w-5 h-5" />
@@ -177,10 +177,10 @@ export default function CustomerPerformancePage() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl print:hidden space-y-4">
+      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl print:hidden space-y-4">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-[#1a1814]/60 uppercase tracking-widest">
+          <label className="text-xs font-semibold text-[var(--text-primary)]/60 uppercase tracking-widest">
             Customer (optional — drill into a single customer)
           </label>
           <select
@@ -201,57 +201,57 @@ export default function CustomerPerformancePage() {
         <div className="space-y-6 mb-8">
           {/* KPI cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Revenue</p>
-              <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(detail.totals.revenue)}</p>
+            <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+              <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Revenue</p>
+              <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(detail.totals.revenue)}</p>
             </div>
-            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">COGS</p>
-              <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(detail.totals.cogs)}</p>
+            <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+              <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">COGS</p>
+              <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(detail.totals.cogs)}</p>
             </div>
-            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Gross Profit</p>
+            <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+              <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Gross Profit</p>
               <p className={`text-2xl font-mono font-semibold ${detail.totals.gp >= 0 ? "text-green-700" : "text-red-600"}`}>
                 {fmt(detail.totals.gp)}
               </p>
             </div>
-            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">GP %</p>
+            <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+              <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">GP %</p>
               <p className={`text-2xl font-mono font-semibold ${detail.totals.gp_pct >= 0 ? "text-green-700" : "text-red-600"}`}>
                 {detail.totals.gp_pct.toFixed(1)}%
               </p>
             </div>
-            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1"># Invoices</p>
-              <p className="text-2xl font-mono font-semibold text-[#1a1814]">{detail.totals.transaction_count}</p>
+            <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+              <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1"># Invoices</p>
+              <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{detail.totals.transaction_count}</p>
             </div>
-            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-              <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Avg Invoice Value</p>
-              <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(detail.totals.avg_invoice_value)}</p>
+            <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+              <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Avg Invoice Value</p>
+              <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(detail.totals.avg_invoice_value)}</p>
             </div>
           </div>
 
           {/* Monthly Sales Volume chart */}
           {barData && detail.monthly.length > 0 && (
-            <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-              <h2 className="text-sm font-bold text-[#1a1814]/70 uppercase tracking-widest mb-4">
+            <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+              <h2 className="text-sm font-bold text-[var(--text-primary)]/70 uppercase tracking-widest mb-4">
                 Monthly Sales Volume
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse mb-4">
                   <thead>
-                    <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Month</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Revenue</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Units</th>
+                    <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Month</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Revenue</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Units</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1a1814]/5">
+                  <tbody className="divide-y divide-[var(--text-primary)]/5">
                     {detail.monthly.map(m => (
-                      <tr key={m.month} className="hover:bg-[#f6f3ee]/30">
-                        <td className="ui-td text-sm text-[#1a1814]">{m.month}</td>
-                        <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">{fmt(m.revenue)}</td>
-                        <td className="ui-td text-right text-sm text-[#1a1814]/70">{m.units}</td>
+                      <tr key={m.month} className="hover:bg-[var(--bg-page)]/30">
+                        <td className="ui-td text-sm text-[var(--text-primary)]">{m.month}</td>
+                        <td className="ui-td text-right font-mono text-sm font-semibold text-[var(--text-primary)]">{fmt(m.revenue)}</td>
+                        <td className="ui-td text-right text-sm text-[var(--text-primary)]/70">{m.units}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -265,32 +265,32 @@ export default function CustomerPerformancePage() {
 
           {/* Product & Category trade */}
           {detail.products.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#1a1814]/5">
-                <h2 className="text-sm font-bold text-[#1a1814]/70 uppercase tracking-widest">
+            <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
+              <div className="px-6 py-4 border-b border-[var(--text-primary)]/5">
+                <h2 className="text-sm font-bold text-[var(--text-primary)]/70 uppercase tracking-widest">
                   Product &amp; Category Trade
                 </h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
-                    <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.category', 'Category')}</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.product', 'Product')}</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Revenue</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">COGS</th>
-                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">GP</th>
+                    <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.category', 'Category')}</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.product', 'Product')}</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Qty</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Revenue</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">COGS</th>
+                      <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">GP</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1a1814]/5">
+                  <tbody className="divide-y divide-[var(--text-primary)]/5">
                     {detail.products.map(r => (
-                      <tr key={r.product_id} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                        <td className="ui-td text-sm text-[#1a1814]/60">{r.category}</td>
-                        <td className="ui-td text-sm font-medium text-[#1a1814]">{r.name}</td>
-                        <td className="ui-td text-right text-sm text-[#1a1814]">{r.qty}</td>
-                        <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">{fmt(r.revenue)}</td>
-                        <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">{fmt(r.cogs)}</td>
+                      <tr key={r.product_id} className="hover:bg-[var(--bg-page)]/30 transition-colors">
+                        <td className="ui-td text-sm text-[var(--text-primary)]/60">{r.category}</td>
+                        <td className="ui-td text-sm font-medium text-[var(--text-primary)]">{r.name}</td>
+                        <td className="ui-td text-right text-sm text-[var(--text-primary)]">{r.qty}</td>
+                        <td className="ui-td text-right font-mono text-sm font-semibold text-[var(--text-primary)]">{fmt(r.revenue)}</td>
+                        <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">{fmt(r.cogs)}</td>
                         <td className={`ui-td text-right font-mono text-sm font-semibold ${r.gp >= 0 ? "text-green-700" : "text-red-600"}`}>
                           {fmt(r.gp)}
                         </td>
@@ -310,45 +310,45 @@ export default function CustomerPerformancePage() {
           {/* KPI cards */}
           {!isLoading && data.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 print:hidden">
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Total Revenue</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(totalRevenue)}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Total Revenue</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(totalRevenue)}</p>
               </div>
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Outstanding AR</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(totalOutstanding)}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Outstanding AR</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(totalOutstanding)}</p>
               </div>
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Total Invoices</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{totalInvoices}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Total Invoices</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{totalInvoices}</p>
               </div>
             </div>
           )}
 
           {/* Ranked table */}
-          <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
-                  <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">#</th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.customer', 'Customer')}</th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Revenue</th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Invoices</th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Avg Days to Pay</th>
+                  <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">#</th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.customer', 'Customer')}</th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Revenue</th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Invoices</th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Outstanding</th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Avg Days to Pay</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1a1814]/5">
+                <tbody className="divide-y divide-[var(--text-primary)]/5">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-[#1a1814]/60">
+                      <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/60">
                         Loading customer data…
                       </td>
                     </tr>
                   ) : sorted.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-[#1a1814]/60">
+                      <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/60">
                         No invoices found for selected period.
                       </td>
                     </tr>
@@ -356,31 +356,31 @@ export default function CustomerPerformancePage() {
                     sorted.map((row, idx) => (
                       <tr
                         key={row.name}
-                        className={`hover:bg-[#f6f3ee]/30 transition-colors ${rowHighlight(idx)}`}
+                        className={`hover:bg-[var(--bg-page)]/30 transition-colors ${rowHighlight(idx)}`}
                       >
-                        <td className="ui-td text-sm font-bold text-[#1a1814]/40">
+                        <td className="ui-td text-sm font-bold text-[var(--text-primary)]/40">
                           {idx + 1}
                         </td>
                         <td className="ui-td">
-                          <span className="font-medium text-[#1a1814]">{row.name}</span>
+                          <span className="font-medium text-[var(--text-primary)]">{row.name}</span>
                           {idx < 3 && (
-                            <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-[#b8943f]">
+                            <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-[var(--primary)]">
                               {idx === 0 ? "Top Customer" : idx === 1 ? "2nd" : "3rd"}
                             </span>
                           )}
                         </td>
-                        <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
+                        <td className="ui-td text-right font-mono text-sm font-semibold text-[var(--text-primary)]">
                           {fmt(row.revenue)}
                         </td>
-                        <td className="ui-td text-right text-sm text-[#1a1814]">
+                        <td className="ui-td text-right text-sm text-[var(--text-primary)]">
                           {row.invoice_count}
                         </td>
                         <td className="ui-td text-right font-mono text-sm">
-                          <span className={row.outstanding > 0 ? "text-red-600 font-semibold" : "text-[#1a1814]/50"}>
+                          <span className={row.outstanding > 0 ? "text-red-600 font-semibold" : "text-[var(--text-primary)]/50"}>
                             {row.outstanding > 0 ? fmt(row.outstanding) : "—"}
                           </span>
                         </td>
-                        <td className="ui-td text-right text-sm text-[#1a1814]/70">
+                        <td className="ui-td text-right text-sm text-[var(--text-primary)]/70">
                           {row.avg_days_to_pay != null ? `${row.avg_days_to_pay} days` : "—"}
                         </td>
                       </tr>
@@ -389,7 +389,7 @@ export default function CustomerPerformancePage() {
                 </tbody>
                 {!isLoading && sorted.length > 0 && (
                   <tfoot>
-                    <tr className="bg-[#1a1814] text-white">
+                    <tr className="bg-[var(--text-primary)] text-white">
                       <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={2}>{t('col.total', 'Total')}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(totalRevenue)}</td>
                       <td className="ui-td text-right font-mono font-bold">{totalInvoices}</td>

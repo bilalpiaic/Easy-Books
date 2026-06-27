@@ -67,26 +67,26 @@ export default function ARAgingPage() {
     <div className="max-w-5xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">AR Aging</h1>
-          <p className="text-[#1a1814]/60">Outstanding receivables by age bucket</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">AR Aging</h1>
+          <p className="text-[var(--text-primary)]/60">Outstanding receivables by age bucket</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={exportCsv}
             disabled={!data}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40"
             title="Export CSV"
           >
             <Download className="w-5 h-5" />
           </button>
           <button
             onClick={() => window.print()}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
             title="Print"
           >
             <Printer className="w-5 h-5" />
           </button>
-          <Clock className="w-7 h-7 text-[#b8943f] hidden md:block ml-2" />
+          <Clock className="w-7 h-7 text-[var(--primary)] hidden md:block ml-2" />
         </div>
       </div>
 
@@ -105,36 +105,36 @@ export default function ARAgingPage() {
       </div>
 
       {/* Items table */}
-      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden print:rounded-none print:shadow-none print:border-0">
+      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden print:rounded-none print:shadow-none print:border-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
-              <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.customer', 'Customer')}</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Invoice #</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.dueDate', 'Due Date')}</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Days Past</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Outstanding</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Bucket</th>
+              <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.customer', 'Customer')}</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Invoice #</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.dueDate', 'Due Date')}</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Days Past</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Outstanding</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Bucket</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1a1814]/5">
+            <tbody className="divide-y divide-[var(--text-primary)]/5">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-[#1a1814]/75">{t('common.loading', 'Loading...')}</td>
+                  <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/75">{t('common.loading', 'Loading...')}</td>
                 </tr>
               ) : !data || data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-[#1a1814]/75">No outstanding receivables.</td>
+                  <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/75">No outstanding receivables.</td>
                 </tr>
               ) : (
                 data.items.map(item => (
-                  <tr key={item.id} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                    <td className="ui-td font-medium text-[#1a1814]">
+                  <tr key={item.id} className="hover:bg-[var(--bg-page)]/30 transition-colors">
+                    <td className="ui-td font-medium text-[var(--text-primary)]">
                       {item.customer_id ? (
                         <Link
                           href={`/customers/${item.customer_id}/ledger`}
-                          className="hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors print:no-underline"
+                          className="hover:text-[var(--primary)] hover:underline underline-offset-2 transition-colors print:no-underline"
                         >
                           {item.name}
                         </Link>
@@ -143,13 +143,13 @@ export default function ARAgingPage() {
                       )}
                     </td>
                     <td className="ui-td font-mono text-sm">
-                      <Link href={`/invoices/${item.id}`} className="text-[#b8943f] hover:underline print:text-[#1a1814]">{item.number}</Link>
+                      <Link href={`/invoices/${item.id}`} className="text-[var(--primary)] hover:underline print:text-[var(--text-primary)]">{item.number}</Link>
                     </td>
-                    <td className="ui-td text-sm text-[#1a1814]/70">{item.due_date}</td>
-                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">{item.days_past}</td>
+                    <td className="ui-td text-sm text-[var(--text-primary)]/70">{item.due_date}</td>
+                    <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">{item.days_past}</td>
                     <td className="ui-td text-right font-mono text-sm font-semibold">{fmt(item.amount)}</td>
                     <td className="ui-td">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[#b8943f]/10 text-[#b8943f]">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">
                         {item.bucket}
                       </span>
                     </td>
