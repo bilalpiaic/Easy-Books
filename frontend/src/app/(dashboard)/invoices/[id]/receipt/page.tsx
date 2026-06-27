@@ -57,63 +57,63 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
   }, [id])
 
   if (error) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (!inv)  return <p className="p-4 text-[#1a1814]/60 text-sm">Loading receipt…</p>
+  if (!inv)  return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading receipt…</p>
 
   return (
     <>
       {/* Screen toolbar — hidden when printing */}
-      <div className="print:hidden flex items-center justify-between bg-[#1a1814] text-white px-4 py-2 mb-4">
+      <div className="print:hidden flex items-center justify-between bg-[var(--text-primary)] text-white px-4 py-2 mb-4">
         <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm hover:text-[#ffd966]">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
         >
           <Printer className="w-4 h-4" /> Print Receipt
         </button>
       </div>
 
       {/* Receipt body — 80mm width for thermal POS */}
-      <div className="receipt-body bg-white mx-auto text-[#1a1814] font-mono text-xs" style={{ width: "80mm", padding: "4mm" }}>
+      <div className="receipt-body bg-white mx-auto text-[var(--text-primary)] font-mono text-xs" style={{ width: "80mm", padding: "4mm" }}>
         {/* Header */}
         <div className="text-center mb-3">
           <p className="font-bold text-sm">{settings.company_name}</p>
-          {settings.pra_pos_id && <p className="text-[10px] text-[#1a1814]/60">POS ID: {settings.pra_pos_id}</p>}
+          {settings.pra_pos_id && <p className="text-[10px] text-[var(--text-primary)]/60">POS ID: {settings.pra_pos_id}</p>}
         </div>
 
-        <div className="border-t border-dashed border-[#1a1814]/30 my-2" />
+        <div className="border-t border-dashed border-[var(--text-primary)]/30 my-2" />
 
         {/* Invoice meta */}
         <div className="mb-2 space-y-0.5">
           <div className="flex justify-between">
-            <span className="text-[#1a1814]/60">Invoice</span>
+            <span className="text-[var(--text-primary)]/60">Invoice</span>
             <span className="font-bold">{inv.number}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#1a1814]/60">Date</span>
+            <span className="text-[var(--text-primary)]/60">Date</span>
             <span>{fmtDate(inv.issue_date)}</span>
           </div>
           {inv.customer_name && (
             <div className="flex justify-between">
-              <span className="text-[#1a1814]/60">Customer</span>
+              <span className="text-[var(--text-primary)]/60">Customer</span>
               <span className="text-right max-w-[40mm] truncate">{inv.customer_name}</span>
             </div>
           )}
           {inv.payment_mode && (
             <div className="flex justify-between">
-              <span className="text-[#1a1814]/60">Payment</span>
+              <span className="text-[var(--text-primary)]/60">Payment</span>
               <span>{PAYMENT_MODE[inv.payment_mode] ?? inv.payment_mode}</span>
             </div>
           )}
         </div>
 
-        <div className="border-t border-dashed border-[#1a1814]/30 my-2" />
+        <div className="border-t border-dashed border-[var(--text-primary)]/30 my-2" />
 
         {/* Line items */}
         <table className="w-full text-[10px] mb-2">
           <thead>
-            <tr className="text-[#1a1814]/60">
+            <tr className="text-[var(--text-primary)]/60">
               <th className="text-left font-normal">Item</th>
               <th className="text-right font-normal">Qty</th>
               <th className="text-right font-normal">Rate</th>
@@ -132,21 +132,21 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
           </tbody>
         </table>
 
-        <div className="border-t border-dashed border-[#1a1814]/30 my-2" />
+        <div className="border-t border-dashed border-[var(--text-primary)]/30 my-2" />
 
         {/* Totals */}
         <div className="space-y-0.5 mb-2">
           <div className="flex justify-between">
-            <span className="text-[#1a1814]/60">Subtotal</span>
+            <span className="text-[var(--text-primary)]/60">Subtotal</span>
             <span>{r2(inv.subtotal)}</span>
           </div>
           {Number(inv.gst_rate) > 0 && (
             <div className="flex justify-between">
-              <span className="text-[#1a1814]/60">GST ({Number(inv.gst_rate)}%)</span>
+              <span className="text-[var(--text-primary)]/60">GST ({Number(inv.gst_rate)}%)</span>
               <span>{r2(inv.gst_amount)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-sm border-t border-[#1a1814]/20 pt-1 mt-1">
+          <div className="flex justify-between font-bold text-sm border-t border-[var(--text-primary)]/20 pt-1 mt-1">
             <span>TOTAL {inv.currency}</span>
             <span>{r2(inv.total)}</span>
           </div>
@@ -155,9 +155,9 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
         {/* FIN */}
         {inv.pra_fiscal_number && (
           <>
-            <div className="border-t border-dashed border-[#1a1814]/30 my-2" />
+            <div className="border-t border-dashed border-[var(--text-primary)]/30 my-2" />
             <div className="text-center space-y-2">
-              <p className="text-[9px] text-[#1a1814]/55 uppercase tracking-widest">PRA Fiscal Invoice No</p>
+              <p className="text-[9px] text-[var(--text-primary)]/55 uppercase tracking-widest">PRA Fiscal Invoice No</p>
               <p className="font-bold text-sm tracking-wider">{inv.pra_fiscal_number}</p>
               <div className="flex justify-center mt-1">
                 <QRCodeSVG value={inv.pra_fiscal_number} size={80} />
@@ -166,8 +166,8 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
           </>
         )}
 
-        <div className="border-t border-dashed border-[#1a1814]/30 my-2" />
-        <p className="text-center text-[9px] text-[#1a1814]/50">Thank you for your business</p>
+        <div className="border-t border-dashed border-[var(--text-primary)]/30 my-2" />
+        <p className="text-center text-[9px] text-[var(--text-primary)]/50">Thank you for your business</p>
       </div>
 
       {/* 80mm page CSS — visibility toggling works at any DOM nesting depth */}

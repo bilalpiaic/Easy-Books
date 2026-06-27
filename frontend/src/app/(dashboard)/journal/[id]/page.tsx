@@ -87,7 +87,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
   }
 
   if (error && !txn) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (!txn)          return <p className="p-4 text-[#1a1814]/60 text-sm">Loading voucher…</p>
+  if (!txn)          return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading voucher…</p>
 
   const totalDr = txn.entries.reduce((s, e) => s + (Number(e.debit)  || 0), 0)
   const totalCr = txn.entries.reduce((s, e) => s + (Number(e.credit) || 0), 0)
@@ -96,23 +96,23 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
     <div className="max-w-4xl mx-auto space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-2">
-          <Link href={`/journal/${txn.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
+          <Link href={`/journal/${txn.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
           {!txn.is_reversed && (
             <button onClick={reverse} disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
               <RotateCcw className="w-4 h-4" /> {busy ? "Reversing…" : "Reverse"}
             </button>
           )}
         </div>
       </div>
 
-      <header className="bg-white border border-[#ede9e2] rounded-xl p-5 flex items-start justify-between gap-4">
+      <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
-          <ScrollText className="w-7 h-7 text-[#b8943f] shrink-0 mt-1" />
+          <ScrollText className="w-7 h-7 text-[var(--primary)] shrink-0 mt-1" />
           <div className="min-w-0">
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Voucher {txn.jv_number}</h1>
-            <p className="text-sm text-[#1a1814]/60">Posted {fmtDate(txn.date)}</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Voucher {txn.jv_number}</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Posted {fmtDate(txn.date)}</p>
           </div>
         </div>
         {txn.is_reversed && (
@@ -125,9 +125,9 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
       {error && <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm">{error}</div>}
 
       {/* Header fields */}
-      <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+      <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             <Row k="JV Number" v={txn.jv_number} mono />
             <Row k="Date" v={fmtDate(txn.date)} />
             {txn.description && <Row k="Description" v={txn.description} />}
@@ -140,19 +140,19 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
 
       {/* Source docs drill-down */}
       {txn.source_docs.length > 0 && (
-        <section className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-2">Source documents</h2>
+        <section className="bg-white border border-[var(--border)] rounded-xl p-4">
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-2">Source documents</h2>
           <div className="flex flex-wrap gap-2">
             {txn.source_docs.map(d => {
               const href = DOC_HREF[d.type]?.(d.id)
               const label = `${d.type.replace("_", " ")}: ${d.number}`
               return href ? (
                 <Link key={`${d.type}-${d.id}`} href={href}
-                  className="inline-flex items-center px-3 py-1 border border-[#b8943f]/40 bg-[#faf6ec] rounded-full text-xs font-mono text-[#b8943f] hover:bg-[#b8943f]/15">
+                  className="inline-flex items-center px-3 py-1 border border-[var(--primary)]/40 bg-[var(--bg-page)] rounded-full text-xs font-mono text-[var(--primary)] hover:bg-[var(--primary)]/15">
                   {label}
                 </Link>
               ) : (
-                <span key={`${d.type}-${d.id}`} className="inline-flex items-center px-3 py-1 border border-[#ede9e2] rounded-full text-xs font-mono text-[#1a1814]/65">
+                <span key={`${d.type}-${d.id}`} className="inline-flex items-center px-3 py-1 border border-[var(--border)] rounded-full text-xs font-mono text-[var(--text-primary)]/65">
                   {label}
                 </span>
               )
@@ -162,33 +162,33 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
       )}
 
       {/* Entries */}
-      <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+      <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#faf6ec]">
+          <thead className="bg-[var(--bg-page)]">
             <tr>
-              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.account', 'Account')}</th>
-              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Type</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.debit', 'Debit')}</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.credit', 'Credit')}</th>
+              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{t('col.account', 'Account')}</th>
+              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-24">Type</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">{t('col.debit', 'Debit')}</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">{t('col.credit', 'Credit')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {txn.entries.map((e, i) => (
               <tr key={i}>
                 <td className="px-4 py-2">
-                  <Link href={`/ledger?account=${encodeURIComponent(e.account_name)}`} className="hover:text-[#b8943f] hover:underline">
+                  <Link href={`/ledger?account=${encodeURIComponent(e.account_name)}`} className="hover:text-[var(--primary)] hover:underline">
                     {e.account_name}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-[10px] uppercase text-[#1a1814]/55">{e.account_type}</td>
+                <td className="px-4 py-2 text-[10px] uppercase text-[var(--text-primary)]/55">{e.account_type}</td>
                 <td className="px-4 py-2 text-right font-mono">{e.debit > 0 ? fmt(e.debit) : "—"}</td>
                 <td className="px-4 py-2 text-right font-mono">{e.credit > 0 ? fmt(e.credit) : "—"}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-[#1a1814] bg-[#faf6ec]">
-              <td colSpan={2} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Totals</td>
+            <tr className="border-t-2 border-[var(--text-primary)] bg-[var(--bg-page)]">
+              <td colSpan={2} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Totals</td>
               <td className="px-4 py-2 text-right font-mono font-bold">{fmt(totalDr)}</td>
               <td className="px-4 py-2 text-right font-mono font-bold">{fmt(totalCr)}</td>
             </tr>
@@ -197,15 +197,15 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
       </section>
 
       {txn.notes && (
-        <section className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</h2>
+        <section className="bg-white border border-[var(--border)] rounded-xl p-4">
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.notes', 'Notes')}</h2>
           <p className="text-sm whitespace-pre-wrap">{txn.notes}</p>
         </section>
       )}
 
       <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 print:hidden">
         <AttachmentPanel parentType="transaction" parentId={txn.id} embedded onSelect={setSelectedAtt} />
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden min-h-[60vh]">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden min-h-[60vh]">
           <AttachmentPreviewPane att={selectedAtt} />
         </div>
       </section>
@@ -216,7 +216,7 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
 function Row({ k, v, mono = false }: { k: string; v: string; mono?: boolean }) {
   return (
     <tr>
-      <td className="px-4 py-2 text-[#1a1814]/65 w-1/3 text-[11px] uppercase tracking-wider font-semibold">{k}</td>
+      <td className="px-4 py-2 text-[var(--text-primary)]/65 w-1/3 text-[11px] uppercase tracking-wider font-semibold">{k}</td>
       <td className={`px-4 py-2 text-sm ${mono ? "font-mono" : ""}`}>{v}</td>
     </tr>
   )

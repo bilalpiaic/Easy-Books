@@ -29,15 +29,15 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   }, [failed, router])
 
   if (failed) return null
-  if (!invoice) return <div className="p-8 text-sm text-black/50">Loading invoice…</div>
+  if (!invoice) return <div className="p-8 text-sm text-[var(--text-muted)]">Loading invoice…</div>
 
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/invoices/${invoice.id}`} className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
+        <Link href={`/invoices/${invoice.id}`} className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-2">
           <ArrowLeft className="w-4 h-4" /> Invoice {invoice.number}
         </Link>
-        <h1 className="text-xl sm:text-3xl font-serif font-medium">Edit Invoice {invoice.number}</h1>
+        <h1 className="text-xl sm:text-3xl font-bold">Edit Invoice {invoice.number}</h1>
       </div>
       <InvoiceForm
         mode="edit"

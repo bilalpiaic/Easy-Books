@@ -29,15 +29,15 @@ export default function EditBillPage({ params }: { params: Promise<{ id: string 
   }, [failed, router])
 
   if (failed) return null
-  if (!bill) return <div className="p-8 text-sm text-black/50">Loading bill…</div>
+  if (!bill) return <div className="p-8 text-sm text-[var(--text-muted)]">Loading bill…</div>
 
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/bills/${bill.id}`} className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
+        <Link href={`/bills/${bill.id}`} className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-2">
           <ArrowLeft className="w-4 h-4" /> Bill {bill.number}
         </Link>
-        <h1 className="text-xl sm:text-3xl font-serif font-medium">Edit Bill {bill.number}</h1>
+        <h1 className="text-xl sm:text-3xl font-bold">Edit Bill {bill.number}</h1>
       </div>
       <BillForm
         mode="edit"
