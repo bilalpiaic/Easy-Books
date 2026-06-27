@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
+import StatusBadge from "@/components/StatusBadge"
 
 interface AuditEntry {
   id: number
@@ -54,15 +55,6 @@ interface Bill {
   lines: BillLine[]
 }
 
-const STATUS_TONE: Record<string, string> = {
-  draft:    "bg-slate-100 text-slate-800 border-slate-300",
-  posted:   "bg-blue-100 text-blue-900 border-blue-300",
-  received: "bg-blue-100 text-blue-900 border-blue-300",
-  partial:  "bg-amber-100 text-amber-900 border-amber-300",
-  paid:     "bg-emerald-100 text-emerald-900 border-emerald-300",
-  overdue:  "bg-red-100 text-red-900 border-red-300",
-  reversed: "bg-gray-100 text-gray-600 border-gray-300",
-}
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = useTranslation()
@@ -120,7 +112,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   if (error && !bill) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (!bill)          return <p className="p-4 text-[#1a1814]/60 text-sm">Loading bill…</p>
+  if (!bill)          return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading bill…</p>
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
@@ -129,7 +121,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           {(bill.status === "draft" || bill.status === "received" || bill.status === "overdue") && (
             <Link
               href={`/bills/${bill.id}/edit`}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]"
             >
               <Pencil className="w-4 h-4" /> Edit
             </Link>
@@ -137,7 +129,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           {(bill.status === "paid" || bill.status === "partial") && (
             <span
               title="Unallocate payments to edit."
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] text-[#1a1814]/30 rounded-lg text-sm font-bold cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] text-[var(--text-primary)]/30 rounded-lg text-sm font-bold cursor-not-allowed"
             >
               <Pencil className="w-4 h-4" /> Edit
             </span>
@@ -146,77 +138,75 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             <button
               onClick={markReceived}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-50"
             >
               <CheckCircle className="w-4 h-4" /> Mark as Received
             </button>
           )}
-          <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
+          <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
           {bill.transaction_id && bill.status !== "reversed" && (
             <button onClick={reverse} disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
               <RotateCcw className="w-4 h-4" /> {busy ? "Reversing…" : "Reverse"}
             </button>
           )}
         </div>
       </div>
 
-      <header className="bg-white border border-[#ede9e2] rounded-xl p-5 flex items-start justify-between gap-4">
+      <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
-          <Receipt className="w-7 h-7 text-[#b8943f] shrink-0 mt-1" />
+          <Receipt className="w-7 h-7 text-[var(--primary)] shrink-0 mt-1" />
           <div className="min-w-0">
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Bill {bill.number}</h1>
-            <p className="text-sm text-[#1a1814]/60">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Bill {bill.number}</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">
               Dated {bill.bill_date} · Due {bill.due_date}
               {bill.currency !== "USD" && <> · {bill.currency} @ {bill.exchange_rate}</>}
             </p>
           </div>
         </div>
-        <span className={`inline-block border rounded-full px-3 py-1 text-xs font-semibold uppercase ${STATUS_TONE[bill.status] ?? STATUS_TONE.posted}`}>
-          {bill.status}
-        </span>
+        <StatusBadge status={bill.status} />
       </header>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm">{error}</div>}
 
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.vendor', 'Vendor')}</div>
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.vendor', 'Vendor')}</div>
           {bill.vendor_id ? (
-            <Link href={`/vendors/${bill.vendor_id}/ledger`} className="font-semibold text-[#1a1814] hover:text-[#b8943f] hover:underline">
+            <Link href={`/vendors/${bill.vendor_id}/ledger`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--primary)] hover:underline">
               {bill.vendor_name ?? `#${bill.vendor_id}`}
             </Link>
           ) : (
             <span className="font-semibold">{bill.vendor_name ?? "—"}</span>
           )}
         </div>
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Posted Voucher</div>
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Posted Voucher</div>
           {bill.transaction_id ? (
-            <Link href={`/journal/${bill.transaction_id}`} className="font-mono text-sm text-[#b8943f] hover:underline">View JV →</Link>
+            <Link href={`/journal/${bill.transaction_id}`} className="font-mono text-sm text-[var(--primary)] hover:underline">View JV →</Link>
           ) : (
-            <span className="text-sm text-[#1a1814]/55">No voucher yet (draft)</span>
+            <span className="text-sm text-[var(--text-primary)]/55">No voucher yet (draft)</span>
           )}
         </div>
       </section>
 
-      <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+      <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#faf6ec]">
+          <thead className="bg-[var(--bg-page)]">
             <tr>
-              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Rate</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.amount', 'Amount')}</th>
+              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{t('col.description', 'Description')}</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-24">Qty</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">Rate</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">{t('col.amount', 'Amount')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {bill.lines.map(ln => (
               <tr key={ln.id}>
                 <td className="px-4 py-2">
                   {ln.product_id ? (
-                    <Link href={`/products/${ln.product_id}/stock-card`} className="hover:text-[#b8943f] hover:underline">{ln.description}</Link>
+                    <Link href={`/products/${ln.product_id}/stock-card`} className="hover:text-[var(--primary)] hover:underline">{ln.description}</Link>
                   ) : ln.description}
                 </td>
                 <td className="px-4 py-2 text-right font-mono">{ln.qty} {ln.unit ?? ""}</td>
@@ -231,9 +221,9 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
       {(bill.notes || bill.internal_memo) && (
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {bill.notes && (
-            <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</div>
-              <p className="text-sm text-[#1a1814]/80 whitespace-pre-wrap">{bill.notes}</p>
+            <div className="bg-white border border-[var(--border)] rounded-xl p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.notes', 'Notes')}</div>
+              <p className="text-sm text-[var(--text-primary)]/80 whitespace-pre-wrap">{bill.notes}</p>
             </div>
           )}
           {bill.internal_memo && (
@@ -246,10 +236,10 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
       )}
 
       <section className="flex justify-end">
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4 w-full sm:w-80 text-sm space-y-1">
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4 w-full sm:w-80 text-sm space-y-1">
           <Row label="Subtotal" value={fmt(bill.subtotal)} />
           {bill.gst_rate > 0 && <Row label={`GST (${bill.gst_rate}%)`} value={fmt(bill.gst_amount)} />}
-          <div className="border-t border-[#1a1814] pt-1.5 mt-1.5">
+          <div className="border-t border-[var(--text-primary)] pt-1.5 mt-1.5">
             <Row label="Total" value={fmt(bill.total)} bold />
           </div>
         </div>
@@ -257,19 +247,19 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
       <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 print:hidden">
         <AttachmentPanel parentType="bill" parentId={bill.id} embedded onSelect={setSelectedAtt} />
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden min-h-[60vh]">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden min-h-[60vh]">
           <AttachmentPreviewPane att={selectedAtt} />
         </div>
       </section>
 
       {/* Change History */}
       {history.length > 0 && (
-        <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden print:hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#faf6ec] border-b border-[#ede9e2]">
-            <History className="w-4 h-4 text-[#b8943f]" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Change History</span>
+        <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden print:hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-page)] border-b border-[var(--border)]">
+            <History className="w-4 h-4 text-[var(--primary)]" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Change History</span>
           </div>
-          <div className="divide-y divide-[#ede9e2]">
+          <div className="divide-y divide-[var(--border)]">
             {history.map(entry => {
               let changes: ChangeMap = {}
               try {
@@ -281,23 +271,23 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
               const changedFields = Object.entries(changes)
               return (
                 <div key={entry.id} className="px-4 py-3 text-sm">
-                  <p className="text-[#1a1814]/65 text-xs mb-1">
-                    Edited by <span className="font-semibold text-[#1a1814]">{entry.user_name}</span>
+                  <p className="text-[var(--text-primary)]/65 text-xs mb-1">
+                    Edited by <span className="font-semibold text-[var(--text-primary)]">{entry.user_name}</span>
                     {" "}on {new Date(entry.timestamp).toLocaleString()}
                   </p>
                   {changedFields.length > 0 ? (
                     <table className="ui-table text-xs mt-1">
                       <thead>
                         <tr>
-                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 w-32">Field</th>
-                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Before</th>
-                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">After</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40 w-32">Field</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">Before</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">After</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#ede9e2]/60">
+                      <tbody className="divide-y divide-[var(--border)]/60">
                         {changedFields.map(([field, val]) => (
                           <tr key={field}>
-                            <td className="ui-td font-medium text-[#1a1814]/70 capitalize">{field.replace(/_/g, " ")}</td>
+                            <td className="ui-td font-medium text-[var(--text-primary)]/70 capitalize">{field.replace(/_/g, " ")}</td>
                             <td className="ui-td font-mono text-red-700/80">{String(val.before ?? "—")}</td>
                             <td className="ui-td font-mono text-emerald-700">{String(val.after ?? "—")}</td>
                           </tr>
@@ -305,7 +295,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
                       </tbody>
                     </table>
                   ) : (
-                    <p className="text-xs text-[#1a1814]/40 italic">No header fields changed.</p>
+                    <p className="text-xs text-[var(--text-primary)]/40 italic">No header fields changed.</p>
                   )}
                 </div>
               )
@@ -320,7 +310,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 function Row({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className={bold ? "font-bold" : "text-[#1a1814]/65"}>{label}</span>
+      <span className={bold ? "font-bold" : "text-[var(--text-primary)]/65"}>{label}</span>
       <span className={`font-mono ${bold ? "font-bold text-base" : ""}`}>{value}</span>
     </div>
   )
