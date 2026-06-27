@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import TopNav from "@/components/TopNav"
 import SubNav from "@/components/SubNav"
 import BottomNav from "@/components/BottomNav"
+import MoreDrawer from "@/components/MoreDrawer"
+import FAB from "@/components/FAB"
 import TabBar from "@/components/TabBar"
 import { isAuthenticated } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
@@ -19,6 +21,7 @@ import { resolveTitle } from "@/lib/navTitles"
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter()
   const pathname = usePathname()
+  const [moreOpen, setMoreOpen] = useState(false)
 
   // Auth gate
   useEffect(() => {
@@ -71,7 +74,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </main>
                   </div>
                   {/* Mobile bottom tab bar */}
-                  <BottomNav />
+                  <BottomNav onMore={() => setMoreOpen(true)} />
+                  <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
+                  <FAB />
                 </div>
               </TabProvider>
             </BreadcrumbProvider>
