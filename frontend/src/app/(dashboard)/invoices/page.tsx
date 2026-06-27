@@ -18,6 +18,7 @@ import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
+import StatusBadge from "@/components/StatusBadge"
 
 interface Invoice {
   id: number
@@ -40,14 +41,6 @@ interface Invoice {
 interface AgingBuckets {
   current: number; "1_30": number; "31_60": number; "61_90": number; over_90: number
   items: { id: number; name: string; number: string; due_date: string; amount: number; days_past: number; bucket: string }[]
-}
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  sent: 'bg-blue-100 text-blue-700',
-  paid: 'bg-green-100 text-green-700',
-  overdue: 'bg-red-100 text-red-700',
-  partial: 'bg-amber-100 text-amber-700',
 }
 
 const PAGE_SIZE = 50
@@ -158,23 +151,23 @@ function InvoicesContent() {
       <PrintHeader title="Invoices" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif font-medium">Invoices</h1>
-          <p className="text-sm text-black/75 mt-1">Sales invoices to customers</p>
+          <h1 className="text-xl sm:text-3xl font-bold">Invoices</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Sales invoices to customers</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => downloadCSV('invoices.csv', invoices.map(i => ({ Number: i.number, Customer: i.customer_name, Date: i.issue_date, Due: i.due_date, Subtotal: i.subtotal, GST: i.gst_amount, Total: i.total, Status: i.status })))}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Download className="w-4 h-4" />
             Export
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
-          <button onClick={openCreate} disabled={!can("invoices", "edit")} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35] disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={openCreate} disabled={!can("invoices", "edit")} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus className="w-4 h-4" />
             New Invoice
           </button>
@@ -182,17 +175,17 @@ function InvoicesContent() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Outstanding</p>
-          <p className="text-2xl font-bold text-[#b8943f] mt-2">{fmt(outstanding)}</p>
+        <div className="bg-white rounded-lg border border-[var(--border)] p-6">
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Outstanding</p>
+          <p className="text-2xl font-bold text-[var(--primary)] mt-2">{fmt(outstanding)}</p>
         </div>
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Collected</p>
+        <div className="bg-white rounded-lg border border-[var(--border)] p-6">
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Collected</p>
           <p className="text-2xl font-bold text-green-600 mt-2">{fmt(paid)}</p>
         </div>
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-          <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Invoices</p>
-          <p className="text-2xl font-bold text-[#1a1814] mt-2">{total}</p>
+        <div className="bg-white rounded-lg border border-[var(--border)] p-6">
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Total Invoices</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{total}</p>
         </div>
       </div>
 
@@ -236,12 +229,12 @@ function InvoicesContent() {
 
       {customerFilter && (
         <div className="flex items-center gap-2 text-sm">
-          <span className="bg-[#b8943f]/10 text-[#b8943f] border border-[#b8943f]/20 rounded-full px-3 py-1 font-medium">
+          <span className="bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 rounded-full px-3 py-1 font-medium">
             Customer: {customerFilter.name}
           </span>
           <button
             onClick={() => setCustomerFilter(null)}
-            className="text-[#1a1814]/40 hover:text-red-500 text-xs transition-colors"
+            className="text-[var(--text-primary)]/40 hover:text-red-500 text-xs transition-colors"
           >
             Clear filter
           </button>
@@ -256,14 +249,14 @@ function InvoicesContent() {
         placeholder="Search by invoice # or customer…"
       />
 
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
-            <thead className="sticky top-0 z-10 bg-[#f6f3ee] border-b border-[#ede9e2]">
+            <thead className="sticky top-0 z-10 bg-[var(--bg-page)] border-b border-[var(--border)]">
               <tr>
                 <th className="px-4 py-4 w-10 print:hidden">
                   <input type="checkbox"
-                    className="rounded border-[#ede9e2] accent-[#b8943f]"
+                    className="rounded border-[var(--border)] accent-[var(--primary)]"
                     checked={invoices.length > 0 && invoices.every(i => selectedIds.has(i.id))}
                     onChange={e => setSelectedIds(e.target.checked ? new Set(invoices.map(i => i.id)) : new Set())}
                   />
@@ -275,31 +268,31 @@ function InvoicesContent() {
                 <SortableHeader label="Total"      field="total"         sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
                 <SortableHeader label="Status"     field="status"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
                 {isPortal && (
-                  <th className="px-4 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">PRA</th>
+                  <th className="px-4 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">PRA</th>
                 )}
                 <th className="ui-th print:hidden" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#ede9e2]">
+            <tbody className="divide-y divide-[var(--border)]">
               {loading ? (
                 <SkeletonRow cols={isPortal ? 9 : 8} />
               ) : invoices.length === 0 ? (
                 <tr>
                   <td colSpan={isPortal ? 9 : 8} className="px-6 py-16 text-center">
                     <div className="inline-flex flex-col items-center gap-3">
-                      <FileSignature className="w-10 h-10 text-black/20" />
-                      <p className="text-sm text-black/40 font-medium">No invoices yet</p>
-                      <button onClick={openCreate} className="px-4 py-2 bg-[#b8943f] text-white text-sm font-medium rounded-lg hover:bg-[#a07835] transition-colors">
+                      <FileSignature className="w-10 h-10 text-[var(--border)]" />
+                      <p className="text-sm text-[var(--text-muted)] font-medium">No invoices yet</p>
+                      <button onClick={openCreate} className="px-4 py-2 bg-[var(--primary)] text-white text-sm font-medium rounded-lg hover:bg-[var(--primary-dark)] transition-colors">
                         + Create Invoice
                       </button>
                     </div>
                   </td>
                 </tr>
               ) : invoices.map(inv => (
-                <tr key={inv.id} className={`hover:bg-[#f6f3ee]/50 ${inv.status === 'overdue' ? 'bg-red-50/30' : ''} ${selectedIds.has(inv.id) ? 'bg-[#ffd966]/10' : ''}`}>
+                <tr key={inv.id} className={`hover:bg-[var(--bg-page)]/50 ${inv.status === 'overdue' ? 'bg-red-50/30' : ''} ${selectedIds.has(inv.id) ? 'bg-[var(--primary-light)]' : ''}`}>
                   <td className="px-4 py-4 w-10 print:hidden">
                     <input type="checkbox"
-                      className="rounded border-[#ede9e2] accent-[#b8943f]"
+                      className="rounded border-[var(--border)] accent-[var(--primary)]"
                       checked={selectedIds.has(inv.id)}
                       onChange={e => setSelectedIds(prev => {
                         const next = new Set(prev)
@@ -308,21 +301,19 @@ function InvoicesContent() {
                       })}
                     />
                   </td>
-                  <td className="ui-td font-mono font-bold text-[#b8943f]">
-                    <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[#b8943f] font-bold" />
+                  <td className="ui-td font-mono font-bold text-[var(--primary)]">
+                    <DocLink type="invoice" id={inv.id} label={inv.number} className="text-[var(--primary)] font-bold" />
                   </td>
                   <td className="ui-td">
                     {inv.customer_id && inv.customer_name
                       ? <DocLink type="customer" id={inv.customer_id} label={inv.customer_name} />
                       : (inv.customer_name ?? '—')}
                   </td>
-                  <td className="ui-td text-black/70">{fmtDate(inv.issue_date)}</td>
-                  <td className={`ui-td ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-black/70'}`}>{fmtDate(inv.due_date)}</td>
+                  <td className="ui-td text-[var(--text-muted)]">{fmtDate(inv.issue_date)}</td>
+                  <td className={`ui-td ${inv.status === 'overdue' ? 'text-red-600 font-medium' : 'text-[var(--text-muted)]'}`}>{fmtDate(inv.due_date)}</td>
                   <td className="ui-td text-right font-mono">{fmt(inv.total)}</td>
                   <td className="ui-td text-center">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                      {inv.status}
-                    </span>
+                    <StatusBadge status={inv.status} />
                   </td>
                   {isPortal && (
                     <td className="ui-td text-xs">
@@ -342,7 +333,7 @@ function InvoicesContent() {
                       {(inv.status === 'draft' || inv.status === 'sent' || inv.status === 'posted' || inv.status === 'overdue') && (
                         <button
                           onClick={() => router.push(`/invoices/${inv.id}/edit`)}
-                          className="text-xs px-2 py-1 border border-[#b8943f]/40 text-[#b8943f] rounded hover:bg-[#faf6ec]"
+                          className="text-xs px-2 py-1 border border-[var(--primary)]/40 text-[var(--primary)] rounded hover:bg-[var(--bg-page)]"
                         >
                           Edit
                         </button>
@@ -350,14 +341,14 @@ function InvoicesContent() {
                       <Link
                         href={`/invoices/${inv.id}/print`}
                         title="Print this invoice"
-                        className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                        className="p-1.5 rounded border border-[var(--border)] hover:bg-[var(--bg-page)] text-[var(--text-primary)]/55 hover:text-[var(--primary)]"
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </Link>
                       <select
                         value={inv.status}
                         onChange={e => handleStatusChange(inv, e.target.value)}
-                        className="text-xs border border-[#ede9e2] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#b8943f]"
+                        className="text-xs border border-[var(--border)] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
                       >
                         {INVOICE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -368,42 +359,42 @@ function InvoicesContent() {
             </tbody>
           </table>
         </div>
-        <div className="border-t border-[#ede9e2] px-4">
+        <div className="border-t border-[var(--border)] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
 
       {aging && (
-        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#ede9e2]">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-black/75">AR Aging Analysis</h3>
+        <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)]">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">AR Aging Analysis</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-[#ede9e2]">
+          <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-[var(--border)]">
             {([['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]] as [string, number][]).map(([label, val]) => (
               <div key={label} className="p-4 text-center">
-                <p className="text-xs text-black/50 uppercase tracking-widest mb-1">{label}</p>
-                <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-red-600' : 'text-black/40'}`}>{fmt(Number(val))}</p>
+                <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest mb-1">{label}</p>
+                <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-red-600' : 'text-[var(--text-muted)]'}`}>{fmt(Number(val))}</p>
               </div>
             ))}
           </div>
           {aging.items && aging.items.filter(i => i.days_past > 0).length > 0 && (
-            <div className="border-t border-[#ede9e2] overflow-x-auto">
+            <div className="border-t border-[var(--border)] overflow-x-auto">
               <table className="w-full text-xs">
-                <thead className="bg-[#f6f3ee]">
+                <thead className="bg-[var(--bg-page)]">
                   <tr>
-                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Invoice</th>
-                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">{t('col.customer', 'Customer')}</th>
-                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-black/50">Due</th>
-                    <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-black/50">{t('col.amount', 'Amount')}</th>
+                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-[var(--text-muted)]">Invoice</th>
+                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.customer', 'Customer')}</th>
+                    <th className="px-4 py-2 text-left font-bold uppercase tracking-widest text-[var(--text-muted)]">Due</th>
+                    <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.amount', 'Amount')}</th>
                     <th className="px-4 py-2 text-right font-bold uppercase tracking-widest text-red-600">Days Overdue</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {aging.items.filter(i => i.days_past > 0).sort((a, b) => b.days_past - a.days_past).slice(0, 10).map(item => (
                     <tr key={item.id} className="hover:bg-red-50/30">
-                      <td className="px-4 py-2 font-mono font-bold text-[#b8943f]">{item.number}</td>
-                      <td className="px-4 py-2 text-black/70">{item.name}</td>
-                      <td className="px-4 py-2 text-black/60">{item.due_date}</td>
+                      <td className="px-4 py-2 font-mono font-bold text-[var(--primary)]">{item.number}</td>
+                      <td className="px-4 py-2 text-[var(--text-muted)]">{item.name}</td>
+                      <td className="px-4 py-2 text-[var(--text-muted)]">{item.due_date}</td>
                       <td className="px-4 py-2 text-right font-mono">{fmt(item.amount)}</td>
                       <td className="px-4 py-2 text-right font-bold text-red-600">{item.days_past}d</td>
                     </tr>

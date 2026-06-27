@@ -156,7 +156,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   if (error && !inv) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (!inv)           return <p className="p-4 text-[#1a1814]/60 text-sm">Loading invoice…</p>
+  if (!inv)           return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading invoice…</p>
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
@@ -166,7 +166,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           {(inv.status === "draft" || inv.status === "sent" || inv.status === "posted" || inv.status === "overdue") && (
             <Link
               href={`/invoices/${inv.id}/edit`}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]"
             >
               <Pencil className="w-4 h-4" /> Edit
             </Link>
@@ -174,7 +174,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           {(inv.status === "paid" || inv.status === "partial") && (
             <span
               title="Unallocate payments to edit."
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] text-[#1a1814]/30 rounded-lg text-sm font-bold cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] text-[var(--text-primary)]/30 rounded-lg text-sm font-bold cursor-not-allowed"
             >
               <Pencil className="w-4 h-4" /> Edit
             </span>
@@ -183,20 +183,20 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <button
               onClick={markSent}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-50"
             >
               <Send className="w-4 h-4" /> Mark as Sent
             </button>
           )}
           <Link
             href={`/invoices/${inv.id}/print`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
           {isPortal && inv.pra_fiscal_number && (
             <Link
               href={`/invoices/${inv.id}/receipt`}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#faf6ec] text-[#1a1814]/70"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] text-[var(--text-primary)]/70"
             >
               <Printer className="w-4 h-4" /> Print Receipt
             </Link>
@@ -216,7 +216,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               a.click()
               URL.revokeObjectURL(url)
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]"
           >
             <Download className="w-4 h-4" /> PDF
           </button>
@@ -232,7 +232,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   alert((e as Error).message)
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/50 text-[#b8943f] rounded-lg text-sm font-bold hover:bg-[#faf6ec]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]"
             >
               <LinkIcon className="w-4 h-4" /> Payment Link
             </button>
@@ -241,7 +241,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <button
               onClick={voidInvoice}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-200 disabled:opacity-50"
             >
               <Ban className="w-4 h-4" />{t('status.void', 'Void')}</button>
           )}
@@ -249,7 +249,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <button
               onClick={reverse}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
             >
               <RotateCcw className="w-4 h-4" /> {busy ? "Reversing…" : "Reverse"}
             </button>
@@ -258,12 +258,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Header */}
-      <header className="bg-white border border-[#ede9e2] rounded-xl p-5 flex items-start justify-between gap-4">
+      <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
-          <FileSignature className="w-7 h-7 text-[#b8943f] shrink-0 mt-1" />
+          <FileSignature className="w-7 h-7 text-[var(--primary)] shrink-0 mt-1" />
           <div className="min-w-0">
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Invoice {inv.number}</h1>
-            <p className="text-sm text-[#1a1814]/60">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Invoice {inv.number}</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">
               Issued {inv.issue_date} · Due {inv.due_date}
               {inv.currency !== "USD" && <> · {inv.currency} @ {inv.exchange_rate}</>}
             </p>
@@ -299,7 +299,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             </div>
           )}
           {inv.pra_fiscal_number && (
-            <div className="text-[10px] text-[#1a1814]/50 font-mono">FIN: {inv.pra_fiscal_number}</div>
+            <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">FIN: {inv.pra_fiscal_number}</div>
           )}
         </div>
       </header>
@@ -310,45 +310,45 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Parties + linked txn */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Bill To</div>
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Bill To</div>
           {inv.customer_id ? (
-            <Link href={`/customers/${inv.customer_id}/ledger`} className="font-semibold text-[#1a1814] hover:text-[#b8943f] hover:underline">
+            <Link href={`/customers/${inv.customer_id}/ledger`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--primary)] hover:underline">
               {inv.customer_name ?? `#${inv.customer_id}`}
             </Link>
           ) : (
             <span className="font-semibold">{inv.customer_name ?? "—"}</span>
           )}
         </div>
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Posted Voucher</div>
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Posted Voucher</div>
           {inv.transaction_id ? (
-            <Link href={`/journal/${inv.transaction_id}`} className="font-mono text-sm text-[#b8943f] hover:underline">
+            <Link href={`/journal/${inv.transaction_id}`} className="font-mono text-sm text-[var(--primary)] hover:underline">
               View JV →
             </Link>
           ) : (
-            <span className="text-sm text-[#1a1814]/55">No voucher yet (draft)</span>
+            <span className="text-sm text-[var(--text-primary)]/55">No voucher yet (draft)</span>
           )}
         </div>
       </section>
 
       {/* Lines */}
-      <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+      <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#faf6ec]">
+          <thead className="bg-[var(--bg-page)]">
             <tr>
-              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Rate</th>
-              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.amount', 'Amount')}</th>
+              <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{t('col.description', 'Description')}</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-24">Qty</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">Rate</th>
+              <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">{t('col.amount', 'Amount')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {inv.lines.map(ln => (
               <tr key={ln.id}>
                 <td className="px-4 py-2">
                   {ln.product_id ? (
-                    <Link href={`/products/${ln.product_id}/stock-card`} className="hover:text-[#b8943f] hover:underline">
+                    <Link href={`/products/${ln.product_id}/stock-card`} className="hover:text-[var(--primary)] hover:underline">
                       {ln.description}
                     </Link>
                   ) : ln.description}
@@ -366,9 +366,9 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       {(inv.notes || inv.internal_memo) && (
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {inv.notes && (
-            <div className="bg-white border border-[#ede9e2] rounded-xl p-4">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</div>
-              <p className="text-sm text-[#1a1814]/80 whitespace-pre-wrap">{inv.notes}</p>
+            <div className="bg-white border border-[var(--border)] rounded-xl p-4">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.notes', 'Notes')}</div>
+              <p className="text-sm text-[var(--text-primary)]/80 whitespace-pre-wrap">{inv.notes}</p>
             </div>
           )}
           {inv.internal_memo && (
@@ -382,10 +382,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Totals */}
       <section className="flex justify-end">
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4 w-full sm:w-80 text-sm space-y-1">
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4 w-full sm:w-80 text-sm space-y-1">
           <Row label="Subtotal" value={fmt(inv.subtotal)} />
           {inv.gst_rate > 0 && <Row label={`GST (${inv.gst_rate}%)`} value={fmt(inv.gst_amount)} />}
-          <div className="border-t border-[#1a1814] pt-1.5 mt-1.5">
+          <div className="border-t border-[var(--text-primary)] pt-1.5 mt-1.5">
             <Row label="Total" value={fmt(inv.total)} bold />
           </div>
         </div>
@@ -394,19 +394,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       {/* Attachments */}
       <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 print:hidden">
         <AttachmentPanel parentType="invoice" parentId={inv.id} embedded onSelect={setSelectedAtt} />
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden min-h-[60vh]">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden min-h-[60vh]">
           <AttachmentPreviewPane att={selectedAtt} />
         </div>
       </section>
 
       {/* Change History */}
       {history.length > 0 && (
-        <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden print:hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#faf6ec] border-b border-[#ede9e2]">
-            <History className="w-4 h-4 text-[#b8943f]" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Change History</span>
+        <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden print:hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-page)] border-b border-[var(--border)]">
+            <History className="w-4 h-4 text-[var(--primary)]" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Change History</span>
           </div>
-          <div className="divide-y divide-[#ede9e2]">
+          <div className="divide-y divide-[var(--border)]">
             {history.map(entry => {
               let changes: ChangeMap = {}
               try {
@@ -418,23 +418,23 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               const changedFields = Object.entries(changes)
               return (
                 <div key={entry.id} className="px-4 py-3 text-sm">
-                  <p className="text-[#1a1814]/65 text-xs mb-1">
-                    Edited by <span className="font-semibold text-[#1a1814]">{entry.user_name}</span>
+                  <p className="text-[var(--text-primary)]/65 text-xs mb-1">
+                    Edited by <span className="font-semibold text-[var(--text-primary)]">{entry.user_name}</span>
                     {" "}on {new Date(entry.timestamp).toLocaleString()}
                   </p>
                   {changedFields.length > 0 ? (
                     <table className="ui-table text-xs mt-1">
                       <thead>
                         <tr>
-                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 w-32">Field</th>
-                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Before</th>
-                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">After</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40 w-32">Field</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">Before</th>
+                          <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">After</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#ede9e2]/60">
+                      <tbody className="divide-y divide-[var(--border)]/60">
                         {changedFields.map(([field, val]) => (
                           <tr key={field}>
-                            <td className="ui-td font-medium text-[#1a1814]/70 capitalize">{field.replace(/_/g, " ")}</td>
+                            <td className="ui-td font-medium text-[var(--text-primary)]/70 capitalize">{field.replace(/_/g, " ")}</td>
                             <td className="ui-td font-mono text-red-700/80">{String(val.before ?? "—")}</td>
                             <td className="ui-td font-mono text-emerald-700">{String(val.after ?? "—")}</td>
                           </tr>
@@ -442,7 +442,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                       </tbody>
                     </table>
                   ) : (
-                    <p className="text-xs text-[#1a1814]/40 italic">No header fields changed.</p>
+                    <p className="text-xs text-[var(--text-primary)]/40 italic">No header fields changed.</p>
                   )}
                 </div>
               )
@@ -457,7 +457,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 function Row({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className={bold ? "font-bold" : "text-[#1a1814]/65"}>{label}</span>
+      <span className={bold ? "font-bold" : "text-[var(--text-primary)]/65"}>{label}</span>
       <span className={`font-mono ${bold ? "font-bold text-base" : ""}`}>{value}</span>
     </div>
   )
