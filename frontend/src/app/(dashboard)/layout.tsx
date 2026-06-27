@@ -71,7 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </main>
                   </div>
                   {/* Mobile bottom tab bar */}
-                  <BottomNav onMore={() => {}} />
+                  <BottomNav />
                 </div>
               </TabProvider>
             </BreadcrumbProvider>
