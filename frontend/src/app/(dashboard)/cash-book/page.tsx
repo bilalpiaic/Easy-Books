@@ -133,10 +133,10 @@ export default function CashBookPage() {
       {/* Page title */}
       <div className="flex items-center justify-between gap-3 mb-5 print:hidden">
         <div className="flex items-center gap-3">
-          <Wallet className="w-5 h-5 text-[#b8943f]" />
+          <Wallet className="w-5 h-5 text-[var(--primary)]" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">Cash Book</h1>
-            <p className="text-xs text-[#1a1814]/55">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Cash Book</h1>
+            <p className="text-xs text-[var(--text-primary)]/55">
               Voucher-aware ledger view of cash account transactions
             </p>
           </div>
@@ -151,7 +151,7 @@ export default function CashBookPage() {
               })))
             }}
             disabled={!ledgerData}
-            className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
             title="Export CSV"
           >
             <Download className="w-4 h-4" />
@@ -159,7 +159,7 @@ export default function CashBookPage() {
           <button
             onClick={() => window.print()}
             disabled={!ledgerData}
-            className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
             title={!ledgerData ? "No data to print" : "Print Cash Book"}
           >
             <Printer className="w-4 h-4" />
@@ -168,18 +168,18 @@ export default function CashBookPage() {
       </div>
 
       {/* Controls */}
-      <div className="bg-white border border-[#ede9e2] rounded-xl p-4 mb-5 space-y-3 print:hidden">
+      <div className="bg-white border border-[var(--border)] rounded-xl p-4 mb-5 space-y-3 print:hidden">
 
         {/* Cash account selector (only when multiple) */}
         {cashAccounts.length > 1 && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">
               Cash Account
             </label>
             <select
               value={selectedCode}
               onChange={e => { setSelectedCode(e.target.value); setVoucherFilter("") }}
-              className="w-full px-3 py-2.5 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#b8943f] bg-white"
+              className="w-full px-3 py-2.5 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)] bg-white"
             >
               {cashAccounts.map(a => (
                 <option key={a.id} value={a.code}>
@@ -196,13 +196,13 @@ export default function CashBookPage() {
         {/* Voucher type filter */}
         {ledgerData && ledgerData.entries.length > 0 && (
           <div className="flex items-center gap-3">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 whitespace-nowrap">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 whitespace-nowrap">
               Voucher Type
             </label>
             <select
               value={voucherFilter}
               onChange={e => setVoucherFilter(e.target.value)}
-              className="px-3 py-1.5 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#b8943f] bg-white"
+              className="px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)] bg-white"
             >
               <option value="">All vouchers</option>
               {Object.entries(VOUCHER_TYPES).map(([code, label]) => (
@@ -217,8 +217,8 @@ export default function CashBookPage() {
 
       {/* Initial loading */}
       {initLoading && (
-        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden animate-pulse">
-          <div className="bg-[#f6f3ee] px-6 py-4 h-14" />
+        <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden animate-pulse">
+          <div className="bg-[var(--bg-page)] px-6 py-4 h-14" />
           <div className="p-6 space-y-3">
             {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-4 bg-[#f0ece4] rounded" />)}
           </div>
@@ -234,10 +234,10 @@ export default function CashBookPage() {
 
       {/* No cash accounts found */}
       {!initLoading && !loadError && cashAccounts.length === 0 && (
-        <div className="bg-white border border-[#ede9e2] rounded-xl py-20 text-center">
-          <Wallet className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]/50">No cash account found</p>
-          <p className="text-xs text-[#1a1814]/35 mt-1">
+        <div className="bg-white border border-[var(--border)] rounded-xl py-20 text-center">
+          <Wallet className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]/50">No cash account found</p>
+          <p className="text-xs text-[var(--text-primary)]/35 mt-1">
             Cash accounts are Asset GL accounts with codes starting with &ldquo;10&rdquo; that are not
             linked to a bank account. Add one via Chart of Accounts.
           </p>
@@ -246,8 +246,8 @@ export default function CashBookPage() {
 
       {/* Ledger loading */}
       {!initLoading && !loadError && cashAccounts.length > 0 && isLoading && (
-        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden animate-pulse">
-          <div className="bg-[#f6f3ee] px-6 py-4 h-14" />
+        <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden animate-pulse">
+          <div className="bg-[var(--bg-page)] px-6 py-4 h-14" />
           <div className="p-6 space-y-3">
             {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-4 bg-[#f0ece4] rounded" />)}
           </div>
@@ -256,10 +256,10 @@ export default function CashBookPage() {
 
       {/* No data for the period */}
       {!initLoading && !loadError && cashAccounts.length > 0 && !isLoading && !ledgerData && (
-        <div className="bg-white border border-[#ede9e2] rounded-xl py-12 text-center">
-          <p className="text-sm text-[#1a1814]/50">
+        <div className="bg-white border border-[var(--border)] rounded-xl py-12 text-center">
+          <p className="text-sm text-[var(--text-primary)]/50">
             No transactions for{" "}
-            <span className="font-mono text-[#b8943f]">{selectedCode}</span>{" "}
+            <span className="font-mono text-[var(--primary)]">{selectedCode}</span>{" "}
             in the selected period.
           </p>
         </div>

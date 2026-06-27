@@ -153,27 +153,27 @@ export default function ExchangeRatesPage() {
       <PrintHeader title="Exchange Rates" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Exchange Rates</h1>
-          <p className="text-sm text-[#1a1814]/60 mt-0.5">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Exchange Rates</h1>
+          <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
             Historical FX rates used for multi-currency transactions.
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('exchange-rates.csv', rates.map(r => ({ Date: r.date, From: r.from_currency, To: r.to_currency, Rate: r.rate })))}
             disabled={rates.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={openAdd}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
           >
             <Plus className="w-4 h-4" /> Add Rate
           </button>
@@ -185,12 +185,12 @@ export default function ExchangeRatesPage() {
       )}
 
       {/* FX Revaluation */}
-      <div className="bg-white border border-[#ede9e2] rounded-2xl p-5 space-y-3">
+      <div className="bg-white border border-[var(--border)] rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <RefreshCw className="w-4 h-4 text-[#b8943f]" />
-          <h2 className="text-sm font-bold text-[#1a1814]">FX Revaluation <span className="text-[#1a1814]/40 font-normal">(IAS 21)</span></h2>
+          <RefreshCw className="w-4 h-4 text-[var(--primary)]" />
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">FX Revaluation <span className="text-[var(--text-primary)]/40 font-normal">(IAS 21)</span></h2>
         </div>
-        <p className="text-xs text-[#1a1814]/60">
+        <p className="text-xs text-[var(--text-primary)]/60">
           Restates open foreign-currency AR balances to the closing rate on the chosen date.
           Posts an Unrealised FX Gain/Loss entry (account 4901) for the difference.
         </p>
@@ -209,18 +209,18 @@ export default function ExchangeRatesPage() {
         )}
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Revaluation date</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Revaluation date</label>
             <input
               type="date"
               value={revalDate}
               onChange={e => setRevalDate(e.target.value)}
-              className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+              className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]"
             />
           </div>
           <button
             onClick={runRevaluation}
             disabled={revalBusy}
-            className="flex items-center gap-2 px-5 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2 bg-[var(--text-primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${revalBusy ? "animate-spin" : ""}`} />
             {revalBusy ? "Running…" : "Run Revaluation"}
@@ -235,26 +235,26 @@ export default function ExchangeRatesPage() {
           onChange={e => setFilterFrom(e.target.value.toUpperCase())}
           onKeyDown={e => e.key === "Enter" && applyFilter()}
           placeholder="From (e.g. USD)"
-          className="border border-[#d4cfc7] rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-[#b8943f] font-mono uppercase"
+          className="border border-[#d4cfc7] rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-[var(--primary)] font-mono uppercase"
         />
-        <span className="text-[#1a1814]/40 text-sm">→</span>
+        <span className="text-[var(--text-primary)]/40 text-sm">→</span>
         <input
           value={filterTo}
           onChange={e => setFilterTo(e.target.value.toUpperCase())}
           onKeyDown={e => e.key === "Enter" && applyFilter()}
           placeholder="To (e.g. PKR)"
-          className="border border-[#d4cfc7] rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-[#b8943f] font-mono uppercase"
+          className="border border-[#d4cfc7] rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-[var(--primary)] font-mono uppercase"
         />
         <button
           onClick={applyFilter}
-          className="px-3 py-1.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+          className="px-3 py-1.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
         >
           Filter
         </button>
         {(filterFrom || filterTo) && (
           <button
             onClick={() => { setFilterFrom(""); setFilterTo(""); load("", "") }}
-            className="text-xs text-[#b8943f] hover:underline"
+            className="text-xs text-[var(--primary)] hover:underline"
           >
             Clear
           </button>
@@ -265,7 +265,7 @@ export default function ExchangeRatesPage() {
             <button
               key={p}
               onClick={() => { setFilterFrom(f); setFilterTo(t); load(f, t) }}
-              className="text-xs border border-[#d4cfc7] rounded-full px-2.5 py-1 hover:border-[#b8943f]/60 transition-colors font-mono"
+              className="text-xs border border-[#d4cfc7] rounded-full px-2.5 py-1 hover:border-[var(--primary)]/60 transition-colors font-mono"
             >
               {p}
             </button>
@@ -274,48 +274,48 @@ export default function ExchangeRatesPage() {
       </div>
 
       {loading ? (
-        <div className="text-sm text-[#1a1814]/50 py-8 text-center">Loading…</div>
+        <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
       ) : rates.length === 0 ? (
-        <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-12 text-center">
-          <TrendingUp className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]">No exchange rates yet</p>
-          <p className="text-xs text-[#1a1814]/55 mt-1 mb-4">
+        <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-12 text-center">
+          <TrendingUp className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]">No exchange rates yet</p>
+          <p className="text-xs text-[var(--text-primary)]/55 mt-1 mb-4">
             Add FX rates to support multi-currency invoicing and reporting.
           </p>
           <button
             onClick={openAdd}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
           >
             <Plus className="w-4 h-4" /> Add first rate
           </button>
         </div>
       ) : (
-        <div className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+        <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">Date</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">From</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">To</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">Rate</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">Inverse</th>
+              <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">Date</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">From</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">To</th>
+                <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">Rate</th>
+                <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">Inverse</th>
                 <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
               {rates.map(r => (
-                <tr key={r.id} className="border-b border-[#ede9e2] last:border-0 hover:bg-[#faf8f4]">
-                  <td className="px-4 py-2.5 text-[#1a1814]/80">{fmtDate(r.date)}</td>
-                  <td className="px-4 py-2.5 font-mono text-[#1a1814] font-medium">{r.from_currency}</td>
-                  <td className="px-4 py-2.5 font-mono text-[#1a1814] font-medium">{r.to_currency}</td>
+                <tr key={r.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[#faf8f4]">
+                  <td className="px-4 py-2.5 text-[var(--text-primary)]/80">{fmtDate(r.date)}</td>
+                  <td className="px-4 py-2.5 font-mono text-[var(--text-primary)] font-medium">{r.from_currency}</td>
+                  <td className="px-4 py-2.5 font-mono text-[var(--text-primary)] font-medium">{r.to_currency}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(r.rate).toFixed(6)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-[#1a1814]/55 text-xs">
+                  <td className="px-4 py-2.5 text-right tabular-nums text-[var(--text-primary)]/55 text-xs">
                     {r.rate > 0 ? (1 / r.rate).toFixed(6) : "—"}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <button
                       onClick={() => handleDelete(r.id)}
-                      className="text-[#1a1814]/30 hover:text-red-500 transition-colors"
+                      className="text-[var(--text-primary)]/30 hover:text-red-500 transition-colors"
                       title="Delete"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -332,44 +332,44 @@ export default function ExchangeRatesPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-            <div className="px-6 py-4 border-b border-[#ede9e2]">
-              <h2 className="text-lg font-serif font-semibold text-[#1a1814]">Add Exchange Rate</h2>
-              <p className="text-xs text-[#1a1814]/55 mt-0.5">Submitting an existing date+pair updates the rate.</p>
+            <div className="px-6 py-4 border-b border-[var(--border)]">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Add Exchange Rate</h2>
+              <p className="text-xs text-[var(--text-primary)]/55 mt-0.5">Submitting an existing date+pair updates the rate.</p>
             </div>
             <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Date</label>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Date</label>
                 <input
                   type="date"
                   value={form.date}
                   onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">From</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">From</label>
                   <input
                     value={form.from_currency}
                     onChange={e => setForm(f => ({ ...f, from_currency: e.target.value.toUpperCase() }))}
                     placeholder="USD"
                     maxLength={10}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] font-mono uppercase"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] font-mono uppercase"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">To</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">To</label>
                   <input
                     value={form.to_currency}
                     onChange={e => setForm(f => ({ ...f, to_currency: e.target.value.toUpperCase() }))}
                     placeholder="PKR"
                     maxLength={10}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] font-mono uppercase"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] font-mono uppercase"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">
                   Rate (1 {form.from_currency || "FROM"} = ? {form.to_currency || "TO"})
                 </label>
                 <input
@@ -379,7 +379,7 @@ export default function ExchangeRatesPage() {
                   value={form.rate}
                   onChange={e => setForm(f => ({ ...f, rate: e.target.value }))}
                   placeholder="278.500000"
-                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] tabular-nums"
+                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] tabular-nums"
                 />
               </div>
 
@@ -391,14 +391,14 @@ export default function ExchangeRatesPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors"
+                  className="flex-1 bg-[var(--primary)] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors"
                 >
                   {saving ? "Saving…" : "Save Rate"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
                 >{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>

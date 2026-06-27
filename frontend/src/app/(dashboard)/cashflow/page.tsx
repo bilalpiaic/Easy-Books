@@ -55,12 +55,12 @@ interface RowProps {
 
 function Row({ label, current, comparison, showCmp, indent = false, bold = false, accountName, fmt }: RowProps) {
   const curColor = current < 0 ? 'text-red-600' : ''
-  const cmpColor = (comparison ?? 0) < 0 ? 'text-red-300' : 'text-[#1a1814]/35'
+  const cmpColor = (comparison ?? 0) < 0 ? 'text-red-300' : 'text-[var(--text-primary)]/35'
   return (
-    <div className={`flex justify-between py-2 ${bold ? 'border-t border-[#ede9e2]' : ''}`}>
+    <div className={`flex justify-between py-2 ${bold ? 'border-t border-[var(--border)]' : ''}`}>
       {accountName
         ? <DocLink type="account" id={accountName} label={label} className={`${indent ? 'ml-6 ' : ''}text-sm`} />
-        : <span className={`${indent ? 'ml-6 ' : ''}${bold ? 'font-semibold' : 'text-sm text-black/70'}`}>{label}</span>}
+        : <span className={`${indent ? 'ml-6 ' : ''}${bold ? 'font-semibold' : 'text-sm text-[var(--text-muted)]'}`}>{label}</span>}
       <div className="flex gap-8">
         <span className={`font-mono text-right w-36 inline-block ${bold ? 'font-semibold' : 'text-sm'} ${curColor}`}>
           {fmt(current)}
@@ -143,24 +143,24 @@ export default function CashFlow() {
       <PrintHeader title="Cash Flow Statement" subtitle={`Period: ${start} — ${end}`} />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif font-medium">Cash Flow Statement</h1>
-          <p className="text-sm text-black/75 mt-1">Sources and uses of cash — Indirect Method</p>
+          <h1 className="text-xl sm:text-3xl font-bold">Cash Flow Statement</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Sources and uses of cash — Indirect Method</p>
         </div>
         <div className="flex items-center gap-2">
           {!compareMode && (
-            <button onClick={exportCsv} disabled={isLoading || !data} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40" title="Export CSV">
+            <button onClick={exportCsv} disabled={isLoading || !data} className="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40" title="Export CSV">
               <Download className="w-5 h-5" />
             </button>
           )}
-          <button onClick={() => window.print()} className="p-3 bg-white border border-[#ede9e2] rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60" title="Print">
+          <button onClick={() => window.print()} className="p-3 bg-white border border-[var(--border)] rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60" title="Print">
             <Printer className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="mb-4 p-4 bg-white border border-[#ede9e2] rounded-xl space-y-3 print:hidden">
+      <div className="mb-4 p-4 bg-white border border-[var(--border)] rounded-xl space-y-3 print:hidden">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
-        <label className="flex items-center gap-2 text-sm text-[#1a1814]/70 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]/70 cursor-pointer">
           <input
             type="checkbox"
             checked={compareMode}
@@ -171,12 +171,12 @@ export default function CashFlow() {
         </label>
         {compareMode && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-[#1a1814]/50">Prior period:</span>
+            <span className="text-[var(--text-primary)]/50">Prior period:</span>
             <input type="date" value={cmpStart} onChange={e => setCmpStart(e.target.value)}
-                   className="border border-[#ede9e2] rounded px-2 py-1 text-sm" />
-            <span className="text-[#1a1814]/50">to</span>
+                   className="border border-[var(--border)] rounded px-2 py-1 text-sm" />
+            <span className="text-[var(--text-primary)]/50">to</span>
             <input type="date" value={cmpEnd} onChange={e => setCmpEnd(e.target.value)}
-                   className="border border-[#ede9e2] rounded px-2 py-1 text-sm" />
+                   className="border border-[var(--border)] rounded px-2 py-1 text-sm" />
           </div>
         )}
       </div>
@@ -184,27 +184,27 @@ export default function CashFlow() {
       {error && <div className="text-red-600 font-semibold">{error}</div>}
 
       {isLoading ? (
-        <div className="text-center py-12 text-black/40">{t('common.loading', 'Loading...')}</div>
+        <div className="text-center py-12 text-[var(--text-muted)]">{t('common.loading', 'Loading...')}</div>
       ) : !data ? (
-        <div className="text-center py-12 text-black/40">No data available.</div>
+        <div className="text-center py-12 text-[var(--text-muted)]">No data available.</div>
       ) : (
-        <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 p-10 space-y-8">
-          <div className="text-center pb-6 border-b border-[#ede9e2]">
-            <h2 className="text-xl font-serif font-medium mb-1">Statement of Cash Flows</h2>
-            <p className="text-xs text-black/60 mt-1">{data.period.start} — {data.period.end}</p>
+        <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 p-10 space-y-8">
+          <div className="text-center pb-6 border-b border-[var(--border)]">
+            <h2 className="text-xl font-bold mb-1">Statement of Cash Flows</h2>
+            <p className="text-xs text-[var(--text-muted)] mt-1">{data.period.start} — {data.period.end}</p>
           </div>
 
           {/* Column headers */}
           {showCmp && (
-            <div className="flex justify-end gap-8 text-xs font-bold text-[#1a1814]/50 uppercase tracking-widest">
+            <div className="flex justify-end gap-8 text-xs font-bold text-[var(--text-primary)]/50 uppercase tracking-widest">
               <span className="w-36 text-right">Current Period</span>
-              <span className="w-36 text-right text-[#1a1814]/30">Comparative Period</span>
+              <span className="w-36 text-right text-[var(--text-primary)]/30">Comparative Period</span>
             </div>
           )}
 
           {/* Operating */}
           <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2 mb-3">Operating Activities</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/75 border-b border-[var(--text-primary)]/5 pb-2 mb-3">Operating Activities</h3>
             <Row label="Net Income" current={data.net_income} comparison={comparison?.net_income} showCmp={showCmp} fmt={fmt} />
             <Row label="Decrease (Increase) in Accounts Receivable" current={-data.operating_adjustments.ar_change} comparison={comparison ? -comparison.operating_adjustments.ar_change : null} showCmp={showCmp} indent fmt={fmt} />
             <Row label="Increase (Decrease) in Accounts Payable" current={data.operating_adjustments.ap_change} comparison={comparison?.operating_adjustments.ap_change} showCmp={showCmp} indent fmt={fmt} />
@@ -213,9 +213,9 @@ export default function CashFlow() {
 
           {/* Investing */}
           <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2 mb-3">Investing Activities</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/75 border-b border-[var(--text-primary)]/5 pb-2 mb-3">Investing Activities</h3>
             {data.investing_items.length === 0 && !showCmp ? (
-              <p className="text-sm text-black/40 mb-3">No fixed asset movements</p>
+              <p className="text-sm text-[var(--text-muted)] mb-3">No fixed asset movements</p>
             ) : data.investing_items.map((item, i) => (
               <Row key={i} label={item.name} current={item.amount}
                 comparison={comparison?.investing_items.find(ci => ci.name === item.name)?.amount ?? null}
@@ -230,9 +230,9 @@ export default function CashFlow() {
 
           {/* Financing */}
           <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/75 border-b border-[#1a1814]/5 pb-2 mb-3">Financing Activities</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/75 border-b border-[var(--text-primary)]/5 pb-2 mb-3">Financing Activities</h3>
             {data.financing_items.length === 0 && !showCmp ? (
-              <p className="text-sm text-black/40 mb-3">No financing movements</p>
+              <p className="text-sm text-[var(--text-muted)] mb-3">No financing movements</p>
             ) : data.financing_items.map((item, i) => (
               <Row key={i} label={item.name} current={item.amount}
                 comparison={comparison?.financing_items.find(ci => ci.name === item.name)?.amount ?? null}
@@ -254,8 +254,8 @@ export default function CashFlow() {
           )}
 
           {/* Summary */}
-          <div className="bg-[#f6f3ee] p-6 rounded-xl space-y-3">
-            <div className="flex justify-between pb-3 border-b border-[#ede9e2]">
+          <div className="bg-[var(--bg-page)] p-6 rounded-xl space-y-3">
+            <div className="flex justify-between pb-3 border-b border-[var(--border)]">
               <span className="font-semibold flex items-center gap-2">
                 Net Change in Cash
                 {Math.abs(data.unclassified) < 0.005 ? (
@@ -280,16 +280,16 @@ export default function CashFlow() {
               <div className="flex gap-8">
                 <span className="font-mono text-right w-36 inline-block">{fmt(data.beginning_balance)}</span>
                 {showCmp && comparison && (
-                  <span className="font-mono text-right w-36 inline-block text-[#1a1814]/35">{fmt(comparison.beginning_balance)}</span>
+                  <span className="font-mono text-right w-36 inline-block text-[var(--text-primary)]/35">{fmt(comparison.beginning_balance)}</span>
                 )}
               </div>
             </div>
-            <div className="flex justify-between text-lg font-bold border-t border-[#ede9e2] pt-3">
+            <div className="flex justify-between text-lg font-bold border-t border-[var(--border)] pt-3">
               <span>Ending Cash Balance</span>
               <div className="flex gap-8">
-                <span className="font-mono text-right w-36 inline-block text-[#b8943f]">{fmt(data.ending_balance)}</span>
+                <span className="font-mono text-right w-36 inline-block text-[var(--primary)]">{fmt(data.ending_balance)}</span>
                 {showCmp && comparison && (
-                  <span className="font-mono text-right w-36 inline-block text-[#b8943f]/40">{fmt(comparison.ending_balance)}</span>
+                  <span className="font-mono text-right w-36 inline-block text-[var(--primary)]/40">{fmt(comparison.ending_balance)}</span>
                 )}
               </div>
             </div>

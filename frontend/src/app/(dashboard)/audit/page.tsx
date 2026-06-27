@@ -77,9 +77,9 @@ function entityLabel(e: AuditEntry) {
 function EntityCell({ entry }: { entry: AuditEntry }) {
   const kind = ENTITY_LINK[entry.entity_type]
   if (kind && entry.entity_id != null) {
-    return <DocLink type={kind} id={entry.entity_id} label={entityLabel(entry)} className="text-[#b8943f] font-medium" />
+    return <DocLink type={kind} id={entry.entity_id} label={entityLabel(entry)} className="text-[var(--primary)] font-medium" />
   }
-  return <span className="text-[#1a1814]/70">{entityLabel(entry)}</span>
+  return <span className="text-[var(--text-primary)]/70">{entityLabel(entry)}</span>
 }
 
 function ActionBadge({ action }: { action: string }) {
@@ -155,43 +155,43 @@ export default function AuditLogPage() {
       <PrintHeader title="Audit Log" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814] flex items-center gap-2">
-            <ScrollText className="w-7 h-7 text-[#b8943f]" /> Audit Log
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <ScrollText className="w-7 h-7 text-[var(--primary)]" /> Audit Log
           </h1>
-          <p className="text-sm text-black/60 mt-1">Every change made in your organisation, with a link to the affected record.</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Every change made in your organisation, with a link to the affected record.</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
-          <button onClick={exportCsv} className="px-4 py-2 text-sm font-bold border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors">{t('common.exportCsv', 'Export CSV')}</button>
+          <button onClick={exportCsv} className="px-4 py-2 text-sm font-bold border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors">{t('common.exportCsv', 'Export CSV')}</button>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
+          <Search className="absolute left-3 top-3 w-4 h-4 text-[var(--text-muted)]" />
           <input
             type="text" placeholder="Filter by entity type (e.g. invoice)…"
             value={entityFilter} onChange={e => setEntityFilter(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+            className="w-full pl-10 pr-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
           />
         </div>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]" title="From" />
+          className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" title="From" />
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]" title="To" />
+          className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" title="To" />
       </div>
 
       {/* View tabs */}
-      <div className="flex gap-1 border-b border-[#ede9e2]">
+      <div className="flex gap-1 border-b border-[var(--border)]">
         {VIEWS.map(v => (
           <button key={v.key} onClick={() => setView(v.key)}
             className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px ${
-              view === v.key ? "text-[#b8943f] border-[#b8943f]" : "text-black/50 border-transparent hover:text-black/70"
+              view === v.key ? "text-[var(--primary)] border-[var(--primary)]" : "text-[var(--text-muted)] border-transparent hover:text-[var(--text-muted)]"
             }`}>
             {v.label}
           </button>
@@ -199,42 +199,42 @@ export default function AuditLogPage() {
       </div>
 
       {isLoading ? (
-        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
-          <table className="w-full text-sm"><tbody className="divide-y divide-[#ede9e2]"><SkeletonRow cols={5} /></tbody></table>
+        <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
+          <table className="w-full text-sm"><tbody className="divide-y divide-[var(--border)]"><SkeletonRow cols={5} /></tbody></table>
         </div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-black/40 py-8 text-center">No audit entries for these filters.</p>
+        <p className="text-sm text-[var(--text-muted)] py-8 text-center">No audit entries for these filters.</p>
       ) : view === "timeline" ? (
-        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+        <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[760px]">
-              <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+              <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
                 <tr>
-                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">When</th>
-                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">User</th>
-                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Action</th>
-                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Entity</th>
-                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Detail</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">When</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">User</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Action</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Entity</th>
+                  <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Detail</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#ede9e2]">
+              <tbody className="divide-y divide-[var(--border)]">
                 {timelinePage.map(e => (
-                  <tr key={e.id} className="hover:bg-[#f6f3ee]/50">
-                    <td className="ui-td text-black/60 whitespace-nowrap">{new Date(e.timestamp).toLocaleString()}</td>
-                    <td className="ui-td font-medium text-[#1a1814]">{e.user_name}</td>
+                  <tr key={e.id} className="hover:bg-[var(--bg-page)]/50">
+                    <td className="ui-td text-[var(--text-muted)] whitespace-nowrap">{new Date(e.timestamp).toLocaleString()}</td>
+                    <td className="ui-td font-medium text-[var(--text-primary)]">{e.user_name}</td>
                     <td className="ui-td"><ActionBadge action={e.action} /></td>
                     <td className="ui-td"><EntityCell entry={e} /></td>
-                    <td className="ui-td text-black/60 max-w-[360px] truncate" title={prettyDetail(e.detail)}>{prettyDetail(e.detail)}</td>
+                    <td className="ui-td text-[var(--text-muted)] max-w-[360px] truncate" title={prettyDetail(e.detail)}>{prettyDetail(e.detail)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="border-t border-[#ede9e2] px-4">
+          <div className="border-t border-[var(--border)] px-4">
             <Pagination page={page} pageSize={PAGE_SIZE} total={items.length} onPage={setPage} />
           </div>
           {total > items.length && (
-            <p className="px-6 py-2 text-[11px] text-black/40 border-t border-[#ede9e2]">
+            <p className="px-6 py-2 text-[11px] text-[var(--text-muted)] border-t border-[var(--border)]">
               Showing the most recent {items.length} of {total} entries — narrow the date range to see older activity.
             </p>
           )}
@@ -242,20 +242,20 @@ export default function AuditLogPage() {
       ) : (
         <div className="space-y-3">
           {(view === "by_user" ? byUser : byEntity).map(([key, entries]) => (
-            <div key={key} className="border border-[#ede9e2] rounded-xl overflow-hidden bg-white">
-              <div className="px-4 py-2.5 bg-[#f6f3ee] flex items-center justify-between">
-                <span className="text-sm font-bold text-[#1a1814] capitalize">{key.replace(/_/g, " ")}</span>
-                <span className="text-xs text-black/50">{entries.length} {view === "by_user" ? "action" : "event"}{entries.length !== 1 ? "s" : ""}</span>
+            <div key={key} className="border border-[var(--border)] rounded-xl overflow-hidden bg-white">
+              <div className="px-4 py-2.5 bg-[var(--bg-page)] flex items-center justify-between">
+                <span className="text-sm font-bold text-[var(--text-primary)] capitalize">{key.replace(/_/g, " ")}</span>
+                <span className="text-xs text-[var(--text-muted)]">{entries.length} {view === "by_user" ? "action" : "event"}{entries.length !== 1 ? "s" : ""}</span>
               </div>
-              <div className="divide-y divide-[#ede9e2] max-h-72 overflow-y-auto">
+              <div className="divide-y divide-[var(--border)] max-h-72 overflow-y-auto">
                 {entries.slice(0, 50).map(e => (
                   <div key={e.id} className="px-4 py-2 flex items-center gap-3 text-xs">
-                    <span className="text-black/40 w-40 flex-shrink-0">{new Date(e.timestamp).toLocaleString()}</span>
+                    <span className="text-[var(--text-muted)] w-40 flex-shrink-0">{new Date(e.timestamp).toLocaleString()}</span>
                     <ActionBadge action={e.action} />
                     {view === "by_user"
                       ? <EntityCell entry={e} />
-                      : <span className="text-black/70 font-medium">{e.user_name}</span>}
-                    <span className="text-black/40 truncate ml-auto">{prettyDetail(e.detail)}</span>
+                      : <span className="text-[var(--text-muted)] font-medium">{e.user_name}</span>}
+                    <span className="text-[var(--text-muted)] truncate ml-auto">{prettyDetail(e.detail)}</span>
                   </div>
                 ))}
               </div>

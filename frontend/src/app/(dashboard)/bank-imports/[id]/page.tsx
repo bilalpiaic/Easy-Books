@@ -143,7 +143,7 @@ export default function BankImportDetailPage() {
     })
   }
 
-  if (loading) return <div className="text-sm text-[#1a1814]/50 py-8 text-center">Loading…</div>
+  if (loading) return <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
   if (!lines.length && !imp) return (
     <div className="text-sm text-red-700 py-8 text-center">{error ?? "Import not found"}</div>
   )
@@ -158,14 +158,14 @@ export default function BankImportDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <Link href="/bank-imports" className="text-sm text-[#b8943f] hover:underline">
+          <Link href="/bank-imports" className="text-sm text-[var(--primary)] hover:underline">
             ← Bank Statement Imports
           </Link>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814] mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] mt-1">
             {imp?.file_name ?? `Import #${id}`}
           </h1>
           {imp && (
-            <p className="text-sm text-[#1a1814]/60 mt-0.5">
+            <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
               {imp.matched_count} / {imp.line_count} matched ({pct}%) · {fmtDate(imp.created_at)}
             </p>
           )}
@@ -173,7 +173,7 @@ export default function BankImportDetailPage() {
         <button
           onClick={runAutoMatch}
           disabled={matching || unmatched === 0}
-          className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors self-start"
+          className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors self-start"
         >
           <Zap className="w-4 h-4" />
           {matching ? "Matching…" : "Run Auto-Match"}
@@ -196,13 +196,13 @@ export default function BankImportDetailPage() {
       {/* Progress bar */}
       {imp && imp.line_count > 0 && (
         <div>
-          <div className="flex justify-between text-xs text-[#1a1814]/60 mb-1">
+          <div className="flex justify-between text-xs text-[var(--text-primary)]/60 mb-1">
             <span>{unmatched} unmatched</span>
             <span>{pct}% done</span>
           </div>
-          <div className="h-1.5 bg-[#ede9e2] rounded-full overflow-hidden">
+          <div className="h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#b8943f] rounded-full transition-all"
+              className="h-full bg-[var(--primary)] rounded-full transition-all"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -210,16 +210,16 @@ export default function BankImportDetailPage() {
       )}
 
       {/* Lines table */}
-      <div className="bg-white border border-[#ede9e2] rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[var(--border)] rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
-            <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">Date</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.description', 'Description')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.debit', 'Debit')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.credit', 'Credit')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70">{t('col.balance', 'Balance')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70 w-56">Match</th>
+            <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">Date</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.description', 'Description')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.debit', 'Debit')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.credit', 'Credit')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.balance', 'Balance')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-56">Match</th>
             </tr>
           </thead>
           <tbody>
@@ -229,10 +229,10 @@ export default function BankImportDetailPage() {
               return (
                 <tr
                   key={line.id}
-                  className={`border-b border-[#ede9e2] last:border-0 ${line.is_matched ? "" : "bg-amber-50/30"}`}
+                  className={`border-b border-[var(--border)] last:border-0 ${line.is_matched ? "" : "bg-amber-50/30"}`}
                 >
-                  <td className="px-4 py-2.5 text-[#1a1814]/80 whitespace-nowrap">{fmtDate(line.date)}</td>
-                  <td className="px-4 py-2.5 text-[#1a1814] max-w-[220px]">
+                  <td className="px-4 py-2.5 text-[var(--text-primary)]/80 whitespace-nowrap">{fmtDate(line.date)}</td>
+                  <td className="px-4 py-2.5 text-[var(--text-primary)] max-w-[220px]">
                     <span className="line-clamp-2">{line.description}</span>
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">
@@ -241,7 +241,7 @@ export default function BankImportDetailPage() {
                   <td className="px-4 py-2.5 text-right tabular-nums">
                     {line.credit > 0 ? fmt(line.credit) : ""}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-[#1a1814]/60">
+                  <td className="px-4 py-2.5 text-right tabular-nums text-[var(--text-primary)]/60">
                     {fmt(line.balance)}
                   </td>
                   <td className="px-4 py-2.5">
@@ -253,7 +253,7 @@ export default function BankImportDetailPage() {
                         </span>
                         <button
                           onClick={() => clearMatch(line.id)}
-                          className="text-[#1a1814]/30 hover:text-red-500 text-xs ml-1"
+                          className="text-[var(--text-primary)]/30 hover:text-red-500 text-xs ml-1"
                           title="Clear match"
                         >
                           ×
@@ -269,7 +269,7 @@ export default function BankImportDetailPage() {
                             setSelectors(prev => ({ ...prev, [line.id]: v }))
                             saveSingleMatch(line.id, v)
                           }}
-                          className="text-xs border border-[#d4cfc7] rounded px-1.5 py-1 focus:outline-none focus:border-[#b8943f] max-w-[160px]"
+                          className="text-xs border border-[#d4cfc7] rounded px-1.5 py-1 focus:outline-none focus:border-[var(--primary)] max-w-[160px]"
                         >
                           <option value="">Select JV…</option>
                           {candidates.map(c => (
@@ -281,8 +281,8 @@ export default function BankImportDetailPage() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-[#1a1814]/30 shrink-0" />
-                        <span className="text-xs text-[#1a1814]/40">No match found</span>
+                        <Clock className="w-3.5 h-3.5 text-[var(--text-primary)]/30 shrink-0" />
+                        <span className="text-xs text-[var(--text-primary)]/40">No match found</span>
                       </div>
                     )}
                   </td>

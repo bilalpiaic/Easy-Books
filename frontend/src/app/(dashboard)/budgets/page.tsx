@@ -44,7 +44,7 @@ const CURRENT_YEAR = new Date().getFullYear()
 
 // Variance positive = under-budget (favourable), negative = over-budget
 function varianceTone(v: number, budgeted: number): string {
-  if (budgeted === 0) return "text-[#1a1814]/50"
+  if (budgeted === 0) return "text-[var(--text-primary)]/50"
   return v >= 0 ? "text-emerald-700" : "text-red-600"
 }
 
@@ -155,16 +155,16 @@ export default function BudgetsPage() {
       <PrintHeader title="Budget vs Actual" />
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <TrendingUp className="w-7 h-7 text-[#b8943f]" />
+          <TrendingUp className="w-7 h-7 text-[var(--primary)]" />
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Budgets</h1>
-            <p className="text-sm text-[#1a1814]/60">Set monthly targets and track variance against actual GL activity.</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Budgets</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Set monthly targets and track variance against actual GL activity.</p>
           </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           {tab === "variance" && rows.length > 0 && (
@@ -173,7 +173,7 @@ export default function BudgetsPage() {
                 Account: r.account_name, Code: r.account_code, Month: r.month,
                 Budget: r.budget, Actual: r.actual, Variance: r.variance, "Variance %": r.variance_pct,
               })))}
-              className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+              className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
               title="Export CSV"
             >
               <Download className="w-5 h-5" />
@@ -185,13 +185,13 @@ export default function BudgetsPage() {
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Tabs */}
-        <div className="flex rounded-lg border border-[#ede9e2] overflow-hidden text-sm font-semibold">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-sm font-semibold">
           {(["variance", "set"] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-2 capitalize transition-colors ${
-                tab === t ? "bg-[#1a1814] text-white" : "bg-white text-[#1a1814]/70 hover:bg-[#faf8f4]"
+                tab === t ? "bg-[var(--text-primary)] text-white" : "bg-white text-[var(--text-primary)]/70 hover:bg-[#faf8f4]"
               }`}
             >
               {t === "variance" ? "Variance Report" : "Set Budgets"}
@@ -203,7 +203,7 @@ export default function BudgetsPage() {
         <select
           value={year}
           onChange={e => setYear(parseInt(e.target.value))}
-          className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f] bg-white"
+          className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white"
         >
           {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
@@ -213,7 +213,7 @@ export default function BudgetsPage() {
           <select
             value={month}
             onChange={e => setMonth(e.target.value === "" ? "" : parseInt(e.target.value))}
-            className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f] bg-white"
+            className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white"
           >
             <option value="">All months (YTD)</option>
             {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
@@ -226,7 +226,7 @@ export default function BudgetsPage() {
         <>
           {errorV && <ErrorBar message={errorV} />}
           {loadingV ? (
-            <p className="text-sm text-[#1a1814]/60">Loading…</p>
+            <p className="text-sm text-[var(--text-primary)]/60">Loading…</p>
           ) : rows.length === 0 ? (
             <EmptyStateGuide
               title="No budgets set for this period"
@@ -238,9 +238,9 @@ export default function BudgetsPage() {
               ]}
             />
           ) : (
-            <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-x-auto">
+            <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-[#faf6ec] text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
+                <thead className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">
                   <tr>
                     <th className="text-left px-4 py-2">{t('col.account', 'Account')}</th>
                     <th className="text-left px-4 py-2 w-24">Type</th>
@@ -251,14 +251,14 @@ export default function BudgetsPage() {
                     <th className="text-right px-4 py-2 w-24">Var %</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {rows.map((r, i) => (
                     <tr key={i} className="hover:bg-[#faf8f4] transition-colors">
                       <td className="px-4 py-2">
-                        <span className="font-mono text-xs text-[#b8943f] mr-2">{r.account_code}</span>
+                        <span className="font-mono text-xs text-[var(--primary)] mr-2">{r.account_code}</span>
                         {r.account_name}
                       </td>
-                      <td className="px-4 py-2 text-[#1a1814]/60 text-xs">{r.account_type}</td>
+                      <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs">{r.account_type}</td>
                       {month !== "" && <td className="px-4 py-2 text-xs">{MONTHS[r.month - 1]}</td>}
                       <td className="px-4 py-2 text-right font-mono">{fmt(r.budget)}</td>
                       <td className="px-4 py-2 text-right font-mono">{fmt(r.actual)}</td>
@@ -271,9 +271,9 @@ export default function BudgetsPage() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="border-t-2 border-[#ede9e2] bg-[#faf8f4] text-xs font-bold">
+                <tfoot className="border-t-2 border-[var(--border)] bg-[#faf8f4] text-xs font-bold">
                   <tr>
-                    <td colSpan={month !== "" ? 3 : 2} className="px-4 py-2 uppercase tracking-wide text-[#1a1814]/55">{t('col.total', 'Total')}</td>
+                    <td colSpan={month !== "" ? 3 : 2} className="px-4 py-2 uppercase tracking-wide text-[var(--text-primary)]/55">{t('col.total', 'Total')}</td>
                     <td className="px-4 py-2 text-right font-mono">{fmt(rows.reduce((s, r) => s + r.budget, 0))}</td>
                     <td className="px-4 py-2 text-right font-mono">{fmt(rows.reduce((s, r) => s + r.actual, 0))}</td>
                     <td className="px-4 py-2 text-right font-mono">
@@ -301,7 +301,7 @@ export default function BudgetsPage() {
             <select
               value={addAccId}
               onChange={e => setAddAccId(e.target.value)}
-              className="flex-1 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f] bg-white max-w-sm"
+              className="flex-1 px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white max-w-sm"
             >
               <option value="">— Add account to budget —</option>
               {accounts
@@ -311,7 +311,7 @@ export default function BudgetsPage() {
             <button
               onClick={addAccount}
               disabled={!addAccId}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-semibold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[var(--text-primary)] text-white rounded-lg text-sm font-semibold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-40"
             >
               <Plus className="w-4 h-4" />
               Add
@@ -319,7 +319,7 @@ export default function BudgetsPage() {
           </div>
 
           {loadingS ? (
-            <p className="text-sm text-[#1a1814]/60">Loading…</p>
+            <p className="text-sm text-[var(--text-primary)]/60">Loading…</p>
           ) : budgetedAccountIds.length === 0 ? (
             <EmptyStateGuide
               title="No accounts budgeted yet"
@@ -331,17 +331,17 @@ export default function BudgetsPage() {
               ]}
             />
           ) : (
-            <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-x-auto">
+            <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto">
               <table className="w-full text-xs">
-                <thead className="bg-[#faf6ec] text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
+                <thead className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">
                   <tr>
-                    <th className="text-left px-3 py-2 sticky left-0 bg-[#faf6ec] min-w-[180px]">{t('col.account', 'Account')}</th>
+                    <th className="text-left px-3 py-2 sticky left-0 bg-[var(--bg-page)] min-w-[180px]">{t('col.account', 'Account')}</th>
                     {MONTHS.map(m => <th key={m} className="text-right px-2 py-2 w-20">{m}</th>)}
                     <th className="text-right px-3 py-2 w-28">Annual Total</th>
                     <th className="w-8 px-2"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {budgetedAccountIds.map(accId => {
                     const acc = accounts.find(a => a.id === accId)
                     const annual = MONTHS.reduce((s, _, i) => {
@@ -351,8 +351,8 @@ export default function BudgetsPage() {
                     return (
                       <tr key={accId} className="hover:bg-[#faf8f4] transition-colors">
                         <td className="px-3 py-2 sticky left-0 bg-inherit">
-                          <div className="font-mono text-[#b8943f] text-[10px]">{acc?.code ?? `#${accId}`}</div>
-                          <div className="text-[#1a1814] leading-tight">{acc?.name ?? "Unknown"}</div>
+                          <div className="font-mono text-[var(--primary)] text-[10px]">{acc?.code ?? `#${accId}`}</div>
+                          <div className="text-[var(--text-primary)] leading-tight">{acc?.name ?? "Unknown"}</div>
                         </td>
                         {MONTHS.map((_, mi) => (
                           <td key={mi} className="px-1 py-1">
@@ -363,8 +363,8 @@ export default function BudgetsPage() {
                             />
                           </td>
                         ))}
-                        <td className="px-3 py-2 text-right font-mono font-semibold text-[#1a1814]">
-                          {annual > 0 ? fmt(annual) : <span className="text-[#1a1814]/30">—</span>}
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-[var(--text-primary)]">
+                          {annual > 0 ? fmt(annual) : <span className="text-[var(--text-primary)]/30">—</span>}
                         </td>
                         <td className="px-2 py-2 text-center">
                           <button
@@ -383,7 +383,7 @@ export default function BudgetsPage() {
               </table>
             </div>
           )}
-          {saving && <p className="text-xs text-[#1a1814]/50">Saving…</p>}
+          {saving && <p className="text-xs text-[var(--text-primary)]/50">Saving…</p>}
         </>
       )}
     </div>
@@ -433,7 +433,7 @@ function InlineAmountCell({
         onBlur={commit}
         onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false) }}
         disabled={disabled}
-        className="w-full px-1.5 py-1 border border-[#b8943f] rounded text-right font-mono text-xs outline-none bg-[#faf6ec]"
+        className="w-full px-1.5 py-1 border border-[var(--primary)] rounded text-right font-mono text-xs outline-none bg-[var(--bg-page)]"
       />
     )
   }
@@ -442,8 +442,8 @@ function InlineAmountCell({
   return (
     <button
       onClick={() => { setDraft(value || "0"); setEditing(true) }}
-      className={`w-full text-right px-1.5 py-1 rounded hover:bg-[#faf6ec] font-mono text-xs transition-colors ${
-        n > 0 ? "text-[#1a1814]" : "text-[#1a1814]/25"
+      className={`w-full text-right px-1.5 py-1 rounded hover:bg-[var(--bg-page)] font-mono text-xs transition-colors ${
+        n > 0 ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]/25"
       }`}
     >
       {n > 0 ? n.toLocaleString() : "—"}

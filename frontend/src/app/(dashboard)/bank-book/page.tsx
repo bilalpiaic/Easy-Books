@@ -128,10 +128,10 @@ export default function BankBookPage() {
       {/* Page title */}
       <div className="flex items-center justify-between gap-3 mb-5 print:hidden">
         <div className="flex items-center gap-3">
-          <Landmark className="w-5 h-5 text-[#b8943f]" />
+          <Landmark className="w-5 h-5 text-[var(--primary)]" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">Bank Book</h1>
-            <p className="text-xs text-[#1a1814]/55">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Bank Book</h1>
+            <p className="text-xs text-[var(--text-primary)]/55">
               Voucher-aware ledger view of bank account transactions
             </p>
           </div>
@@ -146,7 +146,7 @@ export default function BankBookPage() {
               })))
             }}
             disabled={!ledgerData}
-            className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
             title="Export CSV"
           >
             <Download className="w-4 h-4" />
@@ -154,7 +154,7 @@ export default function BankBookPage() {
           <button
             onClick={() => window.print()}
             disabled={!ledgerData}
-            className="p-2.5 bg-white border border-[#ede9e2] rounded-lg hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2.5 bg-white border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-30 disabled:cursor-not-allowed"
             title={!ledgerData ? "No data to print" : "Print Bank Book"}
           >
             <Printer className="w-4 h-4" />
@@ -163,18 +163,18 @@ export default function BankBookPage() {
       </div>
 
       {/* Controls */}
-      <div className="bg-white border border-[#ede9e2] rounded-xl p-4 mb-5 space-y-3 print:hidden">
+      <div className="bg-white border border-[var(--border)] rounded-xl p-4 mb-5 space-y-3 print:hidden">
 
         {/* Bank account selector */}
         {banks.length > 0 && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">
               Bank Account
             </label>
             <select
               value={selectedId ?? ""}
               onChange={e => { setSelectedId(Number(e.target.value)); setVoucherFilter("") }}
-              className="w-full px-3 py-2.5 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#b8943f] bg-white"
+              className="w-full px-3 py-2.5 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)] bg-white"
             >
               {banks.map(b => (
                 <option key={b.id} value={b.id}>
@@ -193,13 +193,13 @@ export default function BankBookPage() {
         {/* Voucher type filter */}
         {ledgerData && ledgerData.entries.length > 0 && (
           <div className="flex items-center gap-3">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 whitespace-nowrap">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 whitespace-nowrap">
               Voucher Type
             </label>
             <select
               value={voucherFilter}
               onChange={e => setVoucherFilter(e.target.value)}
-              className="px-3 py-1.5 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#b8943f] bg-white"
+              className="px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)] bg-white"
             >
               <option value="">All vouchers</option>
               {Object.entries(VOUCHER_TYPES).map(([code, label]) => (
@@ -214,8 +214,8 @@ export default function BankBookPage() {
 
       {/* Initial loading */}
       {initLoading && (
-        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden animate-pulse">
-          <div className="bg-[#f6f3ee] px-6 py-4 h-14" />
+        <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden animate-pulse">
+          <div className="bg-[var(--bg-page)] px-6 py-4 h-14" />
           <div className="p-6 space-y-3">
             {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-4 bg-[#f0ece4] rounded" />)}
           </div>
@@ -231,12 +231,12 @@ export default function BankBookPage() {
 
       {/* No bank accounts */}
       {!initLoading && !loadError && banks.length === 0 && (
-        <div className="bg-white border border-[#ede9e2] rounded-xl py-20 text-center">
-          <Landmark className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]/50">No bank accounts found</p>
-          <p className="text-xs text-[#1a1814]/35 mt-1">
+        <div className="bg-white border border-[var(--border)] rounded-xl py-20 text-center">
+          <Landmark className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]/50">No bank accounts found</p>
+          <p className="text-xs text-[var(--text-primary)]/35 mt-1">
             Add a bank account via{" "}
-            <a href="/bank-accounts" className="text-[#b8943f] hover:underline">
+            <a href="/bank-accounts" className="text-[var(--primary)] hover:underline">
               Banking → Bank Accounts
             </a>
             .
@@ -248,10 +248,10 @@ export default function BankBookPage() {
       {!initLoading && !loadError && selectedBank && !hasCoa && (
         <div className="bg-white border border-amber-200 rounded-xl py-12 text-center">
           <Landmark className="w-10 h-10 text-amber-400/60 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]/60">
+          <p className="text-sm font-medium text-[var(--text-primary)]/60">
             <span className="font-semibold">{selectedBank.name}</span> has no linked GL account.
           </p>
-          <p className="text-xs text-[#1a1814]/40 mt-1">
+          <p className="text-xs text-[var(--text-primary)]/40 mt-1">
             Edit this bank account and assign a Chart of Accounts entry to see its ledger.
           </p>
         </div>
@@ -259,8 +259,8 @@ export default function BankBookPage() {
 
       {/* Ledger loading */}
       {!initLoading && !loadError && hasCoa && isLoading && (
-        <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden animate-pulse">
-          <div className="bg-[#f6f3ee] px-6 py-4 h-14" />
+        <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden animate-pulse">
+          <div className="bg-[var(--bg-page)] px-6 py-4 h-14" />
           <div className="p-6 space-y-3">
             {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-4 bg-[#f0ece4] rounded" />)}
           </div>
@@ -269,10 +269,10 @@ export default function BankBookPage() {
 
       {/* No data for the period */}
       {!initLoading && !loadError && hasCoa && !isLoading && !ledgerData && (
-        <div className="bg-white border border-[#ede9e2] rounded-xl py-12 text-center">
-          <p className="text-sm text-[#1a1814]/50">
+        <div className="bg-white border border-[var(--border)] rounded-xl py-12 text-center">
+          <p className="text-sm text-[var(--text-primary)]/50">
             No transactions for{" "}
-            <span className="font-semibold text-[#1a1814]/70">{selectedBank?.name}</span>{" "}
+            <span className="font-semibold text-[var(--text-primary)]/70">{selectedBank?.name}</span>{" "}
             in the selected period.
           </p>
         </div>

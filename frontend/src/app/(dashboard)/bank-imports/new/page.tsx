@@ -77,11 +77,11 @@ export default function NewBankImportPage() {
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <Link href="/bank-imports" className="text-sm text-[#b8943f] hover:underline">
+        <Link href="/bank-imports" className="text-sm text-[var(--primary)] hover:underline">
           ← Bank Statement Imports
         </Link>
-        <h1 className="text-2xl font-serif font-semibold text-[#1a1814] mt-2">Upload Statement</h1>
-        <p className="text-sm text-[#1a1814]/60 mt-0.5">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] mt-2">Upload Statement</h1>
+        <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
           CSV must have columns: <code className="text-xs bg-[#f0ede6] px-1 rounded">date, description, debit, credit, balance</code>
         </p>
       </div>
@@ -90,13 +90,13 @@ export default function NewBankImportPage() {
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">{loadErr}</div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white border border-[#ede9e2] rounded-xl p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="bg-white border border-[var(--border)] rounded-xl p-6 space-y-5">
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1.5">Bank Account</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">Bank Account</label>
           <select
             value={accountId}
             onChange={e => setAccountId(e.target.value)}
-            className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+            className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]"
           >
             <option value="">Select account…</option>
             {accounts.map(a => (
@@ -108,22 +108,22 @@ export default function NewBankImportPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1.5">CSV File</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">CSV File</label>
           <div
-            className="border-2 border-dashed border-[#d4cfc7] rounded-xl p-6 text-center cursor-pointer hover:border-[#b8943f]/60 transition-colors"
+            className="border-2 border-dashed border-[#d4cfc7] rounded-xl p-6 text-center cursor-pointer hover:border-[var(--primary)]/60 transition-colors"
             onClick={() => fileRef.current?.click()}
           >
             {file ? (
-              <div className="flex items-center justify-center gap-2 text-sm text-[#1a1814]">
-                <FileText className="w-5 h-5 text-[#b8943f]" />
+              <div className="flex items-center justify-center gap-2 text-sm text-[var(--text-primary)]">
+                <FileText className="w-5 h-5 text-[var(--primary)]" />
                 <span>{file.name}</span>
-                <span className="text-[#1a1814]/40">({(file.size / 1024).toFixed(1)} KB)</span>
+                <span className="text-[var(--text-primary)]/40">({(file.size / 1024).toFixed(1)} KB)</span>
               </div>
             ) : (
               <>
-                <Upload className="w-8 h-8 text-[#b8943f]/40 mx-auto mb-2" />
-                <p className="text-sm text-[#1a1814]/70">Click to choose a CSV file</p>
-                <p className="text-xs text-[#1a1814]/40 mt-1">UTF-8 encoded</p>
+                <Upload className="w-8 h-8 text-[var(--primary)]/40 mx-auto mb-2" />
+                <p className="text-sm text-[var(--text-primary)]/70">Click to choose a CSV file</p>
+                <p className="text-xs text-[var(--text-primary)]/40 mt-1">UTF-8 encoded</p>
               </>
             )}
           </div>
@@ -147,13 +147,13 @@ export default function NewBankImportPage() {
           <button
             type="submit"
             disabled={uploading}
-            className="flex-1 bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors"
+            className="flex-1 bg-[var(--primary)] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors"
           >
             {uploading ? "Uploading…" : "Upload & Import"}
           </button>
           <Link
             href="/bank-imports"
-            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
           >{t('common.cancel', 'Cancel')}</Link>
         </div>
       </form>
