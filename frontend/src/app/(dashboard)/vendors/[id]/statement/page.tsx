@@ -66,7 +66,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
   }, [id, fromDate, toDate])
 
   if (error && !data) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (loading && !data) return <p className="p-4 text-[#1a1814]/60 text-sm">Loading statement…</p>
+  if (loading && !data) return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading statement…</p>
   if (!data) return null
 
   const v = data.vendor
@@ -79,64 +79,64 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 print:hidden">
-        <Link href={`/vendors/${id}/ledger`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
+        <Link href={`/vendors/${id}/ledger`} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--text-primary)]/65 hover:text-[var(--primary)]">
           <ArrowLeft className="w-4 h-4" /> Back to Ledger
         </Link>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm">
-            <label className="text-black/50">From</label>
+            <label className="text-[var(--text-muted)]">From</label>
             <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-              className="px-2 py-1 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#b8943f]" />
-            <label className="text-black/50">To</label>
+              className="px-2 py-1 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
+            <label className="text-[var(--text-muted)]">To</label>
             <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-              className="px-2 py-1 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#b8943f]" />
+              className="px-2 py-1 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
           </div>
           <button
             onClick={() => downloadCSV(`statement-${v.name}-${fromDate}-${toDate}.csv`, [
               ...data.bills.map(b => ({ Date: b.date, Type: "Bill", Reference: b.number, Debit: Number(b.total), Credit: 0, Outstanding: Number(b.outstanding) })),
               ...data.payments.map(p => ({ Date: p.date, Type: "Payment", Reference: p.reference ?? "", Debit: 0, Credit: Number(p.amount), Outstanding: 0 })),
             ])}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee]">
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]">
             <Download className="w-4 h-4" /> CSV
           </button>
           <button onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </div>
 
       {/* Statement document */}
-      <div className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden print:border-none print:rounded-none">
+      <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden print:border-none print:rounded-none">
         {/* Vendor info header */}
-        <div className="p-6 border-b border-[#ede9e2]">
+        <div className="p-6 border-b border-[var(--border)]">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-serif font-semibold">{v.name}</h2>
-              {v.email && <p className="text-sm text-black/60 mt-0.5">{v.email}</p>}
-              {v.phone && <p className="text-sm text-black/60">{v.phone}</p>}
-              {v.address && <p className="text-sm text-black/60">{v.address}</p>}
+              <h2 className="text-xl font-bold">{v.name}</h2>
+              {v.email && <p className="text-sm text-[var(--text-muted)] mt-0.5">{v.email}</p>}
+              {v.phone && <p className="text-sm text-[var(--text-muted)]">{v.phone}</p>}
+              {v.address && <p className="text-sm text-[var(--text-muted)]">{v.address}</p>}
             </div>
             <div className="text-right">
-              <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Vendor Statement</p>
-              <p className="text-sm text-black/60 mt-1">{data.period.from} — {data.period.to}</p>
+              <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Vendor Statement</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">{data.period.from} — {data.period.to}</p>
             </div>
           </div>
         </div>
 
         {/* Summary row */}
-        <div className="grid grid-cols-3 divide-x divide-[#ede9e2] border-b border-[#ede9e2] bg-[#f6f3ee]">
+        <div className="grid grid-cols-3 divide-x divide-[var(--border)] border-b border-[var(--border)] bg-[var(--bg-page)]">
           <div className="px-6 py-4 text-center">
-            <p className="text-xs text-black/50 uppercase tracking-widest font-bold mb-1">Opening Balance</p>
+            <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold mb-1">Opening Balance</p>
             <p className="text-lg font-bold font-mono">{fmt(Number(data.opening_balance))}</p>
           </div>
           <div className="px-6 py-4 text-center">
-            <p className="text-xs text-black/50 uppercase tracking-widest font-bold mb-1">Bills Received</p>
+            <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold mb-1">Bills Received</p>
             <p className="text-lg font-bold font-mono text-orange-600">
               {fmt(data.bills.reduce((s, b) => s + Number(b.total), 0))}
             </p>
           </div>
           <div className="px-6 py-4 text-center">
-            <p className="text-xs text-black/50 uppercase tracking-widest font-bold mb-1">Closing Balance</p>
+            <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold mb-1">Closing Balance</p>
             <p className={`text-lg font-bold font-mono ${closingNum > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {fmt(closingNum)}
             </p>
@@ -146,27 +146,27 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
 
         {/* Bills */}
         <div className="p-6">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-black/50 mb-3">Bills</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-3">Bills</h3>
           {data.bills.length === 0 ? (
-            <p className="text-sm text-black/40 italic">No bills in this period.</p>
+            <p className="text-sm text-[var(--text-muted)] italic">No bills in this period.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#ede9e2]">
-                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Bill #</th>
-                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Date</th>
-                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Due</th>
-                  <th className="py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.status', 'Status')}</th>
-                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.total', 'Total')}</th>
-                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">Outstanding</th>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Bill #</th>
+                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Date</th>
+                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Due</th>
+                  <th className="py-2 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.status', 'Status')}</th>
+                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.total', 'Total')}</th>
+                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Outstanding</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f6f3ee]">
+              <tbody className="divide-y divide-[var(--border)]">
                 {data.bills.map(b => (
                   <tr key={b.id}>
-                    <td className="py-2 font-mono text-[#b8943f] text-xs">{b.number}</td>
-                    <td className="py-2 text-black/70">{fmtDate(b.date)}</td>
-                    <td className="py-2 text-black/70">{b.due_date}</td>
+                    <td className="py-2 font-mono text-[var(--primary)] text-xs">{b.number}</td>
+                    <td className="py-2 text-[var(--text-muted)]">{fmtDate(b.date)}</td>
+                    <td className="py-2 text-[var(--text-muted)]">{b.due_date}</td>
                     <td className="py-2 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${b.status === 'paid' ? 'bg-green-100 text-green-700' : b.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
                         {b.status}
@@ -185,32 +185,32 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
 
         {/* Payments */}
         <div className="px-6 pb-6">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-black/50 mb-3">Payments Made</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-3">Payments Made</h3>
           {data.payments.length === 0 ? (
-            <p className="text-sm text-black/40 italic">No payments in this period.</p>
+            <p className="text-sm text-[var(--text-muted)] italic">No payments in this period.</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#ede9e2]">
-                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Date</th>
-                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">Method</th>
-                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.reference', 'Ref #')}</th>
-                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/50">{t('col.amount', 'Amount')}</th>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Date</th>
+                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Method</th>
+                  <th className="py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.reference', 'Ref #')}</th>
+                  <th className="py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.amount', 'Amount')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f6f3ee]">
+              <tbody className="divide-y divide-[var(--border)]">
                 {data.payments.map(p => (
                   <tr key={p.id}>
-                    <td className="py-2 text-black/70">{fmtDate(p.date)}</td>
-                    <td className="py-2 capitalize text-black/70">{p.method}</td>
-                    <td className="py-2 text-black/50 text-xs">{p.reference ?? '—'}</td>
+                    <td className="py-2 text-[var(--text-muted)]">{fmtDate(p.date)}</td>
+                    <td className="py-2 capitalize text-[var(--text-muted)]">{p.method}</td>
+                    <td className="py-2 text-[var(--text-muted)] text-xs">{p.reference ?? '—'}</td>
                     <td className="py-2 text-right font-mono text-green-600">{fmt(Number(p.amount))}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-[#ede9e2]">
-                  <td colSpan={3} className="py-2 text-xs font-bold text-black/50 uppercase tracking-widest">Total Paid</td>
+                <tr className="border-t border-[var(--border)]">
+                  <td colSpan={3} className="py-2 text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Total Paid</td>
                   <td className="py-2 text-right font-mono font-bold text-green-600">
                     {fmt(data.payments.reduce((s, p) => s + Number(p.amount), 0))}
                   </td>
@@ -221,10 +221,10 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-[#f6f3ee] border-t border-[#ede9e2] flex justify-between items-center">
-          <p className="text-xs text-black/50">Statement generated {generatedDate}</p>
+        <div className="px-6 py-4 bg-[var(--bg-page)] border-t border-[var(--border)] flex justify-between items-center">
+          <p className="text-xs text-[var(--text-muted)]">Statement generated {generatedDate}</p>
           <div className="text-right">
-            <p className="text-xs text-black/50 uppercase tracking-widest font-bold">Balance Owed</p>
+            <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Balance Owed</p>
             <p className={`text-xl font-bold font-mono ${closingNum > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {fmt(closingNum)}
             </p>

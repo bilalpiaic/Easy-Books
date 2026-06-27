@@ -59,85 +59,85 @@ export default function BillPayments() {
       <PrintHeader title="Bill Payments" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif font-medium">Bill Payments</h1>
-          <p className="text-sm text-black/75 mt-1">Record vendor payments and track cash outflows</p>
+          <h1 className="text-xl sm:text-3xl font-bold">Bill Payments</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Record vendor payments and track cash outflows</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => downloadCSV('bill-payments.csv', filtered.map(p => ({ Date: p.payment_date, Vendor: p.vendor_name ?? '', Method: p.method, Reference: p.reference ?? '', Amount: p.amount })))}
             disabled={filtered.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors print:hidden"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors print:hidden"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)]">
             <Plus className="w-4 h-4" /> Pay Bill
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-[#ede9e2] p-6">
-        <p className="text-xs text-black/75 uppercase tracking-widest font-bold">Total Paid (this page)</p>
+      <div className="bg-white rounded-lg border border-[var(--border)] p-6">
+        <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Total Paid (this page)</p>
         <p className="text-xl sm:text-3xl font-bold text-red-600 mt-2">{fmt(filtered.reduce((s, p) => s + p.amount, 0))}</p>
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
+        <Search className="absolute left-3 top-3 w-4 h-4 text-[var(--text-muted)]" />
         <input type="text" placeholder="Search by vendor or reference..." value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]" />
+          className="w-full pl-10 pr-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" />
       </div>
 
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[520px]">
-            <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+            <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
               <tr>
-                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Date</th>
-                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">{t('col.vendor', 'Vendor')}</th>
-                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">{t('col.reference', 'Ref #')}</th>
-                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/75">Method</th>
-                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75">{t('col.amount', 'Amount')}</th>
-                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/75 w-16 print:hidden">{t('common.print', 'Print')}</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Date</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.vendor', 'Vendor')}</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.reference', 'Ref #')}</th>
+                <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Method</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.amount', 'Amount')}</th>
+                <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] w-16 print:hidden">{t('common.print', 'Print')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#ede9e2]">
+            <tbody className="divide-y divide-[var(--border)]">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-black/40">{t('common.loading', 'Loading...')}</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-[var(--text-muted)]">{t('common.loading', 'Loading...')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
-                    <p className="text-black/40 mb-3">No payments recorded.</p>
-                    <button onClick={openCreate} className="text-sm text-[#b8943f] hover:underline font-medium">
+                    <p className="text-[var(--text-muted)] mb-3">No payments recorded.</p>
+                    <button onClick={openCreate} className="text-sm text-[var(--primary)] hover:underline font-medium">
                       + Record your first payment
                     </button>
                   </td>
                 </tr>
               ) : filtered.map(p => (
-                <tr key={p.id} className="hover:bg-[#f6f3ee]/50">
-                  <td className="ui-td text-black/70">{fmtDate(p.payment_date)}</td>
+                <tr key={p.id} className="hover:bg-[var(--bg-page)]/50">
+                  <td className="ui-td text-[var(--text-muted)]">{fmtDate(p.payment_date)}</td>
                   <td className="ui-td font-medium">
                     {p.bill_id && p.vendor_name
                       ? <DocLink type="bill" id={p.bill_id} label={p.vendor_name} />
                       : (p.vendor_name ?? '—')}
                   </td>
-                  <td className="ui-td font-mono text-sm text-black/60">
+                  <td className="ui-td font-mono text-sm text-[var(--text-muted)]">
                     {p.bill_id
-                      ? <DocLink type="bill" id={p.bill_id} label={p.reference ?? `BILL #${p.bill_id}`} className="text-black/60" />
+                      ? <DocLink type="bill" id={p.bill_id} label={p.reference ?? `BILL #${p.bill_id}`} className="text-[var(--text-muted)]" />
                       : (p.reference ?? '—')}
                   </td>
-                  <td className="ui-td capitalize text-black/70">{p.method.replace('_', ' ')}</td>
+                  <td className="ui-td capitalize text-[var(--text-muted)]">{p.method.replace('_', ' ')}</td>
                   <td className="ui-td text-right font-mono font-bold text-red-700">{fmt(p.amount)}</td>
                   <td className="ui-td text-right print:hidden">
                     <Link
                       href={`/bill-payments/${p.id}/print`}
                       title="Print voucher"
-                      className="inline-flex p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                      className="inline-flex p-1.5 rounded border border-[var(--border)] hover:bg-[var(--bg-page)] text-[var(--text-primary)]/55 hover:text-[var(--primary)]"
                     >
                       <Printer className="w-3.5 h-3.5" />
                     </Link>
@@ -147,7 +147,7 @@ export default function BillPayments() {
             </tbody>
           </table>
         </div>
-        <div className="border-t border-[#ede9e2] px-4">
+        <div className="border-t border-[var(--border)] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>

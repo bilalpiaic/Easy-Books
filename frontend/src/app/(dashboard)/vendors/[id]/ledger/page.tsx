@@ -66,7 +66,7 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
   }, [id, start, end])
 
   if (error && !data) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (!data)          return <p className="p-4 text-[#1a1814]/60 text-sm">Loading ledger…</p>
+  if (!data)          return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading ledger…</p>
 
   const v = data.vendor
   const visibleEntries = voucherFilter
@@ -78,32 +78,32 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
       <PrintHeader title={`Vendor Ledger — ${v.name}`} subtitle={`Period ${start} → ${end}`} orientation="landscape" />
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Link href="/vendors" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[#1a1814]/65 hover:text-[#b8943f]">
+        <Link href="/vendors" className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-[var(--text-primary)]/65 hover:text-[var(--primary)]">
           <ArrowLeft className="w-4 h-4" /> Vendors
         </Link>
         <div className="flex items-center gap-2">
           <button
             onClick={() => downloadCSV(`vendor-ledger-${v.name}.csv`, visibleEntries.map(e => ({ Date: e.date, Type: e.doc_type, "Doc #": e.doc_number, Description: e.description, Debit: e.debit, Credit: e.credit, Balance: e.running_balance })))}
             disabled={visibleEntries.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <Link href={`/vendors/${id}/statement?from=${start}&to=${end}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#b8943f]/40 rounded-lg text-sm font-bold text-[#b8943f] hover:bg-[#faf6ec] print:hidden">
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/40 rounded-lg text-sm font-bold text-[var(--primary)] hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" /> Print Statement
           </Link>
-          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] print:hidden">
+          <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" /> Print Ledger
           </button>
         </div>
       </div>
 
-      <header className="bg-white border border-[#ede9e2] rounded-xl p-5 flex items-start gap-3 print:hidden">
-        <Truck className="w-7 h-7 text-[#b8943f] shrink-0 mt-1" />
+      <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex items-start gap-3 print:hidden">
+        <Truck className="w-7 h-7 text-[var(--primary)] shrink-0 mt-1" />
         <div className="min-w-0">
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814] truncate">{v.name}</h1>
-          <p className="text-xs text-[#1a1814]/60">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] truncate">{v.name}</h1>
+          <p className="text-xs text-[var(--text-primary)]/60">
             {v.email && <span>{v.email}</span>}
             {v.email && v.phone && <span> · </span>}
             {v.phone && <span>{v.phone}</span>}
@@ -112,16 +112,16 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 print:hidden">
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4 space-y-3">
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4 space-y-3">
           <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
           <div className="flex items-center gap-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 shrink-0">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 shrink-0">
               Voucher Type
             </label>
             <select
               value={voucherFilter}
               onChange={e => setVoucherFilter(e.target.value)}
-              className="text-sm border border-[#ede9e2] rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-[#b8943f]"
+              className="text-sm border border-[var(--border)] rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
             >
               <option value="">All Types</option>
               {Object.entries(VOUCHER_TYPES).map(([code, label]) => (
@@ -131,7 +131,7 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
             {voucherFilter && (
               <button
                 onClick={() => setVoucherFilter("")}
-                className="text-xs text-[#1a1814]/50 hover:text-[#b8943f] transition-colors"
+                className="text-xs text-[var(--text-primary)]/50 hover:text-[var(--primary)] transition-colors"
                 title="Clear filter"
               >
                 ✕ Clear
@@ -139,7 +139,7 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
             )}
           </div>
         </div>
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-4 grid grid-cols-3 gap-3 text-center">
+        <div className="bg-white border border-[var(--border)] rounded-xl p-4 grid grid-cols-3 gap-3 text-center">
           <Stat label="Opening" value={fmt(Number(data.opening_balance))} />
           <Stat label="Closing"
                 value={fmt(Number(data.closing_balance))}
@@ -152,39 +152,39 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      <section className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+      <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
         {voucherFilter && (
-          <div className="px-3 py-1.5 bg-[#faf6ec] border-b border-[#ede9e2] text-[10px] text-[#1a1814]/55 font-medium">
+          <div className="px-3 py-1.5 bg-[var(--bg-page)] border-b border-[var(--border)] text-[10px] text-[var(--text-primary)]/55 font-medium">
             Showing {visibleEntries.length} of {data.entries.length} rows filtered by {VOUCHER_TYPES[voucherFilter] ?? voucherFilter} — balances reflect the full ledger
           </div>
         )}
         <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[760px]">
-          <thead className="bg-[#faf6ec]">
+          <thead className="bg-[var(--bg-page)]">
             <tr>
-              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Date</th>
-              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Document</th>
-              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.description', 'Description')}</th>
-              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
-              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.debit', 'Debit')}</th>
-              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.credit', 'Credit')}</th>
-              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">{t('col.balance', 'Balance')}</th>
+              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-24">Date</th>
+              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">Document</th>
+              <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{t('col.description', 'Description')}</th>
+              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-24">Qty</th>
+              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">{t('col.debit', 'Debit')}</th>
+              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">{t('col.credit', 'Credit')}</th>
+              <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">{t('col.balance', 'Balance')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             <tr className="bg-[#faf8f4]">
-              <td colSpan={6} className="px-3 py-2 text-[11px] font-bold text-[#1a1814]/55">Opening Balance</td>
+              <td colSpan={6} className="px-3 py-2 text-[11px] font-bold text-[var(--text-primary)]/55">Opening Balance</td>
               <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.opening_balance))}</td>
             </tr>
             {visibleEntries.map((e, i) => {
               const href = DOC_HREF[e.doc_type]?.(e.doc_id)
               return (
                 <tr key={i}>
-                  <td className="px-3 py-2 text-[#1a1814]/70 whitespace-nowrap">{fmtDate(e.date)}</td>
+                  <td className="px-3 py-2 text-[var(--text-primary)]/70 whitespace-nowrap">{fmtDate(e.date)}</td>
                   <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
-                    {href ? <Link href={href} className="text-[#b8943f] hover:underline">{e.doc_number}</Link> : e.doc_number}
+                    {href ? <Link href={href} className="text-[var(--primary)] hover:underline">{e.doc_number}</Link> : e.doc_number}
                   </td>
-                  <td className="px-3 py-2 text-[#1a1814]/80">{e.description}</td>
+                  <td className="px-3 py-2 text-[var(--text-primary)]/80">{e.description}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs">
                     {e.qty_in ? <>+{e.qty_in} {e.unit ?? ""}</> : ""}
                   </td>
@@ -196,8 +196,8 @@ export default function VendorLedgerPage({ params }: { params: Promise<{ id: str
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-[#1a1814] bg-[#faf6ec]">
-              <td colSpan={3} className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Totals</td>
+            <tr className="border-t-2 border-[var(--text-primary)] bg-[var(--bg-page)]">
+              <td colSpan={3} className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Totals</td>
               <td className="px-3 py-2 text-right font-mono text-xs">{data.totals.qty_in ?? ""}</td>
               <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.totals.debit))}</td>
               <td className="px-3 py-2 text-right font-mono font-bold">{fmt(Number(data.totals.credit))}</td>
@@ -216,12 +216,12 @@ function Stat({ label, value, hint, tone = "default" }: {
 }) {
   const toneCls = tone === "amber"   ? "text-amber-700"
                 : tone === "emerald" ? "text-emerald-700"
-                : "text-[#1a1814]"
+                : "text-[var(--text-primary)]"
   return (
     <div>
-      <div className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-0.5">{label}</div>
+      <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-0.5">{label}</div>
       <div className={`font-mono text-base font-bold ${toneCls}`}>{value}</div>
-      {hint && <div className="text-[10px] text-[#1a1814]/45 mt-0.5">{hint}</div>}
+      {hint && <div className="text-[10px] text-[var(--text-primary)]/45 mt-0.5">{hint}</div>}
     </div>
   )
 }

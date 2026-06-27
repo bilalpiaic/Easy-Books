@@ -15,11 +15,11 @@ export default function NewBillPaymentPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/bill-payments" className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
+        <Link href="/bill-payments" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-2">
           <ArrowLeft className="w-4 h-4" /> Bill Payments
         </Link>
-        <h1 className="text-xl sm:text-3xl font-serif font-medium">Pay Bill</h1>
-        <p className="text-sm text-black/75 mt-1">Record a vendor payment and apply it to open bills</p>
+        <h1 className="text-xl sm:text-3xl font-bold">Pay Bill</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Record a vendor payment and apply it to open bills</p>
       </div>
       <BillPaymentForm
         onSaved={(id) => router.push(`/bill-payments/${id}`)}

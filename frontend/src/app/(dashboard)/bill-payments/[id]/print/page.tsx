@@ -48,17 +48,17 @@ export default function VoucherPrintPage({ params }: { params: Promise<{ id: str
   }, [id])
 
   if (error) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (!pay)  return <p className="p-4 text-[#1a1814]/60 text-sm">Loading voucher…</p>
+  if (!pay)  return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading voucher…</p>
 
   return (
     <div className="bg-white min-h-screen">
-      <div className="print:hidden flex items-center justify-between bg-[#1a1814] text-white px-4 py-2 mb-4">
-        <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm hover:text-[#ffd966]">
+      <div className="print:hidden flex items-center justify-between bg-[var(--text-primary)] text-white px-4 py-2 mb-4">
+        <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm hover:text-[var(--primary)]">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-black rounded-md text-sm font-semibold"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -66,42 +66,42 @@ export default function VoucherPrintPage({ params }: { params: Promise<{ id: str
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
         <PrintHeader title={`Payment Voucher #${pay.id}`} subtitle={`Paid on ${fmtDate(pay.payment_date)}`} />
 
-        <article className="text-[#1a1814]">
-          <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
-            <h1 className="text-lg sm:text-2xl font-serif font-semibold">Voucher #{pay.id}</h1>
-            <p className="text-sm text-[#1a1814]/60">Paid on {fmtDate(pay.payment_date)}</p>
+        <article className="text-[var(--text-primary)]">
+          <header className="mb-6 print:hidden border-b border-[var(--border)] pb-4">
+            <h1 className="text-lg sm:text-2xl font-bold">Voucher #{pay.id}</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Paid on {fmtDate(pay.payment_date)}</p>
           </header>
 
           <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Paid To</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Paid To</div>
               <p className="font-semibold">{pay.vendor_name ?? "—"}</p>
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Method</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Method</div>
               <p className="font-semibold uppercase">{pay.method}</p>
               {pay.reference && (
-                <p className="text-xs text-[#1a1814]/55 mt-1">Ref: {pay.reference}</p>
+                <p className="text-xs text-[var(--text-primary)]/55 mt-1">Ref: {pay.reference}</p>
               )}
             </div>
           </div>
 
-          <div className="bg-[#faf6ec] border border-[#ede9e2] rounded p-5 mb-6 flex items-end justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Amount Paid</span>
-            <span className="text-xl sm:text-3xl font-bold font-mono text-[#1a1814]">{fmt(pay.amount)}</span>
+          <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded p-5 mb-6 flex items-end justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Amount Paid</span>
+            <span className="text-xl sm:text-3xl font-bold font-mono text-[var(--text-primary)]">{fmt(pay.amount)}</span>
           </div>
 
           {pay.allocations.length > 0 ? (
             <>
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-2">Applied To</h2>
-              <table className="w-full text-sm border border-[#ede9e2] mb-6">
-                <thead className="bg-[#faf6ec]">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-2">Applied To</h2>
+              <table className="w-full text-sm border border-[var(--border)] mb-6">
+                <thead className="bg-[var(--bg-page)]">
                   <tr>
-                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Bill</th>
-                    <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">{t('col.amount', 'Amount')}</th>
+                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Bill</th>
+                    <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">{t('col.amount', 'Amount')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {pay.allocations.map(a => (
                     <tr key={a.id}>
                       <td className="px-3 py-2 font-mono">{a.bill_number ?? `#${a.bill_id}`}</td>
@@ -112,18 +112,18 @@ export default function VoucherPrintPage({ params }: { params: Promise<{ id: str
               </table>
             </>
           ) : pay.bill_id ? (
-            <p className="text-xs text-[#1a1814]/55 mb-6">Applied directly to bill #{pay.bill_id}.</p>
+            <p className="text-xs text-[var(--text-primary)]/55 mb-6">Applied directly to bill #{pay.bill_id}.</p>
           ) : null}
 
-          <div className="flex justify-between mt-16 pt-6 border-t border-[#ede9e2] text-xs text-[#1a1814]/55">
+          <div className="flex justify-between mt-16 pt-6 border-t border-[var(--border)] text-xs text-[var(--text-primary)]/55">
             <div className="text-center w-40">
-              <div className="border-t border-[#1a1814]/30 pt-1">Prepared By</div>
+              <div className="border-t border-[var(--text-primary)]/30 pt-1">Prepared By</div>
             </div>
             <div className="text-center w-40">
-              <div className="border-t border-[#1a1814]/30 pt-1">Approved By</div>
+              <div className="border-t border-[var(--text-primary)]/30 pt-1">Approved By</div>
             </div>
             <div className="text-center w-40">
-              <div className="border-t border-[#1a1814]/30 pt-1">Received By</div>
+              <div className="border-t border-[var(--text-primary)]/30 pt-1">Received By</div>
             </div>
           </div>
         </article>
