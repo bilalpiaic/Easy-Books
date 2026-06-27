@@ -184,7 +184,7 @@ export default function CustomerHubPage() {
         </Link>
         <Link
           href={`/invoices/new?customer_id=${id}`}
-          className="bg-[var(--primary)] rounded-xl p-4 flex flex-col items-center gap-2 hover:bg-[#a07c32] transition-colors group"
+          className="bg-[var(--primary)] rounded-xl p-4 flex flex-col items-center gap-2 hover:bg-[var(--primary-dark)] transition-colors group"
         >
           <Plus className="w-5 h-5 text-white" />
           <span className="text-sm font-medium text-white">New Invoice</span>
