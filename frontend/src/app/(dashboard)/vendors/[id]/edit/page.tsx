@@ -29,15 +29,15 @@ export default function EditVendorPage({ params }: { params: Promise<{ id: strin
   }, [failed, router])
 
   if (failed) return null
-  if (!vendor) return <div className="p-8 text-sm text-black/50">Loading vendor…</div>
+  if (!vendor) return <div className="p-8 text-sm text-[var(--text-muted)]">Loading vendor…</div>
 
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/vendors" className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
+        <Link href="/vendors" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-2">
           <ArrowLeft className="w-4 h-4" /> Vendors
         </Link>
-        <h1 className="text-xl sm:text-3xl font-serif font-medium">Edit {vendor.name}</h1>
+        <h1 className="text-xl sm:text-3xl font-bold">Edit {vendor.name}</h1>
       </div>
       <VendorForm
         mode="edit"

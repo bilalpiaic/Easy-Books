@@ -15,11 +15,11 @@ export default function NewCustomerPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/customers" className="inline-flex items-center gap-1 text-sm text-black/60 hover:text-black/80 mb-2">
+        <Link href="/customers" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-2">
           <ArrowLeft className="w-4 h-4" /> Customers
         </Link>
-        <h1 className="text-xl sm:text-3xl font-serif font-medium">Add Customer</h1>
-        <p className="text-sm text-black/75 mt-1">Create a customer account</p>
+        <h1 className="text-xl sm:text-3xl font-bold">Add Customer</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Create a customer account</p>
       </div>
       <CustomerForm
         mode="create"
