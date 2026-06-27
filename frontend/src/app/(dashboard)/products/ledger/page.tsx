@@ -112,8 +112,8 @@ function ProductLedgerInner() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Product Ledger</h1>
-          <p className="text-[#1a1814]/60">Stock movement history by product and store</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Product Ledger</h1>
+          <p className="text-[var(--text-primary)]/60">Stock movement history by product and store</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -125,7 +125,7 @@ function ProductLedgerInner() {
               })))
             }}
             disabled={!data?.items.length}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40"
             title="Export CSV"
           >
             <Download className="w-5 h-5" />
@@ -133,23 +133,23 @@ function ProductLedgerInner() {
           <button
             onClick={() => window.print()}
             disabled={!data?.items.length}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60 disabled:opacity-40"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40"
             title="Print"
           >
             <Printer className="w-5 h-5" />
           </button>
-          <BookOpen className="w-7 h-7 text-[#b8943f] hidden md:block" />
+          <BookOpen className="w-7 h-7 text-[var(--primary)] hidden md:block" />
         </div>
       </div>
 
       {/* Filters — hidden in print; plain-text summary shown via PrintHeader subtitle */}
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
+      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">{t('col.product', 'Product')}</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">{t('col.product', 'Product')}</label>
           <select
             value={productId}
             onChange={e => setProductId(e.target.value)}
-            className="w-full border border-[#1a1814]/10 rounded-lg px-3 py-2 text-sm bg-[#f6f3ee] text-[#1a1814] focus:outline-none focus:border-[#b8943f]"
+            className="w-full border border-[var(--text-primary)]/10 rounded-lg px-3 py-2 text-sm bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
           >
             <option value="">— Select product —</option>
             {products.map(p => (
@@ -161,11 +161,11 @@ function ProductLedgerInner() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Store / Location</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Store / Location</label>
           <select
             value={locationId}
             onChange={e => setLocationId(e.target.value)}
-            className="w-full border border-[#1a1814]/10 rounded-lg px-3 py-2 text-sm bg-[#f6f3ee] text-[#1a1814] focus:outline-none focus:border-[#b8943f]"
+            className="w-full border border-[var(--text-primary)]/10 rounded-lg px-3 py-2 text-sm bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
           >
             <option value="">Consolidated (all stores)</option>
             {locations.map(l => (
@@ -177,65 +177,65 @@ function ProductLedgerInner() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">From</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">From</label>
           <input
             type="date"
             value={start}
             onChange={e => setStart(e.target.value)}
-            className="w-full border border-[#1a1814]/10 rounded-lg px-3 py-2 text-sm bg-[#f6f3ee] text-[#1a1814] focus:outline-none focus:border-[#b8943f]"
+            className="w-full border border-[var(--text-primary)]/10 rounded-lg px-3 py-2 text-sm bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">To</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">To</label>
           <input
             type="date"
             value={end}
             onChange={e => setEnd(e.target.value)}
-            className="w-full border border-[#1a1814]/10 rounded-lg px-3 py-2 text-sm bg-[#f6f3ee] text-[#1a1814] focus:outline-none focus:border-[#b8943f]"
+            className="w-full border border-[var(--text-primary)]/10 rounded-lg px-3 py-2 text-sm bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
-              <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Date</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Direction</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty In</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Qty Out</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Running Qty</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">Unit Cost</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">{t('col.location', 'Location')}</th>
-                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Source</th>
+              <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Date</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Direction</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Qty In</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Qty Out</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Running Qty</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Unit Cost</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.location', 'Location')}</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Source</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1a1814]/5">
+            <tbody className="divide-y divide-[var(--text-primary)]/5">
               {!productId ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/50">
+                  <td colSpan={8} className="px-6 py-10 text-center text-[var(--text-primary)]/50">
                     Select a product to view its movement ledger.
                   </td>
                 </tr>
               ) : isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/75">{t('common.loading', 'Loading...')}</td>
+                  <td colSpan={8} className="px-6 py-10 text-center text-[var(--text-primary)]/75">{t('common.loading', 'Loading...')}</td>
                 </tr>
               ) : !data || data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/75">
+                  <td colSpan={8} className="px-6 py-10 text-center text-[var(--text-primary)]/75">
                     No movements found for the selected filters.
                   </td>
                 </tr>
               ) : (
                 data.items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-[#f6f3ee]/30 transition-colors">
-                    <td className="ui-td text-sm text-[#1a1814]/70">{fmtDate(item.date)}</td>
+                  <tr key={idx} className="hover:bg-[var(--bg-page)]/30 transition-colors">
+                    <td className="ui-td text-sm text-[var(--text-primary)]/70">{fmtDate(item.date)}</td>
                     <td className="ui-td">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[#b8943f]/10 text-[#b8943f]">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">
                         {item.direction}
                       </span>
                     </td>
@@ -245,14 +245,14 @@ function ProductLedgerInner() {
                     <td className="ui-td text-right font-mono text-sm text-red-600">
                       {Number(item.qty_out) > 0 ? item.qty_out : "—"}
                     </td>
-                    <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
+                    <td className="ui-td text-right font-mono text-sm font-semibold text-[var(--text-primary)]">
                       {item.running_qty}
                     </td>
-                    <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
+                    <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">
                       {Number(item.unit_cost) > 0 ? fmt(item.unit_cost) : "—"}
                     </td>
-                    <td className="ui-td text-sm text-[#1a1814]/70">{item.location || "—"}</td>
-                    <td className="ui-td text-sm text-[#1a1814]/60">{item.source || "—"}</td>
+                    <td className="ui-td text-sm text-[var(--text-primary)]/70">{item.location || "—"}</td>
+                    <td className="ui-td text-sm text-[var(--text-primary)]/60">{item.source || "—"}</td>
                   </tr>
                 ))
               )}

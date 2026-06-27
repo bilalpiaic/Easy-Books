@@ -147,23 +147,23 @@ function ProductsInner() {
       <PrintHeader title="Products" orientation="landscape" />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif font-medium flex items-center gap-2">
-            <Package className="w-7 h-7 text-[#b8943f]" /> Products
+          <h1 className="text-xl sm:text-3xl font-bold flex items-center gap-2">
+            <Package className="w-7 h-7 text-[var(--primary)]" /> Products
           </h1>
-          <p className="text-sm text-black/75 mt-1">Manage product catalog and track inventory</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Manage product catalog and track inventory</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex rounded-lg border border-[#ede9e2] overflow-hidden">
+          <div className="flex rounded-lg border border-[var(--border)] overflow-hidden">
             <button
               onClick={() => setView('list')}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === 'list' ? 'bg-[#1a1814] text-white' : 'bg-white text-black/60 hover:bg-[#f6f3ee]'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === 'list' ? 'bg-[var(--text-primary)] text-white' : 'bg-white text-[var(--text-muted)] hover:bg-[var(--bg-page)]'}`}
               title="List view"
             >
               <List className="w-4 h-4" /> List
             </button>
             <button
               onClick={() => setView('tree')}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === 'tree' ? 'bg-[#1a1814] text-white' : 'bg-white text-black/60 hover:bg-[#f6f3ee]'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === 'tree' ? 'bg-[var(--text-primary)] text-white' : 'bg-white text-[var(--text-muted)] hover:bg-[var(--bg-page)]'}`}
               title="Category valuation tree"
             >
               <FolderTree className="w-4 h-4" /> Tree
@@ -175,37 +175,37 @@ function ProductsInner() {
               Code: p.code, Name: p.name, Category: catLabel(p.category_id), Type: p.product_type, Unit: p.unit,
               'Selling Price': p.default_rate, 'Cost Price': p.avg_cost, 'Stock Qty': p.stock_qty, 'Reorder Level': p.reorder_level,
             })))}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Download className="w-4 h-4" /> Export
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
             title="Print"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
-          <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:bg-[#a07c35]">
+          <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)]">
             <Plus className="w-4 h-4" /> Add Product
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-4">
-          <p className="text-xs text-black/60 uppercase tracking-widest font-bold">Total Products</p>
-          <p className="text-2xl font-bold text-[#b8943f] mt-1">{total}</p>
+        <div className="bg-white rounded-lg border border-[var(--border)] p-4">
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Total Products</p>
+          <p className="text-2xl font-bold text-[var(--primary)] mt-1">{total}</p>
         </div>
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-4">
-          <p className="text-xs text-black/60 uppercase tracking-widest font-bold">Stock Items</p>
-          <p className="text-2xl font-bold text-[#1a1814] mt-1">{products.filter(p => p.product_type === 'stock').length}</p>
+        <div className="bg-white rounded-lg border border-[var(--border)] p-4">
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Stock Items</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)] mt-1">{products.filter(p => p.product_type === 'stock').length}</p>
         </div>
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-4">
-          <p className="text-xs text-black/60 uppercase tracking-widest font-bold">Low Stock</p>
+        <div className="bg-white rounded-lg border border-[var(--border)] p-4">
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Low Stock</p>
           <p className="text-2xl font-bold text-amber-600 mt-1">{products.filter(p => p.product_type === 'stock' && p.stock_qty > 0 && p.stock_qty <= p.reorder_level).length}</p>
         </div>
-        <div className="bg-white rounded-lg border border-[#ede9e2] p-4">
-          <p className="text-xs text-black/60 uppercase tracking-widest font-bold">Out of Stock</p>
+        <div className="bg-white rounded-lg border border-[var(--border)] p-4">
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Out of Stock</p>
           <p className="text-2xl font-bold text-red-600 mt-1">{products.filter(p => p.product_type === 'stock' && p.stock_qty <= 0).length}</p>
         </div>
       </div>
@@ -213,18 +213,18 @@ function ProductsInner() {
       {view === 'list' && (
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-black/40" />
+          <Search className="absolute left-3 top-3 w-4 h-4 text-[var(--text-muted)]" />
           <input
             type="text" placeholder="Search products..."
             value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+            className="w-full pl-10 pr-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
           />
         </div>
         {allCatsFlat.length > 0 && (
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-[#ede9e2] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f] bg-white"
+            className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white"
           >
             <option value="">All Categories</option>
             {allCatsFlat.map(c => <option key={c.id} value={String(c.id)}>{c.label}</option>)}
@@ -232,7 +232,7 @@ function ProductsInner() {
         )}
         <button
           onClick={() => setLowStockOnly(v => !v)}
-          className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${lowStockOnly ? 'bg-amber-100 border-amber-300 text-amber-700' : 'border-[#ede9e2] hover:bg-[#f6f3ee] text-black/70'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${lowStockOnly ? 'bg-amber-100 border-amber-300 text-amber-700' : 'border-[var(--border)] hover:bg-[var(--bg-page)] text-[var(--text-muted)]'}`}
         >
           {lowStockOnly ? 'Low Stock Only ✓' : 'Low Stock Filter'}
         </button>
@@ -242,50 +242,50 @@ function ProductsInner() {
       {view === 'tree' && <ProductTree coa={coa} loading={coaLoading} fmt={fmt} />}
 
       {view === 'list' && (
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
         <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
-          <thead className="sticky top-0 z-10 bg-[#f6f3ee] border-b border-[#ede9e2]">
+          <thead className="sticky top-0 z-10 bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
               <th className="px-4 py-4 w-10">
                 <input type="checkbox"
-                  className="rounded border-[#ede9e2] accent-[#b8943f]"
+                  className="rounded border-[var(--border)] accent-[var(--primary)]"
                   checked={products.length > 0 && products.every(p => selectedIds.has(p.id))}
                   onChange={e => setSelectedIds(e.target.checked ? new Set(products.map(p => p.id)) : new Set())}
                 />
               </th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Code</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Name</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">{t('col.category', 'Category')}</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Type</th>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">{t('col.unit', 'Unit')}</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Selling Price</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Cost Price</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Stock Qty</th>
-              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-black/60">{t('col.status', 'Status')}</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Code</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Name</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.category', 'Category')}</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Type</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.unit', 'Unit')}</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Selling Price</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Cost Price</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Stock Qty</th>
+              <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.status', 'Status')}</th>
               <th className="ui-th" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {isLoading ? (
               <SkeletonRow cols={11} />
             ) : products.length === 0 ? (
               <tr>
                 <td colSpan={11} className="px-6 py-16 text-center">
                   <div className="inline-flex flex-col items-center gap-3">
-                    <Package className="w-10 h-10 text-black/20" />
-                    <p className="text-sm text-black/40 font-medium">No products yet</p>
-                    <button onClick={openAdd} className="px-4 py-2 bg-[#b8943f] text-white text-sm font-medium rounded-lg hover:bg-[#a07835] transition-colors">
+                    <Package className="w-10 h-10 text-[var(--border)]" />
+                    <p className="text-sm text-[var(--text-muted)] font-medium">No products yet</p>
+                    <button onClick={openAdd} className="px-4 py-2 bg-[var(--primary)] text-white text-sm font-medium rounded-lg hover:bg-[var(--primary-dark)] transition-colors">
                       + Add Product
                     </button>
                   </div>
                 </td>
               </tr>
             ) : products.map(p => (
-              <tr key={p.id} className={`hover:bg-[#f6f3ee]/50 ${selectedIds.has(p.id) ? 'bg-[#ffd966]/10' : p.product_type === 'stock' && p.stock_qty <= 0 ? 'bg-red-50/30' : p.product_type === 'stock' && p.stock_qty <= p.reorder_level ? 'bg-amber-50/30' : ''}`}>
+              <tr key={p.id} className={`hover:bg-[var(--bg-page)]/50 ${selectedIds.has(p.id) ? 'bg-[var(--primary-light)]' : p.product_type === 'stock' && p.stock_qty <= 0 ? 'bg-red-50/30' : p.product_type === 'stock' && p.stock_qty <= p.reorder_level ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-4 py-4 w-10">
                   <input type="checkbox"
-                    className="rounded border-[#ede9e2] accent-[#b8943f]"
+                    className="rounded border-[var(--border)] accent-[var(--primary)]"
                     checked={selectedIds.has(p.id)}
                     onChange={e => setSelectedIds(prev => {
                       const next = new Set(prev)
@@ -294,34 +294,34 @@ function ProductsInner() {
                     })}
                   />
                 </td>
-                <td className="ui-td font-mono text-xs text-[#b8943f]">
-                  {p.code ? <DocLink type="product" id={p.id} label={p.code} className="text-[#b8943f]" /> : '—'}
+                <td className="ui-td font-mono text-xs text-[var(--primary)]">
+                  {p.code ? <DocLink type="product" id={p.id} label={p.code} className="text-[var(--primary)]" /> : '—'}
                 </td>
                 <td className="ui-td font-medium cursor-pointer" title={p.name}>
                   <DocLink type="product" id={p.id} label={p.name} className="font-medium" />
                 </td>
-                <td className="ui-td text-black/60 text-xs">{catLabel(p.category_id)}</td>
+                <td className="ui-td text-[var(--text-muted)] text-xs">{catLabel(p.category_id)}</td>
                 <td className="ui-td">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.product_type === 'stock' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
                     {p.product_type}
                   </span>
                 </td>
-                <td className="ui-td text-black/60">{p.unit}</td>
+                <td className="ui-td text-[var(--text-muted)]">{p.unit}</td>
                 <td className="ui-td text-right font-mono">{fmt(p.default_rate)}</td>
-                <td className="ui-td text-right font-mono text-black/70">
-                  {p.product_type === 'stock' ? fmt(p.avg_cost) : <span className="text-black/30">—</span>}
+                <td className="ui-td text-right font-mono text-[var(--text-muted)]">
+                  {p.product_type === 'stock' ? fmt(p.avg_cost) : <span className="text-[var(--border)]">—</span>}
                 </td>
                 <td className="ui-td text-right">
                   {p.product_type === 'stock' ? (
                     <span className="font-mono">{p.stock_qty.toLocaleString()} {p.unit}</span>
                   ) : (
-                    <span className="text-black/30">—</span>
+                    <span className="text-[var(--border)]">—</span>
                   )}
                 </td>
                 <td className="ui-td text-center">{stockBadge(p)}</td>
                 <td className="ui-td flex items-center gap-3">
-                  <Link href={`/products/${p.id}`} className="text-[#1a1814]/60 text-sm hover:underline">View</Link>
-                  <button onClick={() => router.push(`/products/${p.id}/edit`)} className="text-[#b8943f] text-sm font-bold hover:underline">Edit</button>
+                  <Link href={`/products/${p.id}`} className="text-[var(--text-primary)]/60 text-sm hover:underline">View</Link>
+                  <button onClick={() => router.push(`/products/${p.id}/edit`)} className="text-[var(--primary)] text-sm font-bold hover:underline">Edit</button>
                   <button onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                 </td>
               </tr>
@@ -329,7 +329,7 @@ function ProductsInner() {
           </tbody>
         </table>
         </div>
-        <div className="border-t border-[#ede9e2] px-4">
+        <div className="border-t border-[var(--border)] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       </div>
@@ -346,29 +346,29 @@ function ProductsInner() {
 
 function ProductTree({ coa, loading, fmt }: { coa: CoaData | null; loading: boolean; fmt: (n: number) => string }) {
   return (
-    <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+    <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
-          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+          <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
-              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-black/60">Category / Product</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Qty</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Avg Rate</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-black/60">Value</th>
+              <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Category / Product</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Qty</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Avg Rate</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Value</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {loading ? (
-              <tr><td colSpan={4} className="px-6 py-10 text-center text-black/50">Loading valuation…</td></tr>
+              <tr><td colSpan={4} className="px-6 py-10 text-center text-[var(--text-muted)]">Loading valuation…</td></tr>
             ) : !coa || coa.groups.length === 0 ? (
-              <tr><td colSpan={4} className="px-6 py-10 text-center text-black/50">No products found.</td></tr>
+              <tr><td colSpan={4} className="px-6 py-10 text-center text-[var(--text-muted)]">No products found.</td></tr>
             ) : (
               coa.groups.map(g => <TreeGroup key={g.name} group={g} fmt={fmt} />)
             )}
           </tbody>
           {!loading && coa && coa.groups.length > 0 && (
             <tfoot>
-              <tr className="bg-[#1a1814] text-white">
+              <tr className="bg-[var(--text-primary)] text-white">
                 <td className="ui-td font-bold uppercase tracking-widest text-xs">Grand Total</td>
                 <td className="ui-td text-right font-mono font-bold">{Number(coa.grand.qty).toLocaleString()}</td>
                 <td />
@@ -385,8 +385,8 @@ function ProductTree({ coa, loading, fmt }: { coa: CoaData | null; loading: bool
 function TreeGroup({ group, fmt }: { group: CoaGroup; fmt: (n: number) => string }) {
   return (
     <>
-      <tr className="bg-[#f6f3ee]/60">
-        <td className="ui-td font-semibold text-[#1a1814]">{group.name}</td>
+      <tr className="bg-[var(--bg-page)]/60">
+        <td className="ui-td font-semibold text-[var(--text-primary)]">{group.name}</td>
         <td className="ui-td text-right font-mono text-sm">{Number(group.qty).toLocaleString()}</td>
         <td />
         <td className="ui-td text-right font-mono text-sm font-semibold">{fmt(group.value)}</td>
@@ -402,21 +402,21 @@ function TreeSub({ sub, fmt }: { sub: CoaSub; fmt: (n: number) => string }) {
   return (
     <>
       <tr>
-        <td className="ui-td pl-10 font-medium text-sm text-[#1a1814]/80">{sub.name}</td>
-        <td className="ui-td text-right font-mono text-xs text-[#1a1814]/70">{Number(sub.qty).toLocaleString()}</td>
+        <td className="ui-td pl-10 font-medium text-sm text-[var(--text-primary)]/80">{sub.name}</td>
+        <td className="ui-td text-right font-mono text-xs text-[var(--text-primary)]/70">{Number(sub.qty).toLocaleString()}</td>
         <td />
-        <td className="ui-td text-right font-mono text-xs text-[#1a1814]/70">{fmt(sub.value)}</td>
+        <td className="ui-td text-right font-mono text-xs text-[var(--text-primary)]/70">{fmt(sub.value)}</td>
       </tr>
       {sub.items.map(it => (
-        <tr key={it.id} className="hover:bg-[#f6f3ee]/50">
+        <tr key={it.id} className="hover:bg-[var(--bg-page)]/50">
           <td className="ui-td pl-16 text-sm">
-            <Link href={`/products/ledger?product=${it.id}`} className="text-[#1a1814]/90 hover:text-[#b8943f] hover:underline" title="View product ledger">
+            <Link href={`/products/ledger?product=${it.id}`} className="text-[var(--text-primary)]/90 hover:text-[var(--primary)] hover:underline" title="View product ledger">
               {it.name}
             </Link>
-            {it.code && <span className="ml-2 font-mono text-xs text-[#b8943f]">{it.code}</span>}
+            {it.code && <span className="ml-2 font-mono text-xs text-[var(--primary)]">{it.code}</span>}
           </td>
           <td className="ui-td text-right font-mono text-sm">{Number(it.qty).toLocaleString()}</td>
-          <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">{fmt(it.avg_rate)}</td>
+          <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">{fmt(it.avg_rate)}</td>
           <td className="ui-td text-right font-mono text-sm">{fmt(it.value)}</td>
         </tr>
       ))}

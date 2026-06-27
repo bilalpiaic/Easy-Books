@@ -187,14 +187,14 @@ export default function InventoryPerformancePage() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
-          <h1 className="text-xl sm:text-3xl font-serif text-[#1a1814]">Inventory Performance</h1>
-          <p className="text-[#1a1814]/60">Stock valuation, movement analysis and low-stock alerts</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Inventory Performance</h1>
+          <p className="text-[var(--text-primary)]/60">Stock valuation, movement analysis and low-stock alerts</p>
         </div>
         <div className="flex gap-3">
           {/* Print button — always visible */}
           <button
             onClick={() => window.print()}
-            className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+            className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
             title="Print"
           >
             <Printer className="w-5 h-5" />
@@ -213,7 +213,7 @@ export default function InventoryPerformancePage() {
                   "Units Sold": r.units_sold, "COGS": r.cogs,
                 }))
               )}
-              className="p-3 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-[#1a1814]/60"
+              className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60"
               title="Export CSV"
             >
               <Download className="w-5 h-5" />
@@ -223,7 +223,7 @@ export default function InventoryPerformancePage() {
             <>
               <button
                 onClick={() => downloadPerfExport("csv", start, end)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-sm font-medium text-[#1a1814]/70"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-sm font-medium text-[var(--text-primary)]/70"
                 title="Export CSV"
               >
                 <Download className="w-4 h-4" />
@@ -231,7 +231,7 @@ export default function InventoryPerformancePage() {
               </button>
               <button
                 onClick={() => downloadPerfExport("xlsx", start, end)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-[#1a1814]/10 rounded-xl hover:bg-[#f6f3ee] transition-colors text-sm font-medium text-[#1a1814]/70"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-sm font-medium text-[var(--text-primary)]/70"
                 title="Export XLSX"
               >
                 <Download className="w-4 h-4" />
@@ -243,28 +243,28 @@ export default function InventoryPerformancePage() {
       </div>
 
       {/* Period picker + tab toggle */}
-      <div className="mb-6 p-4 bg-white border border-[#ede9e2] rounded-xl print:hidden space-y-4">
+      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl print:hidden space-y-4">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
         <div className="flex flex-wrap gap-2 items-center">
           <button
             onClick={() => setTab("stock")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "stock" ? "bg-[#1a1814] text-white" : "bg-[#f6f3ee] text-[#1a1814]/70 hover:bg-[#ede9e2]"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "stock" ? "bg-[var(--text-primary)] text-white" : "bg-[var(--bg-page)] text-[var(--text-primary)]/70 hover:bg-[var(--border)]"}`}
           >
             Stock View
           </button>
           <button
             onClick={() => setTab("movement")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "movement" ? "bg-[#1a1814] text-white" : "bg-[#f6f3ee] text-[#1a1814]/70 hover:bg-[#ede9e2]"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "movement" ? "bg-[var(--text-primary)] text-white" : "bg-[var(--bg-page)] text-[var(--text-primary)]/70 hover:bg-[var(--border)]"}`}
           >
             Period Movement
           </button>
           {tab === "movement" && (
-            <label className="ml-auto flex items-center gap-2 text-sm text-[#1a1814]/70 cursor-pointer select-none">
+            <label className="ml-auto flex items-center gap-2 text-sm text-[var(--text-primary)]/70 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={groupByCategory}
                 onChange={e => setGroupByCategory(e.target.checked)}
-                className="accent-[#b8943f]"
+                className="accent-[var(--primary)]"
               />
               Group by category
             </label>
@@ -278,106 +278,106 @@ export default function InventoryPerformancePage() {
           {/* KPI summary */}
           {!isLoadingStock && data.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 print:hidden">
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Total Stock Value</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(totalValue)}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Total Stock Value</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(totalValue)}</p>
               </div>
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">COGS (Period)</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(totalCogs)}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">COGS (Period)</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(totalCogs)}</p>
               </div>
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Products</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{data.length}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Products</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{data.length}</p>
               </div>
-              <div className={`rounded-2xl p-4 border ${lowStockCount > 0 ? "bg-red-50 border-red-200" : "bg-white border-[#ede9e2]"}`}>
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Low Stock</p>
-                <p className={`text-2xl font-mono font-semibold ${lowStockCount > 0 ? "text-red-600" : "text-[#1a1814]"}`}>
+              <div className={`rounded-2xl p-4 border ${lowStockCount > 0 ? "bg-red-50 border-red-200" : "bg-white border-[var(--border)]"}`}>
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Low Stock</p>
+                <p className={`text-2xl font-mono font-semibold ${lowStockCount > 0 ? "text-red-600" : "text-[var(--text-primary)]"}`}>
                   {lowStockCount}
                 </p>
               </div>
             </div>
           )}
 
-          <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
-                  <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
+                  <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 cursor-pointer select-none"
                       onClick={() => toggleSort("name")}
                     >
                       Product{sortIndicator("name")}
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => toggleSort("on_hand")}
                     >
                       On Hand{sortIndicator("on_hand")}
                     </th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">
                       Avg Cost
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => toggleSort("stock_value")}
                     >
                       Stock Value{sortIndicator("stock_value")}
                     </th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-center">{t('col.status', 'Status')}</th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-center">{t('col.status', 'Status')}</th>
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">
                       Last Movement
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => toggleSort("units_sold")}
                     >
                       Units Sold{sortIndicator("units_sold")}
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => toggleSort("cogs")}
                     >
                       COGS{sortIndicator("cogs")}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1a1814]/5">
+                <tbody className="divide-y divide-[var(--text-primary)]/5">
                   {isLoadingStock ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/60">
+                      <td colSpan={8} className="px-6 py-10 text-center text-[var(--text-primary)]/60">
                         Loading inventory data…
                       </td>
                     </tr>
                   ) : sorted.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-[#1a1814]/60">
+                      <td colSpan={8} className="px-6 py-10 text-center text-[var(--text-primary)]/60">
                         No stock products found.
                       </td>
                     </tr>
                   ) : (
                     sorted.map(item => (
-                      <tr key={item.id} className={`hover:bg-[#f6f3ee]/30 transition-colors ${item.low_stock ? "bg-red-50/40" : ""}`}>
+                      <tr key={item.id} className={`hover:bg-[var(--bg-page)]/30 transition-colors ${item.low_stock ? "bg-red-50/40" : ""}`}>
                         <td className="ui-td">
                           <Link
                             href={`/products/ledger?product=${item.id}`}
-                            className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
+                            className="font-medium text-[var(--text-primary)] hover:text-[var(--primary)] hover:underline"
                             title="View product ledger"
                           >
                             {item.name}
                           </Link>
                           {item.code && (
-                            <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
+                            <span className="ml-2 font-mono text-xs text-[var(--primary)]">{item.code}</span>
                           )}
                         </td>
-                        <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
+                        <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]">
                           {Number(item.on_hand).toLocaleString()}
                         </td>
-                        <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
+                        <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">
                           {fmt(item.avg_cost)}
                         </td>
-                        <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
+                        <td className="ui-td text-right font-mono text-sm font-semibold text-[var(--text-primary)]">
                           {fmt(item.stock_value)}
                         </td>
                         <td className="ui-td text-center">
@@ -392,13 +392,13 @@ export default function InventoryPerformancePage() {
                             </span>
                           )}
                         </td>
-                        <td className="ui-td text-right text-sm text-[#1a1814]/60">
+                        <td className="ui-td text-right text-sm text-[var(--text-primary)]/60">
                           {item.last_movement ?? "—"}
                         </td>
-                        <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
+                        <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]">
                           {Number(item.units_sold).toLocaleString()}
                         </td>
-                        <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
+                        <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]">
                           {fmt(item.cogs)}
                         </td>
                       </tr>
@@ -407,7 +407,7 @@ export default function InventoryPerformancePage() {
                 </tbody>
                 {!isLoadingStock && sorted.length > 0 && (
                   <tfoot>
-                    <tr className="bg-[#1a1814] text-white">
+                    <tr className="bg-[var(--text-primary)] text-white">
                       <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={3}>{t('col.total', 'Total')}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(totalValue)}</td>
                       <td colSpan={3} />
@@ -426,73 +426,73 @@ export default function InventoryPerformancePage() {
         <>
           {!isLoadingPerf && perfData.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 print:hidden">
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Closing Stock Value</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{fmt(perfTotalClosingValue)}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Closing Stock Value</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{fmt(perfTotalClosingValue)}</p>
               </div>
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Gross Profit (Period)</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Gross Profit (Period)</p>
                 <p className={`text-2xl font-mono font-semibold ${perfTotalGP >= 0 ? "text-green-700" : "text-red-600"}`}>
                   {fmt(perfTotalGP)}
                 </p>
               </div>
-              <div className="bg-white border border-[#ede9e2] rounded-2xl p-4">
-                <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest mb-1">Products</p>
-                <p className="text-2xl font-mono font-semibold text-[#1a1814]">{perfData.length}</p>
+              <div className="bg-white border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest mb-1">Products</p>
+                <p className="text-2xl font-mono font-semibold text-[var(--text-primary)]">{perfData.length}</p>
               </div>
             </div>
           )}
 
-          <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[#1a1814]/5 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="bg-[#f6f3ee] border-b border-[#1a1814]/5">
+                  <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 cursor-pointer select-none"
                       onClick={() => !groupByCategory && togglePerfSort("name")}
                     >
                       Product{!groupByCategory && perfSortIndicator("name")}
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => !groupByCategory && togglePerfSort("opening_qty")}
                     >
                       Opening Qty{!groupByCategory && perfSortIndicator("opening_qty")}
                     </th>
-                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right">
+                    <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">
                       Opening Value
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => !groupByCategory && togglePerfSort("purchased_qty")}
                     >
                       Purchased{!groupByCategory && perfSortIndicator("purchased_qty")}
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => !groupByCategory && togglePerfSort("sold_qty")}
                     >
                       Sold (Net){!groupByCategory && perfSortIndicator("sold_qty")}
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => !groupByCategory && togglePerfSort("gp")}
                     >
                       GP{!groupByCategory && perfSortIndicator("gp")}
                     </th>
                     <th
-                      className="ui-th text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 text-right cursor-pointer select-none"
+                      className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right cursor-pointer select-none"
                       onClick={() => !groupByCategory && togglePerfSort("closing_value")}
                     >
                       Closing Qty / Value{!groupByCategory && perfSortIndicator("closing_value")}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1a1814]/5">
+                <tbody className="divide-y divide-[var(--text-primary)]/5">
                   {(isLoadingPerf || (groupByCategory && isLoadingGroup)) ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/60">
+                      <td colSpan={7} className="px-6 py-10 text-center text-[var(--text-primary)]/60">
                         Loading movement data…
                       </td>
                     </tr>
@@ -500,44 +500,44 @@ export default function InventoryPerformancePage() {
                     /* ── Grouped by category view ──────────────────────────── */
                     groupData.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/60">
+                        <td colSpan={7} className="px-6 py-10 text-center text-[var(--text-primary)]/60">
                           No stock products found.
                         </td>
                       </tr>
                     ) : (
                       groupData.flatMap(group => [
                         /* Category subtotal row */
-                        <tr key={`grp-${group.name}`} className="bg-[#f6f3ee] border-t-2 border-[#1a1814]/10">
-                          <td className="ui-td font-bold text-[#1a1814] text-sm" colSpan={5}>
+                        <tr key={`grp-${group.name}`} className="bg-[var(--bg-page)] border-t-2 border-[var(--text-primary)]/10">
+                          <td className="ui-td font-bold text-[var(--text-primary)] text-sm" colSpan={5}>
                             {group.name}
                           </td>
                           <td className={`ui-td text-right font-mono text-sm font-bold ${group.total_gp >= 0 ? "text-green-700" : "text-red-600"}`}>
                             {fmt(group.total_gp)}
                           </td>
-                          <td className="ui-td text-right font-mono text-sm font-bold text-[#1a1814]">
+                          <td className="ui-td text-right font-mono text-sm font-bold text-[var(--text-primary)]">
                             {Number(group.total_closing_qty).toLocaleString()}
-                            <span className="ml-1 text-[#1a1814]/50 font-normal">({fmt(group.total_closing_value)})</span>
+                            <span className="ml-1 text-[var(--text-primary)]/50 font-normal">({fmt(group.total_closing_value)})</span>
                           </td>
                         </tr>,
                         /* Product rows within category */
                         ...group.items.map(item => (
-                          <tr key={item.product_id} className="hover:bg-[#f6f3ee]/30 transition-colors">
+                          <tr key={item.product_id} className="hover:bg-[var(--bg-page)]/30 transition-colors">
                             <td className="ui-td pl-8">
                               <Link
                                 href={`/products/ledger?product=${item.product_id}`}
-                                className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
+                                className="font-medium text-[var(--text-primary)] hover:text-[var(--primary)] hover:underline"
                                 title="View product ledger"
                               >
                                 {item.name}
                               </Link>
                               {item.code && (
-                                <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
+                                <span className="ml-2 font-mono text-xs text-[var(--primary)]">{item.code}</span>
                               )}
                             </td>
-                            <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
+                            <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]">
                               {Number(item.opening_qty).toLocaleString()}
                             </td>
-                            <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
+                            <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">
                               {fmt(item.opening_value)}
                             </td>
                             <td className="ui-td text-right font-mono text-sm text-green-700">
@@ -549,9 +549,9 @@ export default function InventoryPerformancePage() {
                             <td className={`ui-td text-right font-mono text-sm font-semibold ${item.gp >= 0 ? "text-green-700" : "text-red-600"}`}>
                               {fmt(item.gp)}
                             </td>
-                            <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
+                            <td className="ui-td text-right font-mono text-sm font-semibold text-[var(--text-primary)]">
                               {Number(item.closing_qty).toLocaleString()}
-                              <span className="ml-1 text-[#1a1814]/50 font-normal">({fmt(item.closing_value)})</span>
+                              <span className="ml-1 text-[var(--text-primary)]/50 font-normal">({fmt(item.closing_value)})</span>
                             </td>
                           </tr>
                         )),
@@ -561,29 +561,29 @@ export default function InventoryPerformancePage() {
                     /* ── Flat view (default) ───────────────────────────────── */
                     perfSorted.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-10 text-center text-[#1a1814]/60">
+                        <td colSpan={7} className="px-6 py-10 text-center text-[var(--text-primary)]/60">
                           No stock products found.
                         </td>
                       </tr>
                     ) : (
                       perfSorted.map(item => (
-                        <tr key={item.product_id} className="hover:bg-[#f6f3ee]/30 transition-colors">
+                        <tr key={item.product_id} className="hover:bg-[var(--bg-page)]/30 transition-colors">
                           <td className="ui-td">
                             <Link
                               href={`/products/ledger?product=${item.product_id}`}
-                              className="font-medium text-[#1a1814] hover:text-[#b8943f] hover:underline"
+                              className="font-medium text-[var(--text-primary)] hover:text-[var(--primary)] hover:underline"
                               title="View product ledger"
                             >
                               {item.name}
                             </Link>
                             {item.code && (
-                              <span className="ml-2 font-mono text-xs text-[#b8943f]">{item.code}</span>
+                              <span className="ml-2 font-mono text-xs text-[var(--primary)]">{item.code}</span>
                             )}
                           </td>
-                          <td className="ui-td text-right font-mono text-sm text-[#1a1814]">
+                          <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]">
                             {Number(item.opening_qty).toLocaleString()}
                           </td>
-                          <td className="ui-td text-right font-mono text-sm text-[#1a1814]/70">
+                          <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">
                             {fmt(item.opening_value)}
                           </td>
                           <td className="ui-td text-right font-mono text-sm text-green-700">
@@ -595,9 +595,9 @@ export default function InventoryPerformancePage() {
                           <td className={`ui-td text-right font-mono text-sm font-semibold ${item.gp >= 0 ? "text-green-700" : "text-red-600"}`}>
                             {fmt(item.gp)}
                           </td>
-                          <td className="ui-td text-right font-mono text-sm font-semibold text-[#1a1814]">
+                          <td className="ui-td text-right font-mono text-sm font-semibold text-[var(--text-primary)]">
                             {Number(item.closing_qty).toLocaleString()}
-                            <span className="ml-1 text-[#1a1814]/50 font-normal">({fmt(item.closing_value)})</span>
+                            <span className="ml-1 text-[var(--text-primary)]/50 font-normal">({fmt(item.closing_value)})</span>
                           </td>
                         </tr>
                       ))
@@ -606,7 +606,7 @@ export default function InventoryPerformancePage() {
                 </tbody>
                 {!isLoadingPerf && !groupByCategory && perfSorted.length > 0 && (
                   <tfoot>
-                    <tr className="bg-[#1a1814] text-white">
+                    <tr className="bg-[var(--text-primary)] text-white">
                       <td className="ui-td font-bold uppercase tracking-widest text-xs" colSpan={5}>{t('col.total', 'Total')}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(perfTotalGP)}</td>
                       <td className="ui-td text-right font-mono font-bold">{fmt(perfTotalClosingValue)}</td>
