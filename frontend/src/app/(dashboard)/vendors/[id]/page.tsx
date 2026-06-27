@@ -10,6 +10,7 @@ import {
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useTranslation } from "react-i18next"
+import StatusBadge from "@/components/StatusBadge"
 
 interface Vendor {
   id: number
@@ -29,15 +30,6 @@ interface Bill {
   due_date: string
   total: number
   status: string
-}
-
-const STATUS_TONE: Record<string, string> = {
-  draft:    "bg-slate-100 text-slate-700",
-  received: "bg-blue-100 text-blue-700",
-  overdue:  "bg-red-100 text-red-700",
-  partial:  "bg-amber-100 text-amber-700",
-  paid:     "bg-emerald-100 text-emerald-700",
-  reversed: "bg-slate-100 text-slate-500",
 }
 
 export default function VendorHubPage() {
@@ -95,7 +87,7 @@ export default function VendorHubPage() {
         </div>
         <Link
           href={`/vendors/${id}/edit`}
-          className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[var(--bg-page)] transition-colors"
+          className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
         >
           <Pencil className="w-4 h-4" /> Edit
         </Link>
@@ -154,21 +146,21 @@ export default function VendorHubPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Link
           href={`/vendors/${id}/ledger`}
-          className="bg-white border border-[var(--border)] rounded-xl p-4 flex flex-col items-center gap-2 hover:border-[var(--primary)] hover:bg-[var(--bg-page)] transition-colors group"
+          className="bg-white border border-[var(--border)] rounded-xl p-4 flex flex-col items-center gap-2 hover:border-[var(--primary)] hover:bg-[#faf8f4] transition-colors group"
         >
           <BookOpen className="w-5 h-5 text-[var(--primary)]/70 group-hover:text-[var(--primary)]" />
           <span className="text-sm font-medium text-[var(--text-primary)]">Ledger</span>
         </Link>
         <Link
           href={`/vendors/${id}/statement`}
-          className="bg-white border border-[var(--border)] rounded-xl p-4 flex flex-col items-center gap-2 hover:border-[var(--primary)] hover:bg-[var(--bg-page)] transition-colors group"
+          className="bg-white border border-[var(--border)] rounded-xl p-4 flex flex-col items-center gap-2 hover:border-[var(--primary)] hover:bg-[#faf8f4] transition-colors group"
         >
           <FileText className="w-5 h-5 text-[var(--primary)]/70 group-hover:text-[var(--primary)]" />
           <span className="text-sm font-medium text-[var(--text-primary)]">Statement</span>
         </Link>
         <Link
           href={`/bills?vendor_id=${id}`}
-          className="bg-white border border-[var(--border)] rounded-xl p-4 flex flex-col items-center gap-2 hover:border-[var(--primary)] hover:bg-[var(--bg-page)] transition-colors group"
+          className="bg-white border border-[var(--border)] rounded-xl p-4 flex flex-col items-center gap-2 hover:border-[var(--primary)] hover:bg-[#faf8f4] transition-colors group"
         >
           <TrendingDown className="w-5 h-5 text-[var(--primary)]/70 group-hover:text-[var(--primary)]" />
           <span className="text-sm font-medium text-[var(--text-primary)]">All Bills</span>
@@ -197,7 +189,7 @@ export default function VendorHubPage() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--bg-page)]">
+              <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
                 <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60 text-xs">Number</th>
                 <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60 text-xs">Date</th>
                 <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60 text-xs">Due</th>
@@ -207,7 +199,7 @@ export default function VendorHubPage() {
             </thead>
             <tbody>
               {bills.map(bill => (
-                <tr key={bill.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-page)]">
+                <tr key={bill.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[#faf8f4]">
                   <td className="px-4 py-2">
                     <Link href={`/bills/${bill.id}`} className="font-mono text-[var(--primary)] hover:underline text-xs">
                       {bill.number}
@@ -216,9 +208,7 @@ export default function VendorHubPage() {
                   <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{bill.bill_date}</td>
                   <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{bill.due_date}</td>
                   <td className="px-4 py-2">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_TONE[bill.status] ?? "bg-slate-100 text-slate-600"}`}>
-                      {bill.status}
-                    </span>
+                    <StatusBadge status={bill.status} />
                   </td>
                   <td className={`px-4 py-2 text-right tabular-nums text-xs ${["paid","reversed"].includes(bill.status) ? "text-[var(--text-primary)]/40" : "font-medium"}`}>
                     {fmt(bill.total)}
