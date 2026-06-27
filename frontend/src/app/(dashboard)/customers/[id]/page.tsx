@@ -10,6 +10,7 @@ import {
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useTranslation } from "react-i18next"
+import StatusBadge from "@/components/StatusBadge"
 
 interface Customer {
   id: number
@@ -29,17 +30,6 @@ interface Invoice {
   due_date: string
   total: number
   status: string
-}
-
-const STATUS_TONE: Record<string, string> = {
-  draft:    "bg-slate-100 text-slate-700",
-  sent:     "bg-blue-100 text-blue-700",
-  posted:   "bg-blue-100 text-blue-700",
-  overdue:  "bg-red-100 text-red-700",
-  partial:  "bg-amber-100 text-amber-700",
-  paid:     "bg-emerald-100 text-emerald-700",
-  reversed: "bg-slate-100 text-slate-500",
-  void:     "bg-slate-100 text-slate-400",
 }
 
 export default function CustomerHubPage() {
@@ -225,9 +215,7 @@ export default function CustomerHubPage() {
                   <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{inv.issue_date}</td>
                   <td className="px-4 py-2 text-[var(--text-primary)]/60 text-xs tabular-nums">{inv.due_date}</td>
                   <td className="px-4 py-2">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_TONE[inv.status] ?? "bg-slate-100 text-slate-600"}`}>
-                      {inv.status}
-                    </span>
+                    <StatusBadge status={inv.status} />
                   </td>
                   <td className={`px-4 py-2 text-right tabular-nums text-xs ${["paid","void","reversed"].includes(inv.status) ? "text-[var(--text-primary)]/40" : "font-medium"}`}>
                     {fmt(inv.total)}
