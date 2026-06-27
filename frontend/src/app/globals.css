@@ -1,13 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --brand-dark: #1a1814;
-  --brand-gold: #b8943f;
-  --brand-gold-light: #ffd966;
-  --brand-cream: #f6f3ee;
-  --brand-border: #ede9e2;
-  --background: #f4f1eb;
-  --foreground: #1a1814;
+  /* ── Navigation ── */
+  --nav-bg:          #393A3D;
+  --nav-text:        #FFFFFF;
+  --nav-hover:       rgba(255,255,255,0.10);
+  --nav-active:      rgba(255,255,255,0.18);
+
+  /* ── Primary (QB green) ── */
+  --primary:         #2CA01C;
+  --primary-dark:    #1A7510;
+  --primary-light:   #E8F5E4;
+
+  /* ── Page chrome ── */
+  --bg-page:         #F4F6F8;
+  --bg-card:         #FFFFFF;
+  --bg-row-hover:    #F7F9FA;
+
+  /* ── Text ── */
+  --text-primary:    #1C2B36;
+  --text-muted:      #6C737A;
+  --text-link:       #0077C5;
+
+  /* ── Borders ── */
+  --border:          #D8DDE3;
+  --border-light:    #EEF0F3;
+
+  /* ── Semantic ── */
+  --success:         #2CA01C;
+  --warning:         #F59E0B;
+  --danger:          #D32F2F;
+  --info:            #0077C5;
+
+  /* ── Status badge backgrounds ── */
+  --badge-green-bg:  #E8F5E4;
+  --badge-yellow-bg: #FEF3C7;
+  --badge-red-bg:    #FEE2E2;
+  --badge-gray-bg:   #F0F2F5;
+  --badge-blue-bg:   #EEF4FF;
+  --badge-purple-bg: #F3F0FF;
+
+  /* ── Legacy aliases (kept so existing pages don't break) ── */
+  --brand-dark:      #393A3D;
+  --brand-gold:      #2CA01C;
+  --brand-gold-light:#4DC93D;
+  --brand-cream:     #F4F6F8;
+  --brand-border:    #D8DDE3;
+  --background:      #F4F6F8;
+  --foreground:      #1C2B36;
 }
 
 /* ── Density tokens ── */
@@ -33,8 +73,8 @@ html[data-density="compact"] {
 .ui-section { gap: var(--ui-section-gap); }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-page);
+  color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
@@ -43,8 +83,8 @@ body {
 /* ── Scrollbars ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #c8bfa8; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #b8943f; }
+::-webkit-scrollbar-thumb { background: #B0B7BF; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
 /* ── Mobile table scroll ── */
 .table-scroll {
@@ -87,7 +127,7 @@ body {
   100% { background-position: 400px 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #ede9e2 25%, #f6f3ee 50%, #ede9e2 75%);
+  background: linear-gradient(90deg, #E8EDF2 25%, #F4F6F8 50%, #E8EDF2 75%);
   background-size: 800px 100%;
   animation: shimmer 1.4s infinite;
 }
