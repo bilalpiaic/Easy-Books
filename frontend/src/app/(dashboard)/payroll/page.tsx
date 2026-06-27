@@ -78,10 +78,10 @@ export default function PayrollHubPage() {
 
       <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] mb-1 transition-colors">
+          <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] mb-1 transition-colors">
             <Home className="w-3 h-3" /> Dashboard
           </Link>
-          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Payroll")}</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">{t("Payroll")}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => window.print()}
@@ -101,7 +101,7 @@ export default function PayrollHubPage() {
           </Link>
           <Link
             href="/payroll/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             New Payroll Run
@@ -113,12 +113,12 @@ export default function PayrollHubPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#b8943f]/10 flex items-center justify-center">
-              <Users className="w-5 h-5 text-[#b8943f]" />
+            <div className="w-10 h-10 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-[var(--primary)]" />
             </div>
             <div>
               <p className="text-xs text-gray-500">Active Employees</p>
-              <p className="text-2xl font-bold text-[#1a1814]">{empCount}</p>
+              <p className="text-2xl font-bold text-[var(--text-primary)]">{empCount}</p>
             </div>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function PayrollHubPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">Last Run</p>
-              <p className="text-sm font-bold text-[#1a1814]">
+              <p className="text-sm font-bold text-[var(--text-primary)]">
                 {lastPosted ? fmtDate(lastPosted.pay_date) : "—"}
               </p>
             </div>
@@ -142,7 +142,7 @@ export default function PayrollHubPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">Last Net Pay ({currency})</p>
-              <p className="text-sm font-bold text-[#1a1814]">
+              <p className="text-sm font-bold text-[var(--text-primary)]">
                 {lastPosted ? fmt(lastPosted.total_net_pay) : "—"}
               </p>
             </div>
@@ -155,7 +155,7 @@ export default function PayrollHubPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500">Pending Drafts</p>
-              <p className="text-2xl font-bold text-[#1a1814]">{draftCount}</p>
+              <p className="text-2xl font-bold text-[var(--text-primary)]">{draftCount}</p>
             </div>
           </div>
         </div>
@@ -164,22 +164,22 @@ export default function PayrollHubPage() {
       {/* Recent runs */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-[#1a1814]">Recent Payroll Runs</h3>
-          <Link href="/employees" className="text-sm text-[#b8943f] hover:underline">
+          <h3 className="font-semibold text-[var(--text-primary)]">Recent Payroll Runs</h3>
+          <Link href="/employees" className="text-sm text-[var(--primary)] hover:underline">
             Manage Employees →
           </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-[#f6f3ee]">
+            <thead className="bg-[var(--bg-page)]">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814] whitespace-nowrap">Run #</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">Period</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814] whitespace-nowrap">Pay Date</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#1a1814]">Employees</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#1a1814]">Net Pay ({currency})</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">Status</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814] print:hidden"></th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)] whitespace-nowrap">Run #</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">Period</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)] whitespace-nowrap">Pay Date</th>
+                <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]">Employees</th>
+                <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]">Net Pay ({currency})</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)] print:hidden"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -188,7 +188,7 @@ export default function PayrollHubPage() {
               ) : recentRuns.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No payroll runs yet</td></tr>
               ) : recentRuns.map(run => (
-                <tr key={run.id} className="hover:bg-[#f6f3ee]/50">
+                <tr key={run.id} className="hover:bg-[var(--bg-page)]/50">
                   <td className="px-4 py-3 font-mono text-xs whitespace-nowrap">{run.jv_number ?? `#${run.id}`}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {fmtDate(run.period_start)} – {fmtDate(run.period_end)}
@@ -202,7 +202,7 @@ export default function PayrollHubPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 print:hidden">
-                    <Link href={`/payroll/${run.id}`} className="text-[#b8943f] hover:underline text-xs font-medium">
+                    <Link href={`/payroll/${run.id}`} className="text-[var(--primary)] hover:underline text-xs font-medium">
                       View
                     </Link>
                   </td>

@@ -134,7 +134,7 @@ function AttendanceRecordForm() {
         <Link href="/attendance" className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
+        <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">
           {existingId ? t("Edit Attendance") : t("Add Attendance Record")}
         </h1>
       </div>
@@ -153,12 +153,12 @@ function AttendanceRecordForm() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">Employee *</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Employee *</label>
           <select
             value={employeeId}
             onChange={e => { setEmployeeId(e.target.value); setExistingId(null) }}
             required
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           >
             <option value="">Select employee…</option>
             {employees.map(emp => (
@@ -168,22 +168,22 @@ function AttendanceRecordForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">Date *</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Date *</label>
           <input
             type="date"
             value={date}
             onChange={e => { setDate(e.target.value); setExistingId(null) }}
             required
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">Status</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Status</label>
           <select
             value={status}
             onChange={e => setStatus(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           >
             {STATUS_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -194,21 +194,21 @@ function AttendanceRecordForm() {
         {showTimes && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Time In (HH:MM)</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Time In (HH:MM)</label>
               <input
                 type="time"
                 value={timeIn}
                 onChange={e => setTimeIn(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Time Out (HH:MM)</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Time Out (HH:MM)</label>
               <input
                 type="time"
                 value={timeOut}
                 onChange={e => setTimeOut(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
           </div>
@@ -216,19 +216,19 @@ function AttendanceRecordForm() {
 
         {showTimes && hoursPreview !== null && (
           <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Clock className="w-4 h-4 text-[#b8943f]" />
-            Hours worked: <strong className="text-[#1a1814]">{hoursPreview}</strong>
+            <Clock className="w-4 h-4 text-[var(--primary)]" />
+            Hours worked: <strong className="text-[var(--text-primary)]">{hoursPreview}</strong>
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">Notes</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Notes</label>
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={2}
             placeholder="Optional notes…"
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30 resize-none"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-none"
           />
         </div>
 
@@ -236,7 +236,7 @@ function AttendanceRecordForm() {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {saving ? "Saving…" : "Save Record"}

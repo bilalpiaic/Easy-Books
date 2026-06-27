@@ -144,26 +144,26 @@ export default function SalaryComponentsPage() {
     setEditRow(prev => ({ ...prev, [field]: value }))
 
   const renderEditRow = () => (
-    <tr className="bg-[#b8943f]/5 border-b-2 border-[#b8943f]/20">
+    <tr className="bg-[var(--primary)]/5 border-b-2 border-[var(--primary)]/20">
       <td className="px-4 py-2">
         <input
           autoFocus
           value={editRow.name} onChange={e => updateEdit("name", e.target.value)}
           placeholder="e.g. Basic Salary"
-          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         />
       </td>
       <td className="px-4 py-2">
         <input
           value={editRow.code} onChange={e => updateEdit("code", e.target.value.toUpperCase())}
           placeholder="BASIC"
-          className="w-full border border-gray-200 rounded px-2 py-1 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+          className="w-full border border-gray-200 rounded px-2 py-1 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         />
       </td>
       <td className="px-4 py-2">
         <select
           value={editRow.component_type} onChange={e => updateEdit("component_type", e.target.value)}
-          className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+          className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         >
           <option value="earnings">Earnings</option>
           <option value="deductions">Deductions</option>
@@ -174,21 +174,21 @@ export default function SalaryComponentsPage() {
         <input
           type="checkbox" checked={editRow.is_taxable}
           onChange={e => updateEdit("is_taxable", e.target.checked)}
-          className="w-4 h-4 accent-[#b8943f]"
+          className="w-4 h-4 accent-[var(--primary)]"
         />
       </td>
       <td className="px-4 py-2 text-center">
         <input
           type="checkbox" checked={editRow.is_fixed}
           onChange={e => updateEdit("is_fixed", e.target.checked)}
-          className="w-4 h-4 accent-[#b8943f]"
+          className="w-4 h-4 accent-[var(--primary)]"
         />
       </td>
       <td className="px-4 py-2">
         <select
           value={editRow.gl_account_id ?? ""}
           onChange={e => updateEdit("gl_account_id", e.target.value ? parseInt(e.target.value) : null)}
-          className="border border-gray-200 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+          className="border border-gray-200 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         >
           <option value="">— None —</option>
           {accounts.map(a => (
@@ -200,7 +200,7 @@ export default function SalaryComponentsPage() {
         <input
           type="checkbox" checked={editRow.is_active}
           onChange={e => updateEdit("is_active", e.target.checked)}
-          className="w-4 h-4 accent-[#b8943f]"
+          className="w-4 h-4 accent-[var(--primary)]"
         />
       </td>
       <td className="px-4 py-2">
@@ -227,15 +227,15 @@ export default function SalaryComponentsPage() {
       <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] transition-colors">
+            <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
               <Home className="w-3 h-3" /> Dashboard
             </Link>
-            <span className="text-black/25 text-xs">/</span>
-            <Link href="/payroll" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] transition-colors">
+            <span className="text-[var(--border)] text-xs">/</span>
+            <Link href="/payroll" className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
               <ArrowLeft className="w-3 h-3" /> Payroll
             </Link>
           </div>
-          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("Salary Components")}</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">{t("Salary Components")}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => window.print()}
@@ -249,7 +249,7 @@ export default function SalaryComponentsPage() {
           <button
             onClick={startNew}
             disabled={editingId !== null}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             New Component
@@ -263,16 +263,16 @@ export default function SalaryComponentsPage() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-[#f6f3ee] border-b border-gray-100">
+          <thead className="bg-[var(--bg-page)] border-b border-gray-100">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">Name</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">Code</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">Type</th>
-              <th className="text-center px-4 py-3 font-semibold text-[#1a1814]">Taxable</th>
-              <th className="text-center px-4 py-3 font-semibold text-[#1a1814]">Fixed</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">GL Account</th>
-              <th className="text-center px-4 py-3 font-semibold text-[#1a1814]">Active</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">Actions</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">Name</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">Code</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">Type</th>
+              <th className="text-center px-4 py-3 font-semibold text-[var(--text-primary)]">Taxable</th>
+              <th className="text-center px-4 py-3 font-semibold text-[var(--text-primary)]">Fixed</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">GL Account</th>
+              <th className="text-center px-4 py-3 font-semibold text-[var(--text-primary)]">Active</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -289,8 +289,8 @@ export default function SalaryComponentsPage() {
               editingId === comp.id ? (
                 renderEditRow()
               ) : (
-                <tr key={comp.id} className="hover:bg-[#f6f3ee]/50">
-                  <td className="px-4 py-3 font-medium text-[#1a1814]">{comp.name}</td>
+                <tr key={comp.id} className="hover:bg-[var(--bg-page)]/50">
+                  <td className="px-4 py-3 font-medium text-[var(--text-primary)]">{comp.name}</td>
                   <td className="px-4 py-3 font-mono text-xs">{comp.code}</td>
                   <td className="px-4 py-3 text-gray-600">{TYPE_LABEL[comp.component_type] ?? comp.component_type}</td>
                   <td className="px-4 py-3 text-center">
@@ -309,7 +309,7 @@ export default function SalaryComponentsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(comp)}
-                        className="text-[#b8943f] hover:underline text-xs font-medium inline-flex items-center gap-1"
+                        className="text-[var(--primary)] hover:underline text-xs font-medium inline-flex items-center gap-1"
                       >
                         <Edit2 className="w-3 h-3" /> Edit
                       </button>

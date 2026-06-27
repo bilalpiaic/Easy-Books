@@ -139,11 +139,11 @@ export default function EditEmployeePage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/employees" className="text-[#b8943f] hover:underline">
+        <Link href="/employees" className="text-[var(--primary)] hover:underline">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{emp?.name ?? "Employee"}</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">{emp?.name ?? "Employee"}</h1>
           <p className="text-sm text-gray-500">{emp?.employee_code}</p>
         </div>
       </div>
@@ -155,13 +155,13 @@ export default function EditEmployeePage() {
       <div className="flex border-b border-gray-200">
         <button
           onClick={() => setTab("details")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "details" ? "border-[#b8943f] text-[#b8943f]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "details" ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
         >
           Details
         </button>
         <button
           onClick={() => setTab("structure")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "structure" ? "border-[#b8943f] text-[#b8943f]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "structure" ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
         >
           Salary Structure
         </button>
@@ -171,75 +171,75 @@ export default function EditEmployeePage() {
         <form onSubmit={saveDetails} className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Full Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Full Name <span className="text-red-500">*</span></label>
               <input
                 type="text" required value={form.name}
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Department</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Department</label>
               <input
                 type="text" value={form.department}
                 onChange={e => setForm(p => ({ ...p, department: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Designation</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Designation</label>
               <input
                 type="text" value={form.designation}
                 onChange={e => setForm(p => ({ ...p, designation: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Join Date</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Join Date</label>
               <input
                 type="date" value={form.join_date}
                 onChange={e => setForm(p => ({ ...p, join_date: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">CNIC</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">CNIC</label>
               <input
                 type="text" value={form.cnic}
                 onChange={e => setForm(p => ({ ...p, cnic: e.target.value }))}
                 placeholder="XXXXX-XXXXXXX-X"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Bank Account</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Bank Account</label>
               <input
                 type="text" value={form.bank_account}
                 onChange={e => setForm(p => ({ ...p, bank_account: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1a1814] mb-1">Bank Name</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Bank Name</label>
               <input
                 type="text" value={form.bank_name}
                 onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div className="flex items-center gap-3 pt-2">
               <input
                 type="checkbox" id="is_active" checked={form.is_active}
                 onChange={e => setForm(p => ({ ...p, is_active: e.target.checked }))}
-                className="w-4 h-4 accent-[#b8943f]"
+                className="w-4 h-4 accent-[var(--primary)]"
               />
-              <label htmlFor="is_active" className="text-sm font-medium text-[#1a1814]">Active</label>
+              <label htmlFor="is_active" className="text-sm font-medium text-[var(--text-primary)]">Active</label>
             </div>
           </div>
           <div className="flex gap-3 pt-2">
             <button
               type="submit" disabled={saving}
-              className="px-6 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+              className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Details"}
             </button>
@@ -250,10 +250,10 @@ export default function EditEmployeePage() {
       {tab === "structure" && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-[#1a1814]">Salary Components</h3>
+            <h3 className="font-semibold text-[var(--text-primary)]">Salary Components</h3>
             <button
               onClick={addStructureRow}
-              className="inline-flex items-center gap-1 text-[#b8943f] hover:underline text-sm font-medium"
+              className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline text-sm font-medium"
             >
               <Plus className="w-4 h-4" /> Add Component
             </button>
@@ -264,14 +264,14 @@ export default function EditEmployeePage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-[#f6f3ee]">
+                <thead className="bg-[var(--bg-page)]">
                   <tr>
-                    <th className="text-left px-3 py-2 font-medium text-[#1a1814]">Component</th>
-                    <th className="text-left px-3 py-2 font-medium text-[#1a1814]">Type</th>
-                    <th className="text-right px-3 py-2 font-medium text-[#1a1814]">Amount</th>
-                    <th className="text-right px-3 py-2 font-medium text-[#1a1814]">% of Basic</th>
-                    <th className="text-left px-3 py-2 font-medium text-[#1a1814]">Effective From</th>
-                    <th className="text-left px-3 py-2 font-medium text-[#1a1814]">Effective To</th>
+                    <th className="text-left px-3 py-2 font-medium text-[var(--text-primary)]">Component</th>
+                    <th className="text-left px-3 py-2 font-medium text-[var(--text-primary)]">Type</th>
+                    <th className="text-right px-3 py-2 font-medium text-[var(--text-primary)]">Amount</th>
+                    <th className="text-right px-3 py-2 font-medium text-[var(--text-primary)]">% of Basic</th>
+                    <th className="text-left px-3 py-2 font-medium text-[var(--text-primary)]">Effective From</th>
+                    <th className="text-left px-3 py-2 font-medium text-[var(--text-primary)]">Effective To</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -284,7 +284,7 @@ export default function EditEmployeePage() {
                           <select
                             value={row.component_id}
                             onChange={e => updateStructureRow(idx, "component_id", parseInt(e.target.value))}
-                            className="border border-gray-200 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                            className="border border-gray-200 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                           >
                             {components.map(c => (
                               <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
@@ -297,7 +297,7 @@ export default function EditEmployeePage() {
                             type="number" min={0} step="0.01"
                             value={row.amount}
                             onChange={e => updateStructureRow(idx, "amount", parseFloat(e.target.value) || 0)}
-                            className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-28 focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                            className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-28 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -306,7 +306,7 @@ export default function EditEmployeePage() {
                               type="number" min={0} max={100} step="0.01"
                               value={row.pct_of_basic ?? ""}
                               onChange={e => updateStructureRow(idx, "pct_of_basic", e.target.value ? parseFloat(e.target.value) : null)}
-                              className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-20 focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                              className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-20 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                             />
                           ) : <span className="text-gray-300">—</span>}
                         </td>
@@ -346,7 +346,7 @@ export default function EditEmployeePage() {
           <button
             onClick={saveStructure}
             disabled={savingStructure}
-            className="px-6 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+            className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
           >
             {savingStructure ? "Saving..." : "Save Salary Structure"}
           </button>

@@ -63,7 +63,7 @@ export default function PayslipPage() {
       <PrintHeader title="Pay Slip" />
 
       <div className="print:hidden flex items-center justify-between">
-        <Link href={`/payroll/${runId}`} className="inline-flex items-center gap-2 text-[#b8943f] hover:underline text-sm">
+        <Link href={`/payroll/${runId}`} className="inline-flex items-center gap-2 text-[var(--primary)] hover:underline text-sm">
           <ArrowLeft className="w-4 h-4" />
           Back to Payroll Run
         </Link>
@@ -79,19 +79,19 @@ export default function PayslipPage() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6 print:shadow-none print:border-none print:rounded-none">
         {/* Header */}
         <div className="border-b border-gray-200 pb-4">
-          <h2 className="text-lg font-bold text-[#1a1814]">{settings.company_name}</h2>
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">{settings.company_name}</h2>
           <p className="text-xs text-gray-400">{settings.business_tagline}</p>
         </div>
 
         <div className="text-center">
-          <h3 className="text-xl font-bold text-[#1a1814]">PAY SLIP</h3>
+          <h3 className="text-xl font-bold text-[var(--text-primary)]">PAY SLIP</h3>
           <p className="text-sm text-gray-500">
             Period: {fmtDate(data.run.period_start)} to {fmtDate(data.run.period_end)}
           </p>
         </div>
 
         {/* Employee info */}
-        <div className="grid grid-cols-2 gap-4 bg-[#f6f3ee] rounded-lg p-4 text-sm">
+        <div className="grid grid-cols-2 gap-4 bg-[var(--bg-page)] rounded-lg p-4 text-sm">
           <div>
             <p><span className="text-gray-500">Name:</span> <strong>{data.employee.name}</strong></p>
             <p><span className="text-gray-500">Code:</span> {data.employee.employee_code}</p>
@@ -108,7 +108,7 @@ export default function PayslipPage() {
         <div className="grid grid-cols-2 gap-6">
           {/* Earnings */}
           <div>
-            <h4 className="font-semibold text-[#1a1814] border-b border-gray-200 pb-2 mb-3">Earnings ({currency})</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] border-b border-gray-200 pb-2 mb-3">Earnings ({currency})</h4>
             <table className="w-full text-sm">
               <tbody className="divide-y divide-gray-50">
                 {data.earnings.map((e, i) => (
@@ -126,7 +126,7 @@ export default function PayslipPage() {
 
           {/* Deductions */}
           <div>
-            <h4 className="font-semibold text-[#1a1814] border-b border-gray-200 pb-2 mb-3">Deductions ({currency})</h4>
+            <h4 className="font-semibold text-[var(--text-primary)] border-b border-gray-200 pb-2 mb-3">Deductions ({currency})</h4>
             <table className="w-full text-sm">
               <tbody className="divide-y divide-gray-50">
                 {data.deductions.map((d, i) => (
@@ -153,9 +153,9 @@ export default function PayslipPage() {
             <span className="text-gray-600">Total Deductions</span>
             <span className="font-medium text-red-500">{currency} {fmt(data.total_deductions)}</span>
           </div>
-          <div className="flex justify-between items-center bg-[#b8943f]/10 rounded-lg px-3 py-2 border border-[#b8943f]/20">
-            <span className="font-bold text-[#1a1814]">Net Pay</span>
-            <span className="font-bold text-[#b8943f] text-lg">{currency} {fmt(data.net_pay)}</span>
+          <div className="flex justify-between items-center bg-[var(--primary)]/10 rounded-lg px-3 py-2 border border-[var(--primary)]/20">
+            <span className="font-bold text-[var(--text-primary)]">Net Pay</span>
+            <span className="font-bold text-[var(--primary)] text-lg">{currency} {fmt(data.net_pay)}</span>
           </div>
         </div>
 

@@ -141,7 +141,7 @@ export default function BulkAttendancePage() {
         <Link href="/attendance" className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
+        <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">
           {t("Bulk Attendance Entry")}
         </h1>
       </div>
@@ -155,7 +155,7 @@ export default function BulkAttendancePage() {
         <button onClick={prevMonth} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-lg font-semibold text-[#1a1814] min-w-[160px] text-center">
+        <span className="text-lg font-semibold text-[var(--text-primary)] min-w-[160px] text-center">
           {MONTH_NAMES[month - 1]} {year}
         </span>
         <button onClick={nextMonth} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
@@ -170,7 +170,7 @@ export default function BulkAttendancePage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+          className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
           {saving ? "Saving…" : "Save All"}
@@ -187,12 +187,12 @@ export default function BulkAttendancePage() {
         <div className="overflow-x-auto rounded-xl border border-gray-100 shadow-sm">
           <table className="min-w-[900px] w-full text-xs border-collapse">
             <thead>
-              <tr className="bg-[#f6f3ee]">
-                <th className="sticky left-0 z-10 bg-[#f6f3ee] text-left px-3 py-2 font-semibold text-[#1a1814] border-b border-gray-200 whitespace-nowrap">
+              <tr className="bg-[var(--bg-page)]">
+                <th className="sticky left-0 z-10 bg-[var(--bg-page)] text-left px-3 py-2 font-semibold text-[var(--text-primary)] border-b border-gray-200 whitespace-nowrap">
                   Employee
                 </th>
                 {days.map(d => (
-                  <th key={d} className="px-1 py-2 font-medium text-center border-b border-gray-200 min-w-[32px] text-[#1a1814]">{d}</th>
+                  <th key={d} className="px-1 py-2 font-medium text-center border-b border-gray-200 min-w-[32px] text-[var(--text-primary)]">{d}</th>
                 ))}
               </tr>
             </thead>

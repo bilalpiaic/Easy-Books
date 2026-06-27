@@ -117,7 +117,7 @@ export default function AttendanceReportPage() {
         <Link href="/attendance" className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
+        <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">
           {t("Attendance Report")}
         </h1>
       </div>
@@ -129,7 +129,7 @@ export default function AttendanceReportPage() {
           <select
             value={employeeId}
             onChange={e => setEmployeeId(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[180px] focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[180px] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           >
             <option value="">All Employees</option>
             {employees.map(emp => (
@@ -140,17 +140,17 @@ export default function AttendanceReportPage() {
         <div>
           <label className="block text-xs text-gray-500 mb-1">From Date</label>
           <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30" />
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">To Date</label>
           <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30" />
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
         </div>
         <button
           onClick={handleRun}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
         >
           <Search className="w-4 h-4" />
           {loading ? "Loading…" : "Run Report"}
@@ -180,7 +180,7 @@ export default function AttendanceReportPage() {
           ].map(({ label, value }) => (
             <div key={label} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
               <div className="text-xs text-gray-500">{label}</div>
-              <div className="text-lg font-bold text-[#1a1814]">{value}</div>
+              <div className="text-lg font-bold text-[var(--text-primary)]">{value}</div>
             </div>
           ))}
         </div>
@@ -196,7 +196,7 @@ export default function AttendanceReportPage() {
               const empPresent = recs.filter(r => r.status === "present").length
               return (
                 <div key={eid} className="mb-6">
-                  <div className="bg-[#f6f3ee] px-4 py-2 font-semibold text-sm text-[#1a1814] flex justify-between">
+                  <div className="bg-[var(--bg-page)] px-4 py-2 font-semibold text-sm text-[var(--text-primary)] flex justify-between">
                     <span>{recs[0]?.employee_name}</span>
                     <span className="text-gray-500">{empPresent} present · {empTotalHours.toFixed(1)} hrs</span>
                   </div>
@@ -235,7 +235,7 @@ export default function AttendanceReportPage() {
             // Single employee flat table
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-[#f6f3ee] text-[#1a1814]">
+                <tr className="bg-[var(--bg-page)] text-[var(--text-primary)]">
                   <th className="text-left px-4 py-2 border-b border-gray-200 whitespace-nowrap">Date</th>
                   <th className="text-left px-4 py-2 border-b border-gray-200">Employee</th>
                   <th className="text-left px-4 py-2 border-b border-gray-200">Status</th>

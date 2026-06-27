@@ -150,36 +150,36 @@ export default function AttendancePage() {
       {/* Header toolbar */}
       <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-black/45 hover:text-[#b8943f] mb-1 transition-colors">
+          <Link href="/dashboard" className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)] mb-1 transition-colors">
             <Home className="w-3 h-3" /> Dashboard
           </Link>
-          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">
             {t("Attendance Register")}
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/attendance/record"
-            className="inline-flex items-center gap-1 px-3 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium">
+            className="inline-flex items-center gap-1 px-3 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium">
             <Plus className="w-4 h-4" /> Add Record
           </Link>
           <Link href="/attendance/bulk"
-            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[#1a1814]">
+            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
             <FileText className="w-4 h-4" /> Bulk Entry
           </Link>
           <Link href="/attendance/report"
-            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[#1a1814]">
+            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
             <TrendingUp className="w-4 h-4" /> Report
           </Link>
           <Link href="/attendance/import"
-            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[#1a1814]">
+            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
             <Upload className="w-4 h-4" /> Import
           </Link>
           <button onClick={() => window.print()}
-            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[#1a1814]">
+            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
             <Printer className="w-4 h-4" /> Print
           </button>
           <button onClick={exportCsv}
-            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[#1a1814]">
+            className="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-sm text-[var(--text-primary)]">
             <Download className="w-4 h-4" /> Export CSV
           </button>
         </div>
@@ -190,7 +190,7 @@ export default function AttendancePage() {
         <button onClick={prevMonth} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-lg font-semibold text-[#1a1814] min-w-[160px] text-center">
+        <span className="text-lg font-semibold text-[var(--text-primary)] min-w-[160px] text-center">
           {MONTH_NAMES[month - 1]} {year}
         </span>
         <button onClick={nextMonth} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
@@ -214,10 +214,10 @@ export default function AttendancePage() {
         ].map(({ icon: Icon, label, value }) => (
           <div key={label} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <Icon className="w-4 h-4 text-[#b8943f]" />
+              <Icon className="w-4 h-4 text-[var(--primary)]" />
               <span className="text-xs text-gray-500">{label}</span>
             </div>
-            <div className="text-2xl font-bold text-[#1a1814]">{value}</div>
+            <div className="text-2xl font-bold text-[var(--text-primary)]">{value}</div>
           </div>
         ))}
       </div>
@@ -238,8 +238,8 @@ export default function AttendancePage() {
         <div className="overflow-x-auto rounded-xl border border-gray-100 shadow-sm">
           <table className="min-w-[900px] w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-[#f6f3ee] text-[#1a1814]">
-                <th className="sticky left-0 z-10 bg-[#f6f3ee] text-left px-3 py-2 font-semibold whitespace-nowrap border-b border-gray-200">
+              <tr className="bg-[var(--bg-page)] text-[var(--text-primary)]">
+                <th className="sticky left-0 z-10 bg-[var(--bg-page)] text-left px-3 py-2 font-semibold whitespace-nowrap border-b border-gray-200">
                   Employee
                 </th>
                 {days.map(d => (
@@ -255,7 +255,7 @@ export default function AttendancePage() {
                 <tr>
                   <td colSpan={days.length + 4} className="text-center py-10 text-gray-400">
                     No attendance records for this month.{" "}
-                    <Link href="/attendance/record" className="text-[#b8943f] underline">Add Record</Link>
+                    <Link href="/attendance/record" className="text-[var(--primary)] underline">Add Record</Link>
                   </td>
                 </tr>
               )}
@@ -283,7 +283,7 @@ export default function AttendancePage() {
                           ) : (
                             <Link
                               href={`/attendance/record?employee_id=${empId}&date=${year}-${pad2(month)}-${pad2(day)}`}
-                              className="text-gray-300 hover:text-[#b8943f] text-xs"
+                              className="text-gray-300 hover:text-[var(--primary)] text-xs"
                               title="Add record"
                             >
                               ·
@@ -318,7 +318,7 @@ export default function AttendancePage() {
         >
           {popoverRecord ? (
             <div className="space-y-1">
-              <div className="font-semibold text-[#1a1814]">{fmtDate(popoverRecord.date)}</div>
+              <div className="font-semibold text-[var(--text-primary)]">{fmtDate(popoverRecord.date)}</div>
               <div className="text-gray-500">{STATUS_CONFIG[popoverRecord.status]?.label}</div>
               {popoverRecord.time_in && (
                 <div className="text-gray-600">In: {popoverRecord.time_in}</div>
@@ -334,7 +334,7 @@ export default function AttendancePage() {
               )}
               <Link
                 href={`/attendance/record?employee_id=${popoverRecord.employee_id}&date=${popoverRecord.date}`}
-                className="block mt-2 text-[#b8943f] text-xs underline"
+                className="block mt-2 text-[var(--primary)] text-xs underline"
                 onClick={() => setPopover(null)}
               >
                 Edit

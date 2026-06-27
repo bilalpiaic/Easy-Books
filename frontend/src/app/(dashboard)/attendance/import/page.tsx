@@ -132,7 +132,7 @@ export default function AttendanceImportPage() {
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
+          <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">
             {t("Biometric Import")}
           </h1>
           <span className="inline-block mt-0.5 text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
@@ -143,7 +143,7 @@ export default function AttendanceImportPage() {
 
       {/* CSV Upload */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-        <h2 className="font-semibold text-[#1a1814]">CSV File Upload</h2>
+        <h2 className="font-semibold text-[var(--text-primary)]">CSV File Upload</h2>
         <div className="text-sm text-gray-500">
           <p>Expected format: <code className="bg-gray-100 px-1 rounded">employee_code, date (YYYY-MM-DD), time_in (HH:MM), time_out (HH:MM)</code></p>
           <p className="mt-1">The header row is optional but recommended. Records are matched by employee code.</p>
@@ -154,7 +154,7 @@ export default function AttendanceImportPage() {
             onClick={() => fileRef.current?.click()}
             className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
           >
-            <Upload className="w-4 h-4 text-[#b8943f]" />
+            <Upload className="w-4 h-4 text-[var(--primary)]" />
             {fileName ? fileName : "Choose CSV File"}
           </button>
           <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
@@ -191,7 +191,7 @@ export default function AttendanceImportPage() {
         {parsed.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-[#1a1814]">
+              <span className="text-sm font-medium text-[var(--text-primary)]">
                 Preview: {parsed.length} rows &nbsp;
                 <span className="text-green-600">({matchedCount} matched)</span>
                 {unmatchedCount > 0 && <span className="text-red-500"> · {unmatchedCount} unmatched</span>}
@@ -199,7 +199,7 @@ export default function AttendanceImportPage() {
               <button
                 onClick={handleImport}
                 disabled={importing || matchedCount === 0}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
               >
                 <Upload className="w-4 h-4" />
                 {importing ? "Importing…" : `Import ${matchedCount} Records`}
@@ -209,7 +209,7 @@ export default function AttendanceImportPage() {
             <div className="overflow-x-auto rounded-lg border border-gray-100">
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#f6f3ee] text-[#1a1814]">
+                  <tr className="bg-[var(--bg-page)] text-[var(--text-primary)]">
                     <th className="text-left px-3 py-2 border-b border-gray-200">Emp Code</th>
                     <th className="text-left px-3 py-2 border-b border-gray-200">Date</th>
                     <th className="text-left px-3 py-2 border-b border-gray-200">Time In</th>

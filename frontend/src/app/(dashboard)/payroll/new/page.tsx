@@ -57,10 +57,10 @@ export default function NewPayrollRunPage() {
   return (
     <div className="max-w-xl space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/payroll" className="text-[#b8943f] hover:underline">
+        <Link href="/payroll" className="text-[var(--primary)] hover:underline">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">{t("New Payroll Run")}</h1>
+        <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">{t("New Payroll Run")}</h1>
       </div>
 
       {error && (
@@ -69,43 +69,43 @@ export default function NewPayrollRunPage() {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-5">
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
             Period Start <span className="text-red-500">*</span>
           </label>
           <input
             type="date" required value={form.period_start}
             onChange={update("period_start")}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
             Period End <span className="text-red-500">*</span>
           </label>
           <input
             type="date" required value={form.period_end}
             onChange={update("period_end")}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
             Pay Date <span className="text-red-500">*</span>
           </label>
           <input
             type="date" required value={form.pay_date}
             onChange={update("pay_date")}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#1a1814] mb-1">Notes</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Notes</label>
           <textarea
             value={form.notes}
             onChange={update("notes")}
             rows={2}
             placeholder="Optional notes for this payroll run..."
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30 resize-none"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-none"
           />
         </div>
         <p className="text-xs text-gray-400">
@@ -114,7 +114,7 @@ export default function NewPayrollRunPage() {
         <div className="flex gap-3 pt-2">
           <button
             type="submit" disabled={saving}
-            className="px-6 py-2 bg-[#b8943f] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
+            className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"
           >
             {saving ? "Computing..." : "Create Run & Compute Lines"}
           </button>

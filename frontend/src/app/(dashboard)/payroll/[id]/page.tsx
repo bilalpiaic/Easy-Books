@@ -138,11 +138,11 @@ export default function PayrollRunPage() {
 
       <div className="print:hidden flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Link href="/payroll" className="text-[#b8943f] hover:underline mt-1">
+          <Link href="/payroll" className="text-[var(--primary)] hover:underline mt-1">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl sm:text-3xl font-bold text-[#1a1814]">
+            <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">
               {run.jv_number ? `Payroll ${run.jv_number}` : `Payroll Run #${run.id}`}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -179,7 +179,7 @@ export default function PayrollRunPage() {
               <button
                 onClick={saveEdits}
                 disabled={!!actionLoading}
-                className="inline-flex items-center gap-1 px-4 py-2 bg-[#b8943f] text-white rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
                 {actionLoading === "save" ? "Saving..." : "Save Changes"}
@@ -243,13 +243,13 @@ export default function PayrollRunPage() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-[#f6f3ee] border-b border-gray-100">
+            <thead className="bg-[var(--bg-page)] border-b border-gray-100">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814]">Employee</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#1a1814]">Gross Earnings ({currency})</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#1a1814]">Deductions ({currency})</th>
-                <th className="text-right px-4 py-3 font-semibold text-[#1a1814]">Net Pay ({currency})</th>
-                <th className="text-left px-4 py-3 font-semibold text-[#1a1814] print:hidden">Actions</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]">Employee</th>
+                <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]">Gross Earnings ({currency})</th>
+                <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]">Deductions ({currency})</th>
+                <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]">Net Pay ({currency})</th>
+                <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)] print:hidden">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -257,11 +257,11 @@ export default function PayrollRunPage() {
                 <>
                   <tr
                     key={line.employee_id}
-                    className="hover:bg-[#f6f3ee]/50 cursor-pointer"
+                    className="hover:bg-[var(--bg-page)]/50 cursor-pointer"
                     onClick={() => !editMode && toggleExpand(line.employee_id)}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-medium text-[#1a1814]">{line.employee_name}</span>
+                      <span className="font-medium text-[var(--text-primary)]">{line.employee_name}</span>
                       <span className="text-xs text-gray-400 ml-2">{line.employee_code}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -277,7 +277,7 @@ export default function PayrollRunPage() {
                             ))
                           }}
                           onClick={e => e.stopPropagation()}
-                          className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-28 focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                          className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-28 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                         />
                       ) : fmt(line.gross_earnings)}
                     </td>
@@ -294,7 +294,7 @@ export default function PayrollRunPage() {
                             ))
                           }}
                           onClick={e => e.stopPropagation()}
-                          className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-28 focus:outline-none focus:ring-2 focus:ring-[#b8943f]/30"
+                          className="border border-gray-200 rounded px-2 py-1 text-sm text-right w-28 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                         />
                       ) : fmt(line.total_deductions)}
                     </td>
@@ -304,7 +304,7 @@ export default function PayrollRunPage() {
                     <td className="px-4 py-3 print:hidden">
                       <Link
                         href={`/payroll/${runId}/payslip/${line.employee_id}`}
-                        className="text-[#b8943f] hover:underline text-xs font-medium"
+                        className="text-[var(--primary)] hover:underline text-xs font-medium"
                         onClick={e => e.stopPropagation()}
                       >
                         Payslip
@@ -346,9 +346,9 @@ export default function PayrollRunPage() {
                 </>
               ))}
             </tbody>
-            <tfoot className="border-t-2 border-gray-200 bg-[#f6f3ee]">
+            <tfoot className="border-t-2 border-gray-200 bg-[var(--bg-page)]">
               <tr>
-                <td className="px-4 py-3 font-bold text-[#1a1814]">Total</td>
+                <td className="px-4 py-3 font-bold text-[var(--text-primary)]">Total</td>
                 <td className="px-4 py-3 text-right font-bold">
                   {editMode
                     ? fmt(editLines.reduce((s, l) => s + l.gross_earnings, 0))
