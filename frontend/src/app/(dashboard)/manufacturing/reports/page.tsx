@@ -111,10 +111,10 @@ export default function ManufacturingReportsPage() {
 
       <header className="flex items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
-          <BarChart2 className="w-7 h-7 text-[#b8943f]" />
+          <BarChart2 className="w-7 h-7 text-[var(--primary)]" />
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Manufacturing Reports</h1>
-            <p className="text-sm text-[#1a1814]/60">WIP aging, production summary, and customer custody.</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Manufacturing Reports</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">WIP aging, production summary, and customer custody.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -130,24 +130,24 @@ export default function ManufacturingReportsPage() {
               }
             }}
             disabled={!wip && !summary && !custody}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm hover:bg-[#f6f3ee] transition-colors">
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm hover:bg-[var(--bg-page)] transition-colors">
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </header>
 
       {/* Tab nav */}
-      <div className="flex gap-1 border-b border-[#ede9e2] print:hidden">
+      <div className="flex gap-1 border-b border-[var(--border)] print:hidden">
         {(["wip-aging","production-summary","customer-custody"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === t
-                ? "border-[#b8943f] text-[#b8943f]"
-                : "border-transparent text-[#1a1814]/60 hover:text-[#1a1814]"
+                ? "border-[var(--primary)] text-[var(--primary)]"
+                : "border-transparent text-[var(--text-primary)]/60 hover:text-[var(--text-primary)]"
             }`}>
             {t === "wip-aging" && "WIP Aging"}
             {t === "production-summary" && "Production Summary"}
@@ -156,7 +156,7 @@ export default function ManufacturingReportsPage() {
         ))}
       </div>
 
-      {loading && <p className="text-sm text-[#1a1814]/60">Loading…</p>}
+      {loading && <p className="text-sm text-[var(--text-primary)]/60">Loading…</p>}
       {error   && <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 text-sm">{error}</div>}
 
       {/* ── WIP Aging ── */}
@@ -172,7 +172,7 @@ export default function ManufacturingReportsPage() {
                     {bucket === "30d+" && <AlertTriangle className="w-3 h-3" />}
                     {bucket}
                   </div>
-                  <div className="text-xl font-serif font-bold mt-0.5">{s.count} PO{s.count !== 1 ? "s" : ""}</div>
+                  <div className="text-xl font-bold font-bold mt-0.5">{s.count} PO{s.count !== 1 ? "s" : ""}</div>
                   <div className="text-xs mt-0.5 opacity-70">WIP: {fmt(Number(s.total_wip_cost))}</div>
                 </div>
               )
@@ -180,9 +180,9 @@ export default function ManufacturingReportsPage() {
           </div>
 
           {/* Total WIP */}
-          <div className="bg-[#faf8f4] border border-[#ede9e2] rounded-xl px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-[#1a1814]/70">Total open WIP cost</span>
-            <span className="text-lg font-serif font-bold text-[#1a1814]">{fmt(totalWip)}</span>
+          <div className="bg-[#faf8f4] border border-[var(--border)] rounded-xl px-4 py-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-[var(--text-primary)]/70">Total open WIP cost</span>
+            <span className="text-lg font-bold font-bold text-[var(--text-primary)]">{fmt(totalWip)}</span>
           </div>
 
           {/* Per-bucket detail tables */}
@@ -190,12 +190,12 @@ export default function ManufacturingReportsPage() {
             const items = wip.buckets[bucket] ?? []
             if (!items.length) return null
             return (
-              <div key={bucket} className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
-                <div className={`px-4 py-2.5 border-b border-[#ede9e2] text-xs font-semibold ${AGING_TONE[bucket]} bg-opacity-50`}>
+              <div key={bucket} className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+                <div className={`px-4 py-2.5 border-b border-[var(--border)] text-xs font-semibold ${AGING_TONE[bucket]} bg-opacity-50`}>
                   {bucket} — {items.length} order{items.length !== 1 ? "s" : ""}
                 </div>
                 <table className="w-full text-sm">
-                  <thead className="bg-[#faf8f4] text-[#1a1814]/60 text-xs">
+                  <thead className="bg-[#faf8f4] text-[var(--text-primary)]/60 text-xs">
                     <tr>
                       <th className="text-left px-4 py-2">PO #</th>
                       <th className="text-left px-4 py-2">{t('col.customer', 'Customer')}</th>
@@ -206,9 +206,9 @@ export default function ManufacturingReportsPage() {
                   </thead>
                   <tbody>
                     {items.map(po => (
-                      <tr key={po.id} className="border-t border-[#ede9e2] hover:bg-[#faf8f4]">
+                      <tr key={po.id} className="border-t border-[var(--border)] hover:bg-[#faf8f4]">
                         <td className="px-4 py-2 font-mono text-xs">
-                          <Link href="/manufacturing/production-orders" className="text-[#b8943f] hover:underline">
+                          <Link href="/manufacturing/production-orders" className="text-[var(--primary)] hover:underline">
                             {po.number}
                           </Link>
                         </td>
@@ -227,10 +227,10 @@ export default function ManufacturingReportsPage() {
           })}
 
           {Object.values(wip.buckets).every(b => b.length === 0) && (
-            <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-10 text-center">
+            <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-10 text-center">
               <PackageCheck className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-[#1a1814]">No open WIP orders</p>
-              <p className="text-xs text-[#1a1814]/55 mt-1">All started orders have been completed.</p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">No open WIP orders</p>
+              <p className="text-xs text-[var(--text-primary)]/55 mt-1">All started orders have been completed.</p>
             </div>
           )}
         </div>
@@ -238,9 +238,9 @@ export default function ManufacturingReportsPage() {
 
       {/* ── Production Summary ── */}
       {tab === "production-summary" && summary && (
-        <div className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+        <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+            <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-3">State</th>
                 <th className="text-right px-4 py-3">PO Count</th>
@@ -252,7 +252,7 @@ export default function ManufacturingReportsPage() {
               {STATE_ORDER.filter(s => summary[s]).map(state => {
                 const row = summary[state]
                 return (
-                  <tr key={state} className="border-t border-[#ede9e2] hover:bg-[#faf8f4]">
+                  <tr key={state} className="border-t border-[var(--border)] hover:bg-[#faf8f4]">
                     <td className="px-4 py-2.5">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${STATE_TONE[state] ?? ""}`}>
                         {state}
@@ -270,8 +270,8 @@ export default function ManufacturingReportsPage() {
                 const totalQty   = STATE_ORDER.reduce((s, k) => s + Number(summary[k]?.output_qty ?? 0), 0)
                 const totalCost  = STATE_ORDER.reduce((s, k) => s + Number(summary[k]?.cost ?? 0), 0)
                 return (
-                  <tr className="border-t-2 border-[#b8943f]/40 bg-[#faf6ec] font-semibold">
-                    <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-[#1a1814]/70">{t('col.total', 'Total')}</td>
+                  <tr className="border-t-2 border-[var(--primary)]/40 bg-[var(--bg-page)] font-semibold">
+                    <td className="px-4 py-2.5 text-xs uppercase tracking-wide text-[var(--text-primary)]/70">{t('col.total', 'Total')}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{totalCount}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{totalQty.toFixed(0)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{fmt(totalCost)}</td>
@@ -281,7 +281,7 @@ export default function ManufacturingReportsPage() {
             </tbody>
           </table>
           {Object.keys(summary).length === 0 && (
-            <div className="px-6 py-10 text-center text-sm text-[#1a1814]/50">No production orders yet.</div>
+            <div className="px-6 py-10 text-center text-sm text-[var(--text-primary)]/50">No production orders yet.</div>
           )}
         </div>
       )}
@@ -289,25 +289,25 @@ export default function ManufacturingReportsPage() {
       {/* ── Customer Custody ── */}
       {tab === "customer-custody" && custody && (
         <div className="space-y-4">
-          <div className="bg-[#faf8f4] border border-[#ede9e2] rounded-xl px-4 py-3 text-xs text-[#1a1814]/70">
-            <span className="font-semibold text-[#1a1814]/90">What this shows: </span>
+          <div className="bg-[#faf8f4] border border-[var(--border)] rounded-xl px-4 py-3 text-xs text-[var(--text-primary)]/70">
+            <span className="font-semibold text-[var(--text-primary)]/90">What this shows: </span>
             Customer-supplied goods currently held in your custody (custodial inventory layers with qty &gt; 0).
             These are <em>off-balance-sheet</em> — they belong to your customers, not you.
           </div>
 
           {custody.length === 0 ? (
-            <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-10 text-center">
-              <Users className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-2" />
-              <p className="text-sm font-medium text-[#1a1814]">No customer goods on hand</p>
-              <p className="text-xs text-[#1a1814]/55 mt-1">
+            <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-10 text-center">
+              <Users className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-2" />
+              <p className="text-sm font-medium text-[var(--text-primary)]">No customer goods on hand</p>
+              <p className="text-xs text-[var(--text-primary)]/55 mt-1">
                 Customer-supplied material is recorded via{" "}
-                <Link href="/manufacturing/grn" className="text-[#b8943f] hover:underline">Goods Receipts</Link>.
+                <Link href="/manufacturing/grn" className="text-[var(--primary)] hover:underline">Goods Receipts</Link>.
               </p>
             </div>
           ) : (
-            <div className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+            <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+                <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
                   <tr>
                     <th className="text-left px-4 py-3">{t('col.customer', 'Customer')}</th>
                     <th className="text-left px-4 py-3">{t('col.product', 'Product')}</th>
@@ -318,20 +318,20 @@ export default function ManufacturingReportsPage() {
                 </thead>
                 <tbody>
                   {custody.map((row, i) => (
-                    <tr key={i} className="border-t border-[#ede9e2] hover:bg-[#faf8f4]">
+                    <tr key={i} className="border-t border-[var(--border)] hover:bg-[#faf8f4]">
                       <td className="px-4 py-2.5 font-medium">
-                        <Link href={`/customers/${row.customer_id}/ledger`} className="text-[#b8943f] hover:underline">
+                        <Link href={`/customers/${row.customer_id}/ledger`} className="text-[var(--primary)] hover:underline">
                           {row.customer_name || `#${row.customer_id}`}
                         </Link>
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className="font-mono text-xs text-[#1a1814]/70 mr-1">{row.product.code}</span>
+                        <span className="font-mono text-xs text-[var(--text-primary)]/70 mr-1">{row.product.code}</span>
                         {row.product.name}
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
                         {Number(row.qty_on_hand).toFixed(2)}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-[#1a1814]/60 text-xs">{row.product.unit}</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--text-primary)]/60 text-xs">{row.product.unit}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums">
                         {Number(row.declared_value_open) > 0 ? fmt(Number(row.declared_value_open)) : "—"}
                       </td>
@@ -350,10 +350,10 @@ export default function ManufacturingReportsPage() {
                   const entries = Object.entries(byCustomer)
                   if (entries.length <= 1) return null
                   return (
-                    <tfoot className="border-t-2 border-[#b8943f]/40 bg-[#faf6ec] text-xs font-semibold">
+                    <tfoot className="border-t-2 border-[var(--primary)]/40 bg-[var(--bg-page)] text-xs font-semibold">
                       {entries.map(([cid, c]) => (
-                        <tr key={cid} className="border-t border-[#ede9e2]">
-                          <td className="px-4 py-2 text-[#1a1814]/70" colSpan={2}>
+                        <tr key={cid} className="border-t border-[var(--border)]">
+                          <td className="px-4 py-2 text-[var(--text-primary)]/70" colSpan={2}>
                             {c.name} — subtotal
                           </td>
                           <td className="px-4 py-2 text-right tabular-nums">{c.qty.toFixed(2)}</td>

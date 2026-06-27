@@ -149,35 +149,35 @@ export default function StockLocationsPage() {
       <PrintHeader title="Stock Locations" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Stock Locations</h1>
-          <p className="text-sm text-[#1a1814]/60 mt-0.5">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Stock Locations</h1>
+          <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
             Warehouses, godowns, and WIP buckets. Click a location to view its stock.
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('stock-locations.csv', locations.map(l => ({ Code: l.code, Name: l.name, Type: TYPE_LABELS[l.type] ?? l.type, Active: l.is_active ? 'Yes' : 'No' })))}
             disabled={locations.length === 0}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <Link href="/manufacturing/stock-locations/custody"
-            className="inline-flex items-center gap-2 border border-[#ede9e2] px-3 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors">
             <Users className="w-4 h-4" /> Custody
           </Link>
           <Link href="/manufacturing/stock-locations/movements"
-            className="inline-flex items-center gap-2 border border-[#ede9e2] px-3 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors">
             <ArrowLeftRight className="w-4 h-4" /> Movements
           </Link>
           <button
             onClick={openAdd}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
           >
             <Plus className="w-4 h-4" /> New Location
           </button>
@@ -189,17 +189,17 @@ export default function StockLocationsPage() {
       )}
 
       {loading ? (
-        <div className="text-sm text-[#1a1814]/50 py-8 text-center">Loading…</div>
+        <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
       ) : locations.length === 0 ? (
-        <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-12 text-center">
-          <Warehouse className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]">No stock locations yet</p>
-          <p className="text-xs text-[#1a1814]/55 mt-1 mb-4">
+        <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-12 text-center">
+          <Warehouse className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]">No stock locations yet</p>
+          <p className="text-xs text-[var(--text-primary)]/55 mt-1 mb-4">
             Create warehouses, customer godowns, and WIP buckets to track inventory by location.
           </p>
           <button
             onClick={openAdd}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
           >
             <Plus className="w-4 h-4" /> Create first location
           </button>
@@ -234,30 +234,30 @@ export default function StockLocationsPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-            <div className="px-6 py-4 border-b border-[#ede9e2]">
-              <h2 className="text-lg font-serif font-semibold text-[#1a1814]">
+            <div className="px-6 py-4 border-b border-[var(--border)]">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">
                 {editing ? "Edit Location" : "New Stock Location"}
               </h2>
             </div>
             <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Code</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Code</label>
                   <input
                     value={form.code}
                     onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                     disabled={!!editing}
                     placeholder="WH-01"
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] disabled:bg-[#f5f2ed] font-mono"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] disabled:bg-[#f5f2ed] font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Type</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Type</label>
                   <select
                     value={form.type}
                     onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
                     disabled={!!editing}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] disabled:bg-[#f5f2ed]"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] disabled:bg-[#f5f2ed]"
                   >
                     <option value="own">Own</option>
                     <option value="customer_custodial">Customer Custodial</option>
@@ -266,12 +266,12 @@ export default function StockLocationsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Name</label>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Name</label>
                 <input
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Main Warehouse"
-                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
 
@@ -283,14 +283,14 @@ export default function StockLocationsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors"
+                  className="flex-1 bg-[var(--primary)] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors"
                 >
                   {saving ? "Saving…" : editing ? "Save Changes" : "Create"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
                 >{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
@@ -316,40 +316,40 @@ function LocationGroup({
   const { t } = useTranslation()
   return (
     <div>
-      <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">{title}</h2>
-      <div className={`bg-white border border-[#ede9e2] rounded-xl overflow-hidden ${dimmed ? "opacity-60" : ""}`}>
+      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">{title}</h2>
+      <div className={`bg-white border border-[var(--border)] rounded-xl overflow-hidden ${dimmed ? "opacity-60" : ""}`}>
         {items.map((loc, idx) => {
           const sv = expanded[loc.id]
           const isOpen = sv !== undefined
           return (
-            <div key={loc.id} className={idx > 0 ? "border-t border-[#ede9e2]" : ""}>
+            <div key={loc.id} className={idx > 0 ? "border-t border-[var(--border)]" : ""}>
               {/* Location row */}
               <div
                 className="flex items-center gap-3 px-4 py-3 hover:bg-[#faf8f4] cursor-pointer select-none"
                 onClick={() => onExpand(loc)}
               >
-                <div className="text-[#1a1814]/30">
+                <div className="text-[var(--text-primary)]/30">
                   {isOpen
                     ? <ChevronDown className="w-4 h-4" />
                     : <ChevronRight className="w-4 h-4" />
                   }
                 </div>
-                <span className="font-mono text-xs text-[#1a1814]/80 w-20 shrink-0">{loc.code}</span>
-                <span className="flex-1 text-sm text-[#1a1814]">{loc.name}</span>
+                <span className="font-mono text-xs text-[var(--text-primary)]/80 w-20 shrink-0">{loc.code}</span>
+                <span className="flex-1 text-sm text-[var(--text-primary)]">{loc.name}</span>
                 <span className={`inline-block border rounded-full px-2.5 py-0.5 text-xs font-medium ${TYPE_TONE[loc.type] ?? "bg-slate-50 text-slate-700 border-slate-200"}`}>
                   {TYPE_LABELS[loc.type] ?? loc.type}
                 </span>
                 <div className="flex items-center gap-2 ml-2" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => onEdit(loc)}
-                    className="text-[#1a1814]/40 hover:text-[#b8943f] transition-colors"
+                    className="text-[var(--text-primary)]/40 hover:text-[var(--primary)] transition-colors"
                     title="Edit"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => onToggle(loc)}
-                    className={`transition-colors ${loc.is_active ? "text-emerald-500 hover:text-red-400" : "text-[#1a1814]/30 hover:text-emerald-500"}`}
+                    className={`transition-colors ${loc.is_active ? "text-emerald-500 hover:text-red-400" : "text-[var(--text-primary)]/30 hover:text-emerald-500"}`}
                     title={loc.is_active ? "Deactivate" : "Activate"}
                   >
                     {loc.is_active
@@ -362,42 +362,42 @@ function LocationGroup({
 
               {/* Stock drill-down */}
               {isOpen && (
-                <div className="border-t border-[#ede9e2] bg-[#faf8f4]">
+                <div className="border-t border-[var(--border)] bg-[#faf8f4]">
                   {sv === "loading" ? (
-                    <p className="px-8 py-3 text-xs text-[#1a1814]/50">Loading stock…</p>
+                    <p className="px-8 py-3 text-xs text-[var(--text-primary)]/50">Loading stock…</p>
                   ) : sv === null ? (
                     <p className="px-8 py-3 text-xs text-red-600">Failed to load stock</p>
                   ) : sv.items.length === 0 ? (
-                    <p className="px-8 py-3 text-xs text-[#1a1814]/50">No stock at this location</p>
+                    <p className="px-8 py-3 text-xs text-[var(--text-primary)]/50">No stock at this location</p>
                   ) : (
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-[#ede9e2]">
-                          <th className="text-left px-8 py-2 font-semibold text-[#1a1814]/60">{t('col.product', 'Product')}</th>
-                          <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Lot</th>
-                          <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Qty</th>
-                          <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Value</th>
+                        <tr className="border-b border-[var(--border)]">
+                          <th className="text-left px-8 py-2 font-semibold text-[var(--text-primary)]/60">{t('col.product', 'Product')}</th>
+                          <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60">Lot</th>
+                          <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">Qty</th>
+                          <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">Value</th>
                         </tr>
                       </thead>
                       <tbody>
                         {sv.items.map((item, i) => (
-                          <tr key={i} className="border-b border-[#ede9e2] last:border-0">
-                            <td className="px-8 py-1.5 text-[#1a1814]/80">
-                              <span className="font-mono mr-1.5 text-[#1a1814]/50">{item.product_code}</span>
+                          <tr key={i} className="border-b border-[var(--border)] last:border-0">
+                            <td className="px-8 py-1.5 text-[var(--text-primary)]/80">
+                              <span className="font-mono mr-1.5 text-[var(--text-primary)]/50">{item.product_code}</span>
                               {item.product_name}
                             </td>
-                            <td className="px-4 py-1.5 text-[#1a1814]/55">{item.lot_no || "—"}</td>
+                            <td className="px-4 py-1.5 text-[var(--text-primary)]/55">{item.lot_no || "—"}</td>
                             <td className="px-4 py-1.5 text-right tabular-nums">{Number(item.qty).toFixed(2)}</td>
                             <td className="px-4 py-1.5 text-right tabular-nums">{fmt(Number(item.value))}</td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t border-[#ede9e2] bg-[#f5f2ed]">
-                          <td className="px-8 py-2 text-xs font-semibold text-[#1a1814]/60" colSpan={3}>
+                        <tr className="border-t border-[var(--border)] bg-[#f5f2ed]">
+                          <td className="px-8 py-2 text-xs font-semibold text-[var(--text-primary)]/60" colSpan={3}>
                             {sv.total_lines} line{sv.total_lines !== 1 ? "s" : ""}
                           </td>
-                          <td className="px-4 py-2 text-right text-xs font-bold text-[#1a1814]">
+                          <td className="px-4 py-2 text-right text-xs font-bold text-[var(--text-primary)]">
                             {fmt(sv.items.reduce((s, i) => s + Number(i.value), 0))}
                           </td>
                         </tr>

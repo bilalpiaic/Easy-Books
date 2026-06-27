@@ -61,21 +61,21 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
   }, [id])
 
   if (error) return <p className="p-6 text-red-600 text-sm">{error}</p>
-  if (!po)   return <p className="p-6 text-[#1a1814]/50 text-sm">Loading…</p>
+  if (!po)   return <p className="p-6 text-[var(--text-primary)]/50 text-sm">Loading…</p>
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 text-[#1a1814]">
+    <div className="max-w-3xl mx-auto px-4 py-6 text-[var(--text-primary)]">
       {/* Screen-only toolbar */}
       <div className="flex items-center justify-between mb-6 print:hidden">
         <Link
           href={`/manufacturing/purchase-orders/${id}`}
-          className="flex items-center gap-1.5 text-sm text-[#1a1814]/60 hover:text-[#b8943f]"
+          className="flex items-center gap-1.5 text-sm text-[var(--text-primary)]/60 hover:text-[var(--primary)]"
         >
           <ArrowLeft className="w-4 h-4" /> Back to PO
         </Link>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-xl text-sm font-bold hover:bg-[#a07c35] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary-dark)] transition-colors"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -86,9 +86,9 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
       <div className="flex items-start justify-between mt-6 mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">PURCHASE ORDER</h1>
-          <p className="text-sm text-[#1a1814]/60 mt-1 font-mono">{po.number}</p>
+          <p className="text-sm text-[var(--text-primary)]/60 mt-1 font-mono">{po.number}</p>
         </div>
-        <span className="px-3 py-1 border border-[#b8943f] rounded-full text-xs font-bold text-[#b8943f] print:border-black print:text-black">
+        <span className="px-3 py-1 border border-[var(--primary)] rounded-full text-xs font-bold text-[var(--primary)] print:border-black print:text-black">
           {STATUS_LABEL[po.status] ?? po.status.toUpperCase()}
         </span>
       </div>
@@ -96,17 +96,17 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
       {/* Vendor + dates */}
       <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/50 mb-1">{t('col.vendor', 'Vendor')}</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50 mb-1">{t('col.vendor', 'Vendor')}</p>
           <p className="font-semibold">{po.vendor_name ?? "—"}</p>
         </div>
         <div className="text-right">
           <div className="mb-1">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">Order Date: </span>
+            <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50">Order Date: </span>
             <span>{fmtDate(po.order_date)}</span>
           </div>
           {po.expected_date && (
             <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/50">Expected: </span>
+              <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50">Expected: </span>
               <span>{po.expected_date}</span>
             </div>
           )}
@@ -114,13 +114,13 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
       </div>
 
       {po.description && (
-        <p className="text-sm mb-5 text-[#1a1814]/75">{po.description}</p>
+        <p className="text-sm mb-5 text-[var(--text-primary)]/75">{po.description}</p>
       )}
 
       {/* Line items */}
       <table className="w-full text-sm border-collapse mb-6">
         <thead>
-          <tr className="border-b-2 border-[#1a1814]">
+          <tr className="border-b-2 border-[var(--text-primary)]">
             <th className="text-left py-2 font-bold uppercase tracking-wide text-xs">{t('col.description', 'Description')}</th>
             <th className="text-right py-2 w-16 font-bold uppercase tracking-wide text-xs">Qty</th>
             <th className="text-left py-2 w-16 pl-2 font-bold uppercase tracking-wide text-xs">{t('col.unit', 'Unit')}</th>
@@ -130,17 +130,17 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
         </thead>
         <tbody>
           {po.lines.map(ln => (
-            <tr key={ln.id} className="border-b border-[#ede9e2]">
+            <tr key={ln.id} className="border-b border-[var(--border)]">
               <td className="py-2">{ln.description}</td>
               <td className="py-2 text-right font-mono">{fmtNum(ln.qty)}</td>
-              <td className="py-2 pl-2 text-[#1a1814]/60">{ln.unit ?? "pcs"}</td>
+              <td className="py-2 pl-2 text-[var(--text-primary)]/60">{ln.unit ?? "pcs"}</td>
               <td className="py-2 text-right font-mono">{fmtNum(ln.rate)}</td>
               <td className="py-2 text-right font-mono font-semibold">{fmtNum(ln.amount)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-[#1a1814]">
+          <tr className="border-t-2 border-[var(--text-primary)]">
             <td colSpan={4} className="py-2 text-right text-xs font-bold uppercase tracking-widest">{t('col.total', 'Total')}</td>
             <td className="py-2 text-right font-mono font-bold">{fmtNum(po.total)}</td>
           </tr>
@@ -148,13 +148,13 @@ export default function PurchaseOrderPrintPage({ params }: { params: Promise<{ i
       </table>
 
       {po.notes && (
-        <div className="border border-[#ede9e2] rounded-lg px-4 py-3 text-sm text-[#1a1814]/70 mb-6">
+        <div className="border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--text-primary)]/70 mb-6">
           <p className="font-semibold text-xs uppercase tracking-widest mb-1">{t('col.notes', 'Notes')}</p>
           <p>{po.notes}</p>
         </div>
       )}
 
-      <p className="text-xs text-[#1a1814]/45 text-center mt-8 print:mt-12">
+      <p className="text-xs text-[var(--text-primary)]/45 text-center mt-8 print:mt-12">
         This is a purchase order — not a tax invoice. Goods/services are subject to receipt inspection and acceptance.
       </p>
     </div>

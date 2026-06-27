@@ -88,35 +88,35 @@ export default function ProductionOrdersPage() {
     return null
   }
 
-  if (loading) return <p className="text-sm text-[#1a1814]/60">Loading…</p>
+  if (loading) return <p className="text-sm text-[var(--text-primary)]/60">Loading…</p>
 
   return (
     <div className="space-y-5">
       <PrintHeader title="Production Orders" orientation="landscape" />
       <header className="flex items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
-          <Warehouse className="w-7 h-7 text-[#b8943f]" />
+          <Warehouse className="w-7 h-7 text-[var(--primary)]" />
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Production Orders</h1>
-            <p className="text-sm text-[#1a1814]/60">Drive one batch from kickoff to invoice.</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Production Orders</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Drive one batch from kickoff to invoice.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/manufacturing/production-orders/new"
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors">
             <Plus className="w-4 h-4" /> New PO
           </Link>
           <button
             onClick={() => downloadCSV('production-orders.csv', pos.map(p => ({ "PO #": p.number, State: p.state, Customer: customers.get(p.customer_id) ?? String(p.customer_id), "Output Qty": p.output_qty, "Material Cost": p.own_material_cost, "Unit Cost": p.output_unit_cost, "Started": p.started_at ?? '', "Completed": p.completed_at ?? '' })))}
             disabled={pos.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
             title="Export CSV"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
             title="Print"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
@@ -128,7 +128,7 @@ export default function ProductionOrdersPage() {
         <select
           value={filterState}
           onChange={e => handleStateFilter(e.target.value)}
-          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#b8943f]"
+          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[var(--primary)]"
         >
           <option value="">All states</option>
           {Object.keys(STATE_TONE).map(s => (
@@ -136,7 +136,7 @@ export default function ProductionOrdersPage() {
           ))}
         </select>
         {filterState && (
-          <button onClick={() => handleStateFilter("")} className="text-sm text-[#1a1814]/50 hover:text-[#1a1814] underline">
+          <button onClick={() => handleStateFilter("")} className="text-sm text-[var(--text-primary)]/50 hover:text-[var(--text-primary)] underline">
             Clear
           </button>
         )}
@@ -172,9 +172,9 @@ export default function ProductionOrdersPage() {
           secondaryAction={{ label: "Open the guide →", href: "/guide" }}
         />
       ) : (
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+            <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">PO #</th>
                 <th className="text-left px-4 py-2">{t('col.customer', 'Customer')}</th>
@@ -190,15 +190,15 @@ export default function ProductionOrdersPage() {
               {pos.map(p => {
                 const nxt = nextAction(p.state)
                 return (
-                  <tr key={p.id} className="border-t border-[#ede9e2]">
+                  <tr key={p.id} className="border-t border-[var(--border)]">
                     <td className="px-4 py-2 font-mono text-xs">
-                      <DocLink type="production_order" id={p.id} label={p.number} className="text-[#b8943f]" />
+                      <DocLink type="production_order" id={p.id} label={p.number} className="text-[var(--primary)]" />
                     </td>
                     <td className="px-4 py-2">
                       <DocLink type="customer" id={p.customer_id}
                         label={customers.get(p.customer_id) ?? `#${p.customer_id}`} />
                     </td>
-                    <td className="px-4 py-2 text-xs text-[#1a1814]/60 font-mono">
+                    <td className="px-4 py-2 text-xs text-[var(--text-primary)]/60 font-mono">
                       {p.rate_plan_id ? (ratePlans.get(p.rate_plan_id) ?? `#${p.rate_plan_id}`) : "—"}
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums">{p.output_qty}</td>
@@ -214,7 +214,7 @@ export default function ProductionOrdersPage() {
                         <a
                           href={`/manufacturing/production-orders/${p.id}/print`}
                           title="Print this PO"
-                          className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                          className="p-1.5 rounded border border-[var(--border)] hover:bg-[var(--bg-page)] text-[var(--text-primary)]/55 hover:text-[var(--primary)]"
                         >
                           <Printer className="w-3.5 h-3.5" />
                         </a>
@@ -222,7 +222,7 @@ export default function ProductionOrdersPage() {
                           <button
                             disabled={busyId === p.id}
                             onClick={() => advance(p, nxt)}
-                            className="px-3 py-1.5 text-xs font-semibold bg-[#1a1814] text-white rounded-lg hover:bg-[#b8943f] hover:text-[#1a1814] transition-colors disabled:opacity-50"
+                            className="px-3 py-1.5 text-xs font-semibold bg-[var(--text-primary)] text-white rounded-lg hover:bg-[var(--primary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
                           >
                             {busyId === p.id ? "Working…" : `→ ${nxt}`}
                           </button>

@@ -166,26 +166,26 @@ export default function RatePlansPage() {
       <PrintHeader title="Rate Plans" orientation="landscape" />
       <header className="flex items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
-          <Tags className="w-7 h-7 text-[#b8943f]" />
+          <Tags className="w-7 h-7 text-[var(--primary)]" />
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Rate Plans</h1>
-            <p className="text-sm text-[#1a1814]/60">How you charge customers for your value-addition work.</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Rate Plans</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">How you charge customers for your value-addition work.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => downloadCSV('rate-plans.csv', plans.map(p => ({ Code: p.code, Name: p.name, Version: p.version, Active: p.is_active ? 'Yes' : 'No', "Unit Rate": p.per_unit_rate, "Overhead %": p.overhead_pct, "Margin %": p.margin_pct, "Valid From": p.valid_from ?? '', "Valid To": p.valid_to ?? '' })))}
             disabled={plans.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button onClick={openCreate}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors">
             <Plus className="w-4 h-4" /> New Plan
           </button>
           <button onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm hover:bg-[#f6f3ee] transition-colors">
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm hover:bg-[var(--bg-page)] transition-colors">
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
         </div>
       </header>
@@ -206,21 +206,21 @@ total    = base + overhead + margin`}
       {error && <div className="bg-red-50 border border-red-200 text-red-900 rounded-xl px-4 py-3 text-sm">{error}</div>}
 
       {loading ? (
-        <p className="text-sm text-[#1a1814]/60">Loading…</p>
+        <p className="text-sm text-[var(--text-primary)]/60">Loading…</p>
       ) : plans.length === 0 ? (
-        <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-12 text-center">
-          <Tags className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]">No rate plans yet</p>
-          <p className="text-xs text-[#1a1814]/55 mt-1 mb-4">Create a plan to price your value-addition work.</p>
+        <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-12 text-center">
+          <Tags className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]">No rate plans yet</p>
+          <p className="text-xs text-[var(--text-primary)]/55 mt-1 mb-4">Create a plan to price your value-addition work.</p>
           <button onClick={openCreate}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors">
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors">
             <Plus className="w-4 h-4" /> Create first plan
           </button>
         </div>
       ) : (
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+            <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">Code</th>
                 <th className="text-left px-4 py-2">Name</th>
@@ -235,28 +235,28 @@ total    = base + overhead + margin`}
             </thead>
             <tbody>
               {plans.map(p => (
-                <tr key={p.id} className="border-t border-[#ede9e2] hover:bg-[#faf8f4]">
+                <tr key={p.id} className="border-t border-[var(--border)] hover:bg-[#faf8f4]">
                   <td className="px-4 py-2.5 font-mono text-xs">{p.code}</td>
                   <td className="px-4 py-2.5">{p.name}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{fmt(Number(p.per_unit_rate))}</td>
                   <td className="px-4 py-2.5 text-center text-xs">{p.includes_materials_at_cost ? "✓" : "—"}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(p.overhead_pct).toFixed(1)}%</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(p.margin_pct).toFixed(1)}%</td>
-                  <td className="px-4 py-2.5 text-center text-xs text-[#1a1814]/60">v{p.version}</td>
+                  <td className="px-4 py-2.5 text-center text-xs text-[var(--text-primary)]/60">v{p.version}</td>
                   <td className="px-4 py-2.5 text-center">
                     {p.is_active
                       ? <span className="text-emerald-700 text-xs font-semibold">{t('status.active', 'Active')}</span>
-                      : <span className="text-[#1a1814]/40 text-xs">Archived</span>}
+                      : <span className="text-[var(--text-primary)]/40 text-xs">Archived</span>}
                   </td>
                   <td className="px-4 py-2.5 print:hidden">
                     <div className="flex items-center justify-end gap-1.5">
                       <button onClick={() => openEdit(p)} title="Edit plan"
-                        className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/40 hover:text-[#b8943f] transition-colors">
+                        className="p-1.5 rounded border border-[var(--border)] hover:bg-[var(--bg-page)] text-[var(--text-primary)]/40 hover:text-[var(--primary)] transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       {p.is_active && (
                         <button onClick={() => openAssign(p)} title="Assign to customer"
-                          className="p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/40 hover:text-[#b8943f] transition-colors">
+                          className="p-1.5 rounded border border-[var(--border)] hover:bg-[var(--bg-page)] text-[var(--text-primary)]/40 hover:text-[var(--primary)] transition-colors">
                           <UserPlus className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -273,77 +273,77 @@ total    = base + overhead + margin`}
       {planModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="px-6 py-4 border-b border-[#ede9e2]">
-              <h2 className="text-lg font-serif font-semibold text-[#1a1814]">
+            <div className="px-6 py-4 border-b border-[var(--border)]">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">
                 {editingPlan ? `Edit ${editingPlan.code}` : "New Rate Plan"}
               </h2>
             </div>
             <form onSubmit={handlePlanSave} className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Code</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Code</label>
                   <input value={planForm.code}
                     onChange={e => setPlanForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                     disabled={!!editingPlan}
                     placeholder="STITCH-STD"
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] font-mono disabled:bg-[#f5f2ed]" />
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] font-mono disabled:bg-[#f5f2ed]" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Per-unit Rate</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Per-unit Rate</label>
                   <input type="number" min="0" step="any" value={planForm.per_unit_rate}
                     onChange={e => setPlanForm(f => ({ ...f, per_unit_rate: e.target.value }))}
                     placeholder="0.00"
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:border-[#b8943f]" />
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:border-[var(--primary)]" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Name</label>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Name</label>
                 <input value={planForm.name} onChange={e => setPlanForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Standard Stitching Rate"
-                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]" />
+                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Overhead %</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Overhead %</label>
                   <input type="number" min="0" max="100" step="any" value={planForm.overhead_pct}
                     onChange={e => setPlanForm(f => ({ ...f, overhead_pct: e.target.value }))}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[#b8943f]" />
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[var(--primary)]" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Margin %</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Margin %</label>
                   <input type="number" min="0" max="100" step="any" value={planForm.margin_pct}
                     onChange={e => setPlanForm(f => ({ ...f, margin_pct: e.target.value }))}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[#b8943f]" />
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[var(--primary)]" />
                 </div>
               </div>
               <label className="flex items-center gap-2.5 cursor-pointer">
                 <input type="checkbox" checked={planForm.includes_materials_at_cost}
                   onChange={e => setPlanForm(f => ({ ...f, includes_materials_at_cost: e.target.checked }))}
-                  className="w-4 h-4 accent-[#b8943f]" />
-                <span className="text-sm text-[#1a1814]">Include own-stock material cost at WAvg in total</span>
+                  className="w-4 h-4 accent-[var(--primary)]" />
+                <span className="text-sm text-[var(--text-primary)]">Include own-stock material cost at WAvg in total</span>
               </label>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Valid From</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Valid From</label>
                   <input type="date" value={planForm.valid_from}
                     onChange={e => setPlanForm(f => ({ ...f, valid_from: e.target.value }))}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]" />
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Valid To</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Valid To</label>
                   <input type="date" value={planForm.valid_to}
                     onChange={e => setPlanForm(f => ({ ...f, valid_to: e.target.value }))}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]" />
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]" />
                 </div>
               </div>
               {planErr && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{planErr}</p>}
               <div className="flex gap-3 pt-1">
                 <button type="submit" disabled={planSaving}
-                  className="flex-1 bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors">
+                  className="flex-1 bg-[var(--primary)] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors">
                   {planSaving ? "Saving…" : editingPlan ? "Save Changes" : "Create Rate Plan"}
                 </button>
                 <button type="button" onClick={() => setPlanModal(false)}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</button>
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
           </div>
@@ -354,18 +354,18 @@ total    = base + overhead + margin`}
       {assignModal && assignPlan && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-            <div className="px-6 py-4 border-b border-[#ede9e2]">
-              <h2 className="text-lg font-serif font-semibold text-[#1a1814]">Assign {assignPlan.code}</h2>
-              <p className="text-xs text-[#1a1814]/60 mt-0.5">
+            <div className="px-6 py-4 border-b border-[var(--border)]">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Assign {assignPlan.code}</h2>
+              <p className="text-xs text-[var(--text-primary)]/60 mt-0.5">
                 Link this plan to a customer so production orders auto-select it.
                 Any prior active assignment for the customer will be replaced.
               </p>
             </div>
             <form onSubmit={handleAssign} className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.customer', 'Customer')}</label>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">{t('col.customer', 'Customer')}</label>
                 <select value={assignCustomer} onChange={e => setAssignCustomer(e.target.value)}
-                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]">
+                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]">
                   <option value="">— Select customer —</option>
                   {customers.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -376,11 +376,11 @@ total    = base + overhead + margin`}
               {assignOk  && <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{assignOk}</p>}
               <div className="flex gap-3 pt-1">
                 <button type="submit" disabled={assignSaving}
-                  className="flex-1 bg-[#1a1814] text-white py-2.5 rounded-lg text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+                  className="flex-1 bg-[var(--text-primary)] text-white py-2.5 rounded-lg text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">
                   {assignSaving ? "Assigning…" : "Assign"}
                 </button>
                 <button type="button" onClick={() => setAssignModal(false)}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors">
                   Close
                 </button>
               </div>

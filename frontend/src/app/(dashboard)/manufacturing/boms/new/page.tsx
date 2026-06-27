@@ -93,11 +93,11 @@ export default function NewBomPage() {
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <Link href="/manufacturing/boms" className="text-sm text-[#b8943f] hover:underline">
+        <Link href="/manufacturing/boms" className="text-sm text-[var(--primary)] hover:underline">
           ← Bills of Material
         </Link>
-        <h1 className="text-2xl font-serif font-semibold text-[#1a1814] mt-2">New Bill of Material</h1>
-        <p className="text-sm text-[#1a1814]/60 mt-0.5">Define which components produce one batch of output.</p>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] mt-2">New Bill of Material</h1>
+        <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">Define which components produce one batch of output.</p>
       </div>
 
       {loadErr && (
@@ -106,13 +106,13 @@ export default function NewBomPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Output product */}
-        <div className="bg-white border border-[#ede9e2] rounded-xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-[#1a1814]">Output (Finished Good)</h2>
+        <div className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Output (Finished Good)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.product', 'Product')}</label>
+              <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">{t('col.product', 'Product')}</label>
               <select value={outputProductId} onChange={e => setOutputProductId(e.target.value)}
-                className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]">
+                className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]">
                 <option value="">Select output product…</option>
                 {products.map(p => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
@@ -120,56 +120,56 @@ export default function NewBomPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Output Qty per batch</label>
+              <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Output Qty per batch</label>
               <input type="number" min="0.001" step="any" value={outputQty}
                 onChange={e => setOutputQty(e.target.value)}
-                className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:border-[#b8943f]" />
+                className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right tabular-nums focus:outline-none focus:border-[var(--primary)]" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">{t('col.description', 'Description')}</label>
+            <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">{t('col.description', 'Description')}</label>
             <input value={description} onChange={e => setDescription(e.target.value)}
               placeholder="Optional description / version note"
-              className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]" />
+              className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]" />
           </div>
           <label className="flex items-start gap-3 cursor-pointer p-3 bg-amber-50 border border-amber-100 rounded-lg">
             <input type="checkbox" checked={explodeOnInvoice} onChange={e => setExplodeOnInvoice(e.target.checked)}
-              className="mt-0.5 w-4 h-4 accent-[#b8943f]" />
-            <span className="text-sm text-[#1a1814]">
+              className="mt-0.5 w-4 h-4 accent-[var(--primary)]" />
+            <span className="text-sm text-[var(--text-primary)]">
               <span className="font-semibold">Auto-consume components on sale invoice</span>
-              <span className="block text-xs text-[#1a1814]/60 mt-0.5">When enabled, posting an invoice for this product automatically consumes its BOM components from stock instead of the finished product itself. Use for kit / assembly-to-order products.</span>
+              <span className="block text-xs text-[var(--text-primary)]/60 mt-0.5">When enabled, posting an invoice for this product automatically consumes its BOM components from stock instead of the finished product itself. Use for kit / assembly-to-order products.</span>
             </span>
           </label>
         </div>
 
         {/* Component lines */}
-        <div className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-[#ede9e2] flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[#1a1814]">Component Lines</h2>
+        <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Component Lines</h2>
             <button type="button" onClick={() => setLines(prev => [...prev, emptyLine()])}
-              className="inline-flex items-center gap-1.5 text-xs text-[#b8943f] hover:underline">
+              className="inline-flex items-center gap-1.5 text-xs text-[var(--primary)] hover:underline">
               <Plus className="w-3.5 h-3.5" /> Add component
             </button>
           </div>
           <div className="overflow-x-auto hidden sm:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-                  <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">Component Product</th>
-                  <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70 w-24">Qty / batch</th>
-                  <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70 w-36">Source</th>
-                  <th className="text-left px-3 py-2.5 font-semibold text-[#1a1814]/70 w-36">Default Location</th>
-                  <th className="text-center px-3 py-2.5 font-semibold text-[#1a1814]/70 w-20">Optional?</th>
+                <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
+                  <th className="text-left px-4 py-2.5 font-semibold text-[var(--text-primary)]/70">Component Product</th>
+                  <th className="text-left px-3 py-2.5 font-semibold text-[var(--text-primary)]/70 w-24">Qty / batch</th>
+                  <th className="text-left px-3 py-2.5 font-semibold text-[var(--text-primary)]/70 w-36">Source</th>
+                  <th className="text-left px-3 py-2.5 font-semibold text-[var(--text-primary)]/70 w-36">Default Location</th>
+                  <th className="text-center px-3 py-2.5 font-semibold text-[var(--text-primary)]/70 w-20">Optional?</th>
                   <th className="w-8 px-2" />
                 </tr>
               </thead>
               <tbody>
                 {lines.map((line, i) => (
-                  <tr key={i} className="border-b border-[#ede9e2] last:border-0">
+                  <tr key={i} className="border-b border-[var(--border)] last:border-0">
                     <td className="px-4 py-2">
                       <select value={line.component_product_id}
                         onChange={e => updateLine(i, { component_product_id: e.target.value })}
-                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#b8943f]">
+                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[var(--primary)]">
                         <option value="">Select…</option>
                         {products.map(p => (
                           <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
@@ -180,11 +180,11 @@ export default function NewBomPage() {
                       <input type="number" min="0.001" step="any" value={line.qty_per_output}
                         onChange={e => updateLine(i, { qty_per_output: e.target.value })}
                         placeholder="1"
-                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs text-right tabular-nums focus:outline-none focus:border-[#b8943f]" />
+                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs text-right tabular-nums focus:outline-none focus:border-[var(--primary)]" />
                     </td>
                     <td className="px-3 py-2">
                       <select value={line.source} onChange={e => updateLine(i, { source: e.target.value })}
-                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#b8943f]">
+                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[var(--primary)]">
                         <option value="own_stock">Own stock</option>
                         <option value="customer_supplied">Customer supplied</option>
                       </select>
@@ -192,7 +192,7 @@ export default function NewBomPage() {
                     <td className="px-3 py-2">
                       <select value={line.default_location_id}
                         onChange={e => updateLine(i, { default_location_id: e.target.value })}
-                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#b8943f]">
+                        className="w-full border border-[#d4cfc7] rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[var(--primary)]">
                         <option value="">Auto</option>
                         {locations.map(l => (
                           <option key={l.id} value={l.id}>{l.code}</option>
@@ -202,12 +202,12 @@ export default function NewBomPage() {
                     <td className="px-3 py-2 text-center">
                       <input type="checkbox" checked={line.is_optional}
                         onChange={e => updateLine(i, { is_optional: e.target.checked })}
-                        className="w-4 h-4 accent-[#b8943f]" />
+                        className="w-4 h-4 accent-[var(--primary)]" />
                     </td>
                     <td className="px-2 py-2 text-right">
                       {lines.length > 1 && (
                         <button type="button" onClick={() => setLines(prev => prev.filter((_, idx) => idx !== i))}
-                          className="text-[#1a1814]/30 hover:text-red-500 transition-colors">
+                          className="text-[var(--text-primary)]/30 hover:text-red-500 transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -219,11 +219,11 @@ export default function NewBomPage() {
           </div>
 
           {/* Mobile stacked */}
-          <div className="sm:hidden divide-y divide-[#ede9e2]">
+          <div className="sm:hidden divide-y divide-[var(--border)]">
             {lines.map((line, i) => (
               <div key={i} className="p-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-[#1a1814]/60">Component {i + 1}</span>
+                  <span className="text-xs font-semibold text-[var(--text-primary)]/60">Component {i + 1}</span>
                   {lines.length > 1 && (
                     <button type="button" onClick={() => setLines(prev => prev.filter((_, idx) => idx !== i))}
                       className="text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -231,7 +231,7 @@ export default function NewBomPage() {
                 </div>
                 <select value={line.component_product_id}
                   onChange={e => updateLine(i, { component_product_id: e.target.value })}
-                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]">
+                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]">
                   <option value="">Select product…</option>
                   {products.map(p => (
                     <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
@@ -239,15 +239,15 @@ export default function NewBomPage() {
                 </select>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-[#1a1814]/60 mb-1 block">Qty / batch</label>
+                    <label className="text-xs text-[var(--text-primary)]/60 mb-1 block">Qty / batch</label>
                     <input type="number" min="0.001" step="any" value={line.qty_per_output}
                       onChange={e => updateLine(i, { qty_per_output: e.target.value })}
-                      className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[#b8943f]" />
+                      className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[var(--primary)]" />
                   </div>
                   <div>
-                    <label className="text-xs text-[#1a1814]/60 mb-1 block">Source</label>
+                    <label className="text-xs text-[var(--text-primary)]/60 mb-1 block">Source</label>
                     <select value={line.source} onChange={e => updateLine(i, { source: e.target.value })}
-                      className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]">
+                      className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]">
                       <option value="own_stock">Own stock</option>
                       <option value="customer_supplied">Customer supplied</option>
                     </select>
@@ -264,11 +264,11 @@ export default function NewBomPage() {
 
         <div className="flex gap-3">
           <button type="submit" disabled={saving}
-            className="flex-1 sm:flex-none bg-[#b8943f] text-white px-8 py-2.5 rounded-lg text-sm font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors">
+            className="flex-1 sm:flex-none bg-[var(--primary)] text-white px-8 py-2.5 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors">
             {saving ? "Saving…" : "Create BOM"}
           </button>
           <Link href="/manufacturing/boms"
-            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</Link>
+            className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors">{t('common.cancel', 'Cancel')}</Link>
         </div>
       </form>
     </div>

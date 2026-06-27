@@ -38,10 +38,10 @@ export default function ManufacturingDashboardPage() {
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-3">
-        <Factory className="w-7 h-7 text-[#b8943f]" />
+        <Factory className="w-7 h-7 text-[var(--primary)]" />
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Production Floor</h1>
-          <p className="text-sm text-[#1a1814]/60">Live view of your manufacturing operations.</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Production Floor</h1>
+          <p className="text-sm text-[var(--text-primary)]/60">Live view of your manufacturing operations.</p>
         </div>
       </header>
 
@@ -66,12 +66,12 @@ export default function ManufacturingDashboardPage() {
 
       {/* Pipeline counts */}
       <section>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">Pipeline</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">Pipeline</h2>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {STAGES.map(s => (
             <div key={s.key} className={`${s.tone} border rounded-xl px-3 py-3`}>
               <div className="text-xs font-semibold opacity-70">{s.label}</div>
-              <div className="text-2xl font-serif font-bold mt-0.5">
+              <div className="text-2xl font-bold font-bold mt-0.5">
                 {data?.pipeline[s.key] ?? "—"}
               </div>
             </div>
@@ -81,7 +81,7 @@ export default function ManufacturingDashboardPage() {
 
       {/* Totals */}
       <section>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">Inventory at a glance</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">Inventory at a glance</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Tile icon={Wrench} label="WIP cost" value={fmt(data?.totals.wip_cost)} />
           <Tile icon={Layers} label="Finished goods cost" value={fmt(data?.totals.finished_goods_cost)} />
@@ -91,7 +91,7 @@ export default function ManufacturingDashboardPage() {
 
       {/* Quick links */}
       <section>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">Jump to</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">Jump to</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <QuickLink href="/manufacturing/purchase-orders"    icon={ShoppingCart} title="Purchase Orders"  subtitle="Order goods from vendors" />
           <QuickLink href="/manufacturing/grn"               icon={Package}    title="Goods Receipt"     subtitle="Record what a customer brings in" />
@@ -114,13 +114,13 @@ function fmt(v?: string): string {
 
 function Tile({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="bg-white border border-[#ede9e2] rounded-xl px-4 py-3 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-lg bg-[#faf6ec] border border-[#b8943f]/30 flex items-center justify-center">
-        <Icon className="w-5 h-5 text-[#b8943f]" />
+    <div className="bg-white border border-[var(--border)] rounded-xl px-4 py-3 flex items-center gap-3">
+      <div className="w-10 h-10 rounded-lg bg-[var(--bg-page)] border border-[var(--primary)]/30 flex items-center justify-center">
+        <Icon className="w-5 h-5 text-[var(--primary)]" />
       </div>
       <div className="min-w-0">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-[#1a1814]/55">{label}</div>
-        <div className="text-lg font-serif font-bold text-[#1a1814] truncate">{value}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-primary)]/55">{label}</div>
+        <div className="text-lg font-bold font-bold text-[var(--text-primary)] truncate">{value}</div>
       </div>
     </div>
   )
@@ -132,13 +132,13 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="bg-white border border-[#ede9e2] rounded-xl px-4 py-3 hover:border-[#b8943f]/60 transition-colors block"
+      className="bg-white border border-[var(--border)] rounded-xl px-4 py-3 hover:border-[var(--primary)]/60 transition-colors block"
     >
       <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-[#b8943f]" />
-        <div className="text-sm font-semibold text-[#1a1814]">{title}</div>
+        <Icon className="w-4 h-4 text-[var(--primary)]" />
+        <div className="text-sm font-semibold text-[var(--text-primary)]">{title}</div>
       </div>
-      <p className="text-xs text-[#1a1814]/60 mt-1.5">{subtitle}</p>
+      <p className="text-xs text-[var(--text-primary)]/60 mt-1.5">{subtitle}</p>
     </Link>
   )
 }

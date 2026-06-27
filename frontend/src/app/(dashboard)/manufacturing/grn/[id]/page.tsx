@@ -71,7 +71,7 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
       .finally(() => setLoading(false))
   }, [id])
 
-  if (loading) return <div className="text-sm text-[#1a1814]/50 py-8 text-center">Loading…</div>
+  if (loading) return <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
   if (error || !grn) return <div className="text-sm text-red-700 py-8 text-center">{error ?? "GRN not found"}</div>
 
   const totalDeclared = grn.lines.reduce((s, l) => s + Number(l.declared_value), 0)
@@ -81,22 +81,22 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
       {/* Breadcrumb + actions */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Link href="/manufacturing/grn" className="text-sm text-[#b8943f] hover:underline">
+          <Link href="/manufacturing/grn" className="text-sm text-[var(--primary)] hover:underline">
             ← Goods Receipt
           </Link>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814] mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] mt-1">
             {grn.number}
           </h1>
         </div>
         <Link
           href={`/manufacturing/grn/${grn.id}/print`}
-          className="inline-flex items-center gap-2 border border-[#ede9e2] rounded-lg px-3 py-2 text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors print:hidden"
+          className="inline-flex items-center gap-2 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors print:hidden"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
       </div>
 
       {/* Header card */}
-      <div className="bg-white border border-[#ede9e2] rounded-xl p-5">
+      <div className="bg-white border border-[var(--border)] rounded-xl p-5">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
           <Field label="Customer">
             {customerMap[grn.customer_id] ?? `Customer #${grn.customer_id}`}
@@ -106,13 +106,13 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
             {locationMap[grn.location_id] ?? `Location #${grn.location_id}`}
           </Field>
           <Field label="Total Declared Value">
-            <span className={totalDeclared > 0 ? "font-semibold text-[#1a1814]" : "text-[#1a1814]/40"}>
+            <span className={totalDeclared > 0 ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-primary)]/40"}>
               {totalDeclared > 0 ? fmt(totalDeclared) : "—"}
             </span>
           </Field>
           {grn.transaction_id && (
             <Field label="Memo JE">
-              <Link href={`/journal?transaction_id=${grn.transaction_id}`} className="text-[#b8943f] hover:underline text-xs">
+              <Link href={`/journal?transaction_id=${grn.transaction_id}`} className="text-[var(--primary)] hover:underline text-xs">
                 View journal entry →
               </Link>
             </Field>
@@ -126,50 +126,50 @@ export default function GrnDetailPage({ params }: { params: Promise<{ id: string
       </div>
 
       {/* Lines table */}
-      <div className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-[#ede9e2] flex items-center gap-2">
-          <Package className="w-4 h-4 text-[#b8943f]" />
-          <h2 className="text-sm font-semibold text-[#1a1814]">Material Lines</h2>
-          <span className="text-xs text-[#1a1814]/50">({grn.lines.length})</span>
+      <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-[var(--border)] flex items-center gap-2">
+          <Package className="w-4 h-4 text-[var(--primary)]" />
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Material Lines</h2>
+          <span className="text-xs text-[var(--text-primary)]/50">({grn.lines.length})</span>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-              <th className="text-left px-5 py-2.5 font-semibold text-[#1a1814]/70">{t('col.product', 'Product')}</th>
-              <th className="text-right px-4 py-2.5 font-semibold text-[#1a1814]/70">Qty</th>
-              <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">Lot No.</th>
-              <th className="text-right px-4 py-2.5 font-semibold text-[#1a1814]/70">Declared Value</th>
-              <th className="text-left px-4 py-2.5 font-semibold text-[#1a1814]/70">{t('col.notes', 'Notes')}</th>
+            <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
+              <th className="text-left px-5 py-2.5 font-semibold text-[var(--text-primary)]/70">{t('col.product', 'Product')}</th>
+              <th className="text-right px-4 py-2.5 font-semibold text-[var(--text-primary)]/70">Qty</th>
+              <th className="text-left px-4 py-2.5 font-semibold text-[var(--text-primary)]/70">Lot No.</th>
+              <th className="text-right px-4 py-2.5 font-semibold text-[var(--text-primary)]/70">Declared Value</th>
+              <th className="text-left px-4 py-2.5 font-semibold text-[var(--text-primary)]/70">{t('col.notes', 'Notes')}</th>
             </tr>
           </thead>
           <tbody>
             {grn.lines.map(line => {
               const prod = productMap[line.product_id]
               return (
-                <tr key={line.id} className="border-b border-[#ede9e2] last:border-0">
+                <tr key={line.id} className="border-b border-[var(--border)] last:border-0">
                   <td className="px-5 py-2.5">
                     {prod ? (
                       <>
-                        <span className="font-mono text-xs text-[#1a1814]/50 mr-1.5">{prod.code}</span>
+                        <span className="font-mono text-xs text-[var(--text-primary)]/50 mr-1.5">{prod.code}</span>
                         {prod.name}
                       </>
                     ) : `Product #${line.product_id}`}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(line.qty).toFixed(2)}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-[#1a1814]/70">{line.lot_no || "—"}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs text-[var(--text-primary)]/70">{line.lot_no || "—"}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">
                     {Number(line.declared_value) > 0 ? fmt(Number(line.declared_value)) : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-[#1a1814]/60 text-xs">{line.notes || "—"}</td>
+                  <td className="px-4 py-2.5 text-[var(--text-primary)]/60 text-xs">{line.notes || "—"}</td>
                 </tr>
               )
             })}
           </tbody>
           {totalDeclared > 0 && (
             <tfoot>
-              <tr className="border-t border-[#ede9e2] bg-[#faf8f4]">
-                <td className="px-5 py-2.5 text-xs text-[#1a1814]/60" colSpan={3}>Total declared value</td>
-                <td className="px-4 py-2.5 text-right text-sm font-bold tabular-nums text-[#1a1814]">
+              <tr className="border-t border-[var(--border)] bg-[#faf8f4]">
+                <td className="px-5 py-2.5 text-xs text-[var(--text-primary)]/60" colSpan={3}>Total declared value</td>
+                <td className="px-4 py-2.5 text-right text-sm font-bold tabular-nums text-[var(--text-primary)]">
                   {fmt(totalDeclared)}
                 </td>
                 <td />
@@ -196,8 +196,8 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-[#1a1814]/50 mb-0.5">{label}</dt>
-      <dd className="text-sm text-[#1a1814]/80">{children}</dd>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-[var(--text-primary)]/50 mb-0.5">{label}</dt>
+      <dd className="text-sm text-[var(--text-primary)]/80">{children}</dd>
     </div>
   )
 }

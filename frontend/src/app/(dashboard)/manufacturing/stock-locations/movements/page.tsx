@@ -122,47 +122,47 @@ export default function StockMovementsPage() {
 
       <header className="flex items-start justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
-          <Link href="/manufacturing/stock-locations" className="text-sm text-[#b8943f] hover:underline">
+          <Link href="/manufacturing/stock-locations" className="text-sm text-[var(--primary)] hover:underline">
             ← Stock Locations
           </Link>
         </div>
         <button
           onClick={() => downloadCSV('stock-movements.csv', movements.map(m => ({ Date: m.occurred_at.slice(0, 10), Direction: m.direction, Product: productMap.get(m.product_id)?.name ?? m.product_id, Lot: m.lot_no ?? '', Qty: m.qty, "From": m.from_location_id ? (locationMap.get(m.from_location_id)?.name ?? m.from_location_id) : '', "To": m.to_location_id ? (locationMap.get(m.to_location_id)?.name ?? m.to_location_id) : '', "Unit Cost": m.unit_cost, "Total Cost": m.total_cost, Source: m.source_doc_type ? `${m.source_doc_type} #${m.source_doc_id}` : '' })))}
           disabled={movements.length === 0}
-          className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
         >
           <Download className="w-4 h-4" /> CSV
         </button>
       </header>
 
       <div className="flex items-center gap-3">
-        <ArrowLeftRight className="w-7 h-7 text-[#b8943f]" />
+        <ArrowLeftRight className="w-7 h-7 text-[var(--primary)]" />
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Stock Movements</h1>
-          <p className="text-sm text-[#1a1814]/60">All inventory movement events across all locations.</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Stock Movements</h1>
+          <p className="text-sm text-[var(--text-primary)]/60">All inventory movement events across all locations.</p>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 print:hidden">
         <select value={filterProduct} onChange={e => setFilterProduct(e.target.value)}
-          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#b8943f]">
+          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[var(--primary)]">
           <option value="">All products</option>
           {products.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
         <select value={filterLocation} onChange={e => setFilterLocation(e.target.value)}
-          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#b8943f]">
+          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[var(--primary)]">
           <option value="">All locations</option>
           {locations.map(l => <option key={l.id} value={l.id}>{l.code} — {l.name}</option>)}
         </select>
         <select value={filterDir} onChange={e => setFilterDir(e.target.value)}
-          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#b8943f]">
+          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[var(--primary)]">
           <option value="">All directions</option>
           {Object.keys(DIRECTION_TONE).map(d => <option key={d} value={d}>{d.replace(/_/g, " ")}</option>)}
         </select>
         {(filterProduct || filterLocation || filterDir) && (
           <button onClick={() => { setFilterProduct(""); setFilterLocation(""); setFilterDir("") }}
-            className="text-sm text-[#1a1814]/50 hover:text-[#1a1814] underline">
+            className="text-sm text-[var(--text-primary)]/50 hover:text-[var(--text-primary)] underline">
             Clear filters
           </button>
         )}
@@ -170,9 +170,9 @@ export default function StockMovementsPage() {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-900 rounded-xl px-4 py-3 text-sm">{error}</div>}
 
-      <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden">
+      <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+          <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-2">Date</th>
               <th className="text-left px-4 py-2">Direction</th>
@@ -187,9 +187,9 @@ export default function StockMovementsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-[#1a1814]/40 text-sm">Loading…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-[var(--text-primary)]/40 text-sm">Loading…</td></tr>
             ) : movements.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-[#1a1814]/40 text-sm">No movements found.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-[var(--text-primary)]/40 text-sm">No movements found.</td></tr>
             ) : movements.map(m => {
               const prod  = productMap.get(m.product_id)
               const from  = m.from_location_id ? locationMap.get(m.from_location_id) : null
@@ -198,8 +198,8 @@ export default function StockMovementsPage() {
               const src   = sourceLink(m.source_doc_type, m.source_doc_id)
               const tone  = DIRECTION_TONE[m.direction] ?? "bg-slate-50 text-slate-700 border-slate-200"
               return (
-                <tr key={m.id} className="border-t border-[#ede9e2] hover:bg-[#faf8f4]">
-                  <td className="px-4 py-2.5 tabular-nums text-[#1a1814]/70 whitespace-nowrap">
+                <tr key={m.id} className="border-t border-[var(--border)] hover:bg-[#faf8f4]">
+                  <td className="px-4 py-2.5 tabular-nums text-[var(--text-primary)]/70 whitespace-nowrap">
                     {m.occurred_at.slice(0, 10)}
                   </td>
                   <td className="px-4 py-2.5">
@@ -210,21 +210,21 @@ export default function StockMovementsPage() {
                   <td className="px-4 py-2.5">
                     {prod ? (
                       <div>
-                        <span className="font-medium text-[#1a1814]">{prod.name}</span>
-                        <span className="text-xs text-[#1a1814]/50 ml-1.5 font-mono">{prod.code}</span>
+                        <span className="font-medium text-[var(--text-primary)]">{prod.name}</span>
+                        <span className="text-xs text-[var(--text-primary)]/50 ml-1.5 font-mono">{prod.code}</span>
                       </div>
-                    ) : <span className="text-[#1a1814]/40">#{m.product_id}</span>}
-                    {m.lot_no && <div className="text-xs text-[#1a1814]/50 font-mono">{m.lot_no}</div>}
+                    ) : <span className="text-[var(--text-primary)]/40">#{m.product_id}</span>}
+                    {m.lot_no && <div className="text-xs text-[var(--text-primary)]/50 font-mono">{m.lot_no}</div>}
                     {cust && <div className="text-xs text-sky-700">{cust.name}</div>}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums font-medium">{Number(m.qty).toFixed(2)}</td>
-                  <td className="px-4 py-2.5 text-xs text-[#1a1814]/70 font-mono">
+                  <td className="px-4 py-2.5 text-xs text-[var(--text-primary)]/70 font-mono">
                     {from ? `${from.code}` : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-[#1a1814]/70 font-mono">
+                  <td className="px-4 py-2.5 text-xs text-[var(--text-primary)]/70 font-mono">
                     {to ? `${to.code}` : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-[#1a1814]/70">
+                  <td className="px-4 py-2.5 text-right tabular-nums text-[var(--text-primary)]/70">
                     {Number(m.unit_cost) > 0 ? fmt(Number(m.unit_cost)) : "—"}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums font-medium">
@@ -232,9 +232,9 @@ export default function StockMovementsPage() {
                   </td>
                   <td className="px-4 py-2.5">
                     {src ? (
-                      <Link href={src.href} className="text-[#b8943f] hover:underline text-xs">{src.label}</Link>
+                      <Link href={src.href} className="text-[var(--primary)] hover:underline text-xs">{src.label}</Link>
                     ) : m.source_doc_type ? (
-                      <span className="text-xs text-[#1a1814]/40">{m.source_doc_type}</span>
+                      <span className="text-xs text-[var(--text-primary)]/40">{m.source_doc_type}</span>
                     ) : "—"}
                   </td>
                 </tr>
@@ -246,16 +246,16 @@ export default function StockMovementsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-[#1a1814]/50 print:hidden">
+        <div className="flex items-center justify-between text-xs text-[var(--text-primary)]/50 print:hidden">
           <span>{total} movements</span>
           <div className="flex items-center gap-2">
             <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
-              className="flex items-center gap-1 px-2 py-1 border border-[#ede9e2] rounded disabled:opacity-40 enabled:hover:border-[#b8943f] enabled:hover:text-[#b8943f]">
+              className="flex items-center gap-1 px-2 py-1 border border-[var(--border)] rounded disabled:opacity-40 enabled:hover:border-[var(--primary)] enabled:hover:text-[var(--primary)]">
               <ChevronLeft className="w-3.5 h-3.5" /> Prev
             </button>
             <span>Page {page + 1} of {totalPages}</span>
             <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}
-              className="flex items-center gap-1 px-2 py-1 border border-[#ede9e2] rounded disabled:opacity-40 enabled:hover:border-[#b8943f] enabled:hover:text-[#b8943f]">
+              className="flex items-center gap-1 px-2 py-1 border border-[var(--border)] rounded disabled:opacity-40 enabled:hover:border-[var(--primary)] enabled:hover:text-[var(--primary)]">
               Next <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>

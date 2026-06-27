@@ -161,11 +161,11 @@ export default function ProductionOrderDetailPage() {
     }
   }
 
-  if (loading) return <p className="p-6 text-sm text-[#1a1814]/60">Loading…</p>
+  if (loading) return <p className="p-6 text-sm text-[var(--text-primary)]/60">Loading…</p>
   if (error || !po) return (
     <div className="p-6">
       <p className="text-sm text-red-600">{error ?? 'Order not found'}</p>
-      <Link href="/manufacturing/production-orders" className="text-[#b8943f] text-sm mt-2 inline-block">← Back to list</Link>
+      <Link href="/manufacturing/production-orders" className="text-[var(--primary)] text-sm mt-2 inline-block">← Back to list</Link>
     </div>
   )
 
@@ -178,22 +178,22 @@ export default function ProductionOrderDetailPage() {
 
       {/* Back + print */}
       <div className="flex items-center justify-between">
-        <Link href="/manufacturing/production-orders" className="flex items-center gap-1 text-sm text-[#1a1814]/60 hover:text-[#b8943f]">
+        <Link href="/manufacturing/production-orders" className="flex items-center gap-1 text-sm text-[var(--text-primary)]/60 hover:text-[var(--primary)]">
           <ChevronLeft className="w-4 h-4" /> Production Orders
         </Link>
         <a
           href={`/manufacturing/production-orders/${po.id}/print`}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ede9e2] rounded-xl text-xs font-bold hover:bg-[#f6f3ee] print:hidden"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border)] rounded-xl text-xs font-bold hover:bg-[var(--bg-page)] print:hidden"
         >
           <Printer className="w-3.5 h-3.5" />{t('common.print', 'Print')}</a>
       </div>
 
       {/* Header card */}
-      <div className="bg-white border border-[#ede9e2] rounded-2xl p-6">
+      <div className="bg-white border border-[var(--border)] rounded-2xl p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold font-mono text-[#1a1814]">{po.number}</h1>
-            <p className="text-sm text-[#1a1814]/60 mt-0.5">
+            <h1 className="text-2xl font-bold font-mono text-[var(--text-primary)]">{po.number}</h1>
+            <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
               Customer: <DocLink type="customer" id={po.customer_id} label={customer?.name ?? `#${po.customer_id}`} />
             </p>
           </div>
@@ -204,21 +204,21 @@ export default function ProductionOrderDetailPage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
           <div>
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest font-bold mb-0.5">Output qty</p>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Output qty</p>
             <p className="text-sm font-semibold tabular-nums">{po.output_qty}</p>
           </div>
           <div>
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest font-bold mb-0.5">Material cost</p>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Material cost</p>
             <p className="text-sm font-semibold tabular-nums">{fmt(Number(po.own_material_cost))}</p>
           </div>
           <div>
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest font-bold mb-0.5">Unit cost</p>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Unit cost</p>
             <p className="text-sm font-semibold tabular-nums">
               {parseFloat(po.output_unit_cost) > 0 ? fmt(Number(po.output_unit_cost)) : '—'}
             </p>
           </div>
           <div>
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-widest font-bold mb-0.5">Rate plan</p>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Rate plan</p>
             <p className="text-sm font-semibold">{ratePlan ? `${ratePlan.code} · ${fmt(Number(ratePlan.per_unit_rate))}/unit` : '—'}</p>
           </div>
         </div>
@@ -231,13 +231,13 @@ export default function ProductionOrderDetailPage() {
         )}
 
         {po.notes && (
-          <p className="mt-4 text-sm text-[#1a1814]/70 italic border-t border-[#ede9e2] pt-3">{po.notes}</p>
+          <p className="mt-4 text-sm text-[var(--text-primary)]/70 italic border-t border-[var(--border)] pt-3">{po.notes}</p>
         )}
       </div>
 
       {/* Lifecycle timeline */}
-      <div className="bg-white border border-[#ede9e2] rounded-2xl p-6">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60 mb-4">Timeline</h2>
+      <div className="bg-white border border-[var(--border)] rounded-2xl p-6">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-4">Timeline</h2>
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {STAGES.map(s => {
             const ts = po[s.key as keyof Po] as string | null
@@ -245,11 +245,11 @@ export default function ProductionOrderDetailPage() {
               <div key={s.key} className="flex items-start gap-2">
                 {ts
                   ? <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                  : <div className="w-4 h-4 rounded-full border-2 border-[#ede9e2] mt-0.5 shrink-0" />
+                  : <div className="w-4 h-4 rounded-full border-2 border-[var(--border)] mt-0.5 shrink-0" />
                 }
                 <div>
-                  <p className="text-xs font-bold text-[#1a1814]/60">{s.label}</p>
-                  <p className="text-xs text-[#1a1814]">{ts ? fmt_date(ts) : '—'}</p>
+                  <p className="text-xs font-bold text-[var(--text-primary)]/60">{s.label}</p>
+                  <p className="text-xs text-[var(--text-primary)]">{ts ? fmt_date(ts) : '—'}</p>
                 </div>
               </div>
             )
@@ -259,7 +259,7 @@ export default function ProductionOrderDetailPage() {
               <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs font-bold text-red-500">Cancelled</p>
-                <p className="text-xs text-[#1a1814]">{fmt_date(po.cancelled_at)}</p>
+                <p className="text-xs text-[var(--text-primary)]">{fmt_date(po.cancelled_at)}</p>
               </div>
             </div>
           )}
@@ -268,8 +268,8 @@ export default function ProductionOrderDetailPage() {
 
       {/* Actions */}
       {(nxt || po.state === 'draft') && (
-        <div className="bg-white border border-[#ede9e2] rounded-2xl p-6 space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60">{t('col.actions', 'Actions')}</h2>
+        <div className="bg-white border border-[var(--border)] rounded-2xl p-6 space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-primary)]/60">{t('col.actions', 'Actions')}</h2>
           {actionError && (
             <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -281,7 +281,7 @@ export default function ProductionOrderDetailPage() {
               <button
                 onClick={() => advance(nxt)}
                 disabled={busy}
-                className="px-5 py-2.5 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50"
+                className="px-5 py-2.5 bg-[var(--text-primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50"
               >
                 {busy ? 'Working…' : ACTION_LABEL[nxt]}
               </button>
@@ -301,38 +301,38 @@ export default function ProductionOrderDetailPage() {
 
       {/* BOM component table */}
       {bom && (
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#ede9e2] flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-[#1a1814]/60">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-primary)]/60">
               Bill of Materials
             </h2>
-            <Link href={`/manufacturing/boms`} className="text-xs text-[#b8943f] hover:underline">
+            <Link href={`/manufacturing/boms`} className="text-xs text-[var(--primary)] hover:underline">
               {outputProd ? `${outputProd.code ?? ''} ${outputProd.name}` : `BOM #${bom.id}`}
             </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-[#f6f3ee]">
+              <thead className="bg-[var(--bg-page)]">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Component</th>
-                  <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Per unit</th>
-                  <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Total needed</th>
-                  <th className="px-4 py-2 text-center text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Source</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Component</th>
+                  <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Per unit</th>
+                  <th className="px-4 py-2 text-right text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Total needed</th>
+                  <th className="px-4 py-2 text-center text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Source</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#ede9e2]">
+              <tbody className="divide-y divide-[var(--border)]">
                 {bom.lines.map(ln => {
                   const prod = products.get(ln.component_product_id)
                   const total = (parseFloat(ln.qty_per_output) * batches).toFixed(3).replace(/\.?0+$/, '')
                   return (
-                    <tr key={ln.id} className="hover:bg-[#f6f3ee]/50">
+                    <tr key={ln.id} className="hover:bg-[var(--bg-page)]/50">
                       <td className="px-4 py-2">
                         <span className="font-medium">{prod?.name ?? `Product #${ln.component_product_id}`}</span>
-                        {prod?.code && <span className="ml-1.5 text-xs text-[#1a1814]/50 font-mono">{prod.code}</span>}
+                        {prod?.code && <span className="ml-1.5 text-xs text-[var(--text-primary)]/50 font-mono">{prod.code}</span>}
                         {ln.is_optional && <span className="ml-1.5 text-xs text-amber-600">(optional)</span>}
-                        {ln.notes && <p className="text-xs text-[#1a1814]/50 mt-0.5">{ln.notes}</p>}
+                        {ln.notes && <p className="text-xs text-[var(--text-primary)]/50 mt-0.5">{ln.notes}</p>}
                       </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-[#1a1814]/70">{ln.qty_per_output}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-[var(--text-primary)]/70">{ln.qty_per_output}</td>
                       <td className="px-4 py-2 text-right tabular-nums font-semibold">{total}</td>
                       <td className="px-4 py-2 text-center">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${
@@ -350,7 +350,7 @@ export default function ProductionOrderDetailPage() {
             </table>
           </div>
           {bom.description && (
-            <p className="px-6 py-3 text-xs text-[#1a1814]/50 border-t border-[#ede9e2]">{bom.description}</p>
+            <p className="px-6 py-3 text-xs text-[var(--text-primary)]/50 border-t border-[var(--border)]">{bom.description}</p>
           )}
         </div>
       )}

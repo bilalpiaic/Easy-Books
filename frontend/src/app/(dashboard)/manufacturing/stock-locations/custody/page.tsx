@@ -98,27 +98,27 @@ export default function CustodyPage() {
       <PrintHeader title="Customer Goods in Custody" orientation="landscape" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Customer Goods in Custody</h1>
-          <p className="text-sm text-[#1a1814]/60 mt-0.5">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Customer Goods in Custody</h1>
+          <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
             Inventory belonging to customers currently held at your locations.
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('customer-custody.csv', rows.map(r => ({ Customer: customers.get(r.customer_id) ?? `Customer #${r.customer_id}`, Product: r.product_name, Code: r.product_code, Lot: r.lot_no ?? '', Location: locations.get(r.location_id)?.name ?? r.location_id, "Qty on Hand": r.qty_on_hand })))}
             disabled={rows.length === 0}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <Link
             href="/manufacturing/stock-locations"
-            className="inline-flex items-center gap-2 border border-[#ede9e2] px-3 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
           >
             <MapPin className="w-4 h-4" /> All Locations
           </Link>
@@ -130,12 +130,12 @@ export default function CustodyPage() {
       )}
 
       {loading ? (
-        <div className="text-sm text-[#1a1814]/50 py-8 text-center">Loading…</div>
+        <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
       ) : groups.length === 0 ? (
-        <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-12 text-center">
-          <Users className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]">No customer goods in custody</p>
-          <p className="text-xs text-[#1a1814]/55 mt-1">
+        <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-12 text-center">
+          <Users className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]">No customer goods in custody</p>
+          <p className="text-xs text-[var(--text-primary)]/55 mt-1">
             When inventory layers with a customer owner are created, they appear here.
           </p>
         </div>
@@ -144,69 +144,69 @@ export default function CustodyPage() {
           {groups.map(group => {
             const isOpen = expanded.has(group.customer_id)
             return (
-              <div key={group.customer_id} className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
+              <div key={group.customer_id} className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
                 {/* Customer header row */}
                 <button
                   onClick={() => toggleCustomer(group.customer_id)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#faf8f4] transition-colors text-left"
                 >
-                  <span className="text-[#1a1814]/30">
+                  <span className="text-[var(--text-primary)]/30">
                     {isOpen
                       ? <ChevronDown className="w-4 h-4" />
                       : <ChevronRight className="w-4 h-4" />
                     }
                   </span>
-                  <Users className="w-4 h-4 text-[#b8943f]/70 shrink-0" />
-                  <span className="flex-1 text-sm font-medium text-[#1a1814]">{group.customer_name}</span>
-                  <span className="text-xs text-[#1a1814]/50 tabular-nums">
+                  <Users className="w-4 h-4 text-[var(--primary)]/70 shrink-0" />
+                  <span className="flex-1 text-sm font-medium text-[var(--text-primary)]">{group.customer_name}</span>
+                  <span className="text-xs text-[var(--text-primary)]/50 tabular-nums">
                     {group.rows.length} SKU{group.rows.length !== 1 ? "s" : ""}
                   </span>
-                  <span className="ml-4 text-xs font-semibold text-[#1a1814] tabular-nums">
+                  <span className="ml-4 text-xs font-semibold text-[var(--text-primary)] tabular-nums">
                     {Number(group.total_qty).toFixed(2)} total
                   </span>
                 </button>
 
                 {/* Product rows */}
                 {isOpen && (
-                  <div className="border-t border-[#ede9e2]">
+                  <div className="border-t border-[var(--border)]">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-                          <th className="text-left px-6 py-2 font-semibold text-[#1a1814]/60">{t('col.product', 'Product')}</th>
-                          <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">Lot / Batch</th>
-                          <th className="text-left px-4 py-2 font-semibold text-[#1a1814]/60">{t('col.location', 'Location')}</th>
-                          <th className="text-right px-4 py-2 font-semibold text-[#1a1814]/60">Qty on Hand</th>
+                        <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
+                          <th className="text-left px-6 py-2 font-semibold text-[var(--text-primary)]/60">{t('col.product', 'Product')}</th>
+                          <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60">Lot / Batch</th>
+                          <th className="text-left px-4 py-2 font-semibold text-[var(--text-primary)]/60">{t('col.location', 'Location')}</th>
+                          <th className="text-right px-4 py-2 font-semibold text-[var(--text-primary)]/60">Qty on Hand</th>
                         </tr>
                       </thead>
                       <tbody>
                         {group.rows.map((row, i) => {
                           const loc = locations.get(row.location_id)
                           return (
-                            <tr key={i} className="border-b border-[#ede9e2] last:border-0 hover:bg-[#faf8f4]">
-                              <td className="px-6 py-2 text-[#1a1814]/80">
+                            <tr key={i} className="border-b border-[var(--border)] last:border-0 hover:bg-[#faf8f4]">
+                              <td className="px-6 py-2 text-[var(--text-primary)]/80">
                                 <Link
                                   href={`/products/ledger?product=${row.product_id}`}
-                                  className="text-[#b8943f] hover:underline font-mono mr-1.5"
+                                  className="text-[var(--primary)] hover:underline font-mono mr-1.5"
                                 >
                                   {row.product_code}
                                 </Link>
                                 {row.product_name}
                               </td>
-                              <td className="px-4 py-2 text-[#1a1814]/55 font-mono">
-                                {row.lot_no || <span className="text-[#1a1814]/30">—</span>}
+                              <td className="px-4 py-2 text-[var(--text-primary)]/55 font-mono">
+                                {row.lot_no || <span className="text-[var(--text-primary)]/30">—</span>}
                               </td>
-                              <td className="px-4 py-2 text-[#1a1814]/70">
+                              <td className="px-4 py-2 text-[var(--text-primary)]/70">
                                 {loc ? (
                                   <span className="inline-flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-[#1a1814]/30" />
-                                    <span className="font-mono text-[#1a1814]/60 mr-1">{loc.code}</span>
+                                    <MapPin className="w-3 h-3 text-[var(--text-primary)]/30" />
+                                    <span className="font-mono text-[var(--text-primary)]/60 mr-1">{loc.code}</span>
                                     {loc.name}
                                   </span>
                                 ) : (
-                                  <span className="text-[#1a1814]/30">Loc #{row.location_id}</span>
+                                  <span className="text-[var(--text-primary)]/30">Loc #{row.location_id}</span>
                                 )}
                               </td>
-                              <td className="px-4 py-2 text-right tabular-nums font-medium text-[#1a1814]">
+                              <td className="px-4 py-2 text-right tabular-nums font-medium text-[var(--text-primary)]">
                                 {Number(row.qty_on_hand).toFixed(2)}
                               </td>
                             </tr>
@@ -214,11 +214,11 @@ export default function CustodyPage() {
                         })}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t border-[#ede9e2] bg-[#f5f2ed]">
-                          <td className="px-6 py-2 text-xs font-semibold text-[#1a1814]/60" colSpan={3}>
+                        <tr className="border-t border-[var(--border)] bg-[#f5f2ed]">
+                          <td className="px-6 py-2 text-xs font-semibold text-[var(--text-primary)]/60" colSpan={3}>
                             {group.rows.length} item{group.rows.length !== 1 ? "s" : ""} in custody
                           </td>
-                          <td className="px-4 py-2 text-right text-xs font-bold text-[#1a1814] tabular-nums">
+                          <td className="px-4 py-2 text-right text-xs font-bold text-[var(--text-primary)] tabular-nums">
                             {Number(group.total_qty).toFixed(2)}
                           </td>
                         </tr>

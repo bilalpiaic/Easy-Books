@@ -50,17 +50,17 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
   }, [id])
 
   if (error) return <p className="p-4 text-red-700 text-sm">{error}</p>
-  if (!grn)  return <p className="p-4 text-[#1a1814]/60 text-sm">Loading GRN…</p>
+  if (!grn)  return <p className="p-4 text-[var(--text-primary)]/60 text-sm">Loading GRN…</p>
 
   return (
     <div className="bg-white min-h-screen">
-      <div className="print:hidden flex items-center justify-between bg-[#1a1814] text-white px-4 py-2 mb-4">
+      <div className="print:hidden flex items-center justify-between bg-[var(--text-primary)] text-white px-4 py-2 mb-4">
         <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm hover:text-[#ffd966]">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8943f] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] hover:bg-[#d4af60] text-black rounded-md text-sm font-semibold"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -68,19 +68,19 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
         <PrintHeader title={`Goods Receipt Note ${grn.number}`} subtitle={`Received ${fmtDate(grn.received_date)} · Custodial`} />
 
-        <article className="text-[#1a1814]">
-          <header className="mb-6 print:hidden border-b border-[#ede9e2] pb-4">
-            <h1 className="text-lg sm:text-2xl font-serif font-semibold">GRN {grn.number}</h1>
-            <p className="text-sm text-[#1a1814]/60">Received {fmtDate(grn.received_date)}</p>
+        <article className="text-[var(--text-primary)]">
+          <header className="mb-6 print:hidden border-b border-[var(--border)] pb-4">
+            <h1 className="text-lg sm:text-2xl font-bold">GRN {grn.number}</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Received {fmtDate(grn.received_date)}</p>
           </header>
 
           <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Customer (owner)</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Customer (owner)</div>
               <p className="font-semibold">#{grn.customer_id}</p>
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.location', 'Location')}</div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.location', 'Location')}</div>
               <p className="font-semibold">#{grn.location_id} (godown)</p>
             </div>
           </div>
@@ -90,16 +90,16 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
             They are tracked off-balance-sheet via the memo pair 1210 / 2150.
           </div>
 
-          <table className="w-full text-sm border border-[#ede9e2] mb-6">
-            <thead className="bg-[#faf6ec]">
+          <table className="w-full text-sm border border-[var(--border)] mb-6">
+            <thead className="bg-[var(--bg-page)]">
               <tr>
-                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.product', 'Product')}</th>
-                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Lot</th>
-                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-24">Qty</th>
-                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Declared Value</th>
+                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{t('col.product', 'Product')}</th>
+                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-24">Lot</th>
+                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-24">Qty</th>
+                <th className="text-right px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">Declared Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#ede9e2]">
+            <tbody className="divide-y divide-[var(--border)]">
               {grn.lines.map(ln => (
                 <tr key={ln.id}>
                   <td className="px-3 py-2">#{ln.product_id}</td>
@@ -112,7 +112,7 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
           </table>
 
           <div className="flex justify-end mb-6">
-            <div className="w-72 flex items-center justify-between text-sm border-t border-[#1a1814] pt-2">
+            <div className="w-72 flex items-center justify-between text-sm border-t border-[var(--text-primary)] pt-2">
               <span className="font-bold">Total declared value</span>
               <span className="font-mono font-bold">{fmt(grn.declared_value)}</span>
             </div>
@@ -120,17 +120,17 @@ export default function GrnPrintPage({ params }: { params: Promise<{ id: string 
 
           {grn.notes && (
             <div className="mb-6">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.notes', 'Notes')}</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.notes', 'Notes')}</h2>
               <p className="text-sm whitespace-pre-wrap">{grn.notes}</p>
             </div>
           )}
 
-          <div className="flex justify-between mt-16 pt-6 border-t border-[#ede9e2] text-xs text-[#1a1814]/55">
+          <div className="flex justify-between mt-16 pt-6 border-t border-[var(--border)] text-xs text-[var(--text-primary)]/55">
             <div className="text-center w-44">
-              <div className="border-t border-[#1a1814]/30 pt-1">Customer Representative</div>
+              <div className="border-t border-[var(--text-primary)]/30 pt-1">Customer Representative</div>
             </div>
             <div className="text-center w-44">
-              <div className="border-t border-[#1a1814]/30 pt-1">Received By (Godown)</div>
+              <div className="border-t border-[var(--text-primary)]/30 pt-1">Received By (Godown)</div>
             </div>
           </div>
         </article>

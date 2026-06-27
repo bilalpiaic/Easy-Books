@@ -76,7 +76,7 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
     } finally { setArchiving(false) }
   }
 
-  if (loading) return <div className="p-8 text-sm text-[#1a1814]/50 text-center">Loading…</div>
+  if (loading) return <div className="p-8 text-sm text-[var(--text-primary)]/50 text-center">Loading…</div>
   if (error)   return <div className="p-8 text-sm text-red-600">{error}</div>
   if (!bom)    return null
 
@@ -89,17 +89,17 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/manufacturing/boms" className="text-[#1a1814]/40 hover:text-[#b8943f] transition-colors">
+          <Link href="/manufacturing/boms" className="text-[var(--text-primary)]/40 hover:text-[var(--primary)] transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">
               {outProd?.name ?? `Product #${bom.output_product_id}`} — BOM v{bom.version}
             </h1>
-            <p className="text-sm text-[#1a1814]/55 mt-0.5 flex items-center gap-2">
+            <p className="text-sm text-[var(--text-primary)]/55 mt-0.5 flex items-center gap-2">
               {bom.is_active
                 ? <span className="text-emerald-700 font-medium">{t('status.active', 'Active')}</span>
-                : <span className="text-[#1a1814]/40">Archived</span>}
+                : <span className="text-[var(--text-primary)]/40">Archived</span>}
               {bom.explode_on_invoice && (
                 <span className="bg-amber-100 text-amber-800 text-xs font-medium px-1.5 py-0.5 rounded">
                   Kit — auto-consumes on invoice
@@ -112,7 +112,7 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
           <button
             onClick={archive}
             disabled={archiving}
-            className="inline-flex items-center gap-2 border border-[#ede9e2] px-3 py-2 rounded-lg text-sm text-[#1a1814]/60 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/60 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-colors disabled:opacity-50"
           >
             <Archive className="w-4 h-4" /> Archive
           </button>
@@ -124,34 +124,34 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
       )}
 
       {/* Summary card */}
-      <div className="bg-white border border-[#ede9e2] rounded-xl p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+      <div className="bg-white border border-[var(--border)] rounded-xl p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
         <div>
-          <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Output Product</p>
-          <p className="font-medium text-[#1a1814]">{outProd?.name ?? `#${bom.output_product_id}`}</p>
-          {outProd?.code && <p className="font-mono text-xs text-[#1a1814]/50">{outProd.code}</p>}
+          <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">Output Product</p>
+          <p className="font-medium text-[var(--text-primary)]">{outProd?.name ?? `#${bom.output_product_id}`}</p>
+          {outProd?.code && <p className="font-mono text-xs text-[var(--text-primary)]/50">{outProd.code}</p>}
         </div>
         <div>
-          <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Output Qty / Batch</p>
-          <p className="font-mono font-medium text-[#1a1814]">{bom.output_qty} {outProd?.unit ?? ""}</p>
+          <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">Output Qty / Batch</p>
+          <p className="font-mono font-medium text-[var(--text-primary)]">{bom.output_qty} {outProd?.unit ?? ""}</p>
         </div>
         <div>
-          <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Components</p>
-          <p className="font-medium text-[#1a1814]">{bom.lines.length} line{bom.lines.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">Components</p>
+          <p className="font-medium text-[var(--text-primary)]">{bom.lines.length} line{bom.lines.length !== 1 ? "s" : ""}</p>
         </div>
         <div>
-          <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">Version</p>
-          <p className="font-medium text-[#1a1814]">v{bom.version}</p>
+          <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">Version</p>
+          <p className="font-medium text-[var(--text-primary)]">v{bom.version}</p>
         </div>
         {bom.description && (
           <div className="col-span-2 sm:col-span-4">
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">{t('col.description', 'Description')}</p>
-            <p className="text-[#1a1814]">{bom.description}</p>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">{t('col.description', 'Description')}</p>
+            <p className="text-[var(--text-primary)]">{bom.description}</p>
           </div>
         )}
         {bom.notes && (
           <div className="col-span-2 sm:col-span-4">
-            <p className="text-xs text-[#1a1814]/50 uppercase tracking-wide mb-0.5">{t('col.notes', 'Notes')}</p>
-            <p className="text-[#1a1814]/70 whitespace-pre-wrap">{bom.notes}</p>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">{t('col.notes', 'Notes')}</p>
+            <p className="text-[var(--text-primary)]/70 whitespace-pre-wrap">{bom.notes}</p>
           </div>
         )}
       </div>
@@ -161,21 +161,21 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
         { label: "Own Stock Components", lines: ownLines, tone: "emerald" as const },
         { label: "Customer-Supplied Components", lines: custLines, tone: "violet" as const },
       ].filter(g => g.lines.length > 0).map(group => (
-        <section key={group.label} className="bg-white border border-[#ede9e2] rounded-xl overflow-hidden">
-          <div className="px-5 py-3 bg-[#faf6ec] border-b border-[#ede9e2]">
-            <h2 className="text-sm font-semibold text-[#1a1814]">{group.label}</h2>
+        <section key={group.label} className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+          <div className="px-5 py-3 bg-[var(--bg-page)] border-b border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">{group.label}</h2>
           </div>
           <table className="w-full text-sm">
-            <thead className="border-b border-[#ede9e2]">
+            <thead className="border-b border-[var(--border)]">
               <tr>
-                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Component</th>
-                <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Qty / Batch</th>
-                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Default Location</th>
-                <th className="text-center px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Optional</th>
-                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('col.notes', 'Notes')}</th>
+                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Component</th>
+                <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Qty / Batch</th>
+                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Default Location</th>
+                <th className="text-center px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Optional</th>
+                <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{t('col.notes', 'Notes')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#ede9e2]">
+            <tbody className="divide-y divide-[var(--border)]">
               {group.lines.map(ln => {
                 const comp = products.get(ln.component_product_id)
                 const loc  = ln.default_location_id ? locations.get(ln.default_location_id) : null
@@ -184,29 +184,29 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
                     <td className="px-4 py-2.5">
                       {comp ? (
                         <div>
-                          <Link href={`/products/${comp.id}`} className="font-medium text-[#b8943f] hover:underline">
+                          <Link href={`/products/${comp.id}`} className="font-medium text-[var(--primary)] hover:underline">
                             {comp.name}
                           </Link>
-                          {comp.code && <span className="ml-1.5 text-xs font-mono text-[#1a1814]/40">{comp.code}</span>}
+                          {comp.code && <span className="ml-1.5 text-xs font-mono text-[var(--text-primary)]/40">{comp.code}</span>}
                         </div>
                       ) : (
-                        <span className="text-[#1a1814]/40">#{ln.component_product_id}</span>
+                        <span className="text-[var(--text-primary)]/40">#{ln.component_product_id}</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono tabular-nums">
                       {ln.qty_per_output} {comp?.unit ?? ""}
                     </td>
-                    <td className="px-4 py-2.5 text-[#1a1814]/70">
-                      {loc ? loc.name : <span className="text-[#1a1814]/30">—</span>}
+                    <td className="px-4 py-2.5 text-[var(--text-primary)]/70">
+                      {loc ? loc.name : <span className="text-[var(--text-primary)]/30">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       {ln.is_optional ? (
                         <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Optional</span>
                       ) : (
-                        <span className="text-xs text-[#1a1814]/30">Required</span>
+                        <span className="text-xs text-[var(--text-primary)]/30">Required</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-[#1a1814]/60 text-xs">{ln.notes ?? ""}</td>
+                    <td className="px-4 py-2.5 text-[var(--text-primary)]/60 text-xs">{ln.notes ?? ""}</td>
                   </tr>
                 )
               })}
@@ -219,21 +219,21 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
       <div className="flex gap-3 flex-wrap">
         <Link
           href="/manufacturing/boms/new"
-          className="inline-flex items-center gap-2 border border-[#ede9e2] px-4 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+          className="inline-flex items-center gap-2 border border-[var(--border)] px-4 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
         >
           <Package className="w-4 h-4" /> New Version
         </Link>
         {outProd && (
           <Link
             href={`/products/${outProd.id}`}
-            className="inline-flex items-center gap-2 border border-[#ede9e2] px-4 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-4 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
           >
             View Product
           </Link>
         )}
         <Link
           href="/manufacturing/production-orders/new"
-          className="inline-flex items-center gap-2 border border-[#ede9e2] px-4 py-2 rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+          className="inline-flex items-center gap-2 border border-[var(--border)] px-4 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
         >
           New Production Order
         </Link>

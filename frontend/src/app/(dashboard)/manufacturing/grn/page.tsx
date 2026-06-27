@@ -53,37 +53,37 @@ export default function GrnPage() {
     loadGrns(custId || undefined)
   }
 
-  if (loading) return <p className="text-sm text-[#1a1814]/60">Loading…</p>
+  if (loading) return <p className="text-sm text-[var(--text-primary)]/60">Loading…</p>
 
   return (
     <div className="space-y-5">
       <PrintHeader title="Goods Receipt Notes" />
       <header className="flex items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
-          <PackagePlus className="w-7 h-7 text-[#b8943f]" />
+          <PackagePlus className="w-7 h-7 text-[var(--primary)]" />
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Goods Receipt (GRN)</h1>
-            <p className="text-sm text-[#1a1814]/60">Customer-supplied material received into your godown.</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Goods Receipt (GRN)</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Customer-supplied material received into your godown.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/manufacturing/grn/new"
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
           >
             <Plus className="w-4 h-4" /> New GRN
           </Link>
           <button
             onClick={() => downloadCSV('grn-list.csv', grns.map(g => ({ "GRN #": g.number, Customer: customers.get(g.customer_id) ?? String(g.customer_id), Date: g.received_date, "Declared Value": g.declared_value, Lines: g.lines.length })))}
             disabled={grns.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
             title="Export CSV"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
             title="Print"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
@@ -95,7 +95,7 @@ export default function GrnPage() {
         <select
           value={filterCustomer}
           onChange={e => handleCustomerFilter(e.target.value)}
-          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#b8943f]"
+          className="border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[var(--primary)]"
         >
           <option value="">All customers</option>
           {customerList.map(c => (
@@ -105,7 +105,7 @@ export default function GrnPage() {
         {filterCustomer && (
           <button
             onClick={() => handleCustomerFilter("")}
-            className="text-sm text-[#1a1814]/50 hover:text-[#1a1814] underline"
+            className="text-sm text-[var(--text-primary)]/50 hover:text-[var(--text-primary)] underline"
           >
             Clear filter
           </button>
@@ -140,9 +140,9 @@ export default function GrnPage() {
           ]}
         />
       ) : (
-        <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-hidden">
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+            <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2">GRN #</th>
                 <th className="text-left px-4 py-2">{t('col.customer', 'Customer')}</th>
@@ -154,9 +154,9 @@ export default function GrnPage() {
             </thead>
             <tbody>
               {grns.map(g => (
-                <tr key={g.id} className="border-t border-[#ede9e2]">
+                <tr key={g.id} className="border-t border-[var(--border)]">
                   <td className="px-4 py-2 font-mono text-xs">
-                    <Link href={`/manufacturing/grn/${g.id}`} className="text-[#b8943f] hover:underline">
+                    <Link href={`/manufacturing/grn/${g.id}`} className="text-[var(--primary)] hover:underline">
                       {g.number}
                     </Link>
                   </td>
@@ -171,7 +171,7 @@ export default function GrnPage() {
                     <a
                       href={`/manufacturing/grn/${g.id}/print`}
                       title="Print GRN"
-                      className="inline-flex p-1.5 rounded border border-[#ede9e2] hover:bg-[#faf6ec] text-[#1a1814]/55 hover:text-[#b8943f]"
+                      className="inline-flex p-1.5 rounded border border-[var(--border)] hover:bg-[var(--bg-page)] text-[var(--text-primary)]/55 hover:text-[var(--primary)]"
                     >
                       <Printer className="w-3.5 h-3.5" />
                     </a>

@@ -96,10 +96,10 @@ export default function NewPurchaseOrderPage() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
       <header className="flex items-center gap-3">
-        <ShoppingCart className="w-7 h-7 text-[#b8943f]" />
+        <ShoppingCart className="w-7 h-7 text-[var(--primary)]" />
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">New Purchase Order</h1>
-          <p className="text-sm text-[#1a1814]/60">Order goods from a vendor before they arrive.</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">New Purchase Order</h1>
+          <p className="text-sm text-[var(--text-primary)]/60">Order goods from a vendor before they arrive.</p>
         </div>
       </header>
 
@@ -111,16 +111,16 @@ export default function NewPurchaseOrderPage() {
       )}
 
       {/* Header fields */}
-      <section className="bg-white border border-[#ede9e2] rounded-2xl p-5 space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-[#1a1814]/50">Order Details</h2>
+      <section className="bg-white border border-[var(--border)] rounded-2xl p-5 space-y-4">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--text-primary)]/50">Order Details</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-black/85 mb-1.5">{t('col.vendor', 'Vendor')}</label>
+            <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">{t('col.vendor', 'Vendor')}</label>
             <select
               value={vendorId}
               onChange={e => { setVendorId(e.target.value); setVendorName("") }}
-              className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+              className="w-full px-3 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
             >
               <option value="">— Select vendor or enter name below —</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -131,54 +131,54 @@ export default function NewPurchaseOrderPage() {
                 placeholder="Or type vendor name"
                 value={vendorName}
                 onChange={e => setVendorName(e.target.value)}
-                className="mt-2 w-full px-3 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                className="mt-2 w-full px-3 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
               />
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-black/85 mb-1.5">Order Date <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">Order Date <span className="text-red-500">*</span></label>
               <input
                 type="date"
                 required
                 value={orderDate}
                 onChange={e => setOrderDate(e.target.value)}
-                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                className="w-full px-3 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-black/85 mb-1.5">Expected Delivery</label>
+              <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">Expected Delivery</label>
               <input
                 type="date"
                 value={expectedDate}
                 onChange={e => setExpectedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+                className="w-full px-3 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
               />
             </div>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-black/85 mb-1.5">{t('col.description', 'Description')}</label>
+          <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">{t('col.description', 'Description')}</label>
           <input
             type="text"
             value={description}
             onChange={e => setDescription(e.target.value)}
             placeholder="What is this order for?"
-            className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+            className="w-full px-3 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
           />
         </div>
       </section>
 
       {/* Line items */}
-      <section className="bg-white border border-[#ede9e2] rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-[#1a1814]/50">Items</h2>
+      <section className="bg-white border border-[var(--border)] rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--text-primary)]/50">Items</h2>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">
+              <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">
                 <th className="text-left pb-2 pr-2 min-w-[160px]">{t('col.product', 'Product')}</th>
                 <th className="text-left pb-2 pr-2 min-w-[200px]">{t('col.description', 'Description')}<span className="text-red-500">*</span></th>
                 <th className="text-right pb-2 pr-2 w-20">Qty</th>
@@ -188,14 +188,14 @@ export default function NewPurchaseOrderPage() {
                 <th className="w-10"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#ede9e2]">
+            <tbody className="divide-y divide-[var(--border)]">
               {lines.map((line, idx) => (
                 <tr key={idx}>
                   <td className="py-1.5 pr-2">
                     <select
                       value={line.product_id}
                       onChange={e => updateLine(idx, "product_id", e.target.value)}
-                      className="w-full px-2 py-1.5 border border-[#ede9e2] rounded-md text-xs focus:ring-2 focus:ring-[#b8943f] outline-none"
+                      className="w-full px-2 py-1.5 border border-[var(--border)] rounded-md text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none"
                     >
                       <option value="">— optional —</option>
                       {products.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
@@ -207,7 +207,7 @@ export default function NewPurchaseOrderPage() {
                       type="text"
                       value={line.description}
                       onChange={e => updateLine(idx, "description", e.target.value)}
-                      className="w-full px-2 py-1.5 border border-[#ede9e2] rounded-md text-xs focus:ring-2 focus:ring-[#b8943f] outline-none"
+                      className="w-full px-2 py-1.5 border border-[var(--border)] rounded-md text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none"
                     />
                   </td>
                   <td className="py-1.5 pr-2">
@@ -217,7 +217,7 @@ export default function NewPurchaseOrderPage() {
                       step="any"
                       value={line.qty}
                       onChange={e => updateLine(idx, "qty", e.target.value)}
-                      className="w-full px-2 py-1.5 border border-[#ede9e2] rounded-md text-xs text-right font-mono focus:ring-2 focus:ring-[#b8943f] outline-none"
+                      className="w-full px-2 py-1.5 border border-[var(--border)] rounded-md text-xs text-right font-mono focus:ring-2 focus:ring-[var(--primary)] outline-none"
                     />
                   </td>
                   <td className="py-1.5 pr-2">
@@ -226,7 +226,7 @@ export default function NewPurchaseOrderPage() {
                       value={line.unit}
                       onChange={e => updateLine(idx, "unit", e.target.value)}
                       placeholder="pcs"
-                      className="w-full px-2 py-1.5 border border-[#ede9e2] rounded-md text-xs focus:ring-2 focus:ring-[#b8943f] outline-none"
+                      className="w-full px-2 py-1.5 border border-[var(--border)] rounded-md text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none"
                     />
                   </td>
                   <td className="py-1.5 pr-2">
@@ -236,10 +236,10 @@ export default function NewPurchaseOrderPage() {
                       step="any"
                       value={line.rate}
                       onChange={e => updateLine(idx, "rate", e.target.value)}
-                      className="w-full px-2 py-1.5 border border-[#ede9e2] rounded-md text-xs text-right font-mono focus:ring-2 focus:ring-[#b8943f] outline-none"
+                      className="w-full px-2 py-1.5 border border-[var(--border)] rounded-md text-xs text-right font-mono focus:ring-2 focus:ring-[var(--primary)] outline-none"
                     />
                   </td>
-                  <td className="py-1.5 pr-2 text-right font-mono text-xs text-[#1a1814]/70">
+                  <td className="py-1.5 pr-2 text-right font-mono text-xs text-[var(--text-primary)]/70">
                     {fmt((parseFloat(line.qty) || 0) * (parseFloat(line.rate) || 0))}
                   </td>
                   <td className="py-1.5">
@@ -258,30 +258,30 @@ export default function NewPurchaseOrderPage() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-[#ede9e2]">
+        <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
           <button
             type="button"
             onClick={() => setLines(l => [...l, emptyLine()])}
-            className="flex items-center gap-1.5 text-sm font-semibold text-[#b8943f] hover:text-[#1a1814] transition-colors"
+            className="flex items-center gap-1.5 text-sm font-semibold text-[var(--primary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add line
           </button>
-          <div className="text-sm font-bold text-[#1a1814] font-mono">
+          <div className="text-sm font-bold text-[var(--text-primary)] font-mono">
             Total: {fmt(total)}
           </div>
         </div>
       </section>
 
       {/* Notes */}
-      <section className="bg-white border border-[#ede9e2] rounded-2xl p-5">
-        <label className="block text-sm font-semibold text-black/85 mb-1.5">Notes (internal)</label>
+      <section className="bg-white border border-[var(--border)] rounded-2xl p-5">
+        <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">Notes (internal)</label>
         <textarea
           value={notes}
           onChange={e => setNotes(e.target.value)}
           rows={2}
           placeholder="Payment terms, delivery instructions…"
-          className="w-full px-3 py-2 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f] text-sm resize-none"
+          className="w-full px-3 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm resize-none"
         />
       </section>
 
@@ -290,12 +290,12 @@ export default function NewPurchaseOrderPage() {
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-5 py-2.5 bg-white border border-[#ede9e2] rounded-lg font-semibold hover:bg-[#f6f3ee] transition-colors text-sm"
+          className="px-5 py-2.5 bg-white border border-[var(--border)] rounded-lg font-semibold hover:bg-[var(--bg-page)] transition-colors text-sm"
         >{t('common.cancel', 'Cancel')}</button>
         <button
           type="submit"
           disabled={saving}
-          className="px-5 py-2.5 bg-[#1a1814] text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50 text-sm"
+          className="px-5 py-2.5 bg-[var(--text-primary)] text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50 text-sm"
         >
           <Save className="w-4 h-4" />
           {saving ? "Saving…" : "Save PO"}
