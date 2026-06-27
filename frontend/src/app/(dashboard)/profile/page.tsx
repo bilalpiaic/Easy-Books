@@ -62,10 +62,10 @@ function ProfilePageInner() {
   return (
     <div className="space-y-6 max-w-3xl">
       <header className="flex items-center gap-3">
-        <UserIcon className="w-7 h-7 text-[#b8943f]" />
+        <UserIcon className="w-7 h-7 text-[var(--primary)]" />
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">My Profile</h1>
-          <p className="text-sm text-[#1a1814]/60">Your personal details, avatar, and password.</p>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Profile</h1>
+          <p className="text-sm text-[var(--text-primary)]/60">Your personal details, avatar, and password.</p>
         </div>
       </header>
 
@@ -91,9 +91,9 @@ function ProfilePageInner() {
 
 function Card({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
-    <section className="bg-white border border-[#ede9e2] rounded-2xl p-5 space-y-4">
-      <h2 className="flex items-center gap-2 text-sm font-bold text-[#1a1814]">
-        <Icon className="w-4 h-4 text-[#b8943f]" /> {title}
+    <section className="bg-white border border-[var(--border)] rounded-2xl p-5 space-y-4">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+        <Icon className="w-4 h-4 text-[var(--primary)]" /> {title}
       </h2>
       {children}
     </section>
@@ -136,28 +136,28 @@ function AvatarCard({ me, onChange }: { me: Me; onChange: () => void }) {
   return (
     <Card title="Avatar" icon={Camera}>
       <div className="flex items-center gap-5">
-        <div className="w-20 h-20 rounded-full bg-[#b8943f] flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-20 h-20 rounded-full bg-[var(--primary)] flex items-center justify-center overflow-hidden shrink-0">
           {imgUrl
             ? <img src={imgUrl} alt="Avatar" className="w-full h-full object-cover" />
-            : <span className="text-white text-2xl font-serif font-bold">{initials}</span>}
+            : <span className="text-white text-2xl font-bold font-bold">{initials}</span>}
         </div>
         <div className="space-y-2">
           <div className="flex gap-2">
             <button
               onClick={() => fileRef.current?.click()}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#b8943f] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60"
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} Upload
             </button>
             {me.avatar_url && (
               <button onClick={remove} disabled={busy}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#ede9e2] text-sm font-medium hover:bg-[#f6f3ee] transition disabled:opacity-60">
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--bg-page)] transition disabled:opacity-60">
                 <Trash2 className="w-4 h-4" /> Remove
               </button>
             )}
           </div>
-          <p className="text-[11px] text-[#1a1814]/45">PNG, JPEG, GIF or WebP · up to 5 MB.</p>
+          <p className="text-[11px] text-[var(--text-primary)]/45">PNG, JPEG, GIF or WebP · up to 5 MB.</p>
           {err && <p className="text-xs text-red-700">{err}</p>}
         </div>
         <input ref={fileRef} type="file" accept="image/*" className="hidden"
@@ -170,13 +170,13 @@ function AvatarCard({ me, onChange }: { me: Me; onChange: () => void }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-[#1a1814]/55">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-primary)]/55">{label}</span>
       {children}
     </label>
   )
 }
 
-const inputCls = "mt-1 w-full rounded-lg border border-[#ede9e2] bg-white px-3 py-2 text-sm focus:border-[#b8943f] focus:outline-none"
+const inputCls = "mt-1 w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
 
 function ProfileCard({ me, onSaved }: { me: Me; onSaved: () => void }) {
   const [fullName, setFullName] = useState(me.full_name ?? "")
@@ -203,12 +203,12 @@ function ProfileCard({ me, onSaved }: { me: Me; onSaved: () => void }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Full name"><input className={inputCls} value={fullName} onChange={e => setFullName(e.target.value)} required /></Field>
           <Field label="Phone"><input className={inputCls} value={phone} onChange={e => setPhone(e.target.value)} placeholder="Optional" /></Field>
-          <Field label="Email"><input className={`${inputCls} bg-[#faf8f4] text-[#1a1814]/60`} value={me.email} disabled /></Field>
+          <Field label="Email"><input className={`${inputCls} bg-[#faf8f4] text-[var(--text-primary)]/60`} value={me.email} disabled /></Field>
         </div>
         {err && <p className="text-sm text-red-700">{err}</p>}
         {ok && <p className="flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 className="w-4 h-4" /> Saved.</p>}
         <button type="submit" disabled={busy}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#b8943f] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save changes
         </button>
       </form>
@@ -240,9 +240,9 @@ function PasswordCard({ highlight }: { highlight: boolean }) {
   }
 
   return (
-    <section className={`bg-white border rounded-2xl p-5 space-y-4 ${highlight ? "border-amber-300 ring-1 ring-amber-200" : "border-[#ede9e2]"}`}>
-      <h2 className="flex items-center gap-2 text-sm font-bold text-[#1a1814]">
-        <KeyRound className="w-4 h-4 text-[#b8943f]" /> Change password
+    <section className={`bg-white border rounded-2xl p-5 space-y-4 ${highlight ? "border-amber-300 ring-1 ring-amber-200" : "border-[var(--border)]"}`}>
+      <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+        <KeyRound className="w-4 h-4 text-[var(--primary)]" /> Change password
       </h2>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -253,7 +253,7 @@ function PasswordCard({ highlight }: { highlight: boolean }) {
         {err && <p className="text-sm text-red-700">{err}</p>}
         {ok && <p className="flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 className="w-4 h-4" /> Password updated.</p>}
         <button type="submit" disabled={busy}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#b8943f] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />} Update password
         </button>
       </form>
@@ -273,8 +273,8 @@ function AccountInfoCard({ me }: { me: Me }) {
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
         {rows.map(([k, v]) => (
           <div key={k} className="flex justify-between border-b border-[#f0ece4] pb-2">
-            <dt className="text-xs text-[#1a1814]/55">{k}</dt>
-            <dd className="text-sm font-medium text-[#1a1814]">{v}</dd>
+            <dt className="text-xs text-[var(--text-primary)]/55">{k}</dt>
+            <dd className="text-sm font-medium text-[var(--text-primary)]">{v}</dd>
           </div>
         ))}
       </dl>

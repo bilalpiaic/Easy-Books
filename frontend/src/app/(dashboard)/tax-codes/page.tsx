@@ -156,27 +156,27 @@ export default function TaxCodesPage() {
       <PrintHeader title="Tax Codes" />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Tax Codes</h1>
-          <p className="text-sm text-[#1a1814]/60 mt-0.5">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Tax Codes</h1>
+          <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
             Catalog of tax rates applied to invoice and bill lines.
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('tax-codes.csv', codes.map(c => ({ Code: c.code, Name: c.name, "Rate (%)": c.rate, Type: c.type, Active: c.is_active ? 'Yes' : 'No' })))}
             disabled={codes.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={openAdd}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
           >
             <Plus className="w-4 h-4" /> New Tax Code
           </button>
@@ -188,17 +188,17 @@ export default function TaxCodesPage() {
       )}
 
       {loading ? (
-        <div className="text-sm text-[#1a1814]/50 py-8 text-center">Loading…</div>
+        <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
       ) : codes.length === 0 ? (
-        <div className="bg-white border border-[#ede9e2] rounded-xl px-6 py-12 text-center">
-          <Percent className="w-10 h-10 text-[#b8943f]/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-[#1a1814]">No tax codes yet</p>
-          <p className="text-xs text-[#1a1814]/55 mt-1 mb-4">
+        <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-12 text-center">
+          <Percent className="w-10 h-10 text-[var(--primary)]/40 mx-auto mb-3" />
+          <p className="text-sm font-medium text-[var(--text-primary)]">No tax codes yet</p>
+          <p className="text-xs text-[var(--text-primary)]/55 mt-1 mb-4">
             Create tax codes to apply GST, VAT, or withholding tax to invoice and bill lines.
           </p>
           <button
             onClick={openAdd}
-            className="inline-flex items-center gap-2 bg-[#b8943f] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#a07c32] transition-colors"
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
           >
             <Plus className="w-4 h-4" /> Create first tax code
           </button>
@@ -229,30 +229,30 @@ export default function TaxCodesPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="px-6 py-4 border-b border-[#ede9e2]">
-              <h2 className="text-lg font-serif font-semibold text-[#1a1814]">
+            <div className="px-6 py-4 border-b border-[var(--border)]">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">
                 {editing ? "Edit Tax Code" : "New Tax Code"}
               </h2>
             </div>
             <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Code</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Code</label>
                   <input
                     value={form.code}
                     onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                     disabled={!!editing}
                     placeholder="GST17"
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] disabled:bg-[#f5f2ed] font-mono"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] disabled:bg-[#f5f2ed] font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Type</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Type</label>
                   <select
                     value={form.type}
                     onChange={e => setForm(f => ({ ...f, type: e.target.value, gl_account_id: "" }))}
                     disabled={!!editing}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f] disabled:bg-[#f5f2ed]"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)] disabled:bg-[#f5f2ed]"
                   >
                     <option value="output">Output (Sales)</option>
                     <option value="input">Input (Purchase)</option>
@@ -261,17 +261,17 @@ export default function TaxCodesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">Name</label>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Name</label>
                 <input
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Standard GST 17%"
-                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+                  className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">
                   Rate (%)
                 </label>
                 <div className="relative">
@@ -283,24 +283,24 @@ export default function TaxCodesPage() {
                     value={form.rate}
                     onChange={e => setForm(f => ({ ...f, rate: e.target.value }))}
                     placeholder="17"
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 pr-8 text-sm focus:outline-none focus:border-[#b8943f] tabular-nums"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 pr-8 text-sm focus:outline-none focus:border-[var(--primary)] tabular-nums"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#1a1814]/40">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-primary)]/40">%</span>
                 </div>
               </div>
 
               {!editing && (
                 <div>
-                  <label className="block text-xs font-semibold text-[#1a1814]/70 mb-1.5 uppercase tracking-wide">
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">
                     GL Account{" "}
-                    <span className="font-normal text-[#1a1814]/40 normal-case tracking-normal">
+                    <span className="font-normal text-[var(--text-primary)]/40 normal-case tracking-normal">
                       ({form.type === "output" ? "Liability — tax payable" : "Asset — tax receivable"})
                     </span>
                   </label>
                   <select
                     value={form.gl_account_id}
                     onChange={e => setForm(f => ({ ...f, gl_account_id: e.target.value }))}
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#b8943f]"
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]"
                   >
                     <option value="">Select account…</option>
                     {suggestedAccounts.length > 0 && (
@@ -331,14 +331,14 @@ export default function TaxCodesPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 bg-[#b8943f] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#a07c32] disabled:opacity-50 transition-colors"
+                  className="flex-1 bg-[var(--primary)] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors"
                 >
                   {saving ? "Saving…" : editing ? "Save Changes" : "Create"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[#1a1814]/70 hover:bg-[#f0ede6] transition-colors"
+                  className="px-4 py-2.5 border border-[#d4cfc7] rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
                 >{t('common.cancel', 'Cancel')}</button>
               </div>
             </form>
@@ -361,16 +361,16 @@ function CodeTable({
 }) {
   return (
     <div>
-      <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">{title}</h2>
-      <div className={`bg-white border border-[#ede9e2] rounded-xl overflow-hidden ${dimmed ? "opacity-60" : ""}`}>
+      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">{title}</h2>
+      <div className={`bg-white border border-[var(--border)] rounded-xl overflow-hidden ${dimmed ? "opacity-60" : ""}`}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#ede9e2] bg-[#faf8f4]">
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70 w-24">Code</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">Name</th>
-              <th className="text-right px-4 py-3 font-semibold text-[#1a1814]/70 w-20">Rate</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70 w-32">Type</th>
-              <th className="text-left px-4 py-3 font-semibold text-[#1a1814]/70">GL Account</th>
+            <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-24">Code</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">Name</th>
+              <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-20">Rate</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-32">Type</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">GL Account</th>
               <th className="px-4 py-3 w-20" />
             </tr>
           </thead>
@@ -378,9 +378,9 @@ function CodeTable({
             {items.map(tc => {
               const acc = accountMap[tc.gl_account_id]
               return (
-                <tr key={tc.id} className="border-b border-[#ede9e2] last:border-0 hover:bg-[#faf8f4]">
-                  <td className="px-4 py-3 font-mono text-xs text-[#1a1814]/80">{tc.code}</td>
-                  <td className="px-4 py-3 text-[#1a1814]">{tc.name}</td>
+                <tr key={tc.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[#faf8f4]">
+                  <td className="px-4 py-3 font-mono text-xs text-[var(--text-primary)]/80">{tc.code}</td>
+                  <td className="px-4 py-3 text-[var(--text-primary)]">{tc.name}</td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium">
                     {Number(tc.rate).toFixed(Number(tc.rate) % 1 === 0 ? 0 : 2)}%
                   </td>
@@ -389,21 +389,21 @@ function CodeTable({
                       {TYPE_LABELS[tc.type] ?? tc.type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-[#1a1814]/70">
+                  <td className="px-4 py-3 text-xs text-[var(--text-primary)]/70">
                     {acc ? `${acc.code} — ${acc.name}` : `#${tc.gl_account_id}`}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => onEdit(tc)}
-                        className="text-[#1a1814]/40 hover:text-[#b8943f] transition-colors"
+                        className="text-[var(--text-primary)]/40 hover:text-[var(--primary)] transition-colors"
                         title="Edit name / rate"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => onToggle(tc)}
-                        className={`transition-colors ${tc.is_active ? "text-emerald-500 hover:text-red-400" : "text-[#1a1814]/30 hover:text-emerald-500"}`}
+                        className={`transition-colors ${tc.is_active ? "text-emerald-500 hover:text-red-400" : "text-[var(--text-primary)]/30 hover:text-emerald-500"}`}
                         title={tc.is_active ? "Deactivate" : "Activate"}
                       >
                         {tc.is_active

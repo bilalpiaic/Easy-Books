@@ -82,14 +82,14 @@ export default function PRADashboardPage() {
       {/* Header + New Invoice CTA */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-serif text-[#1a1814]">Sales Dashboard</h1>
-          <p className="text-xs text-[#1a1814]/50 mt-0.5">
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">Sales Dashboard</h1>
+          <p className="text-xs text-[var(--text-primary)]/50 mt-0.5">
             {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
         </div>
         <Link
           href="/invoices/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#b8943f] hover:bg-[#a07830] text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
+          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary)] hover:bg-[#a07830] text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
         >
           <PlusCircle className="w-4 h-4" />
           New Invoice
@@ -98,65 +98,65 @@ export default function PRADashboardPage() {
 
       {/* KPI cards — row 1: sales summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl p-4 border border-[#ede9e2] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Today&apos;s Sales</p>
-          <p className="text-2xl font-bold text-[#b8943f] mt-1 tabular-nums">{fmt(todaySales)}</p>
-          <p className="text-[11px] text-[#1a1814]/50 mt-0.5">{todayCount} invoice{todayCount !== 1 ? "s" : ""} · {currency}</p>
+        <div className="bg-white rounded-xl p-4 border border-[var(--border)] shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">Today&apos;s Sales</p>
+          <p className="text-2xl font-bold text-[var(--primary)] mt-1 tabular-nums">{fmt(todaySales)}</p>
+          <p className="text-[11px] text-[var(--text-primary)]/50 mt-0.5">{todayCount} invoice{todayCount !== 1 ? "s" : ""} · {currency}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-[#ede9e2] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">PRA Submitted</p>
+        <div className="bg-white rounded-xl p-4 border border-[var(--border)] shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">PRA Submitted</p>
           <p className="text-2xl font-bold text-green-600 mt-1 tabular-nums">{submitted}</p>
           <div className="flex items-center gap-1 mt-0.5">
             <CheckCircle2 className="w-3 h-3 text-green-500" />
-            <p className="text-[11px] text-[#1a1814]/50">of {todayCount} invoices</p>
+            <p className="text-[11px] text-[var(--text-primary)]/50">of {todayCount} invoices</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-[#ede9e2] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Failed / Pending</p>
+        <div className="bg-white rounded-xl p-4 border border-[var(--border)] shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">Failed / Pending</p>
           <p className="text-2xl font-bold text-red-500 mt-1 tabular-nums">{failed}</p>
           <div className="flex items-center gap-1 mt-0.5">
             {pending > 0
-              ? <><Clock className="w-3 h-3 text-amber-500" /><p className="text-[11px] text-[#1a1814]/50">{pending} pending</p></>
-              : <p className="text-[11px] text-[#1a1814]/50">0 pending</p>
+              ? <><Clock className="w-3 h-3 text-amber-500" /><p className="text-[11px] text-[var(--text-primary)]/50">{pending} pending</p></>
+              : <p className="text-[11px] text-[var(--text-primary)]/50">0 pending</p>
             }
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-[#ede9e2] shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40">Cash / Card</p>
+        <div className="bg-white rounded-xl p-4 border border-[var(--border)] shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40">Cash / Card</p>
           <div className="flex items-center gap-1.5 mt-1">
             <Banknote className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-            <p className="text-base font-bold text-[#1a1814] tabular-nums">{fmt(cashTotal)}</p>
+            <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{fmt(cashTotal)}</p>
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <CreditCard className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <p className="text-base font-bold text-[#1a1814] tabular-nums">{fmt(cardTotal)}</p>
+            <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">{fmt(cardTotal)}</p>
           </div>
         </div>
       </div>
 
       {/* Recent invoices */}
-      <div className="bg-white rounded-xl border border-[#ede9e2] shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#ede9e2]">
+      <div className="bg-white rounded-xl border border-[var(--border)] shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
-            <FileSignature className="w-4 h-4 text-[#b8943f]" />
-            <h2 className="text-sm font-semibold text-[#1a1814]">Today&apos;s Invoices</h2>
+            <FileSignature className="w-4 h-4 text-[var(--primary)]" />
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Today&apos;s Invoices</h2>
           </div>
-          <Link href="/invoices" className="flex items-center gap-1 text-xs text-[#b8943f] hover:underline">
+          <Link href="/invoices" className="flex items-center gap-1 text-xs text-[var(--primary)] hover:underline">
             View all <ChevronRight className="w-3 h-3" />
           </Link>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-sm text-[#1a1814]/40">Loading…</div>
+          <div className="p-8 text-center text-sm text-[var(--text-primary)]/40">Loading…</div>
         ) : recent.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-[#1a1814]/40 mb-3">No invoices yet today</p>
+            <p className="text-sm text-[var(--text-primary)]/40 mb-3">No invoices yet today</p>
             <Link
               href="/invoices/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg text-sm font-medium hover:bg-[#a07830] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:bg-[#a07830] transition-colors"
             >
               <PlusCircle className="w-4 h-4" />
               Create first invoice
@@ -166,28 +166,28 @@ export default function PRADashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#ede9e2] bg-[#f6f3ee]/60">
-                  <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/40">Invoice #</th>
-                  <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/40">Customer</th>
-                  <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/40 hidden sm:table-cell">Payment</th>
-                  <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/40">Amount ({currency})</th>
-                  <th className="text-center px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/40">PRA</th>
-                  <th className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/40 hidden md:table-cell">FIN</th>
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-page)]/60">
+                  <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40">Invoice #</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40">Customer</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40 hidden sm:table-cell">Payment</th>
+                  <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40">Amount ({currency})</th>
+                  <th className="text-center px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40">PRA</th>
+                  <th className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/40 hidden md:table-cell">FIN</th>
                 </tr>
               </thead>
               <tbody>
                 {recent.map((inv, idx) => (
                   <tr
                     key={inv.id}
-                    className={`border-b border-[#ede9e2] hover:bg-[#f6f3ee]/60 cursor-pointer transition-colors ${idx % 2 === 0 ? "" : "bg-[#f6f3ee]/30"}`}
+                    className={`border-b border-[var(--border)] hover:bg-[var(--bg-page)]/60 cursor-pointer transition-colors ${idx % 2 === 0 ? "" : "bg-[var(--bg-page)]/30"}`}
                     onClick={() => router.push(`/invoices/${inv.id}`)}
                   >
-                    <td className="px-4 py-2.5 font-mono text-xs text-[#b8943f] whitespace-nowrap">{inv.number}</td>
-                    <td className="px-4 py-2.5 text-[#1a1814] truncate max-w-[140px]">{inv.customer_name || "Walk-in"}</td>
-                    <td className="px-4 py-2.5 text-[#1a1814]/60 text-xs hidden sm:table-cell">{paymentLabel(inv.payment_mode)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono tabular-nums text-[#1a1814]">{fmt(inv.total)}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-[var(--primary)] whitespace-nowrap">{inv.number}</td>
+                    <td className="px-4 py-2.5 text-[var(--text-primary)] truncate max-w-[140px]">{inv.customer_name || "Walk-in"}</td>
+                    <td className="px-4 py-2.5 text-[var(--text-primary)]/60 text-xs hidden sm:table-cell">{paymentLabel(inv.payment_mode)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono tabular-nums text-[var(--text-primary)]">{fmt(inv.total)}</td>
                     <td className="px-4 py-2.5 text-center">{praStatusBadge(inv.pra_status)}</td>
-                    <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/50 hidden md:table-cell">
+                    <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/50 hidden md:table-cell">
                       {inv.pra_fiscal_number ?? "—"}
                     </td>
                   </tr>

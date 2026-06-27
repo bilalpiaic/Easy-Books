@@ -20,7 +20,7 @@ interface StepBoxProps {
 }
 
 const ACCENT_STYLES: Record<NonNullable<StepBoxProps["accent"]>, { border: string; bg: string; title: string; badge: string }> = {
-  gold:   { border: "border-[#b8943f]",   bg: "bg-[#faf6ec]",   title: "text-[#7a5c1e]",   badge: "bg-[#b8943f]/15 text-[#7a5c1e]"   },
+  gold:   { border: "border-[var(--primary)]",   bg: "bg-[var(--bg-page)]",   title: "text-[#7a5c1e]",   badge: "bg-[var(--primary)]/15 text-[#7a5c1e]"   },
   green:  { border: "border-green-400",   bg: "bg-green-50",    title: "text-green-800",    badge: "bg-green-100 text-green-800"       },
   blue:   { border: "border-blue-400",    bg: "bg-blue-50",     title: "text-blue-800",     badge: "bg-blue-100 text-blue-800"         },
   orange: { border: "border-orange-400",  bg: "bg-orange-50",   title: "text-orange-800",   badge: "bg-orange-100 text-orange-800"     },
@@ -37,7 +37,7 @@ function StepBox({ title, gl, impact, accent = "gold", small = false }: StepBoxP
         <p className={`font-mono text-[10px] mt-1.5 ${s.badge} rounded px-1.5 py-0.5 inline-block leading-tight`}>{gl}</p>
       )}
       {impact && (
-        <p className="text-[10px] text-[#1a1814]/55 mt-1 leading-tight">{impact}</p>
+        <p className="text-[10px] text-[var(--text-primary)]/55 mt-1 leading-tight">{impact}</p>
       )}
     </div>
   )
@@ -47,20 +47,20 @@ function Arrow({ vertical = false }: { vertical?: boolean }) {
   if (vertical) {
     return (
       <div className="flex flex-col items-center py-0.5">
-        <div className="w-0.5 h-4 bg-[#b8943f]/40" />
+        <div className="w-0.5 h-4 bg-[var(--primary)]/40" />
         <div
           className="w-0 h-0"
-          style={{ borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "7px solid #b8943f99" }}
+          style={{ borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "7px solid color-mix(in srgb, var(--primary) 60%, transparent)" }}
         />
       </div>
     )
   }
   return (
     <div className="flex items-center px-1">
-      <div className="h-0.5 w-6 bg-[#b8943f]/40" />
+      <div className="h-0.5 w-6 bg-[var(--primary)]/40" />
       <div
         className="w-0 h-0"
-        style={{ borderTop: "5px solid transparent", borderBottom: "5px solid transparent", borderLeft: "7px solid #b8943f99" }}
+        style={{ borderTop: "5px solid transparent", borderBottom: "5px solid transparent", borderLeft: "7px solid color-mix(in srgb, var(--primary) 60%, transparent)" }}
       />
     </div>
   )
@@ -94,16 +94,16 @@ interface SectionCardProps {
   iconColor?: string
 }
 
-function SectionCard({ icon: Icon, title, subtitle, children, iconColor = "text-[#b8943f]" }: SectionCardProps) {
+function SectionCard({ icon: Icon, title, subtitle, children, iconColor = "text-[var(--primary)]" }: SectionCardProps) {
   return (
-    <div className="bg-white border border-[#ede9e2] rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#ede9e2] bg-[#f6f3ee] flex items-center gap-3">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-[#ede9e2] ${iconColor}`}>
+    <div className="bg-white border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-page)] flex items-center gap-3">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-white border border-[var(--border)] ${iconColor}`}>
           <Icon className="w-4 h-4" />
         </div>
         <div>
-          <h2 className="text-sm font-bold text-[#1a1814]">{title}</h2>
-          <p className="text-[10px] text-[#1a1814]/50 font-medium tracking-wide uppercase">{subtitle}</p>
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">{title}</h2>
+          <p className="text-[10px] text-[var(--text-primary)]/50 font-medium tracking-wide uppercase">{subtitle}</p>
         </div>
       </div>
       <div className="p-5 overflow-x-auto">
@@ -117,8 +117,8 @@ function SectionCard({ icon: Icon, title, subtitle, children, iconColor = "text-
 
 function DoubleEntryCallout() {
   return (
-    <div className="bg-[#1a1814] text-white rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-      <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#b8943f] flex items-center justify-center text-white font-serif font-bold text-lg">
+    <div className="bg-[var(--text-primary)] text-white rounded-2xl px-6 py-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+      <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[var(--primary)] flex items-center justify-center text-white font-bold font-bold text-lg">
         =
       </div>
       <div className="flex-1">
@@ -129,7 +129,7 @@ function DoubleEntryCallout() {
           <span className="font-mono text-[#ffd966]">Assets = Liabilities + Equity</span>.
         </p>
       </div>
-      <div className="bg-[#ffd966]/10 border border-[#ffd966]/30 rounded-xl px-4 py-3 text-center flex-shrink-0">
+      <div className="bg-[var(--primary-light)] border border-[#ffd966]/30 rounded-xl px-4 py-3 text-center flex-shrink-0">
         <p className="text-[#ffd966] font-mono text-xs font-bold">∑ Debit</p>
         <p className="text-white/40 text-lg font-light leading-none my-0.5">=</p>
         <p className="text-[#ffd966] font-mono text-xs font-bold">∑ Credit</p>
@@ -174,29 +174,29 @@ function SalesCycleFlow() {
 
       {/* GL detail strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-        <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b8943f] mb-2">Step 2 — Invoice GL Entry</p>
-          <div className="space-y-1 font-mono text-xs text-[#1a1814]">
+        <div className="bg-[var(--bg-page)] border border-[var(--primary)]/30 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--primary)] mb-2">Step 2 — Invoice GL Entry</p>
+          <div className="space-y-1 font-mono text-xs text-[var(--text-primary)]">
             <div className="flex justify-between">
               <span className="text-[#7a5c1e]">Dr Accounts Receivable</span>
-              <span className="text-[#1a1814]/60">+amount</span>
+              <span className="text-[var(--text-primary)]/60">+amount</span>
             </div>
             <div className="flex justify-between pl-4">
               <span className="text-green-700">Cr Revenue</span>
-              <span className="text-[#1a1814]/60">+amount</span>
+              <span className="text-[var(--text-primary)]/60">+amount</span>
             </div>
           </div>
         </div>
         <div className="bg-green-50 border border-green-300/50 rounded-xl px-4 py-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-green-700 mb-2">Step 3 — Payment GL Entry</p>
-          <div className="space-y-1 font-mono text-xs text-[#1a1814]">
+          <div className="space-y-1 font-mono text-xs text-[var(--text-primary)]">
             <div className="flex justify-between">
               <span className="text-[#7a5c1e]">Dr Bank / Cash</span>
-              <span className="text-[#1a1814]/60">+amount</span>
+              <span className="text-[var(--text-primary)]/60">+amount</span>
             </div>
             <div className="flex justify-between pl-4">
               <span className="text-green-700">Cr Accounts Receivable</span>
-              <span className="text-[#1a1814]/60">-amount</span>
+              <span className="text-[var(--text-primary)]/60">-amount</span>
             </div>
           </div>
         </div>
@@ -241,27 +241,27 @@ function PurchaseCycleFlow() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
         <div className="bg-orange-50 border border-orange-300/50 rounded-xl px-4 py-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-orange-700 mb-2">Step 2 — Bill GL Entry</p>
-          <div className="space-y-1 font-mono text-xs text-[#1a1814]">
+          <div className="space-y-1 font-mono text-xs text-[var(--text-primary)]">
             <div className="flex justify-between">
               <span className="text-[#7a5c1e]">Dr Expense / Inventory</span>
-              <span className="text-[#1a1814]/60">+amount</span>
+              <span className="text-[var(--text-primary)]/60">+amount</span>
             </div>
             <div className="flex justify-between pl-4">
               <span className="text-orange-700">Cr Accounts Payable</span>
-              <span className="text-[#1a1814]/60">+amount</span>
+              <span className="text-[var(--text-primary)]/60">+amount</span>
             </div>
           </div>
         </div>
-        <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b8943f] mb-2">Step 3 — Payment GL Entry</p>
-          <div className="space-y-1 font-mono text-xs text-[#1a1814]">
+        <div className="bg-[var(--bg-page)] border border-[var(--primary)]/30 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--primary)] mb-2">Step 3 — Payment GL Entry</p>
+          <div className="space-y-1 font-mono text-xs text-[var(--text-primary)]">
             <div className="flex justify-between">
               <span className="text-[#7a5c1e]">Dr Accounts Payable</span>
-              <span className="text-[#1a1814]/60">-amount</span>
+              <span className="text-[var(--text-primary)]/60">-amount</span>
             </div>
             <div className="flex justify-between pl-4">
               <span className="text-orange-700">Cr Bank / Cash</span>
-              <span className="text-[#1a1814]/60">-amount</span>
+              <span className="text-[var(--text-primary)]/60">-amount</span>
             </div>
           </div>
         </div>
@@ -306,7 +306,7 @@ function ManualJournalFlow() {
           accent="purple"
         />
       </HFlow>
-      <p className="mt-4 text-xs text-[#1a1814]/55 leading-relaxed">
+      <p className="mt-4 text-xs text-[var(--text-primary)]/55 leading-relaxed">
         Manual journal entries are used for adjustments, accruals, depreciation, corrections, and any transaction
         that does not originate from an invoice or bill. They post immediately to the General Ledger.
       </p>
@@ -370,14 +370,14 @@ function FinancialStatementFlow() {
           </div>
         </div>
       </div>
-      <p className="mt-4 text-xs text-[#1a1814]/55 leading-relaxed">
+      <p className="mt-4 text-xs text-[var(--text-primary)]/55 leading-relaxed">
         Trial Balance, the P&amp;L and the Balance Sheet are <b>hierarchical</b>: accounts roll up under
         their parent groups with subtotals, and you can expand/collapse any group and click a leaf line to
         drill into its ledger and on to the underlying voucher. Turn on <b>Compare</b> on the P&amp;L or
         Balance Sheet for a prior-period column. Every posted transaction carries a <b>voucher type</b>
         (Sales/Purchase/Receipt/Payment/Journal/Credit-Note/Debit-Note) feeding the Cash &amp; Bank Book.
       </p>
-      <p className="mt-2 text-xs text-[#1a1814]/55 leading-relaxed">
+      <p className="mt-2 text-xs text-[var(--text-primary)]/55 leading-relaxed">
         Two variants on the sales cycle: a <b>deferred-revenue</b> product posts <span className="font-mono">Dr A/R · Cr Deferred Revenue (2300)</span>
         and creates a recognition schedule that releases revenue over time; and a <b>posted invoice can be edited</b> (the
         original entries are reversed and re-posted) unless it is paid, in a locked period, or — for deferred invoices —
@@ -416,7 +416,7 @@ function InventoryFlow() {
       </div>
 
       {/* Divider */}
-      <div className="border-t border-dashed border-[#ede9e2]" />
+      <div className="border-t border-dashed border-[var(--border)]" />
 
       {/* Sales side */}
       <div>
@@ -469,16 +469,16 @@ function PaymentAllocationFlow() {
       </HFlow>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-        <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b8943f] mb-2">GL — single JV for the payment</p>
-          <div className="space-y-1 font-mono text-xs text-[#1a1814]">
+        <div className="bg-[var(--bg-page)] border border-[var(--primary)]/30 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--primary)] mb-2">GL — single JV for the payment</p>
+          <div className="space-y-1 font-mono text-xs text-[var(--text-primary)]">
             <div className="flex justify-between">
               <span className="text-[#7a5c1e]">Dr Cash / Bank</span>
-              <span className="text-[#1a1814]/60">+1,000</span>
+              <span className="text-[var(--text-primary)]/60">+1,000</span>
             </div>
             <div className="flex justify-between pl-4">
               <span className="text-green-700">Cr Accounts Receivable</span>
-              <span className="text-[#1a1814]/60">−1,000</span>
+              <span className="text-[var(--text-primary)]/60">−1,000</span>
             </div>
           </div>
         </div>
@@ -523,8 +523,8 @@ function CurrencyFlow() {
             <p>total         = 1,000 (EUR)</p>
           </div>
         </div>
-        <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b8943f] mb-2">GL (in base USD)</p>
+        <div className="bg-[var(--bg-page)] border border-[var(--primary)]/30 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--primary)] mb-2">GL (in base USD)</p>
           <div className="space-y-1 font-mono text-xs">
             <div className="flex justify-between text-[#7a5c1e]">
               <span>Dr Accounts Receivable</span><span>+1,100.00</span>
@@ -597,20 +597,20 @@ function ReversalFlow() {
         <StepBox title="Original linked" gl="is_reversed = true · reversed_by_id" accent="teal" />
       </HFlow>
 
-      <div className="rounded-xl overflow-hidden border border-[#ede9e2] mt-2">
+      <div className="rounded-xl overflow-hidden border border-[var(--border)] mt-2">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">If source is…</th>
               <th className="px-4 py-2.5 text-left">…the reverse handler also</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2] text-[11px]">
-            <tr><td className="px-4 py-2 font-mono">PaymentReceived</td><td className="px-4 py-2 text-[#1a1814]/75">deletes its PaymentAllocations · recomputes each invoice&apos;s status</td></tr>
-            <tr><td className="px-4 py-2 font-mono">BillPayment</td><td className="px-4 py-2 text-[#1a1814]/75">same on the AP side</td></tr>
-            <tr><td className="px-4 py-2 font-mono">Invoice</td><td className="px-4 py-2 text-[#1a1814]/75">restores stock via reverse_consumption · auto-reverses the COGS sub-JV · sets invoice.status=&quot;void&quot;</td></tr>
-            <tr><td className="px-4 py-2 font-mono">Bill</td><td className="px-4 py-2 text-[#1a1814]/75">drops the InventoryLayer · recomputes avg_cost · sets bill.status=&quot;void&quot;</td></tr>
-            <tr><td className="px-4 py-2 font-mono">manual JV</td><td className="px-4 py-2 text-[#1a1814]/75">just mirrors the entries — no derived state</td></tr>
+          <tbody className="divide-y divide-[var(--border)] text-[11px]">
+            <tr><td className="px-4 py-2 font-mono">PaymentReceived</td><td className="px-4 py-2 text-[var(--text-primary)]/75">deletes its PaymentAllocations · recomputes each invoice&apos;s status</td></tr>
+            <tr><td className="px-4 py-2 font-mono">BillPayment</td><td className="px-4 py-2 text-[var(--text-primary)]/75">same on the AP side</td></tr>
+            <tr><td className="px-4 py-2 font-mono">Invoice</td><td className="px-4 py-2 text-[var(--text-primary)]/75">restores stock via reverse_consumption · auto-reverses the COGS sub-JV · sets invoice.status=&quot;void&quot;</td></tr>
+            <tr><td className="px-4 py-2 font-mono">Bill</td><td className="px-4 py-2 text-[var(--text-primary)]/75">drops the InventoryLayer · recomputes avg_cost · sets bill.status=&quot;void&quot;</td></tr>
+            <tr><td className="px-4 py-2 font-mono">manual JV</td><td className="px-4 py-2 text-[var(--text-primary)]/75">just mirrors the entries — no derived state</td></tr>
           </tbody>
         </table>
       </div>
@@ -625,9 +625,9 @@ function ReversalFlow() {
 function DrillDownFlow() {
   return (
     <div className="space-y-4">
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
         Every code, JV number, document number, customer, vendor, and product rendered in the app
-        is a clickable link to its source record. The shared <code className="font-mono text-[10px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5">&lt;DocLink /&gt;</code> resolver
+        is a clickable link to its source record. The shared <code className="font-mono text-[10px] bg-[var(--bg-page)] border border-[var(--border)] rounded px-1.5 py-0.5">&lt;DocLink /&gt;</code> resolver
         wires the cyclic graph below — there are no dead-end rows. This is what
         <b> ISA 230 §A6</b> calls <i>&quot;reperformability of the audit trail&quot;</i>.
       </p>
@@ -656,12 +656,12 @@ function DrillDownFlow() {
         </HFlow>
       </VFlow>
 
-      <div className="bg-[#faf6ec] border border-[#b8943f]/30 rounded-xl px-4 py-3 text-xs text-[#1a1814]/75 leading-relaxed">
+      <div className="bg-[var(--bg-page)] border border-[var(--primary)]/30 rounded-xl px-4 py-3 text-xs text-[var(--text-primary)]/75 leading-relaxed">
         <b className="text-[#7a5c1e]">Best practice alignment.</b> Sub-ledgers fulfil
         <b> IAS 1.78(b)</b> &amp; <b>IFRS 7.7</b> (receivable / payable disclosure),
         the stock card fulfils <b>IAS 2.36(d)/(g)</b> (carrying amount + movements), and the cyclic drill-down satisfies
         <b> ISA 315.A82</b> (internal-control traceability). Corrections never delete — reverse the
-        originating JV (<code className="font-mono text-[10px] bg-white border border-[#ede9e2] rounded px-1 py-0.5">POST /api/transactions/&#123;id&#125;/reverse</code>) and post the
+        originating JV (<code className="font-mono text-[10px] bg-white border border-[var(--border)] rounded px-1 py-0.5">POST /api/transactions/&#123;id&#125;/reverse</code>) and post the
         corrected entry. This is what <b>IAS 8.42</b> calls for.
       </div>
     </div>
@@ -671,7 +671,7 @@ function DrillDownFlow() {
 function ProductionOrderFlow() {
   return (
     <div className="space-y-4">
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
         Manufacturing tenants only. Each transition posts its own JV — easy to audit, easy to
         reverse one stage without disturbing the others. Customer-supplied components never
         touch your asset accounts; they live in memo accounts 1210 / 2150.
@@ -727,7 +727,7 @@ function ProductionOrderFlow() {
 function TelecomFranchiseFlow() {
   return (
     <div className="space-y-4">
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
         Telecom-franchise tenants only. Cash flows into a prepaid <b>Tracker</b> wallet, converts to
         spendable <b>load float</b> with a 3% uplift, then moves down a MSR → RSO → Retail chain.
         Each step posts its own balanced JV. The Tracker&apos;s deposit and load balances always
@@ -798,7 +798,7 @@ function CreditNoteFlow() {
         <Arrow />
         <StepBox title="AR Sub-Ledger" impact="Customer balance drops" accent="teal" />
       </HFlow>
-      <p className="mt-4 text-xs text-[#1a1814]/55 leading-relaxed">
+      <p className="mt-4 text-xs text-[var(--text-primary)]/55 leading-relaxed">
         Credit notes preserve the audit trail (ISA 240) — posted invoices are never edited; adjustments
         flow through a separate CN- document that posts the exact reverse entry.
       </p>
@@ -834,7 +834,7 @@ function PurchaseOrderConvertFlow() {
         <Arrow />
         <StepBox title="Bill Posted" gl="Dr Expense / Cr 2000 AP" impact="BILL-NNNN linked to PO" accent="green" />
       </HFlow>
-      <p className="mt-4 text-xs text-[#1a1814]/55 leading-relaxed">
+      <p className="mt-4 text-xs text-[var(--text-primary)]/55 leading-relaxed">
         A lightweight 3-way-match control (IAS 2.11): the PO records intent, approval authorises spend,
         and conversion creates the payable only when goods are received.
       </p>
@@ -948,25 +948,25 @@ export default function WorkflowPage() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-[#1a1814]/50 print:hidden">
-        <Link href="/dashboard" className="hover:text-[#b8943f] transition-colors">Dashboard</Link>
+      <nav className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/50 print:hidden">
+        <Link href="/dashboard" className="hover:text-[var(--primary)] transition-colors">Dashboard</Link>
         <ChevronRight className="w-3 h-3" />
-        <span className="text-[#1a1814]/80 font-medium">Transaction Workflow</span>
+        <span className="text-[var(--text-primary)]/80 font-medium">Transaction Workflow</span>
       </nav>
 
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
             Transaction Routing Workflow
           </h1>
-          <p className="text-xs text-[#1a1814]/50 mt-0.5 font-medium tracking-wide uppercase">
+          <p className="text-xs text-[var(--text-primary)]/50 mt-0.5 font-medium tracking-wide uppercase">
             Double-entry accounting cycle reference
           </p>
         </div>
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-[#ede9e2] rounded-xl text-sm text-[#1a1814]/70 hover:border-[#b8943f]/50 hover:text-[#b8943f] transition-all print:hidden shadow-sm self-start"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--border)] rounded-xl text-sm text-[var(--text-primary)]/70 hover:border-[var(--primary)]/50 hover:text-[var(--primary)] transition-all print:hidden shadow-sm self-start"
         >
           <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
       </div>
@@ -1187,11 +1187,11 @@ export default function WorkflowPage() {
       </SectionCard>
 
       {/* Footer note */}
-      <div className="bg-[#f6f3ee] border border-[#ede9e2] rounded-xl px-5 py-4 text-xs text-[#1a1814]/60 leading-relaxed print:hidden">
-        <span className="font-semibold text-[#b8943f]">Note:</span> All flows are processed automatically when you create invoices,
+      <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded-xl px-5 py-4 text-xs text-[var(--text-primary)]/60 leading-relaxed print:hidden">
+        <span className="font-semibold text-[var(--primary)]">Note:</span> All flows are processed automatically when you create invoices,
         bills, or payments. Manual journal entries give you direct access to the General Ledger for adjustments,
         accruals, and corrections. See the{" "}
-        <Link href="/guide" className="text-[#b8943f] underline underline-offset-2 hover:text-[#7a5c1e]">User Guide</Link>
+        <Link href="/guide" className="text-[var(--primary)] underline underline-offset-2 hover:text-[#7a5c1e]">User Guide</Link>
         {" "}for step-by-step instructions.
       </div>
     </div>

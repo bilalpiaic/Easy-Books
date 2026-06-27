@@ -122,7 +122,7 @@ export default function PermissionsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[#1a1814]/40 text-sm">Loading permissions…</div>
+        <div className="text-[var(--text-primary)]/40 text-sm">Loading permissions…</div>
       </div>
     )
   }
@@ -132,12 +132,12 @@ export default function PermissionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#b8943f]/10 rounded-lg">
-            <ShieldCheck className="w-6 h-6 text-[#b8943f]" />
+          <div className="p-2 bg-[var(--primary)]/10 rounded-lg">
+            <ShieldCheck className="w-6 h-6 text-[var(--primary)]" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif text-[#1a1814]">Permissions</h1>
-            <p className="text-sm text-[#1a1814]/60">Control per-user access to each module</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Permissions</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Control per-user access to each module</p>
           </div>
         </div>
         {!moduleEnabled && (
@@ -149,10 +149,10 @@ export default function PermissionsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* User selector */}
-        <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-[var(--border)] p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <Users className="w-4 h-4 text-[#b8943f]" />
-            <span className="text-sm font-semibold text-[#1a1814]">Team Members</span>
+            <Users className="w-4 h-4 text-[var(--primary)]" />
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Team Members</span>
           </div>
           <div className="space-y-1">
             {members.map(m => (
@@ -161,12 +161,12 @@ export default function PermissionsPage() {
                 onClick={() => setSelectedUserId(m.id)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                   selectedUserId === m.id
-                    ? "bg-[#b8943f] text-white"
-                    : "hover:bg-[#f6f3ee] text-[#1a1814]"
+                    ? "bg-[var(--primary)] text-white"
+                    : "hover:bg-[var(--bg-page)] text-[var(--text-primary)]"
                 }`}
               >
                 <div className="font-medium truncate">{m.full_name || m.email}</div>
-                <div className={`text-xs ${selectedUserId === m.id ? "text-white/70" : "text-[#1a1814]/50"}`}>
+                <div className={`text-xs ${selectedUserId === m.id ? "text-white/70" : "text-[var(--text-primary)]/50"}`}>
                   {m.role}
                 </div>
               </button>
@@ -177,17 +177,17 @@ export default function PermissionsPage() {
         {/* Permission matrix */}
         <div className="lg:col-span-3 space-y-4">
           {selectedMember && (
-            <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm">
+            <div className="bg-white rounded-xl border border-[var(--border)] p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-semibold text-[#1a1814]">
+                  <div className="font-semibold text-[var(--text-primary)]">
                     {selectedMember.full_name || selectedMember.email}
                   </div>
-                  <div className="text-xs text-[#1a1814]/50">Role: {selectedMember.role}</div>
+                  <div className="text-xs text-[var(--text-primary)]/50">Role: {selectedMember.role}</div>
                 </div>
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <span className="text-sm text-[#1a1814]/70">My Data Only</span>
+                    <span className="text-sm text-[var(--text-primary)]/70">My Data Only</span>
                     <div className="relative">
                       <input
                         type="checkbox"
@@ -195,13 +195,13 @@ export default function PermissionsPage() {
                         onChange={e => handleMyDataOnly(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-[#b8943f] peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                      <div className="w-9 h-5 bg-gray-300 rounded-full peer peer-checked:bg-[var(--primary)] peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
                     </div>
                   </label>
                   <button
                     onClick={handleSave}
                     disabled={!hasDrafts || saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg text-sm font-medium hover:bg-[#a07c35] disabled:opacity-40 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-40 transition-colors"
                   >
                     <Save className="w-4 h-4" />
                     {saved ? "Saved!" : saving ? "Saving…" : "Save"}
@@ -215,24 +215,24 @@ export default function PermissionsPage() {
             const catResources = resources.filter(r => r.category === cat)
             const isOpen = expanded[cat] !== false  // default open
             return (
-              <div key={cat} className="bg-white rounded-xl border border-[#ede9e2] shadow-sm overflow-hidden">
+              <div key={cat} className="bg-white rounded-xl border border-[var(--border)] shadow-sm overflow-hidden">
                 <button
                   onClick={() => setExpanded(prev => ({ ...prev, [cat]: !isOpen }))}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#f6f3ee] transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)] transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-[#b8943f]" />
-                    <span className="font-semibold text-sm text-[#1a1814]">{cat}</span>
-                    <span className="text-xs text-[#1a1814]/40">({catResources.length})</span>
+                    <Database className="w-4 h-4 text-[var(--primary)]" />
+                    <span className="font-semibold text-sm text-[var(--text-primary)]">{cat}</span>
+                    <span className="text-xs text-[var(--text-primary)]/40">({catResources.length})</span>
                   </div>
                   {isOpen ? (
-                    <ChevronDown className="w-4 h-4 text-[#1a1814]/40" />
+                    <ChevronDown className="w-4 h-4 text-[var(--text-primary)]/40" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-[#1a1814]/40" />
+                    <ChevronRight className="w-4 h-4 text-[var(--text-primary)]/40" />
                   )}
                 </button>
                 {isOpen && (
-                  <div className="border-t border-[#ede9e2]">
+                  <div className="border-t border-[var(--border)]">
                     {catResources.map((res, i) => {
                       const current = drafts[res.key] ?? "default"
                       const effective = getEffective(res.key)
@@ -240,11 +240,11 @@ export default function PermissionsPage() {
                         <div
                           key={res.key}
                           className={`flex items-center justify-between px-4 py-2.5 ${
-                            i < catResources.length - 1 ? "border-b border-[#ede9e2]" : ""
+                            i < catResources.length - 1 ? "border-b border-[var(--border)]" : ""
                           }`}
                         >
                           <div>
-                            <span className="text-sm text-[#1a1814]">{res.label}</span>
+                            <span className="text-sm text-[var(--text-primary)]">{res.label}</span>
                             <span className={`ml-2 text-xs font-medium ${LEVEL_COLORS[effective]}`}>
                               ({effective})
                             </span>
@@ -252,7 +252,7 @@ export default function PermissionsPage() {
                           <select
                             value={current}
                             onChange={e => handleChange(res.key, e.target.value as AccessLevel)}
-                            className="text-xs px-2 py-1 border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#b8943f] bg-white text-[#1a1814]"
+                            className="text-xs px-2 py-1 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--primary)] bg-white text-[var(--text-primary)]"
                           >
                             <option value="default">Role Default</option>
                             <option value="edit">Edit</option>

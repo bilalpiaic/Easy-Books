@@ -89,8 +89,8 @@ function StepList({ steps }: { steps: string[] }) {
   return (
     <ol className="space-y-2 mt-3">
       {steps.map((step, i) => (
-        <li key={i} className="flex gap-3 text-sm text-[#1a1814]/80 leading-relaxed">
-          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#b8943f] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
+        <li key={i} className="flex gap-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
+          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--primary)] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
             {i + 1}
           </span>
           <span>{step}</span>
@@ -102,7 +102,7 @@ function StepList({ steps }: { steps: string[] }) {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-xs font-bold uppercase tracking-widest text-[#b8943f] mt-5 mb-2 first:mt-0">
+    <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--primary)] mt-5 mb-2 first:mt-0">
       {children}
     </h3>
   )
@@ -110,7 +110,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 function CodeBadge({ children }: { children: React.ReactNode }) {
   return (
-    <code className="font-mono text-[11px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5 text-[#1a1814]">
+    <code className="font-mono text-[11px] bg-[var(--bg-page)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[var(--text-primary)]">
       {children}
     </code>
   )
@@ -121,27 +121,27 @@ function CodeBadge({ children }: { children: React.ReactNode }) {
 function GettingStartedPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Easy-Books is a double-entry accounting application. It records every transaction as
         two balanced journal entries — debits and credits — so your books always stay in balance.
         This guide walks you through the first steps to get up and running.
       </p>
 
       <SectionHeading>Sign Up — pick your business model</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         The signup page is a 2-step wizard. Step 1 asks for your <b>business model</b>; this
         controls which Chart of Accounts you start with and which UI sections are enabled.
       </p>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Model</th>
               <th className="px-4 py-2.5 text-left">Best for</th>
               <th className="px-4 py-2.5 text-left">Adds to base CoA</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["simple",        "Solo / micro-business",         "—"],
               ["services",      "Consulting, agencies",          "Consulting & recurring revenue, deferred revenue, subcontractor costs"],
@@ -150,9 +150,9 @@ function GettingStartedPanel() {
               ["telecom_franchise", "Mobile-operator franchise", "56-account franchise CoA: Tracker Deposit 1210, Load Float 1211, RSO/Retail receivables, MM float, SIM/device inventory, commission & FCA revenue, royalty & fee amortisation"],
             ].map(([model, use, extras]) => (
               <tr key={model} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{model}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{use}</td>
-                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/60">{extras}</td>
+                <td className="px-4 py-2.5 font-mono font-semibold text-[var(--primary)]">{model}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{use}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[var(--text-primary)]/60">{extras}</td>
               </tr>
             ))}
           </tbody>
@@ -181,10 +181,10 @@ function GettingStartedPanel() {
       ]} />
 
       <SectionHeading>Onboarding Checklist</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         New tenants see a Setup Checklist card on the Dashboard. Complete each step to dismiss it:
       </p>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Logo uploaded</b> — Settings → Company Profile → logo zone</li>
         <li><b>Payment terms set</b> — Settings → Payment Terms → add at least one</li>
         <li><b>First invoice created</b> — Invoices → New Invoice</li>
@@ -224,24 +224,24 @@ function CoaPanel() {
   const { t } = useTranslation()
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The Chart of Accounts (COA) is the master list of every account used in your books.
         Each account belongs to one of five types, which determines how it behaves in reports
         and whether debits or credits increase its balance.
       </p>
 
       <SectionHeading>Account Types</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Type</th>
               <th className="px-4 py-2.5 text-left">Normal Balance</th>
               <th className="px-4 py-2.5 text-left">Debit effect</th>
               <th className="px-4 py-2.5 text-left">Credit effect</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["Asset",     "Debit",  "Increases ↑", "Decreases ↓"],
               ["Liability", "Credit", "Decreases ↓", "Increases ↑"],
@@ -250,8 +250,8 @@ function CoaPanel() {
               ["Expense",   "Debit",  "Increases ↑", "Decreases ↓"],
             ].map(([type, normal, dr, cr]) => (
               <tr key={type} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{type}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/60">{normal}</td>
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{type}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/60">{normal}</td>
                 <td className={`px-4 py-2.5 ${dr.includes("↑") ? "text-green-700" : "text-red-600"}`}>{dr}</td>
                 <td className={`px-4 py-2.5 ${cr.includes("↑") ? "text-green-700" : "text-red-600"}`}>{cr}</td>
               </tr>
@@ -270,21 +270,21 @@ function CoaPanel() {
       ]} />
 
       <SectionHeading>Per-Business-Model Templates</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Your CoA is seeded from a <b>common backbone</b> (13 accounts every tenant has) plus a
         <b> model-specific layer</b>. Switching business model later only <em>adds</em> missing
         accounts — it never deletes existing ones.
       </p>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Codes</th>
               <th className="px-4 py-2.5 text-left">Layer</th>
               <th className="px-4 py-2.5 text-left">{t('col.account', 'Account')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["1000–1100", "common",        "Cash, Bank, AR"],
               ["1200",      "trader / mfg",  "Finished Goods (trader) · Raw Material (mfg)"],
@@ -309,9 +309,9 @@ function CoaPanel() {
               ["5030 / 5040","telecom",      "Franchise Fee Amortisation · Royalty Expense"],
             ].map(([code, layer, name], i) => (
               <tr key={i} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{code}</td>
-                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/55">{layer}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/80">{name}</td>
+                <td className="px-4 py-2.5 font-mono font-semibold text-[var(--primary)]">{code}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[var(--text-primary)]/55">{layer}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/80">{name}</td>
               </tr>
             ))}
           </tbody>
@@ -319,13 +319,13 @@ function CoaPanel() {
       </div>
 
       <SectionHeading>Memo (Custodial) Accounts</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Accounts with <CodeBadge>is_memo=true</CodeBadge> are shown in a <b>separate
         Custodial section</b> of the Balance Sheet — they do not inflate your formal A=L+E
         totals. They are used to record items you hold in custody but do not own (e.g. a
         customer&apos;s raw material in your godown).
       </p>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><CodeBadge>1210</CodeBadge> Customer Goods on Hand — debit balance, mirrors the qty/value of customer-owned material we hold.</li>
         <li><CodeBadge>2150</CodeBadge> Customer Goods Liability — credit balance, our obligation to return it.</li>
         <li>Posted by <CodeBadge>POST /api/grn</CodeBadge> when a non-zero <CodeBadge>declared_value</CodeBadge> is supplied.</li>
@@ -354,7 +354,7 @@ function CoaPanel() {
 function InvoicingPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Invoices record sales to customers. When you save an invoice, Easy-Books automatically
         posts <CodeBadge>Dr Accounts Receivable / Cr Revenue</CodeBadge> to the General Ledger,
         and reduces inventory for stock products.
@@ -420,7 +420,7 @@ function InvoicingPanel() {
 function BillingPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Bills record purchases from vendors. Saving a bill posts{" "}
         <CodeBadge>Dr Expense or Inventory / Cr Accounts Payable</CodeBadge> and increases
         stock quantities for inventory products.
@@ -464,7 +464,7 @@ function BillingPanel() {
 function ProductsPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Products can be <strong>stock items</strong> (physical goods with inventory tracking) or{" "}
         <strong>services</strong> (no inventory tracking). Stock items automatically adjust
         quantity on hand when used in bills or invoices.
@@ -501,33 +501,33 @@ function ProductsPanel() {
       </div>
 
       <SectionHeading>Multi-Location Inventory (V2.2)</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Stock layers are keyed by <CodeBadge>(product, location)</CodeBadge> — the same product
         can live in multiple stores at different costs. Every tenant gets a <CodeBadge>MAIN</CodeBadge>
         store seeded at signup. Manufacturing tenants additionally get <CodeBadge>GODOWN</CodeBadge>
         (customer-custodial) and <CodeBadge>WIP</CodeBadge> (work-in-progress) out of the box.
       </p>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Type</th>
               <th className="px-4 py-2.5 text-left">Purpose</th>
               <th className="px-4 py-2.5 text-left">Ownership</th>
               <th className="px-4 py-2.5 text-left">Hits GL?</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["own",                "Manufacturer-owned stock (raw mat, FG, etc.)", "Yours",   "Yes — at WAvg cost"],
               ["customer_custodial", "Godown holding customer-supplied material",     "Customer", "Only the memo pair 1210/2150"],
               ["wip",                "Work-in-progress holding bucket",               "Yours",   "Yes — Dr 1201 WIP at start"],
             ].map(([type, purpose, owner, gl]) => (
               <tr key={type} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-mono font-semibold text-[#b8943f]">{type}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{purpose}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/60">{owner}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/60">{gl}</td>
+                <td className="px-4 py-2.5 font-mono font-semibold text-[var(--primary)]">{type}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{purpose}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/60">{owner}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/60">{gl}</td>
               </tr>
             ))}
           </tbody>
@@ -535,12 +535,12 @@ function ProductsPanel() {
       </div>
 
       <SectionHeading>Lot Tracking + Stock-Movement Log</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Every receipt / issue / completion / shipment writes one immutable row to
         <CodeBadge>StockMovement</CodeBadge>. The log is the source of truth; layers are a
         materialised projection over it.
       </p>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Direction values:</b> RECEIPT, CUSTODIAL_RECEIPT, ISSUE, CUSTODIAL_ISSUE, COMPLETION, CUSTODIAL_COMPLETION, DELIVERY, SHIPMENT, ADJUSTMENT.</li>
         <li><b>posted_to_gl:</b> false for purely custodial movements (customer goods); true for own-stock movements that have a journal entry attached.</li>
         <li><b>Lot number</b> flows from receipt → consumption to the linked movement and layer, so you can trace a finished output back to a specific raw lot.</li>
@@ -578,14 +578,14 @@ function ProductsPanel() {
 function JournalPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Manual journal entries give you direct access to the General Ledger. Use them for
         adjusting entries, accruals, depreciation, opening balances, and any correction that
         cannot be handled through invoices or bills.
       </p>
 
       <SectionHeading>Debit & Credit Rules</SectionHeading>
-      <div className="bg-[#1a1814] rounded-xl p-4 mt-2">
+      <div className="bg-[var(--text-primary)] rounded-xl p-4 mt-2">
         <div className="grid grid-cols-2 gap-4 text-xs">
           <div>
             <p className="text-[#ffd966] font-bold mb-2 uppercase tracking-wide">Debit increases</p>
@@ -642,7 +642,7 @@ function JournalPanel() {
 function ReportsPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         All financial reports are generated in real time from posted GL entries. Select a date range
         and the system aggregates all transactions in that period. Reports can be printed or exported to CSV.
       </p>
@@ -697,11 +697,11 @@ function ReportsPanel() {
       ]} />
 
       <SectionHeading>Manufacturing Reports (V2.5)</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Available only to manufacturing tenants. Reachable from the Production Floor
         dashboard (<CodeBadge>/manufacturing</CodeBadge>) and via API.
       </p>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><CodeBadge>GET /api/manufacturing/dashboard</CodeBadge> — pipeline counts by state + total WIP cost + total FG cost + custodial qty on hand.</li>
         <li><CodeBadge>GET /api/manufacturing/wip-aging</CodeBadge> — open POs (state=started) bucketed by days since start (<i>0-7d / 8-14d / 15-30d / 30d+</i>).</li>
         <li><CodeBadge>GET /api/manufacturing/production-summary</CodeBadge> — POs grouped by state with count + output_qty + cost. Accepts optional <CodeBadge>start</CodeBadge> + <CodeBadge>end</CodeBadge> date filters.</li>
@@ -709,7 +709,7 @@ function ReportsPanel() {
       </ul>
 
       <SectionHeading>Memo Accounts on the Balance Sheet</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Accounts with <CodeBadge>is_memo=true</CodeBadge> (1210 / 2150) appear in a
         <b> separate Custodial section</b> at the bottom of the Balance Sheet — they don&apos;t
         affect the formal A=L+E totals. The qty and value they track is the customer&apos;s,
@@ -729,7 +729,7 @@ function ReportsPanel() {
 function PaymentsPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         A single payment can settle multiple invoices (or bills) with partial amounts.
         The invoice <code className="font-mono text-[11px]">status</code> is derived from the
         total allocated against it — <strong>partial</strong> when some is paid,{" "}
@@ -738,7 +738,7 @@ function PaymentsPanel() {
       </p>
 
       <SectionHeading>Multi-Invoice Allocation Modal</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         The New Payment modal shows a table of all open invoices for the selected customer (or bills for a vendor). Each row shows Invoice#, Due Date, Total, Outstanding, and an editable <b>Amount to Apply</b> column.
       </p>
       <StepList steps={[
@@ -751,7 +751,7 @@ function PaymentsPanel() {
       ]} />
 
       <SectionHeading>What the GL Looks Like</SectionHeading>
-      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 leading-relaxed mt-2">
+      <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-3 font-mono text-[11px] text-[var(--text-primary)]/85 leading-relaxed mt-2">
         Dr  1000 Cash in Hand       400.00<br/>
         &nbsp;&nbsp;&nbsp;&nbsp;Cr  1100 Accounts Receivable        400.00<br/>
         <span className="text-[#7a5c1e]">+ PaymentAllocation {`{`}invoice_id=INV-0042, amount=400.00{`}`}</span><br/>
@@ -774,7 +774,7 @@ function PaymentsPanel() {
 function TaxCodesPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Tax codes decouple the rate from the document. Instead of hard-coding 17% on every
         invoice, you maintain a per-tenant catalog. When a tenant&apos;s standard rate changes,
         you edit the catalog; historical documents keep the rate they were issued with.
@@ -806,7 +806,7 @@ function TaxCodesPanel() {
 function CurrencyPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Every tenant has a <strong>base currency</strong> — that&apos;s what your reports are in.
         Individual invoices and bills can be issued in a different currency; the system snapshots
         the exchange rate at issue time and posts the GL in base currency. Document totals on
@@ -836,7 +836,7 @@ function CurrencyPanel() {
         "The invoice document shows EUR amounts; the GL posts USD (or whatever your base is).",
       ]} />
 
-      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 leading-relaxed mt-3">
+      <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-3 font-mono text-[11px] text-[var(--text-primary)]/85 leading-relaxed mt-3">
         EUR invoice: subtotal=1000, exchange_rate=1.10, total=1000 (EUR)<br/>
         GL post (in base USD):<br/>
         Dr  1100 AR        1,100.00<br/>
@@ -854,7 +854,7 @@ function CurrencyPanel() {
 function RecurringPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Recurring templates capture a journal-entry skeleton and a schedule. The{" "}
         <code className="font-mono text-[11px]">run-due</code> worker endpoint materialises
         a Transaction for every template whose next-run date has arrived and advances the
@@ -896,20 +896,20 @@ function RecurringPanel() {
 function BankImportsPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Bank statement import lets you reconcile your books against the bank&apos;s record.
         Upload a CSV from your bank, the system parses each line and tries to match it to
         an existing journal entry. Anything that doesn&apos;t auto-match is left for manual review.
       </p>
 
       <SectionHeading>CSV Format</SectionHeading>
-      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 leading-relaxed mt-2">
+      <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-3 font-mono text-[11px] text-[var(--text-primary)]/85 leading-relaxed mt-2">
         date,description,debit,credit,balance<br/>
         2026-05-02,Customer payment Alice,0,500,1500<br/>
         2026-05-03,Stripe payout,0,1000,2500<br/>
         2026-05-04,Office rent,200,0,2300
       </div>
-      <p className="text-xs text-[#1a1814]/55 mt-2 leading-relaxed">
+      <p className="text-xs text-[var(--text-primary)]/55 mt-2 leading-relaxed">
         <strong>debit</strong> = money leaving the account (e.g. paying a vendor).{" "}
         <strong>credit</strong> = money arriving (e.g. customer payment). Either column can be blank.
       </p>
@@ -941,7 +941,7 @@ function BankImportsPanel() {
 function PeriodClosePanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The <strong>Period Close</strong> page (Reports → Period Close) closes accounting periods at the
         cadence you need. Create a period with the <strong>Monthly</strong>, <strong>Quarterly</strong>,
         or <strong>Fiscal-Year</strong> presets, then choose how to close it. Closing snapshots per-account
@@ -957,7 +957,7 @@ function PeriodClosePanel() {
       ]} />
 
       <SectionHeading>Carry-forward</SectionHeading>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Balance-sheet (permanent) accounts <strong>carry forward automatically</strong> — Easy-Books computes
         every balance live from the all-time ledger, so the next period opens at the prior closing balance.
         No opening-balance journal is posted.
@@ -985,17 +985,17 @@ function PeriodClosePanel() {
 function RolesPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Easy-Books uses role-based access control. Every user has one of four roles. The first
         user of a tenant is automatically the <strong>owner</strong>; the owner can invite or
         promote other users.
       </p>
 
       <SectionHeading>Role Matrix</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Role</th>
               <th className="px-4 py-2.5 text-left">Read reports</th>
               <th className="px-4 py-2.5 text-left">Post JVs / docs</th>
@@ -1003,7 +1003,7 @@ function RolesPanel() {
               <th className="px-4 py-2.5 text-left">Delete accounts</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["viewer",     "✔", "—", "—", "—"],
               ["accountant", "✔", "✔", "—", "—"],
@@ -1011,11 +1011,11 @@ function RolesPanel() {
               ["owner",      "✔", "✔", "✔", "✔"],
             ].map(([role, r, w, c, d]) => (
               <tr key={role} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-semibold text-[#1a1814] font-mono">{role}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{r}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{w}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{c}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{d}</td>
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)] font-mono">{role}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{r}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{w}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{c}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{d}</td>
               </tr>
             ))}
           </tbody>
@@ -1031,7 +1031,7 @@ function RolesPanel() {
       ]} />
 
       <SectionHeading>Managing your team</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Admins and owners get a <CodeBadge>Team</CodeBadge> page (under <b>System</b> in the sidebar) to run a
         multi-user organisation. Two ways to onboard a colleague:
       </p>
@@ -1042,7 +1042,7 @@ function RolesPanel() {
       ]} />
 
       <SectionHeading>Your profile</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Every user has a <CodeBadge>My Profile</CodeBadge> page to edit their name &amp; phone, change their
         password, upload an avatar, and review their role, organisation, join date and last login.
       </p>
@@ -1059,7 +1059,7 @@ function RolesPanel() {
 function SecurityPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Easy-Books layers several protections so the wrong request can&apos;t do damage. Most are
         invisible if you use the app normally; this panel explains them so integrators know what
         to expect.
@@ -1112,23 +1112,23 @@ function SecurityPanel() {
 function CsvImportPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Easy-Books supports CSV import for bulk-loading master data and transactions.
         Each entity type has its own required column set. Always download the sample template
         from the import dialog before preparing your file.
       </p>
 
       <SectionHeading>Supported Entities</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Entity</th>
               <th className="px-4 py-2.5 text-left">Where to import</th>
               <th className="px-4 py-2.5 text-left">Required fields</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["Transactions", "Journal page",      "date, description, account_code, debit, credit"],
               ["Accounts",     "Chart of Accounts", "code, name, type · optional: parent_code, is_group, is_memo"],
@@ -1137,9 +1137,9 @@ function CsvImportPanel() {
               ["Vendors",      "Vendors page",      "name · optional: email, phone, opening_balance"],
             ].map(([entity, where, fields]) => (
               <tr key={entity} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{entity}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/60">{where}</td>
-                <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]">{fields}</td>
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{entity}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/60">{where}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--primary)]">{fields}</td>
               </tr>
             ))}
           </tbody>
@@ -1167,7 +1167,7 @@ function CsvImportPanel() {
         ].map(({ code, fix }) => (
           <div key={code} className="flex gap-3 items-start">
             <CodeBadge>{code}</CodeBadge>
-            <p className="text-xs text-[#1a1814]/70 leading-relaxed mt-0.5">{fix}</p>
+            <p className="text-xs text-[var(--text-primary)]/70 leading-relaxed mt-0.5">{fix}</p>
           </div>
         ))}
       </div>
@@ -1184,7 +1184,7 @@ function CsvImportPanel() {
 function SubLedgersPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The General Ledger answers <i>&quot;what is the balance of account X?&quot;</i>. Sub-ledgers answer
         <i> &quot;which customer / vendor / product caused that balance, and which document booked it?&quot;</i>.
         Easy-Books wires three sub-ledgers and a cyclic drill-down link graph on top of the GL —
@@ -1193,33 +1193,33 @@ function SubLedgersPanel() {
       </p>
 
       <SectionHeading>The three sub-ledgers</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Sub-ledger</th>
               <th className="px-4 py-2.5 text-left">Endpoint</th>
               <th className="px-4 py-2.5 text-left">Page</th>
               <th className="px-4 py-2.5 text-left">Running balance</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             <tr className="hover:bg-[#faf8f4]">
               <td className="px-4 py-2.5 font-semibold">Customer AR (debit-normal)</td>
-              <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70"><CodeBadge>GET /api/customers/&#123;id&#125;/ledger</CodeBadge></td>
-              <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]"><Link href="/customers" className="underline">/customers/[id]/ledger</Link></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70"><CodeBadge>GET /api/customers/&#123;id&#125;/ledger</CodeBadge></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--primary)]"><Link href="/customers" className="underline">/customers/[id]/ledger</Link></td>
               <td className="px-4 py-2.5">Σ Dr − Σ Cr (positive = owes you)</td>
             </tr>
             <tr className="hover:bg-[#faf8f4]">
               <td className="px-4 py-2.5 font-semibold">Vendor AP (credit-normal)</td>
-              <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70"><CodeBadge>GET /api/vendors/&#123;id&#125;/ledger</CodeBadge></td>
-              <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]"><Link href="/vendors" className="underline">/vendors/[id]/ledger</Link></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70"><CodeBadge>GET /api/vendors/&#123;id&#125;/ledger</CodeBadge></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--primary)]"><Link href="/vendors" className="underline">/vendors/[id]/ledger</Link></td>
               <td className="px-4 py-2.5">Σ Cr − Σ Dr (positive = you owe)</td>
             </tr>
             <tr className="hover:bg-[#faf8f4]">
               <td className="px-4 py-2.5 font-semibold">Product stock card</td>
-              <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70"><CodeBadge>GET /api/products/&#123;id&#125;/stock-card</CodeBadge></td>
-              <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]"><Link href="/products" className="underline">/products/[id]/stock-card</Link></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70"><CodeBadge>GET /api/products/&#123;id&#125;/stock-card</CodeBadge></td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--primary)]"><Link href="/products" className="underline">/products/[id]/stock-card</Link></td>
               <td className="px-4 py-2.5">Σ qty_in − Σ qty_out + value @ WAvg</td>
             </tr>
           </tbody>
@@ -1227,7 +1227,7 @@ function SubLedgersPanel() {
       </div>
 
       <SectionHeading>The cyclic drill-down graph</SectionHeading>
-      <pre className="mt-2 bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 text-[11px] leading-relaxed text-[#1a1814]/80 overflow-x-auto">
+      <pre className="mt-2 bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-3 text-[11px] leading-relaxed text-[var(--text-primary)]/80 overflow-x-auto">
 {`Trial Balance ──▶ click code ──▶ Account Ledger
                                        │
                                        │ click JV no.
@@ -1249,7 +1249,7 @@ function SubLedgersPanel() {
       </pre>
 
       <SectionHeading>Source-document resolution on any JV</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         <CodeBadge>GET /api/transactions/&#123;id&#125;</CodeBadge> now returns a
         <CodeBadge>source_docs[]</CodeBadge> array — the API reverse-resolves which Invoice / Bill
         / Payment / GRN posted this JV, plus <CodeBadge>is_reversed</CodeBadge> and
@@ -1258,16 +1258,16 @@ function SubLedgersPanel() {
       </p>
 
       <SectionHeading>Best practice — accounting standards alignment</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Need</th>
               <th className="px-4 py-2.5 text-left">Standard</th>
               <th className="px-4 py-2.5 text-left">How Easy-Books satisfies it</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["Audit reperformability",        "ISA 230 §A6",      "source_docs[] + reversed_by_id"],
               ["Internal control traceability", "ISA 315.A82",      "Cyclic link graph — every node has in & out links"],
@@ -1277,9 +1277,9 @@ function SubLedgersPanel() {
               ["Change history",                "ISA 240 / SOC 2 CC7.3","AuditLog row per mutation"],
             ].map(([need, std, how]) => (
               <tr key={need} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{need}</td>
-                <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]">{std}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{how}</td>
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{need}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--primary)]">{std}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{how}</td>
               </tr>
             ))}
           </tbody>
@@ -1306,7 +1306,7 @@ function ManufacturingPanel() {
   const { t } = useTranslation()
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The manufacturing track is enabled when you pick <CodeBadge>manufacturing</CodeBadge> as
         your business model at signup. It adds custodial intake of customer-supplied material,
         Bills of Material, value-addition rate plans, and a full production-order lifecycle —
@@ -1323,17 +1323,17 @@ function ManufacturingPanel() {
       ]} />
 
       <SectionHeading>Journal entries by stage</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Stage</th>
               <th className="px-4 py-2.5 text-left">{t('col.debit', 'Debit')}</th>
               <th className="px-4 py-2.5 text-left">{t('col.credit', 'Credit')}</th>
               <th className="px-4 py-2.5 text-left">Movement</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["GRN (with declared value)", "1210 Customer Goods on Hand", "2150 Customer Goods Liab.", "CUSTODIAL_RECEIPT"],
               ["start (own_stock)",         "1201 WIP",                    "1200 Raw Material",         "ISSUE"],
@@ -1344,10 +1344,10 @@ function ManufacturingPanel() {
               ["bill",                      "1100 AR",                     "4010 Service Revenue",      "—"],
             ].map(([stage, dr, cr, mv]) => (
               <tr key={stage} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{stage}</td>
-                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{dr}</td>
-                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{cr}</td>
-                <td className="px-4 py-2.5 font-mono text-[10px] text-[#b8943f]">{mv}</td>
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{stage}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70">{dr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70">{cr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--primary)]">{mv}</td>
               </tr>
             ))}
           </tbody>
@@ -1355,7 +1355,7 @@ function ManufacturingPanel() {
       </div>
 
       <SectionHeading>Rate plan formula</SectionHeading>
-      <pre className="mt-2 bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 text-[11px] leading-relaxed text-[#1a1814]/80 overflow-x-auto">
+      <pre className="mt-2 bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-3 text-[11px] leading-relaxed text-[var(--text-primary)]/80 overflow-x-auto">
 {`base       = per_unit_rate × output_qty
 if includes_materials_at_cost:
   base    += own_material_cost           (your consumables, at WAvg)
@@ -1379,7 +1379,7 @@ total      = subtotal + margin            (excl. GST)`}
       </MistakeCallout>
 
       <SectionHeading>Manufacturing reports</SectionHeading>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
         <li><b>Dashboard</b> — pipeline counts by state, total WIP/FG cost, custodial qty on hand.</li>
         <li><b>WIP aging</b> — open POs (state=started) bucketed by days since start.</li>
         <li><b>Production summary</b> — POs grouped by state with output_qty and cost totals.</li>
@@ -1393,7 +1393,7 @@ function TelecomFranchisePanel() {
   const { t } = useTranslation()
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The telecom-franchise track is enabled when you pick <CodeBadge>telecom_franchise</CodeBadge> as
         your business model at signup. It models a mobile-operator franchise end-to-end: a prepaid
         <b> Tracker</b> wallet, load distribution down a <b>MSR → RSO → Retail</b> chain, SIM
@@ -1413,16 +1413,16 @@ function TelecomFranchisePanel() {
       ]} />
 
       <SectionHeading>Key journal entries</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Operation</th>
               <th className="px-4 py-2.5 text-left">{t('col.debit', 'Debit')}</th>
               <th className="px-4 py-2.5 text-left">{t('col.credit', 'Credit')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["Tracker deposit",        "1210 Tracker Deposit",     "1010 Bank"],
               ["Load order (3% uplift)", "1211 Load Float ×1.03",    "1210 (cash) + 4020 (3%)"],
@@ -1438,9 +1438,9 @@ function TelecomFranchisePanel() {
               ["Fee amortisation",       "5030 Fee Amortisation",    "1301 Accum. Amortisation"],
             ].map(([op, dr, cr]) => (
               <tr key={op} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{op}</td>
-                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{dr}</td>
-                <td className="px-4 py-2.5 font-mono text-[10px] text-[#1a1814]/70">{cr}</td>
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{op}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70">{dr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70">{cr}</td>
               </tr>
             ))}
           </tbody>
@@ -1448,7 +1448,7 @@ function TelecomFranchisePanel() {
       </div>
 
       <SectionHeading>The 3% load uplift</SectionHeading>
-      <pre className="mt-2 bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 text-[11px] leading-relaxed text-[#1a1814]/80 overflow-x-auto">
+      <pre className="mt-2 bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-3 text-[11px] leading-relaxed text-[var(--text-primary)]/80 overflow-x-auto">
 {`Dr 1211 Load Float Asset      cash × 1.03
    Cr 1210 Tracker Deposit        cash
    Cr 4020 Load Uplift Commission cash × 0.03`}
@@ -1468,7 +1468,7 @@ function TelecomFranchisePanel() {
       </MistakeCallout>
 
       <SectionHeading>Telecom reports</SectionHeading>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
         <li><b>Dashboard</b> — tracker & load positions, commission receivable, RSO, MM float, SIM utilisation, FCA month progress.</li>
         <li><b>RSO ledger</b> — per-RSO load in/out, cash collected, open balance.</li>
         <li><b>Float statement</b> — mobile-money system balance vs GL 1214.</li>
@@ -1481,26 +1481,26 @@ function TelecomFranchisePanel() {
 function BulkStatementsPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Bulk actions let you update many records at once. Customer and vendor statements give
         counterparties a period summary of their account standing, ready to print or email.
       </p>
 
       <SectionHeading>Bulk Actions on List Pages</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Every list page (Invoices, Bills, Customers, Vendors, Products) has a checkbox column.
         Select rows and a floating <b>Bulk Action Bar</b> appears at the bottom of the screen.
       </p>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Page</th>
               <th className="px-4 py-2.5 text-left">Available actions</th>
               <th className="px-4 py-2.5 text-left">Guard</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["Invoices", "Mark as Sent, Void, Delete", "Delete only for draft; Void sets status=void without GL reversal"],
               ["Bills", "Mark as Received, Void, Delete", "Same guards as invoices"],
@@ -1509,9 +1509,9 @@ function BulkStatementsPanel() {
               ["Products", "Delete", "Zero stock qty"],
             ].map(([page, actions, guard]) => (
               <tr key={page} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-semibold text-[#1a1814]">{page}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{actions}</td>
-                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/55">{guard}</td>
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{page}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{actions}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[var(--text-primary)]/55">{guard}</td>
               </tr>
             ))}
           </tbody>
@@ -1553,30 +1553,30 @@ function BulkStatementsPanel() {
 function TipsShortcutsPanel() {
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         Quick tips to work faster in Easy-Books — keyboard shortcuts, list-page features,
         and document-number customisation.
       </p>
 
       <SectionHeading>Keyboard Shortcuts</SectionHeading>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Key</th>
               <th className="px-4 py-2.5 text-left">Action</th>
               <th className="px-4 py-2.5 text-left">Works on</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["N", "Open New / Create modal", "Invoices, Bills, Customers, Vendors, Products, Journal, Bank Accounts"],
               ["Esc", "Close the currently open modal", "All modals"],
             ].map(([key, action, where]) => (
               <tr key={key} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5"><code className="font-mono text-[11px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5">{key}</code></td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{action}</td>
-                <td className="px-4 py-2.5 text-[10px] text-[#1a1814]/55">{where}</td>
+                <td className="px-4 py-2.5"><code className="font-mono text-[11px] bg-[var(--bg-page)] border border-[var(--border)] rounded px-1.5 py-0.5">{key}</code></td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{action}</td>
+                <td className="px-4 py-2.5 text-[10px] text-[var(--text-primary)]/55">{where}</td>
               </tr>
             ))}
           </tbody>
@@ -1587,20 +1587,20 @@ function TipsShortcutsPanel() {
       </TipCallout>
 
       <SectionHeading>Document Number Format</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Go to <b>Settings → Document Numbers</b> to customise the invoice and bill number format.
         Supported tokens:
       </p>
-      <div className="mt-2 rounded-xl overflow-hidden border border-[#ede9e2]">
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-[#f6f3ee] text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/60">
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Token</th>
               <th className="px-4 py-2.5 text-left">Meaning</th>
               <th className="px-4 py-2.5 text-left">Example</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#ede9e2]">
+          <tbody className="divide-y divide-[var(--border)]">
             {[
               ["{prefix}",         "The prefix you set (INV, BILL, etc.)", "INV"],
               ["{seq:04d}",        "4-digit zero-padded sequence number",  "0042"],
@@ -1608,16 +1608,16 @@ function TipsShortcutsPanel() {
               ["{MM}",             "2-digit month",                        "05"],
             ].map(([token, meaning, example]) => (
               <tr key={token} className="hover:bg-[#faf8f4]">
-                <td className="px-4 py-2.5 font-mono text-[#b8943f]">{token}</td>
-                <td className="px-4 py-2.5 text-[#1a1814]/70">{meaning}</td>
-                <td className="px-4 py-2.5 font-mono text-[#1a1814]/55">{example}</td>
+                <td className="px-4 py-2.5 font-mono text-[var(--primary)]">{token}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{meaning}</td>
+                <td className="px-4 py-2.5 font-mono text-[var(--text-primary)]/55">{example}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-[#1a1814]/65 mt-2">
-        Example format: <code className="font-mono text-[11px] bg-[#f6f3ee] border border-[#ede9e2] rounded px-1.5 py-0.5">INV-{"{YYYY}"}-{"{seq:04d}"}</code> → <b>INV-2026-0001</b>
+      <p className="text-xs text-[var(--text-primary)]/65 mt-2">
+        Example format: <code className="font-mono text-[11px] bg-[var(--bg-page)] border border-[var(--border)] rounded px-1.5 py-0.5">INV-{"{YYYY}"}-{"{seq:04d}"}</code> → <b>INV-2026-0001</b>
       </p>
 
       <SectionHeading>Sorting & Filtering Lists</SectionHeading>
@@ -1629,13 +1629,13 @@ function TipsShortcutsPanel() {
       ]} />
 
       <SectionHeading>Breadcrumb Navigation</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Every detail page (invoice, bill, customer ledger, etc.) shows a breadcrumb nav at the top:
       </p>
-      <div className="bg-[#faf6ec] border border-[#ede9e2] rounded-xl p-3 font-mono text-[11px] text-[#1a1814]/85 mt-2">
+      <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-3 font-mono text-[11px] text-[var(--text-primary)]/85 mt-2">
         Invoices › INV-2026-0042
       </div>
-      <p className="text-xs text-[#1a1814]/55 mt-1.5">
+      <p className="text-xs text-[var(--text-primary)]/55 mt-1.5">
         Clicking the parent segment always goes to the list page — even if you navigated directly via a URL.
       </p>
 
@@ -1659,7 +1659,7 @@ function TipsShortcutsPanel() {
 
 function DebitNotesPanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>Purchase Returns (Debit Notes)</SectionHeading>
       <p>
         When you return goods to a vendor, a Debit Note reverses the purchase: it reduces what you owe
@@ -1687,7 +1687,7 @@ function DebitNotesPanel() {
 
 function AdvancesPanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>Customer & Vendor Advances</SectionHeading>
       <p>
         Advances are prepayments — cash that moves before an invoice or bill exists. Record the advance,
@@ -1716,7 +1716,7 @@ function AdvancesPanel() {
 
 function CreditNotesPanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>What Credit Notes Do</SectionHeading>
       <p>
         A credit note reduces what a customer owes you — for returns, price adjustments, or rebates.
@@ -1744,7 +1744,7 @@ function CreditNotesPanel() {
 
 function PurchaseOrdersPanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>Purchase Order Workflow</SectionHeading>
       <p>
         Purchase orders add a pre-approval step before money is committed. Raise a PO, get it approved,
@@ -1766,7 +1766,7 @@ function PurchaseOrdersPanel() {
 
 function AnalyticPanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>Cost Centers, Projects & Departments</SectionHeading>
       <p>
         Analytic accounts are an optional second dimension you can tag onto journal lines, invoice lines,
@@ -1787,7 +1787,7 @@ function AnalyticPanel() {
 
 function FixedAssetsPanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>Fixed Asset Register & Depreciation</SectionHeading>
       <p>
         Track long-lived assets (laptops, vehicles, machinery) and depreciate them systematically over
@@ -1809,7 +1809,7 @@ function FixedAssetsPanel() {
 
 function DeferredRevenuePanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>Deferred Revenue Recognition (IFRS 15)</SectionHeading>
       <p>
         When you invoice a customer for a service delivered over time (e.g. an annual support contract),
@@ -1831,7 +1831,7 @@ function DeferredRevenuePanel() {
 
 function BudgetsPanel() {
   return (
-    <div className="space-y-3 text-sm text-[#1a1814]/80 leading-relaxed">
+    <div className="space-y-3 text-sm text-[var(--text-primary)]/80 leading-relaxed">
       <SectionHeading>Budgets & Variance Analysis</SectionHeading>
       <p>
         Set a monthly budget per account and compare it against actual GL activity to spot overspend
@@ -1854,13 +1854,13 @@ function DashboardCustomizationPanel() {
   const { t } = useTranslation()
   return (
     <div>
-      <p className="text-sm text-[#1a1814]/70 leading-relaxed">
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The dashboard is fully customizable per user. Your layout is saved to your account —
         other users see their own arrangement.
       </p>
 
       <SectionHeading>Entering customize mode</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Click the customize icon (pencil/grid icon) in the dashboard toolbar to enter customize
         mode. The editing bar appears at the top showing which layout you&apos;re editing
         (<b>Desktop layout</b>, <b>Tablet layout</b>, or <b>Phone layout</b>).
@@ -1874,34 +1874,34 @@ function DashboardCustomizationPanel() {
       ]} />
 
       <SectionHeading>Per-breakpoint layouts</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Each screen size has its own saved arrangement:
       </p>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Desktop</b> (≥1024 px) — 4-column grid</li>
         <li><b>Tablet</b> (640–1023 px) — 2-column grid</li>
         <li><b>Phone</b> (&lt;640 px) — 1-column grid</li>
       </ul>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-2">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-2">
         Resize your browser to switch breakpoints. The toolbar label updates to show which
         layout you&apos;re editing. Desktop edits don&apos;t affect your phone layout until you
         edit it directly.
       </p>
 
       <SectionHeading>Adding widgets and shortcuts</SectionHeading>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-1">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
         Click <b>+ Add widget</b> in the toolbar to open the Add panel:
       </p>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Widgets tab</b> — Bank Balances, Top Products, Inventory Summary — self-fetching data widgets</li>
         <li><b>Shortcuts tab</b> — pin any navigation page as a quick-access tile (e.g., Invoices, Bills, Products, Bank Accounts)</li>
       </ul>
-      <p className="text-xs text-[#1a1814]/65 leading-relaxed mt-2">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-2">
         Shortcut tiles show live metric badges where available (e.g., overdue count, total outstanding).
       </p>
 
       <SectionHeading>Saving and resetting</SectionHeading>
-      <ul className="text-xs text-[#1a1814]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Done</b> — saves your layout and exits customize mode</li>
         <li><b>{t('common.cancel', 'Cancel')}</b> — discards unsaved changes</li>
         <li><b>Reset all</b> — removes all customizations and returns to the default grid for all screen sizes</li>
@@ -1988,28 +1988,28 @@ export default function GuidePage() {
   return (
     <div className="space-y-5">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-[#1a1814]/50">
-        <Link href="/dashboard" className="hover:text-[#b8943f] transition-colors">Dashboard</Link>
+      <nav className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/50">
+        <Link href="/dashboard" className="hover:text-[var(--primary)] transition-colors">Dashboard</Link>
         <ChevronRight className="w-3 h-3" />
-        <span className="text-[#1a1814]/80 font-medium">User Guide</span>
+        <span className="text-[var(--text-primary)]/80 font-medium">User Guide</span>
       </nav>
 
       {/* Page header */}
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#1a1814] flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-[var(--text-primary)] flex items-center justify-center flex-shrink-0">
           <BookOpen className="w-5 h-5 text-[#ffd966]" />
         </div>
         <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">User Guide</h1>
-          <p className="text-xs text-[#1a1814]/50 mt-0.5 font-medium tracking-wide uppercase">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">User Guide</h1>
+          <p className="text-xs text-[var(--text-primary)]/50 mt-0.5 font-medium tracking-wide uppercase">
             Comprehensive reference for Easy-Books
           </p>
         </div>
       </div>
 
       {/* Tab strip — horizontal scroll on mobile */}
-      <div className="bg-white border border-[#ede9e2] rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto border-b border-[#ede9e2]">
+      <div className="bg-white border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto border-b border-[var(--border)]">
           <div className="flex min-w-max">
             {visibleTabs.map(tab => {
               const Icon = tab.icon
@@ -2021,8 +2021,8 @@ export default function GuidePage() {
                   className={[
                     "flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-all whitespace-nowrap",
                     isActive
-                      ? "border-[#b8943f] text-[#b8943f] bg-[#faf6ec]"
-                      : "border-transparent text-[#1a1814]/55 hover:text-[#1a1814] hover:bg-[#f6f3ee]",
+                      ? "border-[var(--primary)] text-[var(--primary)] bg-[var(--bg-page)]"
+                      : "border-transparent text-[var(--text-primary)]/55 hover:text-[var(--text-primary)] hover:bg-[var(--bg-page)]",
                   ].join(" ")}
                 >
                   <Icon className="w-3.5 h-3.5 flex-shrink-0" />
@@ -2035,9 +2035,9 @@ export default function GuidePage() {
         </div>
 
         {/* Active tab header */}
-        <div className="px-5 pt-4 pb-1 flex items-center gap-2 border-b border-[#ede9e2] bg-[#f6f3ee]">
-          <ActiveIcon className="w-4 h-4 text-[#b8943f]" />
-          <h2 className="text-sm font-bold text-[#1a1814]">{activeTabDef.label}</h2>
+        <div className="px-5 pt-4 pb-1 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-page)]">
+          <ActiveIcon className="w-4 h-4 text-[var(--primary)]" />
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">{activeTabDef.label}</h2>
         </div>
 
         {/* Panel content */}
@@ -2059,7 +2059,7 @@ export default function GuidePage() {
                 {prev && (
                   <button
                     onClick={() => setActiveTab(prev.id)}
-                    className="flex items-center gap-1.5 text-xs text-[#1a1814]/55 hover:text-[#b8943f] transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/55 hover:text-[var(--primary)] transition-colors"
                   >
                     <ChevronRight className="w-3.5 h-3.5 rotate-180" />
                     {prev.label}
@@ -2070,7 +2070,7 @@ export default function GuidePage() {
                 {next && (
                   <button
                     onClick={() => setActiveTab(next.id)}
-                    className="flex items-center gap-1.5 text-xs text-[#1a1814]/55 hover:text-[#b8943f] transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-[var(--text-primary)]/55 hover:text-[var(--primary)] transition-colors"
                   >
                     {next.label}
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -2083,9 +2083,9 @@ export default function GuidePage() {
       </div>
 
       {/* Also see */}
-      <div className="bg-[#f6f3ee] border border-[#ede9e2] rounded-xl px-5 py-4 text-xs text-[#1a1814]/60 leading-relaxed">
-        <span className="font-semibold text-[#b8943f]">Also see:</span>{" "}
-        <Link href="/workflow" className="text-[#b8943f] underline underline-offset-2 hover:text-[#7a5c1e]">
+      <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded-xl px-5 py-4 text-xs text-[var(--text-primary)]/60 leading-relaxed">
+        <span className="font-semibold text-[var(--primary)]">Also see:</span>{" "}
+        <Link href="/workflow" className="text-[var(--primary)] underline underline-offset-2 hover:text-[#7a5c1e]">
           Transaction Workflow
         </Link>
         {" "}for a visual flowchart of how each transaction type maps to GL entries.

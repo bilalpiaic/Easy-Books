@@ -78,19 +78,19 @@ export default function TeamPage() {
     <div className="space-y-6 max-w-4xl">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Users className="w-7 h-7 text-[#b8943f]" />
+          <Users className="w-7 h-7 text-[var(--primary)]" />
           <div>
-            <h1 className="text-2xl font-serif font-semibold text-[#1a1814]">Team</h1>
-            <p className="text-sm text-[#1a1814]/60">Manage who can access this organisation and what they can do.</p>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Team</h1>
+            <p className="text-sm text-[var(--text-primary)]/60">Manage who can access this organisation and what they can do.</p>
           </div>
         </div>
-        <button onClick={() => downloadCSV('team-members.csv', members.map(m => ({ Name: m.full_name ?? '', Email: m.email, Role: m.role, Status: m.is_active ? 'Active' : 'Inactive', "Last Login": m.last_login_at ?? '' })))} disabled={members.length === 0} className="inline-flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] disabled:opacity-40">
+        <button onClick={() => downloadCSV('team-members.csv', members.map(m => ({ Name: m.full_name ?? '', Email: m.email, Role: m.role, Status: m.is_active ? 'Active' : 'Inactive', "Last Login": m.last_login_at ?? '' })))} disabled={members.length === 0} className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-40">
           <Download className="w-4 h-4" /> CSV
         </button>
       </header>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-900 rounded-xl px-4 py-3 text-sm">{error}</div>}
-      {loading ? <p className="text-sm text-[#1a1814]/60">Loading…</p> : (
+      {loading ? <p className="text-sm text-[var(--text-primary)]/60">Loading…</p> : (
         <>
           <MembersTable members={members} meEmail={meEmail} isOwner={isOwner} onChange={reload} />
           <AddMember isOwner={isOwner} onChange={reload} />
@@ -102,7 +102,7 @@ export default function TeamPage() {
 }
 
 function RoleBadge({ role }: { role: string }) {
-  const tone = role === "owner" ? "bg-[#b8943f]/15 text-[#7a5c1e]"
+  const tone = role === "owner" ? "bg-[var(--primary)]/15 text-[#7a5c1e]"
     : role === "admin" ? "bg-purple-50 text-purple-800"
     : role === "accountant" ? "bg-blue-50 text-blue-800"
     : "bg-slate-100 text-slate-700"
@@ -141,12 +141,12 @@ function MembersTable({ members, meEmail, isOwner, onChange }: {
 
   return (
     <section className="space-y-2">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50">Members ({members.length})</h2>
+      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50">Members ({members.length})</h2>
       {err && <p className="text-sm text-red-700">{err}</p>}
       {resetInfo && <CopyBanner label={`Temporary password for ${resetInfo.email}`} value={resetInfo.pwd} onClose={() => setResetInfo(null)} />}
-      <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-x-auto">
+      <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+          <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-2 font-semibold">Member</th>
               <th className="text-left px-4 py-2 font-semibold">Role</th>
@@ -160,10 +160,10 @@ function MembersTable({ members, meEmail, isOwner, onChange }: {
               const isSelf = m.email === meEmail
               const locked = busyId === m.id
               return (
-                <tr key={m.id} className="border-t border-[#ede9e2]">
+                <tr key={m.id} className="border-t border-[var(--border)]">
                   <td className="px-4 py-2.5">
-                    <div className="font-medium text-[#1a1814]">{m.full_name || "—"}{isSelf && <span className="text-[10px] text-[#1a1814]/40"> (you)</span>}</div>
-                    <div className="text-xs text-[#1a1814]/55">{m.email}</div>
+                    <div className="font-medium text-[var(--text-primary)]">{m.full_name || "—"}{isSelf && <span className="text-[10px] text-[var(--text-primary)]/40"> (you)</span>}</div>
+                    <div className="text-xs text-[var(--text-primary)]/55">{m.email}</div>
                   </td>
                   <td className="px-4 py-2.5">
                     {isSelf ? <RoleBadge role={m.role} /> : (
@@ -171,7 +171,7 @@ function MembersTable({ members, meEmail, isOwner, onChange }: {
                         value={m.role}
                         disabled={locked}
                         onChange={e => patch(m.id, { role: e.target.value })}
-                        className="rounded-lg border border-[#ede9e2] bg-white px-2 py-1 text-xs focus:border-[#b8943f] focus:outline-none"
+                        className="rounded-lg border border-[var(--border)] bg-white px-2 py-1 text-xs focus:border-[var(--primary)] focus:outline-none"
                         title={ROLE_DESC[m.role]}
                       >
                         {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
@@ -183,20 +183,20 @@ function MembersTable({ members, meEmail, isOwner, onChange }: {
                   <td className="px-4 py-2.5">
                     {m.is_active
                       ? <span className="text-emerald-700 text-xs font-semibold">{t('status.active', 'Active')}</span>
-                      : <span className="text-[#1a1814]/45 text-xs font-semibold">{t('status.inactive', 'Inactive')}</span>}
+                      : <span className="text-[var(--text-primary)]/45 text-xs font-semibold">{t('status.inactive', 'Inactive')}</span>}
                     {m.must_change_password && <span className="block text-[10px] text-amber-700">temp password</span>}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-[#1a1814]/60">{fmtDate(m.last_login_at)}</td>
+                  <td className="px-4 py-2.5 text-xs text-[var(--text-primary)]/60">{fmtDate(m.last_login_at)}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center justify-end gap-1.5">
-                      {locked && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#b8943f]" />}
+                      {locked && <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--primary)]" />}
                       {!isSelf && (m.is_active
                         ? <button onClick={() => patch(m.id, { is_active: false })} disabled={locked}
-                            title="Deactivate" className="p-1.5 rounded-md text-[#1a1814]/50 hover:text-red-600 hover:bg-red-50 transition"><Trash2 className="w-4 h-4" /></button>
+                            title="Deactivate" className="p-1.5 rounded-md text-[var(--text-primary)]/50 hover:text-red-600 hover:bg-red-50 transition"><Trash2 className="w-4 h-4" /></button>
                         : <button onClick={() => patch(m.id, { is_active: true })} disabled={locked}
-                            title="Reactivate" className="p-1.5 rounded-md text-[#1a1814]/50 hover:text-emerald-600 hover:bg-emerald-50 transition"><RotateCcw className="w-4 h-4" /></button>)}
+                            title="Reactivate" className="p-1.5 rounded-md text-[var(--text-primary)]/50 hover:text-emerald-600 hover:bg-emerald-50 transition"><RotateCcw className="w-4 h-4" /></button>)}
                       <button onClick={() => resetPwd(m.id, m.email)} disabled={locked}
-                        title="Reset password" className="p-1.5 rounded-md text-[#1a1814]/50 hover:text-[#b8943f] hover:bg-[#faf6ec] transition"><KeyRound className="w-4 h-4" /></button>
+                        title="Reset password" className="p-1.5 rounded-md text-[var(--text-primary)]/50 hover:text-[var(--primary)] hover:bg-[var(--bg-page)] transition"><KeyRound className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -219,7 +219,7 @@ function AddMember({ isOwner, onChange }: { isOwner: boolean; onChange: () => vo
   const [created, setCreated] = useState<{ label: string; value: string } | null>(null)
 
   const roleOptions = ROLES.filter(r => r !== "owner" || isOwner)
-  const inputCls = "mt-1 w-full rounded-lg border border-[#ede9e2] bg-white px-3 py-2 text-sm focus:border-[#b8943f] focus:outline-none"
+  const inputCls = "mt-1 w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr(null); setCreated(null)
@@ -244,12 +244,12 @@ function AddMember({ isOwner, onChange }: { isOwner: boolean; onChange: () => vo
   }
 
   return (
-    <section className="bg-white border border-[#ede9e2] rounded-2xl p-5 space-y-4">
+    <section className="bg-white border border-[var(--border)] rounded-2xl p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-[#1a1814]"><UserPlus className="w-4 h-4 text-[#b8943f]" /> Add a member</h2>
-        <div className="flex rounded-lg border border-[#ede9e2] overflow-hidden text-xs">
-          <button onClick={() => setMode("create")} className={`px-3 py-1.5 font-medium ${mode === "create" ? "bg-[#b8943f] text-black" : "text-[#1a1814]/60"}`}>Create account</button>
-          <button onClick={() => setMode("invite")} className={`px-3 py-1.5 font-medium ${mode === "invite" ? "bg-[#b8943f] text-black" : "text-[#1a1814]/60"}`}>Send invite</button>
+        <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]"><UserPlus className="w-4 h-4 text-[var(--primary)]" /> Add a member</h2>
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
+          <button onClick={() => setMode("create")} className={`px-3 py-1.5 font-medium ${mode === "create" ? "bg-[var(--primary)] text-black" : "text-[var(--text-primary)]/60"}`}>Create account</button>
+          <button onClick={() => setMode("invite")} className={`px-3 py-1.5 font-medium ${mode === "invite" ? "bg-[var(--primary)] text-black" : "text-[var(--text-primary)]/60"}`}>Send invite</button>
         </div>
       </div>
 
@@ -258,30 +258,30 @@ function AddMember({ isOwner, onChange }: { isOwner: boolean; onChange: () => vo
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="block sm:col-span-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-[#1a1814]/55">Email</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-primary)]/55">Email</span>
             <input type="email" required className={inputCls} value={email} onChange={e => setEmail(e.target.value)} />
           </label>
           {mode === "create" && (
             <label className="block">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#1a1814]/55">Full name</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-primary)]/55">Full name</span>
               <input required className={inputCls} value={name} onChange={e => setName(e.target.value)} />
             </label>
           )}
           <label className="block">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-[#1a1814]/55">Role</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-primary)]/55">Role</span>
             <select className={inputCls} value={role} onChange={e => setRole(e.target.value)}>
               {roleOptions.map(r => <option key={r} value={r}>{r} — {ROLE_DESC[r]}</option>)}
             </select>
           </label>
         </div>
         {err && <p className="text-sm text-red-700">{err}</p>}
-        <p className="text-[11px] text-[#1a1814]/45">
+        <p className="text-[11px] text-[var(--text-primary)]/45">
           {mode === "create"
             ? "Creates the account immediately with a temporary password (shown once). The user must change it at first login."
             : "Generates a one-time invite link valid for 7 days. Share it with the recipient — they set their own password."}
         </p>
         <button type="submit" disabled={busy}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#b8943f] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "create" ? <UserPlus className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
           {mode === "create" ? "Create account" : "Generate invite link"}
         </button>
@@ -301,10 +301,10 @@ function Invites({ invites, isOwner, onChange }: { invites: Invite[]; isOwner: b
   if (invites.length === 0) return null
   return (
     <section className="space-y-2">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50">Pending invites ({invites.length})</h2>
-      <div className="bg-white border border-[#ede9e2] rounded-2xl overflow-x-auto">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50">Pending invites ({invites.length})</h2>
+      <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-[#faf6ec] text-[#1a1814]/70 text-xs uppercase tracking-wide">
+          <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-2 font-semibold">Email</th>
               <th className="text-left px-4 py-2 font-semibold">Role</th>
@@ -314,7 +314,7 @@ function Invites({ invites, isOwner, onChange }: { invites: Invite[]; isOwner: b
           </thead>
           <tbody>
             {invites.map(iv => (
-              <tr key={iv.id} className="border-t border-[#ede9e2]">
+              <tr key={iv.id} className="border-t border-[var(--border)]">
                 <td className="px-4 py-2.5">{iv.email}{iv.expired && <span className="text-[10px] text-red-600"> (expired)</span>}</td>
                 <td className="px-4 py-2.5"><RoleBadge role={iv.role} /></td>
                 <td className="px-4 py-2.5">
@@ -322,7 +322,7 @@ function Invites({ invites, isOwner, onChange }: { invites: Invite[]; isOwner: b
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <button onClick={() => revoke(iv.id)} disabled={busyId === iv.id}
-                    className="p-1.5 rounded-md text-[#1a1814]/50 hover:text-red-600 hover:bg-red-50 transition" title="Revoke">
+                    className="p-1.5 rounded-md text-[var(--text-primary)]/50 hover:text-red-600 hover:bg-red-50 transition" title="Revoke">
                     {busyId === iv.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   </button>
                 </td>
@@ -340,7 +340,7 @@ function CopyButton({ value }: { value: string }) {
   return (
     <button
       onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-[#ede9e2] text-xs hover:bg-[#f6f3ee] transition"
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-[var(--border)] text-xs hover:bg-[var(--bg-page)] transition"
     >
       {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
       {copied ? "Copied" : "Copy link"}

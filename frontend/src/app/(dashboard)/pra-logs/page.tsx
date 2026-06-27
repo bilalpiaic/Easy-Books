@@ -32,14 +32,14 @@ export default function PRALogsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl sm:text-3xl font-serif font-medium">PRA Submission Logs</h1>
-        <p className="text-sm text-black/75 mt-1">Audit trail of every PRA e-IMS API call</p>
+        <h1 className="text-xl sm:text-3xl font-bold">PRA Submission Logs</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Audit trail of every PRA e-IMS API call</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
-            <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+            <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
               <tr>
                 <th className="ui-th text-left">Date / Time</th>
                 <th className="ui-th text-left">Invoice</th>
@@ -49,16 +49,16 @@ export default function PRALogsPage() {
                 <th className="ui-th text-left">Error</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#ede9e2]">
+            <tbody className="divide-y divide-[var(--border)]">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-black/40">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-[var(--text-muted)]">Loading…</td></tr>
               ) : logs.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-black/40">No PRA submissions yet.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-[var(--text-muted)]">No PRA submissions yet.</td></tr>
               ) : logs.map(log => (
                 <tr key={log.id} className={log.success ? "" : "bg-red-50/30"}>
-                  <td className="ui-td whitespace-nowrap text-black/60">{fmtDate(log.attempt_at)}</td>
+                  <td className="ui-td whitespace-nowrap text-[var(--text-muted)]">{fmtDate(log.attempt_at)}</td>
                   <td className="ui-td">
-                    <Link href={`/invoices/${log.invoice_id}`} className="text-[#b8943f] font-mono font-bold hover:underline">
+                    <Link href={`/invoices/${log.invoice_id}`} className="text-[var(--primary)] font-mono font-bold hover:underline">
                       #{log.invoice_id}
                     </Link>
                   </td>

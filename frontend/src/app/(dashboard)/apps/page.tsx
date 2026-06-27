@@ -27,16 +27,16 @@ function ModuleCard({ mod, onInstall, onUninstall, busy }: {
   const Icon = ICON_MAP[mod.icon] ?? Package
 
   return (
-    <div className={`bg-white rounded-xl border p-5 flex flex-col gap-3 shadow-sm transition-shadow hover:shadow-md ${mod.installed ? "border-[#b8943f]/40" : "border-gray-200"}`}>
+    <div className={`bg-white rounded-xl border p-5 flex flex-col gap-3 shadow-sm transition-shadow hover:shadow-md ${mod.installed ? "border-[var(--primary)]/40" : "border-gray-200"}`}>
       <div className="flex items-start gap-3">
-        <div className={`rounded-lg p-2.5 flex-shrink-0 ${mod.installed ? "bg-[#b8943f]/10 text-[#b8943f]" : "bg-gray-100 text-gray-500"}`}>
+        <div className={`rounded-lg p-2.5 flex-shrink-0 ${mod.installed ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "bg-gray-100 text-gray-500"}`}>
           <Icon className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-[#1a1814] text-sm">{mod.label}</h3>
+            <h3 className="font-semibold text-[var(--text-primary)] text-sm">{mod.label}</h3>
             {mod.always && <span title="Required — cannot be uninstalled"><Lock className="w-3.5 h-3.5 text-gray-400" /></span>}
-            {mod.installed && !mod.always && <CheckCircle2 className="w-3.5 h-3.5 text-[#b8943f]" />}
+            {mod.installed && !mod.always && <CheckCircle2 className="w-3.5 h-3.5 text-[var(--primary)]" />}
           </div>
           <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{mod.description}</p>
         </div>
@@ -63,7 +63,7 @@ function ModuleCard({ mod, onInstall, onUninstall, busy }: {
           <button
             onClick={() => onInstall(mod.id)}
             disabled={busy}
-            className="text-xs bg-[#b8943f] text-white rounded px-3 py-1.5 hover:bg-[#a07832] transition-colors disabled:opacity-50 font-medium"
+            className="text-xs bg-[var(--primary)] text-white rounded px-3 py-1.5 hover:bg-[#a07832] transition-colors disabled:opacity-50 font-medium"
           >
             {busy ? "Installing…" : "Install"}
           </button>
@@ -114,7 +114,7 @@ export default function AppsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#1a1814]">Apps</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Apps</h1>
         <p className="text-sm text-gray-500 mt-1">
           {installedCount} of {modules.length} modules installed.
           Install modules to unlock additional sections in your sidebar.

@@ -110,7 +110,7 @@ export default function ReportBuilderPage() {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <select value={sourceKey} onChange={e => pickSource(e.target.value)}
-          className="text-sm border border-[#ede9e2] rounded-lg px-3 py-2 bg-white">
+          className="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-white">
           {sources.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
 
@@ -119,7 +119,7 @@ export default function ReportBuilderPage() {
           <select
             value={currentPreset}
             onChange={e => onPeriodChange(e.target.value)}
-            className="text-sm border border-[#ede9e2] rounded-lg px-3 py-2 bg-white"
+            className="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-white"
             title="Date period"
           >
             {PERIOD_OPTIONS.map(o => (
@@ -152,14 +152,14 @@ export default function ReportBuilderPage() {
 
       {/* Footer: row count + pagination */}
       {result && (
-        <div className="flex items-center justify-between text-xs text-black/50">
+        <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
           <span>{result.total_count} rows</span>
           {totalPages > 1 && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => goToPage(page - 1)}
                 disabled={page === 0}
-                className="flex items-center gap-1 px-2 py-1 border border-[#ede9e2] rounded disabled:opacity-40 enabled:hover:border-[#b8943f] enabled:hover:text-[#b8943f]"
+                className="flex items-center gap-1 px-2 py-1 border border-[var(--border)] rounded disabled:opacity-40 enabled:hover:border-[var(--primary)] enabled:hover:text-[var(--primary)]"
               >
                 <ChevronLeft size={14} /> Prev
               </button>
@@ -167,7 +167,7 @@ export default function ReportBuilderPage() {
               <button
                 onClick={() => goToPage(page + 1)}
                 disabled={page >= totalPages - 1}
-                className="flex items-center gap-1 px-2 py-1 border border-[#ede9e2] rounded disabled:opacity-40 enabled:hover:border-[#b8943f] enabled:hover:text-[#b8943f]"
+                className="flex items-center gap-1 px-2 py-1 border border-[var(--border)] rounded disabled:opacity-40 enabled:hover:border-[var(--primary)] enabled:hover:text-[var(--primary)]"
               >
                 Next <ChevronRight size={14} />
               </button>

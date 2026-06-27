@@ -120,11 +120,11 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
   return (
     <div className="space-y-6">
       {/* Column guide */}
-      <div className="bg-[#f6f3ee] border border-[#ede9e2] rounded-xl p-4">
-        <p className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 mb-1">Required columns</p>
-        <code className="text-sm text-[#1a1814] font-mono break-all">{entity.columns}</code>
+      <div className="bg-[var(--bg-page)] border border-[var(--border)] rounded-xl p-4">
+        <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Required columns</p>
+        <code className="text-sm text-[var(--text-primary)] font-mono break-all">{entity.columns}</code>
         {entity.notes && (
-          <p className="text-xs text-[#1a1814]/60 mt-2">{entity.notes}</p>
+          <p className="text-xs text-[var(--text-primary)]/60 mt-2">{entity.notes}</p>
         )}
       </div>
 
@@ -132,21 +132,21 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
       <div className="flex items-center gap-3">
         <button
           onClick={downloadSample}
-          className="flex items-center gap-2 px-4 py-2 border border-[#b8943f] text-[#b8943f] rounded-xl text-sm font-bold hover:bg-[#b8943f]/10 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 border border-[var(--primary)] text-[var(--primary)] rounded-xl text-sm font-bold hover:bg-[var(--primary)]/10 transition-colors"
         >
           <Download className="w-4 h-4" />
           Download sample CSV
         </button>
-        <span className="text-xs text-[#1a1814]/50">Shows the correct column format with example rows</span>
+        <span className="text-xs text-[var(--text-primary)]/50">Shows the correct column format with example rows</span>
       </div>
 
       {/* File picker */}
       <div>
-        <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">
+        <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">
           Select CSV file
         </label>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[#b8943f] hover:text-black transition-all">
+          <label className="flex items-center gap-2 px-4 py-2 bg-[var(--text-primary)] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[var(--primary)] hover:text-black transition-all">
             <Upload className="w-4 h-4" />
             Choose file
             <input
@@ -158,7 +158,7 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
             />
           </label>
           {file && (
-            <span className="text-sm text-[#1a1814]/75 flex items-center gap-1">
+            <span className="text-sm text-[var(--text-primary)]/75 flex items-center gap-1">
               <FileText className="w-4 h-4" /> {file.name}
             </span>
           )}
@@ -171,7 +171,7 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
           <button
             onClick={validate}
             disabled={validating}
-            className="flex items-center gap-2 px-5 py-2.5 border border-[#1a1814] rounded-xl text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 border border-[var(--text-primary)] rounded-xl text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-50"
           >
             {validating ? 'Validating…' : 'Validate'}
           </button>
@@ -179,7 +179,7 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
             <button
               onClick={doImport}
               disabled={importing}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#1a1814] text-white rounded-xl text-sm font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[var(--text-primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50"
             >
               {importing ? 'Importing…' : `Import ${validation!.valid_count} row${validation!.valid_count !== 1 ? 's' : ''}`}
             </button>
@@ -212,18 +212,18 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
           </div>
 
           {validation.errors.length > 0 && (
-            <div className="border border-[#ede9e2] rounded-xl overflow-hidden">
+            <div className="border border-[var(--border)] rounded-xl overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-[#f6f3ee]">
+                <thead className="bg-[var(--bg-page)]">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 w-16">Row</th>
-                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Issue</th>
+                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 w-16">Row</th>
+                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Issue</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {validation.errors.map((e, i) => (
-                    <tr key={i} className="hover:bg-[#f6f3ee]/50">
-                      <td className="px-4 py-2 text-[#1a1814]/50 font-mono">{e.row ?? '—'}</td>
+                    <tr key={i} className="hover:bg-[var(--bg-page)]/50">
+                      <td className="px-4 py-2 text-[var(--text-primary)]/50 font-mono">{e.row ?? '—'}</td>
                       <td className="px-4 py-2 text-red-700">{e.message}</td>
                     </tr>
                   ))}
@@ -251,18 +251,18 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
           </div>
 
           {result.errors.length > 0 && (
-            <div className="border border-[#ede9e2] rounded-xl overflow-hidden">
+            <div className="border border-[var(--border)] rounded-xl overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-[#f6f3ee]">
+                <thead className="bg-[var(--bg-page)]">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60 w-16">Row</th>
-                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[#1a1814]/60">Issue</th>
+                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 w-16">Row</th>
+                    <th className="px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Issue</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {result.errors.map((e, i) => (
-                    <tr key={i} className="hover:bg-[#f6f3ee]/50">
-                      <td className="px-4 py-2 text-[#1a1814]/50 font-mono">{e.row ?? '—'}</td>
+                    <tr key={i} className="hover:bg-[var(--bg-page)]/50">
+                      <td className="px-4 py-2 text-[var(--text-primary)]/50 font-mono">{e.row ?? '—'}</td>
                       <td className="px-4 py-2 text-red-700">{e.message}</td>
                     </tr>
                   ))}
@@ -287,8 +287,8 @@ export default function ImportsPage() {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1a1814]">CSV Bulk Import</h1>
-        <p className="text-sm text-[#1a1814]/60 mt-1">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">CSV Bulk Import</h1>
+        <p className="text-sm text-[var(--text-primary)]/60 mt-1">
           Upload a CSV file to bulk-create records. Validate first to check for errors before committing.
         </p>
       </div>
@@ -301,8 +301,8 @@ export default function ImportsPage() {
             onClick={() => setActive(e.key)}
             className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
               active === e.key
-                ? 'bg-[#1a1814] text-white'
-                : 'bg-[#f6f3ee] text-[#1a1814]/70 hover:bg-[#ede9e2]'
+                ? 'bg-[var(--text-primary)] text-white'
+                : 'bg-[var(--bg-page)] text-[var(--text-primary)]/70 hover:bg-[var(--border)]'
             }`}
           >
             {e.label}
@@ -311,8 +311,8 @@ export default function ImportsPage() {
       </div>
 
       {/* Active entity panel */}
-      <div className="bg-white border border-[#ede9e2] rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-[#1a1814] mb-5">{entity.label}</h2>
+      <div className="bg-white border border-[var(--border)] rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-5">{entity.label}</h2>
         <EntityPanel key={active} entity={entity} />
       </div>
     </div>

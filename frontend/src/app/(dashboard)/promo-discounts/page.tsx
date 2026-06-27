@@ -135,28 +135,28 @@ export default function PromoDiscountsPage() {
       <PrintHeader title="Promotional Discounts" />
       <header className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <Tags className="w-6 h-6 text-[#b8943f] shrink-0" />
+          <Tags className="w-6 h-6 text-[var(--primary)] shrink-0" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#1a1814]">Promotional Discounts</h1>
-            <p className="text-xs sm:text-sm text-[#1a1814]/60">Time-limited price rules for products and categories</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Promotional Discounts</h1>
+            <p className="text-xs sm:text-sm text-[var(--text-primary)]/60">Time-limited price rules for products and categories</p>
           </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('promo-discounts.csv', rules.map(r => ({ Rule: r.name, Product: r.product_id ? products.find(p => p.id === r.product_id)?.name ?? '' : 'All', "Min Qty": r.min_qty ?? '', Discount: discountLabel(r), Active: r.is_active ? 'Yes' : 'No' })))}
             disabled={rules.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
           <button
             onClick={openNew}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-semibold hover:bg-[#b8943f] hover:text-black transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--text-primary)] text-white rounded-lg text-sm font-semibold hover:bg-[var(--primary)] hover:text-black transition-all"
           >
             <Plus className="w-4 h-4" /> New Rule
           </button>
@@ -168,50 +168,50 @@ export default function PromoDiscountsPage() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-serif font-semibold">{editing ? "Edit Rule" : "New Promo Rule"}</h2>
-              <button onClick={() => setShowForm(false)}><X className="w-5 h-5 text-[#1a1814]/50" /></button>
+              <h2 className="text-lg font-bold">{editing ? "Edit Rule" : "New Promo Rule"}</h2>
+              <button onClick={() => setShowForm(false)}><X className="w-5 h-5 text-[var(--text-primary)]/50" /></button>
             </div>
 
             {error && <p className="text-red-600 text-xs">{error}</p>}
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Rule Name *</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Rule Name *</label>
                 <input value={form.name} onChange={e => set("name", e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder="e.g. Summer Sale 20%" />
+                  className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" placeholder="e.g. Summer Sale 20%" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{t('col.description', 'Description')}</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.description', 'Description')}</label>
                 <input value={form.description ?? ""} onChange={e => set("description", e.target.value || null)}
-                  className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder="Optional note" />
+                  className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" placeholder="Optional note" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Start Date</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Start Date</label>
                   <input type="date" value={form.start_date ?? ""} onChange={e => set("start_date", e.target.value || null)}
-                    className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" />
+                    className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">End Date</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">End Date</label>
                   <input type="date" value={form.end_date ?? ""} onChange={e => set("end_date", e.target.value || null)}
-                    className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" />
+                    className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Product (optional)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Product (optional)</label>
                   <select value={form.product_id ?? ""} onChange={e => set("product_id", e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm">
+                    className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm">
                     <option value="">— Any —</option>
                     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Category (optional)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Category (optional)</label>
                   <select value={form.category_id ?? ""} onChange={e => set("category_id", e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm">
+                    className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm">
                     <option value="">— Any —</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -220,21 +220,21 @@ export default function PromoDiscountsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Min Qty Trigger</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Min Qty Trigger</label>
                   <input type="number" step="0.01" value={form.min_qty ?? ""} onChange={e => set("min_qty", e.target.value ? parseFloat(e.target.value) : null)}
-                    className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder="e.g. 10" />
+                    className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" placeholder="e.g. 10" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Min Invoice Value</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Min Invoice Value</label>
                   <input type="number" step="0.01" value={form.min_invoice_value ?? ""} onChange={e => set("min_invoice_value", e.target.value ? parseFloat(e.target.value) : null)}
-                    className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder="e.g. 5000" />
+                    className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" placeholder="e.g. 5000" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Discount Type</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Discount Type</label>
                 <select value={form.discount_type} onChange={e => set("discount_type", e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm">
+                  className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm">
                   <option value="percent">Percentage (% off)</option>
                   <option value="fixed">Fixed Amount off</option>
                   <option value="giveaway">Giveaway (free product)</option>
@@ -243,41 +243,41 @@ export default function PromoDiscountsPage() {
 
               {(form.discount_type === "percent" || form.discount_type === "fixed") && (
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">{form.discount_type === "percent" ? "Discount %" : "Discount Amount"}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{form.discount_type === "percent" ? "Discount %" : "Discount Amount"}</label>
                   <input type="number" step="0.01" value={form.discount_value ?? ""} onChange={e => set("discount_value", e.target.value ? parseFloat(e.target.value) : null)}
-                    className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder={form.discount_type === "percent" ? "e.g. 15" : "e.g. 500"} />
+                    className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" placeholder={form.discount_type === "percent" ? "e.g. 15" : "e.g. 500"} />
                 </div>
               )}
 
               {form.discount_type === "giveaway" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Giveaway Product</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Giveaway Product</label>
                     <select value={form.giveaway_product_id ?? ""} onChange={e => set("giveaway_product_id", e.target.value ? parseInt(e.target.value) : null)}
-                      className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm">
+                      className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm">
                       <option value="">Select product</option>
                       {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Giveaway Qty</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Giveaway Qty</label>
                     <input type="number" step="0.01" value={form.giveaway_qty ?? ""} onChange={e => set("giveaway_qty", e.target.value ? parseFloat(e.target.value) : null)}
-                      className="w-full px-3 py-2.5 bg-[#faf6ec] border border-transparent rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:bg-white outline-none text-sm" placeholder="e.g. 1" />
+                      className="w-full px-3 py-2.5 bg-[var(--bg-page)] border border-transparent rounded-lg focus:ring-2 focus:ring-[var(--primary)] focus:bg-white outline-none text-sm" placeholder="e.g. 1" />
                   </div>
                 </div>
               )}
 
               {editing && (
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={form.is_active} onChange={e => set("is_active", e.target.checked)} className="accent-[#b8943f]" />{t('status.active', 'Active')}</label>
+                  <input type="checkbox" checked={form.is_active} onChange={e => set("is_active", e.target.checked)} className="accent-[var(--primary)]" />{t('status.active', 'Active')}</label>
               )}
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <button onClick={() => setShowForm(false)}
-                className="px-4 py-2 bg-[#f6f3ee] border border-[#ede9e2] rounded-lg text-sm font-semibold hover:bg-[#ede9e2]">{t('common.cancel', 'Cancel')}</button>
+                className="px-4 py-2 bg-[var(--bg-page)] border border-[var(--border)] rounded-lg text-sm font-semibold hover:bg-[var(--border)]">{t('common.cancel', 'Cancel')}</button>
               <button onClick={handleSave} disabled={saving}
-                className="px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-semibold hover:bg-[#b8943f] hover:text-black disabled:opacity-50">
+                className="px-4 py-2 bg-[var(--text-primary)] text-white rounded-lg text-sm font-semibold hover:bg-[var(--primary)] hover:text-black disabled:opacity-50">
                 {saving ? "Saving…" : editing ? "Update" : "Create"}
               </button>
             </div>
@@ -286,42 +286,42 @@ export default function PromoDiscountsPage() {
       )}
 
       {/* ── Rules table ──────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#ede9e2] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden">
         {rules.length === 0 ? (
-          <div className="p-10 text-center text-[#1a1814]/40 text-sm">
+          <div className="p-10 text-center text-[var(--text-primary)]/40 text-sm">
             No promo rules yet. Create one to apply automatic discounts on invoices.
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-[#faf6ec]">
+            <thead className="bg-[var(--bg-page)]">
               <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Rule</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 hidden md:table-cell">Scope</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 hidden sm:table-cell">Dates</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Discount</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{t('status.active', 'Active')}</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Rule</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 hidden md:table-cell">Scope</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 hidden sm:table-cell">Dates</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Discount</th>
+                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{t('status.active', 'Active')}</th>
                 <th className="w-20"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#ede9e2]">
+            <tbody className="divide-y divide-[var(--border)]">
               {rules.map(r => (
                 <tr key={r.id} className={r.is_active ? "" : "opacity-50"}>
                   <td className="px-4 py-3">
-                    <div className="font-semibold text-[#1a1814]">{r.name}</div>
-                    {r.description && <div className="text-xs text-[#1a1814]/50">{r.description}</div>}
+                    <div className="font-semibold text-[var(--text-primary)]">{r.name}</div>
+                    {r.description && <div className="text-xs text-[var(--text-primary)]/50">{r.description}</div>}
                     {(r.min_qty || r.min_invoice_value) && (
-                      <div className="text-xs text-[#b8943f] mt-0.5">
+                      <div className="text-xs text-[var(--primary)] mt-0.5">
                         {r.min_qty ? `min qty ${r.min_qty}` : ""}
                         {r.min_qty && r.min_invoice_value ? " · " : ""}
                         {r.min_invoice_value ? `min value ${r.min_invoice_value}` : ""}
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[#1a1814]/70 hidden md:table-cell">{scopeLabel(r)}</td>
-                  <td className="px-4 py-3 text-xs text-[#1a1814]/60 hidden sm:table-cell">
+                  <td className="px-4 py-3 text-[var(--text-primary)]/70 hidden md:table-cell">{scopeLabel(r)}</td>
+                  <td className="px-4 py-3 text-xs text-[var(--text-primary)]/60 hidden sm:table-cell">
                     {r.start_date ?? "∞"} → {r.end_date ?? "∞"}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-[#1a1814]">{discountLabel(r)}</td>
+                  <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">{discountLabel(r)}</td>
                   <td className="px-4 py-3 text-center">
                     {r.is_active
                       ? <Check className="w-4 h-4 text-emerald-500 mx-auto" />
@@ -329,7 +329,7 @@ export default function PromoDiscountsPage() {
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => openEdit(r)} className="p-1.5 text-[#b8943f] hover:text-[#1a1814]">
+                      <button onClick={() => openEdit(r)} className="p-1.5 text-[var(--primary)] hover:text-[var(--text-primary)]">
                         <Pencil className="w-4 h-4" />
                       </button>
                       {r.is_active && (

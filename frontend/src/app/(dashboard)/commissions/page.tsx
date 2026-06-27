@@ -202,22 +202,22 @@ export default function CommissionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Percent className="w-6 h-6 text-[#b8943f]" />
+          <Percent className="w-6 h-6 text-[var(--primary)]" />
           <div>
-            <h1 className="text-xl font-serif font-semibold text-[#1a1814]">Sales Commissions</h1>
-            <p className="text-xs text-[#1a1814]/60">Track commission plans and monthly payables</p>
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">Sales Commissions</h1>
+            <p className="text-xs text-[var(--text-primary)]/60">Track commission plans and monthly payables</p>
           </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</button>
           <button
             onClick={() => downloadCSV('commissions.csv', ledger.map(r => ({ Staff: r.user_name, Period: r.period, Amount: r.total_payable, Status: r.status })))}
             disabled={ledger.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-[#ede9e2] rounded-lg text-sm font-bold hover:bg-[#f6f3ee] transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
           </button>
@@ -225,12 +225,12 @@ export default function CommissionsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[#ede9e2] rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-[var(--border)] rounded-xl p-1 w-fit">
         {(["ledger", "plans"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all capitalize ${tab === t ? "bg-white text-[#1a1814] shadow-sm" : "text-[#1a1814]/60 hover:text-[#1a1814]"}`}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all capitalize ${tab === t ? "bg-white text-[var(--text-primary)] shadow-sm" : "text-[var(--text-primary)]/60 hover:text-[var(--text-primary)]"}`}
           >
             {t === "ledger" ? "Ledger" : "Plans"}
           </button>
@@ -254,20 +254,20 @@ export default function CommissionsPage() {
       {tab === "ledger" && (
         <div className="space-y-4">
           {/* Period selector + Compute */}
-          <div className="bg-white rounded-2xl border border-[#ede9e2] shadow-sm p-4 flex flex-wrap items-end gap-3">
+          <div className="bg-white rounded-2xl border border-[var(--border)] shadow-sm p-4 flex flex-wrap items-end gap-3">
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Period</label>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Period</label>
               <input
                 type="month"
                 value={period}
                 onChange={e => setPeriod(e.target.value)}
-                className="px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none"
+                className="px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none"
               />
             </div>
             <button
               onClick={compute}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-[#b8943f] text-white rounded-lg text-sm font-semibold hover:bg-[#a07835] disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:bg-[var(--primary-dark)] disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               Compute
@@ -275,22 +275,22 @@ export default function CommissionsPage() {
           </div>
 
           {/* Ledger table */}
-          <div className="bg-white rounded-2xl border border-[#ede9e2] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
             {ledger.length === 0 ? (
-              <div className="py-16 text-center text-[#1a1814]/40 text-sm">
+              <div className="py-16 text-center text-[var(--text-primary)]/40 text-sm">
                 No commission entries for {period}. Click <strong>Compute</strong> to generate.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-[#faf6ec]">
+                  <thead className="bg-[var(--bg-page)]">
                     <tr>
                       {["Sales Person","Invoiced","Recovered","Rate","Commission","Bonus","Total Payable","Status",""].map(h => (
-                        <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{h}</th>
+                        <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{h}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#ede9e2]">
+                  <tbody className="divide-y divide-[var(--border)]">
                     {ledger.map(row => (
                       <>
                         <tr key={row.id} className="hover:bg-[#faf8f4]">
@@ -330,7 +330,7 @@ export default function CommissionsPage() {
                                 <a
                                   href={`/journal/${row.transaction_id}/print`}
                                   target="_blank"
-                                  className="p-1 text-[#1a1814]/40 hover:text-[#1a1814]"
+                                  className="p-1 text-[var(--text-primary)]/40 hover:text-[var(--text-primary)]"
                                   title="View JV"
                                 >
                                   <BookOpen className="w-4 h-4" />
@@ -341,49 +341,49 @@ export default function CommissionsPage() {
                         </tr>
                         {/* Post-to-GL inline form */}
                         {postingId === row.id && (
-                          <tr key={`post-${row.id}`} className="bg-[#faf6ec]">
+                          <tr key={`post-${row.id}`} className="bg-[var(--bg-page)]">
                             <td colSpan={9} className="px-4 py-3">
                               <div className="flex flex-wrap items-end gap-3">
                                 <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Commission Expense Account</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Commission Expense Account</label>
                                   <select
                                     value={postForm.expense_account_id}
                                     onChange={e => setPostForm(f => ({...f, expense_account_id: e.target.value}))}
-                                    className="px-2 py-2 border border-[#ede9e2] rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#b8943f] outline-none min-w-[200px]"
+                                    className="px-2 py-2 border border-[var(--border)] rounded-lg text-sm bg-white focus:ring-2 focus:ring-[var(--primary)] outline-none min-w-[200px]"
                                   >
                                     <option value="">Select expense account</option>
                                     {expenseAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Commissions Payable Account</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Commissions Payable Account</label>
                                   <select
                                     value={postForm.payable_account_id}
                                     onChange={e => setPostForm(f => ({...f, payable_account_id: e.target.value}))}
-                                    className="px-2 py-2 border border-[#ede9e2] rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#b8943f] outline-none min-w-[200px]"
+                                    className="px-2 py-2 border border-[var(--border)] rounded-lg text-sm bg-white focus:ring-2 focus:ring-[var(--primary)] outline-none min-w-[200px]"
                                   >
                                     <option value="">Select payable account</option>
                                     {liabilityAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Posting Date</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Posting Date</label>
                                   <input
                                     type="date"
                                     value={postForm.date}
                                     onChange={e => setPostForm(f => ({...f, date: e.target.value}))}
-                                    className="px-2 py-2 border border-[#ede9e2] rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#b8943f] outline-none"
+                                    className="px-2 py-2 border border-[var(--border)] rounded-lg text-sm bg-white focus:ring-2 focus:ring-[var(--primary)] outline-none"
                                   />
                                 </div>
                                 <button
                                   onClick={() => postToGL(row.id)}
-                                  className="px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-semibold hover:bg-[#b8943f] transition-colors"
+                                  className="px-4 py-2 bg-[var(--text-primary)] text-white rounded-lg text-sm font-semibold hover:bg-[var(--primary)] transition-colors"
                                 >
                                   Post to GL
                                 </button>
                                 <button
                                   onClick={() => setPostingId(null)}
-                                  className="px-3 py-2 text-sm text-[#1a1814]/60 hover:text-[#1a1814]"
+                                  className="px-3 py-2 text-sm text-[var(--text-primary)]/60 hover:text-[var(--text-primary)]"
                                 >{t('common.cancel', 'Cancel')}</button>
                               </div>
                             </td>
@@ -405,7 +405,7 @@ export default function CommissionsPage() {
           <div className="flex justify-end">
             <button
               onClick={() => setShowPlanForm(v => !v)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#1a1814] text-white rounded-xl text-sm font-semibold hover:bg-[#b8943f] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--text-primary)] text-white rounded-xl text-sm font-semibold hover:bg-[var(--primary)] transition-colors"
             >
               <Plus className="w-4 h-4" />
               New Plan
@@ -414,68 +414,68 @@ export default function CommissionsPage() {
 
           {/* New plan form */}
           {showPlanForm && (
-            <div className="bg-white rounded-2xl border border-[#ede9e2] shadow-sm p-5 space-y-4">
-              <h3 className="font-semibold text-[#1a1814]">New Commission Plan</h3>
+            <div className="bg-white rounded-2xl border border-[var(--border)] shadow-sm p-5 space-y-4">
+              <h3 className="font-semibold text-[var(--text-primary)]">New Commission Plan</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Sales Person *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Sales Person *</label>
                   <select
                     value={planForm.user_id}
                     onChange={e => setPlanForm(f => ({...f, user_id: e.target.value}))}
-                    className="w-full px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none"
+                    className="w-full px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none"
                   >
                     <option value="">Select person</option>
                     {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Commission Rate (%) *</label>
-                  <input type="number" step="0.01" value={planForm.rate} onChange={e => setPlanForm(f => ({...f, rate: e.target.value}))} placeholder="e.g. 2.5" className="w-full px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none" />
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Commission Rate (%) *</label>
+                  <input type="number" step="0.01" value={planForm.rate} onChange={e => setPlanForm(f => ({...f, rate: e.target.value}))} placeholder="e.g. 2.5" className="w-full px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Effective From *</label>
-                  <input type="date" value={planForm.effective_from} onChange={e => setPlanForm(f => ({...f, effective_from: e.target.value}))} className="w-full px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none" />
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Effective From *</label>
+                  <input type="date" value={planForm.effective_from} onChange={e => setPlanForm(f => ({...f, effective_from: e.target.value}))} className="w-full px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Sales Target (optional)</label>
-                  <input type="number" step="0.01" value={planForm.sales_target} onChange={e => setPlanForm(f => ({...f, sales_target: e.target.value}))} placeholder="Monthly target" className="w-full px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none" />
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Sales Target (optional)</label>
+                  <input type="number" step="0.01" value={planForm.sales_target} onChange={e => setPlanForm(f => ({...f, sales_target: e.target.value}))} placeholder="Monthly target" className="w-full px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Recovery Target (optional)</label>
-                  <input type="number" step="0.01" value={planForm.recovery_target} onChange={e => setPlanForm(f => ({...f, recovery_target: e.target.value}))} placeholder="Monthly recovery target" className="w-full px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none" />
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Recovery Target (optional)</label>
+                  <input type="number" step="0.01" value={planForm.recovery_target} onChange={e => setPlanForm(f => ({...f, recovery_target: e.target.value}))} placeholder="Monthly recovery target" className="w-full px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Target Bonus (optional)</label>
-                  <input type="number" step="0.01" value={planForm.target_bonus} onChange={e => setPlanForm(f => ({...f, target_bonus: e.target.value}))} placeholder="Bonus if targets met" className="w-full px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none" />
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Target Bonus (optional)</label>
+                  <input type="number" step="0.01" value={planForm.target_bonus} onChange={e => setPlanForm(f => ({...f, target_bonus: e.target.value}))} placeholder="Bonus if targets met" className="w-full px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 mb-1">Effective To (leave blank = ongoing)</label>
-                  <input type="date" value={planForm.effective_to} onChange={e => setPlanForm(f => ({...f, effective_to: e.target.value}))} className="w-full px-3 py-2 bg-[#faf6ec] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[#b8943f] outline-none" />
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">Effective To (leave blank = ongoing)</label>
+                  <input type="date" value={planForm.effective_to} onChange={e => setPlanForm(f => ({...f, effective_to: e.target.value}))} className="w-full px-3 py-2 bg-[var(--bg-page)] border border-transparent rounded-lg text-sm focus:ring-2 focus:ring-[var(--primary)] outline-none" />
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <button onClick={() => setShowPlanForm(false)} className="px-4 py-2 bg-white border border-[#ede9e2] rounded-lg text-sm font-semibold hover:bg-[#f6f3ee]">{t('common.cancel', 'Cancel')}</button>
-                <button onClick={createPlan} className="px-4 py-2 bg-[#1a1814] text-white rounded-lg text-sm font-semibold hover:bg-[#b8943f]">Save Plan</button>
+                <button onClick={() => setShowPlanForm(false)} className="px-4 py-2 bg-white border border-[var(--border)] rounded-lg text-sm font-semibold hover:bg-[var(--bg-page)]">{t('common.cancel', 'Cancel')}</button>
+                <button onClick={createPlan} className="px-4 py-2 bg-[var(--text-primary)] text-white rounded-lg text-sm font-semibold hover:bg-[var(--primary)]">Save Plan</button>
               </div>
             </div>
           )}
 
           {/* Plans table */}
-          <div className="bg-white rounded-2xl border border-[#ede9e2] shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden">
             {plans.length === 0 ? (
-              <div className="py-16 text-center text-[#1a1814]/40 text-sm">
+              <div className="py-16 text-center text-[var(--text-primary)]/40 text-sm">
                 No commission plans yet. Click <strong>New Plan</strong> to add one.
               </div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-[#faf6ec]">
+                <thead className="bg-[var(--bg-page)]">
                   <tr>
                     {["Sales Person","Rate","Sales Target","Recovery Target","Bonus","Effective From","To","Status",""].map(h => (
-                      <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">{h}</th>
+                      <th key={h} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {plans.map(p => (
                     <tr key={p.id} className={`hover:bg-[#faf8f4] ${!p.active ? "opacity-50" : ""}`}>
                       <td className="px-3 py-2.5 font-medium">{p.user_name}</td>
