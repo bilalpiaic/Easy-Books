@@ -75,34 +75,34 @@ export function BusinessModelPicker({ value, onChange }: BusinessModelPickerProp
             className={[
               "text-left rounded-2xl border-2 p-4 transition-all relative",
               selected
-                ? "border-[#b8943f] bg-[#faf6ec] shadow-sm"
-                : "border-[#ede9e2] bg-white hover:border-[#b8943f]/40 hover:bg-[#faf8f4]",
+                ? "border-[var(--primary)] bg-[var(--bg-page)] shadow-sm"
+                : "border-[var(--border)] bg-white hover:border-[var(--primary)]/40 hover:bg-[#faf8f4]",
             ].join(" ")}
             aria-pressed={selected}
           >
             {selected && (
-              <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#b8943f] text-white flex items-center justify-center">
+              <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[var(--primary)] text-white flex items-center justify-center">
                 <Check className="w-3 h-3" />
               </span>
             )}
             <div className="flex items-center gap-2.5 mb-1.5">
               <div className={[
                 "w-9 h-9 rounded-xl flex items-center justify-center",
-                selected ? "bg-[#b8943f] text-white" : "bg-[#f6f3ee] text-[#1a1814]/70",
+                selected ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-page)] text-[var(--text-primary)]/70",
               ].join(" ")}>
                 <Icon className="w-4.5 h-4.5" />
               </div>
-              <p className="text-sm font-bold text-[#1a1814]">{opt.label}</p>
+              <p className="text-sm font-bold text-[var(--text-primary)]">{opt.label}</p>
             </div>
-            <p className="text-xs text-[#1a1814]/70 leading-snug">{opt.tagline}</p>
-            <p className="mt-2 text-[10.5px] text-[#1a1814]/50 leading-relaxed">
-              <span className="font-semibold text-[#1a1814]/70">Best for: </span>
+            <p className="text-xs text-[var(--text-primary)]/70 leading-snug">{opt.tagline}</p>
+            <p className="mt-2 text-[10.5px] text-[var(--text-primary)]/50 leading-relaxed">
+              <span className="font-semibold text-[var(--text-primary)]/70">Best for: </span>
               {opt.bestFor}
             </p>
             <ul className="mt-2 space-y-1">
               {opt.includes.map(item => (
-                <li key={item} className="flex items-start gap-1.5 text-[10.5px] text-[#1a1814]/65">
-                  <span className="text-[#b8943f] mt-0.5">·</span>
+                <li key={item} className="flex items-start gap-1.5 text-[10.5px] text-[var(--text-primary)]/65">
+                  <span className="text-[var(--primary)] mt-0.5">·</span>
                   <span>{item}</span>
                 </li>
               ))}

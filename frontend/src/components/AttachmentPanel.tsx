@@ -163,15 +163,15 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
     <section
       className={
         embedded
-          ? "rounded-xl border border-[#ede9e2] bg-white print:hidden"
-          : "rounded-2xl border border-[#ede9e2] bg-white shadow-sm print:hidden"
+          ? "rounded-xl border border-[var(--border)] bg-white print:hidden"
+          : "rounded-2xl border border-[var(--border)] bg-white shadow-sm print:hidden"
       }
     >
-      <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[#ede9e2]">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[#1a1814]">
-          <Paperclip className="w-4 h-4 text-[#b8943f]" />
+      <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border)]">
+        <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+          <Paperclip className="w-4 h-4 text-[var(--primary)]" />
           Attachments
-          <span className="text-xs font-normal text-[#1a1814]/55">({items.length})</span>
+          <span className="text-xs font-normal text-[var(--text-primary)]/55">({items.length})</span>
         </div>
       </header>
 
@@ -179,7 +179,7 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
       <div
         className={
           "m-4 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors cursor-pointer " +
-          (dragOver ? "border-[#b8943f] bg-[#faf6ec]" : "border-[#ede9e2] hover:bg-[#faf8f4]")
+          (dragOver ? "border-[var(--primary)] bg-[var(--bg-page)]" : "border-[var(--border)] hover:bg-[#faf8f4]")
         }
         onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
@@ -188,11 +188,11 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
         role="button"
         tabIndex={0}
       >
-        <Upload className="w-5 h-5 text-[#b8943f] mx-auto mb-1.5" />
-        <p className="text-xs text-[#1a1814]/70">
+        <Upload className="w-5 h-5 text-[var(--primary)] mx-auto mb-1.5" />
+        <p className="text-xs text-[var(--text-primary)]/70">
           {uploading ? "Uploading…" : "Drop file here or click to browse"}
         </p>
-        <p className="text-[10px] text-[#1a1814]/50 mt-0.5">
+        <p className="text-[10px] text-[var(--text-primary)]/50 mt-0.5">
           PDF · images · Office docs · CSV — max 25 MB
         </p>
         <input
@@ -215,9 +215,9 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
       {/* List */}
       <div className="px-4 pb-4">
         {loading ? (
-          <p className="text-xs text-[#1a1814]/50 text-center py-3">Loading…</p>
+          <p className="text-xs text-[var(--text-primary)]/50 text-center py-3">Loading…</p>
         ) : items.length === 0 ? (
-          <p className="text-xs text-[#1a1814]/50 text-center py-3">No attachments yet.</p>
+          <p className="text-xs text-[var(--text-primary)]/50 text-center py-3">No attachments yet.</p>
         ) : (
           <ul className="space-y-1.5">
             {items.map((att) => {
@@ -229,17 +229,17 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
                   className={
                     "group flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-colors cursor-pointer " +
                     (active
-                      ? "bg-[#faf6ec] border-[#b8943f]/40"
-                      : "bg-white border-[#ede9e2] hover:bg-[#faf8f4]")
+                      ? "bg-[var(--bg-page)] border-[var(--primary)]/40"
+                      : "bg-white border-[var(--border)] hover:bg-[#faf8f4]")
                   }
                   onClick={() => setSelectedId(att.id)}
                 >
-                  <Icon className="w-4 h-4 flex-shrink-0 text-[#b8943f]" />
+                  <Icon className="w-4 h-4 flex-shrink-0 text-[var(--primary)]" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-[#1a1814] truncate" title={att.original_name}>
+                    <p className="text-xs font-medium text-[var(--text-primary)] truncate" title={att.original_name}>
                       {att.original_name}
                     </p>
-                    <p className="text-[10px] text-[#1a1814]/50">
+                    <p className="text-[10px] text-[var(--text-primary)]/50">
                       {fmtBytes(att.size_bytes)} · {fmtDate(att.uploaded_at)}
                     </p>
                   </div>
@@ -249,7 +249,7 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
                       onClick={(e) => { e.stopPropagation(); setSelectedId(att.id) }}
                       className="p-1.5 rounded hover:bg-white"
                     >
-                      <Eye className="w-3.5 h-3.5 text-[#1a1814]/70" />
+                      <Eye className="w-3.5 h-3.5 text-[var(--text-primary)]/70" />
                     </button>
                     <a
                       title="Download"
@@ -257,7 +257,7 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
                       onClick={(e) => { e.stopPropagation(); attachAuthToken(e) }}
                       className="p-1.5 rounded hover:bg-white"
                     >
-                      <Download className="w-3.5 h-3.5 text-[#1a1814]/70" />
+                      <Download className="w-3.5 h-3.5 text-[var(--text-primary)]/70" />
                     </a>
                     <button
                       title="Delete"
@@ -284,8 +284,8 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
 export function AttachmentPreviewPane({ att }: { att: Attachment | null }) {
   if (!att) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center px-6 text-[#1a1814]/55">
-        <Paperclip className="w-8 h-8 mb-2 text-[#b8943f]/60" />
+      <div className="h-full flex flex-col items-center justify-center text-center px-6 text-[var(--text-primary)]/55">
+        <Paperclip className="w-8 h-8 mb-2 text-[var(--primary)]/60" />
         <p className="text-sm">No attachment selected</p>
         <p className="text-xs mt-1">Upload a document on the left, then it appears here.</p>
       </div>
@@ -328,11 +328,11 @@ function AuthedViewer({ url, att }: { url: string; att: Attachment }) {
   }, [url])
 
   if (err) return <div className="p-4 text-xs text-red-700">Preview failed: {err}</div>
-  if (!blobUrl) return <div className="p-4 text-xs text-[#1a1814]/55">Loading preview…</div>
+  if (!blobUrl) return <div className="p-4 text-xs text-[var(--text-primary)]/55">Loading preview…</div>
 
   if (att.mime_type.startsWith("image/")) {
     return (
-      <div className="h-full overflow-auto bg-[#f6f3ee] flex items-start justify-center p-4">
+      <div className="h-full overflow-auto bg-[var(--bg-page)] flex items-start justify-center p-4">
         {/* eslint-disable-next-line @next/next/no-img-element -- blob URL; Next.js Image cannot optimize it */}
         <img src={blobUrl} alt={att.original_name} className="max-w-full h-auto rounded shadow" />
       </div>
@@ -343,15 +343,15 @@ function AuthedViewer({ url, att }: { url: string; att: Attachment }) {
   }
   return (
     <div className="h-full flex flex-col items-center justify-center text-center px-6">
-      <FileIcon className="w-10 h-10 text-[#b8943f]/60 mb-2" />
-      <p className="text-sm font-medium text-[#1a1814]">{att.original_name}</p>
-      <p className="text-xs text-[#1a1814]/55 mt-1">
+      <FileIcon className="w-10 h-10 text-[var(--primary)]/60 mb-2" />
+      <p className="text-sm font-medium text-[var(--text-primary)]">{att.original_name}</p>
+      <p className="text-xs text-[var(--text-primary)]/55 mt-1">
         This file type can&apos;t be previewed in the browser.
       </p>
       <a
         href={blobUrl}
         download={att.original_name}
-        className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1a1814] text-white text-xs font-semibold hover:bg-[#b8943f] hover:text-[#1a1814] transition-colors"
+        className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--text-primary)] text-white text-xs font-semibold hover:bg-[var(--primary)] hover:text-[var(--text-primary)] transition-colors"
       >
         <Download className="w-3.5 h-3.5" /> Download
       </a>

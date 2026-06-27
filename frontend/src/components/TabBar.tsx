@@ -21,8 +21,8 @@ function TabItem({ tab, active, onClose }: {
         "border-r border-[#ddd8d0] cursor-pointer select-none",
         "transition-colors duration-100",
         active
-          ? "bg-white text-[#1a1814] shadow-[inset_0_-2px_0_#b8943f]"
-          : "bg-[#f0ede6] text-[#1a1814]/60 hover:bg-[#e8e4dc] hover:text-[#1a1814]"
+          ? "bg-white text-[var(--text-primary)] shadow-[inset_0_-2px_0_var(--primary)]"
+          : "bg-[#f0ede6] text-[var(--text-primary)]/60 hover:bg-[#e8e4dc] hover:text-[var(--text-primary)]"
       )}
       onClick={() => router.push(tab.href)}
       title={tab.title}

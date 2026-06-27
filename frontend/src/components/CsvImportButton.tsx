@@ -182,7 +182,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#b8943f] border border-[#b8943f]/40 rounded-lg hover:bg-[#b8943f]/10 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-[var(--primary)] border border-[var(--primary)]/40 rounded-lg hover:bg-[var(--primary)]/10 transition-colors"
       >
         <Upload className="w-3.5 h-3.5" />
         {label ?? "Import CSV"}
@@ -194,17 +194,17 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#ede9e2]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-[#b8943f]" />
+                <FileText className="w-5 h-5 text-[var(--primary)]" />
                 <div>
-                  <h2 className="font-serif font-semibold text-[#1a1814] text-base">
+                  <h2 className="font-bold text-[var(--text-primary)] text-base">
                     Import {ENTITY_LABELS[entity]}
                   </h2>
-                  <p className="text-[11px] text-[#1a1814]/50">{stepLabel[step]}</p>
+                  <p className="text-[11px] text-[var(--text-primary)]/50">{stepLabel[step]}</p>
                 </div>
               </div>
-              <button onClick={close} className="text-[#1a1814]/40 hover:text-[#1a1814] transition-colors">
+              <button onClick={close} className="text-[var(--text-primary)]/40 hover:text-[var(--text-primary)] transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -215,55 +215,55 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
               {step === "upload" && (
                 <>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">Download sample CSV</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">Download sample CSV</p>
                     <button
                       onClick={downloadSample}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-[#f6f3ee] border border-[#ede9e2] rounded-xl text-sm font-medium text-[#1a1814]/80 hover:bg-[#ede9e2] transition-colors"
+                      className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-page)] border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--text-primary)]/80 hover:bg-[var(--border)] transition-colors"
                     >
-                      <Download className="w-4 h-4 text-[#b8943f]" />
+                      <Download className="w-4 h-4 text-[var(--primary)]" />
                       Download sample_{entity}.csv
                     </button>
                   </div>
 
-                  <div className="bg-[#f6f3ee] rounded-xl p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2.5">Required columns</p>
+                  <div className="bg-[var(--bg-page)] rounded-xl p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2.5">Required columns</p>
                     <div className="flex flex-wrap gap-2">
                       {ENTITY_FIELDS[entity].map(({ field, required, note }) => (
                         <div key={field} className="flex items-center gap-1.5">
-                          <code className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${required ? "bg-[#b8943f]/15 text-[#8a6d2e]" : "bg-white/80 text-[#1a1814]/60 border border-[#ede9e2]"}`}>
+                          <code className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${required ? "bg-[var(--primary)]/15 text-[#8a6d2e]" : "bg-white/80 text-[var(--text-primary)]/60 border border-[var(--border)]"}`}>
                             {field}
                           </code>
                           {required && <span className="text-[9px] text-red-500 font-bold">REQ</span>}
-                          {note && <span className="text-[10px] text-[#1a1814]/40 italic hidden sm:inline">{note}</span>}
+                          {note && <span className="text-[10px] text-[var(--text-primary)]/40 italic hidden sm:inline">{note}</span>}
                         </div>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">Upload CSV</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">Upload CSV</p>
                     <div
                       onClick={() => !validating && inputRef.current?.click()}
                       onDragOver={e => e.preventDefault()}
                       onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
                       className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
-                        validating ? "border-[#b8943f]/40 bg-[#b8943f]/5 cursor-wait"
-                          : file ? "border-[#b8943f]/60 bg-[#b8943f]/5 cursor-pointer"
-                          : "border-[#ede9e2] hover:border-[#b8943f]/40 hover:bg-[#faf8f4] cursor-pointer"
+                        validating ? "border-[var(--primary)]/40 bg-[var(--primary)]/5 cursor-wait"
+                          : file ? "border-[var(--primary)]/60 bg-[var(--primary)]/5 cursor-pointer"
+                          : "border-[var(--border)] hover:border-[var(--primary)]/40 hover:bg-[#faf8f4] cursor-pointer"
                       }`}
                     >
                       {validating ? (
                         <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="w-6 h-6 text-[#b8943f] animate-spin" />
-                          <p className="text-sm text-[#1a1814]/60">Validating…</p>
+                          <Loader2 className="w-6 h-6 text-[var(--primary)] animate-spin" />
+                          <p className="text-sm text-[var(--text-primary)]/60">Validating…</p>
                         </div>
                       ) : file ? (
-                        <p className="text-sm font-medium text-[#1a1814]">{file.name}</p>
+                        <p className="text-sm font-medium text-[var(--text-primary)]">{file.name}</p>
                       ) : (
                         <>
-                          <Upload className="w-6 h-6 text-[#b8943f]/60 mx-auto mb-2" />
-                          <p className="text-sm text-[#1a1814]/60">Drop CSV here or <span className="text-[#b8943f] font-semibold">browse</span></p>
-                          <p className="text-[11px] text-[#1a1814]/40 mt-1">.csv files only · validation runs automatically</p>
+                          <Upload className="w-6 h-6 text-[var(--primary)]/60 mx-auto mb-2" />
+                          <p className="text-sm text-[var(--text-primary)]/60">Drop CSV here or <span className="text-[var(--primary)] font-semibold">browse</span></p>
+                          <p className="text-[11px] text-[var(--text-primary)]/40 mt-1">.csv files only · validation runs automatically</p>
                         </>
                       )}
                     </div>
@@ -273,7 +273,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                   </div>
 
                   <div className="flex justify-end">
-                    <button onClick={close} className="px-4 py-2 text-sm rounded-xl border border-[#ede9e2] text-[#1a1814]/70 hover:bg-[#f6f3ee] transition-colors">
+                    <button onClick={close} className="px-4 py-2 text-sm rounded-xl border border-[var(--border)] text-[var(--text-primary)]/70 hover:bg-[var(--bg-page)] transition-colors">
                       Cancel
                     </button>
                   </div>
@@ -290,7 +290,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                         ? <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                         : <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                       }
-                      <span className="text-sm font-bold text-[#1a1814]">
+                      <span className="text-sm font-bold text-[var(--text-primary)]">
                         {validation.valid_count} of {validation.total_rows} row{validation.total_rows !== 1 ? "s" : ""} valid
                         {validation.errors.length > 0 && ` · ${validation.errors.length} error${validation.errors.length !== 1 ? "s" : ""}`}
                       </span>
@@ -299,7 +299,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                       <div className="space-y-1 max-h-32 overflow-y-auto mt-2">
                         {validation.errors.map((e, i) => (
                           <div key={i} className="flex gap-2 text-xs">
-                            {e.row > 0 && <span className="text-[#1a1814]/40 font-mono flex-shrink-0">Row {e.row}</span>}
+                            {e.row > 0 && <span className="text-[var(--text-primary)]/40 font-mono flex-shrink-0">Row {e.row}</span>}
                             <span className="text-red-700">{e.message}</span>
                           </div>
                         ))}
@@ -310,16 +310,16 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                   {/* Preview table */}
                   {preview.rows.length > 0 && (
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-[#1a1814]/50 mb-2">Preview (first 5 rows)</p>
-                      <div className="overflow-x-auto rounded-xl border border-[#ede9e2]">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">Preview (first 5 rows)</p>
+                      <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
                         <table className="w-full text-xs min-w-[400px]">
-                          <thead className="bg-[#f6f3ee]">
-                            <tr>{preview.headers.map(h => <th key={h} className="px-3 py-2 text-left font-bold text-[#1a1814]/60 uppercase tracking-wider">{h}</th>)}</tr>
+                          <thead className="bg-[var(--bg-page)]">
+                            <tr>{preview.headers.map(h => <th key={h} className="px-3 py-2 text-left font-bold text-[var(--text-primary)]/60 uppercase tracking-wider">{h}</th>)}</tr>
                           </thead>
-                          <tbody className="divide-y divide-[#ede9e2]">
+                          <tbody className="divide-y divide-[var(--border)]">
                             {preview.rows.map((row, ri) => (
                               <tr key={ri} className="hover:bg-[#faf8f4]">
-                                {row.map((cell, ci) => <td key={ci} className="px-3 py-2 text-[#1a1814]/80 font-mono">{cell}</td>)}
+                                {row.map((cell, ci) => <td key={ci} className="px-3 py-2 text-[var(--text-primary)]/80 font-mono">{cell}</td>)}
                               </tr>
                             ))}
                           </tbody>
@@ -329,17 +329,17 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                   )}
 
                   <div className="flex items-center justify-between pt-1">
-                    <button onClick={reset} className="flex items-center gap-1.5 text-sm text-[#1a1814]/50 hover:text-[#1a1814] transition-colors">
+                    <button onClick={reset} className="flex items-center gap-1.5 text-sm text-[var(--text-primary)]/50 hover:text-[var(--text-primary)] transition-colors">
                       <ArrowLeft className="w-3.5 h-3.5" /> Upload different file
                     </button>
                     <div className="flex gap-3">
-                      <button onClick={close} className="px-4 py-2 text-sm rounded-xl border border-[#ede9e2] text-[#1a1814]/70 hover:bg-[#f6f3ee] transition-colors">
+                      <button onClick={close} className="px-4 py-2 text-sm rounded-xl border border-[var(--border)] text-[var(--text-primary)]/70 hover:bg-[var(--bg-page)] transition-colors">
                         Cancel
                       </button>
                       <button
                         onClick={handleImport}
                         disabled={importing || validation.valid_count === 0}
-                        className="flex items-center gap-2 px-5 py-2 bg-[#b8943f] text-black text-sm font-bold rounded-xl hover:bg-[#d4af60] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center gap-2 px-5 py-2 bg-[var(--primary)] text-black text-sm font-bold rounded-xl hover:bg-[#d4af60] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                         {importing ? "Importing…" : `Confirm Import (${validation.valid_count} rows)`}
@@ -358,7 +358,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                         ? <CheckCircle className="w-4 h-4 text-green-600" />
                         : <AlertTriangle className="w-4 h-4 text-red-500" />
                       }
-                      <span className="text-sm font-bold text-[#1a1814]">
+                      <span className="text-sm font-bold text-[var(--text-primary)]">
                         {result.imported} record{result.imported !== 1 ? "s" : ""} imported
                         {result.errors.length > 0 && `, ${result.errors.length} error${result.errors.length !== 1 ? "s" : ""}`}
                       </span>
@@ -367,7 +367,7 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {result.errors.map((e, i) => (
                           <div key={i} className="flex gap-2 text-xs">
-                            {e.row > 0 && <span className="text-[#1a1814]/40 font-mono flex-shrink-0">Row {e.row}</span>}
+                            {e.row > 0 && <span className="text-[var(--text-primary)]/40 font-mono flex-shrink-0">Row {e.row}</span>}
                             <span className="text-red-700">{e.message}</span>
                           </div>
                         ))}
@@ -376,10 +376,10 @@ export default function CsvImportButton({ entity, label, onSuccess }: Props) {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <button onClick={reset} className="text-sm text-[#b8943f] hover:underline font-medium">
+                    <button onClick={reset} className="text-sm text-[var(--primary)] hover:underline font-medium">
                       Import another file
                     </button>
-                    <button onClick={close} className="px-5 py-2 text-sm rounded-xl bg-[#1a1814] text-white font-bold hover:bg-[#b8943f] transition-colors">
+                    <button onClick={close} className="px-5 py-2 text-sm rounded-xl bg-[var(--text-primary)] text-white font-bold hover:bg-[var(--primary)] transition-colors">
                       Close
                     </button>
                   </div>

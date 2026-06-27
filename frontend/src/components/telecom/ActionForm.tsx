@@ -95,11 +95,11 @@ export function ActionForm({
   }
 
   return (
-    <form onSubmit={submit} className="bg-white border border-[#ede9e2] rounded-2xl p-4 space-y-3">
+    <form onSubmit={submit} className="bg-white border border-[var(--border)] rounded-2xl p-4 space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {fields.map(f => (
           <label key={f.name} className="block">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-[#1a1814]/55">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-primary)]/55">
               {f.label}{f.required && <span className="text-red-500"> *</span>}
             </span>
             {f.kind === "select" ? (
@@ -107,7 +107,7 @@ export function ActionForm({
                 value={values[f.name]}
                 required={f.required}
                 onChange={e => set(f.name, e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#ede9e2] bg-white px-3 py-2 text-sm focus:border-[#b8943f] focus:outline-none"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
               >
                 <option value="">Select…</option>
                 {f.options.map(o => (
@@ -122,10 +122,10 @@ export function ActionForm({
                 placeholder={f.placeholder}
                 step={f.kind === "number" ? (f.step ?? "0.01") : undefined}
                 onChange={e => set(f.name, e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#ede9e2] bg-white px-3 py-2 text-sm focus:border-[#b8943f] focus:outline-none"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm focus:border-[var(--primary)] focus:outline-none"
               />
             )}
-            {f.help && <span className="block mt-0.5 text-[10px] text-[#1a1814]/45">{f.help}</span>}
+            {f.help && <span className="block mt-0.5 text-[10px] text-[var(--text-primary)]/45">{f.help}</span>}
           </label>
         ))}
       </div>
@@ -142,7 +142,7 @@ export function ActionForm({
       <button
         type="submit"
         disabled={submitting}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#b8943f] text-black text-sm font-bold hover:bg-[#d4af60] transition-colors disabled:opacity-60"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition-colors disabled:opacity-60"
       >
         {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
         {submitLabel}

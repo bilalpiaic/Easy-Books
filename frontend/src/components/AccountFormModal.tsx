@@ -101,11 +101,11 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-4 right-4 text-black/40 hover:text-black">
+        <button onClick={onClose} className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-black">
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="text-2xl font-serif text-[#1a1814] mb-6">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">
           {account ? "Edit Account" : "Add Account"}
         </h2>
 
@@ -113,13 +113,13 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
           {/* Parent picker */}
           {allAccounts.length > 0 && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
                 Parent Account
               </label>
               <select
                 value={parentId}
                 onChange={e => handleParentChange(e.target.value)}
-                className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
               >
                 <option value="">— None (top-level) —</option>
                 {allAccounts.filter(a => a.id !== account?.id).map(a => (
@@ -131,7 +131,7 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
 
           {/* Account Code + Suggest */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Account Code
             </label>
             <div className="flex gap-2">
@@ -139,14 +139,14 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
                 value={code}
                 onChange={e => setCode(e.target.value)}
                 placeholder="e.g. 1010"
-                className="flex-1 ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+                className="flex-1 ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
               />
               <button
                 type="button"
                 onClick={handleSuggest}
                 disabled={suggesting}
                 title="Suggest next code"
-                className="px-3 py-2 border border-[#b8943f] text-[#b8943f] rounded-xl hover:bg-[#b8943f] hover:text-black transition-colors disabled:opacity-50 flex items-center gap-1 text-xs font-bold whitespace-nowrap"
+                className="px-3 py-2 border border-[var(--primary)] text-[var(--primary)] rounded-xl hover:bg-[var(--primary)] hover:text-black transition-colors disabled:opacity-50 flex items-center gap-1 text-xs font-bold whitespace-nowrap"
               >
                 <Wand2 className="w-3.5 h-3.5" />
                 {suggesting ? "…" : "Suggest"}
@@ -156,26 +156,26 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
 
           {/* Account Name */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Account Name
             </label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Cash in Hand"
-              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
             />
           </div>
 
           {/* Account Type */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Account Type
             </label>
             <select
               value={type}
               onChange={e => setType(e.target.value)}
-              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
             >
               {ACCOUNT_TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
@@ -188,13 +188,13 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
                 type="checkbox"
                 checked={isGroup}
                 onChange={e => setIsGroup(e.target.checked)}
-                className="mt-0.5 w-4 h-4 accent-[#b8943f]"
+                className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
               />
               <span>
-                <span className="block text-sm font-semibold text-[#1a1814]">
+                <span className="block text-sm font-semibold text-[var(--text-primary)]">
                   Header / group account
                 </span>
-                <span className="block text-xs text-[#1a1814]/55">
+                <span className="block text-xs text-[var(--text-primary)]/55">
                   Cannot be posted to directly — used for grouping only
                 </span>
               </span>
@@ -204,11 +204,11 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
                 type="checkbox"
                 checked={isActive}
                 onChange={e => setIsActive(e.target.checked)}
-                className="mt-0.5 w-4 h-4 accent-[#b8943f]"
+                className="mt-0.5 w-4 h-4 accent-[var(--primary)]"
               />
               <span>
-                <span className="block text-sm font-semibold text-[#1a1814]">Active</span>
-                <span className="block text-xs text-[#1a1814]/55">
+                <span className="block text-sm font-semibold text-[var(--text-primary)]">Active</span>
+                <span className="block text-xs text-[var(--text-primary)]/55">
                   Inactive accounts cannot be posted to
                 </span>
               </span>
@@ -220,14 +220,14 @@ export default function AccountFormModal({ account, onClose, onSaved, allAccount
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={onClose}
-              className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee] transition-colors"
+              className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)] transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold flex items-center gap-2 hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50"
+              className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold flex items-center gap-2 hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               {saving ? "Saving..." : "Save"}

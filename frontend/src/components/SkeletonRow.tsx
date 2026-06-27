@@ -17,7 +17,7 @@ export default function SkeletonRow({ cols, rows = 5 }: SkeletonRowProps) {
   return (
     <>
       {Array.from({ length: rows }).map((_, i) => (
-        <tr key={i} className="border-b border-[#1a1814]/5">
+        <tr key={i} className="border-b border-[var(--text-primary)]/5">
           {Array.from({ length: cols }).map((__, j) => (
             <SkeletonCell key={j} />
           ))}

@@ -41,20 +41,20 @@ export default function DateRangePicker({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Calendar className="w-4 h-4 text-black/40" />
-      <span className="text-xs font-bold uppercase tracking-widest text-black/50">{label}</span>
+      <Calendar className="w-4 h-4 text-[var(--text-muted)]" />
+      <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{label}</span>
       <input
         type="date"
         value={start}
         onChange={(e) => onStartChange(e.target.value)}
-        className="px-3 py-1.5 text-sm border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+        className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
       />
-      <span className="text-black/40 text-sm">to</span>
+      <span className="text-[var(--text-muted)] text-sm">to</span>
       <input
         type="date"
         value={end}
         onChange={(e) => onEndChange(e.target.value)}
-        className="px-3 py-1.5 text-sm border border-[#ede9e2] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b8943f]"
+        className="px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
       />
       <div className="flex gap-1">
         {[
@@ -66,7 +66,7 @@ export default function DateRangePicker({
           <button
             key={p.label}
             onClick={p.action}
-            className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider border border-[#ede9e2] rounded hover:bg-[#b8943f] hover:text-white hover:border-[#b8943f] transition-colors"
+            className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider border border-[var(--border)] rounded hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] transition-colors"
           >
             {p.label}
           </button>

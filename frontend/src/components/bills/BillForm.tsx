@@ -238,33 +238,33 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-6 max-w-6xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[var(--border)] p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Vendor</label>
             <select value={form.vendor_id}
               onChange={e => { const v = vendors.find(v => v.id === parseInt(e.target.value)); setForm(p => ({ ...p, vendor_id: e.target.value, vendor_name: v?.name ?? '' })) }}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">— Select or type name —</option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Vendor Name</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Vendor Name</label>
             <input value={form.vendor_name} onChange={e => setForm(p => ({ ...p, vendor_name: e.target.value }))}
               placeholder="or type manually"
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Bill Date</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Bill Date</label>
             <input type="date" value={form.bill_date} onChange={e => setForm(p => ({ ...p, bill_date: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Term</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Payment Term</label>
             <select
               value={form.payment_term_id}
               onChange={e => {
@@ -277,7 +277,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
                   return { ...p, payment_term_id: termId, due_date: due }
                 })
               }}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
             >
               <option value="">— select —</option>
               {paymentTerms.map(t => (
@@ -286,21 +286,21 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Due Date</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Due Date</label>
             <input type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Description</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Description</label>
           <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
             placeholder="e.g. Office supplies — May 2026"
-            className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+            className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Currency</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Currency</label>
             <select
               value={form.currency}
               onChange={e => {
@@ -310,66 +310,66 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
                 setForm(p => ({ ...p, currency: cur, exchange_rate: cur === settings.currency ? '1' : p.exchange_rate }))
                 if (cur !== settings.currency) fetchLiveRate(cur, form.bill_date)
               }}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               {Array.from(new Set([settings.currency, ...CURRENCIES])).sort().map(c =>
                 <option key={c} value={c}>{c}</option>
               )}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Exchange Rate (1 {form.currency} = ? {settings.currency})
             </label>
             <div className="flex gap-2">
               <input type="number" step="0.0001" min="0" value={form.exchange_rate}
                 onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
                 disabled={form.currency === settings.currency}
-                className="flex-1 px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm disabled:opacity-50" />
+                className="flex-1 px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm disabled:opacity-50" />
               <button type="button"
                 onClick={() => fetchLiveRate(form.currency)}
                 disabled={form.currency === settings.currency || fetchingRate}
                 title="Fetch live rate from ECB via Frankfurter"
-                className="px-3 py-2 bg-[#f6f3ee] border border-[#ede9e2] rounded-xl text-[#b8943f] hover:bg-[#b8943f]/10 disabled:opacity-40 transition-colors">
+                className="px-3 py-2 bg-[var(--bg-page)] border border-[var(--border)] rounded-xl text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-40 transition-colors">
                 {fetchingRate ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               </button>
             </div>
             {rateError && <p className="text-xs text-red-500 mt-1">{rateError}</p>}
-            {rateSource && !rateError && <p className="text-xs text-black/40 mt-1">{rateSource}</p>}
+            {rateSource && !rateError && <p className="text-xs text-[var(--text-muted)] mt-1">{rateSource}</p>}
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">Line Items</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">Line Items</label>
           <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint customerId={form.vendor_id ? Number(form.vendor_id) : null} priceKind="purchase" />
         </div>
 
-        <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
+        <div className="bg-[var(--bg-page)] rounded-xl p-4 space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-black/60">Subtotal</span>
+            <span className="text-[var(--text-muted)]">Subtotal</span>
             <span className="font-mono">{fmt(subtotal)}</span>
           </div>
           <div className="flex justify-between items-center gap-2">
-            <span className="text-black/60">Tax</span>
+            <span className="text-[var(--text-muted)]">Tax</span>
             {usePerLineTax ? (
-              <span className="font-mono text-xs text-black/60">(per-line) {fmt(gstAmount)}</span>
+              <span className="font-mono text-xs text-[var(--text-muted)]">(per-line) {fmt(gstAmount)}</span>
             ) : (
               <div className="flex items-center gap-2">
                 <input type="number" min="0" max="100" step="0.5"
                   value={form.gst_rate}
                   onChange={e => setForm(p => ({ ...p, gst_rate: e.target.value }))}
-                  className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
+                  className="w-16 text-right bg-white border border-[var(--border)] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[var(--primary)]"
                 />
-                <span className="text-black/60 text-xs">%</span>
+                <span className="text-[var(--text-muted)] text-xs">%</span>
                 <span className="font-mono">{fmt(gstAmount)}</span>
               </div>
             )}
           </div>
-          <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
+          <div className="flex justify-between border-t border-[var(--border)] pt-2 font-bold">
             <span>Total ({form.currency})</span>
-            <span className="font-mono text-[#1a1814]">{fmt(totalAmount)}</span>
+            <span className="font-mono text-[var(--text-primary)]">{fmt(totalAmount)}</span>
           </div>
           {form.currency !== settings.currency && parseFloat(form.exchange_rate) > 0 && (
-            <div className="flex justify-between text-xs text-black/50">
+            <div className="flex justify-between text-xs text-[var(--text-muted)]">
               <span>≈ {settings.currency} equivalent</span>
               <span className="font-mono">{fmt(Math.round(totalAmount * parseFloat(form.exchange_rate) * 100) / 100)}</span>
             </div>
@@ -378,10 +378,10 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Notes (printed)</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Notes (printed)</label>
             <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Printed on the bill for the vendor"
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm resize-none" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm resize-none" />
           </div>
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</label>
@@ -393,17 +393,17 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">AP Account</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">AP Account</label>
             <select value={form.ap_account_id} onChange={e => setForm(p => ({ ...p, ap_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">Auto (2000)</option>
               {apAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Expense Account</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Expense Account</label>
             <select value={form.expense_account_id} onChange={e => setForm(p => ({ ...p, expense_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">Auto (5000)</option>
               {expenseAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
             </select>
@@ -412,13 +412,13 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
 
         {analyticAccounts.length > 0 && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Analytic Account <span className="font-normal normal-case">(optional)</span>
             </label>
             <select
               value={form.analytic_account_id}
               onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
             >
               <option value="">— none —</option>
               {analyticAccounts.map(a => (
@@ -450,11 +450,11 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             </div>
           </div>
         )}
-        <p className="text-xs text-black/50">GL posting: Dr Expense / Dr GST Receivable / Cr Accounts Payable</p>
+        <p className="text-xs text-[var(--text-muted)]">GL posting: Dr Expense / Dr GST Receivable / Cr Accounts Payable</p>
         <div className="flex justify-end gap-3 pt-2">
-          <button onClick={() => { setConfirmPostedEdit(false); onCancel() }} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+          <button onClick={() => { setConfirmPostedEdit(false); onCancel() }} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>
           {!confirmPostedEdit && (
-            <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+            <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">
               {saving ? 'Posting...' : mode === 'edit' ? 'Save Changes' : 'Post Bill'}
             </button>
           )}

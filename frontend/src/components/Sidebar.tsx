@@ -204,7 +204,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
       {/* The drawer itself */}
       <aside
         className={cn(
-          "fixed top-0 left-0 h-full bg-[#1a1814] border-r border-white/5 z-50 flex flex-col shadow-2xl",
+          "fixed top-0 left-0 h-full bg-[var(--text-primary)] border-r border-white/5 z-50 flex flex-col shadow-2xl",
           drawerWidth,
           "transition-transform duration-200 ease-out",
           open ? "translate-x-0" : "-translate-x-full"
@@ -216,12 +216,12 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/10 shrink-0">
           <button
             onClick={() => { router.push(isPortal ? "/pra-dashboard" : "/dashboard"); if (!pinned) onClose() }}
-            className="w-8 h-8 bg-[#b8943f] rounded-lg flex items-center justify-center font-serif text-black font-bold text-sm hover:bg-[#d4af60] transition-colors"
+            className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center font-bold text-black font-bold text-sm hover:bg-[#d4af60] transition-colors"
             title={orgName}
           >
             {orgName.charAt(0)}
           </button>
-          <span className="flex-1 font-serif text-white text-sm truncate font-semibold" title={orgName}>
+          <span className="flex-1 font-bold text-white text-sm truncate font-semibold" title={orgName}>
             {orgName}
           </span>
           {/* Pin toggle — only meaningful on md+ */}
@@ -288,7 +288,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
                           className={cn(
                             "w-full text-left flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium transition-all border-l-2",
                             active
-                              ? "bg-[#b8943f]/15 text-[#ffd966] border-[#b8943f]"
+                              ? "bg-[var(--primary)]/15 text-[#ffd966] border-[var(--primary)]"
                               : "text-white/60 hover:text-white hover:bg-white/5 border-transparent"
                           )}
                         >
@@ -310,7 +310,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
           <div className="px-3 pb-2 shrink-0">
             <button
               onClick={togglePortal}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#b8943f]/15 hover:bg-[#b8943f]/25 border border-[#b8943f]/30 transition-colors text-left"
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--primary)]/15 hover:bg-[var(--primary)]/25 border border-[var(--primary)]/30 transition-colors text-left"
             >
               <span className="text-[11px] font-bold text-[#ffd966] uppercase tracking-widest">
                 {isPortal ? "Portal View" : "Full View"}
@@ -325,7 +325,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
         {/* Footer: user + logout */}
         <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-[#b8943f] flex items-center justify-center text-black font-bold text-xs flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-black font-bold text-xs flex-shrink-0">
               {userInitial}
             </div>
             <div className="min-w-0">

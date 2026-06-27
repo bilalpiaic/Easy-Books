@@ -22,11 +22,11 @@ async function download(sourceKey: string, config: ReportConfig, format: "csv" |
 export default function ExportMenu({ sourceKey, config }: Props) {
   return (
     <details className="relative">
-      <summary className="px-3 py-2 text-sm border border-[#ede9e2] rounded-lg cursor-pointer bg-white">Export ▾</summary>
-      <div className="absolute z-10 mt-1 right-0 w-40 bg-white border border-[#ede9e2] rounded-lg shadow-lg p-2">
-        <button onClick={() => download(sourceKey, config, "csv")} className="w-full text-left px-2 py-1 text-sm hover:bg-[#f6f3ee] rounded">CSV</button>
-        <button onClick={() => download(sourceKey, config, "xlsx")} className="w-full text-left px-2 py-1 text-sm hover:bg-[#f6f3ee] rounded">Excel (XLSX)</button>
-        <button onClick={() => window.print()} className="w-full text-left px-2 py-1 text-sm hover:bg-[#f6f3ee] rounded">Print</button>
+      <summary className="px-3 py-2 text-sm border border-[var(--border)] rounded-lg cursor-pointer bg-white">Export ▾</summary>
+      <div className="absolute z-10 mt-1 right-0 w-40 bg-white border border-[var(--border)] rounded-lg shadow-lg p-2">
+        <button onClick={() => download(sourceKey, config, "csv")} className="w-full text-left px-2 py-1 text-sm hover:bg-[var(--bg-page)] rounded">CSV</button>
+        <button onClick={() => download(sourceKey, config, "xlsx")} className="w-full text-left px-2 py-1 text-sm hover:bg-[var(--bg-page)] rounded">Excel (XLSX)</button>
+        <button onClick={() => window.print()} className="w-full text-left px-2 py-1 text-sm hover:bg-[var(--bg-page)] rounded">Print</button>
       </div>
     </details>
   )

@@ -25,24 +25,24 @@ export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
   const catalog = useMemo(() => shortcutCatalog(installedModules, meta.role), [installedModules, meta.role])
 
   return (
-    <div className="bg-white border border-[#ede9e2] rounded-xl p-3 shadow-sm">
+    <div className="bg-white border border-[var(--border)] rounded-xl p-3 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
         <div className="flex items-center gap-1 text-xs">
-          <button onClick={() => setTab("widgets")} className={`px-2.5 py-1 rounded-lg font-semibold ${tab === "widgets" ? "bg-[#faf6ec] text-[#b8943f]" : "text-[#1a1814]/55"}`}>Widgets</button>
-          <button onClick={() => setTab("shortcuts")} className={`px-2.5 py-1 rounded-lg font-semibold ${tab === "shortcuts" ? "bg-[#faf6ec] text-[#b8943f]" : "text-[#1a1814]/55"}`}>Shortcuts</button>
+          <button onClick={() => setTab("widgets")} className={`px-2.5 py-1 rounded-lg font-semibold ${tab === "widgets" ? "bg-[var(--bg-page)] text-[var(--primary)]" : "text-[var(--text-primary)]/55"}`}>Widgets</button>
+          <button onClick={() => setTab("shortcuts")} className={`px-2.5 py-1 rounded-lg font-semibold ${tab === "shortcuts" ? "bg-[var(--bg-page)] text-[var(--primary)]" : "text-[var(--text-primary)]/55"}`}>Shortcuts</button>
         </div>
-        <button onClick={onClose} className="ml-auto text-[#1a1814]/40 hover:text-[#1a1814]/70" aria-label="Close add-widget panel">
+        <button onClick={onClose} className="ml-auto text-[var(--text-primary)]/40 hover:text-[var(--text-primary)]/70" aria-label="Close add-widget panel">
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {tab === "widgets" && (
         <div className="flex flex-wrap gap-2">
-          {coreWidgets.length === 0 && <p className="text-xs text-[#1a1814]/45">All widgets are on the dashboard.</p>}
+          {coreWidgets.length === 0 && <p className="text-xs text-[var(--text-primary)]/45">All widgets are on the dashboard.</p>}
           {coreWidgets.map(w => (
             <button key={w.id} onClick={() => onAdd(w.id)}
-              className="inline-flex items-center gap-1 text-xs border border-[#ede9e2] rounded-lg px-2.5 py-1.5 hover:border-[#b8943f]/40 text-[#1a1814]/70">
-              <Plus className="w-3.5 h-3.5 text-[#b8943f]" /> {w.title}
+              className="inline-flex items-center gap-1 text-xs border border-[var(--border)] rounded-lg px-2.5 py-1.5 hover:border-[var(--primary)]/40 text-[var(--text-primary)]/70">
+              <Plus className="w-3.5 h-3.5 text-[var(--primary)]" /> {w.title}
             </button>
           ))}
         </div>
@@ -55,7 +55,7 @@ export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
             if (inSection.length === 0) return null
             return (
               <div key={section}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/45 mb-1.5">{section}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/45 mb-1.5">{section}</p>
                 <div className="flex flex-wrap gap-2">
                   {inSection.map(i => {
                     const id = shortcutId(i.href)
@@ -63,8 +63,8 @@ export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
                     const Icon = i.icon
                     return (
                       <button key={i.href} disabled={added} onClick={() => onAdd(id)}
-                        className={`inline-flex items-center gap-1 text-xs border rounded-lg px-2.5 py-1.5 ${added ? "border-[#ede9e2] text-[#1a1814]/30 cursor-default" : "border-[#ede9e2] text-[#1a1814]/70 hover:border-[#b8943f]/40"}`}>
-                        <Icon className="w-3.5 h-3.5 text-[#b8943f]" /> {i.label}
+                        className={`inline-flex items-center gap-1 text-xs border rounded-lg px-2.5 py-1.5 ${added ? "border-[var(--border)] text-[var(--text-primary)]/30 cursor-default" : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"}`}>
+                        <Icon className="w-3.5 h-3.5 text-[var(--primary)]" /> {i.label}
                       </button>
                     )
                   })}

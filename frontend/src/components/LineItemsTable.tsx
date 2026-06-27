@@ -126,37 +126,37 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
   const totalCols = totalDataCols + actionCol
 
   return (
-    <div className="border border-[#ede9e2] rounded-xl overflow-x-auto">
+    <div className="border border-[var(--border)] rounded-xl overflow-x-auto">
       <table className="w-full text-sm min-w-[920px]">
-        <thead className="bg-[#f6f3ee]">
+        <thead className="bg-[var(--bg-page)]">
           <tr>
             {hasProducts && (
-              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 min-w-[160px] w-[18%]">Product</th>
+              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] min-w-[160px] w-[18%]">Product</th>
             )}
-            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 min-w-[200px] w-[28%]">Description</th>
-            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-28">Qty</th>
-            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Unit</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-32">Rate ({currency})</th>
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-20">Disc %</th>
+            <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] min-w-[200px] w-[28%]">Description</th>
+            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-28">Qty</th>
+            <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-20">Unit</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-32">Rate ({currency})</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-20">Disc %</th>
             {hasTax && (
-              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60 w-40">Tax</th>
+              <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-40">Tax</th>
             )}
-            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60 w-36">Amount ({currency})</th>
+            <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-36">Amount ({currency})</th>
             {!readOnly && <th className="w-8" />}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#ede9e2]">
+        <tbody className="divide-y divide-[var(--border)]">
           {lines.map((line, idx) => (
-            <tr key={idx} className="hover:bg-[#f6f3ee]/30">
+            <tr key={idx} className="hover:bg-[var(--bg-page)]/30">
               {hasProducts && (
                 <td className="px-3 py-2">
                   {readOnly ? (
-                    <span className="text-xs text-black/60">{products.find(p => p.id === line.product_id)?.name ?? "—"}</span>
+                    <span className="text-xs text-[var(--text-muted)]">{products.find(p => p.id === line.product_id)?.name ?? "—"}</span>
                   ) : (
                     <select
                       value={line.product_id ?? ""}
                       onChange={e => onProductSelect(idx, e.target.value)}
-                      className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5"
+                      className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)] rounded px-1 py-0.5"
                     >
                       <option value="">— none —</option>
                       {products.map(p => (
@@ -174,7 +174,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                     value={line.description}
                     onChange={e => update(idx, { description: e.target.value })}
                     placeholder="Description"
-                    className="w-full bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 text-sm"
+                    className="w-full bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)] rounded px-1 py-0.5 text-sm"
                   />
                 )}
               </td>
@@ -187,7 +187,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                       type="number" min="0" step="0.001"
                       value={line.qty}
                       onChange={e => update(idx, { qty: parseFloat(e.target.value) || 0 })}
-                      className="w-full text-center bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
+                      className="w-full text-center bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)] rounded px-1 py-0.5 font-mono text-sm"
                     />
                     {showStockHint && (() => {
                       const prod = line.product_id ? products.find(p => p.id === line.product_id) : null
@@ -196,7 +196,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                       const oversell = warnOversell && line.qty > onHand
                       return (
                         <div className="text-[10px] mt-0.5 text-center">
-                          <span className={`whitespace-nowrap ${oversell ? "text-amber-600 font-semibold" : "text-black/45"}`}>
+                          <span className={`whitespace-nowrap ${oversell ? "text-amber-600 font-semibold" : "text-[var(--text-muted)]"}`}>
                             On hand: {onHand}
                           </span>
                           {oversell && (
@@ -210,12 +210,12 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
               </td>
               <td className="px-3 py-2">
                 {readOnly ? (
-                  <span className="block text-center text-xs text-black/60">{line.unit ?? "—"}</span>
+                  <span className="block text-center text-xs text-[var(--text-muted)]">{line.unit ?? "—"}</span>
                 ) : (
                   <select
                     value={line.unit ?? "pcs"}
                     onChange={e => update(idx, { unit: e.target.value })}
-                    className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5"
+                    className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)] rounded px-1 py-0.5"
                   >
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
@@ -230,12 +230,12 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                       type="number" min="0" step="0.01"
                       value={line.rate}
                       onChange={e => update(idx, { rate: parseFloat(e.target.value) || 0 })}
-                      className="w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm"
+                      className="w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)] rounded px-1 py-0.5 font-mono text-sm"
                     />
                     {hints[idx] && hints[idx]!.rate !== line.rate && (
                       <button type="button"
                         onClick={() => update(idx, { rate: hints[idx]!.rate, amount: Math.round(line.qty * hints[idx]!.rate * 100) / 100 })}
-                        className="block mt-1 text-[10px] text-[#b8943f] hover:underline"
+                        className="block mt-1 text-[10px] text-[var(--primary)] hover:underline"
                         title={`Last ${priceKind === 'purchase' ? 'bought' : 'sold'} (${hints[idx]!.scope})`}
                       >
                         Last: {fmt(hints[idx]!.rate)}{hints[idx]!.party_name ? ` — ${hints[idx]!.party_name}` : ""} · {hints[idx]!.date} — Use
@@ -254,21 +254,21 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                     type="number" min="0" max="100" step="0.01"
                     value={line.discount_pct ?? 0}
                     onChange={e => update(idx, { discount_pct: parseFloat(e.target.value) || 0 })}
-                    className={`w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5 font-mono text-sm ${(line.discount_pct ?? 0) > 0 ? "text-emerald-600 font-semibold" : ""}`}
+                    className={`w-full text-right bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)] rounded px-1 py-0.5 font-mono text-sm ${(line.discount_pct ?? 0) > 0 ? "text-emerald-600 font-semibold" : ""}`}
                   />
                 )}
               </td>
               {hasTax && (
                 <td className="px-3 py-2">
                   {readOnly ? (
-                    <span className="text-xs text-black/60">
+                    <span className="text-xs text-[var(--text-muted)]">
                       {taxCodes.find(t => t.id === line.tax_code_id)?.code ?? "—"}
                     </span>
                   ) : (
                     <select
                       value={line.tax_code_id ?? ""}
                       onChange={e => update(idx, { tax_code_id: e.target.value ? Number(e.target.value) : null })}
-                      className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[#b8943f] rounded px-1 py-0.5"
+                      className="w-full text-xs bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)] rounded px-1 py-0.5"
                     >
                       <option value="">— none —</option>
                       {taxCodes.map(t => (
@@ -290,26 +290,26 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
           ))}
           {lines.length === 0 && (
             <tr>
-              <td colSpan={totalCols} className="px-4 py-4 text-center text-xs text-black/40">
+              <td colSpan={totalCols} className="px-4 py-4 text-center text-xs text-[var(--text-muted)]">
                 No line items. {!readOnly && "Click Add Row to begin."}
               </td>
             </tr>
           )}
         </tbody>
-        <tfoot className="bg-[#f6f3ee] border-t border-[#ede9e2]">
+        <tfoot className="bg-[var(--bg-page)] border-t border-[var(--border)]">
           <tr>
             <td colSpan={totalCols - 1 - actionCol} className="px-3 py-2">
               {!readOnly && (
                 <button
                   type="button"
                   onClick={add}
-                  className="flex items-center gap-1 text-xs text-[#b8943f] font-bold hover:underline"
+                  className="flex items-center gap-1 text-xs text-[var(--primary)] font-bold hover:underline"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Row
                 </button>
               )}
             </td>
-            <td className="px-3 py-2 text-right text-xs font-bold uppercase tracking-widest text-black/60">Subtotal</td>
+            <td className="px-3 py-2 text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Subtotal</td>
             <td className="px-3 py-2 text-right font-mono font-bold">{fmt(subtotal)}</td>
             {!readOnly && <td />}
           </tr>

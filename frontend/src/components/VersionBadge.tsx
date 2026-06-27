@@ -16,5 +16,5 @@ export default function VersionBadge() {
   }, [buildVersion])
 
   const v = buildVersion ?? liveVersion ?? "dev"
-  return <span className="text-[11px] text-[#1a1814]/40">Easy-Books v{v}</span>
+  return <span className="text-[11px] text-[var(--text-primary)]/40">Easy-Books v{v}</span>
 }

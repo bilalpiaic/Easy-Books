@@ -23,7 +23,7 @@ export default function AccountListBand({ accounts }: AccountListBandProps) {
 
   return (
     <div className="bg-white rounded-xl p-3">
-      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/40 mb-2">
+      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/40 mb-2">
         Account Balances
       </div>
       <div className="flex flex-col gap-1.5">
@@ -32,14 +32,14 @@ export default function AccountListBand({ accounts }: AccountListBandProps) {
             key={acc.id}
             className="flex justify-between items-center bg-[#f8f5ef] rounded-lg px-2.5 py-1.5"
           >
-            <span className="text-xs text-[#1a1814] truncate">{acc.name}</span>
-            <span className="text-xs font-bold text-[#1a1814] ml-2 shrink-0">{fmt(acc.balance)}</span>
+            <span className="text-xs text-[var(--text-primary)] truncate">{acc.name}</span>
+            <span className="text-xs font-bold text-[var(--text-primary)] ml-2 shrink-0">{fmt(acc.balance)}</span>
           </div>
         ))}
         {overflow > 0 && (
           <Link
             href="/bank-accounts"
-            className="text-[10px] text-[#b8943f] hover:underline text-right mt-0.5"
+            className="text-[10px] text-[var(--primary)] hover:underline text-right mt-0.5"
           >
             +{overflow} more →
           </Link>

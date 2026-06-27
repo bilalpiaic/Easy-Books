@@ -11,7 +11,7 @@ export interface LowStockBandProps {
 export default function LowStockBand({ items }: LowStockBandProps) {
   if (items.length === 0)
     return (
-      <div className="bg-white rounded-xl p-3 text-sm text-[#1a1814]/40 text-center">
+      <div className="bg-white rounded-xl p-3 text-sm text-[var(--text-primary)]/40 text-center">
         All products within stock levels
       </div>
     )
@@ -28,7 +28,7 @@ export default function LowStockBand({ items }: LowStockBandProps) {
               key={i}
               className={`flex justify-between items-center rounded-lg px-2.5 py-1.5 ${out ? "bg-red-50" : "bg-amber-50"}`}
             >
-              <span className="text-xs text-[#1a1814] truncate">{item.name}</span>
+              <span className="text-xs text-[var(--text-primary)] truncate">{item.name}</span>
               <span className={`text-xs font-bold ml-2 shrink-0 ${out ? "text-red-600" : "text-amber-600"}`}>
                 {out ? "Out of stock" : `${item.on_hand} left`}
               </span>

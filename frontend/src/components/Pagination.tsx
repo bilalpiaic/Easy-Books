@@ -15,14 +15,14 @@ export default function Pagination({ page, pageSize, total, onPage }: Pagination
 
   return (
     <div className="flex items-center justify-between px-2 py-3 print:hidden">
-      <span className="text-xs text-black/50">
+      <span className="text-xs text-[var(--text-muted)]">
         Showing {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} of {total}
       </span>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPage(page - 1)}
           disabled={page <= 1}
-          className="w-8 h-8 flex items-center justify-center rounded border border-[#ede9e2] hover:bg-[#f6f3ee] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--bg-page)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
@@ -34,8 +34,8 @@ export default function Pagination({ page, pageSize, total, onPage }: Pagination
               onClick={() => onPage(p)}
               className={`w-8 h-8 text-xs font-bold rounded border transition-colors ${
                 p === page
-                  ? "bg-[#b8943f] text-white border-[#b8943f]"
-                  : "border-[#ede9e2] hover:bg-[#f6f3ee]"
+                  ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                  : "border-[var(--border)] hover:bg-[var(--bg-page)]"
               }`}
             >
               {p}
@@ -45,7 +45,7 @@ export default function Pagination({ page, pageSize, total, onPage }: Pagination
         <button
           onClick={() => onPage(page + 1)}
           disabled={page >= totalPages}
-          className="w-8 h-8 flex items-center justify-center rounded border border-[#ede9e2] hover:bg-[#f6f3ee] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--bg-page)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>

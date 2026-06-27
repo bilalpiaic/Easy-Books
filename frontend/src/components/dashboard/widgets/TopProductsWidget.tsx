@@ -20,21 +20,21 @@ export default function TopProductsWidget() {
   const top = items ? topByUnitsSold(items, 5) : []
 
   return (
-    <div className="h-full flex flex-col bg-white border border-[#ede9e2] rounded-xl p-4 shadow-sm">
-      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55 mb-2">Top Products</p>
-      <p className="text-[10px] text-[#1a1814]/40 -mt-1 mb-2">by units sold</p>
+    <div className="h-full flex flex-col bg-white border border-[var(--border)] rounded-xl p-4 shadow-sm">
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/55 mb-2">Top Products</p>
+      <p className="text-[10px] text-[var(--text-primary)]/40 -mt-1 mb-2">by units sold</p>
       {error ? (
         <div className="text-sm text-red-600">Failed to load.</div>
       ) : !items ? (
         <div className="shimmer h-20 rounded-lg" />
       ) : top.length === 0 ? (
-        <div className="text-sm text-[#1a1814]/40">No products yet.</div>
+        <div className="text-sm text-[var(--text-primary)]/40">No products yet.</div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
           {top.map((p, i) => (
-            <div key={p.id} className="flex items-center gap-2 py-1.5 border-b border-[#ede9e2] last:border-0 text-sm">
-              <span className="text-[10px] font-bold text-[#b8943f] w-4 flex-shrink-0">{i + 1}</span>
-              <span className="flex-1 truncate text-[#1a1814]/80">{p.name}</span>
+            <div key={p.id} className="flex items-center gap-2 py-1.5 border-b border-[var(--border)] last:border-0 text-sm">
+              <span className="text-[10px] font-bold text-[var(--primary)] w-4 flex-shrink-0">{i + 1}</span>
+              <span className="flex-1 truncate text-[var(--text-primary)]/80">{p.name}</span>
               <span className="font-medium tabular-nums whitespace-nowrap">{Number(p.units_sold)}</span>
             </div>
           ))}

@@ -30,20 +30,20 @@ export default function PayrollBand({ runs }: PayrollBandProps) {
 
   return (
     <div className="bg-white rounded-xl p-3">
-      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/40 mb-2">
+      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/40 mb-2">
         Recent Payroll Runs
       </div>
       {runs.length === 0 ? (
-        <p className="text-xs text-[#1a1814]/40 py-2 text-center">No payroll runs yet</p>
+        <p className="text-xs text-[var(--text-primary)]/40 py-2 text-center">No payroll runs yet</p>
       ) : (
         <div className="flex flex-col gap-1.5">
           {runs.map(run => (
             <div key={run.id} className="flex items-center justify-between bg-[#f8f5ef] rounded-lg px-2.5 py-1.5 gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono text-[10px] text-[#1a1814]/60 shrink-0">
+                <span className="font-mono text-[10px] text-[var(--text-primary)]/60 shrink-0">
                   {run.jv_number ?? `#${run.id}`}
                 </span>
-                <span className="text-xs text-[#1a1814]/70 truncate">
+                <span className="text-xs text-[var(--text-primary)]/70 truncate">
                   {fmtDate(run.period_start)} – {fmtDate(run.period_end)}
                 </span>
               </div>
@@ -51,14 +51,14 @@ export default function PayrollBand({ runs }: PayrollBandProps) {
                 <span className={`text-[10px] font-medium capitalize ${STATUS_COLOR[run.status] ?? ""}`}>
                   {run.status}
                 </span>
-                <span className="text-xs font-bold text-[#1a1814]">{fmt(run.total_net_pay)}</span>
-                <Link href={`/payroll/${run.id}`} className="text-[10px] text-[#b8943f] hover:underline">
+                <span className="text-xs font-bold text-[var(--text-primary)]">{fmt(run.total_net_pay)}</span>
+                <Link href={`/payroll/${run.id}`} className="text-[10px] text-[var(--primary)] hover:underline">
                   View
                 </Link>
               </div>
             </div>
           ))}
-          <Link href="/payroll" className="text-[10px] text-[#b8943f] hover:underline text-right mt-0.5">
+          <Link href="/payroll" className="text-[10px] text-[var(--primary)] hover:underline text-right mt-0.5">
             All runs →
           </Link>
         </div>

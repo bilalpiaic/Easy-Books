@@ -39,15 +39,15 @@ function TreeRow({ node, columns, renderLeafLabel }: {
   const isGroup = node.is_group || hasChildren
   return (
     <>
-      <tr className={isGroup ? "font-semibold bg-[#f6f3ee]/40" : ""}>
+      <tr className={isGroup ? "font-semibold bg-[var(--bg-page)]/40" : ""}>
         <td className="py-2 pr-3">
           <span style={{ paddingLeft: `${node.level * 20}px` }} className="inline-flex items-center gap-1">
             {hasChildren ? (
-              <button onClick={() => setOpen(o => !o)} className="text-[#1a1814]/50 hover:text-[#b8943f]">
+              <button onClick={() => setOpen(o => !o)} className="text-[var(--text-primary)]/50 hover:text-[var(--primary)]">
                 {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
             ) : <span className="inline-block w-[14px]" />}
-            <span className="text-[#1a1814]/50 text-xs tabular-nums">{node.code}</span>
+            <span className="text-[var(--text-primary)]/50 text-xs tabular-nums">{node.code}</span>
             {!isGroup && renderLeafLabel ? renderLeafLabel(node) : <span>{node.name}</span>}
           </span>
         </td>

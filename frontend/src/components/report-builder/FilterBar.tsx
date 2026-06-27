@@ -34,7 +34,7 @@ export default function FilterBar({ source, filters, onChange }: Props) {
     }
   }
 
-  const inputCls = "text-sm border border-[#ede9e2] rounded px-2 py-1"
+  const inputCls = "text-sm border border-[var(--border)] rounded px-2 py-1"
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -56,7 +56,7 @@ export default function FilterBar({ source, filters, onChange }: Props) {
           <input value={valueLo} onChange={e => setValueLo(e.target.value)}
             type={fieldInputType(meta?.type ?? "text")}
             className={inputCls} placeholder="from" />
-          <span className="text-sm text-black/50">–</span>
+          <span className="text-sm text-[var(--text-muted)]">–</span>
           <input value={valueHi} onChange={e => setValueHi(e.target.value)}
             type={fieldInputType(meta?.type ?? "text")}
             className={inputCls} placeholder="to" />
@@ -67,10 +67,10 @@ export default function FilterBar({ source, filters, onChange }: Props) {
           className={inputCls} placeholder="value" />
       )}
 
-      <button onClick={add} className="text-sm px-3 py-1 border border-[#b8943f] text-[#b8943f] rounded">+ Filter</button>
+      <button onClick={add} className="text-sm px-3 py-1 border border-[var(--primary)] text-[var(--primary)] rounded">+ Filter</button>
 
       {filters.map((f, i) => (
-        <span key={i} className="inline-flex items-center gap-1 text-xs bg-[#f6f3ee] border border-[#ede9e2] rounded-full px-3 py-1">
+        <span key={i} className="inline-flex items-center gap-1 text-xs bg-[var(--bg-page)] border border-[var(--border)] rounded-full px-3 py-1">
           {f.field} {f.op} {String(Array.isArray(f.value) ? f.value.join(" – ") : f.value)}
           <X size={12} className="cursor-pointer" onClick={() => onChange(filters.filter((_, j) => j !== i))} />
         </span>

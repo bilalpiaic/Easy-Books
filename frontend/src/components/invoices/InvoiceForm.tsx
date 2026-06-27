@@ -329,11 +329,11 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-6 max-w-6xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[var(--border)] p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Customer</label>
             <select value={form.customer_id}
               onChange={e => {
                 const c = customers.find(c => c.id === parseInt(e.target.value))
@@ -351,7 +351,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
                     .catch(() => {})
                 }
               }}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">— Select or type name —</option>
               {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -360,46 +360,46 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             )}
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer Name</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Customer Name</label>
             <input value={form.customer_name} onChange={e => setForm(p => ({ ...p, customer_name: e.target.value }))}
               placeholder="or type manually"
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
         {(isPortal || form.buyer_ntn || form.buyer_cnic) && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
-                Buyer NTN <span className="font-normal normal-case text-[#1a1814]/40">(7-digit business)</span>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+                Buyer NTN <span className="font-normal normal-case text-[var(--text-primary)]/40">(7-digit business)</span>
               </label>
               <input
                 value={form.buyer_ntn}
                 onChange={e => setForm(p => ({ ...p, buyer_ntn: e.target.value }))}
                 placeholder="1234567-8"
-                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm font-mono"
+                className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm font-mono"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
-                Buyer CNIC <span className="font-normal normal-case text-[#1a1814]/40">(13-digit consumer)</span>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+                Buyer CNIC <span className="font-normal normal-case text-[var(--text-primary)]/40">(13-digit consumer)</span>
               </label>
               <input
                 value={form.buyer_cnic}
                 onChange={e => setForm(p => ({ ...p, buyer_cnic: e.target.value }))}
                 placeholder="3520212345678"
-                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm font-mono"
+                className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm font-mono"
               />
             </div>
           </div>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Issue Date</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Issue Date</label>
             <input type="date" value={form.issue_date} onChange={e => setForm(p => ({ ...p, issue_date: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Term</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Payment Term</label>
             <select
               value={form.payment_term_id}
               onChange={e => {
@@ -412,7 +412,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
                   return { ...p, payment_term_id: termId, due_date: due }
                 })
               }}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
             >
               <option value="">— select —</option>
               {paymentTerms.map(t => (
@@ -421,19 +421,19 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Due Date</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Due Date</label>
             <input type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
         {isPortal && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
                 Payment Mode
               </label>
               <select value={form.payment_mode} onChange={e => setForm(p => ({ ...p, payment_mode: e.target.value }))}
-                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
                 <option value="1">Cash</option>
                 <option value="2">Card / Bank Transfer</option>
                 <option value="3">Gift Voucher</option>
@@ -446,15 +446,15 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Description</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Description</label>
             <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               placeholder="e.g. Consulting services — May 2026"
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Sales Person <span className="font-normal normal-case text-[#1a1814]/40">(optional)</span></label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Sales Person <span className="font-normal normal-case text-[var(--text-primary)]/40">(optional)</span></label>
             <select value={form.assigned_to_id} onChange={e => setForm(p => ({ ...p, assigned_to_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">None</option>
               {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
@@ -463,11 +463,11 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         {!isPortal && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
                 Payment Mode
               </label>
               <select value={form.payment_mode} onChange={e => setForm(p => ({ ...p, payment_mode: e.target.value }))}
-                className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+                className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
                 <option value="1">Cash</option>
                 <option value="2">Card / Bank Transfer</option>
                 <option value="3">Gift Voucher</option>
@@ -481,7 +481,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Currency</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Currency</label>
             <select
               value={form.currency}
               onChange={e => {
@@ -491,41 +491,41 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
                 setForm(p => ({ ...p, currency: cur, exchange_rate: cur === settings.currency ? '1' : p.exchange_rate }))
                 if (cur !== settings.currency) fetchLiveRate(cur, form.issue_date)
               }}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               {Array.from(new Set([settings.currency, ...CURRENCIES])).sort().map(c =>
                 <option key={c} value={c}>{c}</option>
               )}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Exchange Rate (1 {form.currency} = ? {settings.currency})
             </label>
             <div className="flex gap-2">
               <input type="number" step="0.0001" min="0" value={form.exchange_rate}
                 onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
                 disabled={form.currency === settings.currency}
-                className="flex-1 px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm disabled:opacity-50" />
+                className="flex-1 px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm disabled:opacity-50" />
               <button type="button"
                 onClick={() => fetchLiveRate(form.currency)}
                 disabled={form.currency === settings.currency || fetchingRate}
                 title="Fetch live rate from ECB via Frankfurter"
-                className="px-3 py-2 bg-[#f6f3ee] border border-[#ede9e2] rounded-xl text-[#b8943f] hover:bg-[#b8943f]/10 disabled:opacity-40 transition-colors">
+                className="px-3 py-2 bg-[var(--bg-page)] border border-[var(--border)] rounded-xl text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-40 transition-colors">
                 {fetchingRate ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               </button>
             </div>
             {rateError && <p className="text-xs text-red-500 mt-1">{rateError}</p>}
-            {rateSource && !rateError && <p className="text-xs text-black/40 mt-1">{rateSource}</p>}
+            {rateSource && !rateError && <p className="text-xs text-[var(--text-muted)] mt-1">{rateSource}</p>}
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75">Line Items</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Line Items</label>
             <div className="flex items-center gap-2">
-              {promoMsg && <span className="text-xs text-[#b8943f]">{promoMsg}</span>}
+              {promoMsg && <span className="text-xs text-[var(--primary)]">{promoMsg}</span>}
               <button type="button" onClick={handleApplyPromos} disabled={applyingPromos || lines.length === 0}
-                className="px-3 py-1.5 text-xs font-semibold bg-[#faf6ec] border border-[#b8943f]/40 text-[#b8943f] rounded-lg hover:bg-[#b8943f]/10 disabled:opacity-40 transition-colors">
+                className="px-3 py-1.5 text-xs font-semibold bg-[var(--bg-page)] border border-[var(--primary)]/40 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/10 disabled:opacity-40 transition-colors">
                 {applyingPromos ? "Checking…" : "Apply Promos"}
               </button>
             </div>
@@ -533,33 +533,33 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" />
         </div>
 
-        <div className="bg-[#f6f3ee] rounded-xl p-4 space-y-1 text-sm">
+        <div className="bg-[var(--bg-page)] rounded-xl p-4 space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-black/60">Subtotal</span>
+            <span className="text-[var(--text-muted)]">Subtotal</span>
             <span className="font-mono">{fmt(subtotal)}</span>
           </div>
           <div className="flex justify-between items-center gap-2">
-            <span className="text-black/60">Tax</span>
+            <span className="text-[var(--text-muted)]">Tax</span>
             {usePerLineTax ? (
-              <span className="font-mono text-xs text-black/60">(per-line) {fmt(gstAmount)}</span>
+              <span className="font-mono text-xs text-[var(--text-muted)]">(per-line) {fmt(gstAmount)}</span>
             ) : (
               <div className="flex items-center gap-2">
                 <input type="number" min="0" max="100" step="0.5"
                   value={form.gst_rate}
                   onChange={e => setForm(p => ({ ...p, gst_rate: e.target.value }))}
-                  className="w-16 text-right bg-white border border-[#ede9e2] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
+                  className="w-16 text-right bg-white border border-[var(--border)] rounded px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-[var(--primary)]"
                 />
-                <span className="text-black/60 text-xs">%</span>
+                <span className="text-[var(--text-muted)] text-xs">%</span>
                 <span className="font-mono">{fmt(gstAmount)}</span>
               </div>
             )}
           </div>
-          <div className="flex justify-between border-t border-[#ede9e2] pt-2 font-bold">
+          <div className="flex justify-between border-t border-[var(--border)] pt-2 font-bold">
             <span>Total ({form.currency})</span>
-            <span className="font-mono text-[#1a1814]">{fmt(totalAmount)}</span>
+            <span className="font-mono text-[var(--text-primary)]">{fmt(totalAmount)}</span>
           </div>
           {form.currency !== settings.currency && parseFloat(form.exchange_rate) > 0 && (
-            <div className="flex justify-between text-xs text-black/50">
+            <div className="flex justify-between text-xs text-[var(--text-muted)]">
               <span>≈ {settings.currency} equivalent</span>
               <span className="font-mono">{fmt(Math.round(totalAmount * parseFloat(form.exchange_rate) * 100) / 100)}</span>
             </div>
@@ -568,10 +568,10 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Notes (printed)</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Notes (printed)</label>
             <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Printed on the invoice for the customer"
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm resize-none" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm resize-none" />
           </div>
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</label>
@@ -583,17 +583,17 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">AR Account</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">AR Account</label>
             <select value={form.ar_account_id} onChange={e => setForm(p => ({ ...p, ar_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">Auto (1100)</option>
               {arAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Revenue Account</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Revenue Account</label>
             <select value={form.revenue_account_id} onChange={e => setForm(p => ({ ...p, revenue_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">Auto (4000)</option>
               {revenueAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
             </select>
@@ -602,13 +602,13 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
 
         {analyticAccounts.length > 0 && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Analytic Account <span className="font-normal normal-case">(optional)</span>
             </label>
             <select
               value={form.analytic_account_id}
               onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
             >
               <option value="">— none —</option>
               {analyticAccounts.map(a => (
@@ -640,11 +640,11 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             </div>
           </div>
         )}
-        <p className="text-xs text-black/50">GL posting: Dr Accounts Receivable / Cr Revenue / Cr GST Payable</p>
+        <p className="text-xs text-[var(--text-muted)]">GL posting: Dr Accounts Receivable / Cr Revenue / Cr GST Payable</p>
         <div className="flex justify-end gap-3 pt-2">
-          <button onClick={() => { setConfirmPostedEdit(false); onCancel() }} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
+          <button onClick={() => { setConfirmPostedEdit(false); onCancel() }} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>
           {!confirmPostedEdit && (
-            <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+            <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">
               {saving ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Post Invoice'}
             </button>
           )}

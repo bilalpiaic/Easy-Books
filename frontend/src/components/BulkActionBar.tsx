@@ -17,7 +17,7 @@ interface BulkActionBarProps {
 export default function BulkActionBar({ count, actions, onClear }: BulkActionBarProps) {
   if (count === 0) return null
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 bg-[#1a1814] text-white rounded-xl shadow-2xl border border-white/10">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 bg-[var(--text-primary)] text-white rounded-xl shadow-2xl border border-white/10">
       <span className="text-sm font-semibold whitespace-nowrap">
         {count} selected
       </span>

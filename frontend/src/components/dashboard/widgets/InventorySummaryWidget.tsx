@@ -19,8 +19,8 @@ export default function InventorySummaryWidget() {
   const t = items ? summarizeInventory(items) : null
 
   return (
-    <div className="h-full flex flex-col bg-white border border-[#ede9e2] rounded-xl p-4 shadow-sm">
-      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55 mb-3">Inventory Summary</p>
+    <div className="h-full flex flex-col bg-white border border-[var(--border)] rounded-xl p-4 shadow-sm">
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/55 mb-3">Inventory Summary</p>
       {error ? (
         <div className="text-sm text-red-600">Failed to load.</div>
       ) : !t ? (
@@ -39,8 +39,8 @@ export default function InventorySummaryWidget() {
 function Figure({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
     <div className="text-center min-w-0">
-      <p className={`text-lg font-bold leading-none truncate ${warn ? "text-amber-600" : "text-[#1a1814]"}`}>{value}</p>
-      <p className="text-[10px] text-[#1a1814]/55 mt-1 uppercase tracking-wide">{label}</p>
+      <p className={`text-lg font-bold leading-none truncate ${warn ? "text-amber-600" : "text-[var(--text-primary)]"}`}>{value}</p>
+      <p className="text-[10px] text-[var(--text-primary)]/55 mt-1 uppercase tracking-wide">{label}</p>
     </div>
   )
 }

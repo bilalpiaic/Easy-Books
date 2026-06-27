@@ -10,13 +10,13 @@ interface Props {
 }
 
 export default function ReportGrid({ result, sort, onSort, onCellFilter }: Props) {
-  if (!result) return <div className="p-8 text-black/50">Configure a report to begin.</div>
+  if (!result) return <div className="p-8 text-[var(--text-muted)]">Configure a report to begin.</div>
   const sb = sort[0]?.field ?? ""
   const sd = sort[0]?.dir ?? "asc"
   return (
-    <div className="overflow-auto border border-[#ede9e2] rounded-xl bg-white">
+    <div className="overflow-auto border border-[var(--border)] rounded-xl bg-white">
       <table className="w-full text-sm">
-        <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+        <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
           <tr>{result.columns.map(c => (
             <SortableHeader key={c.key} label={c.label} field={c.key}
               sortBy={sb} sortDir={sd} onSort={onSort}
@@ -38,7 +38,7 @@ export default function ReportGrid({ result, sort, onSort, onCellFilter }: Props
           ))}
         </tbody>
         {result.footers && (
-          <tfoot className="bg-[#f6f3ee] font-bold border-t-2 border-[#b8943f]">
+          <tfoot className="bg-[var(--bg-page)] font-bold border-t-2 border-[var(--primary)]">
             <tr>{result.columns.map((c, i) => (
               <td key={c.key} className={`px-6 py-3 ${c.type === "money" ? "text-right tabular-nums" : ""}`}>
                 {i === 0 ? "TOTAL" : (result.footers?.[c.key] ?? "")}

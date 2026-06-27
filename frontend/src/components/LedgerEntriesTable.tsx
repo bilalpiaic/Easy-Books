@@ -60,34 +60,34 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
   const opening     = Number(payload.opening_balance ?? 0)
 
   return (
-    <div className="bg-white rounded-xl border border-[#ede9e2] overflow-hidden">
+    <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
       {/* Account header strip */}
-      <div className="bg-[#f6f3ee] px-6 py-4 border-b border-[#ede9e2] flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[var(--bg-page)] px-6 py-4 border-b border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-sm text-[#b8943f]">{payload.code}</span>
-          <span className="font-serif text-lg text-[#1a1814]">{payload.name}</span>
+          <span className="font-mono text-sm text-[var(--primary)]">{payload.code}</span>
+          <span className="font-bold text-lg text-[var(--text-primary)]">{payload.name}</span>
           {payload.type && (
-            <span className="text-[10px] text-[#1a1814]/40 border border-[#ede9e2] rounded px-1.5 py-0.5">
+            <span className="text-[10px] text-[var(--text-primary)]/40 border border-[var(--border)] rounded px-1.5 py-0.5">
               {payload.type}
             </span>
           )}
         </div>
         <div className="flex items-center gap-6 text-right">
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/50">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)]/50">
               {voucherFilter ? "Filtered Debit" : "Total Debit"}
             </p>
             <p className="font-mono text-sm font-semibold">{fmt(totalDebit)}</p>
           </div>
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/50">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)]/50">
               {voucherFilter ? "Filtered Credit" : "Total Credit"}
             </p>
             <p className="font-mono text-sm font-semibold">{fmt(totalCredit)}</p>
           </div>
-          <div className="border-l border-[#ede9e2] pl-6">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#1a1814]/50">Closing Balance</p>
-            <p className={`font-mono font-bold text-base ${closing < 0 ? "text-red-600" : "text-[#1a1814]"}`}>
+          <div className="border-l border-[var(--border)] pl-6">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-primary)]/50">Closing Balance</p>
+            <p className={`font-mono font-bold text-base ${closing < 0 ? "text-red-600" : "text-[var(--text-primary)]"}`}>
               {fmt(closing)}
             </p>
           </div>
@@ -97,19 +97,19 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
       {/* Transactions table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
-          <thead className="bg-[#f6f3ee] border-b border-[#ede9e2]">
+          <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
-              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-28">Date</th>
-              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-36">Voucher</th>
-              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55">Description</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Debit ({currency})</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Credit ({currency})</th>
-              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/55 w-32">Balance ({currency})</th>
+              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-28">Date</th>
+              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-36">Voucher</th>
+              <th className="ui-th text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Description</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">Debit ({currency})</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">Credit ({currency})</th>
+              <th className="ui-th text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 w-32">Balance ({currency})</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#f6f3ee]">
+          <tbody className="divide-y divide-[var(--bg-page)]">
             {/* Opening balance row */}
-            <tr className="bg-[#f6f3ee] text-[#1a1814]/70 text-xs font-semibold">
+            <tr className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs font-semibold">
               <td className="px-4 py-2" colSpan={3}>Opening Balance</td>
               <td className="px-4 py-2 text-right font-mono" colSpan={2} />
               <td className="px-4 py-2 text-right font-mono">{fmt(opening)}</td>
@@ -117,7 +117,7 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
 
             {visibleEntries.length === 0 ? (
               <tr>
-                <td colSpan={6} className="ui-td py-8 text-center text-sm text-[#1a1814]/40 italic">
+                <td colSpan={6} className="ui-td py-8 text-center text-sm text-[var(--text-primary)]/40 italic">
                   {voucherFilter
                     ? `No ${VOUCHER_TYPES[voucherFilter] ?? voucherFilter} entries in this period.`
                     : "No transactions in this period."}
@@ -126,21 +126,21 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
             ) : (
               visibleEntries.map((entry, idx) => (
                 <tr key={idx} className="hover:bg-[#faf8f4]">
-                  <td className="px-4 py-2.5 text-black/60 whitespace-nowrap">{fmtDate(entry.date)}</td>
+                  <td className="px-4 py-2.5 text-[var(--text-muted)] whitespace-nowrap">{fmtDate(entry.date)}</td>
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <Link
                       href={`/journal/${entry.transaction_id}`}
-                      className="font-mono text-xs text-[#b8943f] hover:underline underline-offset-2"
+                      className="font-mono text-xs text-[var(--primary)] hover:underline underline-offset-2"
                     >
                       {entry.jv_number}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5 text-black/65 truncate">{entry.description}</td>
+                  <td className="px-4 py-2.5 text-[var(--text-muted)] truncate">{entry.description}</td>
                   <td className="px-4 py-2.5 text-right font-mono text-sm">
-                    {entry.debit > 0 ? fmt(entry.debit) : <span className="text-black/20">—</span>}
+                    {entry.debit > 0 ? fmt(entry.debit) : <span className="text-[var(--border)]">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-right font-mono text-sm">
-                    {entry.credit > 0 ? fmt(entry.credit) : <span className="text-black/20">—</span>}
+                    {entry.credit > 0 ? fmt(entry.credit) : <span className="text-[var(--border)]">—</span>}
                   </td>
                   <td className={`px-4 py-2.5 text-right font-mono text-sm font-semibold ${entry.balance < 0 ? "text-red-600" : ""}`}>
                     {fmt(entry.balance)}
@@ -150,15 +150,15 @@ export default function LedgerEntriesTable({ payload, voucherFilter }: LedgerEnt
             )}
 
             {/* Closing balance row */}
-            <tr className="bg-[#faf8f4] font-bold text-[#1a1814]">
+            <tr className="bg-[#faf8f4] font-bold text-[var(--text-primary)]">
               <td className="px-4 py-2" colSpan={3}>Closing Balance</td>
               <td className="px-4 py-2 text-right font-mono" colSpan={2} />
               <td className="px-4 py-2 text-right font-mono">{fmt(closing)}</td>
             </tr>
           </tbody>
-          <tfoot className="border-t-2 border-[#1a1814]/10">
-            <tr className="bg-[#faf6ec]">
-              <td colSpan={3} className="ui-td text-xs font-bold text-[#1a1814]/55 uppercase tracking-widest">
+          <tfoot className="border-t-2 border-[var(--text-primary)]/10">
+            <tr className="bg-[var(--bg-page)]">
+              <td colSpan={3} className="ui-td text-xs font-bold text-[var(--text-primary)]/55 uppercase tracking-widest">
                 {visibleEntries.length} transaction{visibleEntries.length !== 1 ? "s" : ""}
                 {voucherFilter && payload.entries.length !== visibleEntries.length
                   ? ` (filtered from ${payload.entries.length})`

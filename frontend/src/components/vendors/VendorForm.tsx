@@ -94,36 +94,36 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-8 max-w-lg mx-auto">
+    <div className="bg-white rounded-2xl border border-[var(--border)] p-8 max-w-lg mx-auto">
       <div className="space-y-4">
         {(['name', 'email', 'phone', 'address'] as const).map(field => (
           <div key={field}>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1 capitalize">{field}</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1 capitalize">{field}</label>
             <input
               value={form[field]}
               onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-              className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
               placeholder={field === 'name' ? 'Vendor name' : ''}
             />
           </div>
         ))}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Opening Balance</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Opening Balance</label>
           <input
             type="number" step="0.01"
             value={form.opening_balance}
             onChange={e => setForm(p => ({ ...p, opening_balance: e.target.value }))}
-            className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+            className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
             Default Payment Terms
           </label>
           <select
             value={form.payment_term_id}
             onChange={e => setForm(p => ({ ...p, payment_term_id: e.target.value }))}
-            className="w-full ui-field bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+            className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
           >
             <option value="">None (set per bill)</option>
             {terms.map(t => (
@@ -133,18 +133,18 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
             ))}
           </select>
           {terms.length === 0 && (
-            <p className="text-xs text-[#1a1814]/50 mt-1">
+            <p className="text-xs text-[var(--text-primary)]/50 mt-1">
               No terms configured — add them in Settings → Payment Terms.
             </p>
           )}
-          <p className="text-xs text-[#1a1814]/50 mt-1">
+          <p className="text-xs text-[var(--text-primary)]/50 mt-1">
             Applied to new bills for this vendor when no term is chosen on the bill.
           </p>
         </div>
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <div className="flex justify-end gap-3 pt-2">
-          <button onClick={onCancel} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-          <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+          <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">
             {saving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Add Vendor'}
           </button>
         </div>

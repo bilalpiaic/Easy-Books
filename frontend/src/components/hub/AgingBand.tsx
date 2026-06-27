@@ -23,13 +23,13 @@ export default function AgingBand(props: AgingBandProps) {
   const total = props.current + props.d1_30 + props.d31_60 + props.d60plus
   if (total === 0)
     return (
-      <div className="bg-white rounded-xl p-3 text-sm text-[#1a1814]/40 text-center">
+      <div className="bg-white rounded-xl p-3 text-sm text-[var(--text-primary)]/40 text-center">
         No outstanding items
       </div>
     )
   return (
     <div className="bg-white rounded-xl p-3">
-      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/40 mb-2">
+      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/40 mb-2">
         Aging Breakdown
       </div>
       <div className="flex gap-px h-2 rounded-full overflow-hidden mb-2">

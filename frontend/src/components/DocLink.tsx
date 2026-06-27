@@ -58,7 +58,7 @@ export default function DocLink({ type, id, label, className = "", title, childr
     <Link
       href={hrefFor(type, id)}
       title={title ?? `Open ${type.replace("_", " ")}`}
-      className={`text-[#1a1814] hover:text-[#b8943f] hover:underline underline-offset-2 transition-colors ${className}`}
+      className={`text-[var(--text-primary)] hover:text-[var(--primary)] hover:underline underline-offset-2 transition-colors ${className}`}
     >
       {children ?? label ?? id}
     </Link>

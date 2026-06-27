@@ -13,11 +13,11 @@ interface HRMSummary {
 }
 
 function Figure({ label, value, tone }: { label: string; value: string; tone?: "warning" | "danger" }) {
-  const color = tone === "danger" ? "text-red-600" : tone === "warning" ? "text-amber-600" : "text-[#1a1814]"
+  const color = tone === "danger" ? "text-red-600" : tone === "warning" ? "text-amber-600" : "text-[var(--text-primary)]"
   return (
     <div className="text-center min-w-0">
       <p className={`text-lg font-bold leading-none truncate ${color}`}>{value}</p>
-      <p className="text-[10px] text-[#1a1814]/55 mt-1 uppercase tracking-wide leading-tight">{label}</p>
+      <p className="text-[10px] text-[var(--text-primary)]/55 mt-1 uppercase tracking-wide leading-tight">{label}</p>
     </div>
   )
 }
@@ -34,10 +34,10 @@ export default function HRMSummaryWidget() {
   }, [])
 
   return (
-    <div className="h-full flex flex-col bg-white border border-[#ede9e2] rounded-xl p-4 shadow-sm">
+    <div className="h-full flex flex-col bg-white border border-[var(--border)] rounded-xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1a1814]/55">HRM & Payroll</p>
-        <Link href="/hrm" className="text-[10px] text-[#b8943f] hover:underline">Overview →</Link>
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/55">HRM & Payroll</p>
+        <Link href="/hrm" className="text-[10px] text-[var(--primary)] hover:underline">Overview →</Link>
       </div>
       {error ? (
         <div className="text-sm text-red-600">Failed to load.</div>

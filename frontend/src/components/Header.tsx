@@ -54,7 +54,7 @@ export default function Header({ onOpenMenu }: HeaderProps) {
   const currentLangMeta = LANGUAGES.find(l => l.code === language) ?? LANGUAGES[0]
 
   return (
-    <header className="h-12 bg-[#1a1814] flex items-center px-3 sm:px-4 gap-3 border-b border-white/5 shrink-0 z-20">
+    <header className="h-12 bg-[var(--text-primary)] flex items-center px-3 sm:px-4 gap-3 border-b border-white/5 shrink-0 z-20">
       <button
         onClick={onOpenMenu}
         aria-label="Open menu"
@@ -70,11 +70,11 @@ export default function Header({ onOpenMenu }: HeaderProps) {
       >
         <Home className="w-5 h-5" />
       </Link>
-      <div className="w-7 h-7 bg-[#b8943f] rounded-lg flex items-center justify-center font-serif text-black font-bold text-sm flex-shrink-0">
+      <div className="w-7 h-7 bg-[var(--primary)] rounded-lg flex items-center justify-center font-bold text-black font-bold text-sm flex-shrink-0">
         {settings.company_name.charAt(0)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-white text-sm font-semibold truncate leading-tight">{settings.company_name}</p>
+        <p className="font-bold text-white text-sm font-semibold truncate leading-tight">{settings.company_name}</p>
         <p className="text-[9px] text-white/40 font-bold tracking-widest uppercase hidden sm:block">{settings.business_tagline}</p>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
@@ -106,13 +106,13 @@ export default function Header({ onOpenMenu }: HeaderProps) {
                   onClick={() => { setLanguage(lang.code); setLangOpen(false) }}
                   className={`w-full text-left flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
                     language === lang.code
-                      ? "text-[#ffd966] bg-[#b8943f]/10"
+                      ? "text-[#ffd966] bg-[var(--primary)]/10"
                       : "text-white/70 hover:text-white hover:bg-white/5"
                   }`}
                 >
                   <span className="text-base leading-none">{lang.code === "en" ? "🇬🇧" : lang.code === "ur" ? "🇵🇰" : "🇨🇳"}</span>
                   <span className="flex-1">{lang.nativeLabel}</span>
-                  {language === lang.code && <span className="w-1.5 h-1.5 rounded-full bg-[#b8943f]" />}
+                  {language === lang.code && <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />}
                 </button>
               ))}
             </div>
@@ -120,7 +120,7 @@ export default function Header({ onOpenMenu }: HeaderProps) {
         </div>
 
         <div
-          className="w-8 h-8 rounded-full bg-[#b8943f] flex items-center justify-center text-black font-bold text-xs"
+          className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-black font-bold text-xs"
           title={userName}
         >
           {userInitial}

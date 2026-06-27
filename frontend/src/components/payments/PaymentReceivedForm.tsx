@@ -149,65 +149,65 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
   const cashAccounts = accounts.filter(a => a.type === 'Asset')
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede9e2] p-4 sm:p-8 max-w-3xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[var(--border)] p-4 sm:p-8 max-w-3xl mx-auto">
       <div className="space-y-4">
         {/* Header fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Customer *</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Customer *</label>
             <select
               required
               value={form.customer_id}
               onChange={e => setForm(p => ({ ...p, customer_id: e.target.value }))}
-              className="ui-field w-full bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f]"
+              className="ui-field w-full bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
             >
               <option value="">— Select customer —</option>
               {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Payment Date</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Payment Date</label>
             <input type="date" value={form.payment_date} onChange={e => setForm(p => ({ ...p, payment_date: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Amount Received</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Amount Received</label>
             <input type="number" step="0.01" value={form.amount}
               onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
-              placeholder="0.00" className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              placeholder="0.00" className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Method</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Method</label>
             <select value={form.method} onChange={e => setForm(p => ({ ...p, method: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               {['cash', 'bank_transfer', 'check', 'credit_card'].map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Reference #</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Reference #</label>
             <input value={form.reference} onChange={e => setForm(p => ({ ...p, reference: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm" />
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">Cash/Bank Account</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Cash/Bank Account</label>
           <select value={form.cash_account_id} onChange={e => setForm(p => ({ ...p, cash_account_id: e.target.value }))}
-            className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm">
+            className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
             <option value="">Auto (1000 Cash in Hand)</option>
             {cashAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
           </select>
         </div>
         {analyticAccounts.length > 0 && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Analytic Account <span className="font-normal normal-case">(optional)</span>
             </label>
             <select
               value={form.analytic_account_id}
               onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[#f6f3ee] rounded-xl outline-none focus:ring-2 focus:ring-[#b8943f] text-sm"
+              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
             >
               <option value="">— none —</option>
               {analyticAccounts.map(a => (
@@ -219,42 +219,42 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
 
         {/* Invoice allocation checklist */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#1a1814]/75 mb-2">
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">
             Apply to Open Invoices <span className="font-normal normal-case">(optional)</span>
-            {form.customer_id && <span className="ml-1 font-normal normal-case text-[#b8943f]">— filtered by selected customer</span>}
+            {form.customer_id && <span className="ml-1 font-normal normal-case text-[var(--primary)]">— filtered by selected customer</span>}
           </label>
           {openInvoices.length === 0 ? (
-            <p className="text-xs text-black/40 italic py-2">
+            <p className="text-xs text-[var(--text-muted)] italic py-2">
               {form.customer_id ? 'No outstanding invoices for this customer.' : 'No outstanding invoices.'}
             </p>
           ) : (
-            <div className="border border-[#ede9e2] rounded-xl overflow-hidden text-sm">
+            <div className="border border-[var(--border)] rounded-xl overflow-hidden text-sm">
               <table className="w-full">
-                <thead className="bg-[#f6f3ee]">
+                <thead className="bg-[var(--bg-page)]">
                   <tr>
                     <th className="w-8 px-3 py-2" />
-                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Invoice</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-black/60">Customer</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Balance Due</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-black/60">Apply</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Invoice</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Customer</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Balance Due</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Apply</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ede9e2]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {openInvoices.map(inv => {
                     const row = allocations.find(a => a.invoice_id === inv.id)
                     if (!row) return null
                     return (
-                      <tr key={inv.id} className={row.checked ? 'bg-amber-50/40' : 'hover:bg-[#f6f3ee]/40'}>
+                      <tr key={inv.id} className={row.checked ? 'bg-amber-50/40' : 'hover:bg-[var(--bg-page)]/40'}>
                         <td className="px-3 py-2 text-center">
                           <input
                             type="checkbox"
                             checked={row.checked}
                             onChange={e => handleCheck(inv, e.target.checked)}
-                            className="accent-[#b8943f]"
+                            className="accent-[var(--primary)]"
                           />
                         </td>
-                        <td className="px-3 py-2 font-mono text-[#b8943f] font-bold text-xs">{inv.number}</td>
-                        <td className="px-3 py-2 text-black/70 truncate max-w-[120px] text-xs">{inv.customer_name ?? '—'}</td>
+                        <td className="px-3 py-2 font-mono text-[var(--primary)] font-bold text-xs">{inv.number}</td>
+                        <td className="px-3 py-2 text-[var(--text-muted)] truncate max-w-[120px] text-xs">{inv.customer_name ?? '—'}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{fmt(inv.balance_due)}</td>
                         <td className="px-3 py-2 text-right">
                           {row.checked ? (
@@ -262,10 +262,10 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
                               type="number" step="0.01" min="0.01"
                               value={row.amount}
                               onChange={e => setAlloc(inv.id, 'amount', e.target.value)}
-                              className="w-24 text-right px-2 py-1 border border-[#ede9e2] rounded text-xs outline-none focus:ring-1 focus:ring-[#b8943f]"
+                              className="w-24 text-right px-2 py-1 border border-[var(--border)] rounded text-xs outline-none focus:ring-1 focus:ring-[var(--primary)]"
                             />
                           ) : (
-                            <span className="text-black/25 text-xs">—</span>
+                            <span className="text-[var(--border)] text-xs">—</span>
                           )}
                         </td>
                       </tr>
@@ -279,7 +279,7 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
           {/* Allocation summary */}
           {hasAllocations && (
             <div className={`mt-2 flex items-center justify-between text-xs px-3 py-2 rounded-lg ${diff > 0.01 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
-              <span className="text-black/60">
+              <span className="text-[var(--text-muted)]">
                 Payment: <strong>{fmt(paymentAmount)}</strong> · Applied: <strong>{fmt(totalApplied)}</strong>
               </span>
               {diff > 0.01 ? (
@@ -294,10 +294,10 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
         </div>
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
-        <p className="text-xs text-black/50">GL posting: Dr Cash/Bank / Cr Accounts Receivable</p>
+        <p className="text-xs text-[var(--text-muted)]">GL posting: Dr Cash/Bank / Cr Accounts Receivable</p>
         <div className="flex justify-end gap-3 pt-2">
-          <button onClick={onCancel} className="px-6 py-3 border border-[#1a1814]/10 rounded-xl font-bold hover:bg-[#f6f3ee]">Cancel</button>
-          <button onClick={handleSave} disabled={!form.customer_id || saving} className="px-6 py-3 bg-[#1a1814] text-white rounded-xl font-bold hover:bg-[#b8943f] hover:text-black transition-all disabled:opacity-50">
+          <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>
+          <button onClick={handleSave} disabled={!form.customer_id || saving} className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">
             {saving ? 'Saving...' : 'Record Payment'}
           </button>
         </div>

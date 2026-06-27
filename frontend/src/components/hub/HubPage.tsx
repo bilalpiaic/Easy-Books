@@ -44,7 +44,7 @@ export interface HubConfig {
 }
 
 const TONE: Record<string, string> = {
-  normal:  "text-[#1a1814]",
+  normal:  "text-[var(--text-primary)]",
   warning: "text-amber-600",
   danger:  "text-red-600",
 }
@@ -71,12 +71,12 @@ export default function HubPage({ config }: { config: HubConfig }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#b8943f] mb-0.5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--primary)] mb-0.5">
             {config.section}
           </div>
-          <h1 className="text-3xl font-serif text-[#1a1814]">{config.title}</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">{config.title}</h1>
         </div>
-        <config.icon className="w-10 h-10 text-[#b8943f]/40 mt-1" />
+        <config.icon className="w-10 h-10 text-[var(--primary)]/40 mt-1" />
       </div>
 
       {/* Error banner — action grid still renders below */}
@@ -94,17 +94,17 @@ export default function HubPage({ config }: { config: HubConfig }) {
           return (
             <div
               key={i}
-              className="bg-white rounded-2xl p-4 shadow-sm shadow-black/5 border border-[#1a1814]/5"
+              className="bg-white rounded-2xl p-4 shadow-sm shadow-black/5 border border-[var(--text-primary)]/5"
             >
               <div
                 className={cn(
                   "text-lg font-bold font-mono truncate",
-                  loading ? "text-[#1a1814]/10 animate-pulse" : TONE[tone]
+                  loading ? "text-[var(--text-primary)]/10 animate-pulse" : TONE[tone]
                 )}
               >
                 {loading ? "—" : val !== null ? displayKpi(kpi, val) : "—"}
               </div>
-              <div className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#1a1814]/40 mt-1">
+              <div className="text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--text-primary)]/40 mt-1">
                 {kpi.label}
               </div>
             </div>
@@ -139,17 +139,17 @@ export default function HubPage({ config }: { config: HubConfig }) {
               "flex flex-col items-center gap-2 rounded-2xl p-4 text-center transition-all",
               "hover:scale-[1.02] shadow-sm shadow-black/5 border",
               action.primary
-                ? "bg-[#1a1814] text-white border-transparent hover:bg-[#b8943f]"
-                : "bg-white text-[#1a1814] border-[#1a1814]/5 hover:bg-[#f6f3ee]"
+                ? "bg-[var(--text-primary)] text-white border-transparent hover:bg-[var(--primary)]"
+                : "bg-white text-[var(--text-primary)] border-[var(--text-primary)]/5 hover:bg-[var(--bg-page)]"
             )}
           >
             <action.icon
-              className={cn("w-5 h-5", action.primary ? "text-white" : "text-[#b8943f]")}
+              className={cn("w-5 h-5", action.primary ? "text-white" : "text-[var(--primary)]")}
             />
             <span
               className={cn(
                 "text-[10px] font-medium leading-tight",
-                action.primary ? "text-white" : "text-[#1a1814]/70"
+                action.primary ? "text-white" : "text-[var(--text-primary)]/70"
               )}
             >
               {action.label}
