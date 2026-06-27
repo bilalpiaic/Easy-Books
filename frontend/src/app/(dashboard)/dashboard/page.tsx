@@ -28,7 +28,7 @@ ChartJS.register(
 
 const DOUGHNUT_COLORS = [
   "#2CA01C","#2563eb","#dc2626","#7c3aed","#0891b2",
-  "#ea580c","#db2777","#65a30d","#65a30d",
+  "#ea580c","#db2777","#65a30d",
 ]
 
 function defaultRange() {
