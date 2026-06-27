@@ -17,7 +17,7 @@ function NewInvoiceContent() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/invoices" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-black/80 mb-2">
+        <Link href="/invoices" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-muted)] mb-2">
           <ArrowLeft className="w-4 h-4" /> Invoices
         </Link>
         <h1 className="text-xl sm:text-3xl font-bold">New Invoice</h1>
