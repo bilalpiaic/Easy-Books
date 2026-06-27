@@ -17,7 +17,7 @@ function NewBillContent() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/bills" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-muted)] mb-2">
+        <Link href="/bills" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-2">
           <ArrowLeft className="w-4 h-4" /> Bills
         </Link>
         <h1 className="text-xl sm:text-3xl font-bold">New Bill</h1>
