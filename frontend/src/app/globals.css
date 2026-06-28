@@ -174,6 +174,16 @@ body {
   [data-sidebar], [data-header],
   .print\:hidden { display: none !important; }
 
+  /* All form controls — date pickers, dropdowns, search bars */
+  input, select, textarea { display: none !important; }
+
+  /* Tab selectors — 30/60/90 day aging tabs, view toggles, etc. */
+  [role="tab"], [role="tablist"] { display: none !important; }
+
+  /* Buttons: hide everywhere except inside article print-document blocks */
+  button { display: none !important; }
+  article button { display: revert !important; }
+
   /* ── 2. SCROLL-CONTAINER RESET ─────────────────────────────────── */
   /* The dashboard shell clips content to viewport height — override so
      all content flows across as many printed pages as needed. */
@@ -200,7 +210,7 @@ body {
     @bottom-right {
       content: "Page " counter(page) " / " counter(pages);
       font-family: "Courier New", Courier, monospace;
-      font-size: 7.5pt;
+      font-size: 6.5pt;
       color: #000;
     }
   }
@@ -230,6 +240,43 @@ body {
   * { color: #000 !important; opacity: 1 !important; }
   /* All coloured borders → plain black */
   [class*="border-"] { border-color: #000 !important; }
+
+  /* Remove borders from non-table display elements (date boxes, filter chips) */
+  div[class*="border-"], span[class*="border-"] { border: 0 !important; }
+
+  /* ── TYPOGRAPHIC HIERARCHY (bold/italic, no size inflation) ─────── */
+  /* All headings: monospace, max 10pt, hierarchy via weight + style */
+  h1, h2, h3, h4 {
+    font-family: "Courier New", Courier, monospace !important;
+    font-weight: 700 !important;
+    color: #000 !important;
+    margin: 4pt 0 2pt !important;
+    page-break-after: avoid;
+  }
+  h1 {
+    font-size: 10pt !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    font-style: normal !important;
+  }
+  h2 {
+    font-size: 9pt !important;
+    font-style: italic !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    border-bottom: 0.5pt solid #000 !important;
+    padding-bottom: 1.5pt !important;
+  }
+  h3 {
+    font-size: 8.5pt !important;
+    font-style: italic !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+  h4 {
+    font-size: 8pt !important;
+    font-style: italic !important;
+  }
 
   /* ── 6. DOT-MATRIX TABLE SYSTEM ────────────────────────────────── */
   table {
@@ -285,6 +332,9 @@ body {
     background: transparent !important;
     color: #000 !important;
     font-size: inherit !important;
+    font-weight: 700 !important;
+    font-style: normal !important;
+    opacity: 1 !important;
   }
 
   /* Total / grand-total row in tfoot — double rule above, bold, no fill */
@@ -338,7 +388,7 @@ body {
   .print-logo-img { height: 26pt !important; width: auto !important; max-width: 70pt !important; }
   .print-org-name {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 12pt !important; font-weight: 700 !important;
+    font-size: 10pt !important; font-weight: 700 !important;
     text-transform: uppercase !important; letter-spacing: 0.06em !important;
     color: #000 !important; line-height: 1.15 !important;
   }
@@ -363,7 +413,7 @@ body {
   }
   .print-title {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 13pt !important; font-weight: 700 !important;
+    font-size: 10pt !important; font-weight: 700 !important;
     text-transform: uppercase !important; letter-spacing: 0.1em !important;
     color: #000 !important; margin: 0 !important;
   }
@@ -375,7 +425,7 @@ body {
   }
   .print-stamp {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 7pt !important; color: #000 !important;
+    font-size: 6.5pt !important; color: #000 !important;
     margin-top: 4pt !important; text-align: right !important;
   }
 
@@ -447,7 +497,7 @@ body {
     margin-top: 28pt !important;
     padding-top: 0 !important;
     border: 0 !important;
-    font-size: 7.5pt !important;
+    font-size: 6.5pt !important;
     text-transform: uppercase !important;
     letter-spacing: 0.07em !important;
     color: #000 !important;
