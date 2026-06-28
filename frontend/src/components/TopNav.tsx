@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ChevronDown, ChevronLeft, ChevronRight,
-  LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon,
+  LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon, Search,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -324,8 +324,15 @@ export default function TopNav() {
           </button>
         </div>
 
-        {/* Right side — theme toggle + avatar */}
+        {/* Right side — search + theme toggle + avatar */}
         <div className="flex items-center gap-1.5 ml-auto shrink-0">
+
+          <button type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("search:open"))}
+            title="Search (Ctrl+K)"
+            className="w-7 h-7 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+            <Search className="w-4 h-4" />
+          </button>
 
           <button type="button"
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}

@@ -20,6 +20,7 @@ import NavBar from "@/components/NavBar"
 import { BreadcrumbProvider } from "@/context/BreadcrumbContext"
 import { resolveTitle } from "@/lib/navTitles"
 import { apiFetch } from "@/lib/api"
+import GlobalSearch from "@/components/GlobalSearch"
 
 const DISMISS_KEY = "eb.update-banner-dismissed"
 
@@ -144,6 +145,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <BottomNav onMore={() => setMoreOpen(true)} />
                   <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
                   <FAB />
+                  <GlobalSearch />
                 </div>
               </TabProvider>
             </BreadcrumbProvider>
