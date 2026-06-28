@@ -38,11 +38,13 @@ export const NAV: NavItem[] = [
   { label: "Customers",        href: "/customers",         icon: Users,            section: "Receivable" },
   { label: "Payments Received",href: "/payments-received", icon: ArrowDownLeft,    section: "Receivable" },
   { label: "Advances Received",href: "/advances",          icon: Wallet,           section: "Receivable" },
+  { label: "AR Aging",         href: "/aging/receivable",  icon: Clock,            section: "Receivable" },
   { label: "Overview",         href: "/payable",           icon: LayoutGrid,       section: "Payable" },
   { label: "Bills",            href: "/bills",             icon: Receipt,          section: "Payable" },
   { label: "Debit Notes",      href: "/debit-notes",       icon: Undo2,            section: "Payable" },
   { label: "Vendors",          href: "/vendors",           icon: Truck,            section: "Payable" },
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
+  { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Payable" },
   { label: "Overview",         href: "/inventory",         icon: LayoutGrid,       section: "Inventory",      forModule: "inventory" },
   { label: "Products",          href: "/products",            icon: Package,          section: "Inventory",      forModule: "inventory" },
   { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory",      forModule: "inventory" },
@@ -83,10 +85,8 @@ export const NAV: NavItem[] = [
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
   { label: "Deferred Revenue", href: "/deferred-revenue",  icon: Play,             section: "Reports" },
-  { label: "AR Aging",         href: "/aging/receivable",  icon: Clock,            section: "Reports" },
-  { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Reports" },
-  { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp,   section: "Reports" },
-  { label: "Report Builder",      href: "/reports/builder",      icon: Table2,         section: "Reports" },
+  { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp, section: "Reports" },
+  { label: "Report Builder",       href: "/reports/builder",      icon: Table2,     section: "Reports" },
   { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
   { label: "CSV Import",        href: "/imports",           icon: Upload,           section: "System" },
   { label: "Payment Terms",    href: "/payment-terms",     icon: Clock,            section: "System", adminOnly: true },
@@ -173,7 +173,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets"],
-  reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance", "/inventory/performance", "/reports"],
+  reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance", "/reports"],
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
@@ -255,23 +255,15 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Fixed Assets",      href: "/assets",            icon: Building2,       section: "accounting" },
   ],
   reports: [
-    // ── Financial Statements ──────────────────────────────────────────────
+    // Financial Statements
     { label: "Trial Balance",    href: "/trial-balance",        icon: Scale,      section: "reports" },
     { label: "Income Statement", href: "/pl",                   icon: TrendingUp, section: "reports" },
     { label: "Balance Sheet",    href: "/balance",              icon: PieChart,   section: "reports" },
     { label: "Cash Flow",        href: "/cashflow",             icon: FileText,   section: "reports" },
-    // ── Management Reports ────────────────────────────────────────────────
+    // Management Reports
     { label: "Tax Reports",      href: "/tax",                  icon: Percent,    section: "reports" },
     { label: "Budget vs Actual", href: "/budgets",              icon: TrendingUp, section: "reports" },
-    { label: "AR Aging",         href: "/aging/receivable",     icon: Clock,      section: "reports" },
-    { label: "AP Aging",         href: "/aging/payable",        icon: Clock,      section: "reports" },
     { label: "Customer Perf.",   href: "/customer-performance", icon: TrendingUp, section: "reports" },
-    // ── Module Reports (shown when add-on installed) ──────────────────────
-    { label: "Inventory Report", href: "/inventory/performance",   icon: PieChart,  section: "reports", forModule: "inventory"   },
-    { label: "Mfg Reports",      href: "/manufacturing/reports",   icon: BarChart2, section: "reports", forModule: "production"  },
-    { label: "HC Reports",       href: "/healthcare/reports",      icon: BarChart2, section: "reports", forModule: "healthcare"  },
-    // ── Custom ────────────────────────────────────────────────────────────
-    { label: "Report Builder",   href: "/reports/builder",         icon: Table2,    section: "reports" },
   ],
   inventory: [
     { label: "Products",           href: "/products",              icon: Package,  section: "inventory", forModule: "inventory" },
