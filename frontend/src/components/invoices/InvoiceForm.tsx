@@ -456,7 +456,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             <select value={form.assigned_to_id} onChange={e => setForm(p => ({ ...p, assigned_to_id: e.target.value }))}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
               <option value="">None</option>
-              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name} — {s.email.split("@")[0]}</option>)}
             </select>
           </div>
         </div>
