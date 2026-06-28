@@ -96,7 +96,7 @@ export const NAV: NavItem[] = [
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
-  { label: "Apps",             href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
+  { label: "Add-ons",          href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
   { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System",    forModule: "pra" },
   // Payroll
   { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll",   forModule: "hrm" },
@@ -326,6 +326,6 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "settings" },
     { label: "Payment Terms", href: "/payment-terms",        icon: Clock,       section: "settings", adminOnly: true },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "settings" },
-    { label: "Apps",          href: "/apps",                 icon: AppWindow,   section: "settings", adminOnly: true },
+    { label: "Add-ons",       href: "/apps",                 icon: AppWindow,   section: "settings", adminOnly: true },
   ],
 }

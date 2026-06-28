@@ -1,118 +1,136 @@
 "use client"
+
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { BookOpen, Package, Factory, Users, Radio, FileCheck, Check, ArrowRight, Loader2 } from "lucide-react"
+import {
+  BookOpen, Briefcase, ShoppingCart, Factory,
+  Radio, Stethoscope, FileCheck, Check, Loader2, Settings2,
+} from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Package, Factory, Users, Radio, FileCheck,
-}
-
-interface ModuleInfo {
+interface Package {
   id: string
   label: string
-  description: string
-  icon: string
-  deps: string[]
-  always: boolean
-  installed: boolean
+  tagline: string
+  icon: React.ElementType
+  accent: string
+  modules: string[]   // IDs to install (base is always installed; omit it)
+  features: string[]
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  Core: "Always included",
-  Operations: "Operations",
-  HR: "Human Resources",
-  Industry: "Industry add-ons",
-}
+const PACKAGES: Package[] = [
+  {
+    id: "simple",
+    label: "Simple",
+    tagline: "Solo & micro-business",
+    icon: BookOpen,
+    accent: "#b8943f",
+    modules: [],
+    features: ["Chart of Accounts", "Invoicing & AR/AP", "Bank reconciliation", "Financial statements"],
+  },
+  {
+    id: "services",
+    label: "Services",
+    tagline: "Agencies & consultancies",
+    icon: Briefcase,
+    accent: "#7c9b6b",
+    modules: [],
+    features: ["Everything in Simple", "Recurring invoices", "Deferred revenue (IFRS-15)", "AR aging & statements"],
+  },
+  {
+    id: "trader",
+    label: "Trader",
+    tagline: "Buy & resell",
+    icon: ShoppingCart,
+    accent: "#5b8fa8",
+    modules: ["inventory"],
+    features: ["Everything in Simple", "Inventory (FIFO)", "Purchase orders & GRN", "COGS auto-posting"],
+  },
+  {
+    id: "manufacturing",
+    label: "Manufacturing",
+    tagline: "Value-addition",
+    icon: Factory,
+    accent: "#8a6a9a",
+    modules: ["inventory", "production"],
+    features: ["Everything in Trader", "Bills of Materials", "Production orders", "Material consumption"],
+  },
+  {
+    id: "telecom_franchise",
+    label: "Telecom Franchise",
+    tagline: "Operator franchise",
+    icon: Radio,
+    accent: "#c07a3a",
+    modules: ["inventory", "telecom"],
+    features: ["Everything in Simple", "Franchise tracker chain", "RSO / DSO agents", "FCA targets & commissions"],
+  },
+  {
+    id: "hospital",
+    label: "Healthcare",
+    tagline: "Hospital & clinic",
+    icon: Stethoscope,
+    accent: "#5a9a7a",
+    modules: ["hrm", "inventory", "healthcare"],
+    features: ["Patient OPD & IPD", "Lab orders & results", "Pharmacy dispense", "Ward & bed management"],
+  },
+  {
+    id: "pra_einvoice",
+    label: "PRA e-Invoice",
+    tagline: "Pakistani retail — PKR",
+    icon: FileCheck,
+    accent: "#a05a5a",
+    modules: ["pra"],
+    features: ["Everything in Simple", "PRA sandbox integration", "e-Invoice portal", "Buyer NTN / CNIC"],
+  },
+]
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const [modules, setModules] = useState<ModuleInfo[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [saving, setSaving] = useState(false)
-  const [step, setStep] = useState<"choose" | "done">("choose")
+  const [installing, setInstalling] = useState<string | null>(null)
+  const [error, setError] = useState("")
+  const [done, setDone] = useState(false)
 
   useEffect(() => {
     const user = getCurrentUser()
     if (!user) { router.replace("/login"); return }
-
-    // If already onboarded, skip to dashboard
     if (localStorage.getItem(`eb.onboarded.${user.email}`)) {
-      router.replace("/dashboard"); return
+      router.replace("/dashboard")
     }
-
-    apiFetch<ModuleInfo[]>("/api/modules")
-      .then(data => { if (Array.isArray(data)) setModules(data) })
-      .catch(() => router.replace("/dashboard"))
   }, [router])
 
-  const toggle = (id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        // Also deselect any modules that depend on this one
-        next.delete(id)
-        modules.forEach(m => {
-          if (m.deps.includes(id)) next.delete(m.id)
-        })
-      } else {
-        // Also select deps
-        const mod = modules.find(m => m.id === id)
-        mod?.deps.forEach(d => next.add(d))
-        next.add(id)
-      }
-      return next
-    })
-  }
-
-  const handleStart = async () => {
-    setSaving(true)
+  const selectPackage = async (pkg: Package) => {
+    setInstalling(pkg.id)
+    setError("")
     try {
-      // Install each selected module sequentially (deps are resolved server-side too)
-      for (const id of selected) {
+      for (const id of pkg.modules) {
         await apiFetch(`/api/modules/${id}/install`, { method: "POST" })
       }
       const user = getCurrentUser()
       if (user) localStorage.setItem(`eb.onboarded.${user.email}`, "1")
-      setStep("done")
-      setTimeout(() => router.replace("/dashboard"), 1200)
+      setDone(true)
+      setTimeout(() => router.replace("/dashboard"), 1100)
     } catch {
-      setSaving(false)
+      setError("Setup failed — please try again or skip to configure manually.")
+      setInstalling(null)
     }
   }
 
-  const handleSkip = () => {
+  const skip = () => {
     const user = getCurrentUser()
     if (user) localStorage.setItem(`eb.onboarded.${user.email}`, "1")
     router.replace("/dashboard")
   }
 
-  const optionalModules = modules.filter(m => !m.always)
-  const categories = [...new Set(
-    modules.filter(m => !m.always).map(m => (
-      m.id === "inventory" || m.id === "production" ? "Operations"
-      : m.id === "hrm" ? "HR"
-      : "Industry"
-    ))
-  )]
-
-  const getCategoryModules = (cat: string) =>
-    optionalModules.filter(m => {
-      if (cat === "Operations") return m.id === "inventory" || m.id === "production"
-      if (cat === "HR") return m.id === "hrm"
-      return m.id === "telecom" || m.id === "pra"
-    })
-
-  if (step === "done") {
+  if (done) {
     return (
       <div className="min-h-screen bg-[#f6f3ee] flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-16 h-16 bg-[#b8943f] rounded-full flex items-center justify-center mx-auto">
             <Check className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-[#1a1814]">You&apos;re all set!</h2>
-          <p className="text-sm text-[#1a1814]/60">Taking you to your dashboard…</p>
+          <h2 className="text-xl font-bold text-[#1a1814]">All set!</h2>
+          <p className="text-sm text-[#1a1814]/55">Taking you to your dashboard…</p>
         </div>
       </div>
     )
@@ -122,112 +140,108 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-[#f6f3ee] flex flex-col">
       {/* Header */}
       <header className="flex items-center gap-3 px-6 py-4 border-b border-[#1a1814]/8 bg-white/60 backdrop-blur-sm">
-        <div className="w-8 h-8 bg-[#b8943f] rounded-lg flex items-center justify-center font-serif text-black font-bold text-sm">
+        <div className="w-8 h-8 bg-[#b8943f] rounded-lg flex items-center justify-center font-serif text-black font-bold text-sm select-none">
           E
         </div>
         <span className="font-serif font-semibold text-[#1a1814]">Easy-Books</span>
       </header>
 
       {/* Body */}
-      <div className="flex-1 flex flex-col items-center justify-center py-12 px-4">
-        <div className="w-full max-w-2xl space-y-8">
+      <div className="flex-1 flex flex-col items-center py-12 px-4">
+        <div className="w-full max-w-3xl space-y-8">
 
-          {/* Hero text */}
+          {/* Hero */}
           <div className="text-center space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#b8943f]/80">Step 1 of 1</p>
             <h1 className="text-3xl font-bold font-serif text-[#1a1814]">
-              Welcome to Easy-Books
+              What kind of business are you?
             </h1>
-            <p className="text-[#1a1814]/60 text-base">
-              Choose the modules you need. You can always add or remove them later from the Apps page.
+            <p className="text-[#1a1814]/55 text-sm">
+              We&apos;ll activate the right features for your industry. You can always add or remove modules later.
             </p>
           </div>
 
-          {/* Base module — always included */}
-          <div className="bg-[#b8943f]/10 border border-[#b8943f]/30 rounded-xl px-5 py-4 flex items-center gap-4">
-            <div className="w-10 h-10 bg-[#b8943f] rounded-lg flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-5 h-5 text-white" />
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm text-center">
+              {error}
             </div>
-            <div className="flex-1">
-              <p className="font-semibold text-[#1a1814] text-sm">Base Accounting</p>
-              <p className="text-xs text-[#1a1814]/55">GL, Chart of Accounts, invoicing, AR/AP, banking & all financial reports. Always active.</p>
-            </div>
-            <div className="flex-shrink-0 w-6 h-6 bg-[#b8943f] rounded-full flex items-center justify-center">
-              <Check className="w-3.5 h-3.5 text-white" />
-            </div>
+          )}
+
+          {/* Package cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {PACKAGES.map(pkg => {
+              const Icon = pkg.icon
+              const isInstalling = installing === pkg.id
+              const isDisabled = !!installing
+              return (
+                <button
+                  key={pkg.id}
+                  onClick={() => selectPackage(pkg)}
+                  disabled={isDisabled}
+                  className="text-left bg-white border border-[#1a1814]/8 hover:border-[#b8943f]/40 rounded-2xl p-5 flex flex-col gap-3.5 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed group"
+                >
+                  {/* Icon + label */}
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                      style={{ backgroundColor: pkg.accent + "18" }}
+                    >
+                      <Icon className="w-5 h-5" style={{ color: pkg.accent }} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="font-bold text-[#1a1814] text-sm">{pkg.label}</p>
+                      <p className="text-[11px] text-[#1a1814]/45 mt-0.5">{pkg.tagline}</p>
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  <ul className="space-y-1.5 flex-1">
+                    {pkg.features.map(f => (
+                      <li key={f} className="flex items-center gap-2 text-[12px] text-[#1a1814]/55">
+                        <span
+                          className="w-1 h-1 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: pkg.accent }}
+                        />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Action */}
+                  <div
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold border transition-colors"
+                    style={{
+                      backgroundColor: pkg.accent + "12",
+                      color: pkg.accent,
+                      borderColor: pkg.accent + "30",
+                    }}
+                  >
+                    {isInstalling
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Setting up…</>
+                      : <>Select {pkg.label}</>
+                    }
+                  </div>
+                </button>
+              )
+            })}
           </div>
 
-          {/* Optional modules by category */}
-          {modules.length > 0 && (["Operations", "HR", "Industry"] as const).map(cat => {
-            const mods = getCategoryModules(cat)
-            if (mods.length === 0) return null
-            return (
-              <div key={cat} className="space-y-3">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-[#1a1814]/40">
-                  {CATEGORY_LABELS[cat] ?? cat}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {mods.map(mod => {
-                    const Icon = ICON_MAP[mod.icon] ?? Package
-                    const isSelected = selected.has(mod.id)
-                    const depsMissing = mod.deps.filter(d => d !== "base" && !selected.has(d))
-                    return (
-                      <button
-                        key={mod.id}
-                        onClick={() => toggle(mod.id)}
-                        className={`text-left rounded-xl border p-4 flex items-start gap-3 transition-all ${
-                          isSelected
-                            ? "bg-white border-[#b8943f] shadow-sm shadow-[#b8943f]/20"
-                            : "bg-white border-[#1a1814]/10 hover:border-[#b8943f]/50"
-                        }`}
-                      >
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                          isSelected ? "bg-[#b8943f] text-white" : "bg-[#1a1814]/6 text-[#1a1814]/50"
-                        }`}>
-                          <Icon className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[#1a1814] text-sm">{mod.label}</span>
-                            {depsMissing.length > 0 && (
-                              <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                                needs {depsMissing.join(", ")}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-[#1a1814]/50 mt-0.5 line-clamp-2">{mod.description}</p>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-                          isSelected ? "bg-[#b8943f] border-[#b8943f]" : "border-[#1a1814]/20"
-                        }`}>
-                          {isSelected && <Check className="w-3 h-3 text-white" />}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-2">
+          {/* Footer actions */}
+          <div className="flex items-center justify-between pt-2 border-t border-[#1a1814]/8">
             <button
-              onClick={handleSkip}
-              disabled={saving}
-              className="text-sm text-[#1a1814]/40 hover:text-[#1a1814]/70 transition-colors"
+              onClick={skip}
+              disabled={!!installing}
+              className="flex items-center gap-1.5 text-sm text-[#1a1814]/40 hover:text-[#1a1814]/70 transition-colors disabled:opacity-40"
             >
-              Skip for now
+              Skip — I&apos;ll start with base accounting
             </button>
-            <button
-              onClick={handleStart}
-              disabled={saving}
-              className="flex items-center gap-2 bg-[#b8943f] hover:bg-[#a07832] text-white font-semibold text-sm px-6 py-2.5 rounded-lg transition-colors disabled:opacity-60"
+            <a
+              href="/add-ons"
+              className="flex items-center gap-1.5 text-sm text-[#1a1814]/40 hover:text-[#1a1814]/70 transition-colors"
             >
-              {saving
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Setting up…</>
-                : <>{selected.size > 0 ? `Install ${selected.size} module${selected.size > 1 ? "s" : ""} & ` : ""}Get Started <ArrowRight className="w-4 h-4" /></>
-              }
-            </button>
+              <Settings2 className="w-3.5 h-3.5" />
+              Customize modules manually
+            </a>
           </div>
 
         </div>

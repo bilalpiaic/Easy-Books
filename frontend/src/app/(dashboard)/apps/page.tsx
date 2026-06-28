@@ -114,10 +114,10 @@ export default function AppsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Apps</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Add-ons</h1>
         <p className="text-sm text-gray-500 mt-1">
           {installedCount} of {modules.length} modules installed.
-          Install modules to unlock additional sections in your sidebar.
+          Install add-ons to unlock additional sections in your sidebar.
         </p>
       </div>
 

@@ -51,7 +51,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/workflow":         "Workflow",
   "/guide":            "User Guide",
   "/settings":         "Settings",
-  "/apps":             "Apps",
+  "/apps":             "Add-ons",
   "/settings/permissions": "Permissions",
   "/manufacturing":                      "Manufacturing",
   "/manufacturing/purchase-orders":      "Purchase Orders",
