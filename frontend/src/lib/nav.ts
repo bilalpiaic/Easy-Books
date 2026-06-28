@@ -163,24 +163,24 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
   { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
-  { key: "pra",           label: "PRA",           forModule: "pra"         },
+  { key: "pra",           label: "PRA e-Invoice", forModule: "pra"         },
 ]
 
 /** Pathname-prefix → top-nav section key mapping */
 const SECTION_PREFIXES: Record<string, string[]> = {
-  dashboard:     ["/dashboard", "/pl", "/balance", "/cashflow"],
+  dashboard:     ["/dashboard"],
   banking:       ["/bank-accounts", "/bank-book", "/cash-book", "/reconciliations", "/bank-imports", "/exchange-rates"],
   sales:         ["/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable"],
-  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/trial-balance", "/period-close", "/deferred-revenue", "/assets"],
-  reports:       ["/tax", "/tax-codes", "/budgets", "/customer-performance", "/inventory/performance", "/reports", "/audit", "/workflow"],
+  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets"],
+  reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance", "/inventory/performance", "/reports"],
   inventory:     ["/products", "/inventory"],
   payroll:       ["/payroll", "/employees", "/hrm", "/attendance"],
   healthcare:    ["/healthcare"],
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-logs", "/pra-dashboard"],
-  settings:      ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms"],
+  settings:      ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow"],
 }
 
 /** Returns the top-nav section key for the current pathname */
@@ -216,10 +216,7 @@ export function getSectionHref(key: string): string {
 /** Sub-navigation items grouped by top-nav section key */
 export const SUB_NAV: Record<string, NavItem[]> = {
   dashboard: [
-    { label: "Dashboard",     href: "/dashboard", icon: LayoutDashboard, section: "dashboard" },
-    { label: "Profit & Loss", href: "/pl",        icon: TrendingUp,      section: "dashboard" },
-    { label: "Balance Sheet", href: "/balance",   icon: PieChart,        section: "dashboard" },
-    { label: "Cash Flow",     href: "/cashflow",  icon: FileText,        section: "dashboard" },
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "dashboard" },
   ],
   banking: [
     { label: "Bank Accounts",   href: "/bank-accounts",   icon: Landmark,   section: "banking" },
@@ -253,19 +250,28 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "General Ledger",    href: "/ledger",            icon: BookOpen,        section: "accounting" },
     { label: "Chart of Accounts", href: "/coa",               icon: TableProperties, section: "accounting" },
     { label: "Analytic Accounts", href: "/analytic-accounts", icon: Layers,          section: "accounting" },
-    { label: "Trial Balance",     href: "/trial-balance",     icon: Scale,           section: "accounting" },
     { label: "Period Close",      href: "/period-close",      icon: CalendarCheck,   section: "accounting" },
     { label: "Deferred Revenue",  href: "/deferred-revenue",  icon: Play,            section: "accounting" },
     { label: "Fixed Assets",      href: "/assets",            icon: Building2,       section: "accounting" },
   ],
   reports: [
+    // ── Financial Statements ──────────────────────────────────────────────
+    { label: "Trial Balance",    href: "/trial-balance",        icon: Scale,      section: "reports" },
+    { label: "Income Statement", href: "/pl",                   icon: TrendingUp, section: "reports" },
+    { label: "Balance Sheet",    href: "/balance",              icon: PieChart,   section: "reports" },
+    { label: "Cash Flow",        href: "/cashflow",             icon: FileText,   section: "reports" },
+    // ── Management Reports ────────────────────────────────────────────────
     { label: "Tax Reports",      href: "/tax",                  icon: Percent,    section: "reports" },
-    { label: "Tax Codes",        href: "/tax-codes",            icon: Percent,    section: "reports" },
     { label: "Budget vs Actual", href: "/budgets",              icon: TrendingUp, section: "reports" },
+    { label: "AR Aging",         href: "/aging/receivable",     icon: Clock,      section: "reports" },
+    { label: "AP Aging",         href: "/aging/payable",        icon: Clock,      section: "reports" },
     { label: "Customer Perf.",   href: "/customer-performance", icon: TrendingUp, section: "reports" },
-    { label: "Report Builder",   href: "/reports/builder",      icon: Table2,     section: "reports" },
-    { label: "Audit Log",        href: "/audit",                icon: ScrollText, section: "reports", adminOnly: true },
-    { label: "Workflow",         href: "/workflow",             icon: GitBranch,  section: "reports" },
+    // ── Module Reports (shown when add-on installed) ──────────────────────
+    { label: "Inventory Report", href: "/inventory/performance",   icon: PieChart,  section: "reports", forModule: "inventory"   },
+    { label: "Mfg Reports",      href: "/manufacturing/reports",   icon: BarChart2, section: "reports", forModule: "production"  },
+    { label: "HC Reports",       href: "/healthcare/reports",      icon: BarChart2, section: "reports", forModule: "healthcare"  },
+    // ── Custom ────────────────────────────────────────────────────────────
+    { label: "Report Builder",   href: "/reports/builder",         icon: Table2,    section: "reports" },
   ],
   inventory: [
     { label: "Products",           href: "/products",              icon: Package,  section: "inventory", forModule: "inventory" },
@@ -325,6 +331,9 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "My Profile",    href: "/profile",              icon: UserCircle,  section: "settings" },
     { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "settings" },
     { label: "Payment Terms", href: "/payment-terms",        icon: Clock,       section: "settings", adminOnly: true },
+    { label: "Tax Codes",     href: "/tax-codes",            icon: Percent,     section: "settings", adminOnly: true },
+    { label: "Audit Log",     href: "/audit",                icon: ScrollText,  section: "settings", adminOnly: true },
+    { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "settings" },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "settings" },
     { label: "Add-ons",       href: "/apps",                 icon: AppWindow,   section: "settings", adminOnly: true },
   ],
