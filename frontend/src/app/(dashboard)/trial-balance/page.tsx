@@ -85,7 +85,7 @@ export default function TrialBalancePage() {
         </div>
       </div>
 
-      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl">
+      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl print:hidden">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label="Period" />
       </div>
 

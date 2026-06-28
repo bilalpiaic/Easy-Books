@@ -93,7 +93,7 @@ export default function ARAgingPage() {
       <PrintHeader title="AR Aging Report" subtitle={`As of ${fmtDateJs(new Date())}`} orientation="landscape" />
 
       {/* Bucket summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8 print:hidden">
         {BUCKETS.map(b => (
           <div key={b.key} className={`rounded-xl border p-4 ${b.color}`}>
             <p className="text-xs font-bold uppercase tracking-widest mb-1 opacity-70">{b.label}</p>

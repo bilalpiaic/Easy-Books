@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
-import { useFmt, useCurrency, useSettings } from "@/context/SettingsContext"
+import { useFmt, useCurrency } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 
@@ -42,7 +42,6 @@ export default function PayslipPage() {
   const eid = params.eid as string
   const fmt = useFmt()
   const currency = useCurrency()
-  const { settings } = useSettings()
 
   const [data, setData] = useState<PayslipData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -55,116 +54,211 @@ export default function PayslipPage() {
       .finally(() => setLoading(false))
   }, [runId, eid])
 
-  if (loading) return <div className="p-8 text-gray-400">Loading...</div>
-  if (!data) return <div className="p-8 text-red-500">{error || "Payslip not found"}</div>
+  if (loading) return <div className="p-8 text-[var(--text-primary)]/60">Loading…</div>
+  if (!data)   return <div className="p-8 text-red-500">{error || "Payslip not found"}</div>
 
   return (
     <div className="max-w-2xl space-y-4">
-      <PrintHeader title="Pay Slip" />
+      <PrintHeader
+        title="Pay Slip"
+        subtitle={`Period: ${fmtDate(data.run.period_start)} – ${fmtDate(data.run.period_end)}`}
+      />
 
+      {/* ── Screen-only toolbar ───────────────────────────────────── */}
       <div className="print:hidden flex items-center justify-between">
-        <Link href={`/payroll/${runId}`} className="inline-flex items-center gap-2 text-[var(--primary)] hover:underline text-sm">
+        <Link
+          href={`/payroll/${runId}`}
+          className="inline-flex items-center gap-2 text-[var(--primary)] hover:underline text-sm"
+        >
           <ArrowLeft className="w-4 h-4" />
-          Back to Payroll Run
+          {t("common.back", "Back to Payroll Run")}
         </Link>
         <button
           onClick={() => window.print()}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm hover:bg-[var(--bg-page)]"
         >
-          <Printer className="w-4 h-4" /> Print
+          <Printer className="w-4 h-4" /> {t("common.print", "Print")}
         </button>
       </div>
 
-      {/* Payslip document */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6 print:shadow-none print:border-none print:rounded-none">
-        {/* Header */}
-        <div className="border-b border-gray-200 pb-4">
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">{settings.company_name}</h2>
-          <p className="text-xs text-gray-400">{settings.business_tagline}</p>
-        </div>
-
-        <div className="text-center">
-          <h3 className="text-xl font-bold text-[var(--text-primary)]">PAY SLIP</h3>
-          <p className="text-sm text-gray-500">
-            Period: {fmtDate(data.run.period_start)} to {fmtDate(data.run.period_end)}
+      {/* ── Screen card view ─────────────────────────────────────── */}
+      <div className="print:hidden bg-white rounded-xl border border-[var(--border)] shadow-sm p-6 space-y-6">
+        <div className="border-b border-[var(--border)] pb-4">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">{data.employee.name}</h2>
+          <p className="text-xs text-[var(--text-primary)]/55">
+            {data.employee.employee_code}
+            {data.employee.designation ? ` · ${data.employee.designation}` : ""}
+            {data.employee.department  ? ` — ${data.employee.department}`  : ""}
           </p>
         </div>
 
-        {/* Employee info */}
-        <div className="grid grid-cols-2 gap-4 bg-[var(--bg-page)] rounded-lg p-4 text-sm">
-          <div>
-            <p><span className="text-gray-500">Name:</span> <strong>{data.employee.name}</strong></p>
-            <p><span className="text-gray-500">Code:</span> {data.employee.employee_code}</p>
-            <p><span className="text-gray-500">Department:</span> {data.employee.department ?? "—"}</p>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="space-y-1.5">
+            <ScreenRow label="Pay Date"    value={fmtDate(data.run.pay_date)} />
+            {data.employee.bank_name    && <ScreenRow label="Bank"    value={data.employee.bank_name} />}
+            {data.employee.bank_account && <ScreenRow label="Account" value={data.employee.bank_account} />}
           </div>
-          <div>
-            <p><span className="text-gray-500">Designation:</span> {data.employee.designation ?? "—"}</p>
-            <p><span className="text-gray-500">Pay Date:</span> {fmtDate(data.run.pay_date)}</p>
-            <p><span className="text-gray-500">Bank:</span> {data.employee.bank_name ?? "—"}</p>
-          </div>
-        </div>
-
-        {/* Earnings and Deductions */}
-        <div className="grid grid-cols-2 gap-6">
-          {/* Earnings */}
-          <div>
-            <h4 className="font-semibold text-[var(--text-primary)] border-b border-gray-200 pb-2 mb-3">Earnings ({currency})</h4>
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-gray-50">
-                {data.earnings.map((e, i) => (
-                  <tr key={i}>
-                    <td className="py-1.5 text-gray-600">{e.name}</td>
-                    <td className="py-1.5 text-right font-medium">{fmt(e.amount)}</td>
-                  </tr>
-                ))}
-                {data.earnings.length === 0 && (
-                  <tr><td colSpan={2} className="py-2 text-gray-300 text-xs">No earnings</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Deductions */}
-          <div>
-            <h4 className="font-semibold text-[var(--text-primary)] border-b border-gray-200 pb-2 mb-3">Deductions ({currency})</h4>
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-gray-50">
-                {data.deductions.map((d, i) => (
-                  <tr key={i}>
-                    <td className="py-1.5 text-gray-600">{d.name}</td>
-                    <td className="py-1.5 text-right font-medium">{fmt(d.amount)}</td>
-                  </tr>
-                ))}
-                {data.deductions.length === 0 && (
-                  <tr><td colSpan={2} className="py-2 text-gray-300 text-xs">No deductions</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div className="space-y-1.5">
+            <ScreenRow label="Gross Earnings"   value={`${currency} ${fmt(data.gross_earnings)}`} />
+            <ScreenRow label="Total Deductions"  value={`${currency} ${fmt(data.total_deductions)}`} />
+            <ScreenRow label="Net Pay"           value={`${currency} ${fmt(data.net_pay)}`} bold />
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="border-t-2 border-gray-200 pt-4 space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Gross Earnings</span>
-            <span className="font-medium">{currency} {fmt(data.gross_earnings)}</span>
+        <div className="grid grid-cols-2 gap-6 text-sm">
+          <div>
+            <h4 className="font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 mb-2">
+              Earnings
+            </h4>
+            {data.earnings.length === 0
+              ? <p className="text-[var(--text-primary)]/45 text-xs italic">No earnings recorded</p>
+              : data.earnings.map((e, i) => <ScreenRow key={i} label={e.name} value={fmt(e.amount)} />)
+            }
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Total Deductions</span>
-            <span className="font-medium text-red-500">{currency} {fmt(data.total_deductions)}</span>
-          </div>
-          <div className="flex justify-between items-center bg-[var(--primary)]/10 rounded-lg px-3 py-2 border border-[var(--primary)]/20">
-            <span className="font-bold text-[var(--text-primary)]">Net Pay</span>
-            <span className="font-bold text-[var(--primary)] text-lg">{currency} {fmt(data.net_pay)}</span>
+          <div>
+            <h4 className="font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 mb-2">
+              Deductions
+            </h4>
+            {data.deductions.length === 0
+              ? <p className="text-[var(--text-primary)]/45 text-xs italic">No deductions recorded</p>
+              : data.deductions.map((d, i) => <ScreenRow key={i} label={d.name} value={fmt(d.amount)} />)
+            }
           </div>
         </div>
-
-        {data.employee.bank_account && (
-          <p className="text-xs text-gray-400">
-            Bank Account: {data.employee.bank_account} · {data.employee.bank_name}
-          </p>
-        )}
       </div>
+
+      {/* ── Print-only document — pure dot-matrix article ─────────── */}
+      <article className="hidden print:block text-[var(--text-primary)]">
+
+        {/* Employee / period info strip */}
+        <div className="gb-meta-strip">
+          <div>
+            <div className="gb-box-label">Employee</div>
+            <div className="gb-box-value">{data.employee.name}</div>
+            <div className="gb-box-sub">
+              {data.employee.employee_code}
+              {data.employee.designation ? ` · ${data.employee.designation}` : ""}
+              {data.employee.department  ? ` — ${data.employee.department}`  : ""}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div className="gb-box-label">Pay Period</div>
+            <div className="gb-box-sub">
+              {fmtDate(data.run.period_start)} — {fmtDate(data.run.period_end)}
+            </div>
+            <div className="gb-box-label" style={{ marginTop: "4pt" }}>Pay Date</div>
+            <div className="gb-box-sub">{fmtDate(data.run.pay_date)}</div>
+            {data.run.jv_number && (
+              <>
+                <div className="gb-box-label" style={{ marginTop: "4pt" }}>Voucher</div>
+                <div className="gb-box-sub">{data.run.jv_number}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Earnings + Deductions side by side */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16pt", marginBottom: "8pt" }}>
+
+          <div>
+            <h2>Earnings ({currency})</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left" }}>Component</th>
+                  <th style={{ textAlign: "right" }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.earnings.length === 0
+                  ? <tr><td colSpan={2} style={{ fontStyle: "italic" }}>No earnings</td></tr>
+                  : data.earnings.map((e, i) => (
+                    <tr key={i}>
+                      <td>{e.name}</td>
+                      <td style={{ textAlign: "right" }}>{fmt(e.amount)}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Gross Earnings</td>
+                  <td style={{ textAlign: "right" }}>{fmt(data.gross_earnings)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div>
+            <h2>Deductions ({currency})</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left" }}>Component</th>
+                  <th style={{ textAlign: "right" }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.deductions.length === 0
+                  ? <tr><td colSpan={2} style={{ fontStyle: "italic" }}>No deductions</td></tr>
+                  : data.deductions.map((d, i) => (
+                    <tr key={i}>
+                      <td>{d.name}</td>
+                      <td style={{ textAlign: "right" }}>{fmt(d.amount)}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total Deductions</td>
+                  <td style={{ textAlign: "right" }}>{fmt(data.total_deductions)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        {/* Net Pay — double-ruled box */}
+        <div className="gb-amount-box">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <strong style={{ textTransform: "uppercase", letterSpacing: "0.1em", fontSize: "9.5pt" }}>
+              Net Pay
+            </strong>
+            <strong style={{ fontSize: "11pt" }}>
+              {currency} {fmt(data.net_pay)}
+            </strong>
+          </div>
+        </div>
+
+        {/* Bank details strip */}
+        {data.employee.bank_account && (
+          <div className="gb-from-strip">
+            <span className="gb-box-label">Pay to Account</span>
+            <span>
+              {data.employee.bank_account}
+              {data.employee.bank_name ? ` · ${data.employee.bank_name}` : ""}
+            </span>
+          </div>
+        )}
+
+        {/* Signature bar */}
+        <div className="gb-sig">
+          <div className="gb-sig-item"><div className="gb-sig-line">Employee Signature</div></div>
+          <div className="gb-sig-item"><div className="gb-sig-line">Prepared By</div></div>
+          <div className="gb-sig-item"><div className="gb-sig-line">Authorized By</div></div>
+        </div>
+
+      </article>
+    </div>
+  )
+}
+
+function ScreenRow({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-[var(--text-primary)]/65">{label}</span>
+      <span className={`font-mono ${bold ? "font-bold" : ""}`}>{value}</span>
     </div>
   )
 }

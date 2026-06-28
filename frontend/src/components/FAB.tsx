@@ -23,7 +23,7 @@ export default function FAB() {
     <Link
       href={action.href}
       aria-label={action.label}
-      className="md:hidden fixed bottom-20 right-4 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-[var(--primary)] text-white shadow-lg hover:bg-[var(--primary-dark)] transition-colors"
+      className="md:hidden print:hidden fixed bottom-20 right-4 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-[var(--primary)] text-white shadow-lg hover:bg-[var(--primary-dark)] transition-colors"
     >
       <Plus className="w-6 h-6" />
     </Link>

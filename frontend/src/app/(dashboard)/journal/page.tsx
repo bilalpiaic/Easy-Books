@@ -103,7 +103,7 @@ export default function JournalPage() {
         </div>
       </div>
 
-      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl space-y-3">
+      <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl space-y-3 print:hidden">
         <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
         <div className="flex items-center gap-2">
           <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 shrink-0">

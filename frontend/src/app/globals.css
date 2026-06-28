@@ -214,7 +214,7 @@ body {
     @bottom-right {
       content: "Page " counter(page) " / " counter(pages);
       font-family: "Courier New", Courier, monospace;
-      font-size: 6.5pt;
+      font-size: 8pt;
       color: #000;
     }
   }
@@ -225,7 +225,7 @@ body {
     background: white !important;
     color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8.5pt !important;
+    font-size: 10pt !important;
     line-height: 1.35 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -236,17 +236,30 @@ body {
   * { background: transparent !important; }
   body, html { background: white !important; }
 
+  /* Hide mobile chrome — belt-and-suspenders alongside the print:hidden
+     attributes on BottomNav, MoreDrawer, and FAB components. */
+  .bottom-nav { display: none !important; }
+
   /* No rounded corners, no shadows */
   [class*="rounded"] { border-radius: 0 !important; }
   [class*="shadow"]  { box-shadow: none !important; }
 
   /* All text → solid opaque black (catches opacity utilities like /60, /50) */
   * { color: #000 !important; opacity: 1 !important; }
+  /* Belt-and-suspenders: Tailwind opacity-modifier classes (/30 … /90) produce
+     color-mix() values; override explicitly so every shade of grey becomes #000 */
+  [class*="/3"],[class*="/4"],[class*="/5"],[class*="/6"],[class*="/7"],[class*="/8"],[class*="/9"] {
+    color: #000 !important; opacity: 1 !important;
+  }
+  /* System grey and named-colour classes → black */
+  .text-gray-100,.text-gray-200,.text-gray-300,.text-gray-400,.text-gray-500,
+  .text-gray-600,.text-gray-700,.text-slate-300,.text-slate-400,.text-slate-500,
+  .text-slate-600,.text-slate-800 { color: #000 !important; }
+  .text-red-500,.text-red-600,.text-red-700,
+  .text-blue-600,.text-blue-700,.text-blue-900,
+  .text-emerald-900,.text-amber-900,.text-violet-900 { color: #000 !important; }
   /* All coloured borders → plain black */
   [class*="border-"] { border-color: #000 !important; }
-
-  /* Remove borders from non-table display elements (date boxes, filter chips) */
-  div[class*="border-"], span[class*="border-"] { border: 0 !important; }
 
   /* ── TYPOGRAPHIC HIERARCHY (bold/italic, no size inflation) ─────── */
   /* All headings: monospace, max 10pt, hierarchy via weight + style */
@@ -258,13 +271,13 @@ body {
     page-break-after: avoid;
   }
   h1 {
-    font-size: 10pt !important;
+    font-size: 11.5pt !important;
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
     font-style: normal !important;
   }
   h2 {
-    font-size: 9pt !important;
+    font-size: 10.5pt !important;
     font-style: italic !important;
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
@@ -272,22 +285,41 @@ body {
     padding-bottom: 1.5pt !important;
   }
   h3 {
-    font-size: 8.5pt !important;
+    font-size: 10pt !important;
     font-style: italic !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
   }
   h4 {
-    font-size: 8pt !important;
+    font-size: 9.5pt !important;
     font-style: italic !important;
   }
+
+  /* ── FONT-SIZE CAP — Tailwind text-size utilities ───────────────── */
+  /* Rule: max = base (10pt) + 3pt = 13pt for emphasis.
+     Kills oversized KPI boxes, net-income amounts, summary numbers, etc.
+     Applied after body / heading rules so it catches non-heading elements
+     (div, span, p) that carry screen-display text-size classes. */
+  .text-lg  { font-size: 11.5pt !important; }
+  .text-xl,
+  .text-2xl, .text-3xl, .text-4xl, .text-5xl,
+  .text-6xl, .text-7xl, .text-8xl, .text-9xl { font-size: 13pt !important; }
+
+  /* Restore correct semantic heading sizes for h1–h4 elements that also
+     carry Tailwind text-size classes (h1.text-xl etc.).
+     Specificity (0,1,1) beats the cap rule (0,1,0) and the element rule (0,0,1). */
+  h1.text-lg, h1.text-xl, h1.text-2xl, h1.text-3xl,
+  h1.text-4xl, h1.text-5xl                           { font-size: 11.5pt !important; }
+  h2.text-lg, h2.text-xl, h2.text-2xl, h2.text-3xl  { font-size: 10.5pt !important; }
+  h3.text-lg, h3.text-xl, h3.text-2xl                { font-size: 10pt  !important; }
+  h4.text-lg, h4.text-xl                             { font-size: 9.5pt !important; }
 
   /* ── 6. DOT-MATRIX TABLE SYSTEM ────────────────────────────────── */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8pt !important;
+    font-size: 9.5pt !important;
     border: 0 !important;
     margin-bottom: 8pt !important;
   }
@@ -301,7 +333,7 @@ body {
     background: transparent !important;
     color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 7.5pt !important;
+    font-size: 9pt !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
@@ -318,14 +350,14 @@ body {
     color: #000 !important;
     padding: 2pt 5pt !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8pt !important;
+    font-size: 9.5pt !important;
     border: 0 !important;
-    border-bottom: 0.3pt dotted #888 !important;
+    border-bottom: 0.5pt dotted #000 !important;
     vertical-align: middle !important;
   }
 
   /* Vertical column separators for readability */
-  td + td, th + th { border-left: 0.5pt solid #ccc !important; }
+  td + td, th + th { border-left: 0.5pt solid #000 !important; }
 
   /* Flatten badge/status/chip spans to plain text — removes pill shape */
   td span, th span {
@@ -346,7 +378,7 @@ body {
     background: transparent !important;
     color: #000 !important;
     font-weight: 700 !important;
-    font-size: 8.5pt !important;
+    font-size: 10pt !important;
     border: 0 !important;
     border-top: 2pt double #000 !important;
     border-bottom: 1pt solid #000 !important;
@@ -356,7 +388,7 @@ body {
   tr.gb-subtotal td {
     background: transparent !important;
     font-weight: 700 !important;
-    font-size: 8pt !important;
+    font-size: 9.5pt !important;
     border-top: 1pt solid #000 !important;
     border-bottom: 1pt solid #000 !important;
   }
@@ -385,25 +417,25 @@ body {
     border: 1pt solid #000 !important;
     border-radius: 0 !important;
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 12pt !important; font-weight: 700 !important;
+    font-size: 13.5pt !important; font-weight: 700 !important;
     padding: 2pt 5pt !important;
     display: inline-block !important;
   }
   .print-logo-img { height: 26pt !important; width: auto !important; max-width: 70pt !important; }
   .print-org-name {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 10pt !important; font-weight: 700 !important;
+    font-size: 11.5pt !important; font-weight: 700 !important;
     text-transform: uppercase !important; letter-spacing: 0.06em !important;
     color: #000 !important; line-height: 1.15 !important;
   }
   .print-org-sub {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 7.5pt !important; text-transform: uppercase !important;
+    font-size: 9pt !important; text-transform: uppercase !important;
     letter-spacing: 0.08em !important; color: #000 !important; margin-top: 1pt !important;
   }
   .print-meta {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8pt !important; color: #000 !important; text-align: right !important;
+    font-size: 9.5pt !important; color: #000 !important; text-align: right !important;
   }
   .print-meta-line { margin-bottom: 1pt !important; }
 
@@ -417,26 +449,26 @@ body {
   }
   .print-title {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 10pt !important; font-weight: 700 !important;
+    font-size: 11.5pt !important; font-weight: 700 !important;
     text-transform: uppercase !important; letter-spacing: 0.1em !important;
     color: #000 !important; margin: 0 !important;
   }
   .print-subtitle {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 8.5pt !important; color: #000 !important;
+    font-size: 10pt !important; color: #000 !important;
     text-transform: uppercase !important; letter-spacing: 0.04em !important;
     margin-top: 1.5pt !important;
   }
   .print-stamp {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 6.5pt !important; color: #000 !important;
+    font-size: 8pt !important; color: #000 !important;
     margin-top: 4pt !important; text-align: right !important;
   }
 
   /* ── 8. VOUCHER / DOCUMENT LAYOUTS (article-based) ─────────────── */
   article {
     font-family: "Courier New", Courier, monospace !important;
-    font-size: 9.5pt !important;
+    font-size: 11pt !important;
   }
   article * {
     font-family: "Courier New", Courier, monospace !important;
@@ -453,12 +485,12 @@ body {
     background: transparent !important;
   }
   .gb-box-label {
-    font-size: 7.5pt !important; text-transform: uppercase !important;
+    font-size: 9pt !important; text-transform: uppercase !important;
     letter-spacing: 0.1em !important; color: #000 !important;
     font-weight: 700 !important; margin-bottom: 1.5pt !important;
   }
-  .gb-box-value { font-size: 10pt !important; font-weight: 700 !important; color: #000 !important; }
-  .gb-box-sub   { font-size: 8pt !important; color: #000 !important; }
+  .gb-box-value { font-size: 11.5pt !important; font-weight: 700 !important; color: #000 !important; }
+  .gb-box-sub   { font-size: 9.5pt !important; color: #000 !important; }
 
   /* gb-amount-box — "Amount in Words": double-ruled box */
   .gb-amount-box {
@@ -501,7 +533,7 @@ body {
     margin-top: 28pt !important;
     padding-top: 0 !important;
     border: 0 !important;
-    font-size: 6.5pt !important;
+    font-size: 8pt !important;
     text-transform: uppercase !important;
     letter-spacing: 0.07em !important;
     color: #000 !important;

@@ -28,13 +28,13 @@ export default function MoreDrawer({ open, onClose }: Props) {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden print:hidden"
           onClick={onClose}
         />
       )}
       <div
         className={cn(
-          "fixed bottom-0 inset-x-0 z-50 md:hidden bg-[var(--bg-card)] border-t border-[var(--border)] rounded-t-2xl transition-transform duration-300",
+          "fixed bottom-0 inset-x-0 z-50 md:hidden print:hidden bg-[var(--bg-card)] border-t border-[var(--border)] rounded-t-2xl transition-transform duration-300",
           open ? "translate-y-0" : "translate-y-full"
         )}
         style={{ maxHeight: "80vh", overflowY: "auto" }}

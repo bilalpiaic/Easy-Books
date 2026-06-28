@@ -20,7 +20,7 @@ export default function BottomNav({ onMore }: Props) {
   const activeSection = getActiveSection(pathname)
 
   return (
-    <nav className="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--bg-card)] border-t border-[var(--border)] flex items-stretch">
+    <nav className="bottom-nav md:hidden print:hidden fixed bottom-0 inset-x-0 z-40 bg-[var(--bg-card)] border-t border-[var(--border)] flex items-stretch">
       {TABS.map(({ label, href, icon: Icon, section }) => {
         const active = activeSection === section
         return (
