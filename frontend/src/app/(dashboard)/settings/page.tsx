@@ -210,7 +210,11 @@ export default function SettingsPage() {
     { id: "accounting",  label: "Accounting"  },
     { id: "preferences", label: "Preferences" },
     { id: "advanced",    label: "Advanced"    },
+    { id: "updates",     label: "Updates"     },
   ]
+
+  // Tabs that have the main settings form — show Save/Reset on these
+  const FORM_TABS = new Set(["company", "accounting", "preferences"])
 
   return (
     <div className="space-y-6 p-4 sm:p-6 max-w-4xl">
@@ -1068,34 +1072,60 @@ export default function SettingsPage() {
 
       </> }
 
-      {/* Save / Reset — always visible regardless of active tab */}
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={() => setForm(ctxSettings)}
-          className="px-6 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] text-black font-medium transition-colors"
-        >
-          Reset
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] font-medium transition-colors disabled:opacity-50"
-        >
-          <Save className="w-4 h-4" />
-          {saving ? "Saving..." : "Save Settings"}
-        </button>
-      </div>
+      {/* Updates tab */}
+      { tab === "updates" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm space-y-6">
+            <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
+              <RefreshCw className="w-5 h-5 text-[var(--primary)]" />
+              Software Updates
+            </h2>
+            <p className="text-sm text-[var(--text-muted)]">
+              Keep Easy-Books up to date to get the latest features, bug fixes, and security improvements.
+            </p>
 
-      <div className="flex items-center justify-end gap-4 pt-2">
-        <button
-          onClick={() => setUpdateModalOpen(true)}
-          className="flex items-center gap-1.5 text-[11px] text-[var(--text-primary)]/50 hover:text-[var(--primary)] transition-colors"
-        >
-          <RefreshCw className="w-3 h-3" />
-          Check for Updates
-        </button>
-        <VersionBadge />
-      </div>
+            <div className="flex items-center justify-between p-4 bg-[var(--bg-page)] rounded-xl border border-[var(--border)]">
+              <div>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Installed Version</p>
+                <div className="mt-1"><VersionBadge /></div>
+              </div>
+              <button
+                onClick={() => setUpdateModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-lg font-medium hover:bg-[var(--primary-dark)] transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Check for Updates
+              </button>
+            </div>
+
+            <div className="text-xs text-[var(--text-muted)] space-y-1">
+              <p>• On <strong>script installs</strong> (install-and-run.sh / .ps1): Easy-Books pulls the latest code and rebuilds automatically.</p>
+              <p>• On <strong>desktop (Electron)</strong>: the update downloads and installs in the background — you&apos;ll be prompted to restart.</p>
+              <p>• On <strong>cloud / server</strong>: run <code className="px-1 bg-[var(--bg-page)] rounded text-[var(--text-primary)]">git pull && ./install-and-run.sh</code> on your server.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save / Reset — only on tabs with form fields */}
+      { FORM_TABS.has(tab) && (
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            onClick={() => setForm(ctxSettings)}
+            className="px-6 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)] text-black font-medium transition-colors"
+          >
+            Reset
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] font-medium transition-colors disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? "Saving..." : "Save Settings"}
+          </button>
+        </div>
+      )}
 
       {updateModalOpen && (
         <UpdateModal onClose={() => setUpdateModalOpen(false)} />
