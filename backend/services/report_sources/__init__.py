@@ -12,8 +12,10 @@ from typing import Optional
 
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from models import (Account, Bill, BillPayment, Customer, Invoice, JournalEntry,
-                    PaymentReceived, Product, StockMovement, Transaction, Vendor)
+from models import (Account, AttendanceRecord, Bill, BillLine, BillPayment,
+                    Customer, Employee, Invoice, InvoiceLine, JournalEntry,
+                    PaymentReceived, PayrollLine, PayrollRun, Product,
+                    PurchaseOrder, StockMovement, Transaction, Vendor)
 
 
 class FieldType(str, Enum):
@@ -207,7 +209,138 @@ VENDORS = ReportSource(
     },
 )
 
+INVOICE_LINES = ReportSource(
+    key="invoice_lines", label="Invoice Lines", model=InvoiceLine, date_field=None,
+    default_columns=["invoice_number", "description", "qty", "rate", "amount"],
+    fields={
+        "invoice_number": _f("invoice_number", "Invoice #", FieldType.TEXT, Invoice.number,
+                             join=JoinPath(InvoiceLine.invoice_id, Invoice, Invoice.id)),
+        "customer_name":  _f("customer_name", "Customer", FieldType.TEXT, Invoice.customer_name,
+                             join=JoinPath(InvoiceLine.invoice_id, Invoice, Invoice.id)),
+        "issue_date":     _f("issue_date", "Invoice Date", FieldType.DATE, Invoice.issue_date,
+                             join=JoinPath(InvoiceLine.invoice_id, Invoice, Invoice.id)),
+        "description":    _f("description", "Description", FieldType.TEXT, InvoiceLine.description),
+        "qty":            _f("qty", "Qty", FieldType.NUMBER, InvoiceLine.qty, aggregatable=True),
+        "rate":           _f("rate", "Unit Rate", FieldType.MONEY, InvoiceLine.rate, aggregatable=True),
+        "discount_pct":   _f("discount_pct", "Discount %", FieldType.NUMBER, InvoiceLine.discount_pct),
+        "amount":         _f("amount", "Amount", FieldType.MONEY, InvoiceLine.amount, aggregatable=True),
+    },
+)
+
+BILL_LINES = ReportSource(
+    key="bill_lines", label="Bill Lines", model=BillLine, date_field=None,
+    default_columns=["bill_number", "description", "qty", "rate", "amount"],
+    fields={
+        "bill_number":   _f("bill_number", "Bill #", FieldType.TEXT, Bill.number,
+                            join=JoinPath(BillLine.bill_id, Bill, Bill.id)),
+        "vendor_name":   _f("vendor_name", "Vendor", FieldType.TEXT, Bill.vendor_name,
+                            join=JoinPath(BillLine.bill_id, Bill, Bill.id)),
+        "bill_date":     _f("bill_date", "Bill Date", FieldType.DATE, Bill.bill_date,
+                            join=JoinPath(BillLine.bill_id, Bill, Bill.id)),
+        "description":   _f("description", "Description", FieldType.TEXT, BillLine.description),
+        "qty":           _f("qty", "Qty", FieldType.NUMBER, BillLine.qty, aggregatable=True),
+        "rate":          _f("rate", "Unit Rate", FieldType.MONEY, BillLine.rate, aggregatable=True),
+        "amount":        _f("amount", "Amount", FieldType.MONEY, BillLine.amount, aggregatable=True),
+    },
+)
+
+ACCOUNTS = ReportSource(
+    key="accounts", label="Chart of Accounts", model=Account, date_field=None,
+    default_columns=["code", "name", "type", "is_group"],
+    fields={
+        "code":     _f("code", "Code", FieldType.TEXT, Account.code),
+        "name":     _f("name", "Account Name", FieldType.TEXT, Account.name),
+        "type":     _f("type", "Type", FieldType.ENUM, Account.type,
+                       enum_values=["Asset", "Liability", "Equity", "Revenue", "Expense"]),
+        "is_group": _f("is_group", "Is Group", FieldType.BOOL, Account.is_group),
+        "is_active": _f("is_active", "Active", FieldType.BOOL, Account.is_active),
+    },
+)
+
+PURCHASE_ORDERS = ReportSource(
+    key="purchase_orders", label="Purchase Orders", model=PurchaseOrder, date_field="order_date",
+    default_columns=["number", "vendor_name", "order_date", "status", "total"],
+    fields={
+        "number":      _f("number", "PO #", FieldType.TEXT, PurchaseOrder.number),
+        "vendor_name": _f("vendor_name", "Vendor", FieldType.TEXT, PurchaseOrder.vendor_name),
+        "order_date":  _f("order_date", "Order Date", FieldType.DATE, PurchaseOrder.order_date),
+        "status":        _f("status", "Status", FieldType.ENUM, PurchaseOrder.status,
+                            enum_values=["draft", "approved", "received", "billed", "cancelled"]),
+        "expected_date": _f("expected_date", "Expected Date", FieldType.DATE, PurchaseOrder.expected_date),
+        "subtotal":      _f("subtotal", "Subtotal", FieldType.MONEY, PurchaseOrder.subtotal, aggregatable=True),
+        "total":         _f("total", "Total", FieldType.MONEY, PurchaseOrder.total, aggregatable=True),
+        "notes":         _f("notes", "Notes", FieldType.TEXT, PurchaseOrder.notes),
+    },
+)
+
+EMPLOYEES = ReportSource(
+    key="employees", label="Employees", model=Employee, date_field="join_date",
+    default_columns=["employee_code", "name", "department", "designation", "is_active"],
+    fields={
+        "employee_code": _f("employee_code", "Emp Code", FieldType.TEXT, Employee.employee_code),
+        "name":          _f("name", "Name", FieldType.TEXT, Employee.name),
+        "department":    _f("department", "Department", FieldType.TEXT, Employee.department),
+        "designation":   _f("designation", "Designation", FieldType.TEXT, Employee.designation),
+        "join_date":     _f("join_date", "Join Date", FieldType.DATE, Employee.join_date),
+        "is_active":     _f("is_active", "Active", FieldType.BOOL, Employee.is_active),
+        "bank_name":     _f("bank_name", "Bank", FieldType.TEXT, Employee.bank_name),
+    },
+)
+
+PAYROLL_RUNS = ReportSource(
+    key="payroll_runs", label="Payroll Runs", model=PayrollRun, date_field="pay_date",
+    default_columns=["period_start", "period_end", "pay_date", "status"],
+    fields={
+        "period_start": _f("period_start", "Period Start", FieldType.DATE, PayrollRun.period_start),
+        "period_end":   _f("period_end", "Period End", FieldType.DATE, PayrollRun.period_end),
+        "pay_date":     _f("pay_date", "Pay Date", FieldType.DATE, PayrollRun.pay_date),
+        "status":       _f("status", "Status", FieldType.ENUM, PayrollRun.status,
+                           enum_values=["draft", "approved", "posted", "void"]),
+        "jv_number":    _f("jv_number", "JV #", FieldType.TEXT, PayrollRun.jv_number),
+        "notes":        _f("notes", "Notes", FieldType.TEXT, PayrollRun.notes),
+    },
+)
+
+PAYROLL_LINES = ReportSource(
+    key="payroll_lines", label="Payroll Lines (Per Employee)", model=PayrollLine, date_field=None,
+    default_columns=["employee_name", "gross_earnings", "total_deductions", "net_pay"],
+    fields={
+        "employee_name":    _f("employee_name", "Employee", FieldType.TEXT, Employee.name,
+                               join=JoinPath(PayrollLine.employee_id, Employee, Employee.id)),
+        "employee_code":    _f("employee_code", "Emp Code", FieldType.TEXT, Employee.employee_code,
+                               join=JoinPath(PayrollLine.employee_id, Employee, Employee.id)),
+        "period_start":     _f("period_start", "Period Start", FieldType.DATE, PayrollRun.period_start,
+                               join=JoinPath(PayrollLine.payroll_run_id, PayrollRun, PayrollRun.id)),
+        "gross_earnings":   _f("gross_earnings", "Gross", FieldType.MONEY, PayrollLine.gross_earnings, aggregatable=True),
+        "total_deductions": _f("total_deductions", "Deductions", FieldType.MONEY, PayrollLine.total_deductions, aggregatable=True),
+        "net_pay":          _f("net_pay", "Net Pay", FieldType.MONEY, PayrollLine.net_pay, aggregatable=True),
+    },
+)
+
+ATTENDANCE = ReportSource(
+    key="attendance", label="Attendance", model=AttendanceRecord, date_field="date",
+    default_columns=["date", "employee_name", "status", "hours_worked"],
+    fields={
+        "date":          _f("date", "Date", FieldType.DATE, AttendanceRecord.date),
+        "employee_name": _f("employee_name", "Employee", FieldType.TEXT, Employee.name,
+                            join=JoinPath(AttendanceRecord.employee_id, Employee, Employee.id)),
+        "employee_code": _f("employee_code", "Emp Code", FieldType.TEXT, Employee.employee_code,
+                            join=JoinPath(AttendanceRecord.employee_id, Employee, Employee.id)),
+        "status":        _f("status", "Status", FieldType.ENUM, AttendanceRecord.status,
+                            enum_values=["present", "absent", "half_day", "leave", "holiday", "off"]),
+        "time_in":       _f("time_in", "Time In", FieldType.TEXT, AttendanceRecord.time_in),
+        "time_out":      _f("time_out", "Time Out", FieldType.TEXT, AttendanceRecord.time_out),
+        "hours_worked":  _f("hours_worked", "Hours", FieldType.NUMBER, AttendanceRecord.hours_worked, aggregatable=True),
+        "source":        _f("source", "Source", FieldType.ENUM, AttendanceRecord.source,
+                            enum_values=["manual", "biometric"]),
+    },
+)
+
 REGISTRY: dict[str, ReportSource] = {s.key: s for s in (
-    INVOICES, BILLS, JOURNAL_LINES, PAYMENTS_RECEIVED, PAYMENTS_MADE,
-    PRODUCTS, STOCK_MOVEMENTS, CUSTOMERS, VENDORS,
+    INVOICES, BILLS, INVOICE_LINES, BILL_LINES,
+    JOURNAL_LINES, PAYMENTS_RECEIVED, PAYMENTS_MADE,
+    PRODUCTS, STOCK_MOVEMENTS,
+    CUSTOMERS, VENDORS,
+    ACCOUNTS, PURCHASE_ORDERS,
+    EMPLOYEES, PAYROLL_RUNS, PAYROLL_LINES, ATTENDANCE,
 )}

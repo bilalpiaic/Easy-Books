@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { ChevronDown, LogOut, UserCircle, LayoutGrid, Table2, Blocks } from "lucide-react"
+import { ChevronDown, LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { useSettings } from "@/context/SettingsContext"
 import { useModules } from "@/context/ModuleContext"
+import { useTheme } from "@/context/ThemeContext"
 import { TOP_NAV, SUB_NAV, getActiveSection } from "@/lib/nav"
 import type { TopNavSection } from "@/lib/nav"
 
@@ -36,14 +37,18 @@ export default function TopNav() {
   const { settings }         = useSettings()
   const { installedModules } = useModules()
 
-  const [userName, setUserName] = useState("User")
-  const [initial, setInitial]   = useState("U")
-  const [isAdmin, setIsAdmin]   = useState(false)
-  const [open, setOpen]         = useState<string | null>(null)
-  const [userOpen, setUserOpen] = useState(false)
+  const { resolvedTheme, setTheme } = useTheme()
 
-  const navRef  = useRef<HTMLElement>(null)
-  const userRef = useRef<HTMLDivElement>(null)
+  const [userName, setUserName]     = useState("User")
+  const [initial, setInitial]       = useState("U")
+  const [isAdmin, setIsAdmin]       = useState(false)
+  const [open, setOpen]             = useState<string | null>(null)
+  const [userOpen, setUserOpen]     = useState(false)
+  const [navOverflow, setNavOverflow] = useState(false)
+
+  const navRef     = useRef<HTMLElement>(null)
+  const navInnerRef = useRef<HTMLDivElement>(null)
+  const userRef    = useRef<HTMLDivElement>(null)
 
   const activeSection = getActiveSection(pathname)
 
@@ -66,6 +71,17 @@ export default function TopNav() {
   }, [])
 
   useEffect(() => { setOpen(null) }, [pathname])
+
+  // Detect nav overflow — moves installed-module tabs into More ▾ when cramped
+  useEffect(() => {
+    const el = navInnerRef.current
+    if (!el) return
+    const obs = new ResizeObserver(() => {
+      setNavOverflow(el.scrollWidth > el.offsetWidth + 4)
+    })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
 
   const leftNav       = TOP_NAV.filter(s => LEFT_KEYS.has(s.key))
   const rightNav      = TOP_NAV.filter(s => RIGHT_KEYS.has(s.key))
@@ -159,21 +175,23 @@ export default function TopNav() {
       </Link>
 
       {/* Desktop nav */}
-      <nav className="hidden md:flex items-center gap-0.5 flex-1 min-w-0">
+      <nav className="hidden md:flex items-center gap-0.5 flex-1 min-w-0 overflow-hidden">
+        <div ref={navInnerRef} className="flex items-center gap-0.5 overflow-hidden min-w-0">
 
         {/* Left core: Dashboard · Banking · Sales · Purchases */}
         {leftNav.map(s => renderTab(s))}
 
-        {/* Tenant add-on tabs — inline between Purchases and Accounting */}
-        {installedMods.length > 0 && <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />}
-        {installedMods.map(s => renderTab(s))}
-        {installedMods.length > 0 && <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />}
+        {/* Tenant add-on tabs — inline when space allows, else collapsed to More ▾ */}
+        {!navOverflow && installedMods.length > 0 && <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />}
+        {!navOverflow && installedMods.map(s => renderTab(s))}
+        {!navOverflow && installedMods.length > 0 && <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />}
 
         {/* Right core: Accounting · Reports */}
         {rightNav.map(s => renderTab(s))}
+        </div>
 
-        {/* More ▾ — custom reports + add-ons shortcut */}
-        <div className="relative">
+        {/* More ▾ — custom reports + overflowed module tabs + add-ons */}
+        <div className="relative shrink-0">
           <button type="button" onClick={() => toggle("__more__")}
             className={cn(
               "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer",
@@ -181,10 +199,33 @@ export default function TopNav() {
                 ? "bg-[var(--nav-hover)] text-white"
                 : "text-[rgba(255,255,255,0.55)] hover:bg-[var(--nav-hover)] hover:text-white"
             )}>
-            More <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", open === "__more__" && "rotate-180")} />
+            {navOverflow ? "···" : "More"} <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", open === "__more__" && "rotate-180")} />
           </button>
           {open === "__more__" && (
             <div className="absolute top-full right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 min-w-[220px] z-[100]">
+
+              {/* Overflowed module tabs — shown here when screen is narrow */}
+              {navOverflow && installedMods.length > 0 && (
+                <>
+                  <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Modules</p>
+                  {installedMods.map(s => {
+                    const ov = SECTION_OVERVIEW[s.key]
+                    return (
+                      <Link key={s.key} href={ov?.href ?? "#"} onClick={() => setOpen(null)}
+                        className={cn(
+                          "flex items-center gap-2.5 px-4 py-2 text-[13px] transition-colors",
+                          activeSection === s.key
+                            ? "text-[var(--primary)] font-semibold bg-[var(--primary-light)]"
+                            : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                        )}>
+                        {s.label}
+                      </Link>
+                    )
+                  })}
+                  <div className="border-t border-[var(--border-light)] my-1" />
+                </>
+              )}
+
               <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
                 Custom Reports
               </p>
@@ -223,6 +264,19 @@ export default function TopNav() {
 
       {/* Right side */}
       <div className="flex items-center gap-1.5 ml-auto shrink-0">
+
+        {/* Dark / light mode toggle */}
+        <button
+          type="button"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="w-7 h-7 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          {resolvedTheme === "dark"
+            ? <Sun  className="w-4 h-4" />
+            : <Moon className="w-4 h-4" />}
+        </button>
+
         <div ref={userRef} className="relative">
           <button type="button" onClick={() => setUserOpen(o => !o)} title={userName}
             className="w-7 h-7 bg-[var(--primary)] rounded-full flex items-center justify-center text-white text-[11px] font-bold hover:bg-[var(--primary-dark)] transition-colors cursor-pointer">

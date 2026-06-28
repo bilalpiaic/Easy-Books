@@ -25,6 +25,9 @@ export default function SubNav() {
     return true
   })
 
+  // No sub-items for this section (e.g. Report Builder, Dashboard) — collapse sidebar
+  if (!items.length) return null
+
   return (
     <aside className="hidden md:flex w-[200px] flex-col bg-[var(--bg-card)] border-r border-[var(--border)] shrink-0 overflow-y-auto print:hidden">
       {activeSection && (

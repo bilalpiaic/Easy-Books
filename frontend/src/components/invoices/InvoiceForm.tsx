@@ -87,6 +87,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const fmt = useFmt()
   const { isPortal } = usePRAPortal()
   const { settings } = useSettings()
+  const isPRAEnabled = settings.pra_enabled === "true"
   const [form, setForm] = useState<FormState>(emptyForm)
   const [lines, setLines] = useState<LineItem[]>([])
   const [saving, setSaving] = useState(false)
@@ -366,7 +367,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
-        {(isPortal || form.buyer_ntn || form.buyer_cnic) && (
+        {(isPRAEnabled || form.buyer_ntn || form.buyer_cnic) && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">

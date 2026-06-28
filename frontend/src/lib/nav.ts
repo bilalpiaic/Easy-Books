@@ -174,7 +174,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets"],
-  reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance", "/reports"],
+  reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
@@ -328,6 +328,5 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Audit Log",     href: "/audit",                icon: ScrollText,  section: "system", adminOnly: true },
     { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "system" },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
-    { label: "Add-ons",       href: "/apps",                 icon: AppWindow,   section: "system", adminOnly: true },
   ],
 }

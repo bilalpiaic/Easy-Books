@@ -52,10 +52,10 @@ export default function PRADashboardPage() {
   const [invoices, setInvoices] = useState<InvoiceItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Non-portal users shouldn't land here
+  // Redirect only if PRA is not enabled for this tenant at all
   useEffect(() => {
-    if (settled && !isPortal) router.replace("/dashboard")
-  }, [settled, isPortal, router])
+    if (settled && settings.pra_enabled !== "true") router.replace("/dashboard")
+  }, [settled, settings.pra_enabled, router])
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
