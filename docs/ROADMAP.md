@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-22 (against `main` @ commit `40fc6c0`)._
+_Last reviewed: 2026-06-28 (against `main` @ commit `4c0f1d0`)._
 
 ## Status summary
 
@@ -22,6 +22,23 @@ above. (See "Issue closure" below.)
 ---
 
 ## Shipped history (condensed)
+
+### v3.0.0 — Universal Search, Auto-Update System & TopNav Overhaul (2026-06-28)
+
+| Feature | Detail |
+|---------|--------|
+| **Universal Search Engine (Ctrl+K)** | Command palette at `GlobalSearch.tsx`; 3-tier architecture: open tabs (0 ms, `useTabs()`), static nav index (0 ms, `lib/navIndex.ts`), API data (150 ms debounce); `GET /api/search?q=&limit=&types=` queries 8 entity types with expanded columns (invoice: description/notes/status/issue_date; employee: designation/cnic/bank_name; transaction: reference/notes/date/voucher_type; product: unit/product_type; customer: address/ntn/cnic); returns rich result data (date, amount, status); `types` param for prefix-filtered calls |
+| **Prefix filter syntax** | `inv:`, `cust:`, `bill:`, `acc:`, `prod:`, `emp:`, `jv:`, `tab:`, `rpt:`, `new:`, `vendor:` — routes search to the matching entity only; `tab:` searches open browser tabs; `rpt:` searches only report pages; `new:` shows quick-action forms |
+| **Expanded static nav index** (`lib/navIndex.ts`) | 3 layers: all sidebar pages, 14 quick-action forms (New Invoice, Bill, Customer, Employee, GRN, BOM, Production Order, etc.), 22 report/utility pages with keyword aliases (type "tb" → Trial Balance, "p&l" → Income Statement, "gst" → Tax Reports, "bs" → Balance Sheet) |
+| **Rich search result rows** | Status badges (color-coded: draft=amber, posted=blue, paid=green, voided=red), amount pills (formatted without decimals), date display; recent searches stored in `localStorage` (`eb.recent-searches`, max 5), shown as chips in empty state |
+| **In-app Auto-Update System** | `UpdateAvailablePopup` (bottom sheet with "Update Now" / "Later" / "Skip version"); `UpdateProgressScreen` (fullscreen portal with animated SVG ring, 4-phase progress: Pull→Compile→Bundle→Start, progress bar, polling `/version.json` every 5s after trigger); post-update congratulations toast reads `eb.just-updated` and shows from→to commit hash; `GET /api/system/update/changelog?since=<sha>` returns recent git commits for "What's New" list |
+| **Auto-check on login** | `DashboardLayout` checks `/api/system/update/status` (GitHub Commits API, not Releases API) on every mount for admin/owner; shows popup unless dismissed (`eb.update-skip` per-SHA persist, `eb.update-later-session` session dismiss) |
+| **TopNav portal dropdowns** | All dropdown panels use `ReactDOM.createPortal` + `getBoundingClientRect()` for `position: fixed` placement — avoids `overflow-x: auto` scroll container clipping; scroll arrows (left/right chevrons) with ResizeObserver for visibility |
+| **Dark nav inversion** | CSS vars `--nav-bg`, `--nav-text`, `--nav-sub`, `--nav-dim`, etc. flip to cream/charcoal in `[data-theme="dark"]` — inverted from the light theme, giving a distinct visual separation between nav and page content |
+| **BottomNav / FAB / MoreDrawer** | Mobile navigation: `BottomNav` bar, `FAB` floating action button, `MoreDrawer` slide-up panel filtered by installed modules |
+| **Settings 5-tab layout** | `/settings` tabs: Company / Accounting / Preferences / Advanced / Updates; Updates tab shows version, manual update trigger, and changelog |
+| **QB UI token system** | All 155+ pages/components migrated from hex colors to CSS custom properties (`--bg-page`, `--bg-card`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, `--primary`, `--primary-light`, `--primary-dark`) — enables clean dark-mode and theme-switching without per-component overrides |
+| **Login "Failed to fetch" fix** | `backend/routers/search.py` had wrong imports (`or_` from `sqlmodel`, `SessionDep` from `db`) causing backend startup crash → login unreachable; fixed to `from sqlalchemy import or_` and `from .common import SessionDep` |
 
 ### v2.9.0 — PRA e-Invoice Integration (Pakistan, 2026-06-22)
 

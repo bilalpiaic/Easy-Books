@@ -69,6 +69,21 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Collapsible sidebar** — 3-state behaviour (collapsed / open / pinned); hover expands with tooltip nav; auto-pins on wide screens; state persisted in `localStorage`
 - **3-mode voucher form** — New Entry supports Journal, Payment (CP/BP), and Receipt (CR/BR) modes; mode-specific GL pickers pre-filter Cash/Bank accounts; voucher prefix auto-applies per mode (CP-0001 / BP-0001 / CR-0001 etc.)
 
+**Universal Search & Navigation (v3.0)**
+- **Ctrl+K command palette** — `GlobalSearch` portal overlay; 3-tier architecture: open browser tabs (0 ms), static nav/form/report index (0 ms), API data search (150 ms debounce); keyboard navigation (↑↓ navigate, ↵ open, Esc close)
+- **Prefix filter syntax** — type `inv:`, `cust:`, `bill:`, `acc:`, `emp:`, `jv:`, `tab:`, `rpt:`, `new:` to scope results to a single entity type or category; prefix chips are shown as hints in the empty state
+- **Rich search results** — invoices and bills show status badge (color-coded) + amount; all results highlight the matching portion of the query; recent searches (top 5) stored in `localStorage` and shown as one-click chips
+- **Expanded search columns** — invoices searched across number, customer name, description, notes, status, and date; employees searched across name, code, department, designation, CNIC; transactions across JV#, description, party, reference, date, and voucher type
+- **Nav index** — 3-layer static index: all sidebar pages, 14 quick-action "New…" forms, 22 report/utility pages with keyword aliases (e.g. type "tb" to reach Trial Balance, "p&l" for Income Statement, "gst" for Tax Reports)
+- **TopNav portal dropdowns** — all dropdown panels rendered via `createPortal` at `document.body` with `position: fixed` from `getBoundingClientRect()`, avoiding overflow-x scroll container clipping; scrollable tab strip with left/right chevron arrows
+- **Dark nav inversion** — nav bar renders in cream/charcoal in dark mode (inverted vs the light theme), giving distinct visual contrast between navigation and page content
+
+**In-app Update System (v3.0)**
+- **Auto-check on login** — admin/owner users see an `UpdateAvailablePopup` automatically when a newer commit is on the `main` branch (detects via GitHub Commits API, not Releases — catches every push)
+- **Dismiss options** — "Update Now" launches the progress screen; "Later" dismisses for the session; "Skip version" dismisses permanently for that commit SHA (stored in `localStorage`)
+- **Animated progress screen** — fullscreen overlay with spinning SVG ring, 4-phase indicator (Pull → Compile → Bundle → Start), progress bar, polls `/version.json` every 5 s waiting for the rebuilt server to come back up
+- **Post-update congratulations toast** — after reload, shows `from → to` commit hash with a "What's New" changelog pulled from `GET /api/system/update/changelog`
+
 **UI & Accessibility (v2.7)**
 - **Dark Mode + Themes** — 3 display modes (Light / Dark / System follows OS preference) × 5 color themes (Gold / Emerald / Sapphire / Rose / Slate); theme icon in the header cycles modes; color swatches in **Settings → Appearance**; persisted in `localStorage` (`eb.theme`, `eb.color`); anti-flash script in `layout.tsx` prevents FOUC
 - **Multi-language support** — English, Urdu (اردو, RTL Nastaliq script), Chinese (中文); globe icon in header opens language dropdown; preference saved in `localStorage` (`eb.lang`) and synced to `/api/settings` (`app_language`); 314 translation keys across 10 namespaces covering all pages, status badges, action buttons, and table headers; RTL layout auto-applied for Urdu; `react-i18next` + `i18next` client-side only

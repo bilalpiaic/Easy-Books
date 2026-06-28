@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-06-26 · **Branch:** `main`
+> **Last updated:** 2026-06-28 · **Branch:** `main`
 
 ---
 
@@ -796,6 +796,33 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 ### Admin (`/api/admin`)
 - `POST /demo/seed` *(admin+)* — load all 7 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
 
+### Universal Search (`/api/search`)
+
+- `GET /api/search?q=&limit=&types=` — full-text search across 8 entity types. Returns ranked results with `label`, `sub`, `href`, `date`, `amount`, `status`. `types` is a comma-separated filter (e.g. `types=customers,invoices`); omit to search all.
+
+**Entity types and expanded columns searched:**
+
+| Type | Columns searched |
+|------|-----------------|
+| `customers` | name, contact, address, ntn, cnic |
+| `vendors` | name, contact, address |
+| `invoices` | number, customer_name, description, notes, status, issue_date |
+| `bills` | number, vendor_name, description, notes, status, issue_date |
+| `accounts` | code, name, type |
+| `products` | code, name, unit, product_type |
+| `employees` | name, designation, cnic, bank_name |
+| `transactions` | jv_number, reference, notes, date, voucher_type |
+
+The frontend `GlobalSearch` component calls this endpoint with a 150 ms debounce after the user pauses typing. Results from all 8 entity types are merged and ranked by relevance. The `types` param is set automatically when the user activates a prefix filter (`inv:`, `cust:`, etc.).
+
+### System / Update (`/api/system`)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/system/update/status` | Checks GitHub Commits API (`/repos/bilalpiaic/Easy-Books/commits/main`) for new commits; returns `{status, local, remote, behind}` |
+| `POST` | `/api/system/update` | Runs `git pull + alembic upgrade head + npm run build`, returns `"restarting"` |
+| `GET` | `/api/system/update/changelog?since=<sha>&limit=8` | `git log <since>..HEAD` formatted commits |
+
 ---
 
 ## 9. ACCOUNTING CYCLES & GL POSTINGS
@@ -1379,6 +1406,130 @@ All 54 authenticated pages were updated to apply responsive Tailwind breakpoints
 
 61 files updated; 0 TypeScript errors introduced.
 
+### 14.10 TopNav — Portal Dropdowns + Scrollable Tab Strip (v3.0)
+
+`components/TopNav.tsx` manages the header tab strip and portal-based dropdowns:
+
+- **Scrollable tab strip** — `overflow-x: auto scrollbar-hide`; a `ResizeObserver` tracks whether content overflows and shows left/right `ChevronLeft`/`ChevronRight` scroll arrows with gradient fades.
+- **`More ▾` dropdown** — lives outside the scroll container so it is always reachable regardless of how many tabs are open.
+- **Portal-based dropdowns** — use `ReactDOM.createPortal` + `getBoundingClientRect()` to position at `position: fixed` coordinates. This avoids the tab strip's `overflow-x` clipping that would swallow an `absolute`-positioned dropdown.
+- **Search icon** — dispatches a `search:open` custom event picked up by `GlobalSearch`.
+- **Theme toggle** — Sun/Moon icon calls `useTheme()` to cycle through modes.
+- **Dark mode nav inversion** — CSS vars `--nav-bg`, `--nav-text`, `--nav-sub`, `--nav-dim`, `--nav-sep`, `--nav-hover`, `--nav-active` flip to cream/charcoal in `[data-theme="dark"]` so the nav bar is light-colored on dark pages (light nav on dark page).
+
+### 14.11 GlobalSearch — Ctrl+K Command Palette (v3.0)
+
+`components/GlobalSearch.tsx` is a portal overlay (mounted on `<body>`) opened by Ctrl+K or the TopNav search icon.
+
+**3-tier architecture:**
+
+| Tier | Latency | Source |
+|------|---------|--------|
+| Open tabs | 0 ms | `useTabs` context |
+| Nav index | 0 ms | `lib/navIndex.ts` static in-memory index |
+| API | 150 ms (debounced) | `GET /api/search?q=&limit=&types=` |
+
+**`lib/navIndex.ts` — 3-layer static index:**
+- **Layer 1** — All sidebar nav pages (same items as `NAV` array in `nav.ts`)
+- **Layer 2** — 14 quick-action "New…" shortcuts (new invoice, new bill, new customer, new payment, etc.)
+- **Layer 3** — 22 report/utility pages with keyword aliases (e.g. `"p&l"` → `/pl`, `"aged debtors"` → `/aging/receivable`)
+
+**Prefix filter syntax:** typed before the query, limits results to one entity type:
+
+| Prefix | Searches |
+|--------|----------|
+| `inv:` | Invoices |
+| `cust:` | Customers |
+| `tab:` | Open tabs |
+| `acc:` | Accounts |
+| `emp:` | Employees |
+| `jv:` | Transactions |
+| `rpt:` | Reports/pages |
+| `new:` | Quick-action shortcuts |
+| `bill:` | Bills |
+| `prod:` | Products |
+| `vendor:` | Vendors |
+
+**Result shape:** `label`, `sub` (secondary line), `href`, `date`, `amount`, `status` badge (color-coded).
+
+**Recent searches** — stored in `localStorage` key `eb.recent-searches`, max 5 entries. Displayed when the query is empty.
+
+**Empty state** — shows quick-action chips + prefix hint bar so users discover the syntax without documentation.
+
+**Keyboard:** Ctrl+K opens, ArrowUp/Down navigates, Enter opens the selected result, Esc closes.
+
+### 14.12 In-App Auto-Update System (v3.0)
+
+Two new UI components extend the update flow beyond the existing `UpdateModal.tsx`:
+
+**`UpdateAvailablePopup.tsx`** — bottom-sheet / centered-card notification shown by `DashboardLayout` when `GET /api/system/update/status` returns a newer commit (checked on every mount for `admin`/`owner` roles):
+- **Update Now** — starts the update sequence
+- **Later** — session-dismissed via `localStorage` key `eb.update-later-session`
+- **Skip version** — SHA-keyed persistent dismiss via `localStorage` key `eb.update-skip`
+
+**`UpdateProgressScreen.tsx`** — fullscreen portal overlay displayed while `POST /api/system/update` executes:
+- Animated SVG ring (spinning) with Zap icon in the center
+- 4-phase text labels: **Pull → Compile → Bundle → Start**
+- Progress bar: `Math.min((elapsed / 120) × 100, 90)%` (clamps to 90 until verified complete)
+- Polls `GET /version.json` every 5 s to detect commit change; on success switches to a green ring + CheckCircle + "What's New" commit list from `/api/system/update/changelog`
+- On error: AlertCircle icon + manual command instructions
+
+**Post-update toast:** `localStorage` key `eb.just-updated` triggers a congratulations toast after the page reloads.
+
+### 14.13 BottomNav, FAB, MoreDrawer — Mobile Navigation (v3.0)
+
+Three new components for mobile-only navigation (hidden at `sm:` breakpoint and above):
+
+- **`components/BottomNav.tsx`** — fixed bottom bar with 4–5 core nav items (Home, Invoices, Payments, More). Renders only on phones.
+- **`components/FAB.tsx`** — floating action button (bottom-right) for quick new-entry creation. Expands on tap to show contextual "New…" options gated by installed modules.
+- **`components/MoreDrawer.tsx`** — slide-up sheet triggered by the "More" tab in `BottomNav`. Renders the full nav list filtered by `installedModules`. Closes on backdrop tap or swipe-down.
+
+### 14.14 Settings Page — 5-Tab Layout (v3.0)
+
+`/settings` was restructured from a single scrolling page into five tabs:
+
+| Tab | Contents |
+|-----|---------|
+| Company | Name, tagline, logo, address, phone, website |
+| Accounting | Currency, fiscal year start, invoice/bill prefixes, tax ID, default GL accounts |
+| Preferences | Dark mode, color theme, language, block negative stock |
+| Advanced | User rights module toggle, PRA settings (if PRA module installed) |
+| Updates | Version display, "Check for Updates" trigger, changelog viewer |
+
+The **Updates tab** unifies version management for all install types (Electron, script, web). On Electron it calls the `electron-updater` bridge; on other installs it shows the CLI command.
+
+### 14.15 QB UI Token System — CSS Custom Properties (v3.0)
+
+All 155+ pages and components have been migrated from hardcoded hex colors to CSS custom properties defined in `globals.css`. Every reference to the brand palette hex codes now goes through a token variable.
+
+**Page / card tokens:**
+
+| Variable | Light value | Dark value |
+|----------|-------------|------------|
+| `--bg-page` | `#f6f3ee` (cream) | `#1a1814` (charcoal) |
+| `--bg-card` | `#ffffff` | `#252219` |
+| `--border` | `#e5e1d8` | `#3a3529` |
+| `--text-primary` | `#1a1814` | `#f6f3ee` |
+| `--text-secondary` | `#4a4540` | `#c8c4bc` |
+| `--text-muted` | `#8c8880` | `#6b6760` |
+| `--primary` | `#b8943f` (gold) | `#d4a84b` |
+| `--primary-light` | `#f5edd5` | `#2e2510` |
+| `--primary-dark` | `#8c6e2a` | `#b8943f` |
+
+**Nav tokens** (TopNav + Sidebar — inverted in `[data-theme="dark"]` for a light-nav-on-dark-page look):
+
+| Variable | Purpose |
+|----------|---------|
+| `--nav-bg` | Navigation bar background |
+| `--nav-text` | Primary nav text |
+| `--nav-sub` | Secondary nav labels |
+| `--nav-dim` | Dimmed/inactive items |
+| `--nav-sep` | Separator lines |
+| `--nav-hover` | Hover state background |
+| `--nav-active` | Active/selected item background |
+
+In dark mode the nav vars flip to cream/gold on charcoal so the header and sidebar remain visually distinctive from the page background.
+
 ---
 
 ## 15. MIGRATIONS
@@ -1685,6 +1836,17 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | **`healthcare` module** | Added to `MODULE_REGISTRY`; sidebar gated via `forModule: "healthcare"`; `hospital` business model pre-installs it |
 | **Frontend** | 11 pages under `/healthcare/` (HC Overview, Patients with `[id]` detail, OPD, IPD with `[id]` detail, Lab, Lab Tests, Procedures, HC Store, HC Reports) + `components/healthcare/primitives.tsx` |
 | **Demo tenant** | `demo.hospital@easy-books.app` — 50 patients, 5 doctors, 4 wards, 200 OPD tokens, 20 IPD admissions, 80 lab orders |
+
+### Sprint 20 Shipped ✅ (Universal Search, Auto-Update, Mobile Navigation, QB Token System)
+
+| Feature | Notes |
+|---------|-------|
+| **Universal Search — Ctrl+K command palette** | `GlobalSearch.tsx` — portal overlay, 3-tier search (open tabs → `navIndex.ts` → API, 150 ms debounce); `lib/navIndex.ts` — Layer 1: sidebar nav, Layer 2: 14 quick-actions, Layer 3: 22 report aliases; `GET /api/search` — 8 entity types with expanded column coverage; prefix filter syntax (`inv:`, `cust:`, `tab:`, `acc:`, `emp:`, `jv:`, `rpt:`, `new:`, `bill:`, `prod:`, `vendor:`); recent searches in `eb.recent-searches` localStorage; keyboard-navigable (Ctrl+K / ArrowUp/Down / Enter / Esc) |
+| **In-App Auto-Update System** | `UpdateAvailablePopup.tsx` — bottom-sheet notification (Update Now / Later / Skip version); `UpdateProgressScreen.tsx` — fullscreen portal with animated SVG ring, 4-phase progress labels (Pull→Compile→Bundle→Start), polls `/version.json` every 5 s, success/error states; backend `GET/POST /api/system/update/status|update|changelog`; `DashboardLayout` auto-checks on every mount for admin/owner |
+| **TopNav portal dropdowns + scrollable tab strip** | `TopNav.tsx` fully rewritten — ResizeObserver scroll arrows with gradient fades, `More ▾` always outside scroll container, portal-based `position: fixed` dropdowns (avoids overflow-x clip), dark nav inversion via `--nav-*` CSS vars |
+| **Mobile navigation** | `BottomNav.tsx` (core nav bar, hidden at `sm:`), `FAB.tsx` (floating new-entry button with module-gated options), `MoreDrawer.tsx` (slide-up full nav sheet filtered by installed modules) |
+| **Settings 5-tab layout** | `/settings` restructured: Company / Accounting / Preferences / Advanced / Updates tabs |
+| **QB UI token system** | All 155+ pages/components migrated from hardcoded hex to CSS custom properties — `--bg-page`, `--bg-card`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, `--primary*`, `--nav-*`; dark mode entirely token-driven; no scattered `dark:` class workarounds |
 
 ### Still Pending
 

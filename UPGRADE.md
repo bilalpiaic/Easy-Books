@@ -7,9 +7,10 @@ Your accounting data is never deleted during an upgrade; schema changes are appl
 
 ## Before You Upgrade
 
-1. **Know your current version** — visit `http://localhost:3000` → Settings → About, or call `GET /api/version`.
-2. **Check the release notes** for the target version on the [Releases page](https://github.com/bilalpiaic/Easy-Books/releases).
-3. **Read any breaking-change notices** in the release notes before proceeding.
+1. **Know your current version** — visit **Settings → Updates** tab in the app, or call `GET /api/version`.
+2. **Automatic notification** — admin and owner users see an **Update Available** popup automatically on every login when a newer commit is available on `main`. Click **Update Now** to start a guided in-app update with an animated progress screen.
+3. **Check the release notes** for the target version on the [Releases page](https://github.com/bilalpiaic/Easy-Books/releases).
+4. **Read any breaking-change notices** in the release notes before proceeding.
 
 ---
 
@@ -45,13 +46,33 @@ The Windows scripts follow the same steps as the macOS/Linux version above (back
 
 ---
 
+## In-App Update (script installs — all platforms)
+
+Script installs (Windows, macOS, Linux) now support **fully guided in-app updates**:
+
+1. On every login, admin/owner users automatically see an **Update Available** popup if there are newer commits on GitHub.
+2. Click **Update Now** → a full-screen animated progress overlay appears with 4 phases (Pull → Compile → Bundle → Start).
+3. Once the server restarts (detected automatically by polling `/version.json`), the browser reloads and shows a "What's New" congratulations toast with the changelog.
+4. To dismiss without updating: **Later** (session-only dismiss) or **Skip version** (permanently dismiss for this commit).
+5. Manual trigger: **Settings → Updates → Update Now**.
+
+You can also update manually at any time:
+
+```bash
+# Windows
+update.bat
+
+# macOS / Linux
+./update.sh
+```
+
 ## Desktop App (Electron)
 
 1. Open the app — it checks for updates on launch via `electron-updater`.
 2. When an update is available you will see a banner in the lower-right corner.
 3. Click **Download** → wait for the progress bar → click **Restart & Install**.
 
-Alternatively: **Settings → Check for Updates** → **Download** → **Restart & Install**.
+Alternatively: **Settings → Updates → Check for Updates** → **Download** → **Restart & Install**.
 
 The Electron updater applies the database migration automatically on the next launch (same `alembic upgrade head` path).
 

@@ -166,6 +166,14 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 - Auto-pins on wide screens (`window.innerWidth >= 1280`).
 - Backdrop `div` starts at `top-12` (below the header) to avoid covering it; `z-index` layering: header `z-50`, sidebar `z-40`, backdrop `z-30`.
 
+**Auto-hide SubNav (`components/SubNav.tsx`):**
+- Secondary section sidebar (left of main content); shows sub-items for the active TopNav section.
+- **Collapsed (icon-only):** 52 px wide — shows only icon + `title` tooltip; expands on hover via CSS `width` transition (200 ms ease).
+- **Expanded:** 200 px wide — shows icon + label; triggered by mouse hover or pin.
+- **Pin/unpin:** chevron button at the bottom toggles `eb.subnav.pinned` in `localStorage`; pinned sidebar stays expanded regardless of hover.
+- Width transition done via inline `style={{ width: expanded ? 200 : 52, transition: "width 200ms ease-in-out" }}` (not Tailwind width classes — those don't transition).
+- Returns `null` when no sub-items exist for the active section (dashboard, report builder, etc.).
+
 **3-mode voucher form (`app/(dashboard)/journal/new/page.tsx`):**
 - Mode selector at top: **Journal** (JV) / **Payment** (CP cash, BP bank) / **Receipt** (CR cash, BR bank).
 - Payment mode: GL picker pre-filters to Cash/Bank accounts for the instrument side; payee field shown.
@@ -186,10 +194,17 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 - **Voucher type badges:** do NOT add inline type badges (`<span>` pills) next to JV numbers in any report table. The JV number prefix already encodes the type (CP = Cash Payment, SL = Sales, BR = Bank Receipt, etc.).
 - **Amount formatting:** negative amounts display as `(1,234.56)` via the `fmt()` helper from `useFmt()`; currency code appears once in the column header, not in each cell.
 
-**In-app update check (`desktop/` + `UpdateModal`):**
-- `desktop/preload.js` — exposes `window.easybooks.checkForUpdates()`, `onUpdateAvailable(cb)`, `onUpdateDownloaded(cb)`, and `installUpdate()` to the renderer via Electron's context bridge
-- `desktop/main.js` `wireAutoUpdater()` — hooks `electron-updater`'s `autoUpdater` events to the IPC channel; checks the GitHub releases feed on launch
-- `frontend/src/components/UpdateModal.tsx` — **Settings → Check for Updates** modal; calls the bridge methods on Electron, falls back to showing the `update.bat` / `update.sh` CLI command on script/web installs; data is preserved in both paths
+**Universal Search (`components/GlobalSearch.tsx` + `lib/navIndex.ts` + `routers/search.py`):**
+- `GlobalSearch` — `Ctrl+K` / `⌘K` command palette rendered via `createPortal` at `document.body`; also opened by TopNav search button (dispatches `window.CustomEvent("search:open")`). Three-tier search: (1) open tabs via `useTabs()` — 0 ms; (2) static nav index — 0 ms; (3) API via `GET /api/search` — 150 ms debounce. Keyboard: ↑↓ navigate, ↵ open, Esc close. Recent searches stored in `localStorage` (`eb.recent-searches`, max 5). Results show status badges (draft=amber, posted=blue, paid=green) and amount pills.
+- `lib/navIndex.ts` — three-layer static index: all sidebar nav pages (from `NAV`), 14 quick-action "New…" forms, 22 report/utility pages with keyword aliases. `searchNav(q, limit)` returns scored results (label-start=3, label-contains=2, sub=1, keyword=0). `SEARCH_PREFIXES` maps `inv:` → `"invoices"`, `tab:` → `"__tabs__"`, `rpt:` → `"__reports__"`, etc.
+- `routers/search.py` — `GET /api/search?q=&limit=&types=` — searches 8 entity types, all tenant-scoped. `types` param (comma-separated) filters to specific entities (used by prefix routing). Expanded columns: Invoice (description, notes, status, issue_date), Employee (designation, cnic, bank_name), Transaction (reference, notes, date, voucher_type), Product (unit, product_type), Customer (address, ntn, cnic). Returns `{..., date?, amount?, status?}` per row for rich UI display. Import: `from sqlalchemy import or_` (NOT from sqlmodel); `from .common import SessionDep` (NOT from db).
+
+**In-app auto-update system:**
+- `components/UpdateAvailablePopup.tsx` — bottom-sheet/card shown when `update_available`; "Update Now" / "Later" (session dismiss via `sessionStorage eb.update-later-session`) / "Skip version" (SHA-keyed persist via `localStorage eb.update-skip`)
+- `components/UpdateProgressScreen.tsx` — fullscreen portal overlay during update; animated SVG ring + Zap icon; 4-phase progress indicator (Pull → Compile → Bundle → Start); progress bar `Math.min((elapsed/120)*100, 90)%`; calls `POST /api/system/update` → polls `/version.json` every 5 s; on commit hash change sets `localStorage eb.just-updated`, fetches changelog from `GET /api/system/update/changelog?since=<sha>`, reloads after 4.5 s; success/error states
+- `(dashboard)/layout.tsx` — auto-checks `/api/system/update/status` on every mount for admin/owner via `useEffect`; shows popup unless dismissed; reads `localStorage eb.just-updated` on mount to display post-update congratulations toast (8 s auto-dismiss)
+- `backend/routers/system_update.py` — `GET /api/system/update/status` polls GitHub Commits API (not Releases); `POST /api/system/update` runs git pull + migrate + rebuild in background; `GET /api/system/update/changelog?since=<sha>&limit=8` returns recent git log entries
+- `desktop/` + `UpdateModal.tsx` — **Settings → Check for Updates** modal for Electron (uses `electron-updater` IPC bridge) and script installs (shows CLI commands); "Commit" row shows live `git rev-parse HEAD` from API (not stale build-time env var)
 
 **react-grid-layout (dashboard grid):** Import from `react-grid-layout/legacy` (v2 API, self-typed). Do NOT add `@types/react-grid-layout` — v2 ships its own types. v1 is unusable under React 19 (`findDOMNode` removed). `Layout` = array, `LayoutItem` = single item.
 

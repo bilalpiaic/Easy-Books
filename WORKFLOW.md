@@ -56,7 +56,7 @@
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
 | Demo tenants | 7 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates; hospital tenant additionally has 5 doctors, 4 wards, 50 patients, 200 OPD tokens, 20 admissions, 80 lab orders |
-| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+) |
+| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+); **Ctrl+K universal search** — 3-tier command palette (open tabs → nav index → API, 8 entity types, prefix filter syntax, recent searches) (v3.0+); **in-app auto-update** — `UpdateAvailablePopup` + `UpdateProgressScreen` with 4-phase progress and changelog (v3.0+); **mobile navigation** — `BottomNav`, `FAB`, `MoreDrawer` (v3.0+); **QB token system** — all 155+ pages migrated to CSS custom properties, dark mode entirely token-driven (v3.0+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
@@ -92,6 +92,76 @@
 - Add `flex-wrap` to all button toolbars.
 - Wrap line-item tables in `<div className="overflow-x-auto">` and set `min-w-[640px]` on the inner `<table>`.
 - Form grids: use `grid-cols-1 sm:grid-cols-2` (or `sm:grid-cols-3`) so fields stack on phones.
+
+### GlobalSearch — Ctrl+K Command Palette (v3.0)
+
+`components/GlobalSearch.tsx` — portal overlay (mounted on `<body>`) opened by Ctrl+K or the TopNav search icon (`search:open` custom event).
+
+**3-tier search:**
+
+| Tier | Latency | Source |
+|------|---------|--------|
+| Open tabs | 0 ms | `useTabs` context |
+| Nav index | 0 ms | `lib/navIndex.ts` — Layer 1: sidebar nav pages; Layer 2: 14 quick-action shortcuts; Layer 3: 22 report pages with keyword aliases |
+| API | 150 ms debounce | `GET /api/search?q=&types=` — 8 entity types |
+
+**Prefix filter syntax** (typed before the query):
+
+| Prefix | Entity type |
+|--------|-------------|
+| `inv:` | Invoices |
+| `cust:` | Customers |
+| `tab:` | Open tabs |
+| `acc:` | Accounts |
+| `emp:` | Employees |
+| `jv:` | Transactions |
+| `rpt:` | Reports / utility pages |
+| `new:` | Quick-action shortcuts |
+| `bill:` | Bills |
+| `prod:` | Products |
+| `vendor:` | Vendors |
+
+Results carry `label`, `sub`, `href`, `date`, `amount`, `status` badge (color-coded). Recent searches stored in `localStorage` key `eb.recent-searches` (max 5). Empty state shows quick-action chips + prefix hint bar. Keyboard: Ctrl+K opens, ArrowUp/Down navigates, Enter follows href, Esc closes.
+
+### TopNav — Portal Dropdowns + Dark Nav Inversion (v3.0)
+
+`components/TopNav.tsx` was fully rewritten:
+
+- Scrollable tab strip with `overflow-x: auto scrollbar-hide`; `ResizeObserver` shows left/right chevron scroll arrows + gradient fades when content overflows.
+- `More ▾` dropdown lives outside the scroll container — always reachable.
+- Dropdowns use `ReactDOM.createPortal` + `getBoundingClientRect()` for `position: fixed` placement, avoiding `overflow-x` clipping.
+- CSS vars `--nav-bg`, `--nav-text`, `--nav-sub`, `--nav-dim`, `--nav-sep`, `--nav-hover`, `--nav-active` flip in `[data-theme="dark"]` so the nav bar is light-on-dark (cream/charcoal) — visually distinct from the dark page background.
+
+### In-App Auto-Update System (v3.0)
+
+**`UpdateAvailablePopup.tsx`** — shown by `DashboardLayout` on every mount (admin/owner only) when `GET /api/system/update/status` reports new commits behind `HEAD`. Actions:
+- **Update Now** — launches the update sequence
+- **Later** — session-dismissed (`localStorage` key `eb.update-later-session`)
+- **Skip version** — SHA-keyed persistent dismiss (`localStorage` key `eb.update-skip`)
+
+**`UpdateProgressScreen.tsx`** — fullscreen portal during an active update:
+- Animated SVG ring (spinning) with Zap icon
+- 4-phase text labels: **Pull → Compile → Bundle → Start**
+- Progress bar clamps to 90 % until the commit hash changes
+- Polls `GET /version.json` every 5 s; success → green ring + CheckCircle + "What's New" from `/api/system/update/changelog`; error → AlertCircle + manual CLI instructions
+
+**Backend:** `GET /api/system/update/status` (GitHub Commits API), `POST /api/system/update` (`git pull` + migrations + rebuild), `GET /api/system/update/changelog?since=<sha>&limit=8`.
+
+**Post-update:** `eb.just-updated` in localStorage triggers a congratulations toast after reload.
+
+### Mobile Navigation — BottomNav, FAB, MoreDrawer (v3.0)
+
+- **`BottomNav.tsx`** — fixed bottom bar with core nav items; hidden at `sm:` breakpoint and above.
+- **`FAB.tsx`** — floating action button (bottom-right) for quick new-entry creation; expands to show module-gated "New…" options (`invoice`, `bill`, `journal entry`, etc.).
+- **`MoreDrawer.tsx`** — slide-up drawer from the "More" tab in `BottomNav`; renders the full nav list filtered by `installedModules`; closes on backdrop tap.
+
+### QB UI Token System (v3.0)
+
+All 155+ pages and components have been migrated from hardcoded hex to CSS custom properties in `globals.css`:
+- **Page tokens:** `--bg-page`, `--bg-card`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, `--primary`, `--primary-light`, `--primary-dark`
+- **Nav tokens:** `--nav-bg`, `--nav-text`, `--nav-sub`, `--nav-dim`, `--nav-sep`, `--nav-hover`, `--nav-active`
+
+In `[data-theme="dark"]` all tokens flip — dark mode is now entirely token-driven with no scattered `dark:` Tailwind class exceptions.
 
 ---
 
@@ -1701,17 +1771,30 @@ services, production for manufacturing, tracker/RSO for telecom). See USER_GUIDE
 
 ## IN-APP UPDATE CHECK
 
-**Settings → Check for Updates** compares the running version to the latest GitHub release.
+Easy-Books has a **proactive auto-update system** (v3.0) that checks for updates on every `DashboardLayout` mount and prompts admin/owner users immediately.
 
-| Install type | Behaviour |
-|---|---|
-| **Desktop (Electron)** | `electron-updater` downloads and installs the new release in the background. A **Restart to apply** prompt appears when ready. `alembic upgrade head` runs on the next launch — data preserved. |
-| **Script install** (`install-and-run.*`) | The modal shows the `update.bat` / `update.sh` command. Running it does `git pull` then re-invokes the installer (which rebuilds the frontend and runs migrations). Data in `~/.easy-books` is never touched. |
+### Update components
 
-The feature is wired via:
+| Component | Role |
+|-----------|------|
+| `UpdateAvailablePopup.tsx` | Bottom-sheet notification with **Update Now** / **Later** (session) / **Skip version** (SHA-keyed) actions |
+| `UpdateProgressScreen.tsx` | Fullscreen portal during active update — animated ring, 4-phase labels (Pull → Compile → Bundle → Start), polling, success/error states |
+| `UpdateModal.tsx` | Settings → Updates tab — manual trigger; shows CLI command on script/web installs, calls Electron bridge on desktop |
+
+### Install-type behaviour
+
+| Install type | Auto-check | Update mechanism |
+|---|---|---|
+| **Desktop (Electron)** | On launch via `electron-updater` | Downloads and installs in background; **Restart to apply** prompt when ready; `alembic upgrade head` runs on next launch |
+| **Script install** (`install-and-run.*`) | `DashboardLayout` polls `/api/system/update/status` | `UpdateProgressScreen` runs `POST /api/system/update` (`git pull` + migrations + rebuild); or user runs `update.bat` / `update.sh` manually |
+| **Web / dev** | Same as script install | Same backend endpoints |
+
+### Wiring
+
 - `desktop/preload.js` — exposes `window.easybooks.checkForUpdates()` / `onUpdateAvailable(cb)` / `onUpdateDownloaded(cb)` / `installUpdate()` over the context bridge
-- `desktop/main.js` `wireAutoUpdater()` — configures `autoUpdater` to check the GitHub releases feed and emit IPC events consumed by the renderer
-- `frontend/src/components/UpdateModal.tsx` — the settings-page modal that calls these bridge methods (and falls back to showing the CLI command on non-Electron installs)
+- `desktop/main.js::wireAutoUpdater()` — configures `autoUpdater` for the GitHub releases feed; emits IPC events consumed by the renderer
+- `backend/routers/system.py` — `GET /api/system/update/status` (GitHub Commits API), `POST /api/system/update` (shell + alembic + npm), `GET /api/system/update/changelog`
+- `eb.just-updated` localStorage key — triggers a congratulations toast after the page reloads following a successful update
 
 ---
 
@@ -1885,7 +1968,7 @@ Before each `alembic upgrade head` run the installer writes a timestamped backup
 
 ---
 
-> **Last updated:** 2026-06-23
+> **Last updated:** 2026-06-28
 > **Branch:** `main`
 > **Live demo:** `./dev.sh` (backend :8000, frontend :3000)
 > **Repository:** https://github.com/bilalpiaic/Easy-Books

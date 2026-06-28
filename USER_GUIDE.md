@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-24 · **Version:** 3.0.0
+**Last updated:** 2026-06-28 · **Version:** 3.0.0
 
 ---
 
@@ -1725,3 +1725,138 @@ Pre-seeded data:
 - **20 IPD admissions** (15 discharged with charges, 5 currently admitted)
 - **80 lab orders** with results entered for most; sample collection records for non-walk-in orders
 - **25 procedure orders** (most marked performed)
+
+---
+
+## 31. Universal Search (Ctrl+K)
+
+Press **Ctrl+K** (Windows/Linux) or **⌘K** (Mac) anywhere in the app to open the command palette. You can also click the **Search** icon in the top navigation bar.
+
+### 31.1 What you can search
+
+The palette searches three layers simultaneously:
+
+| Layer | Speed | What it finds |
+|-------|-------|---------------|
+| Open tabs | Instant | Currently open browser tabs by title or URL |
+| Navigation & forms | Instant | All pages, reports, and quick-action forms |
+| Live data | ~150 ms | Customers, vendors, invoices, bills, accounts, products, employees, transactions |
+
+**Data search columns:**
+
+| Entity | Fields searched |
+|--------|----------------|
+| Invoices | Number, customer name, description, notes, status, date |
+| Bills | Number, vendor name, description, notes, status, date |
+| Customers | Name, email, phone, address, NTN, CNIC |
+| Vendors | Name, email, phone, address |
+| Accounts | Code, name, type |
+| Products | Name, code, unit, type |
+| Employees | Name, code, department, designation, CNIC |
+| Transactions | JV number, description, party, reference, date, voucher type |
+
+### 31.2 Prefix filter syntax
+
+Type a prefix before your query to restrict results to one category:
+
+| Prefix | Searches |
+|--------|----------|
+| `inv:` | Invoices only |
+| `bill:` | Bills only |
+| `cust:` | Customers only |
+| `vend:` | Vendors only |
+| `acc:` | Chart of Accounts |
+| `prod:` | Products |
+| `emp:` | Employees |
+| `jv:` | Journal transactions |
+| `tab:` | Open browser tabs only |
+| `rpt:` | Report pages only |
+| `new:` | Quick-action "New…" forms only |
+
+**Example:** Type `inv: ahmed` to find all invoices with "ahmed" in the customer name or description.
+
+### 31.3 Nav index keywords
+
+The navigation index understands keyword aliases — you don't need exact page names:
+
+| Type | What to type | Opens |
+|------|-------------|-------|
+| Report alias | `tb` or `trial` | Trial Balance |
+| Report alias | `p&l` or `profit` | Income Statement |
+| Report alias | `bs` or `balance` | Balance Sheet |
+| Report alias | `gst` or `tax` | Tax Reports |
+| Report alias | `cash flow` | Cash Flow Statement |
+| Quick action | `new invoice` | New Invoice form |
+| Quick action | `grn` | New Goods Receipt form |
+| Quick action | `payroll` | New Payroll Run form |
+
+### 31.4 Keyboard navigation
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Move focus up / down through results |
+| `↵` Enter | Open the focused result |
+| `Esc` | Close the palette |
+
+### 31.5 Recent searches
+
+The palette remembers your last 5 searches and shows them as clickable chips when the input is empty. Click any chip to re-run that search instantly.
+
+---
+
+## 32. In-app Update Notifications
+
+Easy-Books admin and owner users see automatic update notifications — no need to manually check for new versions.
+
+### 32.1 Automatic check on login
+
+Every time an admin or owner signs in, Easy-Books silently checks GitHub for newer commits. If one is found, an **Update Available** popup appears at the bottom of the screen.
+
+### 32.2 Update actions
+
+| Action | Effect |
+|--------|--------|
+| **Update Now** | Starts the update immediately (see §32.3) |
+| **Later** | Dismisses the popup for this login session only |
+| **Skip version** | Permanently dismisses for this specific commit (until a newer one is pushed) |
+
+### 32.3 Update progress screen
+
+When you click **Update Now**, a full-screen animated progress overlay appears showing four phases:
+
+1. **Pull** — downloading the latest code from GitHub
+2. **Compile** — running database migrations
+3. **Bundle** — rebuilding the frontend
+4. **Start** — restarting the server
+
+The progress bar advances over ~2 minutes. Once the server restarts, the app automatically reloads.
+
+### 32.4 Post-update greeting
+
+After the app reloads following a successful update, a toast notification appears showing the old and new commit hashes and a "What's New" summary of the changes included in the update.
+
+### 32.5 Manual check
+
+Go to **Settings → Updates** to see the current version, the latest available version, and trigger a manual update check or start an update at any time.
+
+---
+
+## 33. Sidebar Navigation (Auto-hide)
+
+The section sub-menu on the left side of the screen collapses automatically to save screen space.
+
+### 33.1 Collapsed mode (default)
+
+By default the sidebar shows **icons only** (52 px wide). Hover over any icon to see its label as a tooltip. The sidebar expands smoothly when you hover over it.
+
+### 33.2 Expanded mode (hover)
+
+Hovering over the icon strip expands the sidebar to show full labels (200 px). Moving the mouse away collapses it again automatically.
+
+### 33.3 Pinned mode
+
+Click the **›** (right chevron) button at the bottom of the sidebar to **pin it open**. The button changes to **‹** (left chevron). The pinned state is remembered between sessions (stored in your browser). Click **‹** to unpin and return to auto-hide behaviour.
+
+### 33.4 No sidebar sections
+
+Pages that have no sub-items (Dashboard, Report Builder, etc.) show no sidebar at all — giving maximum working space.
