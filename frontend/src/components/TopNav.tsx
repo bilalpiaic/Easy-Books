@@ -44,8 +44,15 @@ export default function TopNav() {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  const coreNav    = TOP_NAV.filter(s => !s.forModule)
-  const allModules = TOP_NAV.filter(s => !!s.forModule)
+  // Left core tabs: always shown before module tabs
+  const LEFT_KEYS  = new Set(["dashboard", "banking", "sales", "purchases"])
+  // Right core tabs: always shown after module tabs
+  const RIGHT_KEYS = new Set(["accounting", "reports"])
+
+  const leftNav       = TOP_NAV.filter(s => LEFT_KEYS.has(s.key))
+  const rightNav      = TOP_NAV.filter(s => RIGHT_KEYS.has(s.key))
+  const installedMods = TOP_NAV.filter(s => !!s.forModule && installedModules.has(s.forModule!))
+  const availableMods = TOP_NAV.filter(s => !!s.forModule && !installedModules.has(s.forModule!))
 
   const handleLogout = () => {
     removeAuthToken()
@@ -65,12 +72,12 @@ export default function TopNav() {
         </span>
       </Link>
 
-      {/* ── Core nav items — hidden on mobile (BottomNav handles mobile nav) ── */}
+      {/* ── Desktop nav — hidden on mobile (BottomNav + MoreDrawer handle mobile) ── */}
       <nav className="hidden md:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide">
-        {coreNav.map(section => (
-          <Link
-            key={section.key}
-            href={getSectionHref(section.key)}
+
+        {/* Left core: Dashboard · Banking · Sales · Purchases */}
+        {leftNav.map(section => (
+          <Link key={section.key} href={getSectionHref(section.key)}
             className={cn(
               "px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
               activeSection === section.key
@@ -82,28 +89,57 @@ export default function TopNav() {
           </Link>
         ))}
 
-        {/* ── More ▾ dropdown — always visible; shows all add-on modules ── */}
-        <div ref={moreRef} className="relative">
-          <button
-            onClick={() => setMoreOpen(o => !o)}
+        {/* ── Installed add-on tabs (tenant-specific, between Purchases & Accounting) ── */}
+        {installedMods.length > 0 && (
+          <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />
+        )}
+        {installedMods.map(section => (
+          <Link key={section.key} href={getSectionHref(section.key)}
             className={cn(
-              "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
-              allModules.some(s => s.key === activeSection)
+              "px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
+              activeSection === section.key
+                ? "bg-[var(--nav-active)] text-white font-semibold"
+                : "text-[rgba(255,255,255,0.85)] hover:bg-[var(--nav-hover)] hover:text-white"
+            )}
+          >
+            {section.label}
+          </Link>
+        ))}
+        {installedMods.length > 0 && (
+          <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />
+        )}
+
+        {/* Right core: Accounting · Reports */}
+        {rightNav.map(section => (
+          <Link key={section.key} href={getSectionHref(section.key)}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
+              activeSection === section.key
                 ? "bg-[var(--nav-active)] text-white font-semibold"
                 : "text-[rgba(255,255,255,0.70)] hover:bg-[var(--nav-hover)] hover:text-white"
             )}
           >
-            More <ChevronDown className="w-3 h-3" />
+            {section.label}
+          </Link>
+        ))}
+
+        {/* ── More ▾ — uninstalled add-ons (discovery) ── */}
+        <div ref={moreRef} className="relative">
+          <button
+            onClick={() => setMoreOpen(o => !o)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap text-[rgba(255,255,255,0.55)] hover:bg-[var(--nav-hover)] hover:text-white transition-colors"
+          >
+            Add-ons <ChevronDown className="w-3 h-3" />
           </button>
           {moreOpen && (
-            <div className="absolute top-full left-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[180px] z-50">
-              {allModules.map(section => {
-                const installed = installedModules.has(section.forModule!)
-                if (installed) {
-                  return (
-                    <Link
-                      key={section.key}
-                      href={getSectionHref(section.key)}
+            <div className="absolute top-full left-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[200px] z-50">
+              {installedMods.length > 0 && (
+                <>
+                  <p className="px-4 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                    Installed
+                  </p>
+                  {installedMods.map(section => (
+                    <Link key={section.key} href={getSectionHref(section.key)}
                       onClick={() => setMoreOpen(false)}
                       className={cn(
                         "block px-4 py-2 text-[13px] transition-colors",
@@ -114,28 +150,33 @@ export default function TopNav() {
                     >
                       {section.label}
                     </Link>
-                  )
-                }
-                return (
-                  <Link
-                    key={section.key}
-                    href="/apps"
-                    onClick={() => setMoreOpen(false)}
-                    className="flex items-center justify-between px-4 py-2 text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-page)] transition-colors"
-                  >
-                    <span className="opacity-50">{section.label}</span>
-                    <span className="flex items-center gap-0.5 text-[10px] text-[var(--primary)] font-semibold">
-                      <Plus className="w-2.5 h-2.5" />Install
-                    </span>
-                  </Link>
-                )
-              })}
+                  ))}
+                  {availableMods.length > 0 && (
+                    <div className="border-t border-[var(--border-light)] mt-1" />
+                  )}
+                </>
+              )}
+              {availableMods.length > 0 && (
+                <>
+                  <p className="px-4 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                    Available
+                  </p>
+                  {availableMods.map(section => (
+                    <Link key={section.key} href="/apps"
+                      onClick={() => setMoreOpen(false)}
+                      className="flex items-center justify-between px-4 py-2 text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-page)] transition-colors"
+                    >
+                      <span>{section.label}</span>
+                      <span className="flex items-center gap-0.5 text-[10px] text-[var(--primary)] font-semibold">
+                        <Plus className="w-2.5 h-2.5" />Install
+                      </span>
+                    </Link>
+                  ))}
+                </>
+              )}
               <div className="border-t border-[var(--border-light)] mt-1 pt-1">
-                <Link
-                  href="/apps"
-                  onClick={() => setMoreOpen(false)}
-                  className="block px-4 py-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
-                >
+                <Link href="/apps" onClick={() => setMoreOpen(false)}
+                  className="block px-4 py-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
                   Manage Add-ons →
                 </Link>
               </div>
