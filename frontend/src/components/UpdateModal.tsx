@@ -113,6 +113,12 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
   const [serverInfo, setServerInfo] = useState<{ version: string; commit: string; built: string } | null>(null)
   const [serverDone, setServerDone] = useState(false)
 
+  // ── Commit-level update check (backend) ─────────────────────────────────────
+  const [commitStatus, setCommitStatus] = useState<{
+    status: 'up_to_date' | 'update_available' | 'unknown'
+    local: string; remote: string | null
+  } | null>(null)
+
   // ── GitHub Releases probe ───────────────────────────────────────────────────
   const [ghVersion, setGhVersion]   = useState<string | null>(null)
   const [ghState, setGhState]       = useState<'loading' | 'ok' | 'no_release' | 'error'>('loading')
@@ -148,6 +154,16 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       if (res.ok) setServerInfo(await res.json() as { version: string; commit: string; built: string })
     } catch { /* best effort */ }
     setServerDone(true)
+  }, [])
+
+  const fetchCommitStatus = useCallback(async () => {
+    try {
+      const res = await apiFetch<{
+        status: 'up_to_date' | 'update_available' | 'unknown'
+        local: string; remote: string | null
+      }>('/api/system/update/status')
+      setCommitStatus(res)
+    } catch { /* ignore — backend unavailable */ }
   }, [])
 
   const fetchGitHub = useCallback(async () => {
@@ -259,12 +275,13 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
     return unsub
   }, [])
 
-  // Script/web: probe both sources on open
+  // Script/web: probe all three sources on open
   useEffect(() => {
     if (isDesktop()) return
     fetchServerVersion()
     fetchGitHub()
-  }, [fetchServerVersion, fetchGitHub])
+    fetchCommitStatus()
+  }, [fetchServerVersion, fetchGitHub, fetchCommitStatus])
 
   // Close on Escape
   useEffect(() => {
@@ -297,14 +314,20 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
     ghVersion !== '' &&
     ghVersion !== normalCurrent
 
+  // State C: newer commits on main branch (even without a tagged release)
+  const commitNewer =
+    !pageIsStale &&
+    !ghNewer &&
+    commitStatus?.status === 'update_available'
+
   // ---------------------------------------------------------------------------
   // Re-check handler
   // ---------------------------------------------------------------------------
   const handleRecheck = async () => {
     setRechecking(true)
     setServerDone(false); setServerInfo(null)
-    setGhState('loading'); setGhVersion(null)
-    await Promise.all([fetchServerVersion(), fetchGitHub()])
+    setGhState('loading'); setGhVersion(null); setCommitStatus(null)
+    await Promise.all([fetchServerVersion(), fetchGitHub(), fetchCommitStatus()])
     setRechecking(false)
   }
 
@@ -542,7 +565,49 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       </div>
     )
 
-    // C: No GitHub release yet
+    // C: Commits available (no tagged release, but new commits on main)
+    if (commitNewer) return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-[var(--primary-light)] border border-[var(--primary)]/20">
+          <Download className="w-4 h-4 text-[var(--primary)] mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-[var(--primary)]">
+              New commits available on main
+            </p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              You have <span className="font-mono">{commitStatus!.local}</span>.
+              GitHub has <span className="font-mono">{commitStatus!.remote}</span>.
+              Your data is preserved during the update.
+            </p>
+          </div>
+        </div>
+
+        {CAN_AUTO_UPDATE ? (
+          <>
+            <button
+              onClick={handleUpdateNow}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--primary)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--primary-dark)] transition-colors"
+            >
+              <Download className="w-4 h-4" /> Update Now
+            </button>
+            <details className="group">
+              <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--primary)] transition-colors list-none flex items-center gap-1">
+                <span className="group-open:hidden">▸</span>
+                <span className="hidden group-open:inline">▾</span>
+                Or run manually
+              </summary>
+              <div className="mt-2">
+                <CmdBlock win="update.bat" unix="./update.sh" />
+              </div>
+            </details>
+          </>
+        ) : (
+          <CmdBlock win="update.bat" unix="./update.sh" />
+        )}
+      </div>
+    )
+
+    // D: No GitHub release yet
     if (ghState === 'no_release') return (
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm text-green-700 font-medium">
@@ -569,7 +634,11 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
     return (
       <div className="flex items-center gap-2 text-sm text-green-700 font-medium">
         <CheckCircle className="w-4 h-4" />
-        You&apos;re up to date{ghVersion ? ` — v${normalCurrent} is the latest release` : ''}.
+        You&apos;re up to date
+        {commitStatus?.local
+          ? <> — commit <span className="font-mono">{commitStatus.local}</span></>
+          : ghVersion ? ` — v${normalCurrent} is the latest release` : ''
+        }.
       </div>
     )
   }

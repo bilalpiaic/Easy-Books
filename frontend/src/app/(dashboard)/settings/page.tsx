@@ -2,6 +2,7 @@
 
 import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import VersionBadge from '@/components/VersionBadge'
@@ -203,7 +204,14 @@ export default function SettingsPage() {
     }
   }
 
-  const [tab, setTab] = useState("company")
+  const searchParams = useSearchParams()
+  const [tab, setTab] = useState(() => searchParams.get("tab") ?? "company")
+
+  // Sync tab from URL param when navigating from the update banner
+  useEffect(() => {
+    const t = searchParams.get("tab")
+    if (t) setTab(t)
+  }, [searchParams])
 
   const TABS = [
     { id: "company",     label: "Company"     },
