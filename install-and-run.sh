@@ -68,7 +68,18 @@ APP_VERSION="$(uv run python3 -c "import json; print(json.load(open('frontend/pa
 if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ] \
    || { [ -n "$HEAD_COMMIT" ] && [ "$HEAD_COMMIT" != "$BUILT_COMMIT" ]; }; then
   log "Building the app (first run or update can take a few minutes)…"
-  ( cd frontend && npm install && NEXT_PUBLIC_APP_VERSION="$APP_VERSION" npx next build )
+  BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  ( cd frontend && npm install && \
+    NEXT_PUBLIC_APP_VERSION="$APP_VERSION" \
+    NEXT_PUBLIC_GIT_COMMIT="${HEAD_COMMIT:-dev}" \
+    NEXT_PUBLIC_BUILD_DATE="$BUILD_DATE" \
+    npx next build )
+  # Write version.json so the running server can self-report its build identity.
+  # UpdateModal fetches /version.json to detect when update.sh has already
+  # rebuilt the server (commit differs from the page's baked-in GIT_COMMIT).
+  printf '{"version":"%s","commit":"%s","built":"%s"}\n' \
+    "$APP_VERSION" "${HEAD_COMMIT:-dev}" "$BUILD_DATE" \
+    > frontend/public/version.json
   # Next 'standalone' does not copy these — required for the server to serve them.
   cp -r frontend/.next/static  frontend/.next/standalone/.next/static
   cp -r frontend/public        frontend/.next/standalone/public

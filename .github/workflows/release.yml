@@ -3,6 +3,20 @@
 #
 # Trigger:  git tag vX.Y.Z  →  git push origin vX.Y.Z
 #
+# ── HOW TO CUT A RELEASE ────────────────────────────────────────────────────
+# 1. Bump ALL THREE version files to the new version (e.g. 2.9.0):
+#      frontend/package.json       → "version": "2.9.0"
+#      desktop/package.json        → "version": "2.9.0"
+#      backend/pyproject.toml      → version = "2.9.0"
+# 2. Commit:  git commit -am "chore: bump version to 2.9.0"
+# 3. Tag:     git tag v2.9.0
+# 4. Push:    git push origin main v2.9.0
+#
+# The validate job enforces that all three files match the tag — the pipeline
+# fails fast if any file is out of sync. Script-install users' UpdateModal
+# compares their running version against the GitHub Release tag created here.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Stages:
 #   1. validate  — fail fast if tag ≠ desktop/package.json ≠ frontend/package.json
 #                  ≠ backend/pyproject.toml (all 3 must match the pushed tag)
@@ -57,10 +71,15 @@ jobs:
 
       - id: vtag
         name: Extract version from tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG:  ${{ github.event.inputs.tag }}
         run: |
-          # Support both automatic tag push and manual workflow_dispatch
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            REF="${{ github.event.inputs.tag }}"
+          # Support both automatic tag push and manual workflow_dispatch.
+          # Values come from env vars (not inline expressions) to prevent
+          # shell injection from attacker-controlled input.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            REF="$INPUT_TAG"
           else
             REF="${GITHUB_REF#refs/tags/}"
           fi
@@ -75,31 +94,34 @@ jobs:
           echo "Tag: ${REF}  →  version: ${VERSION}"
 
       - name: Verify frontend/package.json matches tag
+        env:
+          EXPECTED: ${{ steps.vtag.outputs.version }}
         run: |
           pkg=$(node -p "require('./frontend/package.json').version")
-          tag="${{ steps.vtag.outputs.version }}"
-          if [ "$pkg" != "$tag" ]; then
-            echo "::error file=frontend/package.json::version '$pkg' does not match tag 'v$tag' — bump frontend/package.json before tagging"
+          if [ "$pkg" != "$EXPECTED" ]; then
+            echo "::error file=frontend/package.json::version '$pkg' does not match tag 'v$EXPECTED' — bump frontend/package.json before tagging"
             exit 1
           fi
           echo "✅  frontend/package.json: $pkg"
 
       - name: Verify desktop/package.json matches tag
+        env:
+          EXPECTED: ${{ steps.vtag.outputs.version }}
         run: |
           pkg=$(node -p "require('./desktop/package.json').version")
-          tag="${{ steps.vtag.outputs.version }}"
-          if [ "$pkg" != "$tag" ]; then
-            echo "::error file=desktop/package.json::version '$pkg' does not match tag 'v$tag' — bump desktop/package.json before tagging"
+          if [ "$pkg" != "$EXPECTED" ]; then
+            echo "::error file=desktop/package.json::version '$pkg' does not match tag 'v$EXPECTED' — bump desktop/package.json before tagging"
             exit 1
           fi
           echo "✅  desktop/package.json: $pkg"
 
       - name: Verify backend/pyproject.toml matches tag
+        env:
+          EXPECTED: ${{ steps.vtag.outputs.version }}
         run: |
           pkg=$(python3 -c "import re; t=open('backend/pyproject.toml').read(); print(re.search(r'version\s*=\s*\"([^\"]+)\"', t).group(1))")
-          tag="${{ steps.vtag.outputs.version }}"
-          if [ "$pkg" != "$tag" ]; then
-            echo "::error file=backend/pyproject.toml::version '$pkg' does not match tag 'v$tag' — bump backend/pyproject.toml before tagging"
+          if [ "$pkg" != "$EXPECTED" ]; then
+            echo "::error file=backend/pyproject.toml::version '$pkg' does not match tag 'v$EXPECTED' — bump backend/pyproject.toml before tagging"
             exit 1
           fi
           echo "✅  backend/pyproject.toml: $pkg"
@@ -248,10 +270,10 @@ jobs:
 
       - name: Create GitHub release and upload all assets
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN:   ${{ secrets.GITHUB_TOKEN }}
+          VERSION:    ${{ needs.validate.outputs.version }}
+          PRERELEASE: ${{ needs.validate.outputs.is_prerelease }}
         run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          PRERELEASE="${{ needs.validate.outputs.is_prerelease }}"
           echo "Publishing Easy-Books v${VERSION} (pre-release: ${PRERELEASE})"
 
           PRERELEASE_FLAG=""

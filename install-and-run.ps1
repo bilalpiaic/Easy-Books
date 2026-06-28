@@ -75,9 +75,18 @@ $appVersion = (uv run python -c "import json; print(json.load(open('frontend/pac
 if (-not $appVersion) { $appVersion = 'dev' }
 if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   Log 'Building the app (first run or update can take a few minutes)...'
+  $buildDate = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
   $env:NEXT_PUBLIC_APP_VERSION = $appVersion
+  $env:NEXT_PUBLIC_GIT_COMMIT  = if ($headCommit) { $headCommit } else { 'dev' }
+  $env:NEXT_PUBLIC_BUILD_DATE  = $buildDate
   Push-Location frontend; npm install; npx next build; Pop-Location
   Remove-Item Env:NEXT_PUBLIC_APP_VERSION -ErrorAction SilentlyContinue
+  Remove-Item Env:NEXT_PUBLIC_GIT_COMMIT  -ErrorAction SilentlyContinue
+  Remove-Item Env:NEXT_PUBLIC_BUILD_DATE  -ErrorAction SilentlyContinue
+  # Write version.json so UpdateModal can detect when update.ps1 has already
+  # rebuilt the server (page's baked-in commit differs from server's commit).
+  $vj = '{"version":"' + $appVersion + '","commit":"' + ($headCommit ?? 'dev') + '","built":"' + $buildDate + '"}'
+  Set-Content -Path 'frontend\public\version.json' -Value $vj -Encoding UTF8
   # Next 'standalone' does not copy these - required for the server to serve them.
   Copy-Item 'frontend\.next\static' 'frontend\.next\standalone\.next\static' -Recurse -Force
   Copy-Item 'frontend\public'       'frontend\.next\standalone\public'       -Recurse -Force
