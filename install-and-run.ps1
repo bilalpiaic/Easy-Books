@@ -155,5 +155,5 @@ foreach ($f in $backLog, $backErr) {
 }
 Start-Process 'http://127.0.0.1:3000'
 Write-Host "`nEasy-Books is running at  http://127.0.0.1:3000   (close this window to stop)" -ForegroundColor Green
-try { Wait-Process -Id $back.Id, $front.Id }
+try { Wait-Process -Id $back.Id, $front.Id -ErrorAction SilentlyContinue }
 finally { Stop-Process -Id $back.Id, $front.Id -ErrorAction SilentlyContinue }
