@@ -132,7 +132,7 @@ export default function JournalPage() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left min-w-[640px]">
           <thead>
             <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
@@ -213,6 +213,32 @@ export default function JournalPage() {
           </tbody>
         </table>
         </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-[var(--border)]">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">Loading…</div>
+          ) : entries.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">No entries found</div>
+          ) : entries.map((e, idx) => (
+            <Link
+              key={idx}
+              href={`/journal/${e.transaction_id}`}
+              className="flex items-start justify-between px-4 py-3 hover:bg-[var(--bg-row-hover)] transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{e.account_name}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{e.jv_number} · {fmtDate(e.date)}</p>
+                {e.description && <p className="text-xs text-[var(--text-muted)] truncate">{e.description}</p>}
+              </div>
+              <div className="text-right ml-3 shrink-0">
+                {e.debit > 0 && <p className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(e.debit)}</p>}
+                {e.credit > 0 && <p className="text-sm font-bold font-mono text-[var(--text-muted)]">{fmt(e.credit)}</p>}
+              </div>
+            </Link>
+          ))}
+        </div>
+
         <div className="border-t border-[var(--text-primary)]/5 px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>

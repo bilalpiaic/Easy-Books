@@ -243,7 +243,7 @@ function ProductsInner() {
 
       {view === 'list' && (
       <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead className="sticky top-0 z-10 bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
@@ -329,6 +329,31 @@ function ProductsInner() {
           </tbody>
         </table>
         </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-[var(--border)]">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">Loading…</div>
+          ) : products.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">No products yet</div>
+          ) : products.map(p => (
+            <Link
+              key={p.id}
+              href={`/products/${p.id}`}
+              className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-row-hover)] transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.name}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{p.code || "—"}</p>
+              </div>
+              <div className="text-right ml-3 shrink-0">
+                <p className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(p.default_rate)}</p>
+                <p className="text-xs text-[var(--text-muted)]">qty: {p.stock_qty ?? 0}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+
         <div className="border-t border-[var(--border)] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>

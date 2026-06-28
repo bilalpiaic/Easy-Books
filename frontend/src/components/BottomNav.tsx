@@ -7,13 +7,15 @@ import { cn } from "@/lib/utils"
 import { getActiveSection } from "@/lib/nav"
 
 const TABS = [
-  { label: "Home",      href: "/dashboard",    icon: LayoutDashboard, section: "dashboard" },
-  { label: "Sales",     href: "/customers",    icon: FileSignature,   section: "sales" },
-  { label: "Purchases", href: "/vendors",      icon: Receipt,         section: "purchases" },
-  { label: "Reports",   href: "/trial-balance",icon: BarChart2,       section: "reports" },
+  { label: "Home",      href: "/dashboard",     icon: LayoutDashboard, section: "dashboard" },
+  { label: "Sales",     href: "/customers",     icon: FileSignature,   section: "sales" },
+  { label: "Purchases", href: "/vendors",       icon: Receipt,         section: "purchases" },
+  { label: "Reports",   href: "/trial-balance", icon: BarChart2,       section: "reports" },
 ]
 
-export default function BottomNav() {
+interface Props { onMore: () => void }
+
+export default function BottomNav({ onMore }: Props) {
   const pathname      = usePathname()
   const activeSection = getActiveSection(pathname)
 
@@ -27,9 +29,7 @@ export default function BottomNav() {
             href={href}
             className={cn(
               "flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors",
-              active
-                ? "text-[var(--primary)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              active ? "text-[var(--primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             )}
           >
             <Icon className="w-5 h-5" />
@@ -37,14 +37,13 @@ export default function BottomNav() {
           </Link>
         )
       })}
-      {/* More — placeholder until Phase 4 mobile drawer */}
-      <Link
-        href="/dashboard"
+      <button
+        onClick={onMore}
         className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
       >
         <MoreHorizontal className="w-5 h-5" />
         More
-      </Link>
+      </button>
     </nav>
   )
 }

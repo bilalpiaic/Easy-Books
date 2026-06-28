@@ -94,7 +94,7 @@ export default function PaymentsReceived() {
       </div>
 
       <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm min-w-[520px]">
             <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
               <tr>
@@ -140,6 +140,30 @@ export default function PaymentsReceived() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-[var(--border)]">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">No payments recorded</div>
+          ) : filtered.map(p => (
+            <Link
+              key={p.id}
+              href={`/payments-received/${p.id}/print`}
+              className="flex items-start justify-between px-4 py-3 hover:bg-[var(--bg-row-hover)] transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{p.customer_name ?? "—"}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{fmtDate(p.payment_date)} · {p.method.replace("_", " ")}</p>
+              </div>
+              <div className="text-right ml-3 shrink-0">
+                <span className="text-sm font-bold font-mono text-green-700">{fmt(p.amount)}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+
         <div className="border-t border-[var(--border)] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
