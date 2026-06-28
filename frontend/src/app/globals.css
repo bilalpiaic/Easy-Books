@@ -225,6 +225,7 @@ body {
      Overriding the custom properties at :root in @media print is the
      only reliable way to cap all uses of text-xl/2xl/3xl etc.        */
   :root {
+    /* Font-size cap — prevents oversized KPI/net-income amounts in print */
     --text-xs:   8pt;
     --text-sm:   9pt;
     --text-base: 10pt;
@@ -234,6 +235,12 @@ body {
     --text-3xl:  13pt;
     --text-4xl:  13pt;
     --text-5xl:  13pt;
+
+    /* Spacing compression — Tailwind v4 builds all padding/margin/gap as
+       calc(var(--spacing) * N). Default is 0.25rem (4px per unit).
+       Reducing to 0.1rem shrinks every space-y-*, pt-*, p-*, gap-* by 60%
+       without touching any individual page file. */
+    --spacing: 0.1rem;
   }
 
   /* ── 5. GLOBAL BODY — monospace, black on white ────────────────── */
@@ -242,7 +249,7 @@ body {
     color: #000 !important;
     font-family: "Courier New", Courier, monospace !important;
     font-size: 10pt !important;
-    line-height: 1.35 !important;
+    line-height: 1.15 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -283,7 +290,7 @@ body {
     font-family: "Courier New", Courier, monospace !important;
     font-weight: 700 !important;
     color: #000 !important;
-    margin: 4pt 0 2pt !important;
+    margin: 2pt 0 1pt !important;
     page-break-after: avoid;
   }
   h1 {
@@ -322,7 +329,7 @@ body {
     font-family: "Courier New", Courier, monospace !important;
     font-size: 9.5pt !important;
     border: 0 !important;
-    margin-bottom: 8pt !important;
+    margin-bottom: 4pt !important;
   }
   thead { display: table-header-group !important; }
   tfoot { display: table-footer-group !important; }
@@ -338,7 +345,7 @@ body {
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.06em !important;
-    padding: 2.5pt 5pt !important;
+    padding: 1.5pt 4pt !important;
     border: 0 !important;
     border-top: 1pt solid #000 !important;
     border-bottom: 1pt solid #000 !important;
@@ -349,7 +356,7 @@ body {
   td, .ui-td {
     background: transparent !important;
     color: #000 !important;
-    padding: 2pt 5pt !important;
+    padding: 1pt 4pt !important;
     font-family: "Courier New", Courier, monospace !important;
     font-size: 9.5pt !important;
     border: 0 !important;
