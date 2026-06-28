@@ -220,7 +220,23 @@ body {
   }
   body:has(.print-landscape) { page: landscape-a4; }
 
-  /* ── 4. GLOBAL BODY — monospace, black on white ────────────────── */
+  /* ── 4. TAILWIND v4 FONT-SIZE VARIABLE OVERRIDES ──────────────── */
+  /* Tailwind v4 generates font-size: var(--text-3xl) NOT a px value.
+     Overriding the custom properties at :root in @media print is the
+     only reliable way to cap all uses of text-xl/2xl/3xl etc.        */
+  :root {
+    --text-xs:   8pt;
+    --text-sm:   9pt;
+    --text-base: 10pt;
+    --text-lg:   11.5pt;
+    --text-xl:   13pt;
+    --text-2xl:  13pt;
+    --text-3xl:  13pt;
+    --text-4xl:  13pt;
+    --text-5xl:  13pt;
+  }
+
+  /* ── 5. GLOBAL BODY — monospace, black on white ────────────────── */
   body {
     background: white !important;
     color: #000 !important;
@@ -295,24 +311,9 @@ body {
     font-style: italic !important;
   }
 
-  /* ── FONT-SIZE CAP — Tailwind text-size utilities ───────────────── */
-  /* Rule: max = base (10pt) + 3pt = 13pt for emphasis.
-     Kills oversized KPI boxes, net-income amounts, summary numbers, etc.
-     Applied after body / heading rules so it catches non-heading elements
-     (div, span, p) that carry screen-display text-size classes. */
-  .text-lg  { font-size: 11.5pt !important; }
-  .text-xl,
-  .text-2xl, .text-3xl, .text-4xl, .text-5xl,
-  .text-6xl, .text-7xl, .text-8xl, .text-9xl { font-size: 13pt !important; }
-
-  /* Restore correct semantic heading sizes for h1–h4 elements that also
-     carry Tailwind text-size classes (h1.text-xl etc.).
-     Specificity (0,1,1) beats the cap rule (0,1,0) and the element rule (0,0,1). */
-  h1.text-lg, h1.text-xl, h1.text-2xl, h1.text-3xl,
-  h1.text-4xl, h1.text-5xl                           { font-size: 11.5pt !important; }
-  h2.text-lg, h2.text-xl, h2.text-2xl, h2.text-3xl  { font-size: 10.5pt !important; }
-  h3.text-lg, h3.text-xl, h3.text-2xl                { font-size: 10pt  !important; }
-  h4.text-lg, h4.text-xl                             { font-size: 9.5pt !important; }
+  /* Note: font-size caps are handled via :root CSS variable overrides above.
+     The h1/h2/h3/h4 !important rules below override the variable-driven
+     sizes for semantic heading elements. */
 
   /* ── 6. DOT-MATRIX TABLE SYSTEM ────────────────────────────────── */
   table {
