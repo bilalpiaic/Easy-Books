@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2, ShieldCheck } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
-import { getAuthHeader } from "@/lib/auth"
+import { getAuthHeader, setMustChangePwd } from "@/lib/auth"
 import { useTranslation } from "react-i18next"
 
 interface Me {
@@ -234,6 +234,7 @@ function PasswordCard({ highlight }: { highlight: boolean }) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ current_password: cur, new_password: next }),
       })
+      setMustChangePwd(false)
       setOk(true); setCur(""); setNext(""); setConfirm("")
     } catch (e) { setErr(e instanceof Error ? e.message : "Failed to change password") }
     finally { setBusy(false) }

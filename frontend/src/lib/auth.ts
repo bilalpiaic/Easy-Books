@@ -11,7 +11,16 @@ export const setAuthToken = (token: string) => {
 
 export const removeAuthToken = () => {
   localStorage.removeItem("access_token")
+  localStorage.removeItem("eb.must_change_pwd")
 }
+
+export const setMustChangePwd = (v: boolean) => {
+  if (v) localStorage.setItem("eb.must_change_pwd", "1")
+  else localStorage.removeItem("eb.must_change_pwd")
+}
+
+export const getMustChangePwd = (): boolean =>
+  typeof window !== "undefined" && localStorage.getItem("eb.must_change_pwd") === "1"
 
 export const isAuthenticated = () => {
   return !!getAuthToken()

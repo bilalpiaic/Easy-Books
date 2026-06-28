@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ChevronDown, ChevronUp, Zap } from "lucide-react"
-import { setAuthToken } from "@/lib/auth"
+import { setAuthToken, setMustChangePwd } from "@/lib/auth"
 import { apiBase } from "@/lib/api"
 
 interface DemoOption {
@@ -46,6 +46,7 @@ export default function LoginPage() {
       if (!response.ok) throw new Error("Invalid email or password")
       const data = await response.json()
       setAuthToken(data.access_token)
+      setMustChangePwd(!!data.must_change_password)
       if (data.must_change_password) {
         router.push("/profile?changePassword=1")
       } else if (data.onboarding_required) {
