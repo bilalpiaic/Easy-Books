@@ -25,7 +25,7 @@ from routers import (
     product_categories, production_orders, products, purchase_orders, rate_plans,
     reconciliations, recurring, report_builder, reports, settings, stock_locations,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
-    permissions, commissions, promo_rules, payroll, attendance,
+    permissions, commissions, promo_rules, payroll, attendance, system_update,
 )
 from routers.pra import pra_router
 from routers import healthcare, healthcare_reports
@@ -102,6 +102,7 @@ _ROUTERS = [
     attendance.router,
     healthcare.router,
     healthcare_reports.router,
+    system_update.router,
 ]
 
 # PRA e-Invoice router mounted separately (not in the shared prefix list above)

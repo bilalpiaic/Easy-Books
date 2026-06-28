@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   X, RefreshCw, Download, RotateCcw, ExternalLink,
   CheckCircle, AlertCircle, Copy, Check as CopyDone,
 } from 'lucide-react'
+import { apiFetch } from '@/lib/api'
 
 // ---------------------------------------------------------------------------
 // Electron preload bridge types
@@ -33,6 +34,9 @@ interface ElectronStatus {
 const CURRENT_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev'
 const CURRENT_COMMIT  = process.env.NEXT_PUBLIC_GIT_COMMIT  ?? ''
 const BUILD_DATE      = process.env.NEXT_PUBLIC_BUILD_DATE  ?? ''
+
+// "Update Now" only works when we have a real commit stamp to compare against
+const CAN_AUTO_UPDATE = CURRENT_COMMIT !== '' && CURRENT_COMMIT !== 'dev'
 
 const RELEASES_API  = 'https://api.github.com/repos/bilalpiaic/Easy-Books/releases/latest'
 const RELEASES_PAGE = 'https://github.com/bilalpiaic/Easy-Books/releases'
@@ -98,13 +102,14 @@ function CmdBlock({ win, unix }: { win: string; unix: string }) {
 // ---------------------------------------------------------------------------
 interface UpdateModalProps { onClose: () => void }
 
+// In-app update phase
+type UpdatePhase = 'idle' | 'calling' | 'polling' | 'done' | 'error'
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 export default function UpdateModal({ onClose }: UpdateModalProps) {
   // ── Server-side version.json probe ─────────────────────────────────────────
-  // Fetches /version.json from the running server to detect whether update.sh
-  // has already rebuilt the server since this page loaded.
   const [serverInfo, setServerInfo] = useState<{ version: string; commit: string; built: string } | null>(null)
   const [serverDone, setServerDone] = useState(false)
 
@@ -118,6 +123,21 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
 
   // ── Re-check busy flag ──────────────────────────────────────────────────────
   const [rechecking, setRechecking] = useState(false)
+
+  // ── In-app update state ─────────────────────────────────────────────────────
+  const [updatePhase, setUpdatePhase] = useState<UpdatePhase>('idle')
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [elapsed, setElapsed]         = useState(0)
+  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearTimeout(pollingRef.current)
+      if (elapsedRef.current) clearInterval(elapsedRef.current)
+    }
+  }, [])
 
   // ---------------------------------------------------------------------------
   // Fetch helpers
@@ -144,6 +164,85 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       setGhState('ok')
     } catch { setGhState('error') }
   }, [])
+
+  // ---------------------------------------------------------------------------
+  // Polling — called after backend confirms git pull succeeded
+  // Polls /version.json every 5 s; detects when server restarts with new build
+  // ---------------------------------------------------------------------------
+  const startPolling = useCallback(() => {
+    const startMs = Date.now()
+    const MAX_MS  = 5 * 60 * 1000   // 5-minute hard timeout
+
+    setElapsed(0)
+    elapsedRef.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startMs) / 1000))
+    }, 1000)
+
+    const poll = async () => {
+      // Timeout guard
+      if (Date.now() - startMs > MAX_MS) {
+        if (elapsedRef.current) clearInterval(elapsedRef.current)
+        setUpdatePhase('error')
+        setUpdateError('Rebuild is taking longer than expected. Check if the server restarted correctly.')
+        return
+      }
+
+      try {
+        const res = await fetch('/version.json', {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5000),
+        })
+        if (res.ok) {
+          const data = await res.json() as { version: string; commit: string; built: string }
+          // Server is back up. If commit changed (or we had no baseline), we're done.
+          const isNew = data.commit !== 'dev' && (
+            !CAN_AUTO_UPDATE || data.commit !== CURRENT_COMMIT
+          )
+          if (isNew) {
+            if (elapsedRef.current) clearInterval(elapsedRef.current)
+            setUpdatePhase('done')
+            // Auto-reload after 3 s so the user sees the "done" message
+            setTimeout(() => window.location.reload(), 3000)
+            return
+          }
+        }
+      } catch { /* server still rebuilding — normal; keep polling */ }
+
+      pollingRef.current = setTimeout(poll, 5000)
+    }
+
+    // First poll after 5 s (give the kill+restart script time to fire)
+    pollingRef.current = setTimeout(poll, 5000)
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // "Update Now" handler
+  // ---------------------------------------------------------------------------
+  const handleUpdateNow = async () => {
+    setUpdatePhase('calling')
+    setUpdateError(null)
+    try {
+      const res = await apiFetch<{ status: string; commit?: string; message?: string }>(
+        '/api/system/update', { method: 'POST' },
+      )
+      if (res.status === 'up_to_date') {
+        // No new code — just refresh the GitHub/version check
+        setUpdatePhase('idle')
+        handleRecheck()
+      } else if (res.status === 'restarting') {
+        setUpdatePhase('polling')
+        startPolling()
+      } else {
+        // 'no_script' or unexpected
+        setUpdatePhase('error')
+        setUpdateError(res.message ?? 'Could not start update. Run the updater manually.')
+      }
+    } catch (e: unknown) {
+      setUpdatePhase('error')
+      const msg = e instanceof Error ? e.message : String(e)
+      setUpdateError(msg || 'Update failed. Run the updater manually.')
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Effects
@@ -287,7 +386,6 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       </div>
     )
 
-    // error
     return (
       <div className="space-y-3">
         <div className="flex items-start gap-2 text-sm text-red-600">
@@ -308,16 +406,69 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
   }
 
   // ---------------------------------------------------------------------------
-  // Script / web install UI — the three-state fix for #109
+  // Script / web install UI
   // ---------------------------------------------------------------------------
   function renderWeb() {
+    // ── In-app update progress ────────────────────────────────────────────────
+    if (updatePhase === 'calling') return (
+      <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+        <RefreshCw className="w-4 h-4 animate-spin" /> Pulling latest code…
+      </div>
+    )
+
+    if (updatePhase === 'polling') return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+          <RefreshCw className="w-4 h-4 text-blue-600 mt-0.5 shrink-0 animate-spin" />
+          <div>
+            <p className="text-sm font-semibold text-blue-800">
+              Rebuilding — please wait ({elapsed}s)
+            </p>
+            <p className="text-xs text-blue-600 mt-0.5">
+              This usually takes 1–3 minutes. Keep this tab open.
+            </p>
+          </div>
+        </div>
+        <div className="w-full bg-[var(--border)] rounded-full h-1 overflow-hidden">
+          <div className="h-full bg-[var(--primary)] rounded-full animate-pulse w-3/5" />
+        </div>
+      </div>
+    )
+
+    if (updatePhase === 'done') return (
+      <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
+        <CheckCircle className="w-4 h-4 text-green-700 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-green-800">Update complete!</p>
+          <p className="text-xs text-green-600 mt-0.5">Refreshing in 3 seconds…</p>
+        </div>
+      </div>
+    )
+
+    if (updatePhase === 'error') return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 text-sm text-red-600">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{updateError ?? 'Update failed. Run the updater manually.'}</span>
+        </div>
+        <CmdBlock win="update.bat" unix="./update.sh" />
+        <button
+          onClick={() => { setUpdatePhase('idle'); setUpdateError(null) }}
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+        >
+          ← Back
+        </button>
+      </div>
+    )
+
+    // ── Normal states (updatePhase === 'idle') ────────────────────────────────
     if (!serverDone || ghState === 'loading') return (
       <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
         <RefreshCw className="w-4 h-4 animate-spin" /> Checking…
       </div>
     )
 
-    // ── A: update.sh already ran — page is stale ─────────────────────────────
+    // A: update.sh already ran — page is stale
     if (pageIsStale) return (
       <div className="space-y-3">
         <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
@@ -327,7 +478,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
               Server updated to v{serverInfo!.version}
             </p>
             <p className="text-xs text-green-700 mt-0.5">
-              The updater has already run. Hard-refresh to load the new version in your browser.
+              The updater has already run. Hard-refresh to load the new version.
             </p>
           </div>
         </div>
@@ -345,7 +496,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       </div>
     )
 
-    // ── B: GitHub has a newer release ────────────────────────────────────────
+    // B: GitHub has a newer release
     if (ghNewer) return (
       <div className="space-y-3">
         <div className="flex items-start gap-2 p-3 rounded-lg bg-[var(--primary-light)] border border-[var(--primary)]/20">
@@ -353,11 +504,37 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
           <div>
             <p className="text-sm font-semibold text-[var(--primary)]">v{ghVersion} is available</p>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              You&apos;re on v{normalCurrent}. Run the updater — your data is preserved.
+              You&apos;re on v{normalCurrent}. Your data is preserved during the update.
             </p>
           </div>
         </div>
-        <CmdBlock win="update.bat" unix="./update.sh" />
+
+        {CAN_AUTO_UPDATE ? (
+          <>
+            {/* Primary CTA — one click triggers git pull + rebuild + restart */}
+            <button
+              onClick={handleUpdateNow}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--primary)] text-white rounded-lg font-semibold text-sm hover:bg-[var(--primary-dark)] transition-colors"
+            >
+              <Download className="w-4 h-4" /> Update Now
+            </button>
+
+            {/* Fallback for power users */}
+            <details className="group">
+              <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--primary)] transition-colors list-none flex items-center gap-1">
+                <span className="group-open:hidden">▸</span>
+                <span className="hidden group-open:inline">▾</span>
+                Or run manually
+              </summary>
+              <div className="mt-2">
+                <CmdBlock win="update.bat" unix="./update.sh" />
+              </div>
+            </details>
+          </>
+        ) : (
+          <CmdBlock win="update.bat" unix="./update.sh" />
+        )}
+
         <a href={RELEASES_PAGE} target="_blank" rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-sm text-[var(--primary)] hover:underline">
           <ExternalLink className="w-3.5 h-3.5" /> View release notes
@@ -365,7 +542,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       </div>
     )
 
-    // ── C: No GitHub release yet ─────────────────────────────────────────────
+    // C: No GitHub release yet
     if (ghState === 'no_release') return (
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm text-green-700 font-medium">
@@ -378,7 +555,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       </div>
     )
 
-    // ── D: GitHub fetch error ────────────────────────────────────────────────
+    // D: GitHub fetch error
     if (ghState === 'error') return (
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-sm text-amber-600">
@@ -388,7 +565,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
       </div>
     )
 
-    // ── E: Fully up to date ──────────────────────────────────────────────────
+    // E: Fully up to date
     return (
       <div className="flex items-center gap-2 text-sm text-green-700 font-medium">
         <CheckCircle className="w-4 h-4" />
@@ -458,8 +635,8 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
         {/* Body */}
         <div>{isDesktop() ? renderElectron() : renderWeb()}</div>
 
-        {/* Footer — re-check + release history */}
-        {!isDesktop() && (
+        {/* Footer — re-check + release history (hide during active update) */}
+        {!isDesktop() && updatePhase === 'idle' && (
           <div className="flex items-center justify-between pt-1 border-t border-[var(--border-light)]">
             <button
               onClick={handleRecheck}
