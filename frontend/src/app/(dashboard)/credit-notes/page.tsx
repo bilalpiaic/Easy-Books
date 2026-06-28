@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Plus, Receipt, Download, Printer } from "lucide-react"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { useSettings } from "@/context/SettingsContext"
@@ -166,6 +167,7 @@ export default function CreditNotesPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
+        <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[var(--bg-page)]">
             <tr>
@@ -198,6 +200,31 @@ export default function CreditNotesPage() {
             ))}
           </tbody>
         </table>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-[var(--border)]">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">Loading…</div>
+          ) : items.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">No credit notes yet</div>
+          ) : items.map(cn => (
+            <Link
+              key={cn.id}
+              href={`/credit-notes/${cn.id}`}
+              className="flex items-start justify-between px-4 py-3 hover:bg-[var(--bg-row-hover)] transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{cn.customer_name ?? "—"}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{cn.number} · {fmtDate(cn.issue_date)}</p>
+              </div>
+              <div className="flex flex-col items-end gap-1 ml-3 shrink-0">
+                <span className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(cn.total)}</span>
+                <StatusBadge status={cn.status} />
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {modalOpen && (
