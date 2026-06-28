@@ -3,9 +3,13 @@
 :root {
   /* ── Navigation ── */
   --nav-bg:          #393A3D;
-  --nav-text:        #FFFFFF;
+  --nav-text:        #ffffff;
+  --nav-sub:         rgba(255,255,255,0.75);
+  --nav-dim:         rgba(255,255,255,0.52);
+  --nav-sep:         rgba(255,255,255,0.20);
   --nav-hover:       rgba(255,255,255,0.10);
   --nav-active:      rgba(255,255,255,0.18);
+  --nav-icon-hover:  rgba(255,255,255,0.10);
 
   /* ── Primary (QB green) ── */
   --primary:         #2CA01C;
@@ -555,6 +559,16 @@ body {
 
 /* ── QB TOKEN OVERRIDES for dark mode ── */
 [data-theme="dark"] {
+  /* Navigation inverts: light bar on a dark page */
+  --nav-bg:         #ece8e1;
+  --nav-text:       #1a1814;
+  --nav-sub:        rgba(26,24,20,0.65);
+  --nav-dim:        rgba(26,24,20,0.45);
+  --nav-sep:        rgba(26,24,20,0.18);
+  --nav-hover:      rgba(26,24,20,0.08);
+  --nav-active:     rgba(26,24,20,0.14);
+  --nav-icon-hover: rgba(26,24,20,0.08);
+
   --primary:         #4CAF50;
   --primary-dark:    #388E3C;
   --primary-light:   #1B3A1C;

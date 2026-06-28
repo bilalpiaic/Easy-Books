@@ -235,8 +235,8 @@ export default function TopNav() {
     const cls = cn(
       "flex items-center gap-0.5 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer shrink-0",
       isActive
-        ? "bg-[var(--nav-active)] text-white font-semibold"
-        : "text-[rgba(255,255,255,0.75)] hover:bg-[var(--nav-hover)] hover:text-white"
+        ? "bg-[var(--nav-active)] text-[var(--nav-text)] font-semibold"
+        : "text-[var(--nav-sub)] hover:bg-[var(--nav-hover)] hover:text-[var(--nav-text)]"
     )
 
     if (section.key === "dashboard") {
@@ -266,7 +266,7 @@ export default function TopNav() {
           <div className="w-7 h-7 bg-[var(--primary)] rounded-md flex items-center justify-center text-white text-[11px] font-black select-none">
             EB
           </div>
-          <span className="text-white text-[13px] font-semibold hidden sm:block truncate max-w-[130px]">
+          <span className="text-[var(--nav-text)] text-[13px] font-semibold hidden sm:block truncate max-w-[130px]">
             {settings.company_name || "Easy-Books"}
           </span>
         </Link>
@@ -278,7 +278,7 @@ export default function TopNav() {
           {canScrollLeft && (
             <button type="button" aria-label="Scroll nav left"
               onClick={() => navScrollRef.current?.scrollBy({ left: -200, behavior: "smooth" })}
-              className="absolute left-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center bg-gradient-to-r from-[var(--nav-bg)] via-[var(--nav-bg)]/80 to-transparent text-white/70 hover:text-white transition-colors">
+              className="absolute left-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center bg-gradient-to-r from-[var(--nav-bg)] via-[var(--nav-bg)]/80 to-transparent text-[var(--nav-dim)] hover:text-[var(--nav-text)] transition-colors">
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
           )}
@@ -291,11 +291,11 @@ export default function TopNav() {
             {leftNav.map(s => renderTab(s))}
 
             {installedMods.length > 0 && (
-              <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />
+              <span className="w-px h-4 bg-[var(--nav-sep)] mx-1 shrink-0" aria-hidden />
             )}
             {installedMods.map(s => renderTab(s))}
             {installedMods.length > 0 && (
-              <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />
+              <span className="w-px h-4 bg-[var(--nav-sep)] mx-1 shrink-0" aria-hidden />
             )}
 
             {rightNav.map(s => renderTab(s))}
@@ -305,7 +305,7 @@ export default function TopNav() {
           {canScrollRight && (
             <button type="button" aria-label="Scroll nav right"
               onClick={() => navScrollRef.current?.scrollBy({ left: 200, behavior: "smooth" })}
-              className="absolute right-[72px] top-0 bottom-0 w-7 z-10 flex items-center justify-center bg-gradient-to-l from-[var(--nav-bg)] via-[var(--nav-bg)]/80 to-transparent text-white/70 hover:text-white transition-colors">
+              className="absolute right-[72px] top-0 bottom-0 w-7 z-10 flex items-center justify-center bg-gradient-to-l from-[var(--nav-bg)] via-[var(--nav-bg)]/80 to-transparent text-[var(--nav-dim)] hover:text-[var(--nav-text)] transition-colors">
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
@@ -316,8 +316,8 @@ export default function TopNav() {
             className={cn(
               "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer shrink-0 ml-1",
               open === "__more__"
-                ? "bg-[var(--nav-hover)] text-white"
-                : "text-[rgba(255,255,255,0.55)] hover:bg-[var(--nav-hover)] hover:text-white"
+                ? "bg-[var(--nav-hover)] text-[var(--nav-text)]"
+                : "text-[var(--nav-dim)] hover:bg-[var(--nav-hover)] hover:text-[var(--nav-text)]"
             )}>
             More
             <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", open === "__more__" && "rotate-180")} />
@@ -330,14 +330,14 @@ export default function TopNav() {
           <button type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("search:open"))}
             title="Search (Ctrl+K)"
-            className="w-7 h-7 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+            className="w-7 h-7 flex items-center justify-center rounded-full text-[var(--nav-dim)] hover:text-[var(--nav-text)] hover:bg-[var(--nav-icon-hover)] transition-colors">
             <Search className="w-4 h-4" />
           </button>
 
           <button type="button"
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+            className="w-7 h-7 flex items-center justify-center rounded-full text-[var(--nav-dim)] hover:text-[var(--nav-text)] hover:bg-[var(--nav-icon-hover)] transition-colors">
             {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
