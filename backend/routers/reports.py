@@ -1314,8 +1314,11 @@ def product_ledger(
             select(StockLocation).where(StockLocation.tenant_id == user.tenant_id)
         ).all()
     }
+    # First pass: collect filtered rows and their source_doc_ids for batch lookup.
     running = ZERO
-    items = []
+    filtered_rows: list[tuple] = []   # (movement, date_str, sign)
+    inv_ids: set[int] = set()
+    bill_ids: set[int] = set()
     for m in rows:
         d = m.occurred_at.date().isoformat() if hasattr(m.occurred_at, "date") else str(m.occurred_at)[:10]
         if start and d < start:
@@ -1324,14 +1327,40 @@ def product_ledger(
             continue
         sign = 1 if m.direction in _IN_DIRECTIONS else -1
         running += sign * D(m.qty)
-        # IN movements land at to_location; OUT movements leave from_location.
+        filtered_rows.append((m, d, sign, running))
+        if m.source_doc_type == "invoice" and m.source_doc_id:
+            inv_ids.add(m.source_doc_id)
+        elif m.source_doc_type == "bill" and m.source_doc_id:
+            bill_ids.add(m.source_doc_id)
+
+    # Batch-fetch reference numbers (one query per doc type).
+    inv_refs: dict[int, str] = {}
+    if inv_ids:
+        for inv in session.exec(select(Invoice.id, Invoice.number).where(Invoice.id.in_(inv_ids))).all():  # type: ignore[attr-defined]
+            inv_refs[inv[0]] = inv[1]
+    bill_refs: dict[int, str] = {}
+    if bill_ids:
+        for bill in session.exec(select(Bill.id, Bill.number).where(Bill.id.in_(bill_ids))).all():  # type: ignore[attr-defined]
+            bill_refs[bill[0]] = bill[1]
+
+    # Second pass: build response items.
+    items = []
+    for m, d, sign, running_qty in filtered_rows:
         loc_id = m.to_location_id if sign > 0 else m.from_location_id
+        doc_type = m.source_doc_type or ""
+        if doc_type == "invoice" and m.source_doc_id:
+            source_ref = inv_refs.get(m.source_doc_id, doc_type)
+        elif doc_type == "bill" and m.source_doc_id:
+            source_ref = bill_refs.get(m.source_doc_id, doc_type)
+        else:
+            source_ref = doc_type
         items.append({
             "date": d, "direction": m.direction,
             "qty_in": D(m.qty) if sign > 0 else ZERO,
             "qty_out": D(m.qty) if sign < 0 else ZERO,
-            "running_qty": running, "unit_cost": m.unit_cost,
-            "source": m.source_doc_type or "",
+            "running_qty": running_qty, "unit_cost": m.unit_cost,
+            "source": doc_type,
+            "source_ref": source_ref,
             "location": loc_names.get(loc_id, "") if loc_id else "",
         })
     return {"product_id": product_id, "location_id": location_id, "items": items}
