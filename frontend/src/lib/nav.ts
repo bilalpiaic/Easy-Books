@@ -149,7 +149,7 @@ export type TopNavSection = {
   forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare"
 }
 
-/** Core sections always shown + module-gated sections shown in "More ▾" */
+/** Core sections always shown + module-gated sections shown inline */
 export const TOP_NAV: TopNavSection[] = [
   { key: "dashboard",     label: "Dashboard"     },
   { key: "banking",       label: "Banking"       },
@@ -157,7 +157,8 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "purchases",     label: "Purchases"     },
   { key: "accounting",    label: "Accounting"    },
   { key: "reports",       label: "Reports"       },
-  // module-gated — shown in "More ▾" dropdown
+  { key: "system",        label: "System"        },
+  // module-gated — appear inline between Purchases and Accounting when installed
   { key: "inventory",     label: "Inventory",     forModule: "inventory"   },
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
@@ -180,7 +181,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
-  settings:      ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow"],
+  system:        ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow"],
 }
 
 /** Returns the top-nav section key for the current pathname */
@@ -208,7 +209,7 @@ export function getSectionHref(key: string): string {
     manufacturing: "/manufacturing",
     telecom:       "/telecom",
     pra:           "/pra-dashboard",
-    settings:      "/settings",
+    system:        "/settings",
   }
   return map[key] ?? "/dashboard"
 }
@@ -316,17 +317,17 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "PRA Dashboard", href: "/pra-dashboard", icon: LayoutDashboard, section: "pra", forModule: "pra" },
     { label: "PRA Logs",      href: "/pra-logs",      icon: FileCheck,       section: "pra", forModule: "pra" },
   ],
-  settings: [
-    { label: "Settings",      href: "/settings",             icon: Settings,    section: "settings" },
-    { label: "Team",          href: "/team",                 icon: UsersRound,  section: "settings", adminOnly: true },
-    { label: "Permissions",   href: "/settings/permissions", icon: ShieldCheck, section: "settings", adminOnly: true },
-    { label: "My Profile",    href: "/profile",              icon: UserCircle,  section: "settings" },
-    { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "settings" },
-    { label: "Payment Terms", href: "/payment-terms",        icon: Clock,       section: "settings", adminOnly: true },
-    { label: "Tax Codes",     href: "/tax-codes",            icon: Percent,     section: "settings", adminOnly: true },
-    { label: "Audit Log",     href: "/audit",                icon: ScrollText,  section: "settings", adminOnly: true },
-    { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "settings" },
-    { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "settings" },
-    { label: "Add-ons",       href: "/apps",                 icon: AppWindow,   section: "settings", adminOnly: true },
+  system: [
+    { label: "Settings",      href: "/settings",             icon: Settings,    section: "system" },
+    { label: "Team",          href: "/team",                 icon: UsersRound,  section: "system", adminOnly: true },
+    { label: "Permissions",   href: "/settings/permissions", icon: ShieldCheck, section: "system", adminOnly: true },
+    { label: "My Profile",    href: "/profile",              icon: UserCircle,  section: "system" },
+    { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "system" },
+    { label: "Payment Terms", href: "/payment-terms",        icon: Clock,       section: "system", adminOnly: true },
+    { label: "Tax Codes",     href: "/tax-codes",            icon: Percent,     section: "system", adminOnly: true },
+    { label: "Audit Log",     href: "/audit",                icon: ScrollText,  section: "system", adminOnly: true },
+    { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "system" },
+    { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
+    { label: "Add-ons",       href: "/apps",                 icon: AppWindow,   section: "system", adminOnly: true },
   ],
 }

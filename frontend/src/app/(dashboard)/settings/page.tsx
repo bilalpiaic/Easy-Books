@@ -203,11 +203,34 @@ export default function SettingsPage() {
     }
   }
 
+  const [tab, setTab] = useState("company")
+
+  const TABS = [
+    { id: "company",     label: "Company"     },
+    { id: "accounting",  label: "Accounting"  },
+    { id: "preferences", label: "Preferences" },
+    { id: "advanced",    label: "Advanced"    },
+  ]
+
   return (
     <div className="space-y-6 p-4 sm:p-6 max-w-4xl">
       <div>
         <h1 className="text-xl sm:text-3xl font-bold text-black">Settings</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">Configure business and accounting settings</p>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-[var(--border)]">
+        {TABS.map(t => (
+          <button key={t.id} type="button" onClick={() => setTab(t.id)}
+            className={`px-5 py-2 text-[13px] font-medium rounded-t-lg transition-colors ${
+              tab === t.id
+                ? "bg-white border border-b-white border-[var(--border)] text-[var(--primary)] -mb-px"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {saved && (
@@ -220,6 +243,8 @@ export default function SettingsPage() {
           {error}
         </div>
       )}
+
+      { tab === "company" && <>
 
       <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-black">
@@ -446,6 +471,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      </> }
+      { tab === "accounting" && <>
+
       <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 text-black">Document Numbering</h2>
 
@@ -618,10 +646,14 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* ── ACCOUNTING TAB ends, PREFERENCES TAB begins ── */}
+      </> }
+      { tab === "preferences" && <>
+
       <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-black">
           <Bell className="w-5 h-5 text-[var(--primary)]" />
-          Notifications
+          Notifications &amp; Controls
         </h2>
 
         <div className="flex items-center justify-between">
@@ -683,6 +715,10 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      {/* ── PREFERENCES TAB ends, ACCOUNTING continues (Periods) ── */}
+      </> }
+      { tab === "accounting" && <>
 
       <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
         <div className="flex items-center justify-between mb-6">
@@ -771,6 +807,9 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      </> }
+      { tab === "advanced" && <>
 
       {/* Backup & Restore (local / on-premise installs) */}
       <div className="bg-white border border-[var(--border)] rounded-2xl p-6 space-y-3">
@@ -1027,6 +1066,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      </> }
+
+      {/* Save / Reset — always visible regardless of active tab */}
       <div className="flex justify-end gap-3">
         <button
           onClick={() => setForm(ctxSettings)}

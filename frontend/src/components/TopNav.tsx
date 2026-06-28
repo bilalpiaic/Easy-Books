@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { Settings, ChevronDown, LogOut, UserCircle, LayoutGrid, Table2, Blocks } from "lucide-react"
+import { ChevronDown, LogOut, UserCircle, LayoutGrid, Table2, Blocks } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { useSettings } from "@/context/SettingsContext"
@@ -24,10 +24,11 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string }> = {
   manufacturing: { href: "/manufacturing",  label: "Production Overview" },
   telecom:       { href: "/telecom",        label: "Telecom Overview"    },
   pra:           { href: "/pra-dashboard",  label: "PRA Dashboard"       },
+  system:        { href: "/settings",       label: "Settings"            },
 }
 
 const LEFT_KEYS  = new Set(["dashboard", "banking", "sales", "purchases"])
-const RIGHT_KEYS = new Set(["accounting", "reports"])
+const RIGHT_KEYS = new Set(["accounting", "reports", "system"])
 
 export default function TopNav() {
   const pathname             = usePathname()
@@ -222,11 +223,6 @@ export default function TopNav() {
 
       {/* Right side */}
       <div className="flex items-center gap-1.5 ml-auto shrink-0">
-        <Link href="/settings" title="Settings"
-          className="p-1.5 rounded-md text-[rgba(255,255,255,0.70)] hover:text-white hover:bg-[var(--nav-hover)] transition-colors">
-          <Settings className="w-4 h-4" />
-        </Link>
-
         <div ref={userRef} className="relative">
           <button type="button" onClick={() => setUserOpen(o => !o)} title={userName}
             className="w-7 h-7 bg-[var(--primary)] rounded-full flex items-center justify-center text-white text-[11px] font-bold hover:bg-[var(--primary-dark)] transition-colors cursor-pointer">
