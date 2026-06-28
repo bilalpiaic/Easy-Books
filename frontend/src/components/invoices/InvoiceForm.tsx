@@ -530,7 +530,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               </button>
             </div>
           </div>
-          <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" />
+          <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes.filter(t => t.type === 'output')} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" />
         </div>
 
         <div className="bg-[var(--bg-page)] rounded-xl p-4 space-y-1 text-sm">
