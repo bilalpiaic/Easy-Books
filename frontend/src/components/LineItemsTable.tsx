@@ -209,7 +209,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                 )}
               </td>
               <td className="px-3 py-2">
-                {readOnly ? (
+                {readOnly || line.product_id ? (
                   <span className="block text-center text-xs text-[var(--text-muted)]">{line.unit ?? "—"}</span>
                 ) : (
                   <select
