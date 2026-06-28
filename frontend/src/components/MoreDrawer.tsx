@@ -2,9 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { X } from "lucide-react"
 import { TOP_NAV, SUB_NAV } from "@/lib/nav"
 import { cn } from "@/lib/utils"
+import { useModules } from "@/context/ModuleContext"
+import { getCurrentUser } from "@/lib/auth"
 
 interface Props {
   open: boolean
@@ -12,7 +15,14 @@ interface Props {
 }
 
 export default function MoreDrawer({ open, onClose }: Props) {
-  const pathname = usePathname()
+  const pathname             = usePathname()
+  const { installedModules } = useModules()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const user = getCurrentUser()
+    if (user) setIsAdmin(user.role === "admin" || user.role === "owner")
+  }, [])
 
   return (
     <>
@@ -37,8 +47,16 @@ export default function MoreDrawer({ open, onClose }: Props) {
         </div>
         <div className="p-4 space-y-4 pb-8">
           {TOP_NAV.map((section) => {
-            const items = SUB_NAV[section.key] ?? []
+            // Hide sections whose module isn't installed
+            if (section.forModule && !installedModules.has(section.forModule)) return null
+
+            const items = (SUB_NAV[section.key] ?? []).filter(item => {
+              if (item.forModule && !installedModules.has(item.forModule)) return false
+              if (item.adminOnly && !isAdmin) return false
+              return true
+            })
             if (!items.length) return null
+
             return (
               <div key={section.key}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">

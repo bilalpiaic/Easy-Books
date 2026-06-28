@@ -119,8 +119,8 @@ export default function TopNav() {
         )}
       </nav>
 
-      {/* ── Right side ───────────────────────────────── */}
-      <div className="flex items-center gap-1.5 ml-2 shrink-0">
+      {/* ── Right side — ml-auto pushes to far right on mobile (nav hidden) + desktop ── */}
+      <div className="flex items-center gap-1.5 ml-auto shrink-0">
         <Link
           href="/settings"
           title="Settings"
