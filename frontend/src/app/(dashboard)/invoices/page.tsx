@@ -134,15 +134,6 @@ function InvoicesContent() {
     }
   }
 
-  const handleStatusChange = async (inv: Invoice, newStatus: string) => {
-    try {
-      await apiFetch(`/api/invoices/${inv.id}/status?status=${newStatus}`, { method: 'PATCH' })
-      load()
-    } catch (err) {
-      alert((err as Error).message)
-    }
-  }
-
   const outstanding = invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.total, 0)
   const paid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0)
 
@@ -345,13 +336,6 @@ function InvoicesContent() {
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </Link>
-                      <select
-                        value={inv.status}
-                        onChange={e => handleStatusChange(inv, e.target.value)}
-                        className="text-xs border border-[var(--border)] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                      >
-                        {INVOICE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
                     </div>
                   </td>
                 </tr>

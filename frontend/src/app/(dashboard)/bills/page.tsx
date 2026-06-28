@@ -129,15 +129,6 @@ function BillsContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleStatusChange = async (b: Bill, newStatus: string) => {
-    try {
-      await apiFetch(`/api/bills/${b.id}/status?status=${newStatus}`, { method: 'PATCH' })
-      load()
-    } catch (err) {
-      alert((err as Error).message)
-    }
-  }
-
   const payable = bills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.total, 0)
   const paid    = bills.filter(b => b.status === 'paid').reduce((s, b) => s + b.total, 0)
 
@@ -284,13 +275,6 @@ function BillsContent() {
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </Link>
-                      <select
-                        value={b.status}
-                        onChange={e => handleStatusChange(b, e.target.value)}
-                        className="text-xs border border-[var(--border)] rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                      >
-                        {BILL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
                     </div>
                   </td>
                 </tr>
