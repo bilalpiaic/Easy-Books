@@ -30,6 +30,7 @@ interface LedgerItem {
   running_qty: number
   unit_cost: number
   source: string
+  source_ref: string
   location: string
 }
 
@@ -113,7 +114,7 @@ function ProductLedgerInner() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 print:hidden">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Product Ledger</h1>
-          <p className="text-[var(--text-primary)]/60">Stock movement history by product and store</p>
+          <p className="text-[var(--text-primary)]/60">Stock movement history by product and location</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -121,7 +122,7 @@ function ProductLedgerInner() {
               if (!data?.items.length) return
               downloadCSV("product-ledger.csv", data.items.map(m => ({
                 Date: m.date, Direction: m.direction, "Qty In": m.qty_in, "Qty Out": m.qty_out,
-                "Running Qty": m.running_qty, "Unit Cost": m.unit_cost, Location: m.location, Source: m.source,
+                "Running Qty": m.running_qty, "Unit Cost": m.unit_cost, Location: m.location, Source: m.source_ref || m.source,
               })))
             }}
             disabled={!data?.items.length}
@@ -252,7 +253,7 @@ function ProductLedgerInner() {
                       {Number(item.unit_cost) > 0 ? fmt(item.unit_cost) : "—"}
                     </td>
                     <td className="ui-td text-sm text-[var(--text-primary)]/70">{item.location || "—"}</td>
-                    <td className="ui-td text-sm text-[var(--text-primary)]/60">{item.source || "—"}</td>
+                    <td className="ui-td text-sm font-mono text-[var(--primary)]">{item.source_ref || item.source || "—"}</td>
                   </tr>
                 ))
               )}
