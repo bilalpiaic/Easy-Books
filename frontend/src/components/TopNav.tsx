@@ -158,7 +158,7 @@ export default function TopNav() {
       </Link>
 
       {/* Desktop nav */}
-      <nav className="hidden md:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide">
+      <nav className="hidden md:flex items-center gap-0.5 flex-1 min-w-0">
 
         {/* Left core: Dashboard · Banking · Sales · Purchases */}
         {leftNav.map(s => renderTab(s))}
