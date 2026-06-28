@@ -581,25 +581,6 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">AR Account</label>
-            <select value={form.ar_account_id} onChange={e => setForm(p => ({ ...p, ar_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
-              <option value="">Auto (1100)</option>
-              {arAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Revenue Account</label>
-            <select value={form.revenue_account_id} onChange={e => setForm(p => ({ ...p, revenue_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
-              <option value="">Auto (4000)</option>
-              {revenueAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-            </select>
-          </div>
-        </div>
-
         {analyticAccounts.length > 0 && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">

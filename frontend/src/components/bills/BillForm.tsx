@@ -391,25 +391,6 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">AP Account</label>
-            <select value={form.ap_account_id} onChange={e => setForm(p => ({ ...p, ap_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
-              <option value="">Auto (2000)</option>
-              {apAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Expense Account</label>
-            <select value={form.expense_account_id} onChange={e => setForm(p => ({ ...p, expense_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
-              <option value="">Auto (5000)</option>
-              {expenseAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-            </select>
-          </div>
-        </div>
-
         {analyticAccounts.length > 0 && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
