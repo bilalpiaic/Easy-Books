@@ -11,20 +11,23 @@ import { useModules } from "@/context/ModuleContext"
 import { TOP_NAV, SUB_NAV, getActiveSection } from "@/lib/nav"
 import type { TopNavSection } from "@/lib/nav"
 
-// Overview hub page for each section — first item shown in every dropdown
+// Overview hub page for each section
 const SECTION_OVERVIEW: Record<string, { href: string; label: string }> = {
-  banking:       { href: "/banking",        label: "Banking Overview"     },
-  sales:         { href: "/receivable",     label: "Sales Overview"       },
-  purchases:     { href: "/payable",        label: "Purchases Overview"   },
-  accounting:    { href: "/entry",          label: "New Entry"            },
-  reports:       { href: "/trial-balance",  label: "Trial Balance"        },
-  inventory:     { href: "/inventory",      label: "Inventory Overview"   },
-  payroll:       { href: "/hrm",            label: "Payroll Overview"     },
-  healthcare:    { href: "/healthcare",     label: "HC Overview"          },
-  manufacturing: { href: "/manufacturing",  label: "Production Overview"  },
-  telecom:       { href: "/telecom",        label: "Telecom Overview"     },
-  pra:           { href: "/pra-dashboard",  label: "PRA Dashboard"        },
+  banking:       { href: "/banking",        label: "Banking Overview"    },
+  sales:         { href: "/receivable",     label: "Sales Overview"      },
+  purchases:     { href: "/payable",        label: "Purchases Overview"  },
+  accounting:    { href: "/entry",          label: "New Entry"           },
+  reports:       { href: "/trial-balance",  label: "Trial Balance"       },
+  inventory:     { href: "/inventory",      label: "Inventory Overview"  },
+  payroll:       { href: "/hrm",            label: "Payroll Overview"    },
+  healthcare:    { href: "/healthcare",     label: "HC Overview"         },
+  manufacturing: { href: "/manufacturing",  label: "Production Overview" },
+  telecom:       { href: "/telecom",        label: "Telecom Overview"    },
+  pra:           { href: "/pra-dashboard",  label: "PRA Dashboard"       },
 }
+
+const LEFT_KEYS  = new Set(["dashboard", "banking", "sales", "purchases"])
+const RIGHT_KEYS = new Set(["accounting", "reports"])
 
 export default function TopNav() {
   const pathname             = usePathname()
@@ -32,11 +35,11 @@ export default function TopNav() {
   const { settings }         = useSettings()
   const { installedModules } = useModules()
 
-  const [userName, setUserName]   = useState("User")
-  const [userInitial, setInitial] = useState("U")
-  const [isAdmin, setIsAdmin]     = useState(false)
-  const [openSection, setOpen]    = useState<string | null>(null)
-  const [userOpen, setUserOpen]   = useState(false)
+  const [userName, setUserName] = useState("User")
+  const [initial, setInitial]   = useState("U")
+  const [isAdmin, setIsAdmin]   = useState(false)
+  const [open, setOpen]         = useState<string | null>(null)
+  const [userOpen, setUserOpen] = useState(false)
 
   const navRef  = useRef<HTMLElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
@@ -52,42 +55,35 @@ export default function TopNav() {
     }
   }, [])
 
-  // Close nav dropdown on outside click
   useEffect(() => {
-    const h = (e: MouseEvent) => {
+    const handler = (e: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(e.target as Node)) setOpen(null)
       if (userRef.current && !userRef.current.contains(e.target as Node)) setUserOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  // Close on route change
   useEffect(() => { setOpen(null) }, [pathname])
-
-  const LEFT_KEYS  = new Set(["dashboard", "banking", "sales", "purchases"])
-  const RIGHT_KEYS = new Set(["accounting", "reports"])
 
   const leftNav       = TOP_NAV.filter(s => LEFT_KEYS.has(s.key))
   const rightNav      = TOP_NAV.filter(s => RIGHT_KEYS.has(s.key))
   const installedMods = TOP_NAV.filter(s => !!s.forModule && installedModules.has(s.forModule!))
 
   const handleLogout = () => { removeAuthToken(); router.push("/login") }
-  const toggle = (key: string) => setOpen(o => o === key ? null : key)
+  const toggle = (key: string) => setOpen(prev => prev === key ? null : key)
 
-  // ── Dropdown panel for a section ─────────────────────────────────────────
-  function SectionPanel({ sectionKey }: { sectionKey: string }) {
-    const ov = SECTION_OVERVIEW[sectionKey]
+  // Renders the dropdown panel for a section — called inline, not as a component
+  function renderPanel(sectionKey: string) {
+    const ov    = SECTION_OVERVIEW[sectionKey]
     const items = (SUB_NAV[sectionKey] ?? []).filter(item => {
       if (item.forModule && !installedModules.has(item.forModule)) return false
       if (item.adminOnly && !isAdmin) return false
-      if (ov && item.href === ov.href) return false   // skip duplicate of overview row
+      if (ov && item.href === ov.href) return false
       return true
     })
-
     return (
-      <div className="absolute top-full left-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[210px] z-50">
-        {/* Overview row — always first */}
+      <div className="absolute top-full left-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 min-w-[210px] z-[100]">
         {ov && (
           <Link href={ov.href} onClick={() => setOpen(null)}
             className={cn(
@@ -95,13 +91,11 @@ export default function TopNav() {
               pathname === ov.href || pathname.startsWith(ov.href + "/")
                 ? "text-[var(--primary)] bg-[var(--primary-light)]"
                 : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
-            )}
-          >
+            )}>
             <LayoutGrid className="w-3.5 h-3.5 shrink-0 opacity-60" />
             {ov.label}
           </Link>
         )}
-        {/* Sub-items */}
         {items.map(item => (
           <Link key={item.href} href={item.href} onClick={() => setOpen(null)}
             className={cn(
@@ -109,8 +103,7 @@ export default function TopNav() {
               pathname === item.href || pathname.startsWith(item.href + "/")
                 ? "text-[var(--primary)] font-semibold bg-[var(--primary-light)]"
                 : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
-            )}
-          >
+            )}>
             {item.label}
           </Link>
         ))}
@@ -118,14 +111,12 @@ export default function TopNav() {
     )
   }
 
-  // ── Single nav tab (button → dropdown OR plain link for Dashboard) ────────
-  function NavTab({ section, dimmed = false }: { section: TopNavSection; dimmed?: boolean }) {
+  // Renders a single tab — inline function so it shares closures but is NOT a React component
+  function renderTab(section: TopNavSection, dimmed = false) {
     const isActive = activeSection === section.key
-    const isOpen   = openSection === section.key
-    const isDash   = section.key === "dashboard"
-
+    const isOpen   = open === section.key
     const cls = cn(
-      "flex items-center gap-0.5 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
+      "flex items-center gap-0.5 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer",
       isActive
         ? "bg-[var(--nav-active)] text-white font-semibold"
         : dimmed
@@ -133,22 +124,25 @@ export default function TopNav() {
           : "text-[rgba(255,255,255,0.75)] hover:bg-[var(--nav-hover)] hover:text-white"
     )
 
-    if (isDash) {
-      return <Link href="/dashboard" className={cls}>{section.label}</Link>
+    if (section.key === "dashboard") {
+      return (
+        <Link key={section.key} href="/dashboard" className={cls}>
+          {section.label}
+        </Link>
+      )
     }
 
     return (
-      <div className="relative">
-        <button onClick={() => toggle(section.key)} className={cls}>
+      <div key={section.key} className="relative">
+        <button type="button" onClick={() => toggle(section.key)} className={cls}>
           {section.label}
           <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", isOpen && "rotate-180")} />
         </button>
-        {isOpen && <SectionPanel sectionKey={section.key} />}
+        {isOpen && renderPanel(section.key)}
       </div>
     )
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <header ref={navRef}
       className="h-[52px] bg-[var(--nav-bg)] flex items-center px-4 gap-1 shrink-0 z-50 relative print:hidden">
@@ -163,35 +157,33 @@ export default function TopNav() {
         </span>
       </Link>
 
-      {/* Desktop nav — BottomNav + MoreDrawer handle mobile */}
+      {/* Desktop nav */}
       <nav className="hidden md:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide">
 
         {/* Left core: Dashboard · Banking · Sales · Purchases */}
-        {leftNav.map(s => <NavTab key={s.key} section={s} />)}
+        {leftNav.map(s => renderTab(s))}
 
         {/* Tenant add-on tabs — inline between Purchases and Accounting */}
         {installedMods.length > 0 && <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />}
-        {installedMods.map(s => <NavTab key={s.key} section={s} />)}
+        {installedMods.map(s => renderTab(s))}
         {installedMods.length > 0 && <span className="w-px h-4 bg-white/20 mx-1 shrink-0" aria-hidden />}
 
         {/* Right core: Accounting · Reports */}
-        {rightNav.map(s => <NavTab key={s.key} section={s} />)}
+        {rightNav.map(s => renderTab(s))}
 
-        {/* More ▾ — custom / saved reports + quick access to add-on settings */}
+        {/* More ▾ — custom reports + add-ons shortcut */}
         <div className="relative">
-          <button onClick={() => toggle("__more__")}
+          <button type="button" onClick={() => toggle("__more__")}
             className={cn(
-              "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
-              openSection === "__more__"
+              "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer",
+              open === "__more__"
                 ? "bg-[var(--nav-hover)] text-white"
                 : "text-[rgba(255,255,255,0.55)] hover:bg-[var(--nav-hover)] hover:text-white"
             )}>
-            More <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", openSection === "__more__" && "rotate-180")} />
+            More <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", open === "__more__" && "rotate-180")} />
           </button>
-          {openSection === "__more__" && (
-            <div className="absolute top-full right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[220px] z-50">
-
-              {/* Custom Reports */}
+          {open === "__more__" && (
+            <div className="absolute top-full right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 min-w-[220px] z-[100]">
               <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
                 Custom Reports
               </p>
@@ -210,8 +202,6 @@ export default function TopNav() {
                 <LayoutGrid className="w-3.5 h-3.5 shrink-0 opacity-50" />
                 Saved Reports
               </Link>
-
-              {/* Add-ons — accessible from Settings */}
               {isAdmin && (
                 <>
                   <div className="border-t border-[var(--border-light)] mt-1 pt-1" />
@@ -230,21 +220,20 @@ export default function TopNav() {
         </div>
       </nav>
 
-      {/* Right side — ml-auto keeps this flush right on mobile too */}
+      {/* Right side */}
       <div className="flex items-center gap-1.5 ml-auto shrink-0">
         <Link href="/settings" title="Settings"
           className="p-1.5 rounded-md text-[rgba(255,255,255,0.70)] hover:text-white hover:bg-[var(--nav-hover)] transition-colors">
           <Settings className="w-4 h-4" />
         </Link>
 
-        {/* User avatar + dropdown */}
         <div ref={userRef} className="relative">
-          <button onClick={() => setUserOpen(o => !o)} title={userName}
-            className="w-7 h-7 bg-[var(--primary)] rounded-full flex items-center justify-center text-white text-[11px] font-bold hover:bg-[var(--primary-dark)] transition-colors">
-            {userInitial}
+          <button type="button" onClick={() => setUserOpen(o => !o)} title={userName}
+            className="w-7 h-7 bg-[var(--primary)] rounded-full flex items-center justify-center text-white text-[11px] font-bold hover:bg-[var(--primary-dark)] transition-colors cursor-pointer">
+            {initial}
           </button>
           {userOpen && (
-            <div className="absolute top-full right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+            <div className="absolute top-full right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 min-w-[160px] z-[100]">
               <div className="px-4 py-2.5 border-b border-[var(--border-light)]">
                 <div className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{userName}</div>
               </div>
@@ -252,7 +241,7 @@ export default function TopNav() {
                 className="flex items-center gap-2 px-4 py-2 text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-page)] transition-colors">
                 <UserCircle className="w-3.5 h-3.5" /> My Profile
               </Link>
-              <button onClick={handleLogout}
+              <button type="button" onClick={handleLogout}
                 className="w-full text-left flex items-center gap-2 px-4 py-2 text-[13px] text-[var(--danger)] hover:bg-[var(--bg-page)] transition-colors">
                 <LogOut className="w-3.5 h-3.5" /> Sign out
               </button>
