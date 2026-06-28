@@ -5,12 +5,12 @@ Queries all major entities for the current tenant in a single request.
 All queries are tenant-scoped; cross-tenant data is never returned.
 """
 from fastapi import APIRouter, Query
-from sqlmodel import or_, select
+from sqlalchemy import or_
+from sqlmodel import select
 
-from db import SessionDep
 from models import (Account, Bill, Customer, Employee, Invoice,
                     Product, Transaction, Vendor)
-from routers.common import CurrentUserDep
+from .common import CurrentUserDep, SessionDep
 
 router = APIRouter()
 
