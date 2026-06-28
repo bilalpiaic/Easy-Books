@@ -13,8 +13,8 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
 from models import (
-    Account, Bill, Budget, Customer, Invoice, JournalEntry, PaymentAllocation,
-    Product, Transaction,
+    Account, Bill, Budget, Customer, Invoice, InvoiceLine, JournalEntry,
+    PaymentAllocation, Product, ProductCategory, Transaction,
 )
 from services.account_tree import build_account_tree
 from services.export_utils import stream_csv, stream_xlsx
@@ -1375,10 +1375,35 @@ def inventory_performance(
     start: Optional[str] = None, end: Optional[str] = None,
 ):
     from models import StockMovement
+
     prods = session.exec(
         select(Product).where(Product.tenant_id == user.tenant_id,
                               Product.product_type == "stock")
     ).all()
+
+    # Pre-load all tenant categories for name resolution (avoids N+1)
+    cats = {c.id: c for c in session.exec(
+        select(ProductCategory).where(ProductCategory.tenant_id == user.tenant_id)
+    ).all()}
+
+    # Batch-load invoice lines for all products in one query, filtering by period
+    inv_q = (
+        select(InvoiceLine.product_id, InvoiceLine.amount)
+        .join(Invoice, Invoice.id == InvoiceLine.invoice_id)
+        .where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.status.in_(["posted", "partial", "paid"]),
+        )
+    )
+    if start:
+        inv_q = inv_q.where(Invoice.issue_date >= start)
+    if end:
+        inv_q = inv_q.where(Invoice.issue_date <= end)
+    sales_by_product: dict[int, Decimal] = {}
+    for pid, amt in session.exec(inv_q).all():
+        if pid is not None:
+            sales_by_product[pid] = sales_by_product.get(pid, ZERO) + D(amt)
+
     out = []
     for p in prods:
         mv = session.exec(
@@ -1395,6 +1420,18 @@ def inventory_performance(
              and (not end or m.occurred_at.date().isoformat() <= end)),
             start=ZERO,
         )
+        cogs_val = money(units_sold * D(p.avg_cost))
+        sales_val = money(sales_by_product.get(p.id, ZERO))
+        # Resolve category name
+        cat = cats.get(p.category_id) if p.category_id else None
+        if cat:
+            parent = cats.get(cat.parent_id) if cat.parent_id else None
+            cat_name = f"{parent.name} › {cat.name}" if parent else cat.name
+        else:
+            cat_name = None
+
+        sv = D(sales_val)
+        margin_pct = float(round((sv - D(cogs_val)) / sv * 100, 1)) if sv > 0 else None
         out.append({
             "id": p.id, "name": p.name, "code": p.code,
             "on_hand": D(p.stock_qty), "avg_cost": D(p.avg_cost),
@@ -1402,7 +1439,9 @@ def inventory_performance(
             "reorder_level": D(p.reorder_level),
             "low_stock": D(p.stock_qty) <= D(p.reorder_level),
             "last_movement": last, "units_sold": units_sold,
-            "cogs": money(units_sold * D(p.avg_cost)),
+            "cogs": cogs_val, "sales_value": sales_val,
+            "margin_pct": margin_pct,
+            "category_id": p.category_id, "category_name": cat_name,
         })
     out.sort(key=lambda r: r["stock_value"], reverse=True)
     return {"items": out}

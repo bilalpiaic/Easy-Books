@@ -8,6 +8,11 @@ export interface InventoryPerfItem {
   stock_value: number | string
   low_stock: boolean
   units_sold: number | string
+  sales_value?: number | string | null
+  cogs?: number | string | null
+  margin_pct?: number | null
+  category_id?: number | null
+  category_name?: string | null
 }
 
 export interface InventoryTotals { totalValue: number; itemCount: number; lowStock: number }
