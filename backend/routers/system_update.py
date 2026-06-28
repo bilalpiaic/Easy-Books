@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from auth import CurrentUserDep
+from routers.common import CurrentUserDep
 
 router = APIRouter()
 
