@@ -169,17 +169,17 @@ export const TOP_NAV: TopNavSection[] = [
 /** Pathname-prefix → top-nav section key mapping */
 const SECTION_PREFIXES: Record<string, string[]> = {
   dashboard:     ["/dashboard"],
-  banking:       ["/bank-accounts", "/bank-book", "/cash-book", "/reconciliations", "/bank-imports", "/exchange-rates"],
-  sales:         ["/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
-  purchases:     ["/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable"],
+  banking:       ["/banking", "/bank-accounts", "/bank-book", "/cash-book", "/reconciliations", "/bank-imports", "/exchange-rates"],
+  sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
+  purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets"],
   reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance", "/inventory/performance", "/reports"],
-  inventory:     ["/products", "/inventory"],
-  payroll:       ["/payroll", "/employees", "/hrm", "/attendance"],
+  inventory:     ["/inventory", "/products"],
+  payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
-  pra:           ["/pra-logs", "/pra-dashboard"],
+  pra:           ["/pra-dashboard", "/pra-logs"],
   settings:      ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow"],
 }
 
@@ -193,16 +193,16 @@ export function getActiveSection(pathname: string): string {
   return "dashboard"
 }
 
-/** Default landing href when a top-nav section is clicked */
+/** Default landing href when a top-nav section is clicked — points to the hub/overview page */
 export function getSectionHref(key: string): string {
   const map: Record<string, string> = {
     dashboard:     "/dashboard",
-    banking:       "/bank-accounts",
-    sales:         "/customers",
-    purchases:     "/vendors",
-    accounting:    "/journal",
+    banking:       "/banking",
+    sales:         "/receivable",
+    purchases:     "/payable",
+    accounting:    "/entry",
     reports:       "/trial-balance",
-    inventory:     "/products",
+    inventory:     "/inventory",
     payroll:       "/hrm",
     healthcare:    "/healthcare",
     manufacturing: "/manufacturing",
