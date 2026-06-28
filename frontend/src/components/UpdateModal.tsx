@@ -670,7 +670,7 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
           </button>
         </div>
 
-        {/* Version row */}
+        {/* Version row — use API's git HEAD for commit (env var is baked at build time) */}
         <div className="flex flex-wrap items-start gap-x-4 gap-y-2 bg-[var(--bg-page)] rounded-xl px-4 py-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40 mb-0.5">Version</p>
@@ -679,7 +679,10 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
           <div className="w-px self-stretch bg-[var(--border)]" />
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40 mb-0.5">Commit</p>
-            <p className="font-mono font-bold text-[var(--text-primary)]">{shortCur}</p>
+            {/* Prefer the live git HEAD from the API; fall back to build-time env var */}
+            <p className="font-mono font-bold text-[var(--text-primary)]">
+              {commitStatus?.local ?? shortCur}
+            </p>
           </div>
           {builtOn && (
             <>
@@ -690,7 +693,17 @@ export default function UpdateModal({ onClose }: UpdateModalProps) {
               </div>
             </>
           )}
-          {!isDesktop() && ghState === 'ok' && ghVersion && (
+          {/* Show remote commit when available — more informative than just the tag */}
+          {!isDesktop() && commitStatus?.remote && commitStatus.remote !== commitStatus.local && (
+            <>
+              <div className="w-px self-stretch bg-[var(--border)]" />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/40 mb-0.5">GitHub</p>
+                <p className="font-mono font-bold text-[var(--primary)]">{commitStatus.remote}</p>
+              </div>
+            </>
+          )}
+          {!isDesktop() && ghState === 'ok' && ghVersion && ghVersion !== normalCurrent && (
             <>
               <div className="w-px self-stretch bg-[var(--border)]" />
               <div>

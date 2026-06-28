@@ -130,6 +130,39 @@ async def update_status_check(current_user: CurrentUserDep):
     }
 
 
+@router.get("/api/system/update/changelog")
+async def get_changelog(
+    current_user: CurrentUserDep,
+    since: str = "",
+    limit: int = 10,
+):
+    """Return recent git commit messages (for post-update what's-new display)."""
+    if current_user.role not in ("admin", "owner"):
+        from fastapi import HTTPException
+        raise HTTPException(403, "Admin or owner required")
+
+    limit = max(1, min(limit, 30))
+    if since:
+        raw = _git("log", f"{since}..HEAD", f"--max-count={limit}", "--pretty=format:%h|%s|%as")
+    else:
+        raw = _git("log", f"--max-count={limit}", "--pretty=format:%h|%s|%as")
+
+    commits = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split("|", 2)
+        if len(parts) >= 2:
+            commits.append({
+                "sha":     parts[0],
+                "message": parts[1],
+                "date":    parts[2] if len(parts) > 2 else "",
+            })
+
+    return {"commits": commits}
+
+
 def _fetch_remote_sha() -> str | None:
     """Fetch latest commit SHA on main branch from GitHub API."""
     url = (
