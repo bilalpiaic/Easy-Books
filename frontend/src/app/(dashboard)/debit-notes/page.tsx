@@ -136,7 +136,8 @@ export default function DebitNotesPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-[var(--bg-page)]">
             <tr>{['Number', 'Vendor', 'Date', 'Total', 'Status'].map(h => (
               <th key={h} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50">{h}</th>
@@ -162,6 +163,7 @@ export default function DebitNotesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {modalOpen && (

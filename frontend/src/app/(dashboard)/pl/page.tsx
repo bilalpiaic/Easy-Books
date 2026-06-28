@@ -271,7 +271,8 @@ export default function PnLPage() {
               ) : treeRevenue.length === 0 ? (
                 <div className="text-sm text-[var(--text-primary)]/75 italic">No revenue in selected period.</div>
               ) : (
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[320px]">
                   <tbody className="divide-y divide-[var(--text-primary)]/5">
                     <AccountTreeRows
                       nodes={treeRevenue}
@@ -284,6 +285,7 @@ export default function PnLPage() {
                     />
                   </tbody>
                 </table>
+                </div>
               )}
               <div className="flex justify-between pt-4 border-t border-[var(--text-primary)]/5 font-bold">
                 <span className="text-[var(--text-primary)]">Total Revenue</span>
@@ -298,7 +300,8 @@ export default function PnLPage() {
               ) : treeExpenses.length === 0 ? (
                 <div className="text-sm text-[var(--text-primary)]/75 italic">No expenses in selected period.</div>
               ) : (
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[320px]">
                   <tbody className="divide-y divide-[var(--text-primary)]/5">
                     <AccountTreeRows
                       nodes={treeExpenses}
@@ -311,6 +314,7 @@ export default function PnLPage() {
                     />
                   </tbody>
                 </table>
+                </div>
               )}
               <div className="flex justify-between pt-4 border-t border-[var(--text-primary)]/5 font-bold text-red-600">
                 <span>Total Operating Expenses</span>

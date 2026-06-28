@@ -65,8 +65,8 @@ export default function TopNav() {
         </span>
       </Link>
 
-      {/* ── Core nav items ───────────────────────────── */}
-      <nav className="flex items-center gap-0.5 flex-1 overflow-hidden">
+      {/* ── Core nav items — hidden on mobile (BottomNav handles mobile nav) ── */}
+      <nav className="hidden md:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide">
         {coreNav.map(section => (
           <Link
             key={section.key}

@@ -292,7 +292,8 @@ export default function PromoDiscountsPage() {
             No promo rules yet. Create one to apply automatic discounts on invoices.
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-[var(--bg-page)]">
               <tr>
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">Rule</th>
@@ -343,6 +344,7 @@ export default function PromoDiscountsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

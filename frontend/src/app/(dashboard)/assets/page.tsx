@@ -167,7 +167,8 @@ export default function AssetsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-[var(--bg-page)]">
             <tr>
               {['Name', 'Date', 'Cost', 'Accum. Depr', 'Book Value', 'Method', 'Actions'].map(h => (
@@ -224,6 +225,7 @@ export default function AssetsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {modalOpen && (

@@ -149,7 +149,8 @@ const docNoun = tab === "customer" ? "invoice" : "bill"
       </div>
 
       <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead className="bg-[var(--bg-page)]">
             <tr>{['Number', 'Date', 'Amount', 'Applied', 'Remaining', 'Status', ''].map((h, i) => (
               <th key={i} className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/50">{h}</th>
@@ -181,6 +182,7 @@ const docNoun = tab === "customer" ? "invoice" : "bill"
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Record modal */}

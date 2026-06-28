@@ -130,7 +130,8 @@ export default function PaymentTermsPage() {
         </div>
       ) : (
         <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[480px]">
             <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
               <tr>
                 <th className="text-left px-4 py-2.5">Code</th>
@@ -167,6 +168,7 @@ export default function PaymentTermsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

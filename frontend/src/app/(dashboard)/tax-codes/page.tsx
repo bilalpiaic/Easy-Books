@@ -363,7 +363,8 @@ function CodeTable({
     <div>
       <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]/50 mb-2">{title}</h2>
       <div className={`bg-white border border-[var(--border)] rounded-xl overflow-hidden ${dimmed ? "opacity-60" : ""}`}>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
               <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-24">Code</th>
@@ -417,6 +418,7 @@ function CodeTable({
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

@@ -232,7 +232,8 @@ export default function RecurringPage() {
       )}
 
       <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Name</th>
@@ -305,6 +306,7 @@ export default function RecurringPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Create modal */}
