@@ -163,6 +163,28 @@ export function useFmt() {
   return (n: number) => fmtNum(n, dp)
 }
 
+/** Compact number formatter for KPI tiles: 1,234,567 → 1.23M, 12,345 → 12.3K. */
+export function fmtCompact(n: number): string {
+  const val = n || 0
+  const abs = Math.abs(val)
+  let result: string
+  if (abs >= 1_000_000_000) {
+    result = (abs / 1_000_000_000).toFixed(2).replace(/\.?0+$/, "") + "B"
+  } else if (abs >= 1_000_000) {
+    result = (abs / 1_000_000).toFixed(2).replace(/\.?0+$/, "") + "M"
+  } else if (abs >= 10_000) {
+    result = (abs / 1_000).toFixed(1).replace(/\.0$/, "") + "K"
+  } else {
+    result = Math.round(abs).toLocaleString("en-PK")
+  }
+  return val < 0 ? `(${result})` : result
+}
+
+/** Hook returning the compact formatter — for dashboard KPI tiles. */
+export function useFmtCompact() {
+  return fmtCompact
+}
+
 /** Returns the tenant's active currency code (e.g. "PKR"). */
 export function useCurrency(): string {
   const { settings } = useSettings()

@@ -226,8 +226,8 @@ body {
   [class*="rounded"] { border-radius: 0 !important; }
   [class*="shadow"]  { box-shadow: none !important; }
 
-  /* Muted text colours → solid black */
-  [class*="text-"][class*="/"] { color: #000 !important; }
+  /* All text → solid opaque black (catches opacity utilities like /60, /50) */
+  * { color: #000 !important; opacity: 1 !important; }
   /* All coloured borders → plain black */
   [class*="border-"] { border-color: #000 !important; }
 

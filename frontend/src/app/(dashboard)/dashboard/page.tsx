@@ -11,7 +11,7 @@ import {
   PointElement, ArcElement, Title, Tooltip, Legend, Filler,
   type ChartOptions,
 } from "chart.js"
-import { useFmt, useSettings } from "@/context/SettingsContext"
+import { useFmt, useFmtCompact, useSettings } from "@/context/SettingsContext"
 import { apiFetch } from "@/lib/api"
 import DateRangePicker from "@/components/DateRangePicker"
 import DashboardGrid from "@/components/dashboard/DashboardGrid"
@@ -38,7 +38,8 @@ function defaultRange() {
 }
 
 export default function Dashboard() {
-  const fmt = useFmt()
+  const fmt = useFmtCompact()
+  const fmtFull = useFmt()
   const range = defaultRange()
   const [start, setStart] = useState(range.start)
   const [end, setEnd]     = useState(range.end)
@@ -120,7 +121,7 @@ export default function Dashboard() {
 
   const baseChartOpts: ChartOptions<"bar"> = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y as number) } } },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtFull(ctx.parsed.y as number) } } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 10 } } },
       y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmt(v as number) } },
@@ -128,7 +129,7 @@ export default function Dashboard() {
   }
   const lineOpts: ChartOptions<"line"> = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt((ctx.parsed.y ?? 0) as number) } } },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtFull((ctx.parsed.y ?? 0) as number) } } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 10 } } },
       y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: v => fmt(v as number) } },
@@ -138,7 +139,7 @@ export default function Dashboard() {
     responsive: true, maintainAspectRatio: false,
     plugins: {
       legend: { position: "right", labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } },
-      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}` } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmtFull(ctx.parsed)}` } },
     },
     cutout: "62%",
   }
