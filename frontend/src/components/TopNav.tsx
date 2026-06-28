@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { Settings, ChevronDown, LogOut, UserCircle } from "lucide-react"
+import { Settings, ChevronDown, LogOut, UserCircle, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { useSettings } from "@/context/SettingsContext"
@@ -44,8 +44,8 @@ export default function TopNav() {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  const coreNav   = TOP_NAV.filter(s => !s.forModule)
-  const moduleNav = TOP_NAV.filter(s => s.forModule && installedModules.has(s.forModule))
+  const coreNav    = TOP_NAV.filter(s => !s.forModule)
+  const allModules = TOP_NAV.filter(s => !!s.forModule)
 
   const handleLogout = () => {
     removeAuthToken()
@@ -82,41 +82,66 @@ export default function TopNav() {
           </Link>
         ))}
 
-        {/* ── More ▾ dropdown (module-gated sections) ── */}
-        {moduleNav.length > 0 && (
-          <div ref={moreRef} className="relative">
-            <button
-              onClick={() => setMoreOpen(o => !o)}
-              className={cn(
-                "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
-                moduleNav.some(s => s.key === activeSection)
-                  ? "bg-[var(--nav-active)] text-white font-semibold"
-                  : "text-[rgba(255,255,255,0.70)] hover:bg-[var(--nav-hover)] hover:text-white"
-              )}
-            >
-              More <ChevronDown className="w-3 h-3" />
-            </button>
-            {moreOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[160px] z-50">
-                {moduleNav.map(section => (
+        {/* ── More ▾ dropdown — always visible; shows all add-on modules ── */}
+        <div ref={moreRef} className="relative">
+          <button
+            onClick={() => setMoreOpen(o => !o)}
+            className={cn(
+              "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors",
+              allModules.some(s => s.key === activeSection)
+                ? "bg-[var(--nav-active)] text-white font-semibold"
+                : "text-[rgba(255,255,255,0.70)] hover:bg-[var(--nav-hover)] hover:text-white"
+            )}
+          >
+            More <ChevronDown className="w-3 h-3" />
+          </button>
+          {moreOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-lg py-1 min-w-[180px] z-50">
+              {allModules.map(section => {
+                const installed = installedModules.has(section.forModule!)
+                if (installed) {
+                  return (
+                    <Link
+                      key={section.key}
+                      href={getSectionHref(section.key)}
+                      onClick={() => setMoreOpen(false)}
+                      className={cn(
+                        "block px-4 py-2 text-[13px] transition-colors",
+                        activeSection === section.key
+                          ? "text-[var(--primary)] font-semibold bg-[var(--primary-light)]"
+                          : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                      )}
+                    >
+                      {section.label}
+                    </Link>
+                  )
+                }
+                return (
                   <Link
                     key={section.key}
-                    href={getSectionHref(section.key)}
+                    href="/apps"
                     onClick={() => setMoreOpen(false)}
-                    className={cn(
-                      "block px-4 py-2 text-[13px] transition-colors",
-                      activeSection === section.key
-                        ? "text-[var(--primary)] font-semibold bg-[var(--primary-light)]"
-                        : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
-                    )}
+                    className="flex items-center justify-between px-4 py-2 text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-page)] transition-colors"
                   >
-                    {section.label}
+                    <span className="opacity-50">{section.label}</span>
+                    <span className="flex items-center gap-0.5 text-[10px] text-[var(--primary)] font-semibold">
+                      <Plus className="w-2.5 h-2.5" />Install
+                    </span>
                   </Link>
-                ))}
+                )
+              })}
+              <div className="border-t border-[var(--border-light)] mt-1 pt-1">
+                <Link
+                  href="/apps"
+                  onClick={() => setMoreOpen(false)}
+                  className="block px-4 py-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+                >
+                  Manage Add-ons →
+                </Link>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* ── Right side — ml-auto pushes to far right on mobile (nav hidden) + desktop ── */}

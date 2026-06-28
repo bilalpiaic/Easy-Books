@@ -47,8 +47,26 @@ export default function MoreDrawer({ open, onClose }: Props) {
         </div>
         <div className="p-4 space-y-4 pb-8">
           {TOP_NAV.map((section) => {
-            // Hide sections whose module isn't installed
-            if (section.forModule && !installedModules.has(section.forModule)) return null
+            const notInstalled = section.forModule && !installedModules.has(section.forModule)
+
+            // Uninstalled module section — show as a single "Install" row
+            if (notInstalled) {
+              return (
+                <div key={section.key}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]/50 mb-2">
+                    {section.label}
+                  </p>
+                  <Link
+                    href="/apps"
+                    onClick={onClose}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-row-hover)] transition-colors"
+                  >
+                    <span className="opacity-60">Not installed</span>
+                    <span className="text-[11px] text-[var(--primary)] font-semibold">+ Install</span>
+                  </Link>
+                </div>
+              )
+            }
 
             const items = (SUB_NAV[section.key] ?? []).filter(item => {
               if (item.forModule && !installedModules.has(item.forModule)) return false
