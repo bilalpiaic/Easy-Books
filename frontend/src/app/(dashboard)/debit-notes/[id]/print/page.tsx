@@ -98,7 +98,7 @@ export default function DebitNotePrintPage({ params }: { params: Promise<{ id: s
               {dn.lines.map(ln => (
                 <tr key={ln.id}>
                   <td className="px-3 py-2">{ln.description}</td>
-                  <td className="px-3 py-2 text-right font-mono">{ln.qty} {ln.unit ?? ""}</td>
+                  <td className="px-3 py-2 text-right font-mono">{fmt(ln.qty)} {ln.unit ?? ""}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.rate)}</td>
                   <td className="px-3 py-2 text-right font-mono">{fmt(ln.amount)}</td>
                 </tr>

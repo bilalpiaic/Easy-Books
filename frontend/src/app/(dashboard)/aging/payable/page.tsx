@@ -30,11 +30,11 @@ interface AgingData {
 }
 
 const BUCKETS = [
-  { key: "current",  label: "Current",   color: "bg-green-50 border-green-200 text-green-700" },
-  { key: "1_30",    label: "1-30 Days",  color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-  { key: "31_60",   label: "31-60 Days", color: "bg-orange-50 border-orange-200 text-orange-700" },
-  { key: "61_90",   label: "61-90 Days", color: "bg-red-50 border-red-200 text-red-700" },
-  { key: "over_90", label: "90+ Days",   color: "bg-red-100 border-red-300 text-red-800" },
+  { key: "current",  label: "Current",   bucketLabel: "current", color: "bg-green-50 border-green-200 text-green-700" },
+  { key: "1_30",     label: "1-30 Days", bucketLabel: "1-30",    color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+  { key: "31_60",    label: "31-60 Days",bucketLabel: "31-60",   color: "bg-orange-50 border-orange-200 text-orange-700" },
+  { key: "61_90",    label: "61-90 Days",bucketLabel: "61-90",   color: "bg-red-50 border-red-200 text-red-700" },
+  { key: "over_90",  label: "90+ Days",  bucketLabel: "90+",     color: "bg-red-100 border-red-300 text-red-800" },
 ] as const
 
 export default function APAgingPage() {
@@ -43,6 +43,7 @@ export default function APAgingPage() {
   const fmt = useFmt()
   const [data, setData] = useState<AgingData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedBucket, setSelectedBucket] = useState<string | null>(null)
 
   useEffect(() => {
     setIsLoading(true)
@@ -62,6 +63,11 @@ export default function APAgingPage() {
       Bucket: r.bucket,
     })))
   }
+
+  const activeBucket = BUCKETS.find(b => b.key === selectedBucket) ?? null
+  const filteredItems = data
+    ? (activeBucket ? data.items.filter(i => i.bucket === activeBucket.bucketLabel) : data.items)
+    : []
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -92,21 +98,48 @@ export default function APAgingPage() {
 
       <PrintHeader title="AP Aging Report" subtitle={`As of ${fmtDateJs(new Date())}`} orientation="landscape" />
 
-      {/* Bucket summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8 print:hidden">
-        {BUCKETS.map(b => (
-          <div key={b.key} className={`rounded-xl border p-4 ${b.color}`}>
-            <p className="text-xs font-bold uppercase tracking-widest mb-1 opacity-70">{b.label}</p>
-            <p className="text-lg font-mono font-bold">
-              {data ? fmt(data[b.key as keyof AgingData] as number) : "—"}
-            </p>
-          </div>
-        ))}
+      {/* Bucket summary cards — click to filter the table below */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 print:hidden">
+        {BUCKETS.map(b => {
+          const isActive = selectedBucket === b.key
+          const isDimmed = selectedBucket !== null && !isActive
+          return (
+            <button
+              key={b.key}
+              onClick={() => setSelectedBucket(prev => prev === b.key ? null : b.key)}
+              className={`rounded-xl border p-4 text-left transition-all select-none ${b.color}
+                ${isActive ? "ring-2 ring-inset shadow-md scale-[1.02]" : "hover:shadow-sm hover:scale-[1.01]"}
+                ${isDimmed ? "opacity-40" : ""}`}
+              title={isActive ? "Click to show all" : `Filter by ${b.label}`}
+            >
+              <p className="text-xs font-bold uppercase tracking-widest mb-1 opacity-70">{b.label}</p>
+              <p className="text-lg font-mono font-bold">
+                {data ? fmt(data[b.key as keyof AgingData] as number) : "—"}
+              </p>
+            </button>
+          )
+        })}
       </div>
+
+      {/* Active filter indicator */}
+      {selectedBucket && (
+        <div className="flex items-center justify-between mb-4 px-1 print:hidden">
+          <p className="text-xs text-[var(--text-primary)]/50">
+            Showing <strong>{filteredItems.length}</strong> item{filteredItems.length !== 1 ? "s" : ""} in <strong>{activeBucket?.label}</strong>
+          </p>
+          <button
+            onClick={() => setSelectedBucket(null)}
+            className="text-xs text-[var(--primary)] hover:underline underline-offset-2"
+          >
+            Show all
+          </button>
+        </div>
+      )}
+      {!selectedBucket && <div className="mb-4" />}
 
       {/* Items table */}
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden print:rounded-none print:shadow-none print:border-0">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto freeze-col">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
@@ -123,12 +156,14 @@ export default function APAgingPage() {
                 <tr>
                   <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/75">{t('common.loading', 'Loading...')}</td>
                 </tr>
-              ) : !data || data.items.length === 0 ? (
+              ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/75">No outstanding payables.</td>
+                  <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/75">
+                    {selectedBucket ? "No items in this bucket." : "No outstanding payables."}
+                  </td>
                 </tr>
               ) : (
-                data.items.map(item => (
+                filteredItems.map(item => (
                   <tr key={item.id} className="hover:bg-[var(--bg-page)]/30 transition-colors">
                     <td className="ui-td font-medium text-[var(--text-primary)]">
                       {item.vendor_id ? (

@@ -224,7 +224,7 @@ function PvTemplate({ txn }: { txn: Txn }) {
         <tbody className="divide-y divide-[var(--border)]">
           {payToEntries.map((e, i) => (
             <tr key={i}>
-              <td className="px-3 py-2 text-[var(--text-primary)]/40 text-xs">{i + 1}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-[var(--text-primary)]/40">{i + 1}</td>
               <td className="px-3 py-2">{e.account_name}</td>
               <td className="px-3 py-2 text-right font-mono">{fmt(e.debit)}</td>
             </tr>
@@ -321,7 +321,7 @@ function RvTemplate({ txn }: { txn: Txn }) {
         <tbody className="divide-y divide-[var(--border)]">
           {receivedFromEntries.map((e, i) => (
             <tr key={i}>
-              <td className="px-3 py-2 text-[var(--text-primary)]/40 text-xs">{i + 1}</td>
+              <td className="px-3 py-2 text-right font-mono text-xs text-[var(--text-primary)]/40">{i + 1}</td>
               <td className="px-3 py-2">{e.account_name}</td>
               <td className="px-3 py-2 text-right font-mono">{fmt(e.credit)}</td>
             </tr>

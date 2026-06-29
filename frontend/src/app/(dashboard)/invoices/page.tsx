@@ -165,7 +165,7 @@ function InvoicesContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 print:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white rounded-lg border border-[var(--border)] p-6">
           <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Outstanding</p>
           <p className="text-2xl font-bold text-[var(--primary)] mt-2">{fmt(outstanding)}</p>
@@ -241,7 +241,7 @@ function InvoicesContent() {
       />
 
       <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block print:block overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead className="sticky top-0 z-10 bg-[var(--bg-page)] border-b border-[var(--border)]">
               <tr>
@@ -345,7 +345,7 @@ function InvoicesContent() {
         </div>
 
         {/* Mobile card list */}
-        <div className="md:hidden divide-y divide-[var(--border)]">
+        <div className="md:hidden print:hidden divide-y divide-[var(--border)]">
           {loading ? (
             <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">Loading…</div>
           ) : invoices.length === 0 ? (
