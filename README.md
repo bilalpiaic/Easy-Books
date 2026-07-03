@@ -48,20 +48,23 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Trial Balance, General Ledger (with **Opening / Closing Balance** on date-filtered views), Income Statement, Balance Sheet, Cash Flow (indirect)
 - **Hierarchical statements** — Trial Balance, Balance Sheet and P&L roll up over the multi-level CoA with parent subtotals, expand/collapse, and click-through drill-down from a leaf line into its ledger and on to the voucher (`services/account_tree.py`)
 - Comparative-period P&L and Balance Sheet (IAS 1.38)
-- **AR Aging** & **AP Aging** — dedicated pages (`/aging/receivable`, `/aging/payable`) with Current/1–30/31–60/61–90/90+ buckets and drill-down to the customer/vendor ledger
+- **AR Aging** & **AP Aging** — dedicated pages (`/aging/receivable`, `/aging/payable`) with Current/1–30/31–60/61–90/90+ buckets and drill-down to the customer/vendor ledger; bucket summary cards are **clickable filters** — click a bucket to filter the detail table, click again or *Show all* to reset
 - **Product Ledger** (`/products/ledger`) — stock movements + running qty per product, single-store or consolidated
 - **Inventory Performance** (`/inventory/performance`) — on-hand qty, on-hand value, low-stock flag, last movement, units sold + COGS
 - **Customer Performance** (`/customer-performance`) — revenue, invoice count, outstanding AR, avg days-to-pay, ranked
 - Customer/Vendor sub-ledgers, Stock Card
 - Tax Summary (GST output/input), Analytic P&L (cost-centre dimension)
 - Budget vs Actual with monthly per-account variance
-- **Report Builder** — user-configurable reports (column chooser, click-to-filter, grouping/totals, saved views, CSV/XLSX export)
+- **Report Builder** — user-configurable reports (column chooser, click-to-filter, grouping/totals, saved views, CSV/XLSX export), backed by a whitelisted data-source registry + tenant-safe report engine on the backend
+- **Freeze panes (v3.1)** — table reports scroll inside a bounded viewport with a sticky header row and sticky totals row (`.table-freeze`); wide reports also lock the first column (`.freeze-col`) — Excel-style scrolling on aging, ledgers, performance and industry reports
 
 **Dashboard (v2.5+)**
 - Per-user drag-to-arrange, resize, show/hide widgets — layouts saved per-user via `/api/dashboard/layout`
 - Responsive 2D grid (react-grid-layout) — 4-col desktop / 2-col tablet / 1-col phone; per-breakpoint layouts saved independently
 - **Shortcut tiles** — pin any nav page (invoices, bills, bank accounts, …) as a dashboard tile with live metric badge (count / total)
-- **Data widgets** — opt-in Bank Balances, Top Products, Inventory Summary (self-fetching; zero additional backend queries)
+- **Data widgets** — opt-in Bank Balances, Top Products, Inventory Summary (self-fetching; zero additional backend queries); Top Customers and Top Products show the **top 10** entries
+- **Net Worth Trend (v3.1)** — combo chart widget: Assets as upward bars, Liabilities as downward bars around a zero axis, Net Worth as an overlaid line; 3M/6M/1Y/All range selector; click legend entries to toggle series
+- **Unified KPI cards (v3.1)** — all stat tiles render through one shared `KpiCard` component (tone variants, icon/no-icon layouts, dark-mode-safe theme variables)
 - **Cash-flow tie-out** — reconciling row on the Cash Flow statement shows ✓ (balanced) or amber delta per IAS 7
 
 **Navigation & UX (v2.7)**
@@ -75,7 +78,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Rich search results** — invoices and bills show status badge (color-coded) + amount; all results highlight the matching portion of the query; recent searches (top 5) stored in `localStorage` and shown as one-click chips
 - **Expanded search columns** — invoices searched across number, customer name, description, notes, status, and date; employees searched across name, code, department, designation, CNIC; transactions across JV#, description, party, reference, date, and voucher type
 - **Nav index** — 3-layer static index: all sidebar pages, 14 quick-action "New…" forms, 22 report/utility pages with keyword aliases (e.g. type "tb" to reach Trial Balance, "p&l" for Income Statement, "gst" for Tax Reports)
-- **TopNav portal dropdowns** — all dropdown panels rendered via `createPortal` at `document.body` with `position: fixed` from `getBoundingClientRect()`, avoiding overflow-x scroll container clipping; scrollable tab strip with left/right chevron arrows
+- **TopNav portal dropdowns** — all dropdown panels rendered via `createPortal` at `document.body` with `position: fixed` from `getBoundingClientRect()`, avoiding overflow-x scroll container clipping; scrollable tab strip with left/right chevron arrows; every dropdown item — including the section Overview row and mobile More-drawer items — renders as **icon + label** with uniform weight (v3.1)
 - **Dark nav inversion** — nav bar renders in cream/charcoal in dark mode (inverted vs the light theme), giving distinct visual contrast between navigation and page content
 
 **In-app Update System (v3.0)**
@@ -89,10 +92,12 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Multi-language support** — English, Urdu (اردو, RTL Nastaliq script), Chinese (中文); globe icon in header opens language dropdown; preference saved in `localStorage` (`eb.lang`) and synced to `/api/settings` (`app_language`); 314 translation keys across 10 namespaces covering all pages, status badges, action buttons, and table headers; RTL layout auto-applied for Urdu; `react-i18next` + `i18next` client-side only
 - **Mobile responsiveness** — sidebar width trimmed to 196 px; page titles, stats grids, aging grids, and form grids all apply responsive breakpoints so the UI stacks cleanly on phones; button toolbars wrap on narrow screens; line-item tables scroll horizontally; 61 files updated
 
-**Print system (v2.7)**
-- **Dot-matrix format** — all print output is black-and-white, no background fills; `@media print` strips UI chrome (buttons, filters, pagination, sort handles, checkbox columns, action columns)
+**Print system (v2.7, overhauled v3.1)**
+- **Dot-matrix format** — all print output is **Courier New** black-and-white, no background fills; `@media print` strips UI chrome (buttons, filters, pagination, sort handles, checkbox columns, action columns)
+- **Font-size caps** — Tailwind v4 font-size CSS variables are overridden in print so screen sizing never leaks into printouts; row spacing is compressed for denser data fit per page
 - **Date format** — `dd-mm-yy` used everywhere (e.g. `20-06-26`); `fmtDate()` / `fmtDateJs()` helpers in `utils.ts`
-- **Portrait / landscape auto-selection** — PrintHeader injects the correct `@page { size: A4 … }` rule via `useEffect`; landscape for wide tables (aging, performance, product ledger, journal list), portrait for everything else
+- **Portrait / landscape auto-selection** — PrintHeader injects the correct `@page { size: A4 … }` rule via `useEffect`; landscape for wide tables (aging, performance, product ledger, **General Ledger**, journal list), portrait for everything else
+- **Freeze-pane reset** — all `.table-freeze`/`.freeze-col` sticky positioning is neutralised under `@media print` so reports always paginate in full
 - **Currency prefix** — amount column headers show the currency code once; individual cells contain bare numbers
 - **Negative amounts** — displayed as `(1,234.56)` throughout; debit/credit columns use `—` for the zero side
 - **Column alignment** — Date and JV# cells are `whitespace-nowrap`; Description absorbs remaining width via natural table flow
@@ -383,6 +388,7 @@ Frontend: set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.loca
 
 | Document | Contents |
 |---|---|
+| [`docs/AI_INDEX.md`](./docs/AI_INDEX.md) | **Start here for AI agents / new contributors** — doc-ownership map, core invariants, ground-truth pointers |
 | [`USER_GUIDE.md`](./USER_GUIDE.md) | End-user walkthrough for every feature |
 | [`WORKFLOW.md`](./WORKFLOW.md) | Accounting workflows, GL Dr/Cr maps, report-linking matrix, API catalog |
 | [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) | One-click installer, Electron desktop app, data safety, update paths |
