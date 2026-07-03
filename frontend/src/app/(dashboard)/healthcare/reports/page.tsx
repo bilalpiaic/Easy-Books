@@ -101,7 +101,7 @@ function ReportContent({ tab, data, from, to }: { tab: Tab; data: unknown; from:
     return (
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Revenue by Type — {fmtDate(from)} to {fmtDate(to)}</h2>
-        <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-neutral-200 table-freeze">
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 text-xs text-neutral-500 uppercase">
               <tr>
@@ -135,7 +135,7 @@ function ReportContent({ tab, data, from, to }: { tab: Tab; data: unknown; from:
   if (tab === "doctors") {
     const rows = Array.isArray(data) ? data as Array<{ doctor_name: string; specialization?: string; total_visits: number; billed_visits: number; estimated_revenue: string }> : []
     return (
-      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-neutral-200 table-freeze">
         <div className="px-4 py-3 border-b border-neutral-100 font-medium text-sm">Doctor Collections — {fmtDate(from)} to {fmtDate(to)}</div>
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 text-xs text-neutral-500 uppercase">
@@ -200,7 +200,7 @@ function ReportContent({ tab, data, from, to }: { tab: Tab; data: unknown; from:
   if (tab === "ipd") {
     const rows = Array.isArray(data) ? data as Array<{ ward_name: string; ward_type: string; admissions: number; discharges: number; avg_length_of_stay_days: number; occupied_beds: number; total_beds: number }> : []
     return (
-      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-neutral-200 table-freeze">
         <div className="px-4 py-3 border-b border-neutral-100 font-medium text-sm">IPD Census — {fmtDate(from)} to {fmtDate(to)}</div>
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 text-xs text-neutral-500 uppercase">
@@ -234,7 +234,7 @@ function ReportContent({ tab, data, from, to }: { tab: Tab; data: unknown; from:
   if (tab !== "opd") return null
   const rows = Array.isArray(data) ? data as Array<{ doctor: string; date: string; visits: number }> : []
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-neutral-200 table-freeze">
       <div className="px-4 py-3 border-b border-neutral-100 font-medium text-sm">OPD Summary</div>
       <table className="w-full text-sm">
         <thead className="bg-neutral-50 text-xs text-neutral-500 uppercase">

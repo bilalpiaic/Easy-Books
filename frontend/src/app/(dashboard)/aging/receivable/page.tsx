@@ -139,7 +139,7 @@ export default function ARAgingPage() {
 
       {/* Items table */}
       <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden print:rounded-none print:shadow-none print:border-0">
-        <div className="overflow-x-auto freeze-col">
+        <div className="table-freeze freeze-col">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">

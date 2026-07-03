@@ -271,7 +271,7 @@ export default function CustomerPerformancePage() {
                   Product &amp; Category Trade
                 </h2>
               </div>
-              <div className="overflow-x-auto freeze-col">
+              <div className="table-freeze freeze-col">
                 <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
                     <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">
@@ -327,7 +327,7 @@ export default function CustomerPerformancePage() {
 
           {/* Ranked table */}
           <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-[var(--text-primary)]/5 overflow-hidden">
-            <div className="overflow-x-auto freeze-col">
+            <div className="table-freeze freeze-col">
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                   <tr className="bg-[var(--bg-page)] border-b border-[var(--text-primary)]/5">

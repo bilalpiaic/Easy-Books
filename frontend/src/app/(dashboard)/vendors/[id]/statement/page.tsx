@@ -150,6 +150,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
           {data.bills.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)] italic">No bills in this period.</p>
           ) : (
+            <div className="table-freeze">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
@@ -180,6 +181,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
@@ -189,6 +191,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
           {data.payments.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)] italic">No payments in this period.</p>
           ) : (
+            <div className="table-freeze">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
@@ -217,6 +220,7 @@ function VendorStatementPageInner({ params }: { params: Promise<{ id: string }> 
                 </tr>
               </tfoot>
             </table>
+            </div>
           )}
         </div>
 

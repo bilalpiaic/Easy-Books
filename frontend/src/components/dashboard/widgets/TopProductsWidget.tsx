@@ -62,7 +62,7 @@ export default function TopProductsWidget() {
         if (metric === "revenue") return b.revenue - a.revenue
         return (b.margin_pct ?? -Infinity) - (a.margin_pct ?? -Infinity)
       })
-      return sorted.slice(0, 5).map(c => ({
+      return sorted.slice(0, 10).map(c => ({
         id: c.name,
         name: c.name,
         value: metric === "units" ? c.units : metric === "revenue" ? c.revenue : c.margin_pct,
@@ -73,7 +73,7 @@ export default function TopProductsWidget() {
       if (metric === "revenue") return Number(b.sales_value ?? 0) - Number(a.sales_value ?? 0)
       return (Number(b.margin_pct ?? -Infinity)) - (Number(a.margin_pct ?? -Infinity))
     })
-    return sorted.slice(0, 5).map(p => ({
+    return sorted.slice(0, 10).map(p => ({
       id: String(p.id),
       name: p.name,
       value: metric === "units" ? Number(p.units_sold) : metric === "revenue" ? Number(p.sales_value ?? 0) : p.margin_pct,
