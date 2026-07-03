@@ -134,21 +134,12 @@ export default function TopNav() {
       if (ov && item.href === ov.href) return false
       return true
     })
+    // The overview link renders through the same template as every other
+    // item (#132) — a distinct icon/bold first row read as a section
+    // heading, so users skipped it.
     return (
       <>
-        {ov && (
-          <Link href={ov.href} onClick={closePanel}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold transition-colors border-b border-[var(--border-light)]",
-              pathname === ov.href || pathname.startsWith(ov.href + "/")
-                ? "text-[var(--primary)] bg-[var(--primary-light)]"
-                : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
-            )}>
-            <LayoutGrid className="w-3.5 h-3.5 shrink-0 opacity-60" />
-            {ov.label}
-          </Link>
-        )}
-        {items.map(item => (
+        {[...(ov ? [ov] : []), ...items].map(item => (
           <Link key={item.href} href={item.href} onClick={closePanel}
             className={cn(
               "block px-4 py-[7px] text-[13px] transition-colors",
