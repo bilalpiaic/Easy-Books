@@ -13,14 +13,16 @@ import json
 import os
 from datetime import date as DateType
 from decimal import Decimal
+from typing import Literal
 
 import anthropic
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import select
 
-from models import Settings
+from models import Settings, Tenant
 from routers.aging import invoice_aging, bill_aging
+from routers.modules import _get_enabled
 from routers.reports import (
     get_dashboard_data,
     get_dashboard_charts,
@@ -34,12 +36,14 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 MAX_STEPS = 6
 MODEL = "claude-sonnet-4-6"
+MAX_HISTORY = 20          # history turns kept per request (cost guard)
+MAX_MESSAGE_CHARS = 4000  # per-message length cap (cost guard)
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):
-    role: str   # "user" | "assistant"
+    role: Literal["user", "assistant"]
     content: str
 
 
@@ -139,7 +143,7 @@ TOOLS: list[dict] = [
     },
     {
         "name": "get_top_customers",
-        "description": "Get the top 5 customers by total invoiced amount and the monthly revenue/expense trend for the last 12 months.",
+        "description": "Get the top 10 customers by total invoiced amount and the monthly revenue/expense trend for the last 12 months.",
         "input_schema": {
             "type": "object",
             "properties": {},
@@ -193,7 +197,8 @@ def _build_system_prompt(company_name: str) -> str:
 
 # ── Tool execution ────────────────────────────────────────────────────────────
 
-def _execute_tool(name: str, tool_input: dict, session, user) -> str:
+def _execute_tool(name: str, tool_input: dict, session, user) -> tuple[str, bool]:
+    """Run one tool call; returns (json_text, is_error)."""
     try:
         if name == "get_dashboard_summary":
             result = get_dashboard_data(
@@ -226,10 +231,10 @@ def _execute_tool(name: str, tool_input: dict, session, user) -> str:
         elif name == "get_top_customers":
             result = get_dashboard_charts(session, user, months=12)
         else:
-            return json.dumps({"error": f"Unknown tool: {name}"})
-        return json.dumps(_json_safe(result))
+            return json.dumps({"error": f"Unknown tool: {name}"}), True
+        return json.dumps(_json_safe(result)), False
     except Exception as exc:
-        return json.dumps({"error": str(exc)})
+        return json.dumps({"error": str(exc)}), True
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
@@ -243,24 +248,58 @@ def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
             detail="AI assistant is not configured. Set ANTHROPIC_API_KEY in the backend environment.",
         )
 
+    tenant = session.get(Tenant, user.tenant_id)
+    if tenant is None or "ai_assistant" not in _get_enabled(tenant):
+        raise HTTPException(
+            status_code=403,
+            detail="The AI Financial Assistant module is not installed. Install it from System → Apps.",
+        )
+
+    if len(body.message) > MAX_MESSAGE_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Message too long (max {MAX_MESSAGE_CHARS} characters).",
+        )
+
     client = anthropic.Anthropic(api_key=api_key)
     company_name = _get_company_name(session, user)
     system_prompt = _build_system_prompt(company_name)
 
     messages: list[dict] = [
-        {"role": m.role, "content": m.content}
-        for m in body.history
+        {"role": m.role, "content": m.content[:MAX_MESSAGE_CHARS]}
+        for m in body.history[-MAX_HISTORY:]
     ]
     messages.append({"role": "user", "content": body.message})
 
     for _ in range(MAX_STEPS):
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=2048,
-            system=system_prompt,
-            tools=TOOLS,
-            messages=messages,
-        )
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=2048,
+                system=system_prompt,
+                tools=TOOLS,
+                messages=messages,
+            )
+        except anthropic.AuthenticationError:
+            raise HTTPException(
+                status_code=503,
+                detail="AI assistant is misconfigured (invalid API key). Contact your administrator.",
+            )
+        except anthropic.RateLimitError:
+            raise HTTPException(
+                status_code=429,
+                detail="The AI assistant is receiving too many requests. Please try again in a minute.",
+            )
+        except anthropic.APIStatusError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"The AI service returned an error ({exc.status_code}). Please try again.",
+            )
+        except anthropic.APIConnectionError:
+            raise HTTPException(
+                status_code=502,
+                detail="Could not reach the AI service. Please try again.",
+            )
 
         if response.stop_reason == "end_turn":
             text_blocks = [b.text for b in response.content if b.type == "text"]
@@ -277,11 +316,12 @@ def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
-                result_text = _execute_tool(block.name, block.input, session, user)
+                result_text, is_error = _execute_tool(block.name, block.input, session, user)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
                     "content": result_text,
+                    "is_error": is_error,
                 })
 
         messages.append({"role": "user", "content": tool_results})
