@@ -713,6 +713,7 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 ### Reports (`/api/reports`)
 - `/journal`, `/trial-balance`, `/income-statement`, `/balance-sheet`, `/cash-flow`, `/tax-summary`, `/dashboard`, `/aging`.
 - **Hierarchical statements (V2.5).** Single-period `/trial-balance`, `/balance-sheet`, and `/income-statement` return a **nested tree** rolled up over the multi-level CoA (`services/account_tree.py`, parent = own + Σ descendant leaves, zero subtrees pruned): TB → `{tree, totals}`; BS → `{assets, liabilities, equity, totals}` (with the RE-CUR synthetic current-earnings equity line); P&L → `{revenue, expenses, totals}` + `net_profit`. **Comparison mode** (`compare_end` / `compare_start`+`compare_end`) keeps the prior flat `{current, comparison}` shape. The frontend `<AccountTree>` renders expand/collapse with leaf drill-down to the ledger and on to the voucher.
+- `/dashboard/net-worth?months=N` **(v3.1)** — monthly time series `{series: [{month, assets, liabilities, net_worth}], as_of}`: one grouped query fetches per-month debit/credit deltas by account type (Asset/Liability), cumulative sums produce month-end balances with gap months carried forward; `months` clamped 1–60 (default 36); tenant-scoped; empty series for fresh tenants. Powers the dashboard **Net Worth Trend** widget.
 - `/ledger?account_id=…&start=…&end=…` — running balance per row; when `start`/`end` supplied also returns `opening_balance` (net of all JEs before `start`) and `closing_balance` (`opening + Σdebits − Σcredits`), following per-account-type sign convention.
 - `/product-ledger?product_id=…&start=…&end=…` — stock movements + running qty; supports per-location or consolidated view.
 - `/inventory-performance` — on-hand qty/value, low-stock, slow-movers, units sold + COGS.
@@ -1239,6 +1240,7 @@ The `demo.hospital@easy-books.app` tenant is seeded with:
 | `GET /api/reports/tax-summary` | GST output + input + income-tax estimate | Per-period |
 | `GET /api/reports/aging` | Invoice/Bill + PaymentAllocation | **Outstanding** balance (net of partial payments), aged bucket; AR/AP aging pages drill into customer/vendor sub-ledger |
 | `GET /api/reports/dashboard` | Aggregates | KPI tiles |
+| `GET /api/reports/dashboard/net-worth` | `JournalEntry` grouped by month × account type | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1) |
 | `GET /api/reports/product-ledger` | `StockMovement` | Stock movements + running qty; per-location or consolidated |
 | `GET /api/reports/inventory-performance` | `Product` + `StockMovement` + `InventoryLayer` | On-hand qty/value, low-stock, slow-movers, units sold + COGS |
 | `GET /api/reports/customer-performance` | `Invoice` + `PaymentReceived` | Revenue, invoice count, outstanding AR, avg days-to-pay per customer |
@@ -1354,6 +1356,10 @@ The `demo.hospital@easy-books.app` tenant is seeded with:
 ### 14.5 Dashboard grid (react-grid-layout)
 - Import as `import ReactGridLayout from 'react-grid-layout/legacy'` — this is the **v2 API** (React 19 compatible, self-typed). Do **not** import from `'react-grid-layout'` (v1 API) and do **not** install `@types/react-grid-layout` (types incompatible with v2, will cause TS errors).
 - Layout schema v3: `{version:3, layouts:{lg, sm?, xs?}}` with `BP_COLS = {lg:4, sm:2, xs:1}` and `rowHeight=96`.
+- **`WIDGET_REGISTRY`** in `src/lib/dashboardWidgets.tsx` is the single widget catalog — every dashboard widget (KPIs, charts, self-fetching widgets) registers there; `injectMissingDefaults` in `hooks/useDashboardLayout.ts` auto-adds newly shipped default widgets to existing saved layouts without a schema bump.
+- **`KpiCard` (v3.1)** — all stat tiles render through the shared `components/dashboard/KpiCard.tsx` (replaced the divergent `PrimaryKpi`/`SecondaryKpi`): `tone` prop for colored-tile variants, icon top-left/title bottom-left/value bottom-right when an icon is present (title top-left otherwise), CSS theme variables for dark-mode safety, optional `href`/badge/subtext/shimmer.
+- **`NetWorthTrendWidget` (v3.1)** — self-fetching combo chart (Chart.js mixed bar/line): Assets bars up, Liabilities bars down around a zero axis, Net Worth line with square markers; 3M/6M/1Y/All range pills (client-side slicing of a 36-month fetch); legend click toggles series.
+- **Top-10 widgets (v3.1)** — Top Customers (backend `limit=10` in `/dashboard/charts`) and Top Products (client slice 10) show ten entries.
 
 ### 14.6 Brand
 - Background: `#f6f3ee` (cream)
@@ -1416,6 +1422,7 @@ All 54 authenticated pages were updated to apply responsive Tailwind breakpoints
 - **Search icon** — dispatches a `search:open` custom event picked up by `GlobalSearch`.
 - **Theme toggle** — Sun/Moon icon calls `useTheme()` to cycle through modes.
 - **Dark mode nav inversion** — CSS vars `--nav-bg`, `--nav-text`, `--nav-sub`, `--nav-dim`, `--nav-sep`, `--nav-hover`, `--nav-active` flip to cream/charcoal in `[data-theme="dark"]` so the nav bar is light-colored on dark pages (light nav on dark page).
+- **Icon + label dropdown items (v3.1)** — every section-dropdown item renders `<item.icon>` + label at uniform weight/padding, using the `icon` each `SUB_NAV` `NavItem` already carries; `SECTION_OVERVIEW` rows carry their own icons (LayoutGrid for generic overviews, Stethoscope/Factory/Radio/etc. for specialized sections) and are styled as normal menu items, not headings (#132). The mobile `MoreDrawer` items get the same icon treatment.
 
 ### 14.11 GlobalSearch — Ctrl+K Command Palette (v3.0)
 
@@ -1529,6 +1536,16 @@ All 155+ pages and components have been migrated from hardcoded hex colors to CS
 | `--nav-active` | Active/selected item background |
 
 In dark mode the nav vars flip to cream/gold on charcoal so the header and sidebar remain visually distinctive from the page background.
+
+### 14.16 Report Freeze Panes & Print Overhaul (v3.1)
+
+**Freeze panes** — `globals.css` FREEZE PANES block:
+- `.table-freeze` on the div directly wrapping a `<table>` bounds its height (`max-height: var(--table-freeze-h, calc(100dvh - 240px))`) so the wrapper becomes the vertical scrollport and the sticky `<thead>` + sticky `<tfoot>` (totals row) actually engage. A plain `overflow-x-auto` wrapper grows with content and never scrolls vertically — sticky headers inside it are a no-op; this class is what makes them work.
+- `.freeze-col` on the same wrapper additionally pins the first column (`position: sticky; left: 0`) with a boundary shadow; the top-left corner cell layers above both (z-25 > thead z-20 > col z-5).
+- Rolled out to: aging AR/AP, customer/inventory performance, GL ledger, product ledger, report-builder grid, healthcare + manufacturing reports, customer/vendor statements, telecom tracker. Div-based pages (cash-book, bank-book, cashflow) render no `<table>` and are not covered.
+- **Every rule is reset under `@media print`** (`position: static`, `max-height: none`) so reports paginate in full — print relies on `thead { display: table-header-group }` for per-page header repetition.
+
+**Print overhaul** — all printouts render in **Courier New** black-and-white (dot-matrix/continuous-paper friendly); Tailwind v4 font-size CSS variables are capped in print; row spacing compressed for denser fit; GL ledger joined the landscape orientation list. Interactive UX shipped alongside: AR/AP aging bucket summary cards are **click-to-filter** (click a bucket to filter the items table, click again or "Show all" to reset). Canonical conventions live in `CLAUDE.md` (UI conventions) and `WORKFLOW.md` (print system).
 
 ---
 
@@ -1847,6 +1864,18 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | **Mobile navigation** | `BottomNav.tsx` (core nav bar, hidden at `sm:`), `FAB.tsx` (floating new-entry button with module-gated options), `MoreDrawer.tsx` (slide-up full nav sheet filtered by installed modules) |
 | **Settings 5-tab layout** | `/settings` restructured: Company / Accounting / Preferences / Advanced / Updates tabs |
 | **QB UI token system** | All 155+ pages/components migrated from hardcoded hex to CSS custom properties — `--bg-page`, `--bg-card`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, `--primary*`, `--nav-*`; dark mode entirely token-driven; no scattered `dark:` class workarounds |
+
+### Sprint 21 Shipped ✅ (Print Overhaul, Freeze Panes, Dashboard Upgrades — #126–#132)
+
+| Feature | Notes |
+|---------|-------|
+| **Print overhaul (#126)** | Courier New dot-matrix B&W across all printouts; Tailwind v4 font-size variable caps; compressed row spacing; GL ledger landscape (`7639d4d`, `a420ddb`, `ebc174f`, `210297b`) |
+| **Clickable aging buckets** | AR/AP aging bucket summary cards filter the items table on click; "Show all" resets (`210297b`) |
+| **Freeze panes (#127)** | `.table-freeze` bounded scroll viewport engages sticky header + totals row; `.freeze-col` first-column lock; print-reset; rolled out across all table report views (`00cd56b`) |
+| **Unified KpiCard (#128)** | Single `components/dashboard/KpiCard.tsx` with tone tokens + CSS theme vars replaces PrimaryKpi/SecondaryKpi across all 10 dashboard tiles (`8deef23`) |
+| **Net Worth Trend widget (#130)** | `GET /api/reports/dashboard/net-worth` + Chart.js combo widget (diverging bars + line, range pills, legend toggles); #129 closed as duplicate (`574b105`) |
+| **Top-10 widgets (#131)** | Top Customers and Top Products expanded from 5 to 10 entries (`a903127`) |
+| **Uniform dropdown items (#132 + v3.1 icons)** | Section-dropdown overview rows styled as normal menu items; every top-menu dropdown item and mobile More-drawer item renders icon + label (`34c19bb` + nav-icons commit) |
 
 ### Still Pending
 

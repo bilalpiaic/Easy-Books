@@ -31,21 +31,20 @@
    - 7.5 [Bank Statement Import](#55-bank-statement-import)
    - 7.6 [Reversal Semantics](#56-reversal-semantics)
    - 7.7 [Sub-Ledgers & Audit-Trail Drill-Down](#57-sub-ledgers--audit-trail-drill-down)
-8. [GL Posting Reference](#6-gl-posting-reference)
-9. [Report Catalog](#7-report-catalog)
-10. [API Endpoint Catalog](#8-api-endpoint-catalog)
-11. [Security Model](#9-security-model)
-    - 11.1 [Multi-Tenant Isolation](#91-multi-tenant-isolation)
-    - 11.2 [RBAC](#92-rbac)
-    - 11.3 [Auth: JWT + HttpOnly Cookie](#93-auth-jwt--httponly-cookie)
-    - 11.4 [CSRF (Double-Submit-Cookie)](#94-csrf-double-submit-cookie)
-    - 11.5 [Login Throttle](#95-login-throttle)
-    - 11.6 [Period Lock](#96-period-lock)
-    - 11.7 [Idempotency Keys](#97-idempotency-keys)
-12. [Engineered Invariants](#10-engineered-invariants)
-13. [Verification & Smoke Tests](#11-verification--smoke-tests)
-14. [Default Chart of Accounts](#12-default-chart-of-accounts)
-15. [Migration History](#13-migration-history)
+8. [Report Catalog](#7-report-catalog)
+9. [API Endpoint Catalog](#8-api-endpoint-catalog)
+10. [Security Model](#9-security-model)
+    - 10.1 [Multi-Tenant Isolation](#91-multi-tenant-isolation)
+    - 10.2 [RBAC](#92-rbac)
+    - 10.3 [Auth: JWT + HttpOnly Cookie](#93-auth-jwt--httponly-cookie)
+    - 10.4 [CSRF (Double-Submit-Cookie)](#94-csrf-double-submit-cookie)
+    - 10.5 [Login Throttle](#95-login-throttle)
+    - 10.6 [Period Lock](#96-period-lock)
+    - 10.7 [Idempotency Keys](#97-idempotency-keys)
+11. [Engineered Invariants](#10-engineered-invariants)
+12. [Verification & Smoke Tests](#11-verification--smoke-tests)
+13. [Default Chart of Accounts](#12-default-chart-of-accounts)
+14. [Migration History](#13-migration-history)
 
 ---
 
@@ -131,6 +130,15 @@ Results carry `label`, `sub`, `href`, `date`, `amount`, `status` badge (color-co
 - `More ▾` dropdown lives outside the scroll container — always reachable.
 - Dropdowns use `ReactDOM.createPortal` + `getBoundingClientRect()` for `position: fixed` placement, avoiding `overflow-x` clipping.
 - CSS vars `--nav-bg`, `--nav-text`, `--nav-sub`, `--nav-dim`, `--nav-sep`, `--nav-hover`, `--nav-active` flip in `[data-theme="dark"]` so the nav bar is light-on-dark (cream/charcoal) — visually distinct from the dark page background.
+- **Icon + label items (v3.1):** every section-dropdown item renders `<item.icon>` (from the `SUB_NAV` `NavItem.icon` field) + label at uniform weight and padding. `SECTION_OVERVIEW` rows carry their own icons and are styled as normal menu items — never as headings (#132). The mobile `MoreDrawer` items render the same icon treatment.
+
+### Freeze panes — .table-freeze / .freeze-col (v3.1)
+
+`globals.css` FREEZE PANES block. `.table-freeze` on the div directly wrapping a `<table>` caps its height (`max-height: var(--table-freeze-h, calc(100dvh - 240px))`) so the wrapper becomes the vertical scrollport — this is what makes the sticky `<thead>` and sticky `<tfoot>` (totals row) actually engage; a plain `overflow-x-auto` wrapper grows with content and never scrolls vertically, so sticky headers inside it silently do nothing. Add `.freeze-col` on the same wrapper to also pin the first column (corner cell z-25 > thead z-20 > column cells z-5). Rollout: aging AR/AP, customer/inventory performance, GL ledger, product ledger, report-builder grid, healthcare + manufacturing reports, customer/vendor statements, telecom tracker. **Every sticky rule is reset under `@media print`** — print depends on `thead { display: table-header-group }` for per-page header repetition, so any new freeze rule must be added to the print reset too.
+
+### KpiCard — unified dashboard stat tile (v3.1)
+
+`components/dashboard/KpiCard.tsx` replaced the divergent `PrimaryKpi`/`SecondaryKpi`. Props: `title`, `value` (null → shimmer), optional `icon` (layout switches: icon top-left / title bottom-left / value bottom-right when present; title top-left / value bottom-right when absent), `tone` (`green|red|amber|emerald|blue|neutral` colored-tile variants), `href` (renders a `Link`), `sub`, `badge`, `iconClass`, `valueClass`. Neutral tone uses CSS theme variables (`--bg-card`, `--border`, `--text-primary`) — never hardcode hex in stat tiles; dark mode depends on it.
 
 ### In-App Auto-Update System (v3.0)
 
@@ -285,22 +293,6 @@ Easy-Books implements the following international accounting standards and best 
 
 ## 3. DATA MODEL
 
-### 3.1 Settings & Customization
-
-| Field | Purpose | Type | IAS/IFRS |
-|---|---|---|---|
-| `company_name` | Business legal entity name | String | **IAS 1.49** — entity identification |
-| `business_tagline` | Tagline/motto (e.g., "Double-Entry Accounting") | String | **IAS 1.45** — presentation consistency |
-| `tax_id` | Tax identification number / EIN | String | **IAS 1.49** — statutory reporting |
-| `currency` | Base currency for all transactions | Code (PKR/USD/EUR/etc.) | **IAS 21** — functional currency |
-| `fiscal_year_start` | Accounting year start month | Month | **IAS 1.49** — reporting period |
-| `financial_statement_date` | Statement date preference | month_end \| quarter_end \| year_end | **IAS 1.49** |
-| `invoice_prefix` / `bill_prefix` | Document numbering | String | **IAS 1.99** — document identification |
-
----
-
-## 3. DATA MODEL
-
 ```
                                 Tenant
                                   │ 1..N
@@ -367,6 +359,18 @@ Easy-Books implements the following international accounting standards and best 
 ```
 
 **Read it as:** every business is a `Tenant`. Every operational document (invoice, bill, payment, manual JV) ultimately writes a `Transaction` (the JV header) with 2+ `JournalEntry` rows. Reports aggregate `JournalEntry` directly.
+
+### 3.1 Settings & Customization
+
+| Field | Purpose | Type | IAS/IFRS |
+|---|---|---|---|
+| `company_name` | Business legal entity name | String | **IAS 1.49** — entity identification |
+| `business_tagline` | Tagline/motto (e.g., "Double-Entry Accounting") | String | **IAS 1.45** — presentation consistency |
+| `tax_id` | Tax identification number / EIN | String | **IAS 1.49** — statutory reporting |
+| `currency` | Base currency for all transactions | Code (PKR/USD/EUR/etc.) | **IAS 21** — functional currency |
+| `fiscal_year_start` | Accounting year start month | Month | **IAS 1.49** — reporting period |
+| `financial_statement_date` | Statement date preference | month_end \| quarter_end \| year_end | **IAS 1.49** |
+| `invoice_prefix` / `bill_prefix` | Document numbering | String | **IAS 1.99** — document identification |
 
 ---
 
@@ -1302,18 +1306,21 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 | Tax Summary | `GET /api/reports/tax-summary` | Output GST (2200) − Input GST (1250) = Net GST Payable; income-tax slab estimate |
 | AR Aging | `GET /api/invoices/aging` | Buckets Current/1–30/31–60/61–90/90+ of **outstanding** (gross − sum(allocations)); items include `customer_id` for drill-down |
 | AP Aging | `GET /api/bills/aging` | Same for bills; items include `vendor_id` for drill-down |
-| AR Aging page | `/aging/receivable` | Dedicated AR Aging report with drill-down to customer ledger |
-| AP Aging page | `/aging/payable` | Dedicated AP Aging report with drill-down to vendor ledger |
+| AR Aging page | `/aging/receivable` | Dedicated AR Aging report with drill-down to customer ledger; bucket summary cards are click-to-filter (click again or "Show all" to reset) |
+| AP Aging page | `/aging/payable` | Same for AP; bucket cards click-to-filter |
 | Product Ledger | `GET /api/reports/product-ledger` | Stock movements + running quantity per product; filter by store or **Consolidated** |
 | Inventory Performance | `GET /api/reports/inventory-performance` | Per product: on-hand qty + value (qty × avg cost), low-stock flag, last-movement date, units sold + COGS over a period |
 | Customer Performance | `GET /api/reports/customer-performance` | Per customer: revenue, invoice count, outstanding AR, avg days-to-pay; ranked |
 | Dashboard KPIs | `GET /api/reports/dashboard` | Revenue, expense, AR/AP outstanding (net of allocations), overdue counts, low stock |
-| Dashboard charts | `GET /api/reports/dashboard/charts?months=12` | 12-month series for chart components |
+| Dashboard charts | `GET /api/reports/dashboard/charts?months=12` | 12-month series for chart components; Top Customers capped at 10 (v3.1) |
+| Net Worth trend | `GET /api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1); one grouped query + Python cumulative sums, gap months carried forward |
 | Report Builder | `POST /api/report-builder/run` | User-configurable ad-hoc report: column chooser, filter predicates, group-by/aggregates, pagination — over any whitelisted source; tenant isolation enforced by the engine |
 
 **Hierarchical statements (V2.5).** In single-period mode, Trial Balance, Balance Sheet, and Income Statement roll up over the multi-level Chart of Accounts (`services/account_tree.py`): each parent's subtotal = its own direct balance + the sum of its descendant leaves, zero subtrees pruned. The payloads are nested trees — TB `{tree, totals}`, BS `{assets, liabilities, equity, totals}` (with a synthetic current-period retained-earnings line), P&L `{revenue, expenses, totals}` + `net_profit`. The frontend renders them with the `<AccountTree>` component (expand/collapse, parent subtotals, and click-through drill from a leaf line → its ledger → the underlying voucher). **Comparison mode** keeps the flat `{current, comparison}` shape.
 
 **Voucher series.** Posted transactions carry a `voucher_type` (Sales `SL`, Purchase `PU`, Receipt `CR`, Payment `CP`, Journal `JV`, Credit-Note `CN`, Debit-Note `DN`) with per-type numbering; the Cash Book and Bank Book and the voucher-type filters on the ledgers read from it.
+
+**Freeze panes (v3.1).** Table-based report pages (aging AR/AP, performance reports, GL/product ledgers, report-builder grid, healthcare + manufacturing reports, statements, telecom tracker) scroll inside a `.table-freeze` bounded viewport: the header row and totals row stay pinned while data scrolls, and wide reports also lock the first column (`.freeze-col`). See §1.1 UI System for mechanics; all sticky rules are reset in print.
 
 ---
 
@@ -1413,7 +1420,8 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/cash-flow` | Indirect method |
 | GET | `/api/reports/tax-summary` | GST + income-tax slabs |
 | GET | `/api/reports/dashboard` | KPIs (outstanding net of allocations) |
-| GET | `/api/reports/dashboard/charts?months=12` | Chart series |
+| GET | `/api/reports/dashboard/charts?months=12` | Chart series (Top Customers capped at 10, v3.1) |
+| GET | `/api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1) |
 | GET | `/api/reports/product-ledger?product_id=…&store=…` | Stock movements + running qty; `store=all` for consolidated view |
 | GET | `/api/reports/inventory-performance?start=…&end=…` | Per-product on-hand qty/value, low-stock flag, last movement, units sold + COGS |
 | GET | `/api/reports/customer-performance?start=…&end=…` | Per-customer revenue, invoice count, outstanding AR, avg days-to-pay |
@@ -1800,7 +1808,11 @@ Easy-Books has a **proactive auto-update system** (v3.0) that checks for updates
 
 ---
 
-## PRINT SYSTEM (v2.7)
+## PRINT SYSTEM (v2.7, overhauled v3.1)
+
+### Dot-matrix format (v3.1)
+
+All printouts render in **Courier New**, black-and-white, no background fills — sized for dot-matrix / continuous-paper printing. Tailwind v4 font-size CSS variables are overridden under `@media print` so screen sizing never leaks into printouts, and row spacing is compressed for denser data fit per page.
 
 ### Orientation rules
 
@@ -1808,7 +1820,7 @@ Easy-Books has a **proactive auto-update system** (v3.0) that checks for updates
 
 | Landscape pages | Portrait pages |
 |-----------------|----------------|
-| AR/AP Aging, Customer Performance, Inventory Performance, Product Ledger, Journal list, Invoices list, Bills list, Products list, Customer/Vendor Ledgers, Stock Card | General Ledger, Cash Book, Bank Book, Balance Sheet, P&L, Trial Balance, Cash Flow, Tax Summary, Statements, Payments lists, CoA, all voucher print pages |
+| AR/AP Aging, Customer Performance, Inventory Performance, Product Ledger, **General Ledger (v3.1)**, Journal list, Invoices list, Bills list, Products list, Customer/Vendor Ledgers, Stock Card | Cash Book, Bank Book, Balance Sheet, P&L, Trial Balance, Cash Flow, Tax Summary, Statements, Payments lists, CoA, all voucher print pages |
 
 ### Date helpers (`frontend/src/lib/utils.ts`)
 
@@ -1825,6 +1837,7 @@ All 37+ date-bearing pages import and use these helpers.
 - `@media print { td span, th span { ... } }` flattens any remaining badge pills to plain text
 - `print:hidden` Tailwind class hides: FilterBar, Pagination, SortableHeader, all toolbar buttons, checkbox columns, action columns
 - Greenbar row shading removed; output is plain white with light border-only row dividers
+- **Freeze-pane reset (v3.1):** all `.table-freeze`/`.freeze-col` sticky positioning and `max-height` are neutralised under `@media print` so reports always paginate in full — any new freeze rule must be added to this reset block too
 
 ### Column layout in tabular reports
 
