@@ -140,6 +140,10 @@ Results carry `label`, `sub`, `href`, `date`, `amount`, `status` badge (color-co
 
 `components/dashboard/KpiCard.tsx` replaced the divergent `PrimaryKpi`/`SecondaryKpi`. Props: `title`, `value` (null → shimmer), optional `icon` (layout switches: icon top-left / title bottom-left / value bottom-right when present; title top-left / value bottom-right when absent), `tone` (`green|red|amber|emerald|blue|neutral` colored-tile variants), `href` (renders a `Link`), `sub`, `badge`, `iconClass`, `valueClass`. Neutral tone uses CSS theme variables (`--bg-card`, `--border`, `--text-primary`) — never hardcode hex in stat tiles; dark mode depends on it.
 
+### AI Financial Assistant (v3.2)
+
+Floating Sparkles FAB (`components/AIChatButton.tsx`, hidden unless the `ai_assistant` module is installed) opens a portal chat panel (`components/AIChat.tsx` — quick prompts, session-only history, `createPortal` at `document.body`). Backend: `routers/ai_chat.py` — `POST /api/ai/chat` runs an Anthropic agent loop (max 6 steps, `claude-sonnet-4-6`) over 7 read-only tools that call the existing report functions directly, so tenant scoping and business rules are reused. Gates: `ANTHROPIC_API_KEY` (503 when unset), module install (403), 4,000-char message / 20-turn history caps; typed SDK errors map to 503/429/502. Strictly read-only — no posting or mutation tools.
+
 ### In-App Auto-Update System (v3.0)
 
 **`UpdateAvailablePopup.tsx`** — shown by `DashboardLayout` on every mount (admin/owner only) when `GET /api/system/update/status` reports new commits behind `HEAD`. Actions:
@@ -1422,6 +1426,7 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/dashboard` | KPIs (outstanding net of allocations) |
 | GET | `/api/reports/dashboard/charts?months=12` | Chart series (Top Customers capped at 10, v3.1) |
 | GET | `/api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1) |
+| POST | `/api/ai/chat` | AI Financial Assistant — agent-loop chat over live report data; `ai_assistant` module + `ANTHROPIC_API_KEY` required (v3.2) |
 | GET | `/api/reports/product-ledger?product_id=…&store=…` | Stock movements + running qty; `store=all` for consolidated view |
 | GET | `/api/reports/inventory-performance?start=…&end=…` | Per-product on-hand qty/value, low-stock flag, last movement, units sold + COGS |
 | GET | `/api/reports/customer-performance?start=…&end=…` | Per-customer revenue, invoice count, outstanding AR, avg days-to-pay |
@@ -1867,7 +1872,7 @@ Easy-Books uses an installable module system modelled after Odoo's App Store. Mo
    "my_module": {
        "label": "My Module",
        "description": "One-line description for the Apps card.",
-       "category": "Operations",      # Core | Operations | HR | Industry
+       "category": "Operations",      # Core | Operations | HR | Industry | Intelligence
        "icon": "Package",             # lucide-react icon name (string)
        "deps": ["base"],              # IDs of required modules (transitive)
        "always": False,               # True = cannot be uninstalled
