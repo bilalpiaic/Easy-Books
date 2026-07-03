@@ -386,6 +386,67 @@ def get_dashboard_charts(
     }
 
 
+@router.get("/dashboard/net-worth")
+def get_net_worth_trend(
+    session: SessionDep, user: CurrentUserDep, months: int = 36,
+):
+    """Monthly Assets / Liabilities / Net Worth series for the dashboard trend
+    widget (#130). One grouped query fetches per-month deltas by account type;
+    cumulative sums in Python turn them into month-end balances, carrying
+    values forward through months with no activity."""
+    months = max(1, min(months, 60))
+    month_expr = func.substr(Transaction.date, 1, 7)
+    rows = session.exec(
+        select(
+            month_expr.label("month"),
+            Account.type,
+            func.sum(JournalEntry.debit),
+            func.sum(JournalEntry.credit),
+        )
+        .join(Account, Account.id == JournalEntry.account_id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Account.type.in_(["Asset", "Liability"]),
+        )
+        .group_by(month_expr, Account.type)
+        .order_by(month_expr)
+    ).all()
+
+    today = DateType.today()
+    if not rows:
+        return {"series": [], "as_of": today.isoformat()}
+
+    deltas: dict[str, dict[str, Decimal]] = {}
+    for month, acc_type, debit, credit in rows:
+        d = deltas.setdefault(month, {})
+        # Asset balances grow with debits; Liability balances grow with credits
+        signed = D(debit or 0) - D(credit or 0) if acc_type == "Asset" else D(credit or 0) - D(debit or 0)
+        d[acc_type] = d.get(acc_type, ZERO) + signed
+
+    first_y, first_m = (int(p) for p in min(deltas).split("-"))
+    assets = liabilities = ZERO
+    series = []
+    y, m = first_y, first_m
+    while (y, m) <= (today.year, today.month):
+        key = f"{y:04d}-{m:02d}"
+        d = deltas.get(key)
+        if d:
+            assets += d.get("Asset", ZERO)
+            liabilities += d.get("Liability", ZERO)
+        series.append({
+            "month": key,
+            "assets": money(assets),
+            "liabilities": money(liabilities),
+            "net_worth": money(assets - liabilities),
+        })
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+
+    return {"series": series[-months:], "as_of": today.isoformat()}
+
+
 # ── Income statement ─────────────────────────────────────────────────────────
 
 

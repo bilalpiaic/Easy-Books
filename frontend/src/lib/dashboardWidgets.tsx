@@ -10,6 +10,7 @@ import InventorySummaryWidget from "@/components/dashboard/widgets/InventorySumm
 import HRMSummaryWidget from "@/components/dashboard/widgets/HRMSummaryWidget"
 import QuickActionsWidget from "@/components/dashboard/widgets/QuickActionsWidget"
 import KpiCard from "@/components/dashboard/KpiCard"
+import NetWorthTrendWidget from "@/components/dashboard/widgets/NetWorthTrendWidget"
 import { apiFetch } from "@/lib/api"
 import type { AppSettings } from "@/context/SettingsContext"
 import {
@@ -324,6 +325,13 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
         </div>
       )
     },
+  },
+  {
+    id: "net_worth_trend",
+    title: "Net Worth",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <NetWorthTrendWidget />,
   },
   {
     id: "expense_breakdown",
