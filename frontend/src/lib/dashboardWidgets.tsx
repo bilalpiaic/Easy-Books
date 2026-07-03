@@ -359,7 +359,8 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "top_customers",
     title: "Top Customers",
     defaultVisible: true,
-    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    // h:4 keeps 10 horizontal bars legible (was 5 rows at h:3)
+    defaultSize: { w: 2, h: 4 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
       const { charts } = ctx
       const { customerBarData, baseChartOpts } = ctx.chartConfigs

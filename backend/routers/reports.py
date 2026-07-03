@@ -375,7 +375,7 @@ def get_dashboard_charts(
         .where(Customer.tenant_id == user.tenant_id)
         .group_by(Customer.id)
         .order_by(func.sum(Invoice.total).desc())
-        .limit(5)
+        .limit(10)
     ).all()
     top_cust = [{"name": n, "total": money(D(t or 0))} for n, t in top_customers]
 
