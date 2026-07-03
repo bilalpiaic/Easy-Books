@@ -93,6 +93,7 @@ export default function MoreDrawer({ open, onClose }: Props) {
                           : "text-[var(--text-primary)] hover:bg-[var(--bg-row-hover)]"
                       )}
                     >
+                      <item.icon className="w-4 h-4 shrink-0 opacity-70" />
                       {item.label}
                     </Link>
                   ))}

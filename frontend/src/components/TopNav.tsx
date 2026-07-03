@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ChevronDown, ChevronLeft, ChevronRight,
   LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon, Search,
+  PlusCircle, Scale, Stethoscope, Factory, Radio, LayoutDashboard, Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -16,19 +17,19 @@ import { useTheme } from "@/context/ThemeContext"
 import { TOP_NAV, SUB_NAV, getActiveSection } from "@/lib/nav"
 import type { TopNavSection } from "@/lib/nav"
 
-const SECTION_OVERVIEW: Record<string, { href: string; label: string }> = {
-  banking:       { href: "/banking",        label: "Banking Overview"    },
-  sales:         { href: "/receivable",     label: "Sales Overview"      },
-  purchases:     { href: "/payable",        label: "Purchases Overview"  },
-  accounting:    { href: "/entry",          label: "New Entry"           },
-  reports:       { href: "/trial-balance",  label: "Trial Balance"       },
-  inventory:     { href: "/inventory",      label: "Inventory Overview"  },
-  payroll:       { href: "/hrm",            label: "Payroll Overview"    },
-  healthcare:    { href: "/healthcare",     label: "HC Overview"         },
-  manufacturing: { href: "/manufacturing",  label: "Production Overview" },
-  telecom:       { href: "/telecom",        label: "Telecom Overview"    },
-  pra:           { href: "/pra-dashboard",  label: "PRA Dashboard"       },
-  system:        { href: "/settings",       label: "Settings"            },
+const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: React.ElementType }> = {
+  banking:       { href: "/banking",        label: "Banking Overview",    icon: LayoutGrid      },
+  sales:         { href: "/receivable",     label: "Sales Overview",      icon: LayoutGrid      },
+  purchases:     { href: "/payable",        label: "Purchases Overview",  icon: LayoutGrid      },
+  accounting:    { href: "/entry",          label: "New Entry",           icon: PlusCircle      },
+  reports:       { href: "/trial-balance",  label: "Trial Balance",       icon: Scale           },
+  inventory:     { href: "/inventory",      label: "Inventory Overview",  icon: LayoutGrid      },
+  payroll:       { href: "/hrm",            label: "Payroll Overview",    icon: LayoutGrid      },
+  healthcare:    { href: "/healthcare",     label: "HC Overview",         icon: Stethoscope     },
+  manufacturing: { href: "/manufacturing",  label: "Production Overview", icon: Factory         },
+  telecom:       { href: "/telecom",        label: "Telecom Overview",    icon: Radio           },
+  pra:           { href: "/pra-dashboard",  label: "PRA Dashboard",       icon: LayoutDashboard },
+  system:        { href: "/settings",       label: "Settings",            icon: Settings        },
 }
 
 const LEFT_KEYS  = new Set(["dashboard", "banking", "sales", "purchases"])
@@ -142,11 +143,12 @@ export default function TopNav() {
         {[...(ov ? [ov] : []), ...items].map(item => (
           <Link key={item.href} href={item.href} onClick={closePanel}
             className={cn(
-              "block px-4 py-[7px] text-[13px] transition-colors",
+              "flex items-center gap-2.5 px-4 py-[7px] text-[13px] transition-colors",
               pathname === item.href || pathname.startsWith(item.href + "/")
                 ? "text-[var(--primary)] font-semibold bg-[var(--primary-light)]"
                 : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
             )}>
+            <item.icon className="w-3.5 h-3.5 shrink-0 opacity-60" />
             {item.label}
           </Link>
         ))}
