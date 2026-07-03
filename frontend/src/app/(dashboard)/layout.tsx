@@ -22,6 +22,7 @@ import { apiFetch } from "@/lib/api"
 import GlobalSearch from "@/components/GlobalSearch"
 import UpdateAvailablePopup from "@/components/UpdateAvailablePopup"
 import UpdateProgressScreen from "@/components/UpdateProgressScreen"
+import AIChatButton from "@/components/AIChatButton"
 
 const SKIP_KEY = "eb.update-skip"     // persisted per remote SHA
 const SESSION_LATER_KEY = "eb.update-later-session" // session-only dismiss
@@ -159,6 +160,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <BottomNav onMore={() => setMoreOpen(true)} />
                   <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
                   <FAB />
+                  <AIChatButton />
                   <GlobalSearch />
                 </div>
 
