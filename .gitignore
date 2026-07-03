@@ -43,3 +43,7 @@ backend/dist/
 desktop/resources/
 desktop/dist/
 desktop/node_modules/
+
+# Session tooling scratch (brainstorm server state, handoff notes)
+.superpowers/
+.remember/
