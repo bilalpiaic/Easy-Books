@@ -31,21 +31,20 @@
    - 7.5 [Bank Statement Import](#55-bank-statement-import)
    - 7.6 [Reversal Semantics](#56-reversal-semantics)
    - 7.7 [Sub-Ledgers & Audit-Trail Drill-Down](#57-sub-ledgers--audit-trail-drill-down)
-8. [GL Posting Reference](#6-gl-posting-reference)
-9. [Report Catalog](#7-report-catalog)
-10. [API Endpoint Catalog](#8-api-endpoint-catalog)
-11. [Security Model](#9-security-model)
-    - 11.1 [Multi-Tenant Isolation](#91-multi-tenant-isolation)
-    - 11.2 [RBAC](#92-rbac)
-    - 11.3 [Auth: JWT + HttpOnly Cookie](#93-auth-jwt--httponly-cookie)
-    - 11.4 [CSRF (Double-Submit-Cookie)](#94-csrf-double-submit-cookie)
-    - 11.5 [Login Throttle](#95-login-throttle)
-    - 11.6 [Period Lock](#96-period-lock)
-    - 11.7 [Idempotency Keys](#97-idempotency-keys)
-12. [Engineered Invariants](#10-engineered-invariants)
-13. [Verification & Smoke Tests](#11-verification--smoke-tests)
-14. [Default Chart of Accounts](#12-default-chart-of-accounts)
-15. [Migration History](#13-migration-history)
+8. [Report Catalog](#7-report-catalog)
+9. [API Endpoint Catalog](#8-api-endpoint-catalog)
+10. [Security Model](#9-security-model)
+    - 10.1 [Multi-Tenant Isolation](#91-multi-tenant-isolation)
+    - 10.2 [RBAC](#92-rbac)
+    - 10.3 [Auth: JWT + HttpOnly Cookie](#93-auth-jwt--httponly-cookie)
+    - 10.4 [CSRF (Double-Submit-Cookie)](#94-csrf-double-submit-cookie)
+    - 10.5 [Login Throttle](#95-login-throttle)
+    - 10.6 [Period Lock](#96-period-lock)
+    - 10.7 [Idempotency Keys](#97-idempotency-keys)
+11. [Engineered Invariants](#10-engineered-invariants)
+12. [Verification & Smoke Tests](#11-verification--smoke-tests)
+13. [Default Chart of Accounts](#12-default-chart-of-accounts)
+14. [Migration History](#13-migration-history)
 
 ---
 
@@ -285,22 +284,6 @@ Easy-Books implements the following international accounting standards and best 
 
 ## 3. DATA MODEL
 
-### 3.1 Settings & Customization
-
-| Field | Purpose | Type | IAS/IFRS |
-|---|---|---|---|
-| `company_name` | Business legal entity name | String | **IAS 1.49** — entity identification |
-| `business_tagline` | Tagline/motto (e.g., "Double-Entry Accounting") | String | **IAS 1.45** — presentation consistency |
-| `tax_id` | Tax identification number / EIN | String | **IAS 1.49** — statutory reporting |
-| `currency` | Base currency for all transactions | Code (PKR/USD/EUR/etc.) | **IAS 21** — functional currency |
-| `fiscal_year_start` | Accounting year start month | Month | **IAS 1.49** — reporting period |
-| `financial_statement_date` | Statement date preference | month_end \| quarter_end \| year_end | **IAS 1.49** |
-| `invoice_prefix` / `bill_prefix` | Document numbering | String | **IAS 1.99** — document identification |
-
----
-
-## 3. DATA MODEL
-
 ```
                                 Tenant
                                   │ 1..N
@@ -367,6 +350,18 @@ Easy-Books implements the following international accounting standards and best 
 ```
 
 **Read it as:** every business is a `Tenant`. Every operational document (invoice, bill, payment, manual JV) ultimately writes a `Transaction` (the JV header) with 2+ `JournalEntry` rows. Reports aggregate `JournalEntry` directly.
+
+### 3.1 Settings & Customization
+
+| Field | Purpose | Type | IAS/IFRS |
+|---|---|---|---|
+| `company_name` | Business legal entity name | String | **IAS 1.49** — entity identification |
+| `business_tagline` | Tagline/motto (e.g., "Double-Entry Accounting") | String | **IAS 1.45** — presentation consistency |
+| `tax_id` | Tax identification number / EIN | String | **IAS 1.49** — statutory reporting |
+| `currency` | Base currency for all transactions | Code (PKR/USD/EUR/etc.) | **IAS 21** — functional currency |
+| `fiscal_year_start` | Accounting year start month | Month | **IAS 1.49** — reporting period |
+| `financial_statement_date` | Statement date preference | month_end \| quarter_end \| year_end | **IAS 1.49** |
+| `invoice_prefix` / `bill_prefix` | Document numbering | String | **IAS 1.99** — document identification |
 
 ---
 
