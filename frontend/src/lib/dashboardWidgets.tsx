@@ -9,6 +9,7 @@ import TopProductsWidget from "@/components/dashboard/widgets/TopProductsWidget"
 import InventorySummaryWidget from "@/components/dashboard/widgets/InventorySummaryWidget"
 import HRMSummaryWidget from "@/components/dashboard/widgets/HRMSummaryWidget"
 import QuickActionsWidget from "@/components/dashboard/widgets/QuickActionsWidget"
+import KpiCard from "@/components/dashboard/KpiCard"
 import { apiFetch } from "@/lib/api"
 import type { AppSettings } from "@/context/SettingsContext"
 import {
@@ -82,41 +83,6 @@ export function ChartSkeleton() {
   return <div className="h-full w-full shimmer rounded-lg" />
 }
 
-interface PrimaryKpiProps {
-  label: string; value: string | null; icon: React.ElementType
-  bg: string; border: string; text: string; sub?: string; compact?: boolean
-}
-export function PrimaryKpi({ label, value, icon: Icon, bg, border, text, sub, compact }: PrimaryKpiProps) {
-  return (
-    <div className={`${bg} ${border} border rounded-xl p-3 card-lift`}>
-      <div className="flex items-start justify-between gap-1.5">
-        <div className="min-w-0 flex-1">
-          <p className={`text-[9px] font-bold uppercase tracking-[0.12em] ${text} opacity-70`}>{label}</p>
-          {value === null ? <div className="shimmer h-5 w-20 rounded mt-1.5" /> : <p className={`${compact ? "text-base" : "text-sm sm:text-base"} font-bold ${text} mt-1 leading-none truncate`}>{value}</p>}
-          {sub && <p className={`text-[9px] ${text} opacity-55 mt-0.5 font-medium`}>{sub}</p>}
-        </div>
-        <Icon className={`w-4 h-4 ${text} opacity-25 flex-shrink-0 mt-0.5`} />
-      </div>
-    </div>
-  )
-}
-
-interface SecondaryKpiProps {
-  label: string; value: string | null; icon: React.ElementType; color: string
-  href: string; badge?: { count: number; label: string; color: string }; valueClass?: string
-}
-export function SecondaryKpi({ label, value, icon: Icon, color, href, badge, valueClass }: SecondaryKpiProps) {
-  return (
-    <Link href={href} className="bg-white border border-[#ede9e2] rounded-xl p-2.5 flex flex-col gap-1 hover:border-[#b8943f]/40 hover:shadow-sm transition-all group">
-      <div className="flex items-center gap-1.5">
-        <Icon className={`w-3 h-3 ${color}`} />
-        <span className="text-[9px] font-bold uppercase tracking-[0.10em] text-[#1a1814]/50">{label}</span>
-      </div>
-      {value === null ? <div className="shimmer h-4 w-14 rounded" /> : <p className={`text-sm font-bold text-[#1a1814] leading-none ${valueClass ?? ""}`}>{value}</p>}
-      {badge && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full self-start ${badge.color}`}>{badge.count} {badge.label}</span>}
-    </Link>
-  )
-}
 
 const ONBOARDING_STEPS = [
   { key: "company_profile", label: "Upload company logo",     href: "/settings#company" },
@@ -231,11 +197,11 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
       const { s, fmt, netProfit, margin } = ctx
       return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <PrimaryKpi label={ctx.t('dashboard.revenue', 'Revenue')}    value={s ? fmt(s.total_revenue) : null}           icon={TrendingUp}  bg="bg-green-50"   border="border-green-200"   text="text-green-800"   sub={margin ? `${margin}% ${ctx.t('common.margin', 'margin')}` : undefined} />
-          <PrimaryKpi label={ctx.t('dashboard.expenses', 'Expenses')}   value={s ? fmt(s.total_expense) : null}           icon={TrendingDown} bg="bg-red-50"     border="border-red-200"     text="text-red-800" />
-          <PrimaryKpi label={ctx.t('dashboard.netProfit', 'Net Profit')} value={s ? fmt(netProfit) : null}                 icon={Wallet}      bg={netProfit < 0 ? "bg-red-50" : "bg-amber-50"} border={netProfit < 0 ? "border-red-200" : "border-amber-200"} text={netProfit < 0 ? "text-red-800" : "text-amber-800"} sub={netProfit < 0 ? ctx.t('common.netLoss', 'Net loss') : ctx.t('common.netGain', 'Net gain')} />
-          <PrimaryKpi label={ctx.t('dashboard.cashAndBank', 'Cash & Bank')} value={s ? fmt(s.cash_balance ?? 0) : null}     icon={Banknote}    bg="bg-emerald-50" border="border-emerald-200"   text="text-emerald-800" sub={ctx.t('common.availableBalance', 'available balance')} />
-          <PrimaryKpi label={ctx.t('common.vouchers', 'Vouchers')}   value={s ? s.transaction_count.toString() : null}    icon={Hash}        bg="bg-blue-50"    border="border-blue-200"     text="text-blue-800"    sub={ctx.t('common.posted_count', 'posted')} compact />
+          <KpiCard title={ctx.t('dashboard.revenue', 'Revenue')}       value={s ? fmt(s.total_revenue) : null}          icon={TrendingUp}   tone="green"   sub={margin ? `${margin}% ${ctx.t('common.margin', 'margin')}` : undefined} />
+          <KpiCard title={ctx.t('dashboard.expenses', 'Expenses')}     value={s ? fmt(s.total_expense) : null}          icon={TrendingDown} tone="red" />
+          <KpiCard title={ctx.t('dashboard.netProfit', 'Net Profit')}  value={s ? fmt(netProfit) : null}                icon={Wallet}       tone={netProfit < 0 ? "red" : "amber"} sub={netProfit < 0 ? ctx.t('common.netLoss', 'Net loss') : ctx.t('common.netGain', 'Net gain')} />
+          <KpiCard title={ctx.t('dashboard.cashAndBank', 'Cash & Bank')} value={s ? fmt(s.cash_balance ?? 0) : null}    icon={Banknote}     tone="emerald" sub={ctx.t('common.availableBalance', 'available balance')} />
+          <KpiCard title={ctx.t('common.vouchers', 'Vouchers')}        value={s ? s.transaction_count.toString() : null} icon={Hash}        tone="blue"    sub={ctx.t('common.posted_count', 'posted')} />
         </div>
       )
     },
@@ -249,11 +215,11 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
       const { s, fmt } = ctx
       return (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <SecondaryKpi label={ctx.t('dashboard.outstandingAr', 'AR Outstanding')}   value={s ? fmt(s.ar_outstanding) : null}       icon={ArrowDownLeft}  color="text-green-700"  href="/invoices"                badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", color: "bg-red-100 text-red-700" } : undefined} />
-          <SecondaryKpi label={ctx.t('dashboard.outstandingAp', 'AP Outstanding')}   value={s ? fmt(s.ap_outstanding) : null}       icon={ArrowUpRight}   color="text-orange-700" href="/bills"                   badge={s?.unpaid_bills ? { count: s.unpaid_bills, label: "unpaid", color: "bg-orange-100 text-orange-700" } : undefined} />
-          <SecondaryKpi label={ctx.t('dashboard.openInvoices', 'Overdue Invoices')} value={s ? s.overdue_invoices.toString() : null}   icon={Clock}          color="text-red-600"    href="/invoices"                valueClass={s && s.overdue_invoices > 0 ? "text-red-600 font-bold" : undefined} />
-          <SecondaryKpi label={ctx.t('dashboard.lowStock', 'Low Stock Items')}  value={s ? s.low_stock_items.toString() : null}    icon={Package}        color="text-purple-600" href="/products?low_stock=true" valueClass={s && s.low_stock_items > 0 ? "text-amber-600 font-bold" : undefined} />
-          <SecondaryKpi label={ctx.t('dashboard.apDueWeek', 'AP Due This Week')} value={s ? fmt(s.ap_due_week ?? 0) : null}     icon={CalendarClock}  color="text-rose-600"   href="/bills"                   valueClass={s && (s.ap_due_week ?? 0) > 0 ? "text-rose-600 font-bold" : undefined} />
+          <KpiCard title={ctx.t('dashboard.outstandingAr', 'AR Outstanding')}  value={s ? fmt(s.ar_outstanding) : null}         icon={ArrowDownLeft} iconClass="text-green-700"  href="/invoices"                badge={s?.overdue_invoices ? { count: s.overdue_invoices, label: "overdue", className: "bg-red-100 text-red-700" } : undefined} />
+          <KpiCard title={ctx.t('dashboard.outstandingAp', 'AP Outstanding')}  value={s ? fmt(s.ap_outstanding) : null}         icon={ArrowUpRight}  iconClass="text-orange-700" href="/bills"                   badge={s?.unpaid_bills ? { count: s.unpaid_bills, label: "unpaid", className: "bg-orange-100 text-orange-700" } : undefined} />
+          <KpiCard title={ctx.t('dashboard.openInvoices', 'Overdue Invoices')} value={s ? s.overdue_invoices.toString() : null} icon={Clock}         iconClass="text-red-600"    href="/invoices"                valueClass={s && s.overdue_invoices > 0 ? "text-red-600 font-bold" : undefined} />
+          <KpiCard title={ctx.t('dashboard.lowStock', 'Low Stock Items')}      value={s ? s.low_stock_items.toString() : null}  icon={Package}       iconClass="text-purple-600" href="/products?low_stock=true" valueClass={s && s.low_stock_items > 0 ? "text-amber-600 font-bold" : undefined} />
+          <KpiCard title={ctx.t('dashboard.apDueWeek', 'AP Due This Week')}    value={s ? fmt(s.ap_due_week ?? 0) : null}       icon={CalendarClock} iconClass="text-rose-600"   href="/bills"                   valueClass={s && (s.ap_due_week ?? 0) > 0 ? "text-rose-600 font-bold" : undefined} />
         </div>
       )
     },
