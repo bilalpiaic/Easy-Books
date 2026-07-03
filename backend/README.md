@@ -43,7 +43,7 @@ backend/
 │                        #   leaves; posting to leaves only), 7 demo tenants, MODULE_REGISTRY
 │                        #   (installable modules) + MODULES_BY_MODEL defaults
 ├── auth.py              # JWT (HS256) + bcrypt
-├── routers/             # 57 domain routers
+├── routers/             # 58 domain routers
 │   ├── common.py        # Shared deps: SessionDep, CurrentUserDep, WriteUserDep, AdminUserDep
 │   ├── auth.py          # signup, login, logout, /me, profile, accept-invite
 │   ├── users.py         # team management (admin+): create/invite/role/activate
@@ -58,6 +58,8 @@ backend/
 │   ├── reports.py       # GL + hierarchical statements + dashboards (see below)
 │   ├── report_builder.py  # dynamic report builder — whitelisted sources, saved reports, CSV/XLSX export
 │   ├── search.py        # GET /api/search — universal search across 8 entity types
+│   ├── ai_chat.py       # POST /api/ai/chat — AI Financial Assistant (Anthropic agent loop over
+│   │                    #   7 read-only report tools; gated by ai_assistant module + ANTHROPIC_API_KEY)
 │   ├── system_update.py # in-app update: GitHub commit check, pull+migrate+rebuild, changelog
 │   ├── admin.py         # Demo-data seed/purge (admin+) — backs Settings → Sample/Demo Data
 │   ├── product_categories.py  # ProductCategory CRUD — 2-level taxonomy (parent → sub-category)
@@ -142,6 +144,7 @@ Domain report routers add more: `healthcare_reports.py` (7 endpoints under `/api
 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` | — / — / `attachments` | Cloud file storage for attachments (unset → uploads disabled with a clear error) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `FROM_EMAIL` | — | Outbound email (invoice delivery, invites) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | Invoice pay-links + payment webhook |
+| `ANTHROPIC_API_KEY` | — | Enables the AI Financial Assistant (`POST /api/ai/chat`); unset → 503 with a clear message |
 
 ## API conventions
 

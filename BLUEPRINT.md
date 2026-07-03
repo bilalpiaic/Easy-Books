@@ -498,6 +498,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `telecom` | Telecom Franchise | Industry | inventory | — | Telecom section |
 | `pra` | PRA e-Invoice | Industry | base | — | PRA Logs in System section |
 | `healthcare` | Healthcare | Industry | base | — | Healthcare section (OPD/IPD/Lab/Procedures/Store/Reports) |
+| `ai_assistant` | AI Financial Assistant | Intelligence | base | — | Chat FAB + `POST /api/ai/chat` (no sidebar section) |
 
 **`MODULES_BY_MODEL`** (default module set assigned at signup):
 
@@ -796,6 +797,12 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 
 ### Admin (`/api/admin`)
 - `POST /demo/seed` *(admin+)* — load all 7 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
+
+### AI Financial Assistant (`/api/ai`)
+
+- `POST /api/ai/chat` — body `{message, history: [{role, content}]}` → `{reply}`. Runs an Anthropic agent loop (max 6 steps, model `claude-sonnet-4-6`) with 7 read-only tools that call the existing report functions **directly** — `get_dashboard_data`, `get_income_statement`, `get_trial_balance`, `cash_flow_statement`, `invoice_aging`, `bill_aging`, `get_dashboard_charts` — so tenant filters and business rules are reused, never re-implemented.
+- **Gates:** 503 when `ANTHROPIC_API_KEY` is unset; 403 when the tenant hasn't installed the `ai_assistant` module; 400 when the message exceeds 4,000 chars. History is trimmed server-side to the last 20 turns; `role` is validated to `user|assistant`.
+- **Error mapping:** invalid API key → 503, Anthropic rate limit → 429, API/network failures → 502 — all with user-readable `detail`. Failed tool executions return `is_error: true` tool results so the model recovers gracefully.
 
 ### Universal Search (`/api/search`)
 
@@ -1876,6 +1883,17 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | **Net Worth Trend widget (#130)** | `GET /api/reports/dashboard/net-worth` + Chart.js combo widget (diverging bars + line, range pills, legend toggles); #129 closed as duplicate (`574b105`) |
 | **Top-10 widgets (#131)** | Top Customers and Top Products expanded from 5 to 10 entries (`a903127`) |
 | **Uniform dropdown items (#132 + v3.1 icons)** | Section-dropdown overview rows styled as normal menu items; every top-menu dropdown item and mobile More-drawer item renders icon + label (`34c19bb` + nav-icons commit) |
+
+### Sprint 22 Shipped ✅ (AI Financial Assistant — #112 Level 1)
+
+| Feature | Notes |
+|---------|-------|
+| **AI chat endpoint** | `routers/ai_chat.py` — `POST /api/ai/chat`: Anthropic agent loop (max 6 steps) over 7 read-only report tools calling existing tenant-scoped report functions directly (`704540d`) |
+| **`ai_assistant` module** | Added to `MODULE_REGISTRY` (Intelligence, pro tier, default off); gate enforced server-side (403) and in the frontend FAB (`704540d`, `eca27cf`) |
+| **Chat UI** | `AIChat.tsx` portal panel (quick prompts, session-only history) + `AIChatButton.tsx` Sparkles FAB, mounted in the dashboard layout (`704540d`) |
+| **Hardening (review fixes)** | Typed Anthropic error mapping (503/429/502), 4,000-char message + 20-turn history caps, `Literal` role validation, `is_error` tool results (`eca27cf`) |
+
+**Deferred follow-ups:** async endpoint (`AsyncAnthropic`) if concurrent chat load grows; model upgrade `claude-sonnet-4-6` → `claude-sonnet-5` (needs a deliberate pass — adaptive thinking defaults on there and consumes the 2,048-token output cap).
 
 ### Still Pending
 
