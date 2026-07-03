@@ -190,7 +190,7 @@ export default function ManufacturingReportsPage() {
             const items = wip.buckets[bucket] ?? []
             if (!items.length) return null
             return (
-              <div key={bucket} className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+              <div key={bucket} className="bg-white border border-[var(--border)] rounded-xl table-freeze">
                 <div className={`px-4 py-2.5 border-b border-[var(--border)] text-xs font-semibold ${AGING_TONE[bucket]} bg-opacity-50`}>
                   {bucket} — {items.length} order{items.length !== 1 ? "s" : ""}
                 </div>
@@ -238,7 +238,7 @@ export default function ManufacturingReportsPage() {
 
       {/* ── Production Summary ── */}
       {tab === "production-summary" && summary && (
-        <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+        <div className="bg-white border border-[var(--border)] rounded-xl table-freeze">
           <table className="w-full text-sm">
             <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
               <tr>
@@ -305,7 +305,7 @@ export default function ManufacturingReportsPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+            <div className="bg-white border border-[var(--border)] rounded-xl table-freeze">
               <table className="w-full text-sm">
                 <thead className="bg-[var(--bg-page)] text-[var(--text-primary)]/70 text-xs uppercase tracking-wide">
                   <tr>

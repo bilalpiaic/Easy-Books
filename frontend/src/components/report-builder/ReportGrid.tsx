@@ -14,7 +14,7 @@ export default function ReportGrid({ result, sort, onSort, onCellFilter }: Props
   const sb = sort[0]?.field ?? ""
   const sd = sort[0]?.dir ?? "asc"
   return (
-    <div className="overflow-auto border border-[var(--border)] rounded-xl bg-white">
+    <div className="table-freeze freeze-col border border-[var(--border)] rounded-xl bg-white">
       <table className="w-full text-sm">
         <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
           <tr>{result.columns.map(c => (

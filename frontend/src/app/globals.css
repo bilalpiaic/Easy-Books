@@ -139,6 +139,31 @@ div.overflow-x-auto:has(> table) > table > thead {
   background-color: var(--bg-page);
 }
 
+/* 1b ── Bounded scroll viewport (opt-in via .table-freeze on the wrapper div)
+   overflow-x-auto wrappers grow with their content, so a sticky thead never
+   engages vertically — the wrapper itself is the scroll container but it has
+   no fixed height. .table-freeze caps the wrapper height so it becomes the
+   vertical scroller and the sticky header actually pins (Excel-style).
+   Override the offset per page with --table-freeze-h if needed. */
+.table-freeze {
+  overflow: auto;
+  max-height: var(--table-freeze-h, calc(100dvh - 240px));
+  -webkit-overflow-scrolling: touch;
+}
+.table-freeze > table > thead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--bg-page);
+}
+/* Totals row stays visible while the body scrolls */
+.table-freeze > table > tfoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  background-color: var(--bg-page);
+}
+
 /* 2 ── Freeze first column (opt-in via .freeze-col on the wrapper div) */
 div.freeze-col > table thead th:first-child,
 div.freeze-col > table tbody td:first-child,
@@ -163,6 +188,15 @@ div.freeze-col > table tbody tr:hover td:first-child {
 /* 3 ── Print: reset all freeze-pane positioning */
 @media print {
   div.overflow-x-auto:has(> table) > table > thead {
+    position: static !important;
+    background-color: transparent !important;
+  }
+  .table-freeze {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .table-freeze > table > thead,
+  .table-freeze > table > tfoot {
     position: static !important;
     background-color: transparent !important;
   }

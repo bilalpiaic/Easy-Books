@@ -219,6 +219,7 @@ export default function TrackerPage() {
                   </table>
                 </Section>
                 <Section title="Per-account balances">
+                  <div className="table-freeze">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border)]">
@@ -240,6 +241,7 @@ export default function TrackerPage() {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </Section>
               </>
             )}

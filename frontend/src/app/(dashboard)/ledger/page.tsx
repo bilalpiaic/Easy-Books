@@ -210,7 +210,7 @@ function AllAccountsTable({ allLedger, start, end, fmt, subledgerCache, onSubled
 
   return (
     <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="table-freeze freeze-col">
         <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
             <tr>
@@ -581,7 +581,7 @@ function LedgerPageInner() {
               </div>
 
               {/* Transactions table */}
-              <div className="overflow-x-auto">
+              <div className="table-freeze freeze-col">
                 <table className="w-full text-sm min-w-[640px]">
                   <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
                     <tr>
