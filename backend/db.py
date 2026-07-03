@@ -456,6 +456,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Healthcare"],
     },
+    "ai_assistant": {
+        "label":       "AI Financial Assistant",
+        "description": "Ask questions about your finances in plain language. Powered by Claude AI — query P&L, overdue invoices, cash flow, and more.",
+        "category":    "Intelligence",
+        "icon":        "Sparkles",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "pro",
+        "nav_sections": [],
+    },
 }
 
 # Maps legacy business_model → sensible default module set.

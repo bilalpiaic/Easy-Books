@@ -20,6 +20,7 @@ dependencies = [
     "python-dateutil>=2.9.0.post0",
     "stripe>=15.2.0",
     "openpyxl>=3.1.5",
+    "anthropic>=0.113.0",
 ]
 
 [dependency-groups]

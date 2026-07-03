@@ -26,7 +26,7 @@ from routers import (
     reconciliations, recurring, report_builder, reports, settings, stock_locations,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
     permissions, commissions, promo_rules, payroll, attendance, system_update,
-    search,
+    search, ai_chat,
 )
 from routers.pra import pra_router
 from routers import healthcare, healthcare_reports
@@ -105,6 +105,7 @@ _ROUTERS = [
     healthcare_reports.router,
     system_update.router,
     search.router,
+    ai_chat.router,
 ]
 
 # PRA e-Invoice router mounted separately (not in the shared prefix list above)
