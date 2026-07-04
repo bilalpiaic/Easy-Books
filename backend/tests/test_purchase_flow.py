@@ -137,3 +137,76 @@ def test_quotation_update_rejects_foreign_vendor(client: TestClient):
     })
     assert r.status_code == 400
     assert "vendor" in r.json()["detail"].lower()
+
+
+def _cs_setup(client, prefix):
+    """Demand with two quotes: vendor A @250 (lowest), vendor B @300."""
+    auth = _signup(client, f"{prefix}@t.com")
+    va = _make_vendor(client, auth, "Vendor A")
+    vb = _make_vendor(client, auth, "Vendor B")
+    demand, auth2 = _approved_demand(client, auth)
+    qa = _quote(client, auth, demand, va["id"], 250).json()
+    qb = _quote(client, auth, demand, vb["id"], 300).json()
+    cs = client.post(
+        "/api/comparatives", headers=auth,
+        json={"demand_id": demand["id"], "cs_date": "2026-07-04"},
+    ).json()
+    return auth, auth2, demand, qa, qb, cs
+
+
+def test_cs_lowest_or_justify(client: TestClient):
+    auth, auth2, demand, qa, qb, cs = _cs_setup(client, "cs1")
+
+    # Selecting the HIGHER quote without justification → blocked at approve
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": qb["id"], "justification": None})
+    r = client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2)
+    assert r.status_code == 400 and "justif" in r.json()["detail"].lower()
+
+    # With justification → approved
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": qb["id"],
+                     "justification": "Vendor A failed last delivery"})
+    r = client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2)
+    assert r.status_code == 200
+
+    # Quotations are now frozen
+    r = _quote(client, auth, demand, qa["vendor_id"], 111)
+    assert r.status_code == 400
+
+
+def test_cs_self_approval_block_and_convert(client: TestClient):
+    auth, auth2, demand, qa, qb, cs = _cs_setup(client, "cs2")
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": qa["id"], "justification": None})
+
+    # Creator cannot approve their own CS
+    r = client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth)
+    assert r.status_code == 400
+
+    client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2)
+    r = client.post(f"/api/comparatives/{cs['id']}/convert-to-po", headers=auth)
+    assert r.status_code == 201, r.text
+    po = r.json()
+    assert po["status"] == "draft"
+    assert po["comparative_id"] == cs["id"] and po["demand_id"] == demand["id"]
+    assert float(po["total"]) == 250 * 100  # winner's rate × demand qty
+
+    # CS and demand both flip to converted
+    assert client.get(f"/api/comparatives/{cs['id']}", headers=auth).json()["status"] == "converted"
+    assert client.get(f"/api/purchase-demands/{demand['id']}", headers=auth).json()["status"] == "converted"
+
+
+def test_cs_single_quote_needs_justification(client: TestClient):
+    auth = _signup(client, "cs3@t.com")
+    v = _make_vendor(client, auth)
+    demand, auth2 = _approved_demand(client, auth)
+    q = _quote(client, auth, demand, v["id"], 500).json()
+    cs = client.post("/api/comparatives", headers=auth,
+                     json={"demand_id": demand["id"], "cs_date": "2026-07-04"}).json()
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": q["id"], "justification": None})
+    assert client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2).status_code == 400
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": q["id"], "justification": "Single-source item"})
+    assert client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2).status_code == 200
