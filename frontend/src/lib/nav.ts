@@ -9,6 +9,7 @@ import {
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
+  ClipboardCheck,
 } from "lucide-react"
 
 export type NavItem = {
@@ -17,9 +18,18 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store"
+  /** Module ID — item is hidden when this module IS installed (dual-home entries). */
+  notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
   adminOnly?: boolean
+}
+
+/** Single visibility predicate — use everywhere instead of ad-hoc forModule checks. */
+export function navVisible(item: NavItem, installed: Set<string>): boolean {
+  if (item.forModule && !installed.has(item.forModule)) return false
+  if (item.notForModule && installed.has(item.notForModule)) return false
+  return true
 }
 
 export const NAV: NavItem[] = [
@@ -45,6 +55,10 @@ export const NAV: NavItem[] = [
   { label: "Vendors",          href: "/vendors",           icon: Truck,            section: "Payable" },
   { label: "Bill Payments",    href: "/bill-payments",     icon: ArrowUpRight,     section: "Payable" },
   { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Payable" },
+  { label: "Demands",          href: "/purchases/demands",     icon: ClipboardCheck, section: "Purchases", forModule: "purchase_store" },
+  { label: "Comparatives",     href: "/purchases/comparatives", icon: Scale,        section: "Purchases", forModule: "purchase_store" },
+  { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Purchases", forModule: "purchase_store" },
+  { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Purchases", forModule: "purchase_store" },
   { label: "Overview",         href: "/inventory",         icon: LayoutGrid,       section: "Inventory",      forModule: "inventory" },
   { label: "Products",          href: "/products",            icon: Package,          section: "Inventory",      forModule: "inventory" },
   { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory",      forModule: "inventory" },
@@ -53,9 +67,9 @@ export const NAV: NavItem[] = [
   { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing",    forModule: "production" },
   { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing",    forModule: "production" },
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing",    forModule: "production" },
-  { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Manufacturing", forModule: "production" },
+  { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Manufacturing", forModule: "production", notForModule: "purchase_store" },
   { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Manufacturing", forModule: "production" },
-  { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing",    forModule: "production" },
+  { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing",    forModule: "production", notForModule: "purchase_store" },
   { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModule: "production" },
   { label: "Mfg Reports",     href: "/manufacturing/reports",           icon: BarChart2, section: "Manufacturing", forModule: "production" },
   { label: "Telecom Overview", href: "/telecom",                icon: Radio,       section: "Telecom",          forModule: "telecom" },
@@ -117,7 +131,7 @@ export const NAV: NavItem[] = [
   { label: "HC Reports",        href: "/healthcare/reports",      icon: BarChart2,    section: "Healthcare", forModule: "healthcare" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Inventory","Manufacturing","Telecom","Healthcare","Banking","Reports","Payroll","System"]
+export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Inventory","Manufacturing","Telecom","Healthcare","Banking","Reports","Payroll","System"]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.

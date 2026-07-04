@@ -80,6 +80,8 @@ export const TITLE_MAP: Record<string, string> = {
   "/cash-book":        "Cash Book",
   "/receivable":       "Accounts Receivable",
   "/payable":          "Accounts Payable",
+  "/purchases/demands":      "Purchases",
+  "/purchases/comparatives": "Comparatives",
   "/banking":          "Banking",
   "/aging/receivable": "AR Aging",
   "/aging/payable":    "AP Aging",

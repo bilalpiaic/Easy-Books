@@ -6,7 +6,7 @@ import { X, ChevronRight, ChevronDown, Pin, PinOff, LogOut, PlusCircle, FileSign
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { apiFetch } from "@/lib/api"
-import { NAV, ALL_SECTIONS } from "@/lib/nav"
+import { NAV, ALL_SECTIONS, navVisible } from "@/lib/nav"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
 import { useModules } from "@/context/ModuleContext"
@@ -148,7 +148,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const visibleNav = isPortal
     ? PORTAL_NAV
     : NAV.filter(i => {
-        if (i.forModule && !installedModules.has(i.forModule)) return false
+        if (!navVisible(i, installedModules)) return false
         if (i.adminOnly && !isAdmin) return false
         return true
       })

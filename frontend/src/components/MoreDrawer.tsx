@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { X } from "lucide-react"
-import { TOP_NAV, SUB_NAV } from "@/lib/nav"
+import { TOP_NAV, SUB_NAV, navVisible } from "@/lib/nav"
 import { cn } from "@/lib/utils"
 import { useModules } from "@/context/ModuleContext"
 import { getCurrentUser } from "@/lib/auth"
@@ -69,7 +69,7 @@ export default function MoreDrawer({ open, onClose }: Props) {
             }
 
             const items = (SUB_NAV[section.key] ?? []).filter(item => {
-              if (item.forModule && !installedModules.has(item.forModule)) return false
+              if (!navVisible(item, installedModules)) return false
               if (item.adminOnly && !isAdmin) return false
               return true
             })
