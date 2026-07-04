@@ -467,6 +467,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "pro",
         "nav_sections": [],
     },
+    "purchase_store": {
+        "label":       "Purchases & Store",
+        "description": "Procure-to-pay controls: purchase demands, vendor quotation comparison, and approval-gated purchase orders. Gate inward and store issues arrive in upcoming phases.",
+        "category":    "Operations",
+        "icon":        "ShoppingCart",
+        "deps":        ["inventory"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Purchases"],
+    },
 }
 
 # Maps legacy business_model → sensible default module set.
@@ -476,7 +487,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "simple":            ["base"],
     "services":          ["base"],
     "trader":            ["base", "inventory"],
-    "manufacturing":     ["base", "inventory", "production"],
+    "manufacturing":     ["base", "inventory", "production", "purchase_store"],
     "telecom_franchise": ["base", "inventory", "telecom"],
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],

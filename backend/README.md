@@ -43,7 +43,7 @@ backend/
 │                        #   leaves; posting to leaves only), 7 demo tenants, MODULE_REGISTRY
 │                        #   (installable modules) + MODULES_BY_MODEL defaults
 ├── auth.py              # JWT (HS256) + bcrypt
-├── routers/             # 58 domain routers
+├── routers/             # 61 domain routers
 │   ├── common.py        # Shared deps: SessionDep, CurrentUserDep, WriteUserDep, AdminUserDep
 │   ├── auth.py          # signup, login, logout, /me, profile, accept-invite
 │   ├── users.py         # team management (admin+): create/invite/role/activate
@@ -60,6 +60,9 @@ backend/
 │   ├── search.py        # GET /api/search — universal search across 8 entity types
 │   ├── ai_chat.py       # POST /api/ai/chat — AI Financial Assistant (Anthropic agent loop over
 │   │                    #   7 read-only report tools; gated by ai_assistant module + ANTHROPIC_API_KEY)
+│   ├── purchase_demands.py  # PD-YYYY-seq quantity-only requisitions; approve/cancel/close, self-approval blocked
+│   ├── quotations.py    # VQ-YYYY-seq vendor quotations against an approved demand; freezes on CS approval
+│   ├── comparatives.py  # CS-YYYY-seq comparison matrix + lowest-or-justify approval + convert-to-PO
 │   ├── system_update.py # in-app update: GitHub commit check, pull+migrate+rebuild, changelog
 │   ├── admin.py         # Demo-data seed/purge (admin+) — backs Settings → Sample/Demo Data
 │   ├── product_categories.py  # ProductCategory CRUD — 2-level taxonomy (parent → sub-category)
@@ -90,7 +93,7 @@ backend/
 
 ## Schema management
 
-**Alembic migrations are the source of truth** (`backend/alembic/versions/`, 40+ revisions — current head `0028_tenant_hospital_model`; confirm with `uv run alembic heads`). `SQLModel.metadata.create_all()` still runs on every startup so a fresh checkout boots without a migration step (disable with `SCHEMA_BOOTSTRAP=alembic`), but all schema changes must go through Alembic:
+**Alembic migrations are the source of truth** (`backend/alembic/versions/`, 40+ revisions — current head `0029_purchase_demand_comparative`; confirm with `uv run alembic heads`). `SQLModel.metadata.create_all()` still runs on every startup so a fresh checkout boots without a migration step (disable with `SCHEMA_BOOTSTRAP=alembic`), but all schema changes must go through Alembic:
 
 ```bash
 # Add a column or table

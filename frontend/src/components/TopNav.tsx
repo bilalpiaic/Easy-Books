@@ -14,7 +14,7 @@ import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { useSettings } from "@/context/SettingsContext"
 import { useModules } from "@/context/ModuleContext"
 import { useTheme } from "@/context/ThemeContext"
-import { TOP_NAV, SUB_NAV, getActiveSection } from "@/lib/nav"
+import { TOP_NAV, SUB_NAV, getActiveSection, navVisible } from "@/lib/nav"
 import type { TopNavSection } from "@/lib/nav"
 
 const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: React.ElementType }> = {
@@ -130,7 +130,7 @@ export default function TopNav() {
   function buildSectionItems(sectionKey: string) {
     const ov    = SECTION_OVERVIEW[sectionKey]
     const items = (SUB_NAV[sectionKey] ?? []).filter(item => {
-      if (item.forModule && !installedModules.has(item.forModule)) return false
+      if (!navVisible(item, installedModules)) return false
       if (item.adminOnly && !isAdmin) return false
       if (ov && item.href === ov.href) return false
       return true

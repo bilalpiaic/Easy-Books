@@ -1,4 +1,4 @@
-import { NAV, type NavItem } from "@/lib/nav"
+import { NAV, navVisible, type NavItem } from "@/lib/nav"
 
 const SHORTCUT_PREFIX = "shortcut:"
 
@@ -9,7 +9,7 @@ export const shortcutId = (href: string) => `${SHORTCUT_PREFIX}${href}`
 /** Same visibility rule the sidebar uses (lib/nav consumers). */
 function available(item: NavItem, installedModules: Set<string>, role: string): boolean {
   const isAdmin = role === "admin" || role === "owner"
-  return (!item.forModule || installedModules.has(item.forModule)) && (!item.adminOnly || isAdmin)
+  return navVisible(item, installedModules) && (!item.adminOnly || isAdmin)
 }
 
 /** NAV items the user may add as shortcut tiles (excludes the Dashboard itself),

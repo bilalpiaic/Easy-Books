@@ -127,7 +127,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
 
 **Module system (v2.9)**
-- **Odoo-style installable modules** — 8 modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`, `ai_assistant`. Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
+- **Odoo-style installable modules** — 9 modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`, `ai_assistant`, `purchase_store`. Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
 - **Apps page** (`/apps`) — module store grid grouped by category (Core / Operations / HR / Industry / Intelligence); install/uninstall with dependency resolution and a confirmation dialog before removal; admin/owner only
 - **Post-login onboarding splash** — fresh accounts land on `/onboarding` (full-page, no sidebar) to pick their modules before reaching the dashboard; "Skip for now" available; shown once per account; demo tenants bypass it automatically
 - `Tenant.module_meta` JSON column records `{tier, installed_at, expires_at}` per module — billing-ready schema without a future destructive migration
@@ -138,6 +138,14 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Grounded in live data** — a Claude agent loop calls 7 read-only report tools (dashboard KPIs, P&L, trial balance, cash flow, AR/AP aging, top customers) that reuse the existing tenant-scoped report functions, so answers come from real numbers, never guesses
 - **Installable module** — `ai_assistant` (Intelligence category, pro tier, off by default); the gate is enforced server-side and the chat button hides when the module isn't installed
 - **Safeguards** — requires `ANTHROPIC_API_KEY` on the backend; message-length and history caps; friendly errors on rate limits or outages; strictly read-only — it cannot create, post, or modify anything
+
+**Purchases & Store module (v3.3)**
+- **Demand → Comparative → PO chain** — Purchase Demand (PD-YYYY-seq, quantity-only, no rates — the requester never sets prices) → Vendor Quotations (VQ-YYYY-seq, per-vendor pricing against demand lines) → Comparative Statement (CS-YYYY-seq, one per demand) → convert to Purchase Order
+- **Segregation-of-duties controls** — a demand or comparative cannot be approved by its own creator; quotations freeze once their comparative is approved
+- **Lowest-or-justify rule** — approving a comparative with fewer than two quotations, or a selection that isn't the lowest total, requires a written justification; approval also blocks if the selected quotation doesn't price every demand line
+- **Matrix builder UI** — side-by-side vendor comparison grid highlighting the lowest rate per line, with one-click "Convert to PO"
+- **Setting-gated enforcement** — `require_purchase_chain` (Settings, default on) blocks bare Purchase Order creation once `purchase_store` is installed, forcing new POs through the approved chain; can be switched off per tenant
+- **Installable module** — `purchase_store` (Operations category, free tier, depends on `inventory`); pre-installed for the Manufacturing business-model track
 
 **Healthcare module (v3.0)**
 - **Patient registry** — MR-YYYYNNNN numbering; every patient auto-creates a `Customer` record so AR aging, statements, and payment allocation work out-of-the-box

@@ -79,8 +79,8 @@ export default function NetWorthTrendWidget() {
       },
       tooltip: {
         callbacks: {
-          label: (ctx: { dataset: { label?: string }; parsed: { y: number } }) =>
-            `${ctx.dataset.label}: ${fmt(Math.abs(ctx.parsed.y))}`,
+          label: (ctx: { dataset: { label?: string }; parsed: { y: number | null } }) =>
+            `${ctx.dataset.label}: ${fmt(Math.abs(ctx.parsed.y ?? 0))}`,
         },
       },
     },

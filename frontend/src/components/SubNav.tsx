@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { SUB_NAV, getActiveSection } from "@/lib/nav"
+import { SUB_NAV, getActiveSection, navVisible } from "@/lib/nav"
 import { useModules } from "@/context/ModuleContext"
 import { getCurrentUser } from "@/lib/auth"
 
@@ -29,7 +29,7 @@ export default function SubNav() {
 
   const activeSection = getActiveSection(pathname)
   const items = (SUB_NAV[activeSection] ?? []).filter(item => {
-    if (item.forModule && !installedModules.has(item.forModule)) return false
+    if (!navVisible(item, installedModules)) return false
     if (item.adminOnly && !isAdmin) return false
     return true
   })

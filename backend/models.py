@@ -892,6 +892,8 @@ class PurchaseOrder(SQLModel, table=True):
     total: Money = money_col()
     status: str = Field(default="draft")
     bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    demand_id: Optional[int] = Field(default=None, foreign_key="purchasedemand.id")
+    comparative_id: Optional[int] = Field(default=None, foreign_key="comparativestatement.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -904,6 +906,92 @@ class PurchaseOrderLine(SQLModel, table=True):
     unit: Optional[str] = None
     rate: Money = money_col()
     amount: Money = money_col()
+
+
+class PurchaseDemand(SQLModel, table=True):
+    """Purchase requisition — quantity-only memo document (#137 Phase 1).
+    Requester never sets prices; that segregation is the control."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_pd_number_per_tenant"),
+        CheckConstraint(
+            "status IN ('draft','approved','converted','closed','cancelled')",
+            name="ck_pd_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    demand_date: str
+    required_by: Optional[str] = None
+    analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    purpose: Optional[str] = None
+    notes: Optional[str] = None
+    status: str = Field(default="draft")
+    created_by_id: int = Field(foreign_key="user.id")
+    approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PurchaseDemandLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    demand_id: int = Field(foreign_key="purchasedemand.id", ondelete="CASCADE")
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    description: str
+    qty: Money = money_col(default=Decimal("1"))
+    unit: Optional[str] = None
+
+
+class VendorQuotation(SQLModel, table=True):
+    """One vendor's offer against an approved demand. Memo document."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_vq_number_per_tenant"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    demand_id: int = Field(foreign_key="purchasedemand.id", index=True)
+    vendor_id: int = Field(foreign_key="vendor.id")
+    quote_date: str
+    valid_until: Optional[str] = None
+    delivery_terms: Optional[str] = None
+    payment_terms: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class VendorQuotationLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    quotation_id: int = Field(foreign_key="vendorquotation.id", ondelete="CASCADE")
+    demand_line_id: int = Field(foreign_key="purchasedemandline.id")
+    rate: Money = money_col()
+    qty: Money = money_col(default=Decimal("1"))
+    amount: Money = money_col()
+
+
+class ComparativeStatement(SQLModel, table=True):
+    """Quotation comparison + vendor selection. One per demand. Memo document."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_cs_number_per_tenant"),
+        UniqueConstraint("tenant_id", "demand_id", name="unique_cs_per_demand"),
+        CheckConstraint(
+            "status IN ('draft','approved','converted','cancelled')",
+            name="ck_cs_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    demand_id: int = Field(foreign_key="purchasedemand.id", index=True)
+    cs_date: str
+    selected_quotation_id: Optional[int] = Field(default=None, foreign_key="vendorquotation.id")
+    justification: Optional[str] = None
+    status: str = Field(default="draft")
+    created_by_id: int = Field(foreign_key="user.id")
+    approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    approved_at: Optional[datetime] = None
+    po_id: Optional[int] = Field(default=None, foreign_key="purchaseorder.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Budget(SQLModel, table=True):
