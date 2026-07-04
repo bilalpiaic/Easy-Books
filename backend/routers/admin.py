@@ -12,19 +12,10 @@ from .common import AdminUserDep, SessionDep, log_audit
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-DEMO_EMAILS = [
-    "demo.simple@easy-books.app",
-    "demo.services@easy-books.app",
-    "demo.trader@easy-books.app",
-    "demo.manufacturing@easy-books.app",
-    "demo.telecom@easy-books.app",
-    "demo.pra@easy-books.app",
-]
-
 
 @router.post("/demo/seed")
 def seed_demo(session: SessionDep, user: AdminUserDep):
-    """Create the 6 demo companies (login: each email / demo1234) with rich data.
+    """Create the demo companies (login: each email / demo1234) with rich data.
 
     Idempotent — safe to call multiple times. Each call returns a per-tenant
     report dict that includes the 'email' key so the caller can confirm which
@@ -39,13 +30,16 @@ def seed_demo(session: SessionDep, user: AdminUserDep):
 
 @router.delete("/demo/seed")
 def purge_demo(session: SessionDep, user: AdminUserDep):
-    """Remove the 5 demo companies and every row scoped to them.
+    """Remove the demo companies and every row scoped to them.
 
     Rows are deleted in reverse dependency order (FK children first) using
     SQLModel.metadata.sorted_tables so no FK constraint violations occur.
-    The caller's own tenant is never touched.
+    The caller's own tenant is never touched. The email list is derived from
+    the seeder's DEMO_TENANTS so seed and purge can never drift apart.
     """
-    demo_users = session.exec(select(User).where(User.email.in_(DEMO_EMAILS))).all()
+    from scripts.seed_demo import DEMO_TENANTS  # lazy: avoids import cycle
+    demo_emails = [email for email, _, _ in DEMO_TENANTS]
+    demo_users = session.exec(select(User).where(User.email.in_(demo_emails))).all()
     tenant_ids = sorted({u.tenant_id for u in demo_users})
     removed = 0
     for tid in tenant_ids:

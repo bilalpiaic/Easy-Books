@@ -138,9 +138,10 @@ def test_me_endpoint_returns_business_model_and_modules(client):
     body = r.json()
     assert body["tenant"]["business_model"] == "manufacturing"
     modules = body["tenant"]["enabled_modules"]
-    assert "bom" in modules
+    assert "base" in modules
+    assert "inventory" in modules
     assert "production" in modules
-    assert "customer_goods" in modules
+    assert "purchase_store" in modules
 
 
 def test_switching_business_model_adds_new_coa_accounts(client):

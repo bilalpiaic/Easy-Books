@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -89,7 +90,11 @@ def create_db_and_tables():
             for email, model, company, full_name in demo_configs:
                 demo_user = session.exec(select(User).where(User.email == email)).first()
                 if not demo_user:
-                    demo_tenant = Tenant(name=company, business_model=model)
+                    demo_tenant = Tenant(
+                        name=company,
+                        business_model=model,
+                        enabled_modules=json.dumps(MODULES_BY_MODEL.get(model, ["base"])),
+                    )
                     session.add(demo_tenant)
                     session.commit()
                     session.refresh(demo_tenant)

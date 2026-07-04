@@ -41,7 +41,7 @@ from typing import Optional
 from sqlmodel import Session, select
 
 from auth import get_password_hash
-from db import _coa_for, engine, seed_data
+from db import MODULE_REGISTRY, MODULES_BY_MODEL, _coa_for, engine, seed_data
 import json as _json
 
 from models import (
@@ -3197,10 +3197,25 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             tenant = s.get(Tenant, tenant_id)
             if tenant.business_model != business_model:
                 tenant.business_model = business_model
-                s.add(tenant); s.commit()
+            # Converge enabled_modules: a demo tenant must have at least its
+            # model's default modules, else the features it demos stay hidden.
+            # Union (not replace) so modules installed on top are preserved;
+            # unknown legacy strings ("invoicing", …) are dropped.
+            try:
+                current = _json.loads(tenant.enabled_modules or "[]")
+            except Exception:
+                current = []
+            merged = sorted(
+                {m for m in current if m in MODULE_REGISTRY}
+                | set(MODULES_BY_MODEL.get(business_model, ["base"]))
+            )
+            tenant.enabled_modules = _json.dumps(merged)
+            s.add(tenant); s.commit()
         else:
             tenant = Tenant(name=company_name, business_model=business_model,
-                            base_currency="USD")
+                            base_currency="USD",
+                            enabled_modules=_json.dumps(
+                                MODULES_BY_MODEL.get(business_model, ["base"])))
             s.add(tenant); s.commit(); s.refresh(tenant)
             tenant_id = tenant.id
             seed_data(tenant_id, session=s)
