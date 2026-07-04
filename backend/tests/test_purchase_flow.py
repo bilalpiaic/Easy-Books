@@ -210,3 +210,37 @@ def test_cs_single_quote_needs_justification(client: TestClient):
     client.put(f"/api/comparatives/{cs['id']}", headers=auth,
                json={"selected_quotation_id": q["id"], "justification": "Single-source item"})
     assert client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2).status_code == 200
+
+
+def test_cs_approve_rejects_deleted_selected_quotation(client: TestClient):
+    auth, auth2, demand, qa, qb, cs = _cs_setup(client, "cs4")
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": qa["id"], "justification": "x"})
+    client.delete(f"/api/quotations/{qa['id']}", headers=auth)
+    r = client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2)
+    assert r.status_code == 400
+    assert "no longer exists" in r.json()["detail"]
+
+
+def test_cs_approve_rejects_partial_quotation(client: TestClient):
+    auth = _signup(client, "cs5@t.com")
+    v = _make_vendor(client, auth)
+    d = _make_demand(client, auth, lines=[
+        {"description": "Item A", "qty": 10, "unit": "pc"},
+        {"description": "Item B", "qty": 5, "unit": "pc"},
+    ])
+    auth2 = _second_admin(client, auth, email="cs5appr@t.com")
+    client.patch(f"/api/purchase-demands/{d['id']}/approve", headers=auth2)
+    d = client.get(f"/api/purchase-demands/{d['id']}", headers=auth).json()
+    # Quote only the FIRST line
+    q = client.post("/api/quotations", headers=auth, json={
+        "demand_id": d["id"], "vendor_id": v["id"], "quote_date": "2026-07-04",
+        "lines": [{"demand_line_id": d["lines"][0]["id"], "rate": 50, "qty": 10}],
+    }).json()
+    cs = client.post("/api/comparatives", headers=auth,
+                     json={"demand_id": d["id"], "cs_date": "2026-07-04"}).json()
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": q["id"], "justification": "single source"})
+    r = client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2)
+    assert r.status_code == 400
+    assert "does not price" in r.json()["detail"]

@@ -193,6 +193,8 @@ def approve_cs(session: SessionDep, user: AdminUserDep, cs_id: int):
     if not totals:
         raise HTTPException(400, "No quotations on this demand")
     selected_total = totals.get(cs.selected_quotation_id)
+    if selected_total is None:
+        raise HTTPException(400, "Selected quotation no longer exists — re-select a winner")
     lowest_total = min(totals.values())
     needs_justification = len(totals) < 2 or selected_total != lowest_total
     if needs_justification and not (cs.justification and cs.justification.strip()):
@@ -200,6 +202,25 @@ def approve_cs(session: SessionDep, user: AdminUserDep, cs_id: int):
             400,
             "Justification required: fewer than two quotations, or the selected "
             "quotation is not the lowest",
+        )
+    demand_line_ids = {
+        dl.id for dl in session.exec(
+            select(PurchaseDemandLine).where(PurchaseDemandLine.demand_id == cs.demand_id)
+        ).all()
+    }
+    quoted_line_ids = {
+        ql.demand_line_id for ql in session.exec(
+            select(VendorQuotationLine).where(
+                VendorQuotationLine.quotation_id == cs.selected_quotation_id
+            )
+        ).all()
+    }
+    missing = demand_line_ids - quoted_line_ids
+    if missing:
+        raise HTTPException(
+            400,
+            f"Selected quotation does not price {len(missing)} demand line(s) — "
+            "a comparative can only be approved on a complete quotation",
         )
     cs.status = "approved"
     cs.approved_by_id = user.id
@@ -216,6 +237,8 @@ def convert_to_po(session: SessionDep, user: WriteUserDep, cs_id: int):
     if cs.status != "approved":
         raise HTTPException(400, "Only an approved comparative can convert to a PO")
     quote = session.get(VendorQuotation, cs.selected_quotation_id)
+    if not quote:
+        raise HTTPException(400, "Selected quotation no longer exists")
     vendor = session.get(Vendor, quote.vendor_id)
     demand = session.get(PurchaseDemand, cs.demand_id)
     demand_lines = {
