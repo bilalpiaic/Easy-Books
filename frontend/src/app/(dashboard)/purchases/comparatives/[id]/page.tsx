@@ -30,12 +30,17 @@ type CS = {
   matrix: MatrixRow[]
 }
 
-/** Lowest non-null amount in a row of cells — null cells are ignored. */
-function isLowest(cells: { amount: number | null }[], cell: { amount: number | null }): boolean {
-  if (cell.amount == null) return false
-  const priced = cells.filter(c => c.amount != null).map(c => c.amount as number)
-  if (!priced.length) return false
-  return cell.amount === Math.min(...priced)
+/** Lowest non-null value in a row of cells — null cells are ignored. */
+function isLowest(
+  cells: { rate: number | null; amount: number | null }[],
+  cell: { rate: number | null; amount: number | null },
+  field: "rate" | "amount" = "rate",
+): boolean {
+  const v = cell[field]
+  if (v == null) return false
+  const values = cells.map(c => c[field]).filter((x): x is number => x != null)
+  if (!values.length) return false
+  return Number(v) === Math.min(...values.map(Number))
 }
 
 const LOW = "bg-green-50 text-green-700 font-medium"
@@ -106,13 +111,13 @@ export default function ComparativeDetailPage() {
   const isDraft = cs.status === "draft"
 
   // Lowest grand total among quotations (all totals are non-null numbers)
-  const totalCells = cs.quotations.map(q => ({ quotation_id: q.id, amount: q.total }))
-  const lowestTotalQuotationId = cs.quotations.length
-    ? cs.quotations.reduce((low, q) => (q.total < low.total ? q : low), cs.quotations[0]).id
-    : null
-
+  const totalCells = cs.quotations.map(q => ({ quotation_id: q.id, rate: null, amount: q.total }))
+  const totals = cs.quotations.map(q => Number(q.total))
+  const lowestTotal = totals.length ? Math.min(...totals) : null
+  const selectedQ = cs.quotations.find(q => q.id === selected)
   const needsJustification =
-    cs.quotations.length < 2 || (selected != null && selected !== lowestTotalQuotationId)
+    cs.quotations.length < 2 ||
+    (selectedQ != null && lowestTotal != null && Number(selectedQ.total) !== lowestTotal)
 
   return (
     <div className="p-4 space-y-4">
@@ -229,7 +234,7 @@ export default function ComparativeDetailPage() {
               <td className="px-3 py-2">Total</td>
               {cs.quotations.map(q => (
                 <td key={q.id}
-                  className={`px-3 py-2 whitespace-nowrap ${isLowest(totalCells, { amount: q.total }) ? LOW : ""}`}>
+                  className={`px-3 py-2 whitespace-nowrap ${isLowest(totalCells, { rate: null, amount: q.total }, "amount") ? LOW : ""}`}>
                   {fmt(q.total)}
                 </td>
               ))}
