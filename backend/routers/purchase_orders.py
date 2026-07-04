@@ -10,6 +10,7 @@ from models import (
     Bill,
     BillLine,
     ComparativeStatement,
+    PurchaseDemand,
     PurchaseOrder,
     PurchaseOrderLine,
     SequenceCounter,
@@ -100,6 +101,16 @@ def create_po(session: SessionDep, user: WriteUserDep, body: POCreate):
     if not body.lines:
         raise HTTPException(400, "At least one line is required")
 
+    if body.demand_id:
+        demand = session.exec(
+            select(PurchaseDemand).where(
+                PurchaseDemand.id == body.demand_id,
+                PurchaseDemand.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not demand:
+            raise HTTPException(400, "demand_id does not reference a demand in this tenant")
+
     if body.comparative_id:
         cs = session.exec(
             select(ComparativeStatement).where(
@@ -110,6 +121,8 @@ def create_po(session: SessionDep, user: WriteUserDep, body: POCreate):
         ).first()
         if not cs:
             raise HTTPException(400, "comparative_id does not reference an approved comparative")
+        if body.demand_id and cs.demand_id != body.demand_id:
+            raise HTTPException(400, "comparative_id belongs to a different demand")
     elif _chain_required(session, user.tenant_id):
         raise HTTPException(
             400,

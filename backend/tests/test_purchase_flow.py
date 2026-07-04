@@ -276,3 +276,17 @@ def test_no_enforcement_without_module(client: TestClient):
         "lines": [{"description": "Widget", "qty": 1, "rate": 10}],
     })
     assert r.status_code == 201, r.text
+
+
+def test_po_rejects_foreign_or_mismatched_demand(client: TestClient):
+    # Tenant A creates a demand; tenant B (module off) must not be able to link it
+    auth_a = _signup(client, "sec1a@t.com")
+    d = _make_demand(client, auth_a)
+    auth_b = _signup(client, "sec1b@t.com", model="simple")
+    r = client.post("/api/purchase-orders", headers=auth_b, json={
+        "order_date": "2026-07-04", "vendor_name": "V",
+        "demand_id": d["id"],
+        "lines": [{"description": "Widget", "qty": 1, "rate": 10}],
+    })
+    assert r.status_code == 400
+    assert "demand" in r.json()["detail"].lower()
