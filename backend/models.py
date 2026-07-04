@@ -908,6 +908,40 @@ class PurchaseOrderLine(SQLModel, table=True):
     amount: Money = money_col()
 
 
+class GateInward(SQLModel, table=True):
+    """Gate entry at goods receipt (#137 Phase 2). Memo document — no GL,
+    no stock movement; stock still arrives at bill posting. The control is
+    append-only recording + per-line qty caps + the billing gate."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_gi_number_per_tenant"),
+        CheckConstraint("status IN ('open','billed','cancelled')", name="ck_gi_status"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)                       # GI-YYYY-seq
+    po_id: int = Field(foreign_key="purchaseorder.id", index=True)
+    gate_date: str
+    time_in: Optional[str] = None                         # "HH:MM"
+    vehicle_no: Optional[str] = None
+    challan_no: Optional[str] = None                      # challan / bilty
+    remarks: Optional[str] = None
+    status: str = Field(default="open")                   # open | billed | cancelled
+    cancel_reason: Optional[str] = None
+    created_by_id: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GateInwardLine(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("qty_received > 0", name="ck_gi_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    gate_inward_id: int = Field(foreign_key="gateinward.id", ondelete="CASCADE", index=True)
+    po_line_id: int = Field(foreign_key="purchaseorderline.id")
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    qty_received: Money = money_col()
+
+
 class PurchaseDemand(SQLModel, table=True):
     """Purchase requisition — quantity-only memo document (#137 Phase 1).
     Requester never sets prices; that segregation is the control."""

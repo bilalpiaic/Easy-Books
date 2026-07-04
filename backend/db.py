@@ -474,7 +474,7 @@ MODULE_REGISTRY: dict[str, dict] = {
     },
     "purchase_store": {
         "label":       "Purchases & Store",
-        "description": "Procure-to-pay controls: purchase demands, vendor quotation comparison, and approval-gated purchase orders. Gate inward and store issues arrive in upcoming phases.",
+        "description": "Procure-to-pay controls: purchase demands, vendor quotation comparison, approval-gated purchase orders, and gate-inward receipt control with 3-way match. Store issues arrive in an upcoming phase.",
         "category":    "Operations",
         "icon":        "ShoppingCart",
         "deps":        ["inventory"],
