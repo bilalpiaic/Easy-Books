@@ -67,8 +67,18 @@ export default function NewQuotationPage() {
     setLines(prev => prev.map((l, idx) => idx !== i ? l : { ...l, [field]: value }))
   }
 
-  const pricedLines = lines.filter(l => parseFloat(l.rate) > 0)
-  const grandTotal = pricedLines.reduce((sum, l) => sum + (parseFloat(l.rate) || 0) * (parseFloat(l.qty) || 0), 0)
+  const lineAmount = (l: { rate: string; qty: string }) => {
+    const r = parseFloat(l.rate) || 0
+    const q = parseFloat(l.qty) || 0
+    return r > 0 && q > 0 ? r * q : 0
+  }
+
+  const pricedLines = lines.filter(l => {
+    const r = parseFloat(l.rate) || 0
+    const q = parseFloat(l.qty) || 0
+    return r > 0 && q > 0
+  })
+  const grandTotal = pricedLines.reduce((sum, l) => sum + lineAmount(l), 0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,7 +101,7 @@ export default function NewQuotationPage() {
           lines: pricedLines.map(l => ({
             demand_line_id: l.demand_line_id,
             rate: parseFloat(l.rate),
-            qty: parseFloat(l.qty) || 1,
+            qty: parseFloat(l.qty),
           })),
         }),
       })
@@ -218,7 +228,7 @@ export default function NewQuotationPage() {
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
               {lines.map((line, idx) => {
-                const amount = (parseFloat(line.rate) || 0) * (parseFloat(line.qty) || 0)
+                const amount = lineAmount(line)
                 return (
                   <tr key={line.demand_line_id}>
                     <td className="py-1.5 pr-2 text-[var(--text-primary)]">{line.description}</td>
