@@ -186,7 +186,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   dashboard:     ["/dashboard"],
   banking:       ["/banking", "/bank-accounts", "/bank-book", "/cash-book", "/reconciliations", "/bank-imports", "/exchange-rates"],
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
-  purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable"],
+  purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets"],
   reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
@@ -198,8 +198,17 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   system:        ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow"],
 }
 
+/** Routes homed under /manufacturing that move to the Purchases section when purchase_store is installed */
+const PURCHASE_DUAL_HOMED = ["/manufacturing/purchase-orders", "/manufacturing/grn"]
+
 /** Returns the top-nav section key for the current pathname */
-export function getActiveSection(pathname: string): string {
+export function getActiveSection(pathname: string, installed?: Set<string>): string {
+  if (
+    installed?.has("purchase_store") &&
+    PURCHASE_DUAL_HOMED.some(p => pathname === p || pathname.startsWith(p + "/"))
+  ) {
+    return "purchases"
+  }
   for (const [section, prefixes] of Object.entries(SECTION_PREFIXES)) {
     if (prefixes.some(p => pathname === p || pathname.startsWith(p + "/"))) {
       return section
@@ -257,6 +266,10 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Bill Payments", href: "/bill-payments", icon: ArrowUpRight, section: "purchases" },
     { label: "Debit Notes",   href: "/debit-notes",   icon: Undo2,        section: "purchases" },
     { label: "AP Aging",      href: "/aging/payable", icon: Clock,        section: "purchases" },
+    { label: "Demands",         href: "/purchases/demands",             icon: ClipboardCheck, section: "purchases", forModule: "purchase_store" },
+    { label: "Comparatives",    href: "/purchases/comparatives",        icon: Scale,          section: "purchases", forModule: "purchase_store" },
+    { label: "Purchase Orders", href: "/manufacturing/purchase-orders", icon: ShoppingCart,   section: "purchases", forModule: "purchase_store" },
+    { label: "Goods Receipt",   href: "/manufacturing/grn",             icon: PackagePlus,    section: "purchases", forModule: "purchase_store" },
   ],
   accounting: [
     { label: "New Entry",         href: "/entry",             icon: PlusCircle,      section: "accounting" },
@@ -309,9 +322,9 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Production Floor",  href: "/manufacturing",                   icon: Factory,      section: "manufacturing", forModule: "production" },
     { label: "Bills of Material", href: "/manufacturing/boms",              icon: ListChecks,   section: "manufacturing", forModule: "production" },
     { label: "Rate Plans",        href: "/manufacturing/rate-plans",        icon: Tags,         section: "manufacturing", forModule: "production" },
-    { label: "Purchase Orders",   href: "/manufacturing/purchase-orders",   icon: ShoppingCart, section: "manufacturing", forModule: "production" },
+    { label: "Purchase Orders",   href: "/manufacturing/purchase-orders",   icon: ShoppingCart, section: "manufacturing", forModule: "production", notForModule: "purchase_store" },
     { label: "Stock Locations",   href: "/manufacturing/stock-locations",   icon: Warehouse,    section: "manufacturing", forModule: "production" },
-    { label: "Goods Receipt",     href: "/manufacturing/grn",               icon: PackagePlus,  section: "manufacturing", forModule: "production" },
+    { label: "Goods Receipt",     href: "/manufacturing/grn",               icon: PackagePlus,  section: "manufacturing", forModule: "production", notForModule: "purchase_store" },
     { label: "Production Orders", href: "/manufacturing/production-orders", icon: Warehouse,    section: "manufacturing", forModule: "production" },
     { label: "Mfg Reports",       href: "/manufacturing/reports",           icon: BarChart2,    section: "manufacturing", forModule: "production" },
   ],

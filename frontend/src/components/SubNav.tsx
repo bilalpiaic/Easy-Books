@@ -27,7 +27,7 @@ export default function SubNav() {
     setPinned(localStorage.getItem(PINNED_KEY) === "1")
   }, [])
 
-  const activeSection = getActiveSection(pathname)
+  const activeSection = getActiveSection(pathname, installedModules)
   const items = (SUB_NAV[activeSection] ?? []).filter(item => {
     if (!navVisible(item, installedModules)) return false
     if (item.adminOnly && !isAdmin) return false

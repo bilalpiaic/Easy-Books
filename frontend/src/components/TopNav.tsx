@@ -60,7 +60,7 @@ export default function TopNav() {
   const [canScrollLeft, setCanScrollLeft]   = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
 
-  const activeSection = getActiveSection(pathname)
+  const activeSection = getActiveSection(pathname, installedModules)
 
   // ── One-time effects ────────────────────────────────────────────────────────
   useEffect(() => setMounted(true), [])
