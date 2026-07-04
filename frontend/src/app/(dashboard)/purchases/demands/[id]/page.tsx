@@ -151,7 +151,7 @@ export default function DemandDetailPage() {
 
         {demand.status === "approved" && (
           <>
-            <Link href={`/purchases/quotations/new?demand_id=${id}`}
+            <Link href={`/purchases/demands/${id}/quotations/new`}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--primary)] text-white text-sm">
               <FileText className="w-4 h-4" /> New Quotation
             </Link>
