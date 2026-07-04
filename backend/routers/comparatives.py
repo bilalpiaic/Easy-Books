@@ -241,6 +241,10 @@ def convert_to_po(session: SessionDep, user: WriteUserDep, cs_id: int):
         raise HTTPException(400, "Selected quotation no longer exists")
     vendor = session.get(Vendor, quote.vendor_id)
     demand = session.get(PurchaseDemand, cs.demand_id)
+    if demand.status != "approved":
+        raise HTTPException(
+            400, f"Cannot convert — the demand is '{demand.status}', not approved"
+        )
     demand_lines = {
         dl.id: dl for dl in session.exec(
             select(PurchaseDemandLine).where(PurchaseDemandLine.demand_id == cs.demand_id)

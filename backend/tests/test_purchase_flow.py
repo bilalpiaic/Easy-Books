@@ -290,3 +290,15 @@ def test_po_rejects_foreign_or_mismatched_demand(client: TestClient):
     })
     assert r.status_code == 400
     assert "demand" in r.json()["detail"].lower()
+
+
+def test_convert_rejects_cancelled_demand(client: TestClient):
+    auth, auth2, demand, qa, qb, cs = _cs_setup(client, "cs6")
+    client.put(f"/api/comparatives/{cs['id']}", headers=auth,
+               json={"selected_quotation_id": qa["id"], "justification": None})
+    client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2)
+    # Demand is still 'approved' — cancel it out from under the approved CS
+    client.patch(f"/api/purchase-demands/{demand['id']}/cancel", headers=auth2)
+    r = client.post(f"/api/comparatives/{cs['id']}/convert-to-po", headers=auth)
+    assert r.status_code == 400
+    assert "cancelled" in r.json()["detail"]

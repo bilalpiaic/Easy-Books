@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, CheckCircle, XCircle, Lock, Pencil, FileText, Scale, AlertCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate, todayLocal } from "@/lib/utils"
+import { useFmt } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 
 type DemandLine = { id: number; product_id?: number; description: string; qty: number; unit?: string }
@@ -25,6 +26,7 @@ type Quotation = {
 export default function DemandDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const fmt = useFmt()
 
   const [demand, setDemand] = useState<Demand | null>(null)
   const [quotes, setQuotes] = useState<Quotation[]>([])
@@ -217,7 +219,7 @@ export default function DemandDetailPage() {
                   <td className="px-3 py-2 whitespace-nowrap">{q.number}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{fmtDate(q.quote_date)}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{q.valid_until ? fmtDate(q.valid_until) : "—"}</td>
-                  <td className="px-3 py-2">{q.total}</td>
+                  <td className="px-3 py-2">{fmt(Number(q.total))}</td>
                 </tr>
               ))}
               {quotes.length === 0 && (

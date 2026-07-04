@@ -469,7 +469,7 @@ MODULE_REGISTRY: dict[str, dict] = {
     },
     "purchase_store": {
         "label":       "Purchases & Store",
-        "description": "Full procure-to-pay chain: purchase demands, vendor quotation comparison, gate inward, GRN, and store issues — with approval controls.",
+        "description": "Procure-to-pay controls: purchase demands, vendor quotation comparison, and approval-gated purchase orders. Gate inward and store issues arrive in upcoming phases.",
         "category":    "Operations",
         "icon":        "ShoppingCart",
         "deps":        ["inventory"],
