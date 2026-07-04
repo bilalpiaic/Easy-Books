@@ -86,3 +86,41 @@ def test_demand_tenant_isolation(client: TestClient):
     auth_b = _signup(client, "pd2b@t.com")
     d = _make_demand(client, auth_a)
     assert client.get(f"/api/purchase-demands/{d['id']}", headers=auth_b).status_code == 404
+
+
+def _make_vendor(client, auth, name="Acme Steel"):
+    r = client.post("/api/vendors", headers=auth, json={"name": name})
+    assert r.status_code in (200, 201), r.text
+    return r.json()
+
+
+def _approved_demand(client, auth):
+    d = _make_demand(client, auth)
+    auth2 = _second_admin(client, auth, email=f"appr-{d['id']}@t.com")
+    client.patch(f"/api/purchase-demands/{d['id']}/approve", headers=auth2)
+    return client.get(f"/api/purchase-demands/{d['id']}", headers=auth).json(), auth2
+
+
+def _quote(client, auth, demand, vendor_id, rate):
+    return client.post(
+        "/api/quotations", headers=auth,
+        json={
+            "demand_id": demand["id"], "vendor_id": vendor_id, "quote_date": "2026-07-04",
+            "lines": [{"demand_line_id": demand["lines"][0]["id"], "rate": rate,
+                       "qty": demand["lines"][0]["qty"]}],
+        },
+    )
+
+
+def test_quotation_requires_approved_demand(client: TestClient):
+    auth = _signup(client, "vq1@t.com")
+    v = _make_vendor(client, auth)
+    draft = _make_demand(client, auth)
+    r = _quote(client, auth, draft, v["id"], 250)
+    assert r.status_code == 400  # demand still draft
+
+    approved, _ = _approved_demand(client, auth)
+    r = _quote(client, auth, approved, v["id"], 250)
+    assert r.status_code == 201, r.text
+    q = r.json()
+    assert q["number"].startswith("VQ-") and float(q["total"]) == 250 * 100
