@@ -6,7 +6,17 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Bill, BillLine, PurchaseOrder, PurchaseOrderLine, SequenceCounter, Vendor
+from models import (
+    Bill,
+    BillLine,
+    ComparativeStatement,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    SequenceCounter,
+    Settings,
+    Tenant,
+    Vendor,
+)
 from routers.common import AdminUserDep, SessionDep, WriteUserDep, log_audit, next_number
 from services.money import D, money
 from services.posting import EntryInput, post_transaction
@@ -32,6 +42,8 @@ class POCreate(BaseModel):
     description: Optional[str] = None
     notes: Optional[str] = None
     lines: List[POLineCreate] = []
+    demand_id: Optional[int] = None
+    comparative_id: Optional[int] = None
 
 
 class BillConvert(BaseModel):
@@ -67,10 +79,44 @@ def get_po(session: SessionDep, user: WriteUserDep, po_id: int):
     return {**po.model_dump(), "lines": [ln.model_dump() for ln in lines]}
 
 
+def _chain_required(session, tenant_id: int) -> bool:
+    """True when purchase_store is installed AND require_purchase_chain isn't 'false'."""
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        return False
+    from routers.modules import _get_enabled
+    if "purchase_store" not in _get_enabled(tenant):
+        return False
+    row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == tenant_id, Settings.key == "require_purchase_chain"
+        )
+    ).first()
+    return not (row and str(row.value).strip().lower() == "false")
+
+
 @router.post("", status_code=201)
 def create_po(session: SessionDep, user: WriteUserDep, body: POCreate):
     if not body.lines:
         raise HTTPException(400, "At least one line is required")
+
+    if body.comparative_id:
+        cs = session.exec(
+            select(ComparativeStatement).where(
+                ComparativeStatement.id == body.comparative_id,
+                ComparativeStatement.tenant_id == user.tenant_id,
+                ComparativeStatement.status.in_(["approved", "converted"]),
+            )
+        ).first()
+        if not cs:
+            raise HTTPException(400, "comparative_id does not reference an approved comparative")
+    elif _chain_required(session, user.tenant_id):
+        raise HTTPException(
+            400,
+            "This company requires purchases to go through Demand → Comparative approval. "
+            "Create a demand, compare quotations, then convert the comparative to a PO "
+            "(or disable 'Require purchase chain' in Settings).",
+        )
 
     subtotal = money(sum(D(l.qty) * D(l.rate) for l in body.lines))
     number = next_number(session, user.tenant_id, "purchase_order", "PO")
@@ -97,6 +143,8 @@ def create_po(session: SessionDep, user: WriteUserDep, body: POCreate):
         subtotal=subtotal,
         total=subtotal,
         status="draft",
+        demand_id=body.demand_id,
+        comparative_id=body.comparative_id,
     )
     session.add(po)
     session.flush()

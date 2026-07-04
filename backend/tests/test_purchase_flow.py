@@ -244,3 +244,35 @@ def test_cs_approve_rejects_partial_quotation(client: TestClient):
     r = client.patch(f"/api/comparatives/{cs['id']}/approve", headers=auth2)
     assert r.status_code == 400
     assert "does not price" in r.json()["detail"]
+
+
+def test_chain_enforcement(client: TestClient):
+    # manufacturing tenant → purchase_store pre-installed → chain required by default
+    auth = _signup(client, "enf1@t.com")
+    r = client.post("/api/purchase-orders", headers=auth, json={
+        "order_date": "2026-07-04",
+        "vendor_name": "Walk-in Vendor",
+        "lines": [{"description": "Widget", "qty": 1, "rate": 10}],
+    })
+    assert r.status_code == 400
+    assert "demand" in r.json()["detail"].lower() or "comparative" in r.json()["detail"].lower()
+
+    # Toggle the setting off → bare PO allowed
+    client.patch("/api/settings", headers=auth, json={"require_purchase_chain": "false"})
+    r = client.post("/api/purchase-orders", headers=auth, json={
+        "order_date": "2026-07-04",
+        "vendor_name": "Walk-in Vendor",
+        "lines": [{"description": "Widget", "qty": 1, "rate": 10}],
+    })
+    assert r.status_code == 201, r.text
+
+
+def test_no_enforcement_without_module(client: TestClient):
+    # simple tenant → purchase_store NOT installed → no enforcement
+    auth = _signup(client, "enf2@t.com", model="simple")
+    r = client.post("/api/purchase-orders", headers=auth, json={
+        "order_date": "2026-07-04",
+        "vendor_name": "Walk-in Vendor",
+        "lines": [{"description": "Widget", "qty": 1, "rate": 10}],
+    })
+    assert r.status_code == 201, r.text
