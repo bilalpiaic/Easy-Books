@@ -143,6 +143,11 @@ def update_quote(session: SessionDep, user: WriteUserDep, quote_id: int, body: Q
         raise HTTPException(400, "A quotation cannot move to a different demand")
     if not body.lines:
         raise HTTPException(400, "At least one line is required")
+    vendor = session.exec(
+        select(Vendor).where(Vendor.id == body.vendor_id, Vendor.tenant_id == user.tenant_id)
+    ).first()
+    if not vendor:
+        raise HTTPException(400, "Vendor not found for this tenant")
     q.vendor_id = body.vendor_id
     q.quote_date = body.quote_date
     q.valid_until = body.valid_until

@@ -124,3 +124,16 @@ def test_quotation_requires_approved_demand(client: TestClient):
     assert r.status_code == 201, r.text
     q = r.json()
     assert q["number"].startswith("VQ-") and float(q["total"]) == 250 * 100
+
+
+def test_quotation_update_rejects_foreign_vendor(client: TestClient):
+    auth = _signup(client, "vq2@t.com")
+    v = _make_vendor(client, auth)
+    demand, _ = _approved_demand(client, auth)
+    q = _quote(client, auth, demand, v["id"], 250).json()
+    r = client.put(f"/api/quotations/{q['id']}", headers=auth, json={
+        "demand_id": demand["id"], "vendor_id": 999999, "quote_date": "2026-07-04",
+        "lines": [{"demand_line_id": demand["lines"][0]["id"], "rate": 200, "qty": 1}],
+    })
+    assert r.status_code == 400
+    assert "vendor" in r.json()["detail"].lower()
