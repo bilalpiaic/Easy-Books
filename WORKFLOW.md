@@ -144,6 +144,16 @@ Results carry `label`, `sub`, `href`, `date`, `amount`, `status` badge (color-co
 
 Floating Sparkles FAB (`components/AIChatButton.tsx`, hidden unless the `ai_assistant` module is installed) opens a portal chat panel (`components/AIChat.tsx` — quick prompts, session-only history, `createPortal` at `document.body`). Backend: `routers/ai_chat.py` — `POST /api/ai/chat` runs an Anthropic agent loop (max 6 steps, `claude-sonnet-4-6`) over 7 read-only tools that call the existing report functions directly, so tenant scoping and business rules are reused. Gates: `ANTHROPIC_API_KEY` (503 when unset), module install (403), 4,000-char message / 20-turn history caps; typed SDK errors map to 503/429/502. Strictly read-only — no posting or mutation tools.
 
+### Purchase chain (v3.3)
+
+Demand → Comparative → PO procurement control, gated by the `purchase_store` module (#137 Phase 1). Backend: `routers/purchase_demands.py`, `routers/quotations.py`, `routers/comparatives.py`.
+
+- **Purchase Demand** (`PD-YYYY-seq`) — requester enters quantities only, never a rate; `PATCH /approve` (admin+) blocks self-approval.
+- **Vendor Quotation** (`VQ-YYYY-seq`) — one per vendor against an approved demand's lines; writes freeze once the demand's comparative is approved/converted.
+- **Comparative Statement** (`CS-YYYY-seq`) — one per demand; the matrix view (`GET` response's `matrix` field) shows every quotation's rate/amount per demand line. **Approve** (admin+) blocks self-approval and enforces lowest-or-justify: fewer than two quotations, or a non-lowest selection, requires a `justification`; a selection that leaves any demand line unpriced is rejected. **Convert-to-PO** copies the winning quotation's lines into a new `PurchaseOrder`.
+- **Enforcement rule** — `require_purchase_chain` tenant setting (Settings page, default on, visible only when `purchase_store` is installed). When on, `POST /api/purchase-orders` rejects a bare PO unless it carries a `comparative_id` pointing at an approved/converted comparative; toggling it off restores unrestricted PO creation.
+- **Nav mechanic** — `frontend/src/lib/nav.ts` adds a dedicated **Purchases** section (Demands, Comparatives, plus dual-homed Purchase Orders/Goods Receipt). Dual-homing uses two new `NavItem` fields: `forModule` (show only when installed — already existed) and `notForModule` (hide once installed, new). The Manufacturing section's pre-existing PO/GRN entries carry `notForModule: "purchase_store"` so they disappear from Manufacturing once the module takes over the same routes under Purchases, avoiding duplicate sidebar entries. `navVisible(item, installed)` is the single predicate that evaluates both fields — use it instead of ad-hoc `forModule` checks.
+
 ### In-App Auto-Update System (v3.0)
 
 **`UpdateAvailablePopup.tsx`** — shown by `DashboardLayout` on every mount (admin/owner only) when `GET /api/system/update/status` reports new commits behind `HEAD`. Actions:
@@ -1427,6 +1437,9 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/dashboard/charts?months=12` | Chart series (Top Customers capped at 10, v3.1) |
 | GET | `/api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1) |
 | POST | `/api/ai/chat` | AI Financial Assistant — agent-loop chat over live report data; `ai_assistant` module + `ANTHROPIC_API_KEY` required (v3.2) |
+| GET/POST/PUT | `/api/purchase-demands` | Purchase Demand CRUD; `PATCH /{id}/approve\|cancel\|close`; quantity-only lines, self-approval blocked (v3.3) |
+| GET/POST/PUT/DELETE | `/api/quotations` | Vendor Quotation against an approved demand; freezes once its comparative is approved/converted (v3.3) |
+| GET/POST/PUT | `/api/comparatives` | Comparative Statement — matrix + lowest-or-justify approval; `PATCH /{id}/approve`, `POST /{id}/convert-to-po` (v3.3) |
 | GET | `/api/reports/product-ledger?product_id=…&store=…` | Stock movements + running qty; `store=all` for consolidated view |
 | GET | `/api/reports/inventory-performance?start=…&end=…` | Per-product on-hand qty/value, low-stock flag, last movement, units sold + COGS |
 | GET | `/api/reports/customer-performance?start=…&end=…` | Per-customer revenue, invoice count, outstanding AR, avg days-to-pay |

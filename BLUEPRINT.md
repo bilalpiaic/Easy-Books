@@ -499,6 +499,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `pra` | PRA e-Invoice | Industry | base | — | PRA Logs in System section |
 | `healthcare` | Healthcare | Industry | base | — | Healthcare section (OPD/IPD/Lab/Procedures/Store/Reports) |
 | `ai_assistant` | AI Financial Assistant | Intelligence | base | — | Chat FAB + `POST /api/ai/chat` (no sidebar section) |
+| `purchase_store` | Purchases & Store | Operations | inventory | — | Purchases section (Demands, Comparatives, dual-homed PO/GRN) |
 
 **`MODULES_BY_MODEL`** (default module set assigned at signup):
 
@@ -506,7 +507,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 "simple":            ["base"]
 "services":          ["base"]
 "trader":            ["base", "inventory"]
-"manufacturing":     ["base", "inventory", "production"]
+"manufacturing":     ["base", "inventory", "production", "purchase_store"]
 "telecom_franchise": ["base", "inventory", "telecom"]
 "pra_einvoice":      ["base", "pra"]
 "hospital":          ["base", "healthcare"]
@@ -803,6 +804,15 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 - `POST /api/ai/chat` — body `{message, history: [{role, content}]}` → `{reply}`. Runs an Anthropic agent loop (max 6 steps, model `claude-sonnet-4-6`) with 7 read-only tools that call the existing report functions **directly** — `get_dashboard_data`, `get_income_statement`, `get_trial_balance`, `cash_flow_statement`, `invoice_aging`, `bill_aging`, `get_dashboard_charts` — so tenant filters and business rules are reused, never re-implemented.
 - **Gates:** 503 when `ANTHROPIC_API_KEY` is unset; 403 when the tenant hasn't installed the `ai_assistant` module; 400 when the message exceeds 4,000 chars. History is trimmed server-side to the last 20 turns; `role` is validated to `user|assistant`.
 - **Error mapping:** invalid API key → 503, Anthropic rate limit → 429, API/network failures → 502 — all with user-readable `detail`. Failed tool executions return `is_error: true` tool results so the model recovers gracefully.
+
+### Purchase Chain (`/api/purchase-demands`, `/api/quotations`, `/api/comparatives`)
+
+Odoo-style procurement control chain, gated by the `purchase_store` module (#137 Phase 1). Memo documents throughout — no GL posting until the resulting `PurchaseOrder`/`Bill` is processed through the existing PO/bill flow.
+
+- **Purchase Demand** (`PD-YYYY-seq`) — `GET/POST /api/purchase-demands`, `GET/PUT /{id}`, `PATCH /{id}/approve|cancel|close`. Quantity-only lines (`product_id?`, `description`, `qty`, `unit`) — the requester never sets a rate; that segregation of duties is the control. `PATCH /approve` requires admin+ and rejects self-approval (`created_by_id == approver.id` → 400). Editable only while `status="draft"`. Gated by `purchase.demand` permission; list respects `apply_own_filter` for `my_data_only` users.
+- **Vendor Quotation** (`VQ-YYYY-seq`) — `GET/POST /api/quotations`, `PUT/DELETE /{id}`. One row per vendor offer against an **approved** demand; each line's `demand_line_id` must belong to that demand and `rate × qty = amount` is server-computed. Writes (`POST`/`PUT`/`DELETE`) are rejected with 400 once the demand's `ComparativeStatement` reaches `approved`/`converted` — the freeze rule that stops backdating prices after a decision. Gated by `purchase.comparative` permission.
+- **Comparative Statement** (`CS-YYYY-seq`) — `GET/POST /api/comparatives`, `PUT /{id}` (set `selected_quotation_id` + optional `justification`), `PATCH /{id}/approve`, `POST /{id}/convert-to-po`. Exactly one CS per demand (`UniqueConstraint(tenant_id, demand_id)`); `GET` responses include a `matrix` — demand lines × quotations, each cell `{rate, amount}` or `null` — for the comparison-grid UI. **Approve** requires admin+, rejects self-approval, requires a `selected_quotation_id`, and enforces **lowest-or-justify**: a `justification` string is mandatory when there are fewer than two quotations on the demand or the selected total isn't the lowest; approval also 400s if the winning quotation leaves any demand line unpriced (no partial-price conversions). **Convert-to-PO** copies every line of the winning quotation into a new `PurchaseOrder` (`status="draft"`, `demand_id`/`comparative_id` set) and flips the CS to `converted` and the demand to `converted`.
+- **Chain enforcement on `POST /api/purchase-orders`** — when `purchase_store` is installed and the tenant setting `require_purchase_chain` isn't `"false"` (default on), a bare PO (no `comparative_id`) is rejected with 400; a PO carrying `comparative_id` must reference a `ComparativeStatement` owned by the tenant with status `approved`/`converted`, and (if `demand_id` is also supplied) the demand must match the comparative's `demand_id` — otherwise 400. Disabling `require_purchase_chain` in Settings restores unrestricted PO creation.
 
 ### Universal Search (`/api/search`)
 
@@ -1894,6 +1904,25 @@ New `WidgetDef.defaultOnGrid: boolean` field gates Add-panel discoverability. He
 | **Hardening (review fixes)** | Typed Anthropic error mapping (503/429/502), 4,000-char message + 20-turn history caps, `Literal` role validation, `is_error` tool results (`eca27cf`) |
 
 **Deferred follow-ups:** async endpoint (`AsyncAnthropic`) if concurrent chat load grows; model upgrade `claude-sonnet-4-6` → `claude-sonnet-5` (needs a deliberate pass — adaptive thinking defaults on there and consumes the 2,048-token output cap).
+
+### Sprint 23 Shipped ✅ (Purchase Demand + Comparative — #137 Phase 1)
+
+Commit range `91635ea..HEAD`.
+
+| Feature | Notes |
+|---------|-------|
+| **Models + migration** | `PurchaseDemand`/`PurchaseDemandLine`, `VendorQuotation`/`VendorQuotationLine`, `ComparativeStatement`; `PurchaseOrder.demand_id`/`comparative_id` FKs; `0029_purchase_demand_comparative` (`91635ea`) |
+| **`purchase_store` module** | Added to `MODULE_REGISTRY` (Operations, free tier, deps `[inventory]`); pre-installed for `manufacturing`; `purchase.demand`/`purchase.comparative` permission resources (`6a150a4`) |
+| **Demand router** | CRUD + approve/cancel/close; self-approval block; `my_data_only` via `apply_own_filter` (`62666cb`) |
+| **Quotation router** | Per-vendor pricing against demand lines; freezes once the CS is approved/converted (`d56b0dc`) |
+| **Comparative router** | Matrix serialization, lowest-or-justify approval, completeness check, convert-to-PO (`591df5f`) |
+| **Chain enforcement** | `require_purchase_chain` setting (default on); `POST /api/purchase-orders` requires an approved comparative once `purchase_store` is installed (`e43b259`) |
+| **Nav** | Dedicated Purchases section; `notForModule` dual-home gating so Manufacturing's PO/GRN entries hide once `purchase_store` takes over (`3cffcd0`) |
+| **Frontend** | Demand list/detail/new/edit + print, per-vendor quotation entry, comparative matrix builder with lowest-rate highlighting + convert-to-PO (`f697a7e`, `260c393`, `9bec8af`, `f32941b`) |
+| **Review-driven fixes** | Tenant ownership + CS-demand match on PO create (`8b4886a`); CS approve rejects dangling selection/partial quotations (`3446f45`); vendor validated on quotation update (`4b4f1b2`); qty predicate unified between totals and payload (`91be7f1`); matrix tie-safe justification note (`9fe4d34`) |
+| **Tests** | 14 tests in `backend/tests/test_purchase_flow.py` covering module registration, permission resources, demand lifecycle/self-approval/tenant isolation, quotation validation/freeze, CS lowest-or-justify/approval/conversion, and chain enforcement with/without the module |
+
+**Deferred to Phase 2:** uninstall-blocked-while-documents-exist for `purchase_store` — the modules router has no per-module uninstall hooks today; the generic mechanism belongs with the module's completion.
 
 ### Still Pending
 
