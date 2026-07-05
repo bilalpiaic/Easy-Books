@@ -355,6 +355,43 @@ def test_uninstall_blocked_while_documents_exist(client: TestClient):
     assert r.status_code == 200
 
 
+def test_gate_view_only_user_cannot_mutate(client: TestClient):
+    """A user whose granular purchase.gate override is 'view' can list/read GIs
+    but must be rejected (403) from the two mutating endpoints, even though the
+    router-level dependency is only view-level (#137 P2 final review)."""
+    auth = _signup(client, "gview1@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 1}])
+
+    client.patch("/api/settings", headers=auth, json={"user_rights_enabled": "true"})
+    client.post("/api/users", headers=auth, json={
+        "email": "gviewer@t.com", "password": "password123",
+        "full_name": "Gate Viewer", "role": "accountant",
+    })
+    users = client.get("/api/users", headers=auth).json()["items"]
+    uid = next(u["id"] for u in users if u["email"] == "gviewer@t.com")
+    r = client.put(f"/api/permissions/users/{uid}", headers=auth, json=[
+        {"resource_key": "purchase.gate", "access_level": "view"},
+    ])
+    assert r.status_code == 200, r.text
+
+    r = client.post("/api/auth/login",
+                     data={"username": "gviewer@t.com", "password": "password123"})
+    viewer = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # view still works
+    assert client.get("/api/gate-inwards", headers=viewer).status_code == 200
+
+    # mutating endpoints must be rejected for view-only access
+    r = client.post("/api/gate-inwards", headers=viewer, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": _po_line_ids(po)[0], "qty_received": 1}],
+    })
+    assert r.status_code == 403, r.text
+
+    r = client.patch("/api/gate-inwards/1/cancel", headers=viewer, json={"reason": "x"})
+    assert r.status_code == 403, r.text
+
+
 def test_quotation_lines_cannot_reference_foreign_demand_lines(client: TestClient):
     """Tenant B's demand-line IDs must never validate for tenant A's quotation."""
     auth_a = _signup(client, "hard1a@t.com")

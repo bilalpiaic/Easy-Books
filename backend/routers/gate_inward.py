@@ -92,7 +92,7 @@ def get_gi(session: SessionDep, user: WriteUserDep, gi_id: int):
     return _serialize(session, _get_gi(session, user, gi_id))
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[perm_dep("purchase.gate", "edit")])
 def create_gi(session: SessionDep, user: WriteUserDep, body: GIIn):
     if not body.lines:
         raise HTTPException(400, "At least one line is required")
@@ -155,7 +155,7 @@ def create_gi(session: SessionDep, user: WriteUserDep, body: GIIn):
     return _serialize(session, gi)
 
 
-@router.patch("/{gi_id}/cancel")
+@router.patch("/{gi_id}/cancel", dependencies=[perm_dep("purchase.gate", "edit")])
 def cancel_gi(session: SessionDep, user: WriteUserDep, gi_id: int, body: GICancel):
     gi = _get_gi(session, user, gi_id)
     if not body.reason.strip():
