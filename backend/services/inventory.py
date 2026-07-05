@@ -173,6 +173,7 @@ def consume_stock(
     qty: Decimal,
     block_negative: bool = False,
     source_doc_id: Optional[int] = None,
+    source_doc_type: str = "invoice",
 ) -> Decimal:
     """
     Relieve stock for a sale. Returns total COGS.
@@ -184,9 +185,11 @@ def consume_stock(
     If block_negative is True, raises InventoryError before any mutation
     when the sale would drive stock below zero.
 
-    source_doc_id: the Invoice.id so the resulting StockMovement can be
-    looked up by (source_doc_type='invoice', source_doc_id=invoice_id)
-    when reversing on edit.
+    source_doc_id: the originating document's id so the resulting
+    StockMovement can be looked up by (source_doc_type, source_doc_id).
+    source_doc_type: defaults to 'invoice' (existing behavior for every
+    current caller); pass an override for non-invoice consumers (e.g.
+    'gate_outward' for scrap disposal).
     """
     qty = D(qty)
     if qty <= 0:
@@ -271,7 +274,7 @@ def consume_stock(
             from_location_id=consumed_from_location_id or _default_own_location(session, tenant_id),
             lot_no=consumed_lot_no,
             unit_cost=avg_cost,
-            source_doc_type="invoice",
+            source_doc_type=source_doc_type,
             source_doc_id=source_doc_id,
             posted_to_gl=True,
         )
