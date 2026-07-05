@@ -323,3 +323,28 @@ def test_store_reports_honor_my_data_only(client: TestClient):
     restricted_row = {r["doc_number"]: r for r in restricted_rows}[inv["number"]]
     assert restricted_row["has_gate_exit"] is False
     assert restricted_row["go_number"] is None
+
+
+def test_go_mutating_endpoints_require_edit_level(client: TestClient):
+    auth = _signup(client, "go8@t.com")
+    inv = _posted_invoice(client, auth)
+    client.patch("/api/settings", headers=auth, json={"user_rights_enabled": "true"})
+    client.post("/api/users", headers=auth, json={
+        "email": "goviewer@t.com", "password": "password123",
+        "full_name": "Viewer", "role": "accountant",
+    })
+    users = client.get("/api/users", headers=auth).json()["items"]
+    uid = next(u["id"] for u in users if u["email"] == "goviewer@t.com")
+    client.put(f"/api/permissions/users/{uid}", headers=auth,
+              json=[{"resource_key": "store.gate_outward", "access_level": "view"}])
+    r = client.post("/api/auth/login",
+                    data={"username": "goviewer@t.com", "password": "password123"})
+    viewer = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    assert client.get("/api/gate-outwards", headers=viewer).status_code == 200
+    r = client.post("/api/gate-outwards", headers=viewer, json={
+        "source_doc_type": "invoice", "source_doc_id": inv["id"],
+        "gate_date": "2026-07-06",
+        "lines": [{"product_id": inv["lines"][0]["product_id"], "qty": 1}],
+    })
+    assert r.status_code == 403

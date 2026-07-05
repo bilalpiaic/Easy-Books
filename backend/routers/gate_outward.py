@@ -118,7 +118,7 @@ def get_go(session: SessionDep, user: WriteUserDep, go_id: int):
     return _serialize(session, _get_go(session, user, go_id))
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[perm_dep("store.gate_outward", "edit")])
 def create_go(session: SessionDep, user: WriteUserDep, body: GOIn):
     if not body.lines:
         raise HTTPException(400, "At least one line is required")
@@ -218,7 +218,7 @@ def approve_go(session: SessionDep, user: AdminUserDep, go_id: int):
     return {"success": True, "status": "approved"}
 
 
-@router.patch("/{go_id}/cancel")
+@router.patch("/{go_id}/cancel", dependencies=[perm_dep("store.gate_outward", "edit")])
 def cancel_go(session: SessionDep, user: WriteUserDep, go_id: int, body: GOCancel):
     go = _get_go(session, user, go_id)
     if not body.reason.strip():
