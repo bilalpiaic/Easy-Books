@@ -334,3 +334,22 @@ def test_three_way_match_variances(client: TestClient):
     assert float(row["bill_qty"]) == 10.0
     assert float(row["qty_variance"]) == -2.0     # gi_qty − po_qty
     assert row["flag"] is True
+
+
+def test_uninstall_blocked_while_documents_exist(client: TestClient):
+    auth = _signup(client, "uni1@t.com")
+    r = client.post("/api/purchase-demands", headers=auth, json={
+        "demand_date": "2026-07-05",
+        "lines": [{"description": "Steel", "qty": 1}],
+    })
+    assert r.status_code == 201
+    r = client.post("/api/modules/purchase_store/uninstall", headers=auth)
+    assert r.status_code == 400
+    assert "purchase demand" in r.json()["detail"].lower()
+
+    # cancelled documents still block (audit trail preserved) — purge is the
+    # only way out; verify a fresh tenant with no documents can uninstall
+    auth2 = _signup(client, "uni2@t.com", model="trader")
+    client.post("/api/modules/purchase_store/install", headers=auth2)
+    r = client.post("/api/modules/purchase_store/uninstall", headers=auth2)
+    assert r.status_code == 200

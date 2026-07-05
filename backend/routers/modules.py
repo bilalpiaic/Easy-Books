@@ -88,6 +88,33 @@ def _dependents_of(module_id: str, installed: list[str]) -> list[str]:
     ]
 
 
+def _purchase_store_docs(session: Session, tenant_id: int) -> dict[str, int]:
+    """Blocking document counts for purchase_store uninstall."""
+    from sqlalchemy import func
+    from sqlmodel import select
+    from models import (ComparativeStatement, GateInward, PurchaseDemand,
+                        VendorQuotation)
+    counts = {}
+    for label, model in (
+        ("purchase demands", PurchaseDemand),
+        ("vendor quotations", VendorQuotation),
+        ("comparative statements", ComparativeStatement),
+        ("gate inwards", GateInward),
+    ):
+        n = session.exec(
+            select(func.count(model.id)).where(model.tenant_id == tenant_id)
+        ).one()
+        if n:
+            counts[label] = n
+    return counts
+
+
+# module_id → callable(session, tenant_id) → {doc label: count}; non-empty blocks uninstall
+MODULE_UNINSTALL_GUARDS = {
+    "purchase_store": _purchase_store_docs,
+}
+
+
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/api/modules")
@@ -202,6 +229,18 @@ def uninstall_module(module_id: str, current_user: CurrentUserDep, session: Sess
             f"Cannot uninstall {module_id!r}: the following installed modules depend on it: "
             + ", ".join(names) + ". Uninstall those first."
         )
+
+    guard = MODULE_UNINSTALL_GUARDS.get(module_id)
+    if guard:
+        blocking_docs = guard(session, current_user.tenant_id)
+        if blocking_docs:
+            detail = ", ".join(f"{n} {label}" for label, n in blocking_docs.items())
+            raise HTTPException(
+                400,
+                f"Cannot uninstall {module_id!r}: this company has {detail}. "
+                "The document trail must be kept — uninstall is only possible "
+                "on a company with no purchase-chain documents."
+            )
 
     enabled = [m for m in enabled if m != module_id]
     meta = _get_meta(tenant)
