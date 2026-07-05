@@ -62,6 +62,9 @@ export const NAV: NavItem[] = [
   { label: "3-Way Match",      href: "/purchases/three-way-match", icon: CheckCheck, section: "Purchases", forModule: "purchase_store" },
   { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Purchases", forModule: "purchase_store" },
   { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Purchases", forModule: "purchase_store" },
+  { label: "Gate Outward",     href: "/store/gate-outward",              icon: DoorOpen,   section: "Store", forModule: "purchase_store" },
+  { label: "Outward Register", href: "/store/gate-outward-register",     icon: ScrollText, section: "Store", forModule: "purchase_store" },
+  { label: "Dispatch Recon",   href: "/store/dispatch-reconciliation",   icon: CheckCheck, section: "Store", forModule: "purchase_store" },
   { label: "Overview",         href: "/inventory",         icon: LayoutGrid,       section: "Inventory",      forModule: "inventory" },
   { label: "Products",          href: "/products",            icon: Package,          section: "Inventory",      forModule: "inventory" },
   { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory",      forModule: "inventory" },
@@ -134,7 +137,7 @@ export const NAV: NavItem[] = [
   { label: "HC Reports",        href: "/healthcare/reports",      icon: BarChart2,    section: "Healthcare", forModule: "healthcare" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Inventory","Manufacturing","Telecom","Healthcare","Banking","Reports","Payroll","System"]
+export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Store","Inventory","Manufacturing","Telecom","Healthcare","Banking","Reports","Payroll","System"]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.
@@ -163,7 +166,7 @@ export type TopNavSection = {
   key: string
   label: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -176,6 +179,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "reports",       label: "Reports"       },
   { key: "system",        label: "System"        },
   // module-gated — appear inline between Purchases and Accounting when installed
+  { key: "store",         label: "Store",         forModule: "purchase_store" },
   { key: "inventory",     label: "Inventory",     forModule: "inventory"   },
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
@@ -190,6 +194,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   banking:       ["/banking", "/bank-accounts", "/bank-book", "/cash-book", "/reconciliations", "/bank-imports", "/exchange-rates"],
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
+  store:         ["/store"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets"],
   reports:       ["/trial-balance", "/pl", "/balance", "/cashflow", "/tax", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
@@ -227,6 +232,7 @@ export function getSectionHref(key: string): string {
     banking:       "/banking",
     sales:         "/receivable",
     purchases:     "/payable",
+    store:         "/store/gate-outward",
     accounting:    "/entry",
     reports:       "/trial-balance",
     inventory:     "/inventory",
@@ -276,6 +282,11 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "3-Way Match",     href: "/purchases/three-way-match",     icon: CheckCheck,     section: "purchases", forModule: "purchase_store" },
     { label: "Purchase Orders", href: "/manufacturing/purchase-orders", icon: ShoppingCart,   section: "purchases", forModule: "purchase_store" },
     { label: "Goods Receipt",   href: "/manufacturing/grn",             icon: PackagePlus,    section: "purchases", forModule: "purchase_store" },
+  ],
+  store: [
+    { label: "Gate Outward",     href: "/store/gate-outward",            icon: DoorOpen,   section: "store", forModule: "purchase_store" },
+    { label: "Outward Register", href: "/store/gate-outward-register",   icon: ScrollText, section: "store", forModule: "purchase_store" },
+    { label: "Dispatch Recon",   href: "/store/dispatch-reconciliation", icon: CheckCheck, section: "store", forModule: "purchase_store" },
   ],
   accounting: [
     { label: "New Entry",         href: "/entry",             icon: PlusCircle,      section: "accounting" },
