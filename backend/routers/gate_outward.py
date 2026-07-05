@@ -7,6 +7,7 @@ own approval endpoint (see Task 4) is the transaction that consumes stock
 and posts GL — this file's create/list/get/cancel handle all three types,
 but only invoice/debit_note reach 'approved' immediately at creation.
 """
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -14,9 +15,11 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from models import DebitNote, GateOutward, GateOutwardLine, Invoice
-from routers.common import SessionDep, WriteUserDep, log_audit, next_number
-from services.money import D
+from routers.common import AdminUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number
+from services.inventory import consume_stock
+from services.money import D, money
 from services.permissions import perm_dep, apply_own_filter
+from services.posting import EntryInput, post_transaction
 
 router = APIRouter(
     prefix="/api/gate-outwards", tags=["gate-outwards"],
@@ -150,6 +153,69 @@ def create_go(session: SessionDep, user: WriteUserDep, body: GOIn):
     log_audit(session, user, "CREATE", "gate_outward", go.id, {"number": number})
     session.commit()
     return _serialize(session, go)
+
+
+@router.patch("/{go_id}/approve")
+def approve_go(session: SessionDep, user: AdminUserDep, go_id: int):
+    go = _get_go(session, user, go_id)
+    if go.source_doc_type != "scrap":
+        raise HTTPException(400, "Only scrap gate-outward entries require approval")
+    if go.status != "draft":
+        raise HTTPException(400, f"Cannot approve a gate outward with status '{go.status}'")
+    if go.created_by_id == user.id:
+        raise HTTPException(400, "A gate outward cannot be approved by its creator")
+
+    lines = session.exec(
+        select(GateOutwardLine).where(GateOutwardLine.gate_outward_id == go.id)
+    ).all()
+
+    total_cost = D("0")
+    total_value = D("0")
+    for l in lines:
+        cogs = consume_stock(
+            session, tenant_id=user.tenant_id, product_id=l.product_id,
+            qty=D(l.qty), source_doc_id=go.id, source_doc_type="gate_outward",
+        )
+        total_cost += cogs
+        total_value += D(l.qty) * D(l.unit_value)
+
+    if total_value > 0:
+        cash_acc = get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
+        scrap_rev_acc = get_or_create_account(session, user.tenant_id, "4902", "Scrap Sales", "Revenue")
+        post_transaction(
+            session, user, date=go.gate_date,
+            description=f"Scrap sale proceeds — {go.number}",
+            entries=[
+                EntryInput(account_id=cash_acc.id, debit=money(total_value)),
+                EntryInput(account_id=scrap_rev_acc.id, credit=money(total_value)),
+            ],
+            voucher_type="JV",
+            audit_entity_type="gate_outward",
+            audit_detail={"go_number": go.number, "leg": "scrap_revenue"},
+        )
+
+    if total_cost > 0:
+        scrap_exp_acc = get_or_create_account(session, user.tenant_id, "5901", "Scrap Disposal Expense", "Expense")
+        inv_acc = get_or_create_account(session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset")
+        post_transaction(
+            session, user, date=go.gate_date,
+            description=f"Scrap disposal cost — {go.number}",
+            entries=[
+                EntryInput(account_id=scrap_exp_acc.id, debit=money(total_cost)),
+                EntryInput(account_id=inv_acc.id, credit=money(total_cost)),
+            ],
+            voucher_type="JV",
+            audit_entity_type="gate_outward",
+            audit_detail={"go_number": go.number, "leg": "scrap_cost"},
+        )
+
+    go.status = "approved"
+    go.approved_by_id = user.id
+    go.approved_at = datetime.utcnow()
+    session.add(go)
+    log_audit(session, user, "UPDATE", "gate_outward", go.id, {"action": "approved"})
+    session.commit()
+    return {"success": True, "status": "approved"}
 
 
 @router.patch("/{go_id}/cancel")

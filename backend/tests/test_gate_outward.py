@@ -1,4 +1,6 @@
 """#137 Phase 2b — Gate Outward: invoice/debit-note memo exits + scrap draft→approve."""
+from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 
@@ -121,3 +123,129 @@ def test_go_multiple_partial_exits_allowed_for_same_invoice(client: TestClient):
             "lines": [{"product_id": pid, "qty": 10}],  # deliberately over — no cap
         })
         assert r.status_code == 201, r.text
+
+
+def _stock_product(client, auth, qty=100, avg_cost=10):
+    """Create a stock product with a known qty/avg_cost by inserting it
+    directly (bypassing the product-creation API, which has no field for
+    pre-setting stock_qty/avg_cost — those only move via consume_stock/
+    receive_stock in normal use)."""
+    from decimal import Decimal
+    from sqlmodel import Session
+    from models import Product
+    import db as _db
+    r = client.get("/api/auth/me", headers=auth)
+    tenant_id = r.json()["tenant"]["id"]
+    with Session(_db.engine) as s:
+        p = Product(tenant_id=tenant_id, name="Scrap Widget", product_type="stock",
+                    stock_qty=Decimal(str(qty)), avg_cost=Decimal(str(avg_cost)))
+        s.add(p); s.commit(); s.refresh(p)
+        return p.id
+
+
+def test_go_scrap_draft_then_approve_posts_gl_and_relieves_stock(client: TestClient):
+    auth = _signup(client, "go4@t.com")
+    pid = _stock_product(client, auth, qty=100, avg_cost=Decimal("10") if False else 10)
+
+    r = client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "scrap", "gate_date": "2026-07-06",
+        "lines": [{"product_id": pid, "qty": 5, "unit_cost": 10, "unit_value": 2}],
+    })
+    assert r.status_code == 201, r.text
+    go = r.json()
+    assert go["status"] == "draft"
+
+    # draft: no GL, no stock change yet
+    from decimal import Decimal as Dec
+    prod = client.get(f"/api/products/{pid}", headers=auth).json()
+    assert Dec(str(prod["stock_qty"])) == Dec("100")
+
+    auth2 = _second_admin(client, auth, email="approver4@t.com")
+    r = client.patch(f"/api/gate-outwards/{go['id']}/approve", headers=auth2)
+    assert r.status_code == 200, r.text
+    go_after = client.get(f"/api/gate-outwards/{go['id']}", headers=auth).json()
+    assert go_after["status"] == "approved"
+
+    prod_after = client.get(f"/api/products/{pid}", headers=auth).json()
+    assert Dec(str(prod_after["stock_qty"])) == Dec("95")
+
+
+def test_go_scrap_self_approval_blocked(client: TestClient):
+    auth = _signup(client, "go5@t.com")
+    pid = _stock_product(client, auth)
+    go = client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "scrap", "gate_date": "2026-07-06",
+        "lines": [{"product_id": pid, "qty": 1, "unit_cost": 10}],
+    }).json()
+    r = client.patch(f"/api/gate-outwards/{go['id']}/approve", headers=auth)
+    assert r.status_code == 400
+    assert "self" in r.json()["detail"].lower() or "creator" in r.json()["detail"].lower()
+
+
+def test_go_scrap_cancel_allowed_only_while_draft(client: TestClient):
+    auth = _signup(client, "go6@t.com")
+    pid = _stock_product(client, auth)
+    go = client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "scrap", "gate_date": "2026-07-06",
+        "lines": [{"product_id": pid, "qty": 1, "unit_cost": 10}],
+    }).json()
+    r = client.patch(f"/api/gate-outwards/{go['id']}/cancel", headers=auth,
+                     json={"reason": "wrong product"})
+    assert r.status_code == 200
+
+    go2 = client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "scrap", "gate_date": "2026-07-06",
+        "lines": [{"product_id": pid, "qty": 1, "unit_cost": 10}],
+    }).json()
+    auth2 = _second_admin(client, auth)
+    client.patch(f"/api/gate-outwards/{go2['id']}/approve", headers=auth2)
+    r = client.patch(f"/api/gate-outwards/{go2['id']}/cancel", headers=auth,
+                     json={"reason": "too late"})
+    assert r.status_code == 400
+
+
+def _second_admin(client, auth, email="approver2@t.com"):
+    client.post("/api/users", headers=auth, json={
+        "email": email, "password": "password123", "full_name": "Approver", "role": "admin",
+    })
+    r = client.post("/api/auth/login", data={"username": email, "password": "password123"})
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def test_go_scrap_gl_balanced_with_revenue_leg(client: TestClient):
+    """value > 0 posts BOTH the revenue JV and the expense/inventory JV."""
+    auth = _signup(client, "go7@t.com")
+    pid = _stock_product(client, auth, qty=50, avg_cost=8)
+    go = client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "scrap", "gate_date": "2026-07-06",
+        "lines": [{"product_id": pid, "qty": 10, "unit_cost": 8, "unit_value": 3}],
+    }).json()
+    auth2 = _second_admin(client, auth)
+    r = client.patch(f"/api/gate-outwards/{go['id']}/approve", headers=auth2)
+    assert r.status_code == 200, r.text
+
+    from decimal import Decimal
+
+    def _find_account(node, code):
+        if node.get("code") == code:
+            return node
+        for child in node.get("children") or []:
+            found = _find_account(child, code)
+            if found is not None:
+                return found
+        return None
+
+    tb = client.get("/api/reports/trial-balance", headers=auth).json()
+    def bal(code):
+        for node in tb["tree"]:
+            found = _find_account(node, code)
+            if found is not None:
+                return found
+        return None
+
+    cash = bal("1000")
+    scrap_rev = bal("4902")
+    scrap_exp = bal("5901")
+    assert cash is not None and Decimal(str(cash["debit"])) == Decimal("30")   # 10 * unit_value(3)
+    assert scrap_rev is not None and Decimal(str(scrap_rev["credit"])) == Decimal("30")
+    assert scrap_exp is not None and Decimal(str(scrap_exp["debit"])) == Decimal("80")  # 10 * unit_cost(8)
