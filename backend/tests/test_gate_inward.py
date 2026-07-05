@@ -283,6 +283,35 @@ def test_gate_register_and_search(client: TestClient):
     assert rows == []
 
 
+def test_gate_register_honors_my_data_only(client: TestClient):
+    auth = _signup(client, "reg2@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 1}])
+    l1 = _po_line_ids(po)[0]
+    client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l1, "qty_received": 5}],
+    })
+    # second user, restricted to own data on purchase.gate
+    client.post("/api/users", headers=auth, json={
+        "email": "gateonly@t.com", "password": "password123",
+        "full_name": "Gate User", "role": "accountant",
+    })
+    r = client.post("/api/auth/login", data={"username": "gateonly@t.com", "password": "password123"})
+    gate_user = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    # apply_own_filter only engages when the user-rights module is on
+    client.patch("/api/settings", headers=auth, json={"user_rights_enabled": "true"})
+    users = client.get("/api/users", headers=auth).json()["items"]
+    uid = next(u["id"] for u in users if u["email"] == "gateonly@t.com")
+    r = client.patch(f"/api/permissions/users/{uid}/my-data-only", headers=auth,
+                     params={"enabled": "true"})
+    assert r.status_code == 200, r.text
+    # owner sees the entry; restricted user sees none (they recorded nothing) —
+    # both on the list endpoint (already filtered) and the register (parity).
+    assert len(client.get("/api/purchase-reports/gate-register", headers=auth).json()) == 1
+    assert client.get("/api/gate-inwards", headers=gate_user).json() == []
+    assert client.get("/api/purchase-reports/gate-register", headers=gate_user).json() == []
+
+
 def test_three_way_match_variances(client: TestClient):
     auth = _signup(client, "rep2@t.com")
     po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 2}])

@@ -4,12 +4,12 @@ from typing import Optional
 from fastapi import APIRouter
 from sqlmodel import select
 
-from models import (Bill, BillLine, GateInward, GateInwardLine, PurchaseOrder,
+from models import (BillLine, GateInward, GateInwardLine, PurchaseOrder,
                     PurchaseOrderLine, User)
 from routers.common import SessionDep, WriteUserDep
 from services.gate import gi_coverage
 from services.money import D
-from services.permissions import perm_dep
+from services.permissions import apply_own_filter, perm_dep
 
 router = APIRouter(prefix="/api/purchase-reports", tags=["purchase-reports"])
 
@@ -24,6 +24,7 @@ def gate_register(
         query = query.where(GateInward.gate_date >= start)
     if end:
         query = query.where(GateInward.gate_date <= end)
+    query = apply_own_filter(query, GateInward, user, session)
     gis = session.exec(query.order_by(GateInward.id.desc())).all()
 
     users = {u.id: u.full_name for u in session.exec(
