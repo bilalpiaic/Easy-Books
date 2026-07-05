@@ -84,6 +84,12 @@ def _validate_source_doc(session, user, source_doc_type: str, source_doc_id: Opt
         ).first()
         if not inv:
             raise HTTPException(404, "Invoice not found")
+        # Only 'void' is rejected here (not 'draft'), intentionally asymmetric
+        # with the debit-note check below: create_invoice() consumes stock at
+        # creation time while the invoice is still status="draft", so a draft
+        # invoice's goods have already physically left — a gate exit against
+        # it is a legitimate memo. Debit notes only move stock once posted,
+        # so rejecting a draft debit note (below) is correct.
         if inv.status == "void":
             raise HTTPException(400, "Cannot record a gate exit against a void invoice")
     elif source_doc_type == "debit_note":
@@ -157,7 +163,19 @@ def create_go(session: SessionDep, user: WriteUserDep, body: GOIn):
 
 @router.patch("/{go_id}/approve")
 def approve_go(session: SessionDep, user: AdminUserDep, go_id: int):
-    go = _get_go(session, user, go_id)
+    # Row-locked fetch: two concurrent approve calls must not both pass the
+    # status check and both post GL + relieve stock. The lock is acquired
+    # BEFORE the status check so a second concurrent request blocks until
+    # the first commits, then observes status == 'approved' and 400s cleanly
+    # instead of double-posting (see services/inventory.py:203 / routers/
+    # common.py:166 for the same with_for_update() idiom).
+    go = session.exec(
+        select(GateOutward)
+        .where(GateOutward.id == go_id, GateOutward.tenant_id == user.tenant_id)
+        .with_for_update()
+    ).first()
+    if not go:
+        raise HTTPException(404, "Gate outward not found")
     if go.source_doc_type != "scrap":
         raise HTTPException(400, "Only scrap gate-outward entries require approval")
     if go.status != "draft":

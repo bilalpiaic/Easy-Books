@@ -204,6 +204,49 @@ def test_go_scrap_cancel_allowed_only_while_draft(client: TestClient):
     assert r.status_code == 400
 
 
+def test_go_scrap_approve_is_idempotent_against_double_call(client: TestClient):
+    """Pins the fetch-under-lock → status-check → act ordering in approve_go.
+
+    SQLite can't reproduce the true concurrent race (two PATCH /approve calls
+    interleaved before either commits), but calling approve twice sequentially
+    exercises the same fetch/check/act path the row lock protects: the second
+    call must see status == 'approved' and 400 cleanly, WITHOUT re-posting GL
+    or re-relieving stock. If the lock/check were missing or reordered such
+    that GL/stock effects ran before the status was persisted, this would
+    double-post.
+    """
+    from decimal import Decimal as Dec
+
+    auth = _signup(client, "go9@t.com")
+    pid = _stock_product(client, auth, qty=100, avg_cost=10)
+
+    go = client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "scrap", "gate_date": "2026-07-06",
+        "lines": [{"product_id": pid, "qty": 5, "unit_cost": 10, "unit_value": 2}],
+    }).json()
+
+    auth2 = _second_admin(client, auth, email="approver9@t.com")
+
+    r1 = client.patch(f"/api/gate-outwards/{go['id']}/approve", headers=auth2)
+    assert r1.status_code == 200, r1.text
+
+    prod_after_first = client.get(f"/api/products/{pid}", headers=auth).json()
+    assert Dec(str(prod_after_first["stock_qty"])) == Dec("95")
+
+    tb_after_first = client.get("/api/reports/trial-balance", headers=auth).json()
+
+    # Second call against the now-approved entry must 400, not double-post.
+    r2 = client.patch(f"/api/gate-outwards/{go['id']}/approve", headers=auth2)
+    assert r2.status_code == 400
+    assert "approved" in r2.json()["detail"].lower()
+
+    prod_after_second = client.get(f"/api/products/{pid}", headers=auth).json()
+    assert Dec(str(prod_after_second["stock_qty"])) == Dec("95")  # unchanged
+
+    tb_after_second = client.get("/api/reports/trial-balance", headers=auth).json()
+    assert tb_after_second == tb_after_first  # no additional GL entries posted
+
+
 def _second_admin(client, auth, email="approver2@t.com"):
     client.post("/api/users", headers=auth, json={
         "email": email, "password": "password123", "full_name": "Approver", "role": "admin",
