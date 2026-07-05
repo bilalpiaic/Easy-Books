@@ -64,13 +64,11 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
   const [validation, setValidation] = useState<ValidationResult | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
 
-  const reset = () => {
-    setFile(null)
-    setValidation(null)
-    setResult(null)
-    setError('')
-    if (fileRef.current) fileRef.current.value = ''
+  const selectFile = (f: File | null) => {
+    setValidation(null); setResult(null); setError('')
+    setFile(f)
   }
 
   const downloadSample = async () => {
@@ -145,7 +143,18 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
         <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">
           Select CSV file
         </label>
-        <div className="flex items-center gap-3">
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => {
+            e.preventDefault(); setDragOver(false)
+            const f = e.dataTransfer.files?.[0] ?? null
+            if (f) selectFile(f)
+          }}
+          className={`flex items-center gap-3 rounded-xl border-2 border-dashed p-3 transition-colors ${
+            dragOver ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-transparent'
+          }`}
+        >
           <label className="flex items-center gap-2 px-4 py-2 bg-[var(--text-primary)] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[var(--primary)] hover:text-black transition-all">
             <Upload className="w-4 h-4" />
             Choose file
@@ -154,9 +163,10 @@ function EntityPanel({ entity }: { entity: typeof ENTITIES[number] }) {
               type="file"
               accept=".csv,text/csv"
               className="hidden"
-              onChange={e => { reset(); const f = e.target.files?.[0] ?? null; setFile(f) }}
+              onChange={e => selectFile(e.target.files?.[0] ?? null)}
             />
           </label>
+          <span className="text-xs text-[var(--text-primary)]/50">or drag and drop a CSV here</span>
           {file && (
             <span className="text-sm text-[var(--text-primary)]/75 flex items-center gap-1">
               <FileText className="w-4 h-4" /> {file.name}
