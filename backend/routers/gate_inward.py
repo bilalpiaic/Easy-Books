@@ -127,6 +127,9 @@ def create_gi(session: SessionDep, user: WriteUserDep, body: GIIn):
                 f"Line '{po_line.description}': received qty would exceed the PO "
                 f"(ordered {po_line.qty}, remaining {remaining})",
             )
+        # Accumulate into the snapshot so duplicate po_line_id entries within
+        # the same request are capped against the running total, not just the DB.
+        cov[l.po_line_id] = cov.get(l.po_line_id, D(0)) + D(l.qty_received)
 
     number = next_number(
         session, user.tenant_id, "gate_inward", "GI", fmt="{prefix}-{YYYY}-{seq:04d}"

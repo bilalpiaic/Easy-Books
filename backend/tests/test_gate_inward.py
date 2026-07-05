@@ -193,3 +193,18 @@ def test_gi_create_requires_write_role(client: TestClient):
         "lines": [{"po_line_id": _po_line_ids(po)[0], "qty_received": 1}],
     })
     assert r.status_code == 403
+
+
+def test_gi_duplicate_line_entries_cannot_bypass_cap(client: TestClient):
+    auth = _signup(client, "gi6@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 100, "rate": 1}])
+    l1 = _po_line_ids(po)[0]
+    r = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [
+            {"po_line_id": l1, "qty_received": 60},
+            {"po_line_id": l1, "qty_received": 60},
+        ],
+    })
+    assert r.status_code == 400
+    assert "exceed" in r.json()["detail"].lower()
