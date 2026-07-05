@@ -77,7 +77,14 @@ def get_po(session: SessionDep, user: WriteUserDep, po_id: int):
     lines = session.exec(
         select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po_id)
     ).all()
-    return {**po.model_dump(), "lines": [ln.model_dump() for ln in lines]}
+    out = {**po.model_dump(), "lines": [ln.model_dump() for ln in lines]}
+
+    from services.gate import gi_coverage
+    out["gi_coverage"] = {
+        str(k): str(v) for k, v in gi_coverage(session, user.tenant_id, po.id).items()
+    }
+    out["gate_required"] = _gate_required(session, user.tenant_id)
+    return out
 
 
 def _chain_required(session, tenant_id: int) -> bool:
@@ -91,6 +98,22 @@ def _chain_required(session, tenant_id: int) -> bool:
     row = session.exec(
         select(Settings).where(
             Settings.tenant_id == tenant_id, Settings.key == "require_purchase_chain"
+        )
+    ).first()
+    return not (row and str(row.value).strip().lower() == "false")
+
+
+def _gate_required(session, tenant_id: int) -> bool:
+    """True when purchase_store is installed AND require_gate_inward isn't 'false'."""
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        return False
+    from routers.modules import _get_enabled
+    if "purchase_store" not in _get_enabled(tenant):
+        return False
+    row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == tenant_id, Settings.key == "require_gate_inward"
         )
     ).first()
     return not (row and str(row.value).strip().lower() == "false")
@@ -213,6 +236,16 @@ def convert_to_bill(session: SessionDep, user: WriteUserDep, po_id: int, body: B
     if po.status == "cancelled":
         raise HTTPException(400, "Cannot convert a cancelled PO")
 
+    if _gate_required(session, user.tenant_id):
+        from services.gate import po_fully_covered
+        if not po_fully_covered(session, user.tenant_id, po.id):
+            raise HTTPException(
+                400,
+                "This company requires goods to pass the gate before billing. "
+                "Record Gate Inward entries covering every PO line "
+                "(or disable 'Require gate inward' in Settings).",
+            )
+
     po_lines = session.exec(
         select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po_id)
     ).all()
@@ -275,6 +308,18 @@ def convert_to_bill(session: SessionDep, user: WriteUserDep, po_id: int, body: B
     po.bill_id = bill.id
     po.status = "billed"
     session.add(po)
+
+    from models import GateInward
+    for gi in session.exec(
+        select(GateInward).where(
+            GateInward.po_id == po.id,
+            GateInward.tenant_id == user.tenant_id,
+            GateInward.status == "open",
+        )
+    ).all():
+        gi.status = "billed"
+        session.add(gi)
+
     log_audit(session, user, "UPDATE", "purchase_order", po_id,
               {"action": "converted_to_bill", "bill_number": bill_number})
     session.commit()

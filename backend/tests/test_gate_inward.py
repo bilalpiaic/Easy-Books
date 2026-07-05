@@ -208,3 +208,57 @@ def test_gi_duplicate_line_entries_cannot_bypass_cap(client: TestClient):
     })
     assert r.status_code == 400
     assert "exceed" in r.json()["detail"].lower()
+
+
+def test_billing_blocked_without_full_gi_coverage(client: TestClient):
+    auth = _signup(client, "gate1@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 1}])
+    l1 = _po_line_ids(po)[0]
+
+    # no GI at all → blocked (manufacturing tenant, setting defaults on)
+    r = client.post(f"/api/purchase-orders/{po['id']}/convert-to-bill", headers=auth,
+                    json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
+    assert r.status_code == 400
+    assert "gate inward" in r.json()["detail"].lower()
+
+    # partial GI → still blocked
+    client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l1, "qty_received": 4}],
+    })
+    r = client.post(f"/api/purchase-orders/{po['id']}/convert-to-bill", headers=auth,
+                    json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
+    assert r.status_code == 400
+
+    # full GI → allowed; GIs flip to billed
+    gi2 = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l1, "qty_received": 6}],
+    }).json()
+    r = client.post(f"/api/purchase-orders/{po['id']}/convert-to-bill", headers=auth,
+                    json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
+    assert r.status_code == 201, r.text
+    gi_now = client.get(f"/api/gate-inwards/{gi2['id']}", headers=auth).json()
+    assert gi_now["status"] == "billed"
+
+    # billed PO → GI cancel refused
+    r = client.patch(f"/api/gate-inwards/{gi2['id']}/cancel", headers=auth,
+                     json={"reason": "attempted tamper"})
+    assert r.status_code == 400
+
+
+def test_billing_allowed_when_gate_setting_off(client: TestClient):
+    auth = _signup(client, "gate2@t.com")
+    client.patch("/api/settings", headers=auth, json={"require_gate_inward": "false"})
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 1}])
+    r = client.post(f"/api/purchase-orders/{po['id']}/convert-to-bill", headers=auth,
+                    json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
+    assert r.status_code == 201, r.text
+
+
+def test_billing_unaffected_without_module(client: TestClient):
+    auth = _signup(client, "gate3@t.com", model="simple")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 1}])
+    r = client.post(f"/api/purchase-orders/{po['id']}/convert-to-bill", headers=auth,
+                    json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
+    assert r.status_code == 201, r.text

@@ -55,6 +55,8 @@ class SettingsUpdate(BaseModel):
     block_negative_stock: Optional[str] = None
     # Purchases: require Demand → Comparative chain before a PO ("true"/"false")
     require_purchase_chain: Optional[str] = None
+    # Purchases: require Gate Inward coverage before billing a PO ("true"/"false")
+    require_gate_inward: Optional[str] = None
     # UI density preference ("comfortable" or "compact")
     ui_density: Optional[str] = None
     # Amount display precision ("2" or "4")
