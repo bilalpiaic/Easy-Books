@@ -1168,6 +1168,50 @@ class DebitNoteLine(SQLModel, table=True):
     amount: Money = money_col()
 
 
+class GateOutward(SQLModel, table=True):
+    """Dispatch exit at the gate (#137 Phase 2b). Mirrors GateInward but for
+    goods leaving: invoice/debit_note sources are pure memo (stock already
+    left the books when the source document was created/posted); scrap has
+    no source document — its own approval IS the transaction that consumes
+    stock and posts GL."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_go_number_per_tenant"),
+        CheckConstraint("status IN ('draft','approved','cancelled')", name="ck_go_status"),
+        CheckConstraint(
+            "source_doc_type IN ('invoice','debit_note','scrap')",
+            name="ck_go_source_doc_type",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)                        # GO-YYYY-seq
+    source_doc_type: str                                   # invoice | debit_note | scrap
+    source_doc_id: Optional[int] = None                    # null only for scrap
+    gate_date: str
+    time_out: Optional[str] = None                         # "HH:MM"
+    vehicle_no: Optional[str] = None
+    challan_no: Optional[str] = None
+    remarks: Optional[str] = None
+    status: str = Field(default="draft")                   # draft | approved | cancelled
+    created_by_id: int = Field(foreign_key="user.id")
+    approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    approved_at: Optional[datetime] = None
+    cancel_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class GateOutwardLine(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_go_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    gate_outward_id: int = Field(foreign_key="gateoutward.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id")
+    qty: Money = money_col()
+    unit_cost: Money = money_col(default=Decimal("0"))     # scrap only
+    unit_value: Money = money_col(default=Decimal("0"))    # scrap only
+
+
 class CustomerAdvance(SQLModel, table=True):
     """Advance received from a customer (prepayment). Posts Dr Bank / Cr 2310.
     Applied later against an invoice via the payments machinery."""
