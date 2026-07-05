@@ -282,3 +282,44 @@ def test_dispatch_reconciliation_flags_missing_exit(client: TestClient):
     by_number = {r["doc_number"]: r for r in rows}
     assert by_number[inv_with_exit["number"]]["has_gate_exit"] is True
     assert by_number[inv_without_exit["number"]]["has_gate_exit"] is False
+
+
+def test_store_reports_honor_my_data_only(client: TestClient):
+    auth = _signup(client, "rep3@t.com")
+    inv = _posted_invoice(client, auth)
+    client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "invoice", "source_doc_id": inv["id"],
+        "gate_date": "2026-07-06",
+        "lines": [{"product_id": inv["lines"][0]["product_id"], "qty": 3}],
+    })
+    # second user, restricted to own data on store.gate_outward
+    client.post("/api/users", headers=auth, json={
+        "email": "storeonly@t.com", "password": "password123",
+        "full_name": "Store User", "role": "accountant",
+    })
+    r = client.post("/api/auth/login", data={"username": "storeonly@t.com", "password": "password123"})
+    store_user = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    # apply_own_filter only engages when the user-rights module is on
+    client.patch("/api/settings", headers=auth, json={"user_rights_enabled": "true"})
+    users = client.get("/api/users", headers=auth).json()["items"]
+    uid = next(u["id"] for u in users if u["email"] == "storeonly@t.com")
+    r = client.patch(f"/api/permissions/users/{uid}/my-data-only", headers=auth,
+                     params={"enabled": "true"})
+    assert r.status_code == 200, r.text
+
+    # owner sees the entry; restricted user sees none (they recorded nothing) —
+    # both on the list endpoint (already filtered) and the register (parity).
+    assert len(client.get("/api/store-reports/gate-outward-register", headers=auth).json()) == 1
+    assert client.get("/api/gate-outwards", headers=store_user).json() == []
+    assert client.get("/api/store-reports/gate-outward-register", headers=store_user).json() == []
+
+    # dispatch reconciliation: owner sees the exit, restricted user does not.
+    owner_rows = client.get("/api/store-reports/dispatch-reconciliation", headers=auth).json()
+    owner_row = {r["doc_number"]: r for r in owner_rows}[inv["number"]]
+    assert owner_row["has_gate_exit"] is True
+    assert owner_row["go_number"] is not None
+
+    restricted_rows = client.get("/api/store-reports/dispatch-reconciliation", headers=store_user).json()
+    restricted_row = {r["doc_number"]: r for r in restricted_rows}[inv["number"]]
+    assert restricted_row["has_gate_exit"] is False
+    assert restricted_row["go_number"] is None

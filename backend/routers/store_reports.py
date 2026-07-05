@@ -9,7 +9,7 @@ from sqlmodel import select
 from models import DebitNote, GateOutward, GateOutwardLine, Invoice
 from routers.common import SessionDep, WriteUserDep
 from services.money import D
-from services.permissions import perm_dep
+from services.permissions import apply_own_filter, perm_dep
 
 router = APIRouter(prefix="/api/store-reports", tags=["store-reports"])
 
@@ -27,6 +27,7 @@ def gate_outward_register(
         query = query.where(GateOutward.gate_date <= end)
     if source_doc_type:
         query = query.where(GateOutward.source_doc_type == source_doc_type)
+    query = apply_own_filter(query, GateOutward, user, session)
     gos = session.exec(query.order_by(GateOutward.id.desc())).all()
 
     out = []
@@ -60,13 +61,13 @@ def dispatch_reconciliation(
     start: Optional[str] = None, end: Optional[str] = None,
 ):
     exits_by_doc: dict[tuple[str, int], str] = {}
-    for go in session.exec(
-        select(GateOutward).where(
-            GateOutward.tenant_id == user.tenant_id,
-            GateOutward.status != "cancelled",
-            GateOutward.source_doc_type.in_(["invoice", "debit_note"]),
-        )
-    ).all():
+    exits_query = select(GateOutward).where(
+        GateOutward.tenant_id == user.tenant_id,
+        GateOutward.status != "cancelled",
+        GateOutward.source_doc_type.in_(["invoice", "debit_note"]),
+    )
+    exits_query = apply_own_filter(exits_query, GateOutward, user, session)
+    for go in session.exec(exits_query).all():
         exits_by_doc[(go.source_doc_type, go.source_doc_id)] = go.number
 
     out = []
