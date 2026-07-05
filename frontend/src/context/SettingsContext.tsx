@@ -36,6 +36,7 @@ export interface AppSettings {
   block_negative_stock: string
   // Purchases & Store
   require_purchase_chain: string
+  require_gate_inward: string
   // UI density
   ui_density: string
   // Amount display precision
@@ -85,6 +86,7 @@ const defaults: AppSettings = {
   onboarding_dismissed: "",
   block_negative_stock: "false",
   require_purchase_chain: "true",
+  require_gate_inward: "true",
   ui_density: "comfortable",
   decimal_places: "2",
   business_model: "simple",
