@@ -249,3 +249,36 @@ def test_go_scrap_gl_balanced_with_revenue_leg(client: TestClient):
     assert cash is not None and Decimal(str(cash["debit"])) == Decimal("30")   # 10 * unit_value(3)
     assert scrap_rev is not None and Decimal(str(scrap_rev["credit"])) == Decimal("30")
     assert scrap_exp is not None and Decimal(str(scrap_exp["debit"])) == Decimal("80")  # 10 * unit_cost(8)
+
+
+def test_gate_outward_register_and_search(client: TestClient):
+    auth = _signup(client, "rep1@t.com")
+    inv = _posted_invoice(client, auth)
+    client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "invoice", "source_doc_id": inv["id"],
+        "gate_date": "2026-07-06", "vehicle_no": "LEB-8888", "challan_no": "CH-501",
+        "lines": [{"product_id": inv["lines"][0]["product_id"], "qty": 3}],
+    })
+    rows = client.get("/api/store-reports/gate-outward-register", headers=auth).json()
+    assert len(rows) == 1
+    assert rows[0]["reference"] == inv["number"]
+
+    rows = client.get("/api/store-reports/gate-outward-register?q=CH-501", headers=auth).json()
+    assert len(rows) == 1
+    rows = client.get("/api/store-reports/gate-outward-register?q=NOPE", headers=auth).json()
+    assert rows == []
+
+
+def test_dispatch_reconciliation_flags_missing_exit(client: TestClient):
+    auth = _signup(client, "rep2@t.com")
+    inv_with_exit = _posted_invoice(client, auth)
+    inv_without_exit = _posted_invoice(client, auth)
+    client.post("/api/gate-outwards", headers=auth, json={
+        "source_doc_type": "invoice", "source_doc_id": inv_with_exit["id"],
+        "gate_date": "2026-07-06",
+        "lines": [{"product_id": inv_with_exit["lines"][0]["product_id"], "qty": 3}],
+    })
+    rows = client.get("/api/store-reports/dispatch-reconciliation", headers=auth).json()
+    by_number = {r["doc_number"]: r for r in rows}
+    assert by_number[inv_with_exit["number"]]["has_gate_exit"] is True
+    assert by_number[inv_without_exit["number"]]["has_gate_exit"] is False
