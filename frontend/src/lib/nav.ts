@@ -9,7 +9,7 @@ import {
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
-  ClipboardCheck,
+  ClipboardCheck, DoorOpen,
 } from "lucide-react"
 
 export type NavItem = {
@@ -57,6 +57,7 @@ export const NAV: NavItem[] = [
   { label: "AP Aging",         href: "/aging/payable",     icon: Clock,            section: "Payable" },
   { label: "Demands",          href: "/purchases/demands",     icon: ClipboardCheck, section: "Purchases", forModule: "purchase_store" },
   { label: "Comparatives",     href: "/purchases/comparatives", icon: Scale,        section: "Purchases", forModule: "purchase_store" },
+  { label: "Gate Inward",      href: "/purchases/gate-inward", icon: DoorOpen,     section: "Purchases", forModule: "purchase_store" },
   { label: "Purchase Orders",  href: "/manufacturing/purchase-orders", icon: ShoppingCart, section: "Purchases", forModule: "purchase_store" },
   { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Purchases", forModule: "purchase_store" },
   { label: "Overview",         href: "/inventory",         icon: LayoutGrid,       section: "Inventory",      forModule: "inventory" },
@@ -268,6 +269,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "AP Aging",      href: "/aging/payable", icon: Clock,        section: "purchases" },
     { label: "Demands",         href: "/purchases/demands",             icon: ClipboardCheck, section: "purchases", forModule: "purchase_store" },
     { label: "Comparatives",    href: "/purchases/comparatives",        icon: Scale,          section: "purchases", forModule: "purchase_store" },
+    { label: "Gate Inward",     href: "/purchases/gate-inward",         icon: DoorOpen,       section: "purchases", forModule: "purchase_store" },
     { label: "Purchase Orders", href: "/manufacturing/purchase-orders", icon: ShoppingCart,   section: "purchases", forModule: "purchase_store" },
     { label: "Goods Receipt",   href: "/manufacturing/grn",             icon: PackagePlus,    section: "purchases", forModule: "purchase_store" },
   ],
