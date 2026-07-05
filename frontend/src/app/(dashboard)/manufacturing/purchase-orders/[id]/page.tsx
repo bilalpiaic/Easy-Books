@@ -148,7 +148,7 @@ export default function PurchaseOrderDetailPage() {
         </div>
       )}
 
-      {po.status === "approved" && (
+      {(po.status === "approved" || po.status === "received") && (
         <div className="flex gap-3">
           {gateRequired && (
             <Link
