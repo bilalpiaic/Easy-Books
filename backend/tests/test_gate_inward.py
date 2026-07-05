@@ -262,3 +262,46 @@ def test_billing_unaffected_without_module(client: TestClient):
     r = client.post(f"/api/purchase-orders/{po['id']}/convert-to-bill", headers=auth,
                     json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
     assert r.status_code == 201, r.text
+
+
+def test_gate_register_and_search(client: TestClient):
+    auth = _signup(client, "rep1@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 1}])
+    l1 = _po_line_ids(po)[0]
+    client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05", "vehicle_no": "LEB-9999",
+        "challan_no": "CH-123", "lines": [{"po_line_id": l1, "qty_received": 10}],
+    })
+    rows = client.get("/api/purchase-reports/gate-register", headers=auth).json()
+    assert len(rows) == 1
+    assert rows[0]["vehicle_no"] == "LEB-9999"
+    assert float(rows[0]["total_qty"]) == 10.0
+
+    rows = client.get("/api/purchase-reports/gate-register?q=CH-123", headers=auth).json()
+    assert len(rows) == 1
+    rows = client.get("/api/purchase-reports/gate-register?q=NOPE", headers=auth).json()
+    assert rows == []
+
+
+def test_three_way_match_variances(client: TestClient):
+    auth = _signup(client, "rep2@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 2}])
+    l1 = _po_line_ids(po)[0]
+    # receive only 8 of 10, then bill with the setting off (variance scenario)
+    client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l1, "qty_received": 8}],
+    })
+    client.patch("/api/settings", headers=auth, json={"require_gate_inward": "false"})
+    r = client.post(f"/api/purchase-orders/{po['id']}/convert-to-bill", headers=auth,
+                    json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
+    assert r.status_code == 201, r.text
+
+    rows = client.get("/api/purchase-reports/three-way-match", headers=auth).json()
+    assert len(rows) == 1
+    row = rows[0]
+    assert float(row["po_qty"]) == 10.0
+    assert float(row["gi_qty"]) == 8.0
+    assert float(row["bill_qty"]) == 10.0
+    assert float(row["qty_variance"]) == -2.0     # gi_qty − po_qty
+    assert row["flag"] is True
