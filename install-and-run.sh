@@ -53,8 +53,12 @@ else
 fi
 
 # ── 3. Backend dependencies (uv fetches Python 3.12 if missing) ───────────────
+# --frozen installs exactly what's in the committed uv.lock without
+# re-resolving it — plain `uv sync` can rewrite the lockfile on every launch
+# (platform-specific resolution drift) and that local edit then blocks
+# `git pull --ff-only` in update.sh once upstream also touches the file (#138).
 log "Installing backend dependencies…"
-( cd backend && uv sync )
+( cd backend && uv sync --frozen )
 
 # ── 4. Frontend build (skipped if already built; --rebuild forces it) ─────────
 # Rebuild when forced, when there's no build yet, OR when the code has moved on

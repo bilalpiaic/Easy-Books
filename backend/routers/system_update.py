@@ -59,6 +59,8 @@ async def trigger_update(bg: BackgroundTasks, current_user: CurrentUserDep):
     try:
         before = _git("rev-parse", "HEAD")
 
+        _discard_lockfile_drift(_REPO)
+
         pull = subprocess.run(
             ["git", "pull", "--ff-only"],
             capture_output=True, text=True, cwd=str(_REPO),
@@ -199,6 +201,19 @@ def _git(*args: str) -> str:
     return subprocess.run(
         ["git", *args], capture_output=True, text=True, cwd=str(_REPO),
     ).stdout.strip()
+
+
+def _discard_lockfile_drift(repo: Path) -> None:
+    """`uv sync` (run on every launch by install-and-run.*) can rewrite
+    backend/uv.lock even with no dependency changes (platform-specific
+    resolution), leaving it locally modified. Once upstream also touches the
+    file, that drift blocks `git pull --ff-only` (#138). uv.lock is fully
+    machine-generated and never hand-edited, so discarding local changes to
+    it before pulling is always safe — the next `uv sync` regenerates it."""
+    subprocess.run(
+        ["git", "checkout", "--", "backend/uv.lock"],
+        capture_output=True, text=True, cwd=str(repo),
+    )
 
 
 def _launch_script(script: str) -> None:

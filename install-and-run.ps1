@@ -51,8 +51,12 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 }
 
 # --- 3. Backend dependencies (uv fetches Python 3.12 if missing) -------------
+# --frozen installs exactly what's in the committed uv.lock without
+# re-resolving it — plain `uv sync` can rewrite the lockfile on every launch
+# (platform-specific resolution drift) and that local edit then blocks
+# `git pull --ff-only` in update.ps1 once upstream also touches the file (#138).
 Log 'Installing backend dependencies...'
-Push-Location backend; uv sync; Pop-Location
+Push-Location backend; uv sync --frozen; Pop-Location
 
 # --- 4. Stop any running instance so the build can replace locked files ------
 foreach ($port in 8000, 3000) {
