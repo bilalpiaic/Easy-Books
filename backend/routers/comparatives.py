@@ -43,11 +43,14 @@ def _get_cs(session, user, cs_id: int) -> ComparativeStatement:
     return cs
 
 
-def _quote_totals(session, demand_id: int) -> dict[int, object]:
+def _quote_totals(session, tenant_id: int, demand_id: int) -> dict[int, object]:
     """quotation_id → Decimal total, for every quotation on the demand."""
     totals: dict[int, object] = {}
     for q in session.exec(
-        select(VendorQuotation).where(VendorQuotation.demand_id == demand_id)
+        select(VendorQuotation).where(
+            VendorQuotation.demand_id == demand_id,
+            VendorQuotation.tenant_id == tenant_id,
+        )
     ).all():
         lines = session.exec(
             select(VendorQuotationLine).where(VendorQuotationLine.quotation_id == q.id)
@@ -67,7 +70,7 @@ def _serialize(session, user, cs: ComparativeStatement) -> dict:
             VendorQuotation.tenant_id == user.tenant_id,
         ).order_by(VendorQuotation.id)
     ).all()
-    totals = _quote_totals(session, cs.demand_id)
+    totals = _quote_totals(session, user.tenant_id, cs.demand_id)
     vendors = {
         v.id: v.name for v in session.exec(
             select(Vendor).where(Vendor.tenant_id == user.tenant_id)
@@ -189,7 +192,7 @@ def approve_cs(session: SessionDep, user: AdminUserDep, cs_id: int):
         raise HTTPException(400, "A comparative cannot be approved by its creator")
     if not cs.selected_quotation_id:
         raise HTTPException(400, "Select a winning quotation before approval")
-    totals = _quote_totals(session, cs.demand_id)
+    totals = _quote_totals(session, user.tenant_id, cs.demand_id)
     if not totals:
         raise HTTPException(400, "No quotations on this demand")
     selected_total = totals.get(cs.selected_quotation_id)
@@ -205,13 +208,21 @@ def approve_cs(session: SessionDep, user: AdminUserDep, cs_id: int):
         )
     demand_line_ids = {
         dl.id for dl in session.exec(
-            select(PurchaseDemandLine).where(PurchaseDemandLine.demand_id == cs.demand_id)
+            select(PurchaseDemandLine)
+            .join(PurchaseDemand, PurchaseDemand.id == PurchaseDemandLine.demand_id)
+            .where(
+                PurchaseDemandLine.demand_id == cs.demand_id,
+                PurchaseDemand.tenant_id == user.tenant_id,
+            )
         ).all()
     }
     quoted_line_ids = {
         ql.demand_line_id for ql in session.exec(
-            select(VendorQuotationLine).where(
-                VendorQuotationLine.quotation_id == cs.selected_quotation_id
+            select(VendorQuotationLine)
+            .join(VendorQuotation, VendorQuotation.id == VendorQuotationLine.quotation_id)
+            .where(
+                VendorQuotationLine.quotation_id == cs.selected_quotation_id,
+                VendorQuotation.tenant_id == user.tenant_id,
             )
         ).all()
     }

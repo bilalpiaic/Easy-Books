@@ -353,3 +353,24 @@ def test_uninstall_blocked_while_documents_exist(client: TestClient):
     client.post("/api/modules/purchase_store/install", headers=auth2)
     r = client.post("/api/modules/purchase_store/uninstall", headers=auth2)
     assert r.status_code == 200
+
+
+def test_quotation_lines_cannot_reference_foreign_demand_lines(client: TestClient):
+    """Tenant B's demand-line IDs must never validate for tenant A's quotation."""
+    auth_a = _signup(client, "hard1a@t.com")
+    auth_b = _signup(client, "hard1b@t.com")
+    # tenant B demand
+    d_b = client.post("/api/purchase-demands", headers=auth_b, json={
+        "demand_date": "2026-07-05", "lines": [{"description": "X", "qty": 1}],
+    }).json()
+    # tenant A demand + vendor
+    d_a = client.post("/api/purchase-demands", headers=auth_a, json={
+        "demand_date": "2026-07-05", "lines": [{"description": "Y", "qty": 1}],
+    }).json()
+    v = client.post("/api/vendors", headers=auth_a, json={"name": "V"}).json()
+    # tenant A quotes tenant A's demand but smuggles tenant B's line id
+    r = client.post("/api/quotations", headers=auth_a, json={
+        "demand_id": d_a["id"], "vendor_id": v["id"], "quote_date": "2026-07-05",
+        "lines": [{"demand_line_id": d_b["lines"][0]["id"], "rate": 5, "qty": 1}],
+    })
+    assert r.status_code == 400

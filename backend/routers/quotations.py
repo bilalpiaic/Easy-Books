@@ -72,7 +72,12 @@ def _get_quote(session, user, quote_id: int) -> VendorQuotation:
 def _validate_and_write_lines(session, user, body: QuoteIn, q: VendorQuotation) -> None:
     demand_line_ids = {
         l.id for l in session.exec(
-            select(PurchaseDemandLine).where(PurchaseDemandLine.demand_id == body.demand_id)
+            select(PurchaseDemandLine)
+            .join(PurchaseDemand, PurchaseDemand.id == PurchaseDemandLine.demand_id)
+            .where(
+                PurchaseDemandLine.demand_id == body.demand_id,
+                PurchaseDemand.tenant_id == user.tenant_id,
+            )
         ).all()
     }
     for l in body.lines:
