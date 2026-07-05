@@ -20,7 +20,7 @@ from db import create_db_and_tables
 from routers import (
     accounts, admin, advances, aging, analytic_accounts, assets, attachments,
     audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets,
-    comparatives, credit_notes, dashboard_layout, customers, debit_notes, deferred_revenue, exchange_rates, grn,
+    comparatives, credit_notes, dashboard_layout, customers, debit_notes, deferred_revenue, exchange_rates, gate_inward, grn,
     imports, invoices, manufacturing_reports, modules, payment_terms, payments, periods,
     product_categories, production_orders, products, purchase_demands, purchase_orders, quotations, rate_plans,
     reconciliations, recurring, report_builder, reports, settings, stock_locations,
@@ -93,6 +93,7 @@ _ROUTERS = [
     purchase_demands.router,
     quotations.router,
     comparatives.router,
+    gate_inward.router,
     analytic_accounts.router,
     deferred_revenue.router,
     debit_notes.router,

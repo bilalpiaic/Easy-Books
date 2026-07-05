@@ -63,3 +63,133 @@ def test_gi_coverage_pure_math(client: TestClient):
         s.add(GateInwardLine(gate_inward_id=gi3.id, po_line_id=l2.id, qty_received=Decimal("5")))
         s.commit()
         assert po_fully_covered(s, t.id, po.id) is True
+
+
+def _approved_po(client, auth, lines=None):
+    """Bare PO (chain setting off) + approve it. Returns the PO dict with lines."""
+    client.patch("/api/settings", headers=auth, json={"require_purchase_chain": "false"})
+    r = client.post("/api/purchase-orders", headers=auth, json={
+        "order_date": "2026-07-05", "vendor_name": "Steel Traders",
+        "lines": lines or [
+            {"description": "Steel rods 12mm", "qty": 100, "rate": 5},
+            {"description": "Binding wire", "qty": 20, "rate": 2},
+        ],
+    })
+    assert r.status_code == 201, r.text
+    po = r.json()
+    client.patch(f"/api/purchase-orders/{po['id']}/approve", headers=auth)
+    return client.get(f"/api/purchase-orders/{po['id']}", headers=auth).json()
+
+
+def _po_line_ids(po):
+    return [l["id"] for l in po["lines"]]
+
+
+def test_gi_lifecycle_partial_then_full(client: TestClient):
+    auth = _signup(client, "gi1@t.com")
+    po = _approved_po(client, auth)
+    l1, l2 = _po_line_ids(po)
+
+    r = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05", "time_in": "09:30",
+        "vehicle_no": "LEB-1234", "challan_no": "CH-778",
+        "lines": [{"po_line_id": l1, "qty_received": 100}],
+    })
+    assert r.status_code == 201, r.text
+    gi = r.json()
+    assert gi["number"].startswith("GI-")
+    assert gi["status"] == "open"
+
+    # partial coverage → PO still 'approved'
+    po_now = client.get(f"/api/purchase-orders/{po['id']}", headers=auth).json()
+    assert po_now["status"] == "approved"
+
+    r = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l2, "qty_received": 20}],
+    })
+    assert r.status_code == 201, r.text
+
+    # full coverage → PO flips to 'received'
+    po_now = client.get(f"/api/purchase-orders/{po['id']}", headers=auth).json()
+    assert po_now["status"] == "received"
+
+
+def test_gi_over_receipt_rejected(client: TestClient):
+    auth = _signup(client, "gi2@t.com")
+    po = _approved_po(client, auth)
+    l1, _ = _po_line_ids(po)
+    r = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l1, "qty_received": 101}],
+    })
+    assert r.status_code == 400
+    assert "exceed" in r.json()["detail"].lower()
+
+
+def test_gi_rejects_draft_and_foreign_po(client: TestClient):
+    auth = _signup(client, "gi3@t.com")
+    client.patch("/api/settings", headers=auth, json={"require_purchase_chain": "false"})
+    r = client.post("/api/purchase-orders", headers=auth, json={
+        "order_date": "2026-07-05", "vendor_name": "V",
+        "lines": [{"description": "W", "qty": 1, "rate": 1}],
+    })
+    draft_po = r.json()
+    # POST /api/purchase-orders doesn't echo `lines`; fetch via GET like _approved_po does.
+    draft_po_full = client.get(f"/api/purchase-orders/{draft_po['id']}", headers=auth).json()
+    r = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": draft_po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": draft_po_full["lines"][0]["id"], "qty_received": 1}],
+    })
+    assert r.status_code == 400  # draft PO not receivable
+
+    # foreign tenant's PO → 404
+    auth_b = _signup(client, "gi3b@t.com")
+    po_a = _approved_po(client, auth)
+    r = client.post("/api/gate-inwards", headers=auth_b, json={
+        "po_id": po_a["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": _po_line_ids(po_a)[0], "qty_received": 1}],
+    })
+    assert r.status_code == 404
+
+
+def test_gi_cancel_requires_reason_and_restores_headroom(client: TestClient):
+    auth = _signup(client, "gi4@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 10, "rate": 1}])
+    l1 = _po_line_ids(po)[0]
+    gi = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l1, "qty_received": 10}],
+    }).json()
+    assert client.get(f"/api/purchase-orders/{po['id']}", headers=auth).json()["status"] == "received"
+
+    r = client.patch(f"/api/gate-inwards/{gi['id']}/cancel", headers=auth, json={})
+    assert r.status_code == 422 or r.status_code == 400  # reason required
+
+    r = client.patch(f"/api/gate-inwards/{gi['id']}/cancel", headers=auth,
+                     json={"reason": "wrong vehicle logged"})
+    assert r.status_code == 200
+    # coverage dropped → PO back to 'approved'; headroom restored
+    assert client.get(f"/api/purchase-orders/{po['id']}", headers=auth).json()["status"] == "approved"
+    r = client.post("/api/gate-inwards", headers=auth, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": l1, "qty_received": 10}],
+    })
+    assert r.status_code == 201, r.text
+
+
+def test_gi_create_requires_write_role(client: TestClient):
+    auth = _signup(client, "gi5@t.com")
+    po = _approved_po(client, auth, lines=[{"description": "A", "qty": 1, "rate": 1}])
+    client.post("/api/users", headers=auth, json={
+        "email": "gateviewer@t.com", "password": "password123",
+        "full_name": "Viewer", "role": "viewer",
+    })
+    r = client.post("/api/auth/login",
+                    data={"username": "gateviewer@t.com", "password": "password123"})
+    viewer = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    r = client.post("/api/gate-inwards", headers=viewer, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": _po_line_ids(po)[0], "qty_received": 1}],
+    })
+    assert r.status_code == 403
