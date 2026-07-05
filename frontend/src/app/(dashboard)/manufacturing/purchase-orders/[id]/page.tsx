@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ShoppingCart, CheckCircle, FileText, AlertCircle, ArrowLeft, Printer } from "lucide-react"
+import { ShoppingCart, CheckCircle, FileText, AlertCircle, ArrowLeft, Printer, DoorOpen } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -32,6 +32,8 @@ interface PurchaseOrder {
   status: string
   bill_id: number | null
   lines: POLine[]
+  gi_coverage?: Record<string, string>
+  gate_required?: boolean
 }
 
 export default function PurchaseOrderDetailPage() {
@@ -91,6 +93,10 @@ export default function PurchaseOrderDetailPage() {
   if (loading) return <p className="text-sm text-[var(--text-primary)]/60">Loading…</p>
   if (!po) return <p className="text-sm text-red-600">{error ?? "Purchase order not found"}</p>
 
+  const gateRequired = !!po.gate_required
+  const coverageFor = (lineId: number) => Number(po.gi_coverage?.[String(lineId)] ?? 0)
+  const fullyCovered = !gateRequired || po.lines.every(l => coverageFor(l.id) >= Number(l.qty))
+
   return (
     <div className="space-y-5 max-w-4xl">
       {/* Header */}
@@ -144,9 +150,19 @@ export default function PurchaseOrderDetailPage() {
 
       {po.status === "approved" && (
         <div className="flex gap-3">
+          {gateRequired && (
+            <Link
+              href={`/purchases/gate-inward/new?po=${po.id}`}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
+            >
+              <DoorOpen className="w-4 h-4 text-[var(--primary)]" />
+              Record Gate Inward
+            </Link>
+          )}
           <button
             onClick={() => setShowConvert(true)}
-            disabled={busy}
+            disabled={busy || !fullyCovered}
+            title={!fullyCovered ? "Record gate inward entries covering every line first" : undefined}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50"
           >
             <FileText className="w-4 h-4" />
@@ -195,23 +211,34 @@ export default function PurchaseOrderDetailPage() {
               <th className="text-left px-4 py-2 w-20">{t('col.unit', 'Unit')}</th>
               <th className="text-right px-4 py-2 w-28">Rate</th>
               <th className="text-right px-4 py-2 w-28">{t('col.amount', 'Amount')}</th>
+              {gateRequired && <th className="text-right px-4 py-2 w-32">Gate Coverage</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
-            {po.lines.map(line => (
-              <tr key={line.id}>
-                <td className="px-4 py-2">{line.description}</td>
-                <td className="px-4 py-2 text-right font-mono">{line.qty}</td>
-                <td className="px-4 py-2 text-[var(--text-primary)]/60">{line.unit ?? "—"}</td>
-                <td className="px-4 py-2 text-right font-mono">{fmt(Number(line.rate))}</td>
-                <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(Number(line.amount))}</td>
-              </tr>
-            ))}
+            {po.lines.map(line => {
+              const received = coverageFor(line.id)
+              const covered = received >= Number(line.qty)
+              return (
+                <tr key={line.id}>
+                  <td className="px-4 py-2">{line.description}</td>
+                  <td className="px-4 py-2 text-right font-mono">{line.qty}</td>
+                  <td className="px-4 py-2 text-[var(--text-primary)]/60">{line.unit ?? "—"}</td>
+                  <td className="px-4 py-2 text-right font-mono">{fmt(Number(line.rate))}</td>
+                  <td className="px-4 py-2 text-right font-mono font-semibold">{fmt(Number(line.amount))}</td>
+                  {gateRequired && (
+                    <td className={`px-4 py-2 text-right font-mono text-xs font-semibold ${covered ? "text-emerald-700" : "text-amber-700"}`}>
+                      {fmt(received)}/{line.qty}
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
           </tbody>
           <tfoot className="border-t-2 border-[var(--border)] bg-[#faf8f4]">
             <tr>
               <td colSpan={4} className="px-4 py-2 text-right text-xs font-bold uppercase tracking-wide text-[var(--text-primary)]/55">{t('col.total', 'Total')}</td>
               <td className="px-4 py-2 text-right font-mono font-bold text-[var(--text-primary)]">{fmt(Number(po.total))}</td>
+              {gateRequired && <td />}
             </tr>
           </tfoot>
         </table>
