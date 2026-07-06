@@ -9,6 +9,13 @@
 # Double-click install-and-run.bat, or:  powershell -ExecutionPolicy Bypass -File install-and-run.ps1
 # Pass -Rebuild to force a fresh frontend build.
 # Data lives in %EB_DATA_DIR% (default %USERPROFILE%\.easy-books).
+#
+# ASCII ONLY below this line. Windows PowerShell 5.1 does not reliably read
+# this file as UTF-8 on every system codepage - a single em-dash or arrow
+# character inside a double-quoted string previously caused "Unexpected
+# token" parse errors for users on affected codepages, breaking the script
+# entirely (comments were unaffected; string literals were not). Use "-"
+# and "->" instead of the Unicode equivalents anywhere in this file.
 param([switch]$Rebuild)
 
 $ErrorActionPreference = 'Stop'
@@ -52,14 +59,14 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 
 # --- 3. Backend dependencies (uv fetches Python 3.12 if missing) -------------
 # --frozen installs exactly what's in the committed uv.lock without
-# re-resolving it — plain `uv sync` can rewrite the lockfile on every launch
+# re-resolving it - plain `uv sync` can rewrite the lockfile on every launch
 # (platform-specific resolution drift) and that local edit then blocks
 # `git pull --ff-only` in update.ps1 once upstream also touches the file (#138).
 Log 'Installing backend dependencies...'
 Push-Location backend; uv sync --frozen; Pop-Location
 
 # --- 4. Stop any running instance so the build can replace locked files ------
-# Stop-Process only *requests* termination — on Windows the OS can take a
+# Stop-Process only *requests* termination - on Windows the OS can take a
 # moment to actually release the process's open file handles (e.g. node.exe
 # still serving frontend\.next\standalone\...). Wait-Process blocks until the
 # process has truly exited before the build step below touches that folder,
@@ -79,7 +86,7 @@ foreach ($port in 8000, 3000) {
 # --- 4b. Frontend build (skipped if already built; -Rebuild forces it) -------
 $server = 'frontend\.next\standalone\server.js'
 # Rebuild when forced, when there's no build yet, OR when the code has moved on
-# since the last build (so a git pull / update always recompiles the UI — a
+# since the last build (so a git pull / update always recompiles the UI - a
 # stale bundle must never hide new features).
 $builtMarker = 'frontend\.next\.built-commit'
 $headCommit  = (git rev-parse HEAD 2>$null)
@@ -96,7 +103,7 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   # Pre-clean the previous build's standalone folder ourselves, with retries.
   # `next build` also tries to clear this folder internally, but on Windows a
   # just-killed node.exe (see step 4) can hold the directory locked for a
-  # moment even after Wait-Process confirms it exited — retrying here, before
+  # moment even after Wait-Process confirms it exited - retrying here, before
   # handing off to `next build`, avoids relying on Next's own (unretried)
   # cleanup to win that race.
   $standaloneDir = Join-Path $Root 'frontend\.next\standalone'
@@ -108,7 +115,7 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
         break
       } catch {
         if ($attempt -eq $maxAttempts) {
-          throw "Could not remove $standaloneDir after $maxAttempts attempts — a process may still be holding it open. Close any running Easy-Books window and try again. Original error: $_"
+          throw "Could not remove $standaloneDir after $maxAttempts attempts - a process may still be holding it open. Close any running Easy-Books window and try again. Original error: $_"
         }
         Start-Sleep -Seconds 2
       }
@@ -123,7 +130,7 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   Remove-Item Env:NEXT_PUBLIC_GIT_COMMIT  -ErrorAction SilentlyContinue
   Remove-Item Env:NEXT_PUBLIC_BUILD_DATE  -ErrorAction SilentlyContinue
   if ($buildExitCode -ne 0) {
-    throw "next build failed (exit code $buildExitCode) — see the error above. The frontend was not updated; re-run this script once the issue is fixed."
+    throw "next build failed (exit code $buildExitCode) - see the error above. The frontend was not updated; re-run this script once the issue is fixed."
   }
   # Write version.json so UpdateModal can detect when update.ps1 has already
   # rebuilt the server (page's baked-in commit differs from server's commit).
@@ -158,7 +165,7 @@ if ($hasPending) {
   Get-ChildItem -Path $env:EB_DATA_DIR -Filter '*.db' -File | ForEach-Object {
     $dest = Join-Path $backupDir ($_.BaseName + "_$stamp.bak")
     Copy-Item $_.FullName $dest
-    Log "  Backed up $($_.Name) → backups\$($_.BaseName)_$stamp.bak"
+    Log "  Backed up $($_.Name) -> backups\$($_.BaseName)_$stamp.bak"
   }
 }
 Log 'Applying database migrations...'
