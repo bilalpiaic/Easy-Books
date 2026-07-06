@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-06-28 · **Version:** 3.0.0
+**Last updated:** 2026-07-06 · **Version:** 3.5.0
 
 ---
 
@@ -41,6 +41,10 @@
 28. [PRA e-Invoice (Pakistan)](#28-pra-e-invoice-pakistan)
 29. [Modules & the Apps Page](#29-modules--the-apps-page)
 30. [Healthcare Module](#30-healthcare-module)
+31. [Universal Search (Ctrl+K)](#31-universal-search-ctrlk)
+32. [In-app Update Notifications](#32-in-app-update-notifications)
+33. [Sidebar Navigation (Auto-hide)](#33-sidebar-navigation-auto-hide)
+34. [Purchases & Store — Procure-to-Pay & Dispatch Control](#34-purchases--store--procure-to-pay--dispatch-control)
 
 ---
 
@@ -345,6 +349,8 @@ Dr 1250  GST Input               170.00
 ### 5.3 AP Aging
 
 Below the bills list, **AP Aging Analysis** shows outstanding payables by age bucket — use this for cash-flow planning.
+
+> **Need requisition → quotation → approval controls before a bill is even created?** That's the **Purchases & Store** module — see §34 for the full Demand → Comparative → PO → Gate Inward chain, plus outbound dispatch control (Gate Outward) for sales, returns, and scrap.
 
 ---
 
@@ -948,6 +954,7 @@ The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) 
 | Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ | ✓ |
+| Purchases & Store (Demand→Comparative→PO→Gate Inward, Gate Outward) — §34 | — | — | — | ✓ | — | — |
 | Deferred Revenue | — | ✓ | — | — | — | — |
 | Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — | — |
 | Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ | — |
@@ -1860,3 +1867,223 @@ Click the **›** (right chevron) button at the bottom of the sidebar to **pin i
 ### 33.4 No sidebar sections
 
 Pages that have no sub-items (Dashboard, Report Builder, etc.) show no sidebar at all — giving maximum working space.
+
+---
+
+## 34. PURCHASES & STORE — PROCURE-TO-PAY & DISPATCH CONTROL
+
+**Compliance:** IAS 2 (inventory), ISA 240 (segregation of duties — internal controls against fraud).
+
+This module strengthens procurement and dispatch with a full internal-controls chain: nobody can single-handedly demand, buy, receive, and consume stock, or dispatch goods without a record. It installs as **Purchases & Store** (Settings → Add-ons, or automatically for Manufacturing companies) and adds two sidebar sections: **Purchases** (Demands, Comparatives, Gate Inward, reports) and **Store** (Gate Outward, reports).
+
+The chain has two directions:
+
+```
+INWARD  (goods arriving):  Demand → Vendor Quotations → Comparative Statement
+                            → Purchase Order → Gate Inward → Bill
+OUTWARD (goods leaving):   Sales Invoice ─┐
+                            Purchase Return ┼→ Gate Outward (memo record)
+                            Scrap Disposal ─┘  (the one path that posts to the GL)
+```
+
+### 34.1 Installing the Module
+
+Go to **System → Add-ons** (`/apps`, admin/owner only) and install **Purchases & Store** (Operations category). It depends on **Inventory**, which installs automatically alongside it if not already present. Manufacturing-model companies have it installed from day one.
+
+Once installed, two new sidebar sections appear: **Purchases** and **Store**. Two Settings toggles also appear (see §34.10) — both default **on**.
+
+### 34.2 Raising a Purchase Demand
+
+A Demand is a **quantity-only** requisition — the person raising it never sets a price. That's the control: pricing is decided later, by someone else, through competitive quotations.
+
+Go to **Purchases → Demands** (`/purchases/demands`) → **+ New Demand**:
+
+| Field | Description |
+|-------|-------------|
+| **Demand Date** | Defaults to today |
+| **Required By** | When the goods are needed |
+| **Purpose** | Free text — why this is being requested |
+| **Lines** | Product (optional — free text also accepted), Description, Quantity, Unit — **no rate field exists on this form** |
+
+Click **Save Draft**. The demand is numbered `PD-YYYY-0001` and starts in **Draft** status — editable, not yet actionable by the purchasing team.
+
+**Output:** the demand appears in the Demands list with status **Draft**. Nothing else happens yet — no quotations can be raised against a draft demand.
+
+### 34.3 Approving a Demand
+
+Open the demand (`/purchases/demands/[id]`) and click **Approve**.
+
+- **Who can approve:** admin or owner role.
+- **The one rule that matters:** you cannot approve your own demand. If you raised it, someone else with admin/owner rights must approve it — the system rejects a self-approval attempt with an error.
+- On approval, the demand's status becomes **Approved** and it becomes eligible for vendor quotations.
+
+A demand can also be **Cancelled** (from Draft or Approved) or, later, **Closed** (once fully converted).
+
+### 34.4 Entering Vendor Quotations
+
+Once a demand is **Approved**, the purchasing team collects pricing from vendors — one entry per vendor.
+
+Go to the demand's detail page → **+ New Quotation** (or `/purchases/demands/[id]/quotations/new`):
+
+| Field | Description |
+|-------|-------------|
+| **Vendor** | Pick from your vendor list |
+| **Quote Date** | When the vendor's offer was received |
+| **Valid Until** | Optional expiry |
+| **Delivery Terms / Payment Terms** | Free text |
+| **Lines** | Pre-filled with the demand's lines (quantity is fixed from the demand); enter the **Rate** per line — amount computes automatically |
+
+Repeat for each vendor quoting on this demand — you need **at least two** to avoid the justification requirement later (see §34.5).
+
+**Output:** each quotation is numbered `VQ-YYYY-0001` and listed against the demand. Quotations can be edited or deleted freely **until** the demand's Comparative Statement is approved or converted — after that, quotation writes are frozen (400 error) so nobody can quietly change a price after the decision is made.
+
+### 34.5 Building & Approving the Comparative Statement
+
+The Comparative Statement is the side-by-side decision record — Odoo calls this a "call for tender" comparison.
+
+Go to the demand's detail page (a Comparative Statement is auto-created once the first quotation exists), or **Purchases → Comparatives** (`/purchases/comparatives`):
+
+1. The **matrix** shows every demand line as a row and every vendor's quotation as a column, with the **lowest rate per row highlighted**.
+2. Click a vendor's column to **select them as the winner**.
+3. If your selection is **not** the lowest total, or there are **fewer than two quotations** on the demand, a **Justification** text box appears and is required — e.g. "Vendor offers 3-day delivery vs. the lower bidder's 10-day lead time."
+4. Click **Save Selection**.
+
+Then click **Approve** on the comparative:
+
+- **Who can approve:** admin or owner, and **not** the person who created the comparative (same self-approval block as demands).
+- **Completeness check:** approval is rejected if the winning vendor's quotation doesn't price every line on the demand — no partial-price conversions.
+- **Lowest-or-justify enforcement:** approval is rejected if a justification was required (per step 3) but left blank.
+
+**Output:** the comparative's status becomes **Approved**, and a **Convert to PO** button appears.
+
+### 34.6 Converting to a Purchase Order
+
+From an approved Comparative Statement, click **Convert to PO**. This:
+- Creates a new **Purchase Order** carrying every line from the winning quotation (same products, quantities, and rates).
+- Sets the demand's status to **Converted** and the comparative's status to **Converted**.
+- The new PO starts in **Draft** — approve it from the Purchase Orders page (`/manufacturing/purchase-orders` under Purchases once the module is installed) the same way you approve any PO.
+
+**Enforcement:** once the module is installed, `require_purchase_chain` (on by default — see §34.10) blocks creating a **bare** PO with no comparative behind it. If you need to raise an occasional PO outside the formal chain (an emergency purchase, for instance), turn that setting off in Settings first.
+
+### 34.7 Recording Gate Inward (Goods Receipt Control)
+
+When the vendor's truck arrives, someone at the gate — security, storekeeper, whoever physically checks the delivery — records what actually came in, separately from what the PO says was ordered.
+
+From an **approved** PO's detail page, click **Record Gate Inward** (or **Purchases → Gate Inward → + New Entry**, `/purchases/gate-inward/new?po=<id>`):
+
+| Field | Description |
+|-------|-------------|
+| **Purchase Order** | Pick the approved PO this delivery is against |
+| **Gate Date / Time In** | When the vehicle arrived |
+| **Vehicle No. / Challan No.** | For the gate register and later lookup |
+| **Lines** | Pre-filled per PO line with the ordered quantity and however much has already been received; enter the quantity **actually received this time** |
+
+Click **Save**. The entry is numbered `GI-YYYY-0001`.
+
+**What happens to the PO:**
+- If this is the **first** delivery and it's **partial**, the PO stays **Approved** — still waiting on more stock.
+- Once the **cumulative** received quantity across all Gate Inward entries reaches the full ordered quantity, the PO automatically flips to **Received**.
+- A delivery can never be recorded beyond what's left to receive — the form rejects a quantity that would push the total over the ordered amount.
+
+**Correcting a mistake:** a Gate Inward entry can be **cancelled** (with a required reason — e.g. "wrong vehicle number logged") as long as the PO hasn't been billed yet. Cancelling one drops the PO's coverage — if that takes it below 100%, the PO reverts from Received back to Approved, and you simply record a fresh, correct entry. There is no edit button — corrections are always a cancel-and-re-enter, so the original mistake stays in the audit trail rather than being silently overwritten.
+
+### 34.8 Converting the PO to a Bill (the Billing Gate)
+
+Go to the PO's detail page and click **Convert to Bill**, same as any other PO.
+
+**The gate:** if `require_gate_inward` is on (default — see §34.10) and the PO isn't yet fully covered by Gate Inward entries, the button is disabled with a tooltip explaining why, and the API rejects the attempt with a 400 error. You must record the missing Gate Inward entries first.
+
+Once conversion succeeds:
+- A **Bill** is created for the ordered amount, posted `Dr Expense / Cr Accounts Payable`.
+- Every open Gate Inward entry on that PO flips to **Billed** status — permanently locking them (a billed Gate Inward can never be cancelled).
+
+### 34.9 Gate Register & 3-Way Match Reports
+
+**Gate Register** (`/purchases/gate-register`) — every Gate Inward entry, searchable by vehicle or challan number, filterable by date. Use this as the physical security log: "what came through the gate this week."
+
+**3-Way Match** (`/purchases/three-way-match`) — the audit report. One row per PO line, comparing:
+
+| Column | Meaning |
+|--------|---------|
+| **PO Qty / Rate / Amount** | What was ordered |
+| **GI Qty** | What was actually received (summed across all Gate Inward entries) |
+| **Bill Qty / Amount** | What was billed |
+| **Qty Var / Amt Var** | The differences — highlighted when non-zero |
+
+A flagged row means something doesn't line up: a short delivery that got billed in full, an over-billed amount, or — the most valuable catch on an older company's books — a PO that was billed with **no Gate Inward record at all**, meaning nobody ever confirmed the goods arrived.
+
+### 34.10 Settings: Chain & Gate Enforcement Toggles
+
+Go to **Settings** (`/settings`) — two toggles appear once Purchases & Store is installed:
+
+| Setting | Default | Effect when ON |
+|---------|---------|-----------------|
+| **Require purchase chain** | On | A bare Purchase Order (no Comparative Statement behind it) cannot be created |
+| **Require gate inward** | On | A Purchase Order cannot be converted to a Bill until every line has full Gate Inward coverage |
+
+Turn either off for smaller companies that don't need the full control chain, or for one-off exceptions — both can be re-enabled at any time and don't affect documents already in progress.
+
+### 34.11 Gate Outward — Dispatching a Sales Invoice
+
+Every gate exit — sales dispatch, purchase return, or scrap — is recorded in one place: **Store → Gate Outward** (`/store/gate-outward`).
+
+To record a dispatch against an invoice you've already created, click **+ New Gate Outward** (`/store/gate-outward/new`):
+
+1. Choose source type **Invoice**.
+2. Pick the invoice from the dropdown (any non-void invoice — even one still in Draft status, since the goods behind it already left inventory the moment the invoice was created).
+3. Lines pre-fill from the invoice; enter vehicle/challan details.
+4. Click **Save**.
+
+**Output:** the entry is numbered `GO-YYYY-0001` and lands **immediately in Approved status** — there's no separate approval step for this type. This is a **memo record only**: no GL posting, no stock movement (the invoice already did both when it was created). Its purpose is purely the paper trail — proving the goods physically left — and feeding the Dispatch Reconciliation report (§34.14).
+
+You can record multiple Gate Outward entries against the same invoice (a large order shipped in batches) — there's no quantity cap, since this is a reconciliation record, not a control gate.
+
+### 34.12 Gate Outward — Purchase Return Exit
+
+When goods are physically handed back to a vendor (following a Debit Note you've already posted), record the same way:
+
+1. **+ New Gate Outward** → source type **Debit Note**.
+2. Pick the debit note (must be posted — a draft debit note has no stock movement behind it yet, so it isn't offered).
+3. Lines pre-fill from the debit note; enter vehicle/challan details; **Save**.
+
+Same as the invoice path: immediately **Approved**, memo-only, no GL or stock effect (the debit note already handled both when it posted).
+
+### 34.13 Gate Outward — Scrap Disposal
+
+Scrap is different from the other two: there's no earlier document to point to, so the Gate Outward entry **is** the transaction — and it's the one case that goes through a real approval workflow before anything hits the books.
+
+**Recording scrap:**
+1. **+ New Gate Outward** → source type **Scrap**.
+2. Pick the product and enter the **quantity** being disposed of.
+3. Enter **Unit Cost** (defaults to the product's current average cost) and **Unit Value** (what you expect to recover selling it as scrap — 0 if it's a pure write-off).
+4. Click **Save**. The entry is created in **Draft** — nothing has happened to your stock or GL yet.
+
+**Approving scrap:** open the entry and click **Approve**.
+
+- **Who can approve:** admin or owner, and **not** the person who created the entry.
+- On approval:
+  - Stock is relieved at the entered quantity, at the product's actual cost.
+  - If you entered a Unit Value greater than zero, a journal posts `Dr Cash in Hand / Cr Scrap Sales` for the value collected.
+  - A second, separate journal always posts `Dr Scrap Disposal Expense / Cr Inventory` for the cost relieved.
+  - The entry becomes **Approved** — permanently. There's no cancel button once approved; if you made a mistake, it needs a correcting entry, the same way a posted invoice is corrected with a Credit Note rather than an edit.
+
+**Fixing a mistake before approval:** a **Draft** scrap entry can be freely cancelled (with a reason) — since nothing has touched your books yet, cancelling costs nothing.
+
+### 34.14 Gate Outward Register & Dispatch Reconciliation Reports
+
+**Gate Outward Register** (`/store/gate-outward-register`) — every outward gate entry (invoice, debit note, and scrap), searchable by vehicle/challan, filterable by type and date. The outbound mirror of the Gate Register.
+
+**Dispatch Reconciliation** (`/store/dispatch-reconciliation`) — one row per posted invoice or debit note, showing whether a Gate Outward entry exists for it yet. Rows with **no gate exit** are highlighted — this is how you catch invoices that were created and (on paper) shipped, but never actually logged leaving the building. It's a flag for follow-up, not a block — invoice creation and posting are never held up by this report.
+
+### 34.15 Permissions for This Module
+
+Four permission resources appear in the admin matrix (**System → Permissions**, `/settings/permissions`) once the module is installed:
+
+| Resource | Covers |
+|----------|--------|
+| **Purchase Demands** | Raising and approving demands |
+| **Comparative Statements** | Quotations and comparative approval/conversion |
+| **Gate Inward** | Recording and cancelling goods-receipt entries |
+| **Gate Outward** | Recording, approving, and cancelling dispatch entries |
+
+Each can be set to **None / View / Edit** per user, and each supports **My Data Only** — a storekeeper flagged this way sees only the gate entries they personally recorded, on both the list pages and the register reports. Approving a demand, comparative, or scrap Gate Outward always requires admin or owner rights regardless of the granular permission level, and always blocks the creator from approving their own document.

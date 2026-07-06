@@ -139,13 +139,17 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Installable module** — `ai_assistant` (Intelligence category, pro tier, off by default); the gate is enforced server-side and the chat button hides when the module isn't installed
 - **Safeguards** — requires `ANTHROPIC_API_KEY` on the backend; message-length and history caps; friendly errors on rate limits or outages; strictly read-only — it cannot create, post, or modify anything
 
-**Purchases & Store module (v3.3)**
+**Purchases & Store module (v3.3–v3.5)**
 - **Demand → Comparative → PO chain** — Purchase Demand (PD-YYYY-seq, quantity-only, no rates — the requester never sets prices) → Vendor Quotations (VQ-YYYY-seq, per-vendor pricing against demand lines) → Comparative Statement (CS-YYYY-seq, one per demand) → convert to Purchase Order
 - **Segregation-of-duties controls** — a demand or comparative cannot be approved by its own creator; quotations freeze once their comparative is approved
 - **Lowest-or-justify rule** — approving a comparative with fewer than two quotations, or a selection that isn't the lowest total, requires a written justification; approval also blocks if the selected quotation doesn't price every demand line
 - **Matrix builder UI** — side-by-side vendor comparison grid highlighting the lowest rate per line, with one-click "Convert to PO"
 - **Setting-gated enforcement** — `require_purchase_chain` (Settings, default on) blocks bare Purchase Order creation once `purchase_store` is installed, forcing new POs through the approved chain; can be switched off per tenant
-- **Installable module** — `purchase_store` (Operations category, free tier, depends on `inventory`); pre-installed for the Manufacturing business-model track
+- **Gate Inward (GI-YYYY-seq)** — receipt control between PO approval and billing: per-line quantity caps against the PO, PO status flips approved↔received as coverage completes, append-only (cancel requires a reason, no edits). `require_gate_inward` (Settings, default on) blocks converting a PO to a bill until every line is fully covered
+- **Gate Register + 3-Way Match reports** — searchable log of every gate entry (vehicle/challan), and PO-vs-received-vs-billed variance detection across the whole procurement chain — catches short receipts billed in full, and legacy POs billed with no recorded receipt at all
+- **Gate Outward (GO-YYYY-seq)** — the dispatch-side mirror: sales-invoice and purchase-return exits are reconciliation-only memos (stock already left the books when those documents posted); scrap disposal is the one case with a real draft→approve workflow — approval itself relieves stock and posts GL (`Dr Cash / Cr Scrap Sales` when there's salvage value, `Dr Scrap Disposal Expense / Cr Inventory` always), with the same self-approval block as demands/comparatives
+- **Gate Outward Register + Dispatch Reconciliation reports** — searchable outbound gate log, and a report flagging any posted invoice or debit note with no recorded gate exit yet
+- **Installable module** — `purchase_store` (Operations category, free tier, depends on `inventory`); pre-installed for the Manufacturing business-model track; gates a dedicated **Purchases** section (Demands, Comparatives, Gate Inward, reports) plus a dedicated **Store** section (Gate Outward, reports)
 
 **Healthcare module (v3.0)**
 - **Patient registry** — MR-YYYYNNNN numbering; every patient auto-creates a `Customer` record so AR aging, statements, and payment allocation work out-of-the-box
@@ -277,7 +281,7 @@ The **desktop (Electron) app** also auto-loads the 7 demo companies on first ins
 
 The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time.
 
-Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across **two fiscal years** (so comparative reports have a prior period). The hospital tenant additionally contains 5 doctors, 4 wards, 50 patients, ~200 OPD visits, 20 IPD admissions, 80 lab orders, and 25 procedure orders. Transactions carry their correct voucher types, the services tenant demonstrates **deferred-revenue origination with partial recognition**, and each tenant has **multiple users** (owner / accountant / clerk) so the Audit Log shows realistic attribution.
+Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across **two fiscal years** (so comparative reports have a prior period). The hospital tenant additionally contains 5 doctors, 4 wards, 50 patients, ~200 OPD visits, 20 IPD admissions, 80 lab orders, and 25 procedure orders. The manufacturing tenant additionally exercises the full Purchases & Store chain: 6 Purchase Demands across every status, 3 Comparative Statements (lowest-wins, non-lowest-with-justification, and one left pending approval), 4 Purchase Orders spanning partial/full/short-received and billed/unbilled states, Gate Inward entries including a cancelled-and-re-entered one, and Gate Outward exits covering invoice/debit-note memos plus a scrap entry approved with real GL postings — every Purchases and Store screen and report has real data to show on first login. Transactions carry their correct voucher types, the services tenant demonstrates **deferred-revenue origination with partial recognition**, and each tenant has **multiple users** (owner / accountant / clerk) so the Audit Log shows realistic attribution.
 
 In **developer mode**, `dev.sh` seeds these tenants automatically on every run. To seed manually:
 

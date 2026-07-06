@@ -154,6 +154,26 @@ Demand → Comparative → PO procurement control, gated by the `purchase_store`
 - **Enforcement rule** — `require_purchase_chain` tenant setting (Settings page, default on, visible only when `purchase_store` is installed). When on, `POST /api/purchase-orders` rejects a bare PO unless it carries a `comparative_id` pointing at an approved/converted comparative; toggling it off restores unrestricted PO creation.
 - **Nav mechanic** — `frontend/src/lib/nav.ts` adds a dedicated **Purchases** section (Demands, Comparatives, plus dual-homed Purchase Orders/Goods Receipt). Dual-homing uses two new `NavItem` fields: `forModule` (show only when installed — already existed) and `notForModule` (hide once installed, new). The Manufacturing section's pre-existing PO/GRN entries carry `notForModule: "purchase_store"` so they disappear from Manufacturing once the module takes over the same routes under Purchases, avoiding duplicate sidebar entries. `navVisible(item, installed)` is the single predicate that evaluates both fields — use it instead of ad-hoc `forModule` checks.
 
+### Gate Inward (v3.4, #137 Phase 2)
+
+Receipt control between PO approval and billing. Backend: `routers/gate_inward.py`, `services/gate.py`, `routers/purchase_reports.py`.
+
+- **Why a memo, not a real GRN** — stock already arrives at **bill posting**, and the pre-existing `GoodsReceiptNote` is unrelated (customer-*custodial* receiving for manufacturing). Rather than rework when stock enters the books, Gate Inward controls *billing*: `PurchaseOrder.status` gained the previously-unused `received` value as the in-between state.
+- **`GateInward`** (`GI-YYYY-seq`) — against an `approved`/`received` PO; per-line qty capped at the PO's ordered qty (Σ across non-cancelled GIs, including duplicate lines in one request). Coverage recompute (`services/gate.py::po_fully_covered`) is the single source of truth for the PO's `approved`↔`received` flip, run after both create and cancel. Append-only: no edit, cancel requires a reason, refused once the PO is `billed`.
+- **Billing gate** — `require_gate_inward` setting (default on, visible when `purchase_store` is installed). `convert-to-bill` 400s until every PO line is fully covered; on success every open GI on that PO flips to `billed`.
+- **Reports** — Gate Register (`/purchases/gate-register`, vehicle/challan search) and 3-Way Match (`/purchases/three-way-match`, PO vs. received vs. billed with variance flags — catches both in-progress partial receipts and legacy POs billed with zero recorded receipt).
+- **Nav** — Gate Inward + both reports added to the Purchases section, in **both** `NAV` and `SUB_NAV`/`TOP_NAV`/`SECTION_PREFIXES` registries. (Landing this in only one registry — the sidebar `NAV` — was a real regression on this feature: the QB-style top-nav that the layout actually renders reads from `SUB_NAV`, so the sidebar list updated but the live UI didn't. Any new nav item must go into both.)
+
+### Gate Outward (v3.5, #137 Phase 2b)
+
+Dispatch-side mirror of Gate Inward, covering goods leaving via sales invoice, purchase return, or scrap. Backend: `routers/gate_outward.py`, `routers/store_reports.py`.
+
+- **Why reconciliation, not enforcement, for memo exits** — stock leaves the books at **invoice creation** (`consume_stock` runs before the invoice is even saved as `draft`), so unlike Gate Inward there's no later checkpoint to block on. Invoice/debit-note exits are pure memo: created directly as `approved`, no GL, no stock effect. A `draft` invoice is still a *valid* exit source (its stock already left); a `draft` debit note is not (debit notes only move stock once `posted`) — an intentional asymmetry, not a bug.
+- **Scrap is the exception** — no source document exists at all, so the Gate Outward entry *is* the transaction. Created as `draft` (free to fix/cancel, no side effects); `PATCH /{id}/approve` (admin+, blocks self-approval, row-locked to prevent a double-posting race) calls `consume_stock(..., source_doc_type="gate_outward")` and posts two separate JVs: `Dr Cash / Cr Scrap Sales` when there's salvage value, always `Dr Scrap Disposal Expense / Cr Inventory` — mirroring how invoice posting splits Revenue and COGS. Once `approved`, immutable.
+- **`GateOutward`** (`GO-YYYY-seq`, `source_doc_type` discriminator) — one shared table for all three exit kinds, so one register shows everything leaving the gate regardless of reason (mirrors the existing `StockMovement.source_doc_type`/`source_doc_id` polymorphic pattern).
+- **Reports** — Gate Outward Register (`/store/gate-outward-register`) and Dispatch Reconciliation (`/store/dispatch-reconciliation`, flags any posted invoice/debit-note with no recorded gate exit).
+- **Nav** — a brand-new top-level **Store** section (7 distinct `nav.ts` edits: `NAV`, `ALL_SECTIONS`, `TopNavSection.forModule` union, `TOP_NAV`, `SECTION_PREFIXES`, `SUB_NAV`, `getSectionHref`) — this module was Purchases-only before Phase 2b; Store now hosts Gate Outward and (eventually) Phase 3's Store Issue.
+
 ### In-App Auto-Update System (v3.0)
 
 **`UpdateAvailablePopup.tsx`** — shown by `DashboardLayout` on every mount (admin/owner only) when `GET /api/system/update/status` reports new commits behind `HEAD`. Actions:
@@ -1440,6 +1460,10 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET/POST/PUT | `/api/purchase-demands` | Purchase Demand CRUD; `PATCH /{id}/approve\|cancel\|close`; quantity-only lines, self-approval blocked (v3.3) |
 | GET/POST/PUT/DELETE | `/api/quotations` | Vendor Quotation against an approved demand; freezes once its comparative is approved/converted (v3.3) |
 | GET/POST/PUT | `/api/comparatives` | Comparative Statement — matrix + lowest-or-justify approval; `PATCH /{id}/approve`, `POST /{id}/convert-to-po` (v3.3) |
+| GET/POST | `/api/gate-inwards` | Gate Inward vs. an approved PO; per-line qty caps; `PATCH /{id}/cancel` (v3.4) |
+| GET | `/api/purchase-reports/gate-register`, `/three-way-match` | Gate register search; PO vs. received vs. billed variance detection (v3.4) |
+| GET/POST | `/api/gate-outwards` | Dispatch exit — memo for invoice/debit_note (create = approved); scrap is draft→`PATCH /{id}/approve` (GL-posting) →`/cancel` (v3.5) |
+| GET | `/api/store-reports/gate-outward-register`, `/dispatch-reconciliation` | Outward gate register search; posted invoices/debit-notes with no gate exit flagged (v3.5) |
 | GET | `/api/reports/product-ledger?product_id=…&store=…` | Stock movements + running qty; `store=all` for consolidated view |
 | GET | `/api/reports/inventory-performance?start=…&end=…` | Per-product on-hand qty/value, low-stock flag, last movement, units sold + COGS |
 | GET | `/api/reports/customer-performance?start=…&end=…` | Per-customer revenue, invoice count, outstanding AR, avg days-to-pay |
@@ -1762,6 +1786,17 @@ Restock:  Dr 1200 Inventory / Cr 5010 COGS  (Q × avg_cost)  + stock_qty += Q
 Dr 2000 AP / Cr 1200 Inventory (at original layer cost) + Cr 1250 GST Input
 stock_qty -= Q   (return_to_vendor; capped at the bill's remaining layer qty)
 ```
+
+### Scrap Disposal (Gate Outward approval, #137 Phase 2b) — the only Gate Outward path that posts GL
+```
+If salvage value collected (Σ qty × unit_value > 0):
+  Dr 1000 Cash in Hand / Cr 4902 Scrap Sales           (value collected)
+Always (qty > 0, via consume_stock):
+  Dr 5901 Scrap Disposal Expense / Cr 1200 Inventory   (relieved at avg_cost)
+stock_qty -= Q   (consume_stock(..., source_doc_type="gate_outward"))
+```
+Two separate JVs — mirrors how an invoice sale splits Revenue and COGS — posted only at
+`PATCH /{id}/approve`, never at creation (the entry sits as a `draft` memo until approved).
 
 ### Customer Advance (prepayment received)
 ```
