@@ -46,15 +46,17 @@ import json as _json
 
 from models import (
     Account, AnalyticAccount, AttendanceRecord, AuditLog, BankAccount, BomHeader,
-    BomLine, Bill, BillLine, BillPayment, Budget, CreditNote, CreditNoteLine,
-    Customer, CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
+    BomLine, Bill, BillLine, BillPayment, Budget, ComparativeStatement, CreditNote,
+    CreditNoteLine, Customer, CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
     DeferredRevenueSchedule, DepreciationEntry, Employee, EmployeeSalaryStructure,
-    ExchangeRate, FixedAsset, GRNLine, GoodsReceiptNote, InventoryLayer, Invoice,
+    ExchangeRate, FixedAsset, GateInward, GateInwardLine, GateOutward, GateOutwardLine,
+    GRNLine, GoodsReceiptNote, InventoryLayer, Invoice,
     InvoiceLine, PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
     PayrollLineDetail, PayrollRun, Product, ProductCategory, ProductionOrder,
-    PurchaseOrder, PurchaseOrderLine, RatePlan, RecurringTemplate, ReportDefinition,
+    PurchaseDemand, PurchaseDemandLine, PurchaseOrder, PurchaseOrderLine,
+    RatePlan, RecurringTemplate, ReportDefinition,
     SalaryComponent, SequenceCounter, Settings, StockLocation, TaxCode, Tenant, User, Vendor,
-    VendorAdvance,
+    VendorAdvance, VendorQuotation, VendorQuotationLine,
 )
 from models_telecom import (
     FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
@@ -66,7 +68,7 @@ from models_healthcare import (
     HcAdmission, HcAdmissionCharge, HcLabTest, HcLabOrder, HcLabOrderItem,
     HcSampleCollection, HcProcedureOrder,
 )
-from routers.common import next_number
+from routers.common import get_or_create_account, next_number
 from services.franchise_posting import (
     post_commission_accrual, post_franchise_fee_amortisation,
     post_franchise_fee_capitalisation,
@@ -1494,6 +1496,364 @@ def _seed_manufacturing(
             created_at=datetime.utcnow() - timedelta(days=random.randint(10, 300)),
         )
         s.add(po); s.flush()
+
+
+def _seed_purchase_store_chain(
+    s: Session, owner: User, accountant: User, clerk: User,
+    vendors: list[Vendor], products: list[Product], invoices: list,
+) -> None:
+    """#137 Phases 1-2b — Purchase Demand -> Vendor Quotation -> Comparative
+    Statement -> Purchase Order -> Gate Inward (-> Bill, 3-way match), plus
+    Gate Outward (invoice/debit-note memo exits + scrap draft/approve with
+    real GL posting). Manufacturing only (the one demo tenant with
+    purchase_store pre-installed). Exercises every status on every document
+    so no Purchases/Store screen or report is ever empty.
+
+    Segregation of duties mirrors the real approval rules: `clerk` raises
+    documents, `owner` approves them (approver != creator is enforced by the
+    app on demands, comparatives, and scrap gate-outward approval).
+    """
+    tid = owner.tenant_id
+    if s.exec(select(PurchaseDemand).where(PurchaseDemand.tenant_id == tid)).first():
+        return
+    stock_products = [p for p in products if p.product_type == "stock"]
+    if len(vendors) < 2 or len(stock_products) < 3:
+        return
+
+    demand_dates = _spread_dates(6, days_ago=150, min_days_ago=30)
+
+    def _demand_line(pd: PurchaseDemand) -> PurchaseDemandLine:
+        return s.exec(
+            select(PurchaseDemandLine).where(PurchaseDemandLine.demand_id == pd.id)
+        ).first()
+
+    def _new_demand(i: int, product: Product) -> PurchaseDemand:
+        number = next_number(s, tid, "purchase_demand", "PD", fmt="{prefix}-{YYYY}-{seq:04d}")
+        pd = PurchaseDemand(
+            tenant_id=tid, number=number, demand_date=demand_dates[i],
+            required_by=_due_date(demand_dates[i], 21),
+            purpose=f"Restock {product.name}", status="draft", created_by_id=clerk.id,
+        )
+        s.add(pd); s.flush()
+        s.add(PurchaseDemandLine(
+            demand_id=pd.id, product_id=product.id, description=product.name,
+            qty=D(random.randint(80, 250)), unit=product.unit,
+        ))
+        s.flush()
+        return pd
+
+    def _approve_demand(pd: PurchaseDemand) -> None:
+        pd.status = "approved"; pd.approved_by_id = owner.id
+        pd.approved_at = datetime.utcnow()
+        s.add(pd)
+
+    def _quote(pd: PurchaseDemand, vendor: Vendor, rate: Decimal) -> tuple:
+        dl = _demand_line(pd)
+        number = next_number(s, tid, "vendor_quotation", "VQ", fmt="{prefix}-{YYYY}-{seq:04d}")
+        vq = VendorQuotation(
+            tenant_id=tid, number=number, demand_id=pd.id, vendor_id=vendor.id,
+            quote_date=pd.demand_date, valid_until=_due_date(pd.demand_date, 30),
+            delivery_terms="Ex-works, 7 days", payment_terms="Net 30",
+        )
+        s.add(vq); s.flush()
+        amount = money(D(dl.qty) * D(rate))
+        s.add(VendorQuotationLine(
+            quotation_id=vq.id, demand_line_id=dl.id, rate=D(rate), qty=D(dl.qty), amount=amount,
+        ))
+        s.flush()
+        return vq, amount
+
+    def _build_cs(pd: PurchaseDemand, selected_vq: Optional[VendorQuotation],
+                  justification: Optional[str], approve: bool) -> ComparativeStatement:
+        number = next_number(s, tid, "comparative_statement", "CS", fmt="{prefix}-{YYYY}-{seq:04d}")
+        cs = ComparativeStatement(
+            tenant_id=tid, number=number, demand_id=pd.id,
+            cs_date=_due_date(pd.demand_date, 5),
+            selected_quotation_id=selected_vq.id if selected_vq else None,
+            justification=justification, status="draft", created_by_id=clerk.id,
+        )
+        s.add(cs); s.flush()
+        if approve:
+            cs.status = "approved"; cs.approved_by_id = owner.id
+            cs.approved_at = datetime.utcnow()
+            s.add(cs)
+        return cs
+
+    def _convert_to_po(pd: PurchaseDemand, cs: ComparativeStatement, vendor: Vendor,
+                       product: Product, rate: Decimal, amount: Decimal) -> PurchaseOrder:
+        dl = _demand_line(pd)
+        po_number = next_number(s, tid, "purchase_order", "PO")
+        po = PurchaseOrder(
+            tenant_id=tid, number=po_number, vendor_id=vendor.id, vendor_name=vendor.name,
+            order_date=cs.cs_date, expected_date=_due_date(cs.cs_date, 14),
+            description=f"From {cs.number}", subtotal=amount, total=amount,
+            status="draft", demand_id=pd.id, comparative_id=cs.id,
+        )
+        s.add(po); s.flush()
+        s.add(PurchaseOrderLine(
+            po_id=po.id, product_id=product.id, description=product.name,
+            qty=D(dl.qty), unit=product.unit, rate=D(rate), amount=amount,
+        ))
+        s.flush()
+        cs.status = "converted"; cs.po_id = po.id; s.add(cs)
+        pd.status = "converted"; s.add(pd)
+        return po
+
+    def _bare_po(vendor: Vendor, product: Product, qty: Decimal, rate: Decimal,
+                order_date: str) -> PurchaseOrder:
+        """A PO with no demand/comparative link — pre-existing/exception
+        procurement that predates or bypasses the approval chain, coexisting
+        realistically alongside the new chain-controlled POs."""
+        amount = money(D(qty) * D(rate))
+        po_number = next_number(s, tid, "purchase_order", "PO")
+        po = PurchaseOrder(
+            tenant_id=tid, number=po_number, vendor_id=vendor.id, vendor_name=vendor.name,
+            order_date=order_date, expected_date=_due_date(order_date, 14),
+            description=f"Direct procurement from {vendor.name}",
+            subtotal=amount, total=amount, status="draft",
+        )
+        s.add(po); s.flush()
+        s.add(PurchaseOrderLine(
+            po_id=po.id, product_id=product.id, description=product.name,
+            qty=D(qty), unit=product.unit, rate=D(rate), amount=amount,
+        ))
+        s.flush()
+        return po
+
+    def _gate_inward(po: PurchaseOrder, qty_received: Decimal, gate_date: str,
+                     vehicle_no: str, challan_no: str) -> GateInward:
+        po_line = s.exec(
+            select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po.id)
+        ).first()
+        number = next_number(s, tid, "gate_inward", "GI", fmt="{prefix}-{YYYY}-{seq:04d}")
+        gi = GateInward(
+            tenant_id=tid, number=number, po_id=po.id, gate_date=gate_date,
+            time_in="09:30", vehicle_no=vehicle_no, challan_no=challan_no,
+            status="open", created_by_id=clerk.id,
+        )
+        s.add(gi); s.flush()
+        s.add(GateInwardLine(
+            gate_inward_id=gi.id, po_line_id=po_line.id,
+            product_id=po_line.product_id, qty_received=D(qty_received),
+        ))
+        s.flush()
+        if D(qty_received) >= D(po_line.qty):
+            po.status = "received"; s.add(po)
+        return gi
+
+    def _flat_bill(po: PurchaseOrder, bill_qty: Decimal, bill_date: str) -> Bill:
+        """Mirrors the real convert-to-bill endpoint exactly: a flat
+        Dr General Expenses / Cr Accounts Payable JV, no inventory branching
+        (routers/purchase_orders.py::convert_to_bill does the same)."""
+        po_line = s.exec(
+            select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po.id)
+        ).first()
+        amount = money(D(bill_qty) * D(po_line.rate))
+        ap = get_or_create_account(s, tid, "2000", "Accounts Payable", "Liability")
+        exp = get_or_create_account(s, tid, "5000", "General Expenses", "Expense")
+        bill_number = next_number(s, tid, "bill", "BILL")
+        bill = Bill(
+            tenant_id=tid, number=bill_number, vendor_id=po.vendor_id,
+            vendor_name=po.vendor_name, bill_date=bill_date,
+            due_date=_due_date(bill_date, 30), description=f"From PO {po.number}",
+            subtotal=amount, gst_rate=ZERO, gst_amount=ZERO, total=amount,
+            status="posted", ap_account_id=ap.id, expense_account_id=exp.id,
+        )
+        s.add(bill); s.flush()
+        s.add(BillLine(
+            bill_id=bill.id, product_id=po_line.product_id, description=po_line.description,
+            qty=D(bill_qty), unit=po_line.unit, rate=po_line.rate, amount=amount,
+        ))
+        txn = post_transaction(
+            s, owner, date=bill_date, description=f"Bill from PO {po.number}",
+            entries=[
+                EntryInput(account_id=exp.id, debit=amount),
+                EntryInput(account_id=ap.id, credit=amount),
+            ],
+            audit_entity_type="bill",
+            audit_detail={"bill_number": bill_number, "po_number": po.number},
+        )
+        bill.transaction_id = txn.id
+        po.bill_id = bill.id; po.status = "billed"; s.add(po)
+        for gi in s.exec(select(GateInward).where(GateInward.po_id == po.id, GateInward.status == "open")):
+            gi.status = "billed"; s.add(gi)
+        s.add(bill)
+        return bill
+
+    # ── Demands: draft / approved-unquoted / cancelled / three quoted-and-compared ──
+    pd_draft     = _new_demand(0, stock_products[0])                                    # left in draft
+    pd_unquoted  = _new_demand(1, stock_products[1]); _approve_demand(pd_unquoted)       # approved, no VQ yet
+    pd_cancelled = _new_demand(2, stock_products[2])
+    pd_cancelled.status = "cancelled"; s.add(pd_cancelled)
+
+    pd_a = _new_demand(3, stock_products[0]); _approve_demand(pd_a)
+    pd_b = _new_demand(4, stock_products[1]); _approve_demand(pd_b)
+    pd_c = _new_demand(5, stock_products[2]); _approve_demand(pd_c)
+    s.flush()
+
+    # CS-A: lowest quotation wins — no justification required
+    vq_a1, amt_a1 = _quote(pd_a, vendors[0], D("15"))
+    vq_a2, _      = _quote(pd_a, vendors[1], D("20"))
+    cs_a = _build_cs(pd_a, selected_vq=vq_a1, justification=None, approve=True)
+    po_a = _convert_to_po(pd_a, cs_a, vendors[0], stock_products[0], D("15"), amt_a1)
+    po_a.status = "approved"; s.add(po_a)
+    _gate_inward(po_a, money(D(_demand_line(pd_a).qty) * D("0.6")),
+                gate_date=_due_date(po_a.order_date, 8), vehicle_no="LEB-4471", challan_no="CH-2201")
+    # partial receipt only — PO stays "approved", demonstrates in-progress receiving
+
+    # CS-B: non-lowest quotation wins — justification required and supplied
+    vq_b1, amt_b1 = _quote(pd_b, vendors[0], D("18"))
+    vq_b2, _      = _quote(pd_b, vendors[1], D("14"))
+    cs_b = _build_cs(
+        pd_b, selected_vq=vq_b1,
+        justification="Vendor offers 3-day expedited delivery vs. 10-day lead time "
+                       "from the lower bidder; production schedule requires faster receipt.",
+        approve=True,
+    )
+    po_b = _convert_to_po(pd_b, cs_b, vendors[0], stock_products[1], D("18"), amt_b1)
+    po_b.status = "approved"; s.add(po_b)
+    s.flush()
+    _gate_inward(po_b, _demand_line(pd_b).qty,
+                gate_date=_due_date(po_b.order_date, 6), vehicle_no="LEB-5582", challan_no="CH-2202")
+    _flat_bill(po_b, _demand_line(pd_b).qty, bill_date=_due_date(po_b.order_date, 7))
+    # full receipt + billed — clean, matched 3-way-match row
+
+    # CS-C: quotations gathered, winner selected via the matrix, approval still pending
+    _quote(pd_c, vendors[0], D("22"))
+    vq_c2, _ = _quote(pd_c, vendors[1], D("19"))
+    _build_cs(pd_c, selected_vq=vq_c2, justification=None, approve=False)
+
+    # PO-C: bare (pre-chain) PO, short-received but billed for the full ordered
+    # qty — a genuine 3-way-match variance (received < ordered, billed = ordered).
+    po_c_dates = _spread_dates(1, days_ago=90, min_days_ago=60)
+    po_c = _bare_po(vendors[0], stock_products[0], D("40"), D("25"), po_c_dates[0])
+    po_c.status = "approved"; s.add(po_c)
+    s.flush()
+    _gate_inward(po_c, D("30"), gate_date=_due_date(po_c.order_date, 5),
+                vehicle_no="LEB-6693", challan_no="CH-2203")
+    _flat_bill(po_c, D("40"), bill_date=_due_date(po_c.order_date, 6))
+
+    # PO-D: bare PO, a Gate Inward recorded with the wrong details is cancelled
+    # (append-only, reason required), then re-entered correctly — demonstrates
+    # the cancel-with-reason state; left "received", not yet billed.
+    po_d_dates = _spread_dates(1, days_ago=45, min_days_ago=20)
+    po_d = _bare_po(vendors[1], stock_products[1], D("25"), D("30"), po_d_dates[0])
+    po_d.status = "approved"; s.add(po_d)
+    s.flush()
+    gi_d1 = _gate_inward(po_d, D("25"), gate_date=_due_date(po_d.order_date, 4),
+                         vehicle_no="LEB-0001", challan_no="CH-9001")
+    gi_d1.status = "cancelled"
+    gi_d1.cancel_reason = "Wrong vehicle number logged at the gate — re-entering with correct details."
+    s.add(gi_d1)
+    po_d.status = "approved"; s.add(po_d)  # coverage dropped to zero — reverts from "received"
+    s.flush()
+    _gate_inward(po_d, D("25"), gate_date=_due_date(po_d.order_date, 4),
+                vehicle_no="LEB-7784", challan_no="CH-2204")
+
+    # ── Gate Outward: invoice memo exits (recent activity gated; older backlog isn't,
+    #    for dispatch-reconciliation to have something real to flag) ──
+    stock_invoices = []
+    for inv in invoices:
+        lines = s.exec(select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)).all()
+        if any(l.product_id for l in lines):
+            stock_invoices.append((inv, lines))
+    for i, (inv, lines) in enumerate(stock_invoices[-10:]):
+        go_number = next_number(s, tid, "gate_outward", "GO", fmt="{prefix}-{YYYY}-{seq:04d}")
+        go = GateOutward(
+            tenant_id=tid, number=go_number, source_doc_type="invoice", source_doc_id=inv.id,
+            gate_date=_due_date(inv.issue_date, 1), time_out="14:00",
+            vehicle_no=f"LEB-{7100 + i}", challan_no=f"CH-OUT-{3100 + i}",
+            status="approved", created_by_id=clerk.id,
+        )
+        s.add(go); s.flush()
+        for l in lines:
+            if l.product_id:
+                s.add(GateOutwardLine(gate_outward_id=go.id, product_id=l.product_id, qty=D(l.qty)))
+    s.flush()
+
+    # ── Gate Outward: one debit-note (purchase return) memo exit ──
+    first_dn = s.exec(select(DebitNote).where(DebitNote.tenant_id == tid)).first()
+    if first_dn:
+        dn_lines = s.exec(select(DebitNoteLine).where(DebitNoteLine.debit_note_id == first_dn.id)).all()
+        if dn_lines:
+            go_number = next_number(s, tid, "gate_outward", "GO", fmt="{prefix}-{YYYY}-{seq:04d}")
+            go = GateOutward(
+                tenant_id=tid, number=go_number, source_doc_type="debit_note",
+                source_doc_id=first_dn.id, gate_date=_due_date(first_dn.issue_date, 1),
+                time_out="11:15", vehicle_no="LEB-8820", challan_no="CH-OUT-4001",
+                status="approved", created_by_id=clerk.id,
+            )
+            s.add(go); s.flush()
+            for l in dn_lines:
+                if l.product_id:
+                    s.add(GateOutwardLine(gate_outward_id=go.id, product_id=l.product_id, qty=D(l.qty)))
+            s.flush()
+
+    # ── Gate Outward: scrap left in draft — shows the pending-approval UI state ──
+    scrap_product = stock_products[2]
+    go_draft_number = next_number(s, tid, "gate_outward", "GO", fmt="{prefix}-{YYYY}-{seq:04d}")
+    go_draft = GateOutward(
+        tenant_id=tid, number=go_draft_number, source_doc_type="scrap",
+        gate_date=_due_date(demand_dates[-1], 100), time_out="16:30",
+        vehicle_no="LEB-9931", remarks="Off-cuts from cutting floor, awaiting approval",
+        status="draft", created_by_id=clerk.id,
+    )
+    s.add(go_draft); s.flush()
+    s.add(GateOutwardLine(
+        gate_outward_id=go_draft.id, product_id=scrap_product.id,
+        qty=D("5"), unit_cost=D(scrap_product.avg_cost or 0), unit_value=D("0"),
+    ))
+    s.flush()
+
+    # ── Gate Outward: scrap approved — the one path that posts real GL ──
+    go_appr_number = next_number(s, tid, "gate_outward", "GO", fmt="{prefix}-{YYYY}-{seq:04d}")
+    go_appr = GateOutward(
+        tenant_id=tid, number=go_appr_number, source_doc_type="scrap",
+        gate_date=_due_date(demand_dates[-1], 110), time_out="17:00",
+        vehicle_no="LEB-9942", remarks="Fabric scrap sold to recycler",
+        status="draft", created_by_id=clerk.id,
+    )
+    s.add(go_appr); s.flush()
+    scrap_qty, scrap_unit_cost, scrap_unit_value = D("8"), D(scrap_product.avg_cost or 10), D("3")
+    s.add(GateOutwardLine(
+        gate_outward_id=go_appr.id, product_id=scrap_product.id,
+        qty=scrap_qty, unit_cost=scrap_unit_cost, unit_value=scrap_unit_value,
+    ))
+    s.flush()
+
+    total_cost = consume_stock(
+        s, tenant_id=tid, product_id=scrap_product.id, qty=scrap_qty,
+        source_doc_id=go_appr.id, source_doc_type="gate_outward",
+    )
+    total_value = money(scrap_qty * scrap_unit_value)
+    if total_value > 0:
+        cash_acc = get_or_create_account(s, tid, "1000", "Cash in Hand", "Asset")
+        scrap_rev_acc = get_or_create_account(s, tid, "4902", "Scrap Sales", "Revenue")
+        post_transaction(
+            s, owner, date=go_appr.gate_date, description=f"Scrap sale proceeds — {go_appr.number}",
+            entries=[
+                EntryInput(account_id=cash_acc.id, debit=total_value),
+                EntryInput(account_id=scrap_rev_acc.id, credit=total_value),
+            ],
+            voucher_type="JV", audit_entity_type="gate_outward",
+            audit_detail={"go_number": go_appr.number, "leg": "scrap_revenue"},
+        )
+    if total_cost > 0:
+        scrap_exp_acc = get_or_create_account(s, tid, "5901", "Scrap Disposal Expense", "Expense")
+        inv_acc = get_or_create_account(s, tid, "1200", "Inventory (Raw Material)", "Asset")
+        post_transaction(
+            s, owner, date=go_appr.gate_date, description=f"Scrap disposal cost — {go_appr.number}",
+            entries=[
+                EntryInput(account_id=scrap_exp_acc.id, debit=total_cost),
+                EntryInput(account_id=inv_acc.id, credit=total_cost),
+            ],
+            voucher_type="JV", audit_entity_type="gate_outward",
+            audit_detail={"go_number": go_appr.number, "leg": "scrap_cost"},
+        )
+    go_appr.status = "approved"; go_appr.approved_by_id = owner.id
+    go_appr.approved_at = datetime.utcnow()
+    s.add(go_appr)
+    s.flush()
 
 
 # ── Telecom-franchise-specific ─────────────────────────────────────────────────
@@ -3297,6 +3657,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
 
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
+            s.commit()
+            _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
             s.commit()
 
         if business_model == "telecom_franchise":
