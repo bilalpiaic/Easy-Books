@@ -65,13 +65,32 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 Log 'Installing backend dependencies...'
 Push-Location backend; uv sync --frozen; Pop-Location
 
-# --- 4. Stop any running instance so the build can replace locked files ------
-# Stop-Process only *requests* termination - on Windows the OS can take a
-# moment to actually release the process's open file handles (e.g. node.exe
-# still serving frontend\.next\standalone\...). Wait-Process blocks until the
-# process has truly exited before the build step below touches that folder,
-# closing the race that caused "EBUSY: resource busy or locked, rmdir
-# frontend\.next\standalone" on update.
+# --- 4. Stop ALL running instances of this install, not just whatever is
+#        currently listening on 8000/3000 --------------------------------
+# Port-based killing alone misses an orphaned process that crashed out of
+# the listening state but still holds file handles, and misses a second
+# instance the user forgot was running (e.g. an earlier "Easy-Books is
+# running..." window still open) - either one leaves frontend\.next\
+# standalone locked no matter how long we wait on the process that answers
+# on the port today. Find every process whose command line identifies it as
+# part of THIS install (its own frontend server script, its own uvicorn
+# backend, or its own install path) and stop all of them.
+$RootPattern = [regex]::Escape($Root)
+try {
+  $relatedProcs = Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
+    $_.ProcessId -ne $PID -and $_.CommandLine -and (
+      $_.CommandLine -match 'standalone\\server\.js' -or
+      $_.CommandLine -match 'uvicorn' -or
+      $_.CommandLine -match $RootPattern
+    )
+  }
+  foreach ($proc in $relatedProcs) {
+    Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+    Wait-Process -Id $proc.ProcessId -Timeout 10 -ErrorAction SilentlyContinue
+  }
+} catch { }
+# Belt-and-braces: also stop by port, in case something is listening whose
+# command line didn't match any of the patterns above.
 foreach ($port in 8000, 3000) {
   try {
     $procIds = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
@@ -115,7 +134,7 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
         break
       } catch {
         if ($attempt -eq $maxAttempts) {
-          throw "Could not remove $standaloneDir after $maxAttempts attempts - a process may still be holding it open. Close any running Easy-Books window and try again. Original error: $_"
+          throw "Could not remove $standaloneDir after $maxAttempts attempts. Every Easy-Books process this script could find has already been stopped, so something else has this folder open - a File Explorer window browsing into it, an antivirus scan, or a code editor. Close those, then re-run install-and-run.bat. If it still fails, open Task Manager, end any remaining node.exe or python.exe process, and try again. Original error: $_"
         }
         Start-Sleep -Seconds 2
       }
