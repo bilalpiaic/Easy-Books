@@ -59,10 +59,20 @@ Log 'Installing backend dependencies...'
 Push-Location backend; uv sync --frozen; Pop-Location
 
 # --- 4. Stop any running instance so the build can replace locked files ------
+# Stop-Process only *requests* termination — on Windows the OS can take a
+# moment to actually release the process's open file handles (e.g. node.exe
+# still serving frontend\.next\standalone\...). Wait-Process blocks until the
+# process has truly exited before the build step below touches that folder,
+# closing the race that caused "EBUSY: resource busy or locked, rmdir
+# frontend\.next\standalone" on update.
 foreach ($port in 8000, 3000) {
   try {
-    Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
-      ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    $procIds = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
+      Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($procId in $procIds) {
+      Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+      Wait-Process -Id $procId -Timeout 10 -ErrorAction SilentlyContinue
+    }
   } catch { }
 }
 
@@ -83,10 +93,38 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   $env:NEXT_PUBLIC_APP_VERSION = $appVersion
   $env:NEXT_PUBLIC_GIT_COMMIT  = if ($headCommit) { $headCommit } else { 'dev' }
   $env:NEXT_PUBLIC_BUILD_DATE  = $buildDate
-  Push-Location frontend; npm install; npx next build; Pop-Location
+  # Pre-clean the previous build's standalone folder ourselves, with retries.
+  # `next build` also tries to clear this folder internally, but on Windows a
+  # just-killed node.exe (see step 4) can hold the directory locked for a
+  # moment even after Wait-Process confirms it exited — retrying here, before
+  # handing off to `next build`, avoids relying on Next's own (unretried)
+  # cleanup to win that race.
+  $standaloneDir = Join-Path $Root 'frontend\.next\standalone'
+  if (Test-Path $standaloneDir) {
+    $maxAttempts = 5
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+      try {
+        Remove-Item $standaloneDir -Recurse -Force -ErrorAction Stop
+        break
+      } catch {
+        if ($attempt -eq $maxAttempts) {
+          throw "Could not remove $standaloneDir after $maxAttempts attempts — a process may still be holding it open. Close any running Easy-Books window and try again. Original error: $_"
+        }
+        Start-Sleep -Seconds 2
+      }
+    }
+  }
+  Push-Location frontend
+  npm install
+  npx next build
+  $buildExitCode = $LASTEXITCODE
+  Pop-Location
   Remove-Item Env:NEXT_PUBLIC_APP_VERSION -ErrorAction SilentlyContinue
   Remove-Item Env:NEXT_PUBLIC_GIT_COMMIT  -ErrorAction SilentlyContinue
   Remove-Item Env:NEXT_PUBLIC_BUILD_DATE  -ErrorAction SilentlyContinue
+  if ($buildExitCode -ne 0) {
+    throw "next build failed (exit code $buildExitCode) — see the error above. The frontend was not updated; re-run this script once the issue is fixed."
+  }
   # Write version.json so UpdateModal can detect when update.ps1 has already
   # rebuilt the server (page's baked-in commit differs from server's commit).
   $commitVal = if ($headCommit) { $headCommit } else { 'dev' }
