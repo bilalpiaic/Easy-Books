@@ -50,6 +50,23 @@ so no value in a separate spec/plan/branch for it). Closes out the original
    variance calculation (PO ordered qty vs Σ GRN received qty) rather than
    inventing a new field this phase doesn't otherwise need.
 
+5. **Stock Tie-out is product-level, not per-location.** `consume_stock`
+   (`services/inventory.py:168`) has no `location_id` parameter — it drains
+   whichever `InventoryLayer` rows exist oldest-first and tags the
+   resulting `StockMovement` with *whatever location that layer happens to
+   belong to*, not a location the caller chooses. A Store Issue against
+   `from_location_id=A` could, in principle, drain a layer actually
+   received at location B — there is no enforced per-location consumption
+   fidelity anywhere in the codebase today (Gate Outward's scrap flow has
+   the identical property). Building a true per-location tie-out report on
+   top of that would silently misreport. `from_location_id` on `StoreIssue`
+   stays as a real, validated field (descriptive/audit value — which
+   store's staff issued this — and useful for the Issue Register), but
+   Stock Tie-out is scoped down to per-product, tenant-wide: Σ GRN-in −
+   Σ Store-Issue-out vs. `Product.stock_qty`. Adding real location-aware
+   consumption is a `consume_stock` change with a much wider blast radius
+   (every existing call site) and is out of scope here.
+
 ## Data model (new Alembic migration `0032_store_issue.py`, `has_table` guard)
 
 ### `StoreIssue`
@@ -132,17 +149,19 @@ gains:
 - `GET /issue-register?start=&end=&analytic_account_id=&q=` — one row per
   Store Issue: number, date, location, analytic account, debit account,
   total cost; `q` matches issue number or notes
-- `GET /stock-tie-out?start=&end=&location_id=` — one row per product at a
-  location: opening qty, Σ GRN-in qty, Σ Store-Issue-out qty, expected
-  closing (opening + in − out), actual closing (`Product.stock_qty` scoped
-  to that location via `StockMovement`), variance flagged if non-zero
+- `GET /stock-tie-out?start=&end=&product_id=` — one row per product,
+  tenant-wide (see decision #5 — not location-scoped): opening qty (stock
+  qty as of `start`, derived by walking `StockMovement` before that date),
+  Σ GRN-in qty, Σ Store-Issue-out qty, expected closing (opening + in −
+  out), actual closing (`Product.stock_qty` right now), variance flagged
+  if non-zero
 
 `routers/purchase_reports.py` (existing file — vendor performance is
 purchasing analytics, alongside the gate-register + 3-way-match endpoints
 already there) gains:
 - `GET /vendor-performance?start=&end=&vendor_id=` — one row per vendor:
   avg delivery lead time in days (`AVG(GateInward.gate_date −
-  PurchaseOrder.date)` across POs with at least one linked GI), rate trend
+  PurchaseOrder.order_date)` across POs with at least one linked GI), rate trend
   (per-item rate on this vendor's quotations over time — reuses
   `VendorQuotationLine` data already collected in Phase 1), and a
   short-receipt-rate proxy (Σ variance from the existing 3-way-match calc
@@ -207,9 +226,10 @@ under an existing top-level section.
   `my_data_only` scoping on list
 - Tenant isolation on every query (location, analytic account, debit
   account, product all validated as belonging to the tenant)
-- Reports: issue register filters; stock tie-out variance = 0 on a
-  clean-seeded location, non-zero when deliberately mismatched in the
-  test fixture
+- Reports: issue register filters; stock tie-out variance = 0 for a
+  product whose only movements are the test's own GRN-in/Store-Issue-out,
+  non-zero when a movement is deliberately excluded from the calc window
+  in the test fixture
 
 `tests/test_vendor_performance.py`:
 - Lead-time calc correct for a vendor with 2+ POs each with a linked GI
