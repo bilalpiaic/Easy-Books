@@ -44,11 +44,16 @@ so no value in a separate spec/plan/branch for it). Closes out the original
    to transition.
 
 4. **"Rejection rate" (from the original issue's Phase 4 wish list) is not
-   directly trackable.** Neither `GateInwardLine` nor `GRNLine` carry an
-   accepted/rejected qty split — only a single received qty. The vendor
-   performance report approximates this by reusing the existing 3-way-match
-   variance calculation (PO ordered qty vs Σ GRN received qty) rather than
-   inventing a new field this phase doesn't otherwise need.
+   directly trackable.** Neither `GateInwardLine` nor `BillLine` (the two
+   models that actually feed the existing 3-way-match, `purchase_reports.py:53-90`
+   — the *originally-filed issue's own text incorrectly named `GRNLine`
+   here; `GoodsReceiptNote`/`GRNLine` is an unrelated Manufacturing model
+   for customer-custodial tolling material, not part of the PO chain at
+   all, see decision #6 below) carry an accepted/rejected qty split — only
+   a single received/billed qty. The vendor performance report
+   approximates rejection rate by reusing the existing 3-way-match
+   variance calculation (PO ordered qty vs Σ GateInward received qty)
+   rather than inventing a new field this phase doesn't otherwise need.
 
 5. **Stock Tie-out is product-level, not per-location.** `consume_stock`
    (`services/inventory.py:168`) has no `location_id` parameter — it drains
@@ -62,10 +67,27 @@ so no value in a separate spec/plan/branch for it). Closes out the original
    top of that would silently misreport. `from_location_id` on `StoreIssue`
    stays as a real, validated field (descriptive/audit value — which
    store's staff issued this — and useful for the Issue Register), but
-   Stock Tie-out is scoped down to per-product, tenant-wide: Σ GRN-in −
-   Σ Store-Issue-out vs. `Product.stock_qty`. Adding real location-aware
-   consumption is a `consume_stock` change with a much wider blast radius
-   (every existing call site) and is out of scope here.
+   Stock Tie-out is scoped down to per-product, tenant-wide: Σ Bill-received
+   qty − Σ Store-Issue-out qty vs. `Product.stock_qty`. Adding real
+   location-aware consumption is a `consume_stock` change with a much
+   wider blast radius (every existing call site) and is out of scope here.
+
+6. **`GoodsReceiptNote`/`GRNLine` is not part of the PO chain.** The
+   original issue text (and the `MODULE_REGISTRY` description quoted in
+   its Motivation section) assumed GRN was the vendor-receipt step —
+   it isn't. In this codebase, `GoodsReceiptNote` (`models.py:663`) is a
+   Manufacturing-only model for **customer-supplied material held in
+   custody** (`customer_id`, `customer_custodial`-type `StockLocation`,
+   an off-balance-sheet memo JE) — unrelated to `PurchaseOrder`. The real
+   receipt event for a purchased-from-vendor PO is **Bill creation**:
+   `record_purchase` (`services/inventory.py`) runs when a Bill is
+   created/converted from the PO, tagging the resulting `StockMovement`
+   rows `source_doc_type="bill"` (`routers/bills.py:301,530`). The
+   existing 3-way-match report already reflects this correctly (PO vs
+   `gi_coverage` vs `po.bill_id`/`BillLine` — no `GoodsReceiptNote`
+   anywhere in it, `purchase_reports.py:53-90`). Stock Tie-out and the
+   hub page's bands are written against this reality, not the original
+   issue text's incorrect assumption.
 
 ## Data model (new Alembic migration `0032_store_issue.py`, `has_table` guard)
 
@@ -152,8 +174,11 @@ gains:
 - `GET /stock-tie-out?start=&end=&product_id=` — one row per product,
   tenant-wide (see decision #5 — not location-scoped): opening qty (stock
   qty as of `start`, derived by walking `StockMovement` before that date),
-  Σ GRN-in qty, Σ Store-Issue-out qty, expected closing (opening + in −
-  out), actual closing (`Product.stock_qty` right now), variance flagged
+  Σ Bill-received qty (`StockMovement` rows with `direction="RECEIPT"`,
+  `source_doc_type="bill"`, per decision #6), Σ Store-Issue-out qty
+  (`direction="SHIPMENT"`, `source_doc_type="store_issue"`), expected
+  closing (opening + in − out), actual closing (`Product.stock_qty` right
+  now), variance flagged
   if non-zero
 
 `routers/purchase_reports.py` (existing file — vendor performance is
@@ -189,9 +214,12 @@ Outward's placement:
 New **`/purchases`** hub page (`HubConfig` pattern, `frontend/src/lib/hubConfigs.ts`):
 - Pending demands band (draft/approved-not-yet-converted `PurchaseDemand`
   count + list)
-- POs awaiting GRN band (approved/received-partial `PurchaseOrder`s with
-  open qty)
-- Gate entries awaiting GRN band (`GateInward` rows with `status="open"`)
+- POs awaiting billing band (approved `PurchaseOrder`s with `bill_id IS
+  NULL` — not yet converted; the existing `require_gate_inward` gate means
+  these are also implicitly "received but not yet billed" once a GI exists)
+- Gate entries awaiting billing band (`GateInward` rows with
+  `status="open"` — the model's own status enum is `open|billed|cancelled`,
+  i.e. "open" already means "not yet billed")
 - Low-stock reorder suggestions band (reuses the existing low-stock query
   from the Inventory hub's `LowStockBand`, scoped to products with any
   open demand/PO history — avoids duplicating the low-stock calc, just a
@@ -227,7 +255,7 @@ under an existing top-level section.
 - Tenant isolation on every query (location, analytic account, debit
   account, product all validated as belonging to the tenant)
 - Reports: issue register filters; stock tie-out variance = 0 for a
-  product whose only movements are the test's own GRN-in/Store-Issue-out,
+  product whose only movements are the test's own bill-receipt/Store-Issue-out,
   non-zero when a movement is deliberately excluded from the calc window
   in the test fixture
 
@@ -254,6 +282,6 @@ under an existing top-level section.
   to model it on; would need its own design
 - `production_order_id` on `StoreIssue` (rejected per decision #1)
 - True rejection-rate tracking (would need a new accepted/rejected qty
-  field on `GateInwardLine`/`GRNLine` — schema change beyond this phase)
+  field on `GateInwardLine`/`BillLine` — schema change beyond this phase)
 - `_gate_required`/`_chain_required` dedup (still pending from Phase 2,
   no new instance added here)
