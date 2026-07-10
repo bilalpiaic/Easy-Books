@@ -11,7 +11,7 @@ from sqlmodel import select
 
 from models import Account, AnalyticAccount, Product, Settings, StockLocation, StoreIssue, StoreIssueLine
 from routers.common import SessionDep, WriteUserDep, log_audit, next_number
-from services.inventory import consume_stock
+from services.inventory import InventoryError, consume_stock
 from services.money import D, money
 from services.permissions import apply_own_filter, perm_dep
 from services.posting import EntryInput, post_transaction
@@ -163,7 +163,7 @@ def create_store_issue(session: SessionDep, user: WriteUserDep, body: SIIn):
                 block_negative=block_negative, source_doc_id=si.id,
                 source_doc_type="store_issue",
             )
-        except Exception as e:  # InventoryError
+        except InventoryError as e:
             raise HTTPException(400, str(e))
         total_cost += cost
         row = StoreIssueLine(

@@ -221,3 +221,34 @@ def test_store_issue_permission_view_only_blocked_from_create(client: TestClient
         "debit_account_id": acct_id, "lines": [],
     })
     assert r.status_code == 403
+
+
+def test_store_issue_multi_line_failure_rolls_back_first_line(client: TestClient):
+    """Line 1 consumes stock in-session, line 2 fails block_negative —
+    the whole request must 400 and line 1's stock must be untouched."""
+    auth = _signup(client, "si8@t.com")
+    pid_ok = _stock_product(client, auth, qty=50, avg_cost=4)
+    pid_short = _stock_product(client, auth, qty=2, avg_cost=6)
+    loc_id = _own_location(client, auth)
+    acct_id = _expense_account(client, auth)
+    client.patch("/api/settings", headers=auth, json={"block_negative_stock": "true"})
+
+    r = client.post("/api/store-issues", headers=auth, json={
+        "issue_date": "2026-07-10", "from_location_id": loc_id,
+        "debit_account_id": acct_id,
+        "lines": [
+            {"product_id": pid_ok, "qty": 5},       # would succeed
+            {"product_id": pid_short, "qty": 10},   # fails: only 2 on hand
+        ],
+    })
+    assert r.status_code == 400
+
+    # Line 1's product must be fully untouched — no partial consumption
+    prod_ok = client.get(f"/api/products/{pid_ok}", headers=auth).json()
+    assert Decimal(str(prod_ok["stock_qty"])) == Decimal("50")
+    prod_short = client.get(f"/api/products/{pid_short}", headers=auth).json()
+    assert Decimal(str(prod_short["stock_qty"])) == Decimal("2")
+
+    # And no Store Issue row was persisted
+    rows = client.get("/api/store-issues", headers=auth).json()
+    assert rows == []
