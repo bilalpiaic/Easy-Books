@@ -43,6 +43,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "purchase.comparative":   {"label": "Comparative Statements",  "category": "Purchasing"},
     "purchase.gate":          {"label": "Gate Inward",             "category": "Purchasing"},
     "store.gate_outward":     {"label": "Gate Outward",            "category": "Store"},
+    "store.issue":            {"label": "Store Issue",             "category": "Store"},
     "grn":                    {"label": "Goods Receipt Notes",     "category": "Manufacturing"},
     "production_orders":      {"label": "Production Orders",       "category": "Manufacturing"},
     "stock_locations":        {"label": "Stock Locations",         "category": "Manufacturing"},
