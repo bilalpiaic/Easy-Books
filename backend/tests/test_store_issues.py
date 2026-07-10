@@ -252,3 +252,55 @@ def test_store_issue_multi_line_failure_rolls_back_first_line(client: TestClient
     # And no Store Issue row was persisted
     rows = client.get("/api/store-issues", headers=auth).json()
     assert rows == []
+
+
+def test_issue_register_filters(client: TestClient):
+    auth = _signup(client, "rep1@t.com")
+    pid = _stock_product(client, auth, qty=50, avg_cost=5)
+    loc_id = _own_location(client, auth)
+    acct_id = _expense_account(client, auth)
+    client.post("/api/store-issues", headers=auth, json={
+        "issue_date": "2026-07-10", "from_location_id": loc_id,
+        "debit_account_id": acct_id, "notes": "monthly maintenance draw",
+        "lines": [{"product_id": pid, "qty": 3}],
+    })
+    rows = client.get("/api/store-reports/issue-register", headers=auth).json()
+    assert len(rows) == 1
+    assert Decimal(str(rows[0]["total_cost"])) == Decimal("15")  # 3 * 5
+
+    rows = client.get("/api/store-reports/issue-register?q=maintenance", headers=auth).json()
+    assert len(rows) == 1
+    rows = client.get("/api/store-reports/issue-register?q=NOPE", headers=auth).json()
+    assert rows == []
+
+
+def test_stock_tie_out_zero_variance_on_clean_data(client: TestClient):
+    """A product whose only movements in-window are one bill receipt and
+    one store issue should tie out exactly."""
+    auth = _signup(client, "rep2@t.com")
+    loc_id = _own_location(client, auth)
+    acct_id = _expense_account(client, auth)
+    vendors = client.post("/api/vendors", headers=auth, json={"name": "Tie-Out Vendor"}).json()
+    products = client.post("/api/products", headers=auth, json={
+        "name": "Tie-Out Widget", "product_type": "stock", "unit": "pcs",
+    }).json()
+    bill = client.post("/api/bills", headers=auth, json={
+        "vendor_id": vendors["id"], "bill_date": "2026-07-01", "due_date": "2026-07-31",
+        "lines": [{"description": "Tie-Out Widget", "product_id": products["id"], "qty": 20, "rate": 5}],
+    })
+    assert bill.status_code == 201, bill.text
+
+    client.post("/api/store-issues", headers=auth, json={
+        "issue_date": "2026-07-10", "from_location_id": loc_id,
+        "debit_account_id": acct_id,
+        "lines": [{"product_id": products["id"], "qty": 6}],
+    })
+
+    rows = client.get(
+        f"/api/store-reports/stock-tie-out?product_id={products['id']}", headers=auth
+    ).json()
+    assert len(rows) == 1
+    row = rows[0]
+    assert Decimal(str(row["received_qty"])) == Decimal("20")
+    assert Decimal(str(row["issued_qty"])) == Decimal("6")
+    assert Decimal(str(row["variance"])) == Decimal("0")
