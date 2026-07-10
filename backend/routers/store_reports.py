@@ -120,6 +120,7 @@ def issue_register(
         query = query.where(StoreIssue.issue_date <= end)
     if analytic_account_id:
         query = query.where(StoreIssue.analytic_account_id == analytic_account_id)
+    query = apply_own_filter(query, StoreIssue, user, session)
     rows = session.exec(query.order_by(StoreIssue.id.desc())).all()
 
     out = []
@@ -186,13 +187,23 @@ def stock_tie_out(
                 elif start and mv_date < start:
                     opening_qty -= D(mv.qty)
 
-        expected_closing = opening_qty + received_qty - issued_qty
-        actual_closing = D(prod.stock_qty)
+        # actual_closing is live stock (today); comparing it against a
+        # window truncated at a past `end` would report window-truncation
+        # as fake variance — so the reconciliation columns are only
+        # returned for the as-of-now view (end unset).
+        if end:
+            expected_closing = None
+            actual_closing = None
+            variance = None
+        else:
+            expected_closing = opening_qty + received_qty - issued_qty
+            actual_closing = D(prod.stock_qty)
+            variance = actual_closing - expected_closing
         out.append({
             "product_id": prod.id, "product_name": prod.name,
             "opening_qty": opening_qty, "received_qty": received_qty,
             "issued_qty": issued_qty, "expected_closing": expected_closing,
             "actual_closing": actual_closing,
-            "variance": actual_closing - expected_closing,
+            "variance": variance,
         })
     return out

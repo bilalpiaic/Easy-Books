@@ -304,3 +304,31 @@ def test_stock_tie_out_zero_variance_on_clean_data(client: TestClient):
     assert Decimal(str(row["received_qty"])) == Decimal("20")
     assert Decimal(str(row["issued_qty"])) == Decimal("6")
     assert Decimal(str(row["variance"])) == Decimal("0")
+
+
+def test_stock_tie_out_windowed_end_returns_null_variance(client: TestClient):
+    """A past `end` cannot be honestly reconciled against live stock —
+    variance columns must be None while window quantities still return."""
+    auth = _signup(client, "rep3@t.com")
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Window Vendor"}).json()
+    product = client.post("/api/products", headers=auth, json={
+        "name": "Window Widget", "product_type": "stock", "unit": "pcs",
+    }).json()
+    bill = client.post("/api/bills", headers=auth, json={
+        "vendor_id": vendor["id"], "bill_date": "2026-07-01", "due_date": "2026-07-31",
+        "lines": [{"description": "Window Widget", "product_id": product["id"], "qty": 20, "rate": 5}],
+    })
+    assert bill.status_code == 201, bill.text
+
+    rows = client.get(
+        f"/api/store-reports/stock-tie-out?end=2026-01-01&product_id={product['id']}",
+        headers=auth,
+    ).json()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["variance"] is None
+    assert row["expected_closing"] is None
+    assert row["actual_closing"] is None
+    # Window quantities still computed (the receipt occurred today, after
+    # end=2026-01-01, so it falls outside the window and start is unset)
+    assert Decimal(str(row["received_qty"])) == Decimal("0")
