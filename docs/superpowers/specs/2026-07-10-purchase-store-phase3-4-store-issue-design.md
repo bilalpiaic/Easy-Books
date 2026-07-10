@@ -211,19 +211,30 @@ Outward's placement:
 - `/store/issues/[id]` — detail + portrait print (voucher-prefix-only, no
   type badge, per CLAUDE.md convention)
 
-New **`/purchases`** hub page (`HubConfig` pattern, `frontend/src/lib/hubConfigs.ts`):
-- Pending demands band (draft/approved-not-yet-converted `PurchaseDemand`
-  count + list)
-- POs awaiting billing band (approved `PurchaseOrder`s with `bill_id IS
-  NULL` — not yet converted; the existing `require_gate_inward` gate means
-  these are also implicitly "received but not yet billed" once a GI exists)
-- Gate entries awaiting billing band (`GateInward` rows with
-  `status="open"` — the model's own status enum is `open|billed|cancelled`,
-  i.e. "open" already means "not yet billed")
-- Low-stock reorder suggestions band (reuses the existing low-stock query
-  from the Inventory hub's `LowStockBand`, scoped to products with any
-  open demand/PO history — avoids duplicating the low-stock calc, just a
-  different filter on top of it)
+New **`/purchases`** hub page (`HubConfig` pattern,
+`frontend/src/lib/hubConfigs.ts`). Corrected against the real component
+contract (`components/hub/HubPage.tsx:35-44`): a `HubConfig` has exactly 4
+`kpis`, exactly **one** `band` from the closed set `"aging"|"low-stock"|
+"account-list"|"payroll-runs"` (no arbitrary multi-band list — the
+original draft of this spec assumed otherwise), and 4–8 `actions`:
+
+- **KPIs (4):** Pending Demands (count of `PurchaseDemand` with
+  `status IN ("draft","approved")`), POs Awaiting Billing (count of
+  `PurchaseOrder` with `bill_id IS NULL` and `status="approved"`), Gate
+  Entries Awaiting Billing (count of `GateInward` with `status="open"`),
+  Low-Stock Items (count, same calc as the Inventory hub's own KPI —
+  `reused`, not reimplemented).
+- **Band:** `"low-stock"`, reusing the exact same
+  `/api/reports/inventory-performance` fetch + `bandData` mapping already
+  written for `INVENTORY_CONFIG` (`hubConfigs.ts:134-184`) verbatim — this
+  hub doesn't need its own low-stock query, just the existing one surfaced
+  a second time where purchasing staff will actually see it.
+- **Actions (6):** New Demand, Comparatives, Gate Inward, Purchase Orders,
+  Store Issues, Vendor Performance.
+- **Fetch:** `Promise.all([...])` combining `GET /api/purchase-demands`,
+  `GET /api/purchase-orders`, `GET /api/gate-inwards`,
+  `GET /api/reports/inventory-performance` — same multi-source pattern
+  `RECEIVABLE_CONFIG` already uses (`hubConfigs.ts:23-27`).
 
 New report pages: `/store/issue-register`, `/store/stock-tie-out`
 (Store nav section, alongside Gate Outward's register/reconciliation
