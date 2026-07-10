@@ -167,7 +167,7 @@ export default function AssetsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto table-freeze freeze-col">
         <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-[var(--bg-page)]">
             <tr>

@@ -238,7 +238,7 @@ export default function BudgetsPage() {
               ]}
             />
           ) : (
-            <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto">
+            <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto table-freeze">
               <table className="w-full text-sm">
                 <thead className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">
                   <tr>
@@ -331,7 +331,7 @@ export default function BudgetsPage() {
               ]}
             />
           ) : (
-            <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto">
+            <div className="bg-white border border-[var(--border)] rounded-2xl overflow-x-auto table-freeze">
               <table className="w-full text-xs">
                 <thead className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">
                   <tr>

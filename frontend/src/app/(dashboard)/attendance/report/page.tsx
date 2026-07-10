@@ -188,7 +188,7 @@ export default function AttendanceReportPage() {
 
       {/* Table */}
       {hasRun && (
-        <div className="overflow-x-auto rounded-xl border border-gray-100 shadow-sm">
+        <div className="overflow-x-auto table-freeze rounded-xl border border-gray-100 shadow-sm">
           {!employeeId ? (
             // Grouped by employee
             Object.entries(grouped).map(([eid, recs]) => {

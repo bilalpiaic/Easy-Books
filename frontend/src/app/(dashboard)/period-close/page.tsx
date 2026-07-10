@@ -146,7 +146,7 @@ export default function PeriodClosePage() {
       {err && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
 
       <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto table-freeze">
         <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-[var(--bg-page)]">
             <tr>{["Period", "Range", "Status", "Actions"].map(h => (

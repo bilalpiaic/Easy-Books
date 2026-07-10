@@ -206,7 +206,7 @@ export default function AuditLogPage() {
         <p className="text-sm text-[var(--text-muted)] py-8 text-center">No audit entries for these filters.</p>
       ) : view === "timeline" ? (
         <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto table-freeze">
             <table className="w-full text-sm min-w-[760px]">
               <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
                 <tr>
