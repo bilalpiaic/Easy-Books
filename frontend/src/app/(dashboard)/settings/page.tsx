@@ -163,7 +163,7 @@ export default function SettingsPage() {
       const fd = new FormData()
       fd.append("file", file)
       const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/settings/logo`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/settings/logo`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
@@ -384,7 +384,7 @@ export default function SettingsPage() {
             {form.logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={`${process.env.NEXT_PUBLIC_API_URL || ""}${form.logo_url}`}
+                src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}${form.logo_url}`}
                 alt="Company logo"
                 className="h-16 w-auto object-contain border border-[var(--border)] rounded-lg p-1 bg-white"
               />

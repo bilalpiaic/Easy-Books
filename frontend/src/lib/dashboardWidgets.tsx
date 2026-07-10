@@ -86,9 +86,9 @@ export function ChartSkeleton() {
 
 
 const ONBOARDING_STEPS = [
-  { key: "company_profile", label: "Upload company logo",     href: "/settings#company" },
+  { key: "company_profile", label: "Upload company logo",     href: "/settings?tab=company" },
   { key: "first_customer",  label: "Add your first customer", href: "/customers" },
-  { key: "payment_terms",   label: "Set up payment terms",    href: "/settings#payment-terms" },
+  { key: "payment_terms",   label: "Set up payment terms",    href: "/settings?tab=accounting" },
   { key: "first_invoice",   label: "Create your first invoice", href: "/invoices" },
   { key: "first_bill",      label: "Record your first bill",  href: "/bills" },
 ]
