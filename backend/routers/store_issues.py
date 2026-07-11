@@ -2,7 +2,6 @@
 (#137 Phase 3). Deliberately separate from ProductionOrder's own
 raw-material consumption path. Posts GL and relieves stock immediately on
 create — no draft/approve gate; block_negative_stock is the control."""
-from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -10,7 +9,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from models import Account, AnalyticAccount, Product, Settings, StockLocation, StoreIssue, StoreIssueLine
-from routers.common import SessionDep, WriteUserDep, log_audit, next_number
+from routers.common import SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number
 from services.inventory import InventoryError, consume_stock
 from services.money import D, money
 from services.permissions import apply_own_filter, perm_dep
@@ -140,6 +139,8 @@ def create_store_issue(session: SessionDep, user: WriteUserDep, body: SIIn):
         ).first()
         if not prod:
             raise HTTPException(404, "Product not found")
+        if prod.product_type != "stock":
+            raise HTTPException(400, f"Product '{prod.name}' is not a stock item")
 
     number = next_number(
         session, user.tenant_id, "store_issue", "SI", fmt="{prefix}-{YYYY}-{seq:04d}"
@@ -154,7 +155,6 @@ def create_store_issue(session: SessionDep, user: WriteUserDep, body: SIIn):
 
     block_negative = _block_negative_stock(session, user.tenant_id)
     total_cost = D("0")
-    line_rows = []
     for l in body.lines:
         qty = D(l.qty)
         try:
@@ -168,20 +168,14 @@ def create_store_issue(session: SessionDep, user: WriteUserDep, body: SIIn):
         total_cost += cost
         row = StoreIssueLine(
             store_issue_id=si.id, product_id=l.product_id, qty=qty,
-            unit_cost=money(cost / qty) if qty else D("0"),
+            unit_cost=money(cost / qty),
         )
         session.add(row)
-        line_rows.append(row)
 
     if total_cost > 0:
-        inv_acct = session.exec(
-            select(Account).where(Account.tenant_id == user.tenant_id, Account.code == "1200")
-        ).first()
-        if not inv_acct:
-            from routers.common import get_or_create_account
-            inv_acct = get_or_create_account(
-                session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
-            )
+        inv_acct = get_or_create_account(
+            session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
+        )
         txn = post_transaction(
             session, user, date=body.issue_date,
             description=f"Store issue — {number}",

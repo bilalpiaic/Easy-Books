@@ -141,6 +141,26 @@ def test_store_issue_requires_expense_type_debit_account(client: TestClient):
     assert "expense" in r.json()["detail"].lower()
 
 
+def test_store_issue_rejects_non_stock_product(client: TestClient):
+    """consume_stock silently no-ops (returns ZERO cost) for non-stock
+    products, which would otherwise produce a misleading zero-cost Store
+    Issue line — reject up front instead."""
+    auth = _signup(client, "si-nonstock@t.com")
+    loc_id = _own_location(client, auth)
+    acct_id = _expense_account(client, auth)
+    service = client.post("/api/products", headers=auth, json={
+        "name": "Consulting Hour", "product_type": "service", "unit": "hr",
+    }).json()
+
+    r = client.post("/api/store-issues", headers=auth, json={
+        "issue_date": "2026-07-10", "from_location_id": loc_id,
+        "debit_account_id": acct_id,
+        "lines": [{"product_id": service["id"], "qty": 1}],
+    })
+    assert r.status_code == 400
+    assert "not a stock item" in r.json()["detail"]
+
+
 def test_store_issue_blocks_negative_stock_when_setting_enabled(client: TestClient):
     auth = _signup(client, "si4@t.com")
     pid = _stock_product(client, auth, qty=3, avg_cost=10)
@@ -298,6 +318,47 @@ def test_stock_tie_out_zero_variance_on_clean_data(client: TestClient):
 
     rows = client.get(
         f"/api/store-reports/stock-tie-out?product_id={products['id']}", headers=auth
+    ).json()
+    assert len(rows) == 1
+    row = rows[0]
+    assert Decimal(str(row["received_qty"])) == Decimal("20")
+    assert Decimal(str(row["issued_qty"])) == Decimal("6")
+    assert Decimal(str(row["variance"])) == Decimal("0")
+
+
+def test_stock_tie_out_zero_variance_with_sale(client: TestClient):
+    """A product that also has a normal sale (INVOICE, not just a Store
+    Issue) must still tie out to zero — expected_closing now accounts for
+    ALL movement types that touch Product.stock_qty, not just bill
+    receipts and store issues."""
+    auth = _signup(client, "rep4@t.com")
+    loc_id = _own_location(client, auth)
+    acct_id = _expense_account(client, auth)
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Sale Tie-Out Vendor"}).json()
+    customer = client.post("/api/customers", headers=auth, json={"name": "Sale Tie-Out Customer"}).json()
+    product = client.post("/api/products", headers=auth, json={
+        "name": "Sale Tie-Out Widget", "product_type": "stock", "unit": "pcs",
+    }).json()
+    bill = client.post("/api/bills", headers=auth, json={
+        "vendor_id": vendor["id"], "bill_date": "2026-07-01", "due_date": "2026-07-31",
+        "lines": [{"description": "Sale Tie-Out Widget", "product_id": product["id"], "qty": 20, "rate": 5}],
+    })
+    assert bill.status_code == 201, bill.text
+
+    inv = client.post("/api/invoices", headers=auth, json={
+        "customer_id": customer["id"], "issue_date": "2026-07-05", "gst_rate": 0,
+        "lines": [{"product_id": product["id"], "description": "Sale Tie-Out Widget", "qty": 4, "rate": 20}],
+    })
+    assert inv.status_code == 201, inv.text
+
+    client.post("/api/store-issues", headers=auth, json={
+        "issue_date": "2026-07-10", "from_location_id": loc_id,
+        "debit_account_id": acct_id,
+        "lines": [{"product_id": product["id"], "qty": 6}],
+    })
+
+    rows = client.get(
+        f"/api/store-reports/stock-tie-out?product_id={product['id']}", headers=auth
     ).json()
     assert len(rows) == 1
     row = rows[0]

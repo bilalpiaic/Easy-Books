@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter
 from sqlmodel import select
 
-from models import (BillLine, GateInward, GateInwardLine, PurchaseOrder,
+from models import (BillLine, GateInward, GateInwardLine, Product, PurchaseOrder,
                     PurchaseOrderLine, PurchaseDemandLine, User, Vendor,
                     VendorQuotation, VendorQuotationLine)
 from routers.common import SessionDep, WriteUserDep
@@ -128,9 +128,10 @@ def vendor_performance(
         pos = session.exec(po_query).all()
 
         quotation_rows = session.exec(
-            select(VendorQuotation, VendorQuotationLine, PurchaseDemandLine)
+            select(VendorQuotation, VendorQuotationLine, PurchaseDemandLine, Product)
             .join(VendorQuotationLine, VendorQuotationLine.quotation_id == VendorQuotation.id)
             .join(PurchaseDemandLine, PurchaseDemandLine.id == VendorQuotationLine.demand_line_id)
+            .join(Product, Product.id == PurchaseDemandLine.product_id, isouter=True)
             .where(VendorQuotation.tenant_id == user.tenant_id, VendorQuotation.vendor_id == vendor.id)
             .order_by(VendorQuotation.quote_date)
         ).all()
@@ -164,10 +165,10 @@ def vendor_performance(
 
         rate_trend = [
             {
-                "product_id": pdl.product_id, "product_name": None,
+                "product_id": pdl.product_id, "product_name": prod.name if prod else None,
                 "quote_date": vq.quote_date, "rate": float(D(vql.rate)),
             }
-            for vq, vql, pdl in quotation_rows
+            for vq, vql, pdl, prod in quotation_rows
         ]
 
         out.append({

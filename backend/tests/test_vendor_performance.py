@@ -95,6 +95,7 @@ def test_vendor_performance_rate_trend(client: TestClient):
     row = next(r for r in rows if r["vendor_id"] == vendor["id"])
     assert len(row["rate_trend"]) == 1
     assert row["rate_trend"][0]["product_id"] == product["id"]
+    assert row["rate_trend"][0]["product_name"] == "Rate Widget"
     assert row["rate_trend"][0]["rate"] == 8
 
 

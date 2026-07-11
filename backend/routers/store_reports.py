@@ -147,6 +147,70 @@ def issue_register(
     return out
 
 
+# Sign map: how each StockMovement.direction affects Product.stock_qty.
+# Derived by reading each writer (not assumed) — a "true" tie-out has to sum
+# every movement type that actually touches stock_qty, signed correctly:
+#
+#   +1  RECEIPT      services/inventory.py:135 record_purchase increments
+#                     prod.stock_qty, then writes the RECEIPT row (:157,
+#                     source_doc_type always "bill").
+#   +1  COMPLETION    routers/production_orders.py:381 calls record_purchase
+#                     (same +qty increment as above) for finished-goods
+#                     capitalisation, then :406 reclassifies that same row's
+#                     direction RECEIPT -> COMPLETION after the fact.
+#   -1  SHIPMENT      services/inventory.py:247 consume_stock decrements
+#                     prod.stock_qty, then writes the SHIPMENT row (:272).
+#                     source_doc_type varies (invoice/store_issue/
+#                     gate_outward) but the decrement is unconditional.
+#   -1  DELIVERY      routers/production_orders.py:453 calls consume_stock
+#                     (same -qty decrement as above) to ship finished goods,
+#                     then :471 reclassifies that same row's direction
+#                     SHIPMENT -> DELIVERY after the fact.
+#   -1  ISSUE         routers/production_orders.py:274
+#                     `prod.stock_qty = D(prod.stock_qty) - required` — own
+#                     -stock component consumption issued to WIP.
+#
+#   ADJUSTMENT is not a single fixed sign — it has two writers with
+#   different (or absent) sign encoding:
+#     -1  source_doc_type == "debit_note"  services/inventory.py:434
+#         return_to_vendor always decrements prod.stock_qty (purchase
+#         return); deterministic.
+#     ??  source_doc_type == "adjustment"  routers/products.py:290
+#         adjust_stock (manual physical-count correction) stores
+#         qty=abs(variance) with NO sign persisted on the row — it
+#         overwrites prod.stock_qty to the counted value directly rather
+#         than applying a signed delta. The sign cannot be reconstructed
+#         from the movement log, so these rows are deliberately EXCLUDED
+#         from expected_closing: any residual variance left after a manual
+#         count override is the correct signal (an operator changed the
+#         number outside the normal receive/issue flow) rather than
+#         something to silently net away.
+#
+#   EXCLUDED entirely — CUSTODIAL_RECEIPT (routers/grn.py:174-183) and
+#   CUSTODIAL_ISSUE (routers/production_orders.py:289-333) never assign to
+#   prod.stock_qty at all; they only move InventoryLayer.qty_remaining for
+#   customer-owned goods held in the godown. CUSTODIAL_COMPLETION is
+#   declared in the models.py CHECK constraint but no writer in the
+#   codebase emits it (dead direction) — excluded, nothing to sign.
+_STOCK_QTY_SIGN = {
+    "RECEIPT": 1,
+    "COMPLETION": 1,
+    "SHIPMENT": -1,
+    "DELIVERY": -1,
+    "ISSUE": -1,
+}
+
+
+def _movement_sign(direction: str, source_doc_type: Optional[str]) -> Optional[int]:
+    """Effect of one StockMovement row on Product.stock_qty: +1/-1, or None
+    if it doesn't affect stock_qty (custodial) or its sign can't be
+    recovered from the row (manual physical-count adjustment) — see
+    _STOCK_QTY_SIGN comment above."""
+    if direction == "ADJUSTMENT":
+        return -1 if source_doc_type == "debit_note" else None
+    return _STOCK_QTY_SIGN.get(direction)
+
+
 @router.get("/stock-tie-out", dependencies=[perm_dep("store.issue")])
 def stock_tie_out(
     session: SessionDep, user: WriteUserDep,
@@ -155,7 +219,14 @@ def stock_tie_out(
 ):
     """Product-level, tenant-wide (not per-location — consume_stock has no
     location_id, so per-location tie-out would silently misreport; see
-    design decision #5)."""
+    design decision #5).
+
+    `received_qty`/`issued_qty` stay scoped to bill receipts / store-issue
+    consumption — they're the report's featured, human-meaningful columns.
+    `expected_closing` (and therefore `variance`) is computed from ALL
+    movement types that affect Product.stock_qty (see _STOCK_QTY_SIGN), so a
+    product with sales, production activity, or purchase returns still ties
+    out correctly instead of showing false variance."""
     prod_query = select(Product).where(Product.tenant_id == user.tenant_id, Product.product_type == "stock")
     if product_id:
         prod_query = prod_query.where(Product.id == product_id)
@@ -170,22 +241,28 @@ def stock_tie_out(
 
         received_qty = D("0")
         issued_qty = D("0")
-        opening_qty = D("0")
+        opening_qty = D("0")      # signed, all-types, pre-window sum
+        window_delta = D("0")     # signed, all-types, in-window sum
         for mv in movements:
             # StockMovement's timestamp field is `occurred_at`, NOT
             # `created_at` (models.py:646) — verified before writing this.
             mv_date = mv.occurred_at.strftime("%Y-%m-%d")
             in_window = (not start or mv_date >= start) and (not end or mv_date <= end)
-            if mv.direction == "RECEIPT" and mv.source_doc_type == "bill":
-                if in_window:
+
+            # Display-only columns — bill receipts / store-issue consumption.
+            if in_window:
+                if mv.direction == "RECEIPT" and mv.source_doc_type == "bill":
                     received_qty += D(mv.qty)
-                elif start and mv_date < start:
-                    opening_qty += D(mv.qty)
-            elif mv.direction == "SHIPMENT" and mv.source_doc_type == "store_issue":
-                if in_window:
+                elif mv.direction == "SHIPMENT" and mv.source_doc_type == "store_issue":
                     issued_qty += D(mv.qty)
-                elif start and mv_date < start:
-                    opening_qty -= D(mv.qty)
+
+            sign = _movement_sign(mv.direction, mv.source_doc_type)
+            if sign is None:
+                continue
+            if in_window:
+                window_delta += sign * D(mv.qty)
+            elif start and mv_date < start:
+                opening_qty += sign * D(mv.qty)
 
         # actual_closing is live stock (today); comparing it against a
         # window truncated at a past `end` would report window-truncation
@@ -196,7 +273,7 @@ def stock_tie_out(
             actual_closing = None
             variance = None
         else:
-            expected_closing = opening_qty + received_qty - issued_qty
+            expected_closing = opening_qty + window_delta
             actual_closing = D(prod.stock_qty)
             variance = actual_closing - expected_closing
         out.append({
