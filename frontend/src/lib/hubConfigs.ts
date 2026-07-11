@@ -4,7 +4,7 @@ import {
   Receipt, Percent, Tags, TrendingUp, FileText, ArrowUpRight,
   Truck, Undo2, CalendarCheck, ShoppingCart, Package,
   BookOpen, PieChart, Landmark, Upload, CheckCheck, Wallet,
-  Briefcase, UserCog, CalendarDays, Settings2,
+  Briefcase, UserCog, CalendarDays, Settings2, Scale, DoorOpen, PackageMinus,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import type { HubConfig, HubRawData } from "@/components/hub/HubPage"
@@ -188,6 +188,68 @@ export const INVENTORY_CONFIG: HubConfig = {
     { label: "Product Ledger",   href: "/products/ledger",       icon: BookOpen                 },
     { label: "Categories",       href: "/products/categories",   icon: Tags                     },
     { label: "Inventory Report", href: "/inventory/performance", icon: PieChart                 },
+  ],
+}
+
+export const PURCHASES_CONFIG: HubConfig = {
+  section: "Purchases",
+  title: "Purchases",
+  icon: ShoppingCart,
+  fetch: () =>
+    Promise.all([
+      apiFetch<Record<string, unknown>[]>("/api/purchase-demands"),
+      apiFetch<{ total: number; items: Record<string, unknown>[] }>("/api/purchase-orders"),
+      apiFetch<Record<string, unknown>[]>("/api/gate-inwards"),
+      apiFetch<{ items: Record<string, unknown>[] }>("/api/reports/inventory-performance"),
+    ]) as Promise<HubRawData>,
+  kpis: [
+    {
+      label: "Pending Demands",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      value: ([demands]) => (demands as any[]).filter((d: any) => ["draft", "approved"].includes(d.status)).length,
+    },
+    {
+      label: "POs Awaiting Billing",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      value: ([, pos]) => (pos.items as any[]).filter((p: any) => ["approved", "received"].includes(p.status)).length,
+    },
+    {
+      label: "Gate Entries Awaiting Billing",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      value: ([, , gis]) => (gis as any[]).filter((g: any) => g.status === "open").length,
+    },
+    {
+      label: "Low Stock",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      value: ([, , , inv]) => (inv.items ?? []).filter((i: any) => i.low_stock && i.on_hand > 0).length,
+      tone: ([, , , inv]) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (inv.items ?? []).filter((i: any) => i.low_stock && i.on_hand > 0).length > 0 ? "warning" : "normal",
+    },
+  ],
+  band: "low-stock",
+  bandData: ([, , , inv]) => ({
+    items: [...(inv.items ?? [])]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((i: any) => i.low_stock || i.on_hand <= 0)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .sort((a: any, b: any) => {
+        if (a.on_hand <= 0 && b.on_hand > 0) return -1
+        if (b.on_hand <= 0 && a.on_hand > 0) return 1
+        const ra = a.on_hand / (a.reorder_level || 1)
+        const rb = b.on_hand / (b.reorder_level || 1)
+        return ra - rb
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((i: any) => ({ name: i.name, on_hand: i.on_hand, reorder_level: i.reorder_level ?? 0 })),
+  }),
+  actions: [
+    { label: "New Demand",         href: "/purchases/demands/new",         icon: PlusCircle, primary: true },
+    { label: "Comparatives",       href: "/purchases/comparatives",        icon: Scale                     },
+    { label: "Gate Inward",        href: "/purchases/gate-inward",         icon: DoorOpen                  },
+    { label: "Purchase Orders",    href: "/manufacturing/purchase-orders", icon: ShoppingCart              },
+    { label: "Store Issues",       href: "/store/issues",                  icon: PackageMinus              },
+    { label: "Vendor Performance", href: "/purchases/vendor-performance",  icon: TrendingUp                },
   ],
 }
 

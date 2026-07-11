@@ -235,7 +235,7 @@ export function getSectionHref(key: string): string {
     dashboard:     "/dashboard",
     banking:       "/banking",
     sales:         "/receivable",
-    purchases:     "/payable",
+    purchases:     "/purchases",
     store:         "/store/gate-outward",
     accounting:    "/entry",
     reports:       "/trial-balance",
