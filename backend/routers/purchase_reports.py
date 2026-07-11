@@ -1,11 +1,13 @@
 """Purchase-chain audit reports (#137 Phase 2): gate register + 3-way match."""
+from datetime import date as _date
 from typing import Optional
 
 from fastapi import APIRouter
 from sqlmodel import select
 
 from models import (BillLine, GateInward, GateInwardLine, PurchaseOrder,
-                    PurchaseOrderLine, User)
+                    PurchaseOrderLine, PurchaseDemandLine, User, Vendor,
+                    VendorQuotation, VendorQuotationLine)
 from routers.common import SessionDep, WriteUserDep
 from services.gate import gi_coverage
 from services.money import D
@@ -100,4 +102,85 @@ def three_way_match(
                 "amount_variance": amount_variance,
                 "flag": bool(qty_variance != 0 or amount_variance != 0),
             })
+    return out
+
+
+@router.get("/vendor-performance", dependencies=[perm_dep("purchase.comparative")])
+def vendor_performance(
+    session: SessionDep, user: WriteUserDep,
+    start: Optional[str] = None, end: Optional[str] = None,
+    vendor_id: Optional[int] = None,
+):
+    vendor_query = select(Vendor).where(Vendor.tenant_id == user.tenant_id)
+    if vendor_id:
+        vendor_query = vendor_query.where(Vendor.id == vendor_id)
+    vendors = session.exec(vendor_query).all()
+
+    out = []
+    for vendor in vendors:
+        po_query = select(PurchaseOrder).where(
+            PurchaseOrder.tenant_id == user.tenant_id, PurchaseOrder.vendor_id == vendor.id,
+        )
+        if start:
+            po_query = po_query.where(PurchaseOrder.order_date >= start)
+        if end:
+            po_query = po_query.where(PurchaseOrder.order_date <= end)
+        pos = session.exec(po_query).all()
+
+        quotation_rows = session.exec(
+            select(VendorQuotation, VendorQuotationLine, PurchaseDemandLine)
+            .join(VendorQuotationLine, VendorQuotationLine.quotation_id == VendorQuotation.id)
+            .join(PurchaseDemandLine, PurchaseDemandLine.id == VendorQuotationLine.demand_line_id)
+            .where(VendorQuotation.tenant_id == user.tenant_id, VendorQuotation.vendor_id == vendor.id)
+            .order_by(VendorQuotation.quote_date)
+        ).all()
+
+        # Skip vendors with neither POs nor quotations
+        if not pos and not quotation_rows:
+            continue
+
+        lead_times = []
+        total_ordered = D("0")
+        total_variance = D("0")
+        for po in pos:
+            po_lines = session.exec(
+                select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po.id)
+            ).all()
+            total_ordered += sum(D(l.qty) for l in po_lines)
+            cov = gi_coverage(session, user.tenant_id, po.id)
+            for l in po_lines:
+                total_variance += cov.get(l.id, D(0)) - D(l.qty)
+
+            gis = session.exec(
+                select(GateInward).where(
+                    GateInward.po_id == po.id, GateInward.status != "cancelled",
+                ).order_by(GateInward.gate_date)
+            ).all()
+            if gis:
+                earliest_gi = gis[0]
+                d_po = _date.fromisoformat(po.order_date)
+                d_gi = _date.fromisoformat(earliest_gi.gate_date)
+                lead_times.append((d_gi - d_po).days)
+
+        rate_trend = [
+            {
+                "product_id": pdl.product_id, "product_name": None,
+                "quote_date": vq.quote_date, "rate": float(D(vql.rate)),
+            }
+            for vq, vql, pdl in quotation_rows
+        ]
+
+        out.append({
+            "vendor_id": vendor.id, "vendor_name": vendor.name,
+            "po_count": len(pos),
+            "avg_lead_time_days": round(sum(lead_times) / len(lead_times), 2) if lead_times else None,
+            # Proxy for rejection rate — this schema has no accepted/rejected
+            # split anywhere (see spec decision #4). Negative variance only
+            # (short-receipts), never counts over-receipt as "rejection".
+            "short_receipt_rate_pct": (
+                round(abs(min(total_variance, D(0))) / total_ordered * 100, 2)
+                if total_ordered > 0 else 0.0
+            ),
+            "rate_trend": rate_trend,
+        })
     return out
