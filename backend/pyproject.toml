@@ -21,6 +21,7 @@ dependencies = [
     "stripe>=15.2.0",
     "openpyxl>=3.1.5",
     "anthropic>=0.113.0",
+    "litellm>=1.55.0",
 ]
 
 [dependency-groups]
