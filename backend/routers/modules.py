@@ -92,14 +92,16 @@ def _purchase_store_docs(session: Session, tenant_id: int) -> dict[str, int]:
     """Blocking document counts for purchase_store uninstall."""
     from sqlalchemy import func
     from sqlmodel import select
-    from models import (ComparativeStatement, GateInward, PurchaseDemand,
-                        VendorQuotation)
+    from models import (ComparativeStatement, GateInward, GateOutward,
+                        PurchaseDemand, StoreIssue, VendorQuotation)
     counts = {}
     for label, model in (
         ("purchase demands", PurchaseDemand),
         ("vendor quotations", VendorQuotation),
         ("comparative statements", ComparativeStatement),
         ("gate inwards", GateInward),
+        ("gate outwards", GateOutward),
+        ("store issues", StoreIssue),
     ):
         n = session.exec(
             select(func.count(model.id)).where(model.tenant_id == tenant_id)

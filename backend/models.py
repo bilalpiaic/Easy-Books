@@ -1212,6 +1212,39 @@ class GateOutwardLine(SQLModel, table=True):
     unit_value: Money = money_col(default=Decimal("0"))    # scrap only
 
 
+class StoreIssue(SQLModel, table=True):
+    """Store consumption to a department/cost-center/project (#137 Phase 3).
+    Deliberately separate from ProductionOrder's own raw-material
+    consumption path — this is the "everything else" leg. Posts GL and
+    relieves stock immediately on create; block_negative_stock is the
+    control, not a second approver (unlike scrap Gate-Outward)."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_si_number_per_tenant"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)                            # SI-YYYY-seq
+    issue_date: str
+    from_location_id: int = Field(foreign_key="stocklocation.id")
+    analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    debit_account_id: int = Field(foreign_key="account.id")
+    notes: Optional[str] = None
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_by_id: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class StoreIssueLine(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_si_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    store_issue_id: int = Field(foreign_key="storeissue.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id")
+    qty: Money = money_col()
+    unit_cost: Money = money_col(default=Decimal("0"))         # written after posting
+
+
 class CustomerAdvance(SQLModel, table=True):
     """Advance received from a customer (prepayment). Posts Dr Bank / Cr 2310.
     Applied later against an invoice via the payments machinery."""

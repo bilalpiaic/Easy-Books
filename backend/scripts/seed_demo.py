@@ -55,7 +55,7 @@ from models import (
     PayrollLineDetail, PayrollRun, Product, ProductCategory, ProductionOrder,
     PurchaseDemand, PurchaseDemandLine, PurchaseOrder, PurchaseOrderLine,
     RatePlan, RecurringTemplate, ReportDefinition,
-    SalaryComponent, SequenceCounter, Settings, StockLocation, TaxCode, Tenant, User, Vendor,
+    SalaryComponent, SequenceCounter, Settings, StockLocation, StoreIssue, StoreIssueLine, TaxCode, Tenant, User, Vendor,
     VendorAdvance, VendorQuotation, VendorQuotationLine,
 )
 from models_telecom import (
@@ -1854,6 +1854,59 @@ def _seed_purchase_store_chain(
     go_appr.approved_at = datetime.utcnow()
     s.add(go_appr)
     s.flush()
+
+    # Store Issues (#137 Phase 4) — a handful of departmental consumption
+    # entries so Issue Register / Stock Tie-out / Vendor Performance all
+    # have data on first login.
+    own_location = s.exec(
+        select(StockLocation).where(StockLocation.tenant_id == tid, StockLocation.type == "own")
+    ).first()
+    if own_location:
+        expense_acct = get_or_create_account(s, tid, "5100", "Office Supplies Expense", "Expense")
+        maint_acct = get_or_create_account(s, tid, "5150", "Maintenance Expense", "Expense")
+        cost_centers = s.exec(
+            select(AnalyticAccount).where(AnalyticAccount.tenant_id == tid)
+        ).all()
+        issue_dates = _spread_dates(4, days_ago=90, min_days_ago=10)
+        for i, (product, acct) in enumerate(
+            zip(random.sample(stock_products, min(4, len(stock_products))),
+                [expense_acct, maint_acct, expense_acct, maint_acct])
+        ):
+            si_number = next_number(s, tid, "store_issue", "SI", fmt="{prefix}-{YYYY}-{seq:04d}")
+            si = StoreIssue(
+                tenant_id=tid, number=si_number, issue_date=issue_dates[i],
+                from_location_id=own_location.id, debit_account_id=acct.id,
+                analytic_account_id=cost_centers[i % len(cost_centers)].id if cost_centers else None,
+                notes=f"Demo store issue #{i + 1}", created_by_id=clerk.id,
+            )
+            s.add(si); s.flush()
+            qty = D(random.randint(2, 8))
+            cost = consume_stock(
+                s, tenant_id=tid, product_id=product.id, qty=qty,
+                source_doc_id=si.id, source_doc_type="store_issue",
+            )
+            s.add(StoreIssueLine(
+                store_issue_id=si.id, product_id=product.id, qty=qty,
+                unit_cost=money(cost / qty) if qty else D("0"),
+            ))
+            if cost > 0:
+                inv_acct = get_or_create_account(s, tid, "1200", "Inventory (Raw Material)", "Asset")
+                txn = post_transaction(
+                    s, owner, date=issue_dates[i], description=f"Store issue — {si_number}",
+                    entries=[
+                        EntryInput(account_id=acct.id, debit=money(cost),
+                                   analytic_account_id=si.analytic_account_id),
+                        EntryInput(account_id=inv_acct.id, credit=money(cost)),
+                    ],
+                    voucher_type="JV", audit_entity_type="store_issue",
+                    audit_detail={"si_number": si_number},
+                )
+                si.transaction_id = txn.id
+            # No per-iteration commit: like every other block in this
+            # function, rely on the caller's single commit so a crash
+            # mid-seed can't strand a partially-seeded tenant behind the
+            # PurchaseDemand idempotency guard.
+            s.flush()
 
 
 # ── Telecom-franchise-specific ─────────────────────────────────────────────────
