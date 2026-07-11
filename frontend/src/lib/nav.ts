@@ -9,7 +9,7 @@ import {
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
-  ClipboardCheck, DoorOpen,
+  ClipboardCheck, DoorOpen, PackageMinus,
 } from "lucide-react"
 
 export type NavItem = {
@@ -65,6 +65,7 @@ export const NAV: NavItem[] = [
   { label: "Gate Outward",     href: "/store/gate-outward",              icon: DoorOpen,   section: "Store", forModule: "purchase_store" },
   { label: "Outward Register", href: "/store/gate-outward-register",     icon: ScrollText, section: "Store", forModule: "purchase_store" },
   { label: "Dispatch Recon",   href: "/store/dispatch-reconciliation",   icon: CheckCheck, section: "Store", forModule: "purchase_store" },
+  { label: "Store Issues",     href: "/store/issues",                    icon: PackageMinus, section: "Store", forModule: "purchase_store" },
   { label: "Overview",         href: "/inventory",         icon: LayoutGrid,       section: "Inventory",      forModule: "inventory" },
   { label: "Products",          href: "/products",            icon: Package,          section: "Inventory",      forModule: "inventory" },
   { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory",      forModule: "inventory" },
@@ -287,6 +288,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Gate Outward",     href: "/store/gate-outward",            icon: DoorOpen,   section: "store", forModule: "purchase_store" },
     { label: "Outward Register", href: "/store/gate-outward-register",   icon: ScrollText, section: "store", forModule: "purchase_store" },
     { label: "Dispatch Recon",   href: "/store/dispatch-reconciliation", icon: CheckCheck, section: "store", forModule: "purchase_store" },
+    { label: "Store Issues",     href: "/store/issues",                  icon: PackageMinus, section: "store", forModule: "purchase_store" },
   ],
   accounting: [
     { label: "New Entry",         href: "/entry",             icon: PlusCircle,      section: "accounting" },
