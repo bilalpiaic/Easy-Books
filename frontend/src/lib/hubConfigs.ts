@@ -198,7 +198,11 @@ export const PURCHASES_CONFIG: HubConfig = {
   fetch: () =>
     Promise.all([
       apiFetch<Record<string, unknown>[]>("/api/purchase-demands"),
-      apiFetch<{ total: number; items: Record<string, unknown>[] }>("/api/purchase-orders"),
+      // list_pos defaults to limit=50 and paginates — a plain fetch would silently
+      // undercount tenants with >50 POs. It does support `?status=`, so mirror the
+      // RECEIVABLE/PAYABLE pattern: one limit=1 call per status of interest, summing `.total`.
+      apiFetch<{ total: number }>("/api/purchase-orders?status=approved&limit=1"),
+      apiFetch<{ total: number }>("/api/purchase-orders?status=received&limit=1"),
       apiFetch<Record<string, unknown>[]>("/api/gate-inwards"),
       apiFetch<{ items: Record<string, unknown>[] }>("/api/reports/inventory-performance"),
     ]) as Promise<HubRawData>,
@@ -210,25 +214,24 @@ export const PURCHASES_CONFIG: HubConfig = {
     },
     {
       label: "POs Awaiting Billing",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      value: ([, pos]) => (pos.items as any[]).filter((p: any) => ["approved", "received"].includes(p.status)).length,
+      value: ([, posApproved, posReceived]) => (posApproved.total ?? 0) + (posReceived.total ?? 0),
     },
     {
       label: "Gate Entries Awaiting Billing",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      value: ([, , gis]) => (gis as any[]).filter((g: any) => g.status === "open").length,
+      value: ([, , , gis]) => (gis as any[]).filter((g: any) => g.status === "open").length,
     },
     {
       label: "Low Stock",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      value: ([, , , inv]) => (inv.items ?? []).filter((i: any) => i.low_stock && i.on_hand > 0).length,
-      tone: ([, , , inv]) =>
+      value: ([, , , , inv]) => (inv.items ?? []).filter((i: any) => i.low_stock && i.on_hand > 0).length,
+      tone: ([, , , , inv]) =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (inv.items ?? []).filter((i: any) => i.low_stock && i.on_hand > 0).length > 0 ? "warning" : "normal",
     },
   ],
   band: "low-stock",
-  bandData: ([, , , inv]) => ({
+  bandData: ([, , , , inv]) => ({
     items: [...(inv.items ?? [])]
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((i: any) => i.low_stock || i.on_hand <= 0)

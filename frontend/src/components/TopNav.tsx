@@ -20,7 +20,7 @@ import type { TopNavSection } from "@/lib/nav"
 const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: React.ElementType }> = {
   banking:       { href: "/banking",        label: "Banking Overview",    icon: LayoutGrid      },
   sales:         { href: "/receivable",     label: "Sales Overview",      icon: LayoutGrid      },
-  purchases:     { href: "/payable",        label: "Purchases Overview",  icon: LayoutGrid      },
+  purchases:     { href: "/purchases",      label: "Purchases Overview",  icon: LayoutGrid      },
   accounting:    { href: "/entry",          label: "New Entry",           icon: PlusCircle      },
   reports:       { href: "/trial-balance",  label: "Trial Balance",       icon: Scale           },
   inventory:     { href: "/inventory",      label: "Inventory Overview",  icon: LayoutGrid      },
