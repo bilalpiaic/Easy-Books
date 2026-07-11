@@ -1902,7 +1902,11 @@ def _seed_purchase_store_chain(
                     audit_detail={"si_number": si_number},
                 )
                 si.transaction_id = txn.id
-            s.commit()
+            # No per-iteration commit: like every other block in this
+            # function, rely on the caller's single commit so a crash
+            # mid-seed can't strand a partially-seeded tenant behind the
+            # PurchaseDemand idempotency guard.
+            s.flush()
 
 
 # ── Telecom-franchise-specific ─────────────────────────────────────────────────
