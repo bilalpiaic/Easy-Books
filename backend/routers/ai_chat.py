@@ -106,7 +106,10 @@ def create_session(session: SessionDep, user: CurrentUserDep):
 def rename_session(session: SessionDep, user: CurrentUserDep, session_id: int, body: SessionPatch):
     _require_ai_module(session, user)
     row = _get_session_or_404(session, user, session_id)
-    row.title = body.title.strip()[:120] or row.title
+    title = body.title.strip()[:120]
+    if not title:
+        raise HTTPException(400, "Title cannot be empty")
+    row.title = title
     row.updated_at = datetime.utcnow()
     session.add(row)
     session.commit()
@@ -117,6 +120,11 @@ def rename_session(session: SessionDep, user: CurrentUserDep, session_id: int, b
 def delete_session(session: SessionDep, user: CurrentUserDep, session_id: int):
     _require_ai_module(session, user)
     row = _get_session_or_404(session, user, session_id)
+    # Explicitly delete child messages before deleting session (SQLite doesn't enforce ON DELETE CASCADE)
+    for m in session.exec(
+        select(AiChatMessage).where(AiChatMessage.session_id == row.id)
+    ).all():
+        session.delete(m)
     session.delete(row)
     session.commit()
     return {"success": True}

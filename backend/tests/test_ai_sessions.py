@@ -1,5 +1,8 @@
 """#117 completion — chat sessions: CRUD, per-user privacy, cascade."""
 from fastapi.testclient import TestClient
+from sqlmodel import Session as DbSession, select as db_select
+import db as _db
+from models import AiChatMessage
 
 
 def _signup(client: TestClient, email: str) -> dict:
@@ -32,11 +35,28 @@ def test_session_crud_lifecycle(client: TestClient):
     assert r.status_code == 200
     assert client.get("/api/ai/sessions", headers=auth).json()[0]["title"] == "Renamed"
 
-    assert client.get(f"/api/ai/sessions/{sid}/messages", headers=auth).json() == []
+    # Test empty title rejection
+    r = client.patch(f"/api/ai/sessions/{sid}", headers=auth, json={"title": "   "})
+    assert r.status_code == 400
+
+    # Insert two test messages directly
+    with DbSession(_db.engine) as s:
+        s.add(AiChatMessage(session_id=sid, role="user", content="q1"))
+        s.add(AiChatMessage(session_id=sid, role="assistant", content="a1"))
+        s.commit()
+
+    # Verify messages exist
+    messages = client.get(f"/api/ai/sessions/{sid}/messages", headers=auth).json()
+    assert len(messages) == 2
 
     r = client.delete(f"/api/ai/sessions/{sid}", headers=auth)
     assert r.status_code == 200
     assert client.get("/api/ai/sessions", headers=auth).json() == []
+
+    # Verify messages are deleted from DB
+    with DbSession(_db.engine) as s:
+        leftover = s.exec(db_select(AiChatMessage).where(AiChatMessage.session_id == sid)).all()
+        assert leftover == []
 
 
 def test_sessions_are_private_per_user_even_same_tenant(client: TestClient):
