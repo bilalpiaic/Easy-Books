@@ -224,10 +224,12 @@ def approve_po(session: SessionDep, user: AdminUserDep, po_id: int):
 
 @router.post("/{po_id}/convert-to-bill", status_code=201)
 def convert_to_bill(session: SessionDep, user: WriteUserDep, po_id: int, body: BillConvert):
+    # Row-locked fetch: two concurrent converts must not both observe
+    # bill_id is None and double-bill the PO (idiom: routers/gate_outward.py:172).
     po = session.exec(
         select(PurchaseOrder).where(
             PurchaseOrder.id == po_id, PurchaseOrder.tenant_id == user.tenant_id
-        )
+        ).with_for_update()
     ).first()
     if not po:
         raise HTTPException(404, "Purchase order not found")

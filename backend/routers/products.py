@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from models import Bill, BillLine, Customer, Invoice, InvoiceLine, InventoryLayer, Product, Vendor
-from services.inventory import record_movement
+from services.inventory import record_movement, record_purchase
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
@@ -187,10 +187,18 @@ def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate)
         raise HTTPException(400, "cost_method must be 'wavg', 'fifo', or null")
     _bootstrap = {"opening_qty", "opening_cost"}
     p = Product(tenant_id=user.tenant_id, **body.model_dump(exclude=_bootstrap))
-    if body.product_type == "stock" and body.opening_qty > 0:
-        p.stock_qty = body.opening_qty
-        p.avg_cost = body.opening_cost
     session.add(p)
+    if body.product_type == "stock" and body.opening_qty > 0:
+        # Route the opening balance through record_purchase so it leaves a
+        # StockMovement + InventoryLayer — a bare stock_qty assignment shows
+        # a permanent Stock Tie-out variance and gives FIFO nothing to
+        # deplete (#145 follow-up).
+        session.flush()
+        record_purchase(
+            session, tenant_id=user.tenant_id, product_id=p.id,
+            qty=body.opening_qty, unit_cost=body.opening_cost,
+            source_doc="OPENING", source_doc_type="opening", posted_to_gl=False,
+        )
     log_audit(session, user, "CREATE", "product", None, {"name": body.name})
     session.commit()
     session.refresh(p)

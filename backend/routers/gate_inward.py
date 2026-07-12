@@ -96,10 +96,14 @@ def get_gi(session: SessionDep, user: WriteUserDep, gi_id: int):
 def create_gi(session: SessionDep, user: WriteUserDep, body: GIIn):
     if not body.lines:
         raise HTTPException(400, "At least one line is required")
+    # Row-locked fetch (see routers/gate_outward.py:172 for the idiom): two
+    # concurrent GI creates against the same PO must not both read the same
+    # coverage snapshot and jointly over-receive. SQLite ignores the lock;
+    # Postgres serializes on the PO row.
     po = session.exec(
         select(PurchaseOrder).where(
             PurchaseOrder.id == body.po_id, PurchaseOrder.tenant_id == user.tenant_id
-        )
+        ).with_for_update()
     ).first()
     if not po:
         raise HTTPException(404, "Purchase order not found")
@@ -162,7 +166,13 @@ def cancel_gi(session: SessionDep, user: WriteUserDep, gi_id: int, body: GICance
         raise HTTPException(400, "A cancellation reason is required")
     if gi.status == "cancelled":
         raise HTTPException(400, "Gate inward is already cancelled")
-    po = session.get(PurchaseOrder, gi.po_id)
+    # Lock the PO so cancel can't race a concurrent convert-to-bill past the
+    # billed check (same idiom as create_gi above).
+    po = session.exec(
+        select(PurchaseOrder).where(
+            PurchaseOrder.id == gi.po_id, PurchaseOrder.tenant_id == user.tenant_id
+        ).with_for_update()
+    ).first()
     if gi.status == "billed" or (po and po.status == "billed"):
         raise HTTPException(400, "Cannot cancel a gate inward on a billed PO")
     gi.status = "cancelled"

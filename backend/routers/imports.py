@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
 from models import Account, Customer, Product, ProductCategory, Vendor
+from services.inventory import record_purchase
 from services.money import D
 from services.posting import EntryInput, post_transaction
 
@@ -454,10 +455,17 @@ async def import_products(
             hs_code=hs_code,
             is_active=True,
         )
-        if ptype == "stock" and opening_qty > 0:
-            prod.stock_qty = opening_qty
-            prod.avg_cost = opening_cost
         session.add(prod)
+        if ptype == "stock" and opening_qty > 0:
+            # Same rationale as routers/products.py create_product: opening
+            # balances must leave a StockMovement + InventoryLayer or the
+            # Stock Tie-out permanently misreports them.
+            session.flush()
+            record_purchase(
+                session, tenant_id=user.tenant_id, product_id=prod.id,
+                qty=opening_qty, unit_cost=opening_cost,
+                source_doc="OPENING", source_doc_type="opening", posted_to_gl=False,
+            )
         imported += 1
 
     session.commit()
