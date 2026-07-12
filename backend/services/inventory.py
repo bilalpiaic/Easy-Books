@@ -317,10 +317,29 @@ def reverse_purchase(
         ).first()
         if not prod:
             continue
-        prod.stock_qty = D(prod.stock_qty) - D(layer.qty_remaining)
+        reversed_qty = D(layer.qty_remaining)
+        layer_loc, layer_lot, layer_cost = layer.location_id, layer.lot_no, D(layer.unit_cost)
+        prod.stock_qty = D(prod.stock_qty) - reversed_qty
         session.add(prod)
         session.delete(layer)
         session.flush()
+
+        # Event log — without this row the Stock Tie-out shows a permanent
+        # negative variance for every voided/edited bill (#145 follow-up).
+        if reversed_qty > 0:
+            record_movement(
+                session,
+                tenant_id=tenant_id,
+                product_id=prod.id,
+                direction="ADJUSTMENT",
+                qty=reversed_qty,
+                from_location_id=layer_loc or _default_own_location(session, tenant_id),
+                lot_no=layer_lot,
+                unit_cost=layer_cost,
+                source_doc_type="bill_void",
+                posted_to_gl=True,
+                notes=f"Reversal of receipt from {source_doc}",
+            )
 
         # Recompute avg_cost from remaining layers for this product
         remaining = session.exec(

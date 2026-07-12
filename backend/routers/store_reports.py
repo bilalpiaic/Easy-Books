@@ -170,11 +170,15 @@ def issue_register(
 #                     `prod.stock_qty = D(prod.stock_qty) - required` — own
 #                     -stock component consumption issued to WIP.
 #
-#   ADJUSTMENT is not a single fixed sign — it has two writers with
+#   ADJUSTMENT is not a single fixed sign — it has three writers with
 #   different (or absent) sign encoding:
 #     -1  source_doc_type == "debit_note"  services/inventory.py:434
 #         return_to_vendor always decrements prod.stock_qty (purchase
 #         return); deterministic.
+#     -1  source_doc_type == "bill_void"   services/inventory.py
+#         reverse_purchase (bill void/edit) always decrements
+#         prod.stock_qty by the layer's unsold remainder; deterministic,
+#         same shape as the debit-note writer.
 #     ??  source_doc_type == "adjustment"  routers/products.py:290
 #         adjust_stock (manual physical-count correction) stores
 #         qty=abs(variance) with NO sign persisted on the row — it
@@ -207,7 +211,7 @@ def _movement_sign(direction: str, source_doc_type: Optional[str]) -> Optional[i
     recovered from the row (manual physical-count adjustment) — see
     _STOCK_QTY_SIGN comment above."""
     if direction == "ADJUSTMENT":
-        return -1 if source_doc_type == "debit_note" else None
+        return -1 if source_doc_type in ("debit_note", "bill_void") else None
     return _STOCK_QTY_SIGN.get(direction)
 
 
