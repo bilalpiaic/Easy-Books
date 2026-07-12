@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { BarChart2, TrendingUp, Activity, FlaskConical, BedDouble, PieChart } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
+import DateRangePicker from "@/components/DateRangePicker"
 
 type Tab = "opd" | "doctors" | "lab" | "ipd" | "revenue"
 
@@ -55,16 +56,7 @@ export default function HcReportsPage() {
 
       {/* Date filter */}
       <div className="flex items-center gap-3 print:hidden">
-        <div>
-          <label className="block text-xs font-medium text-neutral-600 mb-1">From</label>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-neutral-600 mb-1">To</label>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
-        </div>
+        <DateRangePicker start={from} end={to} onStartChange={setFrom} onEndChange={setTo} hideAll />
       </div>
 
       {/* Tab bar */}
