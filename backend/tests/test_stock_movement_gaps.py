@@ -58,3 +58,33 @@ def test_bill_void_reversal_ties_out(client: TestClient):
     row = _tie_out_row(client, auth, p["id"])
     assert float(row["actual_closing"]) == 0
     assert float(row["variance"]) == 0     # was -20 before the fix
+
+
+def test_opening_qty_bootstrap_ties_out(client: TestClient):
+    auth = _signup(client, "open1@t.com")
+    p = client.post("/api/products", headers=auth, json={
+        "name": "Washer", "product_type": "stock", "unit": "pcs",
+        "opening_qty": 5, "opening_cost": 2,
+    }).json()
+    assert float(p["stock_qty"]) == 5
+    assert float(p["avg_cost"]) == 2
+    row = _tie_out_row(client, auth, p["id"])
+    assert float(row["variance"]) == 0        # was -5 before the fix
+    assert float(row["received_qty"]) == 0    # opening is not a bill receipt
+
+
+def test_csv_import_opening_qty_ties_out(client: TestClient):
+    auth = _signup(client, "open2@t.com")
+    csv_body = (
+        "code,name,unit,product_type,default_rate,reorder_level,category_name,"
+        "is_deferred,recognition_months,hs_code,opening_qty,opening_cost\n"
+        "IMP1,Imported Widget,pcs,stock,10,0,,,,,8,3\n"
+    )
+    r = client.post("/api/import/products", headers=auth,
+                    files={"file": ("products.csv", csv_body, "text/csv")})
+    assert r.json()["imported"] == 1, r.json()
+    prods = client.get("/api/products", headers=auth).json()["items"]
+    prod = next(x for x in prods if x["name"] == "Imported Widget")
+    assert float(prod["stock_qty"]) == 8
+    row = _tie_out_row(client, auth, prod["id"])
+    assert float(row["variance"]) == 0        # was -8 before the fix

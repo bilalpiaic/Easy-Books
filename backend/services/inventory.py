@@ -102,10 +102,16 @@ def record_purchase(
     source_doc: Optional[str] = None,
     location_id: Optional[int] = None,
     lot_no: Optional[str] = None,
+    source_doc_type: str = "bill",
+    posted_to_gl: bool = True,
 ) -> None:
     """
     Record a stock receipt: append a cost layer + update product avg_cost and stock_qty.
     Only effective for product_type == "stock"; services are no-ops.
+
+    source_doc_type/posted_to_gl default to the historical bill-receipt
+    values; the opening-balance bootstrap passes ("opening", False) since
+    no GL entry backs an opening quantity.
 
     The Product row is selected with FOR UPDATE so two concurrent receipts of
     the same product can't both read the same avg_cost and clobber each
@@ -159,9 +165,9 @@ def record_purchase(
         to_location_id=loc_id,
         lot_no=lot_no,
         unit_cost=unit_cost,
-        source_doc_type="bill",
+        source_doc_type=source_doc_type,
         notes=source_doc,
-        posted_to_gl=True,
+        posted_to_gl=posted_to_gl,
     )
 
 
