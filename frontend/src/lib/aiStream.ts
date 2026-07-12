@@ -55,8 +55,12 @@ export async function streamChat(
       }
     }
   } catch {
-    h.onError("Connection to the AI service was interrupted. Please try again.")
-    terminalFired = true
+    // Guard: a connection reset arriving AFTER the terminal frame must not
+    // overwrite a successful completion with a spurious error banner.
+    if (!terminalFired) {
+      h.onError("Connection to the AI service was interrupted. Please try again.")
+      terminalFired = true
+    }
   }
   if (!terminalFired) {
     h.onError("The AI response ended unexpectedly. Please try again.")
