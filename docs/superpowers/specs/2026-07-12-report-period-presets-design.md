@@ -43,7 +43,11 @@ export type PresetId =
 
 export const PRESETS: { id: PresetId; label: string }[]; // QB order, exactly as issue lists
 
-export interface PresetOpts { today?: Date; fiscalStartMonth: number /* 1-12 */ }
+export interface PresetOpts {
+  today?: Date;
+  fiscalStartMonth: number;   /* 1-12, from fiscal_year_start setting */
+  weekStartDay?: number;      /* 0=Sunday … 6=Saturday; default 1 (Monday), from week_start_day setting */
+}
 
 // Returns ISO "YYYY-MM-DD" bounds. "all" → { start: "", end: "" } (unbounded —
 // consumers already treat empty as no filter). "custom" → null (caller keeps
@@ -57,6 +61,9 @@ export function matchPreset(start: string, end: string, opts: PresetOpts): Prese
 
 // "January" → 1 … "December" → 12; unknown/empty → 1.
 export function fiscalStartMonthFromSetting(value: string | undefined): number;
+
+// "Sunday" → 0 … "Saturday" → 6; unknown/empty → 1 (Monday).
+export function weekStartFromSetting(value: string | undefined): number;
 ```
 
 **Date semantics** (T = today, all local time, no external date lib — small internal helpers with day-clamped month arithmetic, e.g. Mar 31 − 1 month → Feb 28/29):
@@ -65,17 +72,17 @@ export function fiscalStartMonthFromSetting(value: string | undefined): number;
 |---|---|
 | All | unbounded (`""`/`""`) |
 | Today / Yesterday | [T, T] / [T−1d, T−1d] |
-| This Week | [Mon(T), Mon(T)+6] — **weeks start Monday** |
-| This Week-to-date | [Mon(T), T] |
+| This Week | [WS(T), WS(T)+6] — WS = start of T's week per the **`week_start_day` setting** (new; any day Sunday–Saturday, default Monday) |
+| This Week-to-date | [WS(T), T] |
 | This Month / -to-date | [1st, last] / [1st, T] |
 | This Fiscal Quarter / -to-date | current FQ full / [FQ start, T] |
 | This Fiscal Year / -to-date | current FY full / [FY start, T] |
 | This Fiscal Year-to-Last Month | [FY start, end of previous calendar month], end clamped to ≥ FY start |
-| Last Week / -to-date | [Mon(T)−7, Mon(T)−1] / [Mon(T)−7, T−7d] |
+| Last Week / -to-date | [WS(T)−7, WS(T)−1] / [WS(T)−7, T−7d] |
 | Last Month / -to-date | previous month full / [1st of prev month, T−1 month (day-clamped)] |
 | Last Fiscal Quarter / -to-date | previous FQ full / [prev FQ start, T−3 months (day-clamped)] |
 | Last Fiscal Year / -to-date | previous FY full / [prev FY start, T−1 year (day-clamped)] |
-| Next Week | [Mon(T)+7, Mon(T)+13] |
+| Next Week | [WS(T)+7, WS(T)+13] |
 | Next 4 Weeks | [T, T+27d] |
 | Next Month / Next Fiscal Quarter / Next Fiscal Year | the following full period |
 | Custom | `null` — manual From/To |
@@ -94,7 +101,9 @@ UI (per issue, mirroring QB's Customize Report → Dates row):
 - Selecting **Custom** enables From/To for manual entry (current behavior).
 - A muted inline label shows the resolved range as `dd-mm-yy – dd-mm-yy` via `fmtDateJs` ("All dates" for All), satisfying the issue's "Today only"-style hint.
 - Dropdown state initializes via `matchPreset(start, end)`; no match → Custom. It re-syncs the same way if the parent changes `start`/`end` externally (deep-link effects).
-- `useSettings()` supplies `fiscal_year_start`; the old 30d/90d/Month/Year buttons are deleted.
+- `useSettings()` supplies `fiscal_year_start` and `week_start_day`; the old 30d/90d/Month/Year buttons are deleted.
+
+**New setting — `week_start_day`:** dropdown on the Settings page (General/accounting card), values Sunday–Saturday, default "Monday". Wired through the standard settings checklist: `AppSettings` interface + `defaults` in `SettingsContext.tsx`, `SettingsUpdate` in `backend/routers/settings.py`, UI field in `settings/page.tsx`. Only the preset resolver consumes it for now.
 - Styling: existing input/border/focus token classes; component stays inside consumers' `print:hidden` toolbars.
 
 ### 3. Rollout sweep
@@ -107,7 +116,7 @@ Report-builder saved reports store literal filter values, not preset ids — not
 
 ## Testing
 
-- **vitest** added to `frontend` devDependencies with `npm run test` script (pure Node environment, no jsdom): `src/lib/__tests__/datePresets.test.ts` covering every preset id, Monday week starts, fiscal offsets (January + July FY), month-end clamping (Jan 31 / Mar 31 / leap Feb), FY boundary edges (T in first month of FY for to-last-month), matchPreset round-trip of all presets, and the All/Custom sentinels.
+- **vitest** added to `frontend` devDependencies with `npm run test` script (pure Node environment, no jsdom): `src/lib/__tests__/datePresets.test.ts` covering every preset id, week-start variants (Monday default, Sunday, Saturday), fiscal offsets (January + July FY), month-end clamping (Jan 31 / Mar 31 / leap Feb), FY boundary edges (T in first month of FY for to-last-month), matchPreset round-trip of all presets, and the All/Custom sentinels.
 - Component/page verification: `npm run build` + manual drive of Trial Balance, GL, a statement page, and one store register.
 
 ## Error handling
