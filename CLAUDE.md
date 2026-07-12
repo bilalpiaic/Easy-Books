@@ -150,11 +150,14 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 - `company_name` — displayed in header and reports
 - `business_tagline` — shown below company name (e.g., "Easy-Books · Double-Entry Accounting")
 - `currency`, `fiscal_year_start`, `financial_statement_date` — accounting preferences
+- `week_start_day` — first day of the week (`monday` default) used by the report period presets ("This Week", "Last Week", etc.); set on Settings alongside `fiscal_year_start`, which drives the fiscal-year/quarter presets
 - `invoice_prefix`, `bill_prefix` — document numbering
 - `tax_id`, `email_notifications` — compliance and notifications
 - `block_negative_stock` — when `true`, `consume_stock(block_negative=True)` raises HTTP 400 if a sale would drive `stock_qty` below 0 (default `false`; purchases are never blocked). `consume_stock` also accepts an optional `source_doc_type` override (default `"invoice"`) so non-sale consumers — Gate Outward's scrap approval — tag their own `StockMovement` rows correctly instead of being mislabeled as invoices.
 - `require_purchase_chain` — when not `"false"` (default on), `POST /api/purchase-orders` rejects a bare PO once `purchase_store` is installed, unless it carries a `comparative_id` referencing an approved/converted `ComparativeStatement`; toggle only visible on the Settings page when `purchase_store` is installed
 - `require_gate_inward` — when not `"false"` (default on), `convert-to-bill` requires full GI coverage once `purchase_store` is installed
+
+**Report period presets (#141):** `components/DateRangePicker.tsx` renders a QuickBooks-style preset dropdown (26 presets — Today/This Week/Last Month/Fiscal Quarter/…) ahead of the From/To inputs, keeping its original prop contract so all consumers get presets for free. Preset resolution lives in `lib/datePresets.ts` (`resolvePreset(id, { today?, fiscalStartMonth, weekStartDay? })` — pure, vitest-covered; `matchPreset` does the reverse mapping so a URL-restored range re-selects its preset); fiscal presets follow `fiscal_year_start`, week presets follow `week_start_day`. Picking a preset fills and disables From/To; "Custom" re-enables them. Report pages with hand-rolled date inputs were swept to use the shared component — new report filters should use `DateRangePicker`, not raw `<input type="date">` pairs.
 
 **Company Branding:** Users customize their branding via `/dashboard/settings`:
 - Company name appears in `Header` + `PrintHeader`
