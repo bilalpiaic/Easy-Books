@@ -72,16 +72,26 @@ class SettingsUpdate(BaseModel):
     pra_pos_id: Optional[str] = None         # 6-digit POS ID from PRA portal
     pra_api_token: Optional[str] = None      # Production Bearer token (kept secret)
     pra_sandbox_mode: Optional[str] = None   # "true" = use sandbox endpoint
+    # AI assistant (#117) — key values are write-only; GET redacts them
+    ai_api_key_anthropic: Optional[str] = None
+    ai_api_key_openai: Optional[str] = None
+    ai_api_key_gemini: Optional[str] = None
+    ai_default_model: Optional[str] = None
+    ai_rate_limit_per_hour: Optional[str] = None
 
 
 @router.get("")
 def get_settings(session: SessionDep, user: CurrentUserDep):
+    from services.ai_providers import AI_SECRET_SETTINGS_KEYS
     rows = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id)).all()
     out = {s.key: s.value for s in rows}
     tenant = session.get(Tenant, user.tenant_id)
     if tenant:
         out["business_model"] = tenant.business_model
         out["cost_method"] = tenant.cost_method or "wavg"
+    # Redact secret AI keys
+    for k in AI_SECRET_SETTINGS_KEYS:
+        out.pop(k, None)
     return out
 
 

@@ -30,7 +30,8 @@ from routers.reports import (
     get_trial_balance,
     cash_flow_statement,
 )
-from .common import CurrentUserDep, SessionDep
+from services.ai_providers import PROVIDERS, configured_providers, mask_key, resolve_api_key
+from .common import AdminUserDep, CurrentUserDep, SessionDep
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -414,3 +415,19 @@ def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
         messages.append({"role": "user", "content": tool_results})
 
     return {"reply": "I wasn't able to complete the analysis. Please try a more specific question."}
+
+
+@router.get("/models")
+def list_models(session: SessionDep, user: CurrentUserDep):
+    _require_ai_module(session, user)
+    providers = configured_providers(session, user.tenant_id)
+    default = providers[0]["default"] if providers else None
+    return {"providers": providers, "default_model": default}
+
+
+@router.get("/key-status")
+def key_status(session: SessionDep, user: AdminUserDep):
+    return {
+        provider: mask_key(resolve_api_key(session, user.tenant_id, provider))
+        for provider in PROVIDERS
+    }

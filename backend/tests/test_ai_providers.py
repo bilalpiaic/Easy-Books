@@ -70,3 +70,64 @@ def test_mask_key_shows_tail_only(client):
     assert mask_key("abc") == "••••"  # too short to expose a tail
     assert mask_key("") is None
     assert mask_key(None) is None
+
+
+def _signup(client, email):
+    client.post("/api/auth/signup", json={
+        "email": email, "password": "password123",
+        "full_name": "U", "company_name": "Co", "business_model": "simple",
+    })
+    r = client.post("/api/auth/login", data={"username": email, "password": "password123"})
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def _install_ai(client, auth):
+    r = client.post("/api/modules/ai_assistant/install", headers=auth)
+    assert r.status_code in (200, 201), r.text
+
+
+def test_settings_get_redacts_ai_keys(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov1@t.com")
+    r = client.patch("/api/settings", headers=auth, json={
+        "ai_api_key_openai": "sk-openai-supersecret-x9Zq",
+        "ai_default_model": "openai/gpt-4o-mini",
+    })
+    assert r.status_code == 200, r.text
+    settings = client.get("/api/settings", headers=auth).json()
+    assert "ai_api_key_openai" not in settings          # redacted entirely
+    assert settings["ai_default_model"] == "openai/gpt-4o-mini"
+    # and no raw secret anywhere in the payload
+    assert "supersecret" not in str(settings)
+
+
+def test_models_endpoint_lists_only_configured_providers(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov2@t.com")
+    _install_ai(client, auth)
+    client.patch("/api/settings", headers=auth, json={"ai_api_key_gemini": "AIza-test"})
+
+    data = client.get("/api/ai/models", headers=auth).json()
+    assert [p["provider"] for p in data["providers"]] == ["gemini"]
+    assert "gemini/gemini-2.5-flash" in data["providers"][0]["models"]
+
+
+def test_key_status_masked_and_admin_only(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov3@t.com")
+    _install_ai(client, auth)
+    client.patch("/api/settings", headers=auth, json={"ai_api_key_openai": "sk-openai-secret-x9Zq"})
+
+    status = client.get("/api/ai/key-status", headers=auth).json()
+    assert status["openai"] == "••••x9Zq"
+    assert status["anthropic"] is None
+    assert "secret" not in str(status)
+
+    # viewer-role user cannot read key status
+    client.post("/api/users", headers=auth, json={
+        "email": "prov3v@t.com", "password": "password123",
+        "full_name": "V", "role": "viewer",
+    })
+    r = client.post("/api/auth/login", data={"username": "prov3v@t.com", "password": "password123"})
+    viewer = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    assert client.get("/api/ai/key-status", headers=viewer).status_code == 403
