@@ -9,7 +9,7 @@ import {
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
-  ClipboardCheck, DoorOpen, PackageMinus,
+  ClipboardCheck, DoorOpen, PackageMinus, Sparkles,
 } from "lucide-react"
 
 export type NavItem = {
@@ -18,7 +18,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant"
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -119,6 +119,7 @@ export const NAV: NavItem[] = [
   { label: "Audit Log",        href: "/audit",             icon: ScrollText,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
+  { label: "AI Assistant",     href: "/agent",             icon: Sparkles,         section: "System",    forModule: "ai_assistant" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
   { label: "Add-ons",          href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
   { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System",    forModule: "pra" },
@@ -170,7 +171,7 @@ export type TopNavSection = {
   key: string
   label: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -207,7 +208,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
-  system:        ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow"],
+  system:        ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow", "/agent"],
 }
 
 /** Routes homed under /manufacturing that move to the Purchases section when purchase_store is installed */
@@ -380,5 +381,6 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Audit Log",     href: "/audit",                icon: ScrollText,  section: "system", adminOnly: true },
     { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "system" },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
+    { label: "AI Assistant",  href: "/agent",                icon: Sparkles,    section: "system", forModule: "ai_assistant" },
   ],
 }

@@ -171,7 +171,7 @@ export default function ChatCore({ sessionId, models, className }: ChatCoreProps
     <div className={`flex flex-col min-h-0 flex-1 ${className ?? ""}`}>
       {/* Model picker */}
       {models.providers.length > 0 && (
-        <div className="shrink-0 px-3 pt-2 pb-1 border-b border-[var(--text-primary)]/10 bg-white">
+        <div className="print:hidden shrink-0 px-3 pt-2 pb-1 border-b border-[var(--text-primary)]/10 bg-white">
           <select
             value={selectedModel}
             onChange={e => setSelectedModel(e.target.value)}
@@ -257,7 +257,7 @@ export default function ChatCore({ sessionId, models, className }: ChatCoreProps
       )}
 
       {/* Input */}
-      <div className="shrink-0 border-t border-[var(--text-primary)]/10 bg-white px-3 py-2 flex items-end gap-2">
+      <div className="print:hidden shrink-0 border-t border-[var(--text-primary)]/10 bg-white px-3 py-2 flex items-end gap-2">
         <textarea
           ref={inputRef}
           value={input}
