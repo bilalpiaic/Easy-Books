@@ -1995,11 +1995,17 @@ Commit range `e6e947a..1e7106a` (merged to `main`).
 - **Overdue email reminders** — `services/email.py` exists; automated aging reminders not yet wired.
 - **`ComparativeStatement`↔`PurchaseOrder` FK cycle** (`comparative.po_id` and `purchase_order.comparative_id` are mutual FKs, from #137 Phase 1) — triggers a `SAWarning` on `SQLModel.metadata.sorted_tables` in the demo-purge endpoint; harmless today (purge still succeeds) but worth an explicit delete-order fix before Postgres's stricter FK enforcement makes it a hard error.
 
-**Purchase/Store follow-ups (#137 Phase 2/2b carry-ins, not yet urgent)**
-- Concurrency: `FOR UPDATE` row lock on Gate Inward create/cancel and PO convert-to-bill (Gate Outward's scrap approve already has this after its final review; the inward-side endpoints share the same latent race, unforced today since dev runs SQLite).
+**Purchase/Store follow-ups (#137 carry-ins)**
+- ~~Concurrency: `FOR UPDATE` row lock on Gate Inward create/cancel and PO convert-to-bill~~ — fixed 2026-07-12 (`fix/purchase-store-debt`): all three sites now use the same `with_for_update()` idiom as Gate Outward's scrap approve.
 - Report pagination + SQL-side search on Gate Register / 3-Way Match / Gate Outward Register / Dispatch Reconciliation (currently unpaginated, Python-side substring search).
 - `purchase.gate` + `purchase_orders` permission coupling — a gate-only user can't resolve PO line descriptions on the Gate Inward pages without also holding `purchase_orders` view rights.
-- Phase 3 (Store Issue + GL posting + `/purchases` hub page) and Phase 4 (vendor performance analysis, seeder, docs) from the original issue #137 phasing remain open.
+- ~~Phase 3 (Store Issue + GL posting + `/purchases` hub page) and Phase 4 (vendor performance analysis, seeder, docs)~~ — shipped in PR #145 (2026-07-11); issue #137 closed.
+
+**Stock Tie-out follow-ups (#145 final review)**
+- ~~`reverse_purchase` (bill void/edit) mutates `stock_qty` with no `StockMovement`~~ — fixed 2026-07-12: emits `ADJUSTMENT`/`bill_void` rows; tie-out sign map extended.
+- ~~`POST /api/products` + CSV import `opening_qty` bootstrap writes no `StockMovement`/`InventoryLayer`~~ — fixed 2026-07-12: both route through `record_purchase(source_doc_type="opening", posted_to_gl=False)`.
+- ~~Vendor performance counts pending zero-GI POs as 100% short-receipt~~ — fixed 2026-07-12: gate-less POs excluded from the short-receipt numerator/denominator (still counted in `po_count`).
+- Manual physical-count adjustments store `abs(variance)` signless, so the tie-out deliberately cannot absorb them (residual variance after a count override is the intended signal — see `_STOCK_QTY_SIGN` comment in `routers/store_reports.py`). By design for now; revisit only if a signed delta becomes a requirement.
 
 **Developer ergonomics**
 - **Storybook** for guidance components + form patterns.
