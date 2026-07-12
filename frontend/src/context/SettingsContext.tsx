@@ -7,6 +7,7 @@ export interface AppSettings {
   company_name: string
   tax_id: string
   fiscal_year_start: string
+  week_start_day: string
   currency: string
   email_notifications: string
   invoice_prefix: string
@@ -63,6 +64,7 @@ const defaults: AppSettings = {
   company_name: "My Company",
   tax_id: "",
   fiscal_year_start: "January",
+  week_start_day: "Monday",
   currency: "PKR",
   email_notifications: "true",
   invoice_prefix: "INV",

@@ -340,6 +340,19 @@ export default function SettingsPage() {
               </select>
             </div>
             <div>
+              <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">Week Starts On</label>
+              <select
+                value={form.week_start_day || "Monday"}
+                onChange={e => handleChange('week_start_day', e.target.value)}
+                className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-black"
+              >
+                {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Used by report period presets (This/Last/Next Week).</p>
+            </div>
+            <div>
               <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">Financial Statement Date</label>
               <select
                 value={form.financial_statement_date}
