@@ -12,6 +12,7 @@ from sqlmodel import select
 
 from db import MODULES_BY_MODEL, _coa_for
 from models import Account, Settings, Tenant
+from services.ai_providers import AI_SECRET_SETTINGS_KEYS
 
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
 
@@ -82,7 +83,6 @@ class SettingsUpdate(BaseModel):
 
 @router.get("")
 def get_settings(session: SessionDep, user: CurrentUserDep):
-    from services.ai_providers import AI_SECRET_SETTINGS_KEYS
     rows = session.exec(select(Settings).where(Settings.tenant_id == user.tenant_id)).all()
     out = {s.key: s.value for s in rows}
     tenant = session.get(Tenant, user.tenant_id)
@@ -98,6 +98,11 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
 @router.patch("")
 def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdate):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+
+    # AI provider keys are credentials, not general company settings — restrict
+    # writes to admin/owner even though the rest of this endpoint is accountant+.
+    if any(k in AI_SECRET_SETTINGS_KEYS for k in updates) and user.role not in ("admin", "owner"):
+        raise HTTPException(403, "Only admin or owner can set AI provider API keys")
 
     # Some settings also live on the Tenant model (not just the KV table)
     tenant = session.get(Tenant, user.tenant_id)

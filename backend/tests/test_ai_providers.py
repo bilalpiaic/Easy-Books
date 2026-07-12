@@ -131,3 +131,28 @@ def test_key_status_masked_and_admin_only(client, monkeypatch):
     r = client.post("/api/auth/login", data={"username": "prov3v@t.com", "password": "password123"})
     viewer = {"Authorization": f"Bearer {r.json()['access_token']}"}
     assert client.get("/api/ai/key-status", headers=viewer).status_code == 403
+
+
+def test_ai_key_write_requires_admin(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov4@t.com")  # tenant creator is owner
+    client.post("/api/users", headers=auth, json={
+        "email": "prov4a@t.com", "password": "password123",
+        "full_name": "A", "role": "accountant",
+    })
+    r = client.post("/api/auth/login", data={"username": "prov4a@t.com", "password": "password123"})
+    accountant = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # accountant (below admin) cannot set an AI provider key
+    r = client.patch("/api/settings", headers=accountant, json={"ai_api_key_openai": "sk-blocked"})
+    assert r.status_code == 403, r.text
+    assert client.get("/api/ai/key-status", headers=auth).json()["openai"] is None
+
+    # accountant CAN still write ordinary, non-secret settings
+    r = client.patch("/api/settings", headers=accountant, json={"company_name": "Renamed Co"})
+    assert r.status_code == 200, r.text
+
+    # owner can set the key
+    r = client.patch("/api/settings", headers=auth, json={"ai_api_key_openai": "sk-owner-set-x9Zq"})
+    assert r.status_code == 200, r.text
+    assert client.get("/api/ai/key-status", headers=auth).json()["openai"] == "••••x9Zq"
