@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV, fmtDate, fmtDateJs } from '@/lib/utils'
 import PrintHeader from '@/components/PrintHeader'
+import DateRangePicker from '@/components/DateRangePicker'
 import { useTranslation } from "react-i18next"
 
 interface StatementInvoice {
@@ -83,14 +84,7 @@ function CustomerStatementPageInner({ params }: { params: Promise<{ id: string }
           <ArrowLeft className="w-4 h-4" /> Back to Ledger
         </Link>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <label className="text-[var(--text-muted)]">From</label>
-            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-              className="px-2 py-1 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
-            <label className="text-[var(--text-muted)]">To</label>
-            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-              className="px-2 py-1 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[var(--primary)]" />
-          </div>
+          <DateRangePicker start={fromDate} end={toDate} onStartChange={setFromDate} onEndChange={setToDate} hideAll />
           <button
             onClick={() => downloadCSV(`statement-${c.name}-${fromDate}-${toDate}.csv`, [
               ...data.invoices.map(i => ({ Date: i.date, Type: "Invoice", Reference: i.number, Debit: Number(i.total), Credit: 0, Outstanding: Number(i.outstanding) })),
