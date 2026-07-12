@@ -144,6 +144,16 @@ def vendor_performance(
         total_ordered = D("0")
         total_variance = D("0")
         for po in pos:
+            gis = session.exec(
+                select(GateInward).where(
+                    GateInward.po_id == po.id, GateInward.status != "cancelled",
+                ).order_by(GateInward.gate_date)
+            ).all()
+            if not gis:
+                # No gate activity — the PO is still undelivered (or predates
+                # the gate module). Counting it would report every pending
+                # order as a 100% short receipt.
+                continue
             po_lines = session.exec(
                 select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po.id)
             ).all()
@@ -152,16 +162,10 @@ def vendor_performance(
             for l in po_lines:
                 total_variance += cov.get(l.id, D(0)) - D(l.qty)
 
-            gis = session.exec(
-                select(GateInward).where(
-                    GateInward.po_id == po.id, GateInward.status != "cancelled",
-                ).order_by(GateInward.gate_date)
-            ).all()
-            if gis:
-                earliest_gi = gis[0]
-                d_po = _date.fromisoformat(po.order_date)
-                d_gi = _date.fromisoformat(earliest_gi.gate_date)
-                lead_times.append((d_gi - d_po).days)
+            earliest_gi = gis[0]
+            d_po = _date.fromisoformat(po.order_date)
+            d_gi = _date.fromisoformat(earliest_gi.gate_date)
+            lead_times.append((d_gi - d_po).days)
 
         rate_trend = [
             {

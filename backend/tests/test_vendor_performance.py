@@ -130,3 +130,25 @@ def test_vendor_performance_short_receipt_matches_three_way_match(client: TestCl
     ordered_total = 20  # 10 + 10 across the two POs
     expected_pct = round(abs(twm_variance) / ordered_total * 100, 2)
     assert row["short_receipt_rate_pct"] == expected_pct
+
+
+def test_vendor_performance_pending_po_not_counted_short(client: TestClient):
+    """An approved PO with no gate activity yet is an undelivered order,
+    not a 100% short receipt (#145 review follow-up)."""
+    auth = _signup(client, "vp4@t.com")
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Pending Vendor"}).json()
+    product = client.post("/api/products", headers=auth, json={
+        "name": "Pending Widget", "product_type": "stock", "unit": "pcs",
+    }).json()
+    _full_chain_po(client, auth, vendor["id"], product["id"], qty=10)  # fully received
+    client.patch("/api/settings", headers=auth, json={"require_purchase_chain": "false"})
+    po2 = client.post("/api/purchase-orders", headers=auth, json={
+        "vendor_id": vendor["id"], "order_date": "2026-06-20",
+        "lines": [{"product_id": product["id"], "description": "Item", "qty": 10, "rate": 5}],
+    }).json()
+    client.patch(f"/api/purchase-orders/{po2['id']}/approve", headers=auth)  # no GI ever
+
+    rows = client.get("/api/purchase-reports/vendor-performance", headers=auth).json()
+    row = next(r for r in rows if r["vendor_id"] == vendor["id"])
+    assert row["po_count"] == 2
+    assert row["short_receipt_rate_pct"] == 0.0   # was 50.0 before the fix
