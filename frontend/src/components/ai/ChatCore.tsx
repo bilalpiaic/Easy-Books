@@ -94,6 +94,22 @@ export default function ChatCore({ sessionId, models, className }: ChatCoreProps
     }
   }, [messages, streamingText, toolLabel, loadingHistory])
 
+  const handleStreamError = (detail: string) => {
+    if (!mountedRef.current) return
+    // Commit whatever text streamed in before the failure, if any, so it isn't lost.
+    if (streamingRef.current) {
+      setMessages(prev => [
+        ...prev,
+        { role: "assistant", content: streamingRef.current, model: selectedModel || null },
+      ])
+    }
+    streamingRef.current = ""
+    setStreamingText(null)
+    setToolLabel(null)
+    setError(detail)
+    setSending(false)
+  }
+
   const send = async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed || sending) return
@@ -104,50 +120,42 @@ export default function ChatCore({ sessionId, models, className }: ChatCoreProps
     setStreamingText("")
     setSending(true)
 
-    await streamChat(
-      { session_id: sessionId, message: trimmed, model: selectedModel || null },
-      {
-        onToken: text => {
-          if (!mountedRef.current) return
-          streamingRef.current += text
-          setStreamingText(streamingRef.current)
-        },
-        onToolStart: label => {
-          if (!mountedRef.current) return
-          setToolLabel(label)
-        },
-        onToolEnd: () => {
-          if (!mountedRef.current) return
-          setToolLabel(null)
-        },
-        onDone: (_sid, messageId) => {
-          if (!mountedRef.current) return
-          setMessages(prev => [
-            ...prev,
-            { id: messageId, role: "assistant", content: streamingRef.current, model: selectedModel || null },
-          ])
-          streamingRef.current = ""
-          setStreamingText(null)
-          setToolLabel(null)
-          setSending(false)
-        },
-        onError: detail => {
-          if (!mountedRef.current) return
-          // Commit whatever text streamed in before the failure, if any, so it isn't lost.
-          if (streamingRef.current) {
+    try {
+      await streamChat(
+        { session_id: sessionId, message: trimmed, model: selectedModel || null },
+        {
+          onToken: text => {
+            if (!mountedRef.current) return
+            streamingRef.current += text
+            setStreamingText(streamingRef.current)
+          },
+          onToolStart: label => {
+            if (!mountedRef.current) return
+            setToolLabel(label)
+          },
+          onToolEnd: () => {
+            if (!mountedRef.current) return
+            setToolLabel(null)
+          },
+          onDone: (_sid, messageId) => {
+            if (!mountedRef.current) return
             setMessages(prev => [
               ...prev,
-              { role: "assistant", content: streamingRef.current, model: selectedModel || null },
+              { id: messageId, role: "assistant", content: streamingRef.current, model: selectedModel || null },
             ])
-          }
-          streamingRef.current = ""
-          setStreamingText(null)
-          setToolLabel(null)
-          setError(detail)
-          setSending(false)
+            streamingRef.current = ""
+            setStreamingText(null)
+            setToolLabel(null)
+            setSending(false)
+          },
+          onError: handleStreamError,
         },
-      },
-    )
+      )
+    } catch {
+      // Belt-and-braces: streamChat should never reject after its own terminal-event
+      // guarantee, but the UI must never be able to lock up if it somehow does.
+      handleStreamError("The AI response ended unexpectedly. Please try again.")
+    }
   }
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

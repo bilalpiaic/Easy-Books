@@ -111,7 +111,7 @@ export default function AIChat({ open, onClose }: AIChatProps) {
       )}
 
       {!initLoading && !initError && models && sessionId !== null && (
-        <ChatCore sessionId={sessionId} models={models} className="min-h-0" />
+        <ChatCore key={sessionId} sessionId={sessionId} models={models} className="min-h-0" />
       )}
     </div>
   )
