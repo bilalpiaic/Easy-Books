@@ -1,84 +1,68 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { X, Send, Sparkles, Loader2 } from "lucide-react"
+import { X, Sparkles, Loader2, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-
-interface Message {
-  role: "user" | "assistant"
-  content: string
-}
+import ChatCore, { type ModelsPayload } from "@/components/ai/ChatCore"
 
 interface AIChatProps {
   open: boolean
   onClose: () => void
 }
 
-const QUICK_PROMPTS = [
-  "What's my revenue this month?",
-  "Which invoices are overdue?",
-  "Show me my P&L summary",
-  "What's my cash balance?",
-]
+interface SessionSummary {
+  id: number
+  title: string
+  updated_at: string
+}
 
 export default function AIChat({ open, onClose }: AIChatProps) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState("")
-  const [loading, setLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [models, setModels] = useState<ModelsPayload | null>(null)
+  const [sessionId, setSessionId] = useState<number | null>(null)
+  const [initLoading, setInitLoading] = useState(false)
+  const [initError, setInitError] = useState<string | null>(null)
 
+  // First time the panel opens: load available models and resume (or create) a session.
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50)
-    } else {
-      setMessages([])
-      setInput("")
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [messages, loading])
-
-  const send = async (text: string) => {
-    const trimmed = text.trim()
-    if (!trimmed || loading) return
-    setInput("")
-
-    const userMsg: Message = { role: "user", content: trimmed }
-    const history = messages
-    setMessages(prev => [...prev, userMsg])
-    setLoading(true)
-
-    try {
-      const data = await apiFetch<{ reply: string }>("/api/ai/chat", {
-        method: "POST",
-        body: JSON.stringify({
-          message: trimmed,
-          history: history.map(m => ({ role: m.role, content: m.content })),
-        }),
+    if (!open || models !== null) return
+    let cancelled = false
+    setInitLoading(true)
+    setInitError(null)
+    Promise.all([
+      apiFetch<ModelsPayload>("/api/ai/models"),
+      apiFetch<SessionSummary[]>("/api/ai/sessions"),
+    ])
+      .then(async ([modelsData, sessions]) => {
+        if (cancelled) return
+        setModels(modelsData)
+        if (sessions.length > 0) {
+          setSessionId(sessions[0].id)
+        } else {
+          const created = await apiFetch<SessionSummary>("/api/ai/sessions", { method: "POST" })
+          if (cancelled) return
+          setSessionId(created.id)
+        }
       })
-      setMessages(prev => [...prev, { role: "assistant", content: data.reply }])
-    } catch (err: unknown) {
-      const detail =
-        err instanceof Error ? err.message : "Something went wrong. Please try again."
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: `Sorry, I couldn't get an answer: ${detail}` },
-      ])
-    } finally {
-      setLoading(false)
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setInitError(err instanceof Error ? err.message : "Failed to start the AI assistant.")
+      })
+      .finally(() => {
+        if (cancelled) return
+        setInitLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-  }
+  }, [open, models])
 
-  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      send(input)
+  const newChat = async () => {
+    try {
+      const created = await apiFetch<SessionSummary>("/api/ai/sessions", { method: "POST" })
+      setSessionId(created.id)
+    } catch {
+      // Session creation failed silently — user can retry via the button.
     }
   }
 
@@ -94,80 +78,41 @@ export default function AIChat({ open, onClose }: AIChatProps) {
           <Sparkles className="w-4 h-4" />
           <span className="font-semibold text-sm">AI Assistant</span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-lg hover:bg-white/20 transition-colors"
-          aria-label="Close"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={newChat}
+            disabled={initLoading || sessionId === null}
+            className="p-1 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
+            aria-label="New chat"
+            title="New chat"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-white/20 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-[var(--bg-page)]">
-        {messages.length === 0 && !loading && (
-          <div className="space-y-3">
-            <p className="text-xs text-center text-[var(--text-primary)]/50 py-2">
-              Ask me anything about your finances
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              {QUICK_PROMPTS.map(p => (
-                <button
-                  key={p}
-                  onClick={() => send(p)}
-                  className="text-left text-xs px-3 py-2 rounded-xl bg-white border border-[var(--text-primary)]/10 hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/5 transition-all text-[var(--text-primary)]/70"
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      {initLoading && (
+        <div className="flex-1 flex items-center justify-center bg-[var(--bg-page)]">
+          <Loader2 className="w-5 h-5 animate-spin text-[var(--primary)]" />
+        </div>
+      )}
 
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-[var(--primary)] text-white rounded-br-md"
-                  : "bg-white border border-[var(--text-primary)]/10 text-[var(--text-primary)] rounded-bl-md"
-              }`}
-            >
-              {msg.content}
-            </div>
-          </div>
-        ))}
+      {!initLoading && initError && (
+        <div className="flex-1 flex items-center justify-center bg-[var(--bg-page)] p-4">
+          <p className="text-xs text-center text-red-600">{initError}</p>
+        </div>
+      )}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-[var(--text-primary)]/10 rounded-2xl rounded-bl-md px-3 py-2">
-              <Loader2 className="w-4 h-4 animate-spin text-[var(--primary)]" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="shrink-0 border-t border-[var(--text-primary)]/10 bg-white px-3 py-2 flex items-end gap-2">
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Ask about your finances…"
-          rows={1}
-          className="flex-1 resize-none text-sm rounded-xl border border-[var(--text-primary)]/15 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 text-[var(--text-primary)] placeholder:text-[var(--text-primary)]/40 bg-[var(--bg-page)] max-h-24 overflow-y-auto"
-          style={{ lineHeight: "1.4" }}
-        />
-        <button
-          onClick={() => send(input)}
-          disabled={!input.trim() || loading}
-          className="shrink-0 p-2 rounded-xl bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40 transition-all"
-          aria-label="Send"
-        >
-          <Send className="w-4 h-4" />
-        </button>
-      </div>
+      {!initLoading && !initError && models && sessionId !== null && (
+        <ChatCore sessionId={sessionId} models={models} className="min-h-0" />
+      )}
     </div>
   )
 
