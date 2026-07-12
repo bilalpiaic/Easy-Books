@@ -1245,6 +1245,30 @@ class StoreIssueLine(SQLModel, table=True):
     unit_cost: Money = money_col(default=Decimal("0"))         # written after posting
 
 
+class AiChatSession(SQLModel, table=True):
+    """One AI-assistant conversation (#117). Per-user private: every query
+    filters tenant_id AND user_id — same-tenant colleagues never see each
+    other's chats."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    title: str = Field(default="New chat")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AiChatMessage(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("role IN ('user','assistant')", name="ck_ai_msg_role"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(foreign_key="aichatsession.id", ondelete="CASCADE", index=True)
+    role: str
+    content: str
+    model: Optional[str] = None          # litellm model string, assistant rows
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class CustomerAdvance(SQLModel, table=True):
     """Advance received from a customer (prepayment). Posts Dr Bank / Cr 2310.
     Applied later against an invoice via the payments machinery."""

@@ -11,7 +11,7 @@ feeding results back until Claude produces a plain-text reply.
 """
 import json
 import os
-from datetime import date as DateType
+from datetime import date as DateType, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import select
 
-from models import Settings, Tenant
+from models import AiChatMessage, AiChatSession, Settings, Tenant
 from routers.aging import invoice_aging, bill_aging
 from routers.modules import _get_enabled
 from routers.reports import (
@@ -50,6 +50,90 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = []
+
+
+# ── Session CRUD helpers ──────────────────────────────────────────────────────
+
+def _require_ai_module(session, user) -> None:
+    tenant = session.get(Tenant, user.tenant_id)
+    if tenant is None or "ai_assistant" not in _get_enabled(tenant):
+        raise HTTPException(
+            status_code=403,
+            detail="The AI Financial Assistant module is not installed. Install it from System → Apps.",
+        )
+
+
+def _get_session_or_404(session, user, session_id: int) -> AiChatSession:
+    row = session.exec(
+        select(AiChatSession).where(
+            AiChatSession.id == session_id,
+            AiChatSession.tenant_id == user.tenant_id,
+            AiChatSession.user_id == user.id,
+        )
+    ).first()
+    if not row:
+        raise HTTPException(404, "Chat session not found")
+    return row
+
+
+class SessionPatch(BaseModel):
+    title: str
+
+
+@router.get("/sessions")
+def list_sessions(session: SessionDep, user: CurrentUserDep):
+    _require_ai_module(session, user)
+    rows = session.exec(
+        select(AiChatSession).where(
+            AiChatSession.tenant_id == user.tenant_id,
+            AiChatSession.user_id == user.id,
+        ).order_by(AiChatSession.updated_at.desc())
+    ).all()
+    return [{"id": r.id, "title": r.title, "updated_at": r.updated_at} for r in rows]
+
+
+@router.post("/sessions", status_code=201)
+def create_session(session: SessionDep, user: CurrentUserDep):
+    _require_ai_module(session, user)
+    row = AiChatSession(tenant_id=user.tenant_id, user_id=user.id)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return {"id": row.id, "title": row.title, "updated_at": row.updated_at}
+
+
+@router.patch("/sessions/{session_id}")
+def rename_session(session: SessionDep, user: CurrentUserDep, session_id: int, body: SessionPatch):
+    _require_ai_module(session, user)
+    row = _get_session_or_404(session, user, session_id)
+    row.title = body.title.strip()[:120] or row.title
+    row.updated_at = datetime.utcnow()
+    session.add(row)
+    session.commit()
+    return {"id": row.id, "title": row.title}
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(session: SessionDep, user: CurrentUserDep, session_id: int):
+    _require_ai_module(session, user)
+    row = _get_session_or_404(session, user, session_id)
+    session.delete(row)
+    session.commit()
+    return {"success": True}
+
+
+@router.get("/sessions/{session_id}/messages")
+def session_messages(session: SessionDep, user: CurrentUserDep, session_id: int):
+    _require_ai_module(session, user)
+    _get_session_or_404(session, user, session_id)
+    rows = session.exec(
+        select(AiChatMessage).where(AiChatMessage.session_id == session_id)
+        .order_by(AiChatMessage.id)
+    ).all()
+    return [
+        {"id": m.id, "role": m.role, "content": m.content, "model": m.model}
+        for m in rows
+    ]
 
 
 # ── Tool registry ─────────────────────────────────────────────────────────────
@@ -248,12 +332,7 @@ def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
             detail="AI assistant is not configured. Set ANTHROPIC_API_KEY in the backend environment.",
         )
 
-    tenant = session.get(Tenant, user.tenant_id)
-    if tenant is None or "ai_assistant" not in _get_enabled(tenant):
-        raise HTTPException(
-            status_code=403,
-            detail="The AI Financial Assistant module is not installed. Install it from System → Apps.",
-        )
+    _require_ai_module(session, user)
 
     if len(body.message) > MAX_MESSAGE_CHARS:
         raise HTTPException(
