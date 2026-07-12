@@ -1,10 +1,11 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import { useModules } from '@/context/ModuleContext'
+import { getCurrentUser } from '@/lib/auth'
 import VersionBadge from '@/components/VersionBadge'
 import UpdateModal from '@/components/UpdateModal'
 import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
@@ -1110,6 +1111,11 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* AI Assistant (#117) — provider keys, default model, rate limit */}
+      { installedModules.has("ai_assistant") &&
+        (getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner") &&
+        <AiAssistantSection /> }
+
       </> }
 
       {/* Updates tab */}
@@ -1278,6 +1284,188 @@ function AppearanceSection() {
       <p className="text-[11px] text-[var(--text-primary)]/40">
         Appearance preferences are saved per account and synced across sessions.
       </p>
+    </section>
+  )
+}
+
+/* ── AI Assistant settings (#117) — provider keys, default model, rate limit ── */
+type AiKeyStatus = { anthropic: string | null; openai: string | null; gemini: string | null }
+type AiProviderId = keyof AiKeyStatus
+
+const AI_PROVIDERS: { id: AiProviderId; label: string; settingsKey: string; models: string[] }[] = [
+  { id: "anthropic", label: "Anthropic (Claude)", settingsKey: "ai_api_key_anthropic", models: ["claude-sonnet-4-6", "claude-haiku-4-5"] },
+  { id: "openai",    label: "OpenAI (GPT)",       settingsKey: "ai_api_key_openai",    models: ["gpt-4o-mini", "gpt-4o"] },
+  { id: "gemini",    label: "Google (Gemini)",    settingsKey: "ai_api_key_gemini",    models: ["gemini-2.5-flash", "gemini-2.5-pro"] },
+]
+
+function AiAssistantSection() {
+  const [keyStatus, setKeyStatus] = useState<AiKeyStatus | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({ anthropic: "", openai: "", gemini: "" })
+  const [defaultModel, setDefaultModel] = useState("")
+  const [rateLimit, setRateLimit] = useState("")
+  const initial = useRef({ defaultModel: "", rateLimit: "" })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState("")
+
+  const loadKeyStatus = () => {
+    setStatusLoading(true)
+    apiFetch<AiKeyStatus>("/api/ai/key-status")
+      .then(setKeyStatus)
+      .catch(() => setKeyStatus(null))
+      .finally(() => setStatusLoading(false))
+  }
+
+  useEffect(() => {
+    loadKeyStatus()
+    apiFetch<Record<string, string>>("/api/settings").then(s => {
+      const dm = s.ai_default_model || ""
+      const rl = s.ai_rate_limit_per_hour || ""
+      setDefaultModel(dm)
+      setRateLimit(rl)
+      initial.current = { defaultModel: dm, rateLimit: rl }
+    }).catch(() => {})
+  }, [])
+
+  const handleClearKey = async (provider: AiProviderId, label: string) => {
+    if (!window.confirm(`Clear the ${label} API key?`)) return
+    setError("")
+    try {
+      await apiFetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [`ai_api_key_${provider}`]: "" }),
+      })
+      setNewKeys(prev => ({ ...prev, [provider]: "" }))
+      loadKeyStatus()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError("")
+    try {
+      const payload: Record<string, string> = {}
+      for (const p of AI_PROVIDERS) {
+        if (newKeys[p.id]) payload[p.settingsKey] = newKeys[p.id]
+      }
+      if (defaultModel !== initial.current.defaultModel) payload.ai_default_model = defaultModel
+      if (rateLimit !== initial.current.rateLimit) payload.ai_rate_limit_per_hour = rateLimit
+
+      if (Object.keys(payload).length > 0) {
+        await apiFetch("/api/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+      }
+      setNewKeys({ anthropic: "", openai: "", gemini: "" })
+      initial.current = { defaultModel, rateLimit }
+      loadKeyStatus()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+      <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+        <Sparkles className="w-4 h-4 text-[var(--primary)]" /> AI Assistant
+      </h2>
+      <p className="text-xs text-[var(--text-primary)]/50">
+        Add API keys for the AI providers you want to power the chat assistant. Keys are stored server-side
+        only — they are never displayed again once saved.
+      </p>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">{error}</div>
+      )}
+
+      <div className="space-y-4">
+        {AI_PROVIDERS.map(p => {
+          const status = keyStatus?.[p.id] ?? null
+          return (
+            <div key={p.id} className="grid grid-cols-1 sm:grid-cols-[160px_1fr_auto] gap-3 items-end">
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">{p.label}</label>
+                <span className="text-xs font-mono text-[var(--text-primary)]/70">
+                  {statusLoading ? "…" : (status || "Not set")}
+                </span>
+              </div>
+              <div>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Paste new API key…"
+                  value={newKeys[p.id]}
+                  onChange={e => setNewKeys(prev => ({ ...prev, [p.id]: e.target.value }))}
+                  className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleClearKey(p.id, p.label)}
+                disabled={!status}
+                className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 whitespace-nowrap"
+              >
+                Clear
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[var(--border)]">
+        <div>
+          <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Default Model</label>
+          <select
+            value={defaultModel}
+            onChange={e => setDefaultModel(e.target.value)}
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">— system default —</option>
+            {AI_PROVIDERS.map(p => p.models.map(m => {
+              const value = `${p.id}/${m}`
+              const disabled = !keyStatus?.[p.id]
+              return (
+                <option key={value} value={value} disabled={disabled}>
+                  {p.label} — {m}{disabled ? " (no key)" : ""}
+                </option>
+              )
+            }))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Rate Limit (requests/hour)</label>
+          <input
+            type="number"
+            min="0"
+            placeholder="20"
+            value={rateLimit}
+            onChange={e => setRateLimit(e.target.value)}
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+        {saved && <span className="text-sm text-green-700">Saved</span>}
+      </div>
     </section>
   )
 }

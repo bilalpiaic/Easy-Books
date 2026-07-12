@@ -12,6 +12,7 @@ from sqlmodel import select
 
 from db import MODULES_BY_MODEL, _coa_for
 from models import Account, Settings, Tenant
+from services.ai_providers import AI_SECRET_SETTINGS_KEYS
 
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
 
@@ -72,6 +73,12 @@ class SettingsUpdate(BaseModel):
     pra_pos_id: Optional[str] = None         # 6-digit POS ID from PRA portal
     pra_api_token: Optional[str] = None      # Production Bearer token (kept secret)
     pra_sandbox_mode: Optional[str] = None   # "true" = use sandbox endpoint
+    # AI assistant (#117) — key values are write-only; GET redacts them
+    ai_api_key_anthropic: Optional[str] = None
+    ai_api_key_openai: Optional[str] = None
+    ai_api_key_gemini: Optional[str] = None
+    ai_default_model: Optional[str] = None
+    ai_rate_limit_per_hour: Optional[str] = None
 
 
 @router.get("")
@@ -82,12 +89,20 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
     if tenant:
         out["business_model"] = tenant.business_model
         out["cost_method"] = tenant.cost_method or "wavg"
+    # Redact secret AI keys
+    for k in AI_SECRET_SETTINGS_KEYS:
+        out.pop(k, None)
     return out
 
 
 @router.patch("")
 def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdate):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+
+    # AI provider keys are credentials, not general company settings — restrict
+    # writes to admin/owner even though the rest of this endpoint is accountant+.
+    if any(k in AI_SECRET_SETTINGS_KEYS for k in updates) and user.role not in ("admin", "owner"):
+        raise HTTPException(403, "Only admin or owner can set AI provider API keys")
 
     # Some settings also live on the Tenant model (not just the KV table)
     tenant = session.get(Tenant, user.tenant_id)

@@ -19,6 +19,17 @@ def _clear_login_throttle():
     _login_attempts.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_ai_rate_limit():
+    """AI chat rate limiter is process-global, keyed by (tenant_id, user_id).
+    Each test gets a fresh in-memory DB where those ids restart at 1, so
+    without clearing, buckets from earlier tests leak into later ones."""
+    from routers.ai_chat import _RATE
+    _RATE.clear()
+    yield
+    _RATE.clear()
+
+
 @pytest.fixture(name="client")
 def client_fixture(monkeypatch):
     """In-memory SQLite engine; overrides the FastAPI session dep AND the

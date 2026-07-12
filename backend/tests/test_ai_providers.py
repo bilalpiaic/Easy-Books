@@ -1,0 +1,158 @@
+"""#117 completion — provider registry: key resolution, masking, model validation."""
+import pytest
+from sqlmodel import Session
+
+import db as _db
+from models import Settings, Tenant
+
+
+def _tenant(monkeypatch) -> int:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with Session(_db.engine) as s:
+        t = Tenant(name="ProvCo")
+        s.add(t); s.commit(); s.refresh(t)
+        return t.id
+
+
+def _set_key(tenant_id: int, key: str, value: str) -> None:
+    with Session(_db.engine) as s:
+        s.add(Settings(tenant_id=tenant_id, key=key, value=value))
+        s.commit()
+
+
+def test_no_keys_no_env_means_no_providers(client, monkeypatch):
+    from services.ai_providers import configured_providers
+    tid = _tenant(monkeypatch)
+    with Session(_db.engine) as s:
+        assert configured_providers(s, tid) == []
+
+
+def test_env_fallback_applies_to_anthropic_only(client, monkeypatch):
+    from services.ai_providers import configured_providers, resolve_api_key
+    tid = _tenant(monkeypatch)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-env")
+    with Session(_db.engine) as s:
+        provs = configured_providers(s, tid)
+        assert [p["provider"] for p in provs] == ["anthropic"]
+        assert resolve_api_key(s, tid, "anthropic") == "sk-ant-env"
+        assert resolve_api_key(s, tid, "openai") is None
+        assert resolve_api_key(s, tid, "gemini") is None
+
+
+def test_tenant_key_wins_over_env(client, monkeypatch):
+    from services.ai_providers import resolve_api_key
+    tid = _tenant(monkeypatch)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-env")
+    _set_key(tid, "ai_api_key_anthropic", "sk-ant-tenant")
+    with Session(_db.engine) as s:
+        assert resolve_api_key(s, tid, "anthropic") == "sk-ant-tenant"
+
+
+def test_validate_model_happy_and_sad_paths(client, monkeypatch):
+    from services.ai_providers import validate_model
+    tid = _tenant(monkeypatch)
+    _set_key(tid, "ai_api_key_gemini", "AIza-test")
+    with Session(_db.engine) as s:
+        litellm_model, key = validate_model(s, tid, "gemini/gemini-2.5-flash")
+        assert litellm_model == "gemini/gemini-2.5-flash"
+        assert key == "AIza-test"
+        with pytest.raises(ValueError):
+            validate_model(s, tid, "openai/gpt-4o-mini")     # provider not configured
+        with pytest.raises(ValueError):
+            validate_model(s, tid, "gemini/not-a-model")     # unknown model id
+        with pytest.raises(ValueError):
+            validate_model(s, tid, "made-up-string")         # bad format
+
+
+def test_mask_key_shows_tail_only(client):
+    from services.ai_providers import mask_key
+    assert mask_key("sk-ant-abcdefgx4Kb") == "••••x4Kb"
+    assert mask_key("abc") == "••••"  # too short to expose a tail
+    assert mask_key("") is None
+    assert mask_key(None) is None
+
+
+def _signup(client, email):
+    client.post("/api/auth/signup", json={
+        "email": email, "password": "password123",
+        "full_name": "U", "company_name": "Co", "business_model": "simple",
+    })
+    r = client.post("/api/auth/login", data={"username": email, "password": "password123"})
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def _install_ai(client, auth):
+    r = client.post("/api/modules/ai_assistant/install", headers=auth)
+    assert r.status_code in (200, 201), r.text
+
+
+def test_settings_get_redacts_ai_keys(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov1@t.com")
+    r = client.patch("/api/settings", headers=auth, json={
+        "ai_api_key_openai": "sk-openai-supersecret-x9Zq",
+        "ai_default_model": "openai/gpt-4o-mini",
+    })
+    assert r.status_code == 200, r.text
+    settings = client.get("/api/settings", headers=auth).json()
+    assert "ai_api_key_openai" not in settings          # redacted entirely
+    assert settings["ai_default_model"] == "openai/gpt-4o-mini"
+    # and no raw secret anywhere in the payload
+    assert "supersecret" not in str(settings)
+
+
+def test_models_endpoint_lists_only_configured_providers(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov2@t.com")
+    _install_ai(client, auth)
+    client.patch("/api/settings", headers=auth, json={"ai_api_key_gemini": "AIza-test"})
+
+    data = client.get("/api/ai/models", headers=auth).json()
+    assert [p["provider"] for p in data["providers"]] == ["gemini"]
+    assert "gemini/gemini-2.5-flash" in data["providers"][0]["models"]
+
+
+def test_key_status_masked_and_admin_only(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov3@t.com")
+    _install_ai(client, auth)
+    client.patch("/api/settings", headers=auth, json={"ai_api_key_openai": "sk-openai-secret-x9Zq"})
+
+    status = client.get("/api/ai/key-status", headers=auth).json()
+    assert status["openai"] == "••••x9Zq"
+    assert status["anthropic"] is None
+    assert "secret" not in str(status)
+
+    # viewer-role user cannot read key status
+    client.post("/api/users", headers=auth, json={
+        "email": "prov3v@t.com", "password": "password123",
+        "full_name": "V", "role": "viewer",
+    })
+    r = client.post("/api/auth/login", data={"username": "prov3v@t.com", "password": "password123"})
+    viewer = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    assert client.get("/api/ai/key-status", headers=viewer).status_code == 403
+
+
+def test_ai_key_write_requires_admin(client, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "prov4@t.com")  # tenant creator is owner
+    client.post("/api/users", headers=auth, json={
+        "email": "prov4a@t.com", "password": "password123",
+        "full_name": "A", "role": "accountant",
+    })
+    r = client.post("/api/auth/login", data={"username": "prov4a@t.com", "password": "password123"})
+    accountant = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # accountant (below admin) cannot set an AI provider key
+    r = client.patch("/api/settings", headers=accountant, json={"ai_api_key_openai": "sk-blocked"})
+    assert r.status_code == 403, r.text
+    assert client.get("/api/ai/key-status", headers=auth).json()["openai"] is None
+
+    # accountant CAN still write ordinary, non-secret settings
+    r = client.patch("/api/settings", headers=accountant, json={"company_name": "Renamed Co"})
+    assert r.status_code == 200, r.text
+
+    # owner can set the key
+    r = client.patch("/api/settings", headers=auth, json={"ai_api_key_openai": "sk-owner-set-x9Zq"})
+    assert r.status_code == 200, r.text
+    assert client.get("/api/ai/key-status", headers=auth).json()["openai"] == "••••x9Zq"
