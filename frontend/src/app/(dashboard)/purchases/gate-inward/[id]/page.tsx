@@ -10,7 +10,10 @@ import { useFmt } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
 
-type GILine = { id: number; po_line_id: number; product_id?: number; qty_received: number }
+type GILine = {
+  id: number; po_line_id: number; product_id?: number; qty_received: number
+  description?: string | null; unit?: string | null
+}
 
 type GateInward = {
   id: number; number: string; po_id: number; gate_date: string; time_in?: string
@@ -20,14 +23,12 @@ type GateInward = {
   po_number?: string; vendor_name?: string
 }
 
-type POLine = { id: number; description: string; unit?: string }
 
 export default function GateInwardDetailPage() {
   const { id } = useParams<{ id: string }>()
   const fmt = useFmt()
 
   const [gi, setGi] = useState<GateInward | null>(null)
-  const [poLines, setPoLines] = useState<Record<number, POLine>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -37,10 +38,9 @@ export default function GateInwardDetailPage() {
 
   const load = useCallback(async () => {
     try {
-      const d = await apiFetch<GateInward>(`/api/gate-inwards/${id}`)
-      setGi(d)
-      const po = await apiFetch<{ lines: POLine[] }>(`/api/purchase-orders/${d.po_id}`)
-      setPoLines(Object.fromEntries(po.lines.map(l => [l.id, l])))
+      // GI lines carry description/unit from the API — no PO fetch needed,
+      // so gate-only users (no purchase_orders rights) can view the document.
+      setGi(await apiFetch<GateInward>(`/api/gate-inwards/${id}`))
     } catch (e) {
       setError(e instanceof Error ? e.message : "Not found")
     } finally {
@@ -181,16 +181,13 @@ export default function GateInwardDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {gi.lines.map(l => {
-              const poLine = poLines[l.po_line_id]
-              return (
-                <tr key={l.id} className="border-t border-[var(--border)]">
-                  <td className="px-3 py-2">{poLine?.description || `Line #${l.po_line_id}`}</td>
-                  <td className="px-3 py-2">{fmt(Number(l.qty_received))}</td>
-                  <td className="px-3 py-2">{poLine?.unit || "—"}</td>
-                </tr>
-              )
-            })}
+            {gi.lines.map(l => (
+              <tr key={l.id} className="border-t border-[var(--border)]">
+                <td className="px-3 py-2">{l.description || `Line #${l.po_line_id}`}</td>
+                <td className="px-3 py-2">{fmt(Number(l.qty_received))}</td>
+                <td className="px-3 py-2">{l.unit || "—"}</td>
+              </tr>
+            ))}
             {gi.lines.length === 0 && (
               <tr><td colSpan={3} className="px-3 py-8 text-center text-[var(--text-muted)]">No lines</td></tr>
             )}

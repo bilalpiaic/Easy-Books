@@ -53,8 +53,27 @@ def _serialize(session, gi: GateInward) -> dict:
         select(GateInwardLine).where(GateInwardLine.gate_inward_id == gi.id)
     ).all()
     po = session.get(PurchaseOrder, gi.po_id)
+    # Carry the PO line description/unit so gate-only users (no
+    # purchase_orders rights) can render GI documents without the PO API.
+    po_lines = {
+        pl_id: (desc, unit)
+        for pl_id, desc, unit in session.exec(
+            select(
+                PurchaseOrderLine.id,
+                PurchaseOrderLine.description,
+                PurchaseOrderLine.unit,
+            ).where(PurchaseOrderLine.po_id == gi.po_id)
+        ).all()
+    }
     out = gi.model_dump()
-    out["lines"] = [l.model_dump() for l in lines]
+    out["lines"] = [
+        {
+            **l.model_dump(),
+            "description": po_lines.get(l.po_line_id, (None, None))[0],
+            "unit": po_lines.get(l.po_line_id, (None, None))[1],
+        }
+        for l in lines
+    ]
     out["po_number"] = po.number if po else None
     out["vendor_name"] = po.vendor_name if po else None
     return out
@@ -85,6 +104,60 @@ def list_gis(
     q = apply_own_filter(q, GateInward, user, session)
     rows = session.exec(q.order_by(GateInward.id.desc())).all()
     return [_serialize(session, gi) for gi in rows]
+
+
+# The /pos routes are gate-scoped PO views so a gate-only user never needs
+# purchase_orders rights (#137 carry-in). Gate work is quantity-only, so they
+# deliberately expose no rate/amount/total fields. Must be declared before
+# /{gi_id} or Starlette would route "pos" into the int param.
+@router.get("/pos")
+def list_open_pos(session: SessionDep, user: WriteUserDep):
+    rows = session.exec(
+        select(PurchaseOrder)
+        .where(
+            PurchaseOrder.tenant_id == user.tenant_id,
+            PurchaseOrder.status.in_(["approved", "received"]),
+        )
+        .order_by(PurchaseOrder.id.desc())
+    ).all()
+    return [
+        {
+            "id": p.id, "number": p.number, "vendor_name": p.vendor_name,
+            "order_date": p.order_date, "expected_date": p.expected_date,
+            "status": p.status,
+        }
+        for p in rows
+    ]
+
+
+@router.get("/pos/{po_id}")
+def get_po_for_gate(session: SessionDep, user: WriteUserDep, po_id: int):
+    po = session.exec(
+        select(PurchaseOrder).where(
+            PurchaseOrder.id == po_id, PurchaseOrder.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not po:
+        raise HTTPException(404, "Purchase order not found")
+    lines = session.exec(
+        select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po.id)
+    ).all()
+    return {
+        "id": po.id, "number": po.number, "vendor_name": po.vendor_name,
+        "order_date": po.order_date, "expected_date": po.expected_date,
+        "status": po.status,
+        "lines": [
+            {
+                "id": l.id, "description": l.description, "qty": l.qty,
+                "unit": l.unit, "product_id": l.product_id,
+            }
+            for l in lines
+        ],
+        "gi_coverage": {
+            str(k): str(v)
+            for k, v in gi_coverage(session, user.tenant_id, po.id).items()
+        },
+    }
 
 
 @router.get("/{gi_id}")

@@ -411,3 +411,73 @@ def test_quotation_lines_cannot_reference_foreign_demand_lines(client: TestClien
         "lines": [{"demand_line_id": d_b["lines"][0]["id"], "rate": 5, "qty": 1}],
     })
     assert r.status_code == 400
+
+
+def test_gate_only_user_can_resolve_pos_via_gate_endpoints(client: TestClient):
+    """#137 carry-in: a gate-only user (purchase.gate granted, purchase_orders
+    'none') must still be able to drive the Gate Inward screens: list open POs
+    and read a PO's lines (descriptions + quantities). The gate-scoped PO views
+    never expose pricing — gate work is quantity-only."""
+    auth = _signup(client, "gonly1@t.com")
+    po = _approved_po(client, auth)
+
+    client.patch("/api/settings", headers=auth, json={"user_rights_enabled": "true"})
+    client.post("/api/users", headers=auth, json={
+        "email": "gateman@t.com", "password": "password123",
+        "full_name": "Gate Man", "role": "accountant",
+    })
+    users = client.get("/api/users", headers=auth).json()["items"]
+    uid = next(u["id"] for u in users if u["email"] == "gateman@t.com")
+    r = client.put(f"/api/permissions/users/{uid}", headers=auth, json=[
+        {"resource_key": "purchase.gate", "access_level": "edit"},
+        {"resource_key": "purchase_orders", "access_level": "none"},
+    ])
+    assert r.status_code == 200, r.text
+
+    r = client.post("/api/auth/login",
+                    data={"username": "gateman@t.com", "password": "password123"})
+    gate = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # sanity: the full PO API is off-limits
+    assert client.get("/api/purchase-orders", headers=gate).status_code == 403
+    assert client.get(f"/api/purchase-orders/{po['id']}", headers=gate).status_code == 403
+
+    # gate-scoped open-PO list: approved/received POs, no totals
+    r = client.get("/api/gate-inwards/pos", headers=gate)
+    assert r.status_code == 200, r.text
+    items = r.json()
+    assert any(p["id"] == po["id"] for p in items)
+    for p in items:
+        assert "total" not in p and "subtotal" not in p
+
+    # gate-scoped PO detail: lines with description/qty/coverage, no rates
+    r = client.get(f"/api/gate-inwards/pos/{po['id']}", headers=gate)
+    assert r.status_code == 200, r.text
+    detail = r.json()
+    assert detail["number"] == po["number"]
+    assert {l["description"] for l in detail["lines"]} == {"Steel rods 12mm", "Binding wire"}
+    assert "gi_coverage" in detail
+    for l in detail["lines"]:
+        assert "rate" not in l and "amount" not in l
+
+    # and the gate man can actually create the GI end-to-end
+    r = client.post("/api/gate-inwards", headers=gate, json={
+        "po_id": po["id"], "gate_date": "2026-07-05",
+        "lines": [{"po_line_id": detail["lines"][0]["id"], "qty_received": 5}],
+    })
+    assert r.status_code == 201, r.text
+
+    # GI serializer carries the PO line description/unit so the detail page
+    # needs no purchase_orders access either
+    gi = client.get(f"/api/gate-inwards/{r.json()['id']}", headers=gate).json()
+    assert gi["lines"][0]["description"] == "Steel rods 12mm"
+    assert "unit" in gi["lines"][0]
+
+
+def test_gate_pos_endpoint_tenant_scoped(client: TestClient):
+    """The gate-scoped PO detail must 404 on another tenant's PO."""
+    auth_a = _signup(client, "gposa@t.com")
+    auth_b = _signup(client, "gposb@t.com")
+    po_b = _approved_po(client, auth_b, lines=[{"description": "X", "qty": 1, "rate": 1}])
+    r = client.get(f"/api/gate-inwards/pos/{po_b['id']}", headers=auth_a)
+    assert r.status_code == 404
