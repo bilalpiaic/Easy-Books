@@ -10,6 +10,8 @@ export interface AppSettings {
   week_start_day: string
   currency: string
   email_notifications: string
+  // Days between automated overdue-invoice reminder emails (services/overdue.py)
+  overdue_reminder_interval_days: string
   invoice_prefix: string
   bill_prefix: string
   financial_statement_date: string
@@ -67,6 +69,7 @@ const defaults: AppSettings = {
   week_start_day: "Monday",
   currency: "PKR",
   email_notifications: "true",
+  overdue_reminder_interval_days: "7",
   invoice_prefix: "INV",
   bill_prefix: "BILL",
   financial_statement_date: "month_end",
