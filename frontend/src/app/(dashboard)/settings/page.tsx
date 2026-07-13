@@ -698,6 +698,22 @@ export default function SettingsPage() {
           </label>
         </div>
 
+        {form.email_notifications === "true" && (
+          <div className="mt-6 pt-6 border-t border-[var(--border)]">
+            <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">Overdue Reminder Interval</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                value={form.overdue_reminder_interval_days}
+                onChange={e => handleChange('overdue_reminder_interval_days', e.target.value)}
+                className="w-24 px-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-black"
+              />
+              <span className="text-sm text-[var(--text-muted)]">days between reminder emails per overdue customer</span>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-4 mt-4 border-t border-[var(--border)]">
           <div>
             <h3 className="font-semibold text-black">Block overselling (prevent negative stock on sales)</h3>

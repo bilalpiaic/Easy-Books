@@ -9,6 +9,8 @@ and `services/`. This file's only job is:
 
 Per-domain logic, DTOs, and helpers belong in their respective router module.
 """
+import asyncio
+import contextlib
 import os
 from contextlib import asynccontextmanager
 
@@ -34,6 +36,36 @@ from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 
 
+def _run_overdue_sweep_once() -> None:
+    """Sync, blocking — called via asyncio.to_thread so it never stalls the
+    event loop. Imports db lazily so it always sees the current db.engine
+    (tests monkeypatch it, though the scheduler never runs under TestClient
+    since lifespan only fires for `with TestClient(app) as c:` usage, which
+    no test in this repo uses)."""
+    import db as _db
+    from sqlmodel import Session as _Session
+    from services.overdue import send_overdue_reminders, sweep_overdue
+    with _Session(_db.engine) as session:
+        changed = sweep_overdue(session)
+        sent = send_overdue_reminders(session)
+        if changed or sent:
+            print(f"[overdue] swept {changed} invoice(s), sent {sent} reminder(s)", flush=True)
+
+
+async def _overdue_scheduler_loop() -> None:
+    """Runs once at startup, then every OVERDUE_SWEEP_INTERVAL_HOURS (default
+    24). Both steps are cross-tenant and idempotent per tick — see
+    services/overdue.py for the per-tenant reminder throttle."""
+    interval_seconds = float(os.environ.get("OVERDUE_SWEEP_INTERVAL_HOURS", "24")) * 3600
+    while True:
+        try:
+            await asyncio.to_thread(_run_overdue_sweep_once)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        await asyncio.sleep(interval_seconds)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # `lifespan` replaces the deprecated @app.on_event("startup") hook.
@@ -43,7 +75,17 @@ async def lifespan(_app: FastAPI):
     # schema changes are explicit and version-controlled.
     if os.environ.get("SCHEMA_BOOTSTRAP", "create_all") == "create_all":
         create_db_and_tables()
+
+    task = None
+    if os.environ.get("OVERDUE_SWEEP_ENABLED", "true").lower() != "false":
+        task = asyncio.create_task(_overdue_scheduler_loop())
+
     yield
+
+    if task:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 app = FastAPI(title="Easy-Books API", lifespan=lifespan)
