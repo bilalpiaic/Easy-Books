@@ -440,6 +440,16 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
         assistant_text_parts: list[str] = []
         try:
             for _ in range(MAX_STEPS):
+                # Claude Sonnet 5 runs adaptive thinking ON when `thinking` is
+                # omitted entirely (a silent change from claude-sonnet-4-6,
+                # which ran thinking-off by default) — and thinking output
+                # shares this call's fixed max_tokens budget with the reply
+                # text, so an unmodified call risks truncating the answer.
+                # Disable it explicitly to keep today's plain-text behavior;
+                # other providers don't accept the kwarg at all.
+                extra: dict = {}
+                if litellm_model.startswith("anthropic/"):
+                    extra["thinking"] = {"type": "disabled"}
                 response = await litellm.acompletion(
                     model=litellm_model,
                     api_key=api_key,
@@ -447,6 +457,7 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
                     messages=messages,
                     tools=OPENAI_TOOLS,
                     stream=True,
+                    **extra,
                 )
                 # Accumulate this round's text + tool calls from the chunk stream.
                 round_text_parts: list[str] = []

@@ -17,7 +17,8 @@ PROVIDERS: dict[str, dict] = {
         "label": "Anthropic (Claude)",
         "settings_key": "ai_api_key_anthropic",
         "env_fallback": "ANTHROPIC_API_KEY",
-        "models": ["claude-sonnet-4-6", "claude-haiku-4-5"],
+        # claude-sonnet-4-6 kept selectable for tenants already using it
+        "models": ["claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"],
     },
     "openai": {
         "label": "OpenAI (GPT)",
@@ -33,7 +34,7 @@ PROVIDERS: dict[str, dict] = {
     },
 }
 
-DEFAULT_MODEL = "anthropic/claude-sonnet-4-6"
+DEFAULT_MODEL = "anthropic/claude-sonnet-5"
 
 # Settings keys that must never leave the server unredacted.
 AI_SECRET_SETTINGS_KEYS = frozenset(
