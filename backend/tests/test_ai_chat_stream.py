@@ -186,3 +186,50 @@ def test_rate_limit_429(client: TestClient, monkeypatch):
             list(r.iter_lines())
     r = client.post("/api/ai/chat", headers=auth, json={"session_id": sid, "message": "hi"})
     assert r.status_code == 429
+
+
+def test_anthropic_default_model_and_thinking_disabled(client: TestClient, monkeypatch):
+    """Anthropic default bumped to Claude Sonnet 5 (#117 deferred follow-up).
+    Sonnet 5 runs adaptive thinking ON when the request omits `thinking` at
+    all — a silent behavior change from 4.6 — and thinking output shares the
+    same max_tokens ceiling as the reply text, so an unmodified call risks
+    the 2048-token budget being consumed by reasoning instead of the answer.
+    Explicitly disable thinking on anthropic calls to preserve today's
+    behavior; leave non-anthropic providers (no `thinking` support) alone."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    auth = _signup(client, "st6@t.com")
+    _install_ai(client, auth)
+    sid = _new_session(client, auth)
+
+    calls = []
+    async def fake_acompletion(**kwargs):
+        calls.append(kwargs)
+        return _stream_from([_Chunk(content="hi"), _Chunk(finish_reason="stop")])
+    monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
+
+    with client.stream("POST", "/api/ai/chat", headers=auth,
+                       json={"session_id": sid, "message": "hi"}) as r:
+        assert r.status_code == 200
+        list(r.iter_lines())
+
+    assert calls[0]["model"] == "anthropic/claude-sonnet-5"
+    assert calls[0]["thinking"] == {"type": "disabled"}
+
+
+def test_non_anthropic_call_has_no_thinking_kwarg(client: TestClient, monkeypatch):
+    """openai/gemini reject an unknown `thinking` kwarg — must not be sent."""
+    auth, sid = _setup(client, "st7@t.com", monkeypatch)
+
+    calls = []
+    async def fake_acompletion(**kwargs):
+        calls.append(kwargs)
+        return _stream_from([_Chunk(content="hi"), _Chunk(finish_reason="stop")])
+    monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
+
+    with client.stream("POST", "/api/ai/chat", headers=auth,
+                       json={"session_id": sid, "message": "hi"}) as r:
+        assert r.status_code == 200
+        list(r.iter_lines())
+
+    assert calls[0]["model"] == "openai/gpt-4o-mini"
+    assert "thinking" not in calls[0]
