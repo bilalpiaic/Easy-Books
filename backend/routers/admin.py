@@ -38,11 +38,24 @@ def purge_demo(session: SessionDep, user: AdminUserDep):
     the seeder's DEMO_TENANTS so seed and purge can never drift apart.
     """
     from scripts.seed_demo import DEMO_TENANTS  # lazy: avoids import cycle
+    from models import ComparativeStatement
+    from models_healthcare import HcBed
+
     demo_emails = [email for email, _, _ in DEMO_TENANTS]
     demo_users = session.exec(select(User).where(User.email.in_(demo_emails))).all()
     tenant_ids = sorted({u.tenant_id for u in demo_users})
     removed = 0
     for tid in tenant_ids:
+        # Null the FK-cycle back-pointers (excluded from sorted_tables via
+        # use_alter) so the referenced rows can be deleted first under
+        # Postgres FK enforcement.
+        for table, col in (
+            (ComparativeStatement.__table__, "po_id"),
+            (HcBed.__table__, "current_admission_id"),
+        ):
+            session.execute(
+                table.update().where(table.c.tenant_id == tid).values(**{col: None})
+            )
         # Delete all tenant-scoped child rows in reverse FK order.
         for table in reversed(SQLModel.metadata.sorted_tables):
             if "tenant_id" in table.c:

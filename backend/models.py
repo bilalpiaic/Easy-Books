@@ -14,7 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import CheckConstraint, Column, Index, JSON, Numeric
+from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, Integer, JSON, Numeric
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from services.money import Money, ZERO
@@ -1024,7 +1024,12 @@ class ComparativeStatement(SQLModel, table=True):
     created_by_id: int = Field(foreign_key="user.id")
     approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
     approved_at: Optional[datetime] = None
-    po_id: Optional[int] = Field(default=None, foreign_key="purchaseorder.id")
+    # use_alter breaks the CS<->PO FK cycle in metadata.sorted_tables; the
+    # demo purge nulls this column before bulk deletes (routers/admin.py).
+    po_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column("po_id", Integer, ForeignKey("purchaseorder.id", use_alter=True)),
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
