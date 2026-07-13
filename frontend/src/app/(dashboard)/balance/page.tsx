@@ -45,7 +45,14 @@ function TreeSection({
   return (
     <section className="space-y-2">
       <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/75 border-b border-[var(--text-primary)]/5 pb-2">{title}</h3>
+      <div className="overflow-x-auto table-freeze">
       <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/50">
+            <th className="py-2 pr-3 text-left font-bold">Account</th>
+            <th className="py-2 px-3 text-right font-bold">Balance</th>
+          </tr>
+        </thead>
         <tbody className="divide-y divide-[var(--text-primary)]/5">
           <AccountTreeRows
             nodes={nodes}
@@ -58,6 +65,7 @@ function TreeSection({
           />
         </tbody>
       </table>
+      </div>
       <div className="flex justify-between pt-4 border-t border-[var(--text-primary)]/5 font-bold">
         <span className="text-[var(--text-primary)]">{totalLabel}</span>
         <span className="font-mono w-36 text-right underline decoration-double underline-offset-4">{fmt(total)}</span>

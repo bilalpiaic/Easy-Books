@@ -271,8 +271,14 @@ export default function PnLPage() {
               ) : treeRevenue.length === 0 ? (
                 <div className="text-sm text-[var(--text-primary)]/75 italic">No revenue in selected period.</div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto table-freeze">
                 <table className="w-full text-left border-collapse min-w-[320px]">
+                  <thead>
+                    <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/50">
+                      <th className="py-2 pr-3 text-left font-bold">Account</th>
+                      <th className="py-2 px-3 text-right font-bold">Amount</th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-[var(--text-primary)]/5">
                     <AccountTreeRows
                       nodes={treeRevenue}
@@ -300,8 +306,14 @@ export default function PnLPage() {
               ) : treeExpenses.length === 0 ? (
                 <div className="text-sm text-[var(--text-primary)]/75 italic">No expenses in selected period.</div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto table-freeze">
                 <table className="w-full text-left border-collapse min-w-[320px]">
+                  <thead>
+                    <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/50">
+                      <th className="py-2 pr-3 text-left font-bold">Account</th>
+                      <th className="py-2 px-3 text-right font-bold">Amount</th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-[var(--text-primary)]/5">
                     <AccountTreeRows
                       nodes={treeExpenses}
