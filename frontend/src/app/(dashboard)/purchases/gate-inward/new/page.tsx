@@ -47,18 +47,16 @@ function NewGateInwardInner() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      apiFetch<{ items: PO[] }>("/api/purchase-orders?status=approved&limit=200"),
-      apiFetch<{ items: PO[] }>("/api/purchase-orders?status=received&limit=200"),
-    ])
-      .then(([a, r]) => setPos([...a.items, ...r.items]))
+    // Gate-scoped PO views (no purchase_orders rights needed, no pricing)
+    apiFetch<PO[]>("/api/gate-inwards/pos")
+      .then(setPos)
       .catch(() => setPos([]))
   }, [])
 
   useEffect(() => {
     if (!poId) { setLines([]); return }
     setLoadingPo(true)
-    apiFetch<PODetail>(`/api/purchase-orders/${poId}`)
+    apiFetch<PODetail>(`/api/gate-inwards/pos/${poId}`)
       .then(d => {
         setLines(d.lines.map(l => {
           const received = parseFloat(d.gi_coverage?.[String(l.id)] ?? "0")

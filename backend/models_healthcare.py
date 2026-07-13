@@ -104,8 +104,15 @@ class HcBed(SQLModel, table=True):
     ward_id: int = Field(foreign_key="hc_ward.id", index=True)
     bed_number: str
     status: str = Field(default="available")    # available|occupied|maintenance
-    # Nullable FK — set when bed is occupied by an admission
-    current_admission_id: Optional[int] = Field(default=None, foreign_key="hc_admission.id")
+    # Nullable FK — set when bed is occupied by an admission. use_alter breaks
+    # the HcBed<->HcAdmission FK cycle in metadata.sorted_tables; the demo
+    # purge nulls this column before bulk deletes (routers/admin.py).
+    current_admission_id: Optional[int] = Field(
+        default=None,
+        sa_column=sa.Column(
+            "current_admission_id", sa.Integer, sa.ForeignKey("hc_admission.id", use_alter=True)
+        ),
+    )
     is_active: bool = Field(default=True)
 
 
