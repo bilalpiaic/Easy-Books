@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
+import DateRangePicker from "@/components/DateRangePicker"
 import { Tile, Section, PageHeader, ErrorBanner, money } from "@/components/telecom/primitives"
 import { useTranslation } from "react-i18next"
 
@@ -163,16 +164,7 @@ export default function TelecomDashboardPage() {
 
       <Section title="Stock & Issuance (per RSO)">
         <div className="flex flex-wrap items-end gap-3 mb-3">
-          <label className="text-xs text-[var(--text-primary)]/60">
-            From
-            <input type="date" value={siStart} onChange={e => setSiStart(e.target.value)}
-              className="block mt-1 px-2 py-1 border border-[var(--border)] rounded-lg text-sm" />
-          </label>
-          <label className="text-xs text-[var(--text-primary)]/60">
-            To
-            <input type="date" value={siEnd} onChange={e => setSiEnd(e.target.value)}
-              className="block mt-1 px-2 py-1 border border-[var(--border)] rounded-lg text-sm" />
-          </label>
+          <DateRangePicker start={siStart} end={siEnd} onStartChange={setSiStart} onEndChange={setSiEnd} />
           {(siStart || siEnd) && (
             <button onClick={() => { setSiStart(""); setSiEnd("") }}
               className="text-xs text-[var(--primary)] hover:underline">Clear</button>

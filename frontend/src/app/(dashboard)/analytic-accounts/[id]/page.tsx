@@ -7,6 +7,7 @@ import { ChevronLeft, TrendingUp, TrendingDown, Minus, Download } from 'lucide-r
 import { apiFetch } from '@/lib/api'
 import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
+import DateRangePicker from '@/components/DateRangePicker'
 import { useTranslation } from "react-i18next"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -160,24 +161,7 @@ export default function AnalyticPlPage() {
 
       {/* Date range */}
       <div className="flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">From</label>
-          <input
-            type="date"
-            value={start}
-            onChange={e => setStart(e.target.value)}
-            className="ui-field bg-[var(--bg-page)] rounded-xl text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">To</label>
-          <input
-            type="date"
-            value={end}
-            onChange={e => setEnd(e.target.value)}
-            className="ui-field bg-[var(--bg-page)] rounded-xl text-sm"
-          />
-        </div>
+        <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
         <button
           onClick={() => downloadCSV(`analytic-pl-${account?.code ?? id}.csv`, rows.map(r => ({ Type: r.type, Account: r.name, Code: r.code, Net: rowNet(r) })))}
           disabled={rows.length === 0}

@@ -1977,6 +1977,17 @@ Commit range `e6e947a..1e7106a` (merged to `main`).
 
 **Demo data (v3.5):** `_seed_purchase_store_chain` in `scripts/seed_demo.py` (`e57acf3`) — every Phase 1/2/2b screen and report was empty in the demo tenant until this; now exercises every document status (6 demands, 3 comparatives, 4 POs across partial/full/short-received and billed/unbilled, Gate Inward including a cancel-and-re-enter, Gate Outward across all three source types including an approved scrap entry with real GL).
 
+### Sprint 26 Shipped ✅ (Report Period Presets — #141)
+
+Branch `feat/report-period-presets`.
+
+| Feature | Notes |
+|---------|-------|
+| **`week_start_day` setting** | Backend KV setting (default `monday`) + Settings page dropdown; drives the week-based presets (`00c5814`) |
+| **`datePresets.ts` resolver** | 26 QuickBooks-style presets (Today → Last Fiscal Quarter), pure functions `resolvePreset`/`matchPreset` parameterized by `{today, fiscalStartMonth, weekStartDay}`; first vitest suite in the repo (18 tests) (`1de63b2`) |
+| **`DateRangePicker` preset dropdown** | Preset select ahead of From/To with unchanged prop contract — all 14 existing consumers gained presets with zero edits; preset fills + disables the inputs, "Custom" re-enables; `matchPreset` re-selects the preset when a range is restored from URL params (`eb82750`) |
+| **Report page sweep** | Hand-rolled `<input type="date">` from/to pairs replaced with the shared component across core/AR/AP (statements, audit, analytic P&L, attendance report, telecom tracker — `854c146`) and purchases/store/healthcare registers (`179f495`) |
+
 ### Still Pending
 
 **Manufacturing track (V2 follow-ups)**

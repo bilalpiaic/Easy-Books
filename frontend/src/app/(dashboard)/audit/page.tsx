@@ -7,6 +7,7 @@ import DocLink, { DocKind } from "@/components/DocLink"
 import Pagination from "@/components/Pagination"
 import SkeletonRow from "@/components/SkeletonRow"
 import PrintHeader from "@/components/PrintHeader"
+import DateRangePicker from "@/components/DateRangePicker"
 import { useTranslation } from "react-i18next"
 
 interface AuditEntry {
@@ -180,10 +181,7 @@ export default function AuditLogPage() {
             className="w-full pl-10 pr-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
           />
         </div>
-        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" title="From" />
-        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" title="To" />
+        <DateRangePicker start={dateFrom} end={dateTo} onStartChange={setDateFrom} onEndChange={setDateTo} label="Dates" />
       </div>
 
       {/* View tabs */}

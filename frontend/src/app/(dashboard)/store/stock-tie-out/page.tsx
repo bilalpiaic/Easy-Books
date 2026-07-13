@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { CheckCheck } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import DateRangePicker from "@/components/DateRangePicker"
 import { useFmt } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 
@@ -79,23 +80,8 @@ export default function StockTieOutPage() {
 
       {/* Filters */}
       <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">From</label>
-          <input
-            type="date"
-            value={start}
-            onChange={e => setStart(e.target.value)}
-            className="w-full border border-[var(--text-primary)]/10 rounded-lg px-3 py-2 text-sm bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">To</label>
-          <input
-            type="date"
-            value={end}
-            onChange={e => setEnd(e.target.value)}
-            className="w-full border border-[var(--text-primary)]/10 rounded-lg px-3 py-2 text-sm bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
-          />
+        <div className="md:col-span-2 flex items-end">
+          <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
         </div>
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Product</label>

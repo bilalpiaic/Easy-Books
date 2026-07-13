@@ -26,6 +26,8 @@ class SettingsUpdate(BaseModel):
     company_name: Optional[str] = None
     tax_id: Optional[str] = None
     fiscal_year_start: Optional[str] = None
+    # Report period presets (#141): first day of week for This/Last/Next Week
+    week_start_day: Optional[str] = None
     currency: Optional[str] = None
     email_notifications: Optional[str] = None
     invoice_prefix: Optional[str] = None
