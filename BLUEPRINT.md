@@ -2000,10 +2000,10 @@ Branch `feat/report-period-presets`.
 
 **Core platform**
 - **Multi-currency on payments** (currently invoice currency is snapshot at issue; payments assumed in base currency).
-- **Daily overdue sweep cron** (`Invoice.status = 'overdue'` is written on each list fetch but not via a scheduled task).
+- ~~**Daily overdue sweep cron**~~ — fixed 2026-07-14: `services/overdue.py` (`sweep_overdue` + `send_overdue_reminders`), wired into `main.py`'s FastAPI lifespan as a background asyncio task (fires on boot, then every `OVERDUE_SWEEP_INTERVAL_HOURS`, default 24; `OVERDUE_SWEEP_ENABLED=false` disables it). One email per customer with all their overdue invoices, throttled per tenant via the new `overdue_reminder_interval_days` setting (default 7 days) against an internal `overdue_last_reminder_date` KV marker.
 - **E2E tests** (Playwright) — login, signup wizard, full PO lifecycle in the UI.
 - ~~**Payroll module** (IAS 19)~~ — shipped (routers/payroll.py + attendance: employees, salary components, runs with GL posting `Dr Salary Expense / Cr Salaries Payable`, payslips). This line had gone stale — the module predates this edit.
-- **Overdue email reminders** — `services/email.py` exists; automated aging reminders not yet wired.
+- ~~**Overdue email reminders**~~ — fixed alongside the sweep cron above (same PR).
 - ~~**`ComparativeStatement`↔`PurchaseOrder` FK cycle**~~ — fixed 2026-07-14 (with a second, previously undocumented `HcBed`↔`HcAdmission` cycle): the nullable back-pointers (`po_id`, `current_admission_id`) now declare `use_alter=True` so `sorted_tables` is deterministic and warning-free, and the demo purge nulls them per tenant before its reverse-order deletes (Postgres-safe).
 
 **Purchase/Store follow-ups (#137 carry-ins)**

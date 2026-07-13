@@ -153,6 +153,7 @@ cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 - `week_start_day` — first day of the week (`monday` default) used by the report period presets ("This Week", "Last Week", etc.); set on Settings alongside `fiscal_year_start`, which drives the fiscal-year/quarter presets
 - `invoice_prefix`, `bill_prefix` — document numbering
 - `tax_id`, `email_notifications` — compliance and notifications
+- `overdue_reminder_interval_days` (default `7`) — only takes effect when `email_notifications="true"`; throttles `services/overdue.py`'s daily aging-reminder email per tenant (one email per customer listing all their overdue invoices). The overdue status sweep itself (`Invoice.status → "overdue"`) and the reminder send both run from a background asyncio task wired into `main.py`'s FastAPI lifespan — fires once on boot, then every `OVERDUE_SWEEP_INTERVAL_HOURS` (env var, default 24); set `OVERDUE_SWEEP_ENABLED=false` to disable entirely (e.g. in tests, though the scheduler never runs under `TestClient` since no test invokes it as a context manager).
 - `block_negative_stock` — when `true`, `consume_stock(block_negative=True)` raises HTTP 400 if a sale would drive `stock_qty` below 0 (default `false`; purchases are never blocked). `consume_stock` also accepts an optional `source_doc_type` override (default `"invoice"`) so non-sale consumers — Gate Outward's scrap approval — tag their own `StockMovement` rows correctly instead of being mislabeled as invoices.
 - `require_purchase_chain` — when not `"false"` (default on), `POST /api/purchase-orders` rejects a bare PO once `purchase_store` is installed, unless it carries a `comparative_id` referencing an approved/converted `ComparativeStatement`; toggle only visible on the Settings page when `purchase_store` is installed
 - `require_gate_inward` — when not `"false"` (default on), `convert-to-bill` requires full GI coverage once `purchase_store` is installed
@@ -266,6 +267,8 @@ SEED_ADMIN_EMAIL=
 SEED_ADMIN_PASSWORD=
 SEED_COMPANY_NAME=
 ANTHROPIC_API_KEY=         # AI Financial Assistant (#117): dev/demo fallback for the anthropic provider ONLY, used when a tenant has no key of its own in Settings → AI. Per-tenant keys (any of anthropic/openai/gemini) set via the UI take priority; endpoint returns 503 only when no provider is configured at all (neither this env var nor any tenant key).
+OVERDUE_SWEEP_ENABLED=     # default true; set "false" to disable the background overdue-invoice sweep + reminder scheduler (services/overdue.py, wired in main.py's lifespan)
+OVERDUE_SWEEP_INTERVAL_HOURS=  # default 24; how often the scheduler tick runs (it also fires once immediately on boot)
 ```
 
 **Frontend** (`frontend/.env.local`):
