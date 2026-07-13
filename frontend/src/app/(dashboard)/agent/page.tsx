@@ -77,6 +77,15 @@ export default function AgentPage() {
     }
   }, [])
 
+  const refreshSessions = useCallback(async () => {
+    try {
+      const rows = await apiFetch<SessionSummary[]>("/api/ai/sessions")
+      setSessions(rows)
+    } catch {
+      // Non-critical — the sidebar just keeps its current (stale) title/order.
+    }
+  }, [])
+
   const newChat = useCallback(async () => {
     if (creating) return
     setCreating(true)
@@ -282,7 +291,13 @@ export default function AgentPage() {
 
       {/* Chat thread */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--text-primary)]/10 bg-white">
-        <ChatCore key={selectedId} sessionId={selectedId} models={models} className="min-h-0" />
+        <ChatCore
+          key={selectedId}
+          sessionId={selectedId}
+          models={models}
+          className="min-h-0"
+          onFirstMessageSent={refreshSessions}
+        />
       </div>
     </div>
   )

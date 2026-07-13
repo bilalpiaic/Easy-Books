@@ -27,6 +27,10 @@ interface ChatCoreProps {
   sessionId: number
   models: ModelsPayload
   className?: string
+  /** Fired once, after the session's first message completes — the backend
+   * auto-titles the session from that message, so callers with a visible
+   * session list (the /agent sidebar) should refetch it here. */
+  onFirstMessageSent?: () => void
 }
 
 const QUICK_PROMPTS = [
@@ -36,7 +40,7 @@ const QUICK_PROMPTS = [
   "What's my cash balance?",
 ]
 
-export default function ChatCore({ sessionId, models, className }: ChatCoreProps) {
+export default function ChatCore({ sessionId, models, className, onFirstMessageSent }: ChatCoreProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [input, setInput] = useState("")
@@ -94,6 +98,16 @@ export default function ChatCore({ sessionId, models, className }: ChatCoreProps
     }
   }, [messages, streamingText, toolLabel, loadingHistory])
 
+  // Auto-grow the composer up to max-h-24 (the Tailwind class caps the pixel
+  // height we set here and overflow-y-auto takes over beyond it) — rows={1}
+  // alone never grows past one line.
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${el.scrollHeight}px`
+  }, [input])
+
   const handleStreamError = (detail: string) => {
     if (!mountedRef.current) return
     // Commit whatever text streamed in before the failure, if any, so it isn't lost.
@@ -113,6 +127,7 @@ export default function ChatCore({ sessionId, models, className }: ChatCoreProps
   const send = async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed || sending) return
+    const isFirstMessage = messages.length === 0
     setInput("")
     setError(null)
     setMessages(prev => [...prev, { role: "user", content: trimmed }])
@@ -147,6 +162,10 @@ export default function ChatCore({ sessionId, models, className }: ChatCoreProps
             setStreamingText(null)
             setToolLabel(null)
             setSending(false)
+            // The backend auto-titles the session from this message once it
+            // was still "New chat" — let a listing parent (e.g. /agent's
+            // sidebar) know so the displayed title doesn't stay stale.
+            if (isFirstMessage) onFirstMessageSent?.()
           },
           onError: handleStreamError,
         },
