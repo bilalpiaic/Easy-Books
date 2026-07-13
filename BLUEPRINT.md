@@ -2002,14 +2002,14 @@ Branch `feat/report-period-presets`.
 - **Multi-currency on payments** (currently invoice currency is snapshot at issue; payments assumed in base currency).
 - **Daily overdue sweep cron** (`Invoice.status = 'overdue'` is written on each list fetch but not via a scheduled task).
 - **E2E tests** (Playwright) — login, signup wizard, full PO lifecycle in the UI.
-- **Payroll module** (IAS 19) — currently manual JV only.
+- ~~**Payroll module** (IAS 19)~~ — shipped (routers/payroll.py + attendance: employees, salary components, runs with GL posting `Dr Salary Expense / Cr Salaries Payable`, payslips). This line had gone stale — the module predates this edit.
 - **Overdue email reminders** — `services/email.py` exists; automated aging reminders not yet wired.
-- **`ComparativeStatement`↔`PurchaseOrder` FK cycle** (`comparative.po_id` and `purchase_order.comparative_id` are mutual FKs, from #137 Phase 1) — triggers a `SAWarning` on `SQLModel.metadata.sorted_tables` in the demo-purge endpoint; harmless today (purge still succeeds) but worth an explicit delete-order fix before Postgres's stricter FK enforcement makes it a hard error.
+- ~~**`ComparativeStatement`↔`PurchaseOrder` FK cycle**~~ — fixed 2026-07-14 (with a second, previously undocumented `HcBed`↔`HcAdmission` cycle): the nullable back-pointers (`po_id`, `current_admission_id`) now declare `use_alter=True` so `sorted_tables` is deterministic and warning-free, and the demo purge nulls them per tenant before its reverse-order deletes (Postgres-safe).
 
 **Purchase/Store follow-ups (#137 carry-ins)**
 - ~~Concurrency: `FOR UPDATE` row lock on Gate Inward create/cancel and PO convert-to-bill~~ — fixed 2026-07-12 (`fix/purchase-store-debt`): all three sites now use the same `with_for_update()` idiom as Gate Outward's scrap approve.
 - Report pagination + SQL-side search on Gate Register / 3-Way Match / Gate Outward Register / Dispatch Reconciliation (currently unpaginated, Python-side substring search).
-- `purchase.gate` + `purchase_orders` permission coupling — a gate-only user can't resolve PO line descriptions on the Gate Inward pages without also holding `purchase_orders` view rights.
+- ~~`purchase.gate` + `purchase_orders` permission coupling~~ — fixed 2026-07-14: gate-scoped PO views `GET /api/gate-inwards/pos` + `/pos/{id}` (gated by `purchase.gate`, deliberately price-free — gate work is quantity-only) and the GI serializer now carries line description/unit; the Gate Inward pages no longer call the PO API at all.
 - ~~Phase 3 (Store Issue + GL posting + `/purchases` hub page) and Phase 4 (vendor performance analysis, seeder, docs)~~ — shipped in PR #145 (2026-07-11); issue #137 closed.
 
 **Stock Tie-out follow-ups (#145 final review)**
