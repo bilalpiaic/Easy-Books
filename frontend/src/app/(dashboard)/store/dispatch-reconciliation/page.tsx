@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CheckCheck } from "lucide-react"
+import { CheckCheck, Search } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import Pagination from "@/components/Pagination"
 import DateRangePicker from "@/components/DateRangePicker"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
@@ -21,6 +22,8 @@ const TYPE_LABEL: Record<string, string> = {
   debit_note: "Debit Note",
 }
 
+const PAGE_SIZE = 50
+
 function defaultRange() {
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
@@ -35,7 +38,10 @@ export default function DispatchReconciliationPage() {
 
   const [start, setStart] = useState(range.start)
   const [end, setEnd] = useState(range.end)
+  const [q, setQ] = useState("")
   const [rows, setRows] = useState<DispatchReconciliationRow[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -43,10 +49,15 @@ export default function DispatchReconciliationPage() {
     const params = new URLSearchParams()
     if (start) params.set("start", start)
     if (end) params.set("end", end)
-    apiFetch<DispatchReconciliationRow[]>(`/api/store-reports/dispatch-reconciliation?${params.toString()}`)
-      .then(d => { setRows(d); setIsLoading(false) })
-      .catch(() => { setRows([]); setIsLoading(false) })
-  }, [start, end])
+    if (q) params.set("q", q)
+    params.set("skip", String((page - 1) * PAGE_SIZE))
+    params.set("limit", String(PAGE_SIZE))
+    apiFetch<{ total: number; items: DispatchReconciliationRow[] }>(`/api/store-reports/dispatch-reconciliation?${params.toString()}`)
+      .then(d => { setRows(d.items); setTotal(d.total); setIsLoading(false) })
+      .catch(() => { setRows([]); setTotal(0); setIsLoading(false) })
+  }, [start, end, q, page])
+
+  useEffect(() => { setPage(1) }, [start, end, q])
 
   const printSubtitle = `Period: ${start} – ${end}`
   const missingCount = (rows ?? []).filter(r => !r.has_gate_exit).length
@@ -60,7 +71,7 @@ export default function DispatchReconciliationPage() {
           <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Dispatch Reconciliation</h1>
           <p className="text-[var(--text-primary)]/60">
             Invoices and debit notes matched against recorded gate exits
-            {rows ? ` — ${missingCount} without a gate exit` : ""}
+            {rows ? ` — ${missingCount} without a gate exit${total > PAGE_SIZE ? " on this page" : ""}` : ""}
           </p>
         </div>
         <CheckCheck className="w-7 h-7 text-[var(--primary)] hidden md:block" />
@@ -70,6 +81,19 @@ export default function DispatchReconciliationPage() {
       <div className="mb-6 p-4 bg-white border border-[var(--border)] rounded-xl grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
         <div className="md:col-span-2 flex items-end">
           <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} />
+        </div>
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Search Doc # / Party</label>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-primary)]/40" />
+            <input
+              type="text"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="e.g. INV-2026 or Walk-in"
+              className="w-full border border-[var(--text-primary)]/10 rounded-lg pl-9 pr-3 py-2 text-sm bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
+            />
+          </div>
         </div>
       </div>
 
@@ -114,6 +138,7 @@ export default function DispatchReconciliationPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
       </div>
     </div>
   )

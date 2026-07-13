@@ -284,13 +284,13 @@ def test_issue_register_filters(client: TestClient):
         "debit_account_id": acct_id, "notes": "monthly maintenance draw",
         "lines": [{"product_id": pid, "qty": 3}],
     })
-    rows = client.get("/api/store-reports/issue-register", headers=auth).json()
+    rows = client.get("/api/store-reports/issue-register", headers=auth).json()["items"]
     assert len(rows) == 1
     assert Decimal(str(rows[0]["total_cost"])) == Decimal("15")  # 3 * 5
 
-    rows = client.get("/api/store-reports/issue-register?q=maintenance", headers=auth).json()
+    rows = client.get("/api/store-reports/issue-register?q=maintenance", headers=auth).json()["items"]
     assert len(rows) == 1
-    rows = client.get("/api/store-reports/issue-register?q=NOPE", headers=auth).json()
+    rows = client.get("/api/store-reports/issue-register?q=NOPE", headers=auth).json()["items"]
     assert rows == []
 
 

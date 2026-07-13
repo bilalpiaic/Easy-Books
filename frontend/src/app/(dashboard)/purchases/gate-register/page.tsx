@@ -9,6 +9,9 @@ import { useFmt } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import StatusBadge from "@/components/StatusBadge"
+import Pagination from "@/components/Pagination"
+
+const PAGE_SIZE = 50
 
 interface GateRegisterRow {
   id: number
@@ -43,7 +46,11 @@ export default function GateRegisterPage() {
   const [end, setEnd] = useState(range.end)
   const [q, setQ] = useState("")
   const [rows, setRows] = useState<GateRegisterRow[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => { setPage(1) }, [start, end, q])
 
   useEffect(() => {
     setIsLoading(true)
@@ -51,10 +58,12 @@ export default function GateRegisterPage() {
     if (start) params.set("start", start)
     if (end) params.set("end", end)
     if (q) params.set("q", q)
-    apiFetch<GateRegisterRow[]>(`/api/purchase-reports/gate-register?${params.toString()}`)
-      .then(d => { setRows(d); setIsLoading(false) })
-      .catch(() => { setRows([]); setIsLoading(false) })
-  }, [start, end, q])
+    params.set("skip", String((page - 1) * PAGE_SIZE))
+    params.set("limit", String(PAGE_SIZE))
+    apiFetch<{ total: number; items: GateRegisterRow[] }>(`/api/purchase-reports/gate-register?${params.toString()}`)
+      .then(d => { setRows(d.items); setTotal(d.total); setIsLoading(false) })
+      .catch(() => { setRows([]); setTotal(0); setIsLoading(false) })
+  }, [start, end, q, page])
 
   const printSubtitle = `Period: ${start} – ${end}${q ? `  |  Search: ${q}` : ""}`
 
@@ -144,6 +153,7 @@ export default function GateRegisterPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
       </div>
     </div>
   )

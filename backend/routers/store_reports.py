@@ -4,6 +4,7 @@ Sales/Purchases/Inventory, not purely the purchase chain."""
 from typing import Optional
 
 from fastapi import APIRouter
+from sqlalchemy import func, literal, or_, union_all
 from sqlmodel import select
 
 from models import (Account, AnalyticAccount, DebitNote, GateOutward,
@@ -21,6 +22,7 @@ def gate_outward_register(
     session: SessionDep, user: WriteUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
     q: Optional[str] = None, source_doc_type: Optional[str] = None,
+    skip: int = 0, limit: int = 50,
 ):
     query = select(GateOutward).where(GateOutward.tenant_id == user.tenant_id)
     if start:
@@ -29,16 +31,19 @@ def gate_outward_register(
         query = query.where(GateOutward.gate_date <= end)
     if source_doc_type:
         query = query.where(GateOutward.source_doc_type == source_doc_type)
+    if q:
+        like = f"%{q}%"
+        query = query.where(or_(
+            GateOutward.vehicle_no.ilike(like), GateOutward.challan_no.ilike(like),
+        ))
     query = apply_own_filter(query, GateOutward, user, session)
-    gos = session.exec(query.order_by(GateOutward.id.desc())).all()
+    total = session.exec(select(func.count()).select_from(query.subquery())).one()
+    gos = session.exec(
+        query.order_by(GateOutward.id.desc()).offset(skip).limit(limit)
+    ).all()
 
     out = []
     for go in gos:
-        if q:
-            needle = q.lower()
-            hay = f"{go.vehicle_no or ''} {go.challan_no or ''}".lower()
-            if needle not in hay:
-                continue
         lines = session.exec(
             select(GateOutwardLine).where(GateOutwardLine.gate_outward_id == go.id)
         ).all()
@@ -54,57 +59,77 @@ def gate_outward_register(
         row["item_count"] = len(lines)
         row["total_qty"] = sum(D(l.qty) for l in lines)
         out.append(row)
-    return out
+    return {"total": total, "items": out}
 
 
 @router.get("/dispatch-reconciliation", dependencies=[perm_dep("store.gate_outward")])
 def dispatch_reconciliation(
     session: SessionDep, user: WriteUserDep,
-    start: Optional[str] = None, end: Optional[str] = None,
+    start: Optional[str] = None, end: Optional[str] = None, q: Optional[str] = None,
+    skip: int = 0, limit: int = 50,
 ):
+    """Invoices and debit notes are one SQL UNION so search, ordering
+    (newest first) and pagination all happen database-side across both."""
+    inv_sel = select(
+        Invoice.id.label("doc_id"),
+        literal("invoice").label("doc_type"),
+        Invoice.number.label("doc_number"),
+        Invoice.customer_name.label("party"),
+        Invoice.issue_date.label("doc_date"),
+    ).where(Invoice.tenant_id == user.tenant_id, Invoice.status != "void")
+    dn_sel = select(
+        DebitNote.id.label("doc_id"),
+        literal("debit_note").label("doc_type"),
+        DebitNote.number.label("doc_number"),
+        DebitNote.vendor_name.label("party"),
+        DebitNote.issue_date.label("doc_date"),
+    ).where(DebitNote.tenant_id == user.tenant_id, DebitNote.status != "draft")
+    if start:
+        inv_sel = inv_sel.where(Invoice.issue_date >= start)
+        dn_sel = dn_sel.where(DebitNote.issue_date >= start)
+    if end:
+        inv_sel = inv_sel.where(Invoice.issue_date <= end)
+        dn_sel = dn_sel.where(DebitNote.issue_date <= end)
+    if q:
+        like = f"%{q}%"
+        inv_sel = inv_sel.where(or_(
+            Invoice.number.ilike(like), Invoice.customer_name.ilike(like),
+        ))
+        dn_sel = dn_sel.where(or_(
+            DebitNote.number.ilike(like), DebitNote.vendor_name.ilike(like),
+        ))
+    union = union_all(inv_sel, dn_sel).subquery()
+
+    total = session.exec(select(func.count()).select_from(union)).one()
+    docs = session.execute(
+        select(union)
+        .order_by(union.c.doc_date.desc(), union.c.doc_number.desc())
+        .offset(skip).limit(limit)
+    ).mappings().all()
+
+    # Resolve gate exits for just this page's documents.
     exits_by_doc: dict[tuple[str, int], str] = {}
-    exits_query = select(GateOutward).where(
-        GateOutward.tenant_id == user.tenant_id,
-        GateOutward.status != "cancelled",
-        GateOutward.source_doc_type.in_(["invoice", "debit_note"]),
-    )
-    exits_query = apply_own_filter(exits_query, GateOutward, user, session)
-    for go in session.exec(exits_query).all():
-        exits_by_doc[(go.source_doc_type, go.source_doc_id)] = go.number
+    doc_ids = [d["doc_id"] for d in docs]
+    if doc_ids:
+        exits_query = select(GateOutward).where(
+            GateOutward.tenant_id == user.tenant_id,
+            GateOutward.status != "cancelled",
+            GateOutward.source_doc_type.in_(["invoice", "debit_note"]),
+            GateOutward.source_doc_id.in_(doc_ids),
+        )
+        exits_query = apply_own_filter(exits_query, GateOutward, user, session)
+        for go in session.exec(exits_query).all():
+            exits_by_doc[(go.source_doc_type, go.source_doc_id)] = go.number
 
-    out = []
-
-    inv_query = select(Invoice).where(
-        Invoice.tenant_id == user.tenant_id, Invoice.status != "void"
-    )
-    if start:
-        inv_query = inv_query.where(Invoice.issue_date >= start)
-    if end:
-        inv_query = inv_query.where(Invoice.issue_date <= end)
-    for inv in session.exec(inv_query).all():
-        go_number = exits_by_doc.get(("invoice", inv.id))
-        out.append({
-            "doc_type": "invoice", "doc_number": inv.number,
-            "party": inv.customer_name, "doc_date": inv.issue_date,
+    items = []
+    for d in docs:
+        go_number = exits_by_doc.get((d["doc_type"], d["doc_id"]))
+        items.append({
+            "doc_type": d["doc_type"], "doc_number": d["doc_number"],
+            "party": d["party"], "doc_date": d["doc_date"],
             "has_gate_exit": go_number is not None, "go_number": go_number,
         })
-
-    dn_query = select(DebitNote).where(
-        DebitNote.tenant_id == user.tenant_id, DebitNote.status != "draft"
-    )
-    if start:
-        dn_query = dn_query.where(DebitNote.issue_date >= start)
-    if end:
-        dn_query = dn_query.where(DebitNote.issue_date <= end)
-    for dn in session.exec(dn_query).all():
-        go_number = exits_by_doc.get(("debit_note", dn.id))
-        out.append({
-            "doc_type": "debit_note", "doc_number": dn.number,
-            "party": dn.vendor_name, "doc_date": dn.issue_date,
-            "has_gate_exit": go_number is not None, "go_number": go_number,
-        })
-
-    return out
+    return {"total": total, "items": items}
 
 
 @router.get("/issue-register", dependencies=[perm_dep("store.issue")])
@@ -112,6 +137,7 @@ def issue_register(
     session: SessionDep, user: WriteUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
     analytic_account_id: Optional[int] = None, q: Optional[str] = None,
+    skip: int = 0, limit: int = 50,
 ):
     query = select(StoreIssue).where(StoreIssue.tenant_id == user.tenant_id)
     if start:
@@ -120,16 +146,19 @@ def issue_register(
         query = query.where(StoreIssue.issue_date <= end)
     if analytic_account_id:
         query = query.where(StoreIssue.analytic_account_id == analytic_account_id)
+    if q:
+        like = f"%{q}%"
+        query = query.where(or_(
+            StoreIssue.number.ilike(like), StoreIssue.notes.ilike(like),
+        ))
     query = apply_own_filter(query, StoreIssue, user, session)
-    rows = session.exec(query.order_by(StoreIssue.id.desc())).all()
+    total = session.exec(select(func.count()).select_from(query.subquery())).one()
+    rows = session.exec(
+        query.order_by(StoreIssue.id.desc()).offset(skip).limit(limit)
+    ).all()
 
     out = []
     for si in rows:
-        if q:
-            needle = q.lower()
-            hay = f"{si.number} {si.notes or ''}".lower()
-            if needle not in hay:
-                continue
         lines = session.exec(
             select(StoreIssueLine).where(StoreIssueLine.store_issue_id == si.id)
         ).all()
@@ -144,7 +173,7 @@ def issue_register(
         row["item_count"] = len(lines)
         row["total_cost"] = sum(D(l.qty) * D(l.unit_cost) for l in lines)
         out.append(row)
-    return out
+    return {"total": total, "items": out}
 
 
 # Sign map: how each StockMovement.direction affects Product.stock_qty.

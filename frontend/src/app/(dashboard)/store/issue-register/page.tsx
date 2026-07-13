@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ScrollText, Search } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import Pagination from "@/components/Pagination"
 import DateRangePicker from "@/components/DateRangePicker"
 import { useFmt } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
@@ -27,6 +28,8 @@ interface IssueRegisterRow {
   total_cost: number | string
 }
 
+const PAGE_SIZE = 50
+
 function defaultRange() {
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
@@ -46,6 +49,8 @@ export default function IssueRegisterPage() {
   const [analyticAccountId, setAnalyticAccountId] = useState("")
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
   const [rows, setRows] = useState<IssueRegisterRow[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -61,10 +66,14 @@ export default function IssueRegisterPage() {
     if (end) params.set("end", end)
     if (q) params.set("q", q)
     if (analyticAccountId) params.set("analytic_account_id", analyticAccountId)
-    apiFetch<IssueRegisterRow[]>(`/api/store-reports/issue-register?${params.toString()}`)
-      .then(d => { setRows(d); setIsLoading(false) })
-      .catch(() => { setRows([]); setIsLoading(false) })
-  }, [start, end, q, analyticAccountId])
+    params.set("skip", String((page - 1) * PAGE_SIZE))
+    params.set("limit", String(PAGE_SIZE))
+    apiFetch<{ total: number; items: IssueRegisterRow[] }>(`/api/store-reports/issue-register?${params.toString()}`)
+      .then(d => { setRows(d.items); setTotal(d.total); setIsLoading(false) })
+      .catch(() => { setRows([]); setTotal(0); setIsLoading(false) })
+  }, [start, end, q, analyticAccountId, page])
+
+  useEffect(() => { setPage(1) }, [start, end, q, analyticAccountId])
 
   const printSubtitle = `Period: ${start} – ${end}${q ? `  |  Search: ${q}` : ""}`
 
@@ -159,6 +168,7 @@ export default function IssueRegisterPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
       </div>
     </div>
   )

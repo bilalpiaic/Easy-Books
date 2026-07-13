@@ -272,14 +272,14 @@ def test_gate_register_and_search(client: TestClient):
         "po_id": po["id"], "gate_date": "2026-07-05", "vehicle_no": "LEB-9999",
         "challan_no": "CH-123", "lines": [{"po_line_id": l1, "qty_received": 10}],
     })
-    rows = client.get("/api/purchase-reports/gate-register", headers=auth).json()
+    rows = client.get("/api/purchase-reports/gate-register", headers=auth).json()["items"]
     assert len(rows) == 1
     assert rows[0]["vehicle_no"] == "LEB-9999"
     assert float(rows[0]["total_qty"]) == 10.0
 
-    rows = client.get("/api/purchase-reports/gate-register?q=CH-123", headers=auth).json()
+    rows = client.get("/api/purchase-reports/gate-register?q=CH-123", headers=auth).json()["items"]
     assert len(rows) == 1
-    rows = client.get("/api/purchase-reports/gate-register?q=NOPE", headers=auth).json()
+    rows = client.get("/api/purchase-reports/gate-register?q=NOPE", headers=auth).json()["items"]
     assert rows == []
 
 
@@ -307,9 +307,9 @@ def test_gate_register_honors_my_data_only(client: TestClient):
     assert r.status_code == 200, r.text
     # owner sees the entry; restricted user sees none (they recorded nothing) —
     # both on the list endpoint (already filtered) and the register (parity).
-    assert len(client.get("/api/purchase-reports/gate-register", headers=auth).json()) == 1
+    assert client.get("/api/purchase-reports/gate-register", headers=auth).json()["total"] == 1
     assert client.get("/api/gate-inwards", headers=gate_user).json() == []
-    assert client.get("/api/purchase-reports/gate-register", headers=gate_user).json() == []
+    assert client.get("/api/purchase-reports/gate-register", headers=gate_user).json()["items"] == []
 
 
 def test_three_way_match_variances(client: TestClient):
@@ -326,7 +326,7 @@ def test_three_way_match_variances(client: TestClient):
                     json={"bill_date": "2026-07-06", "due_date": "2026-08-06"})
     assert r.status_code == 201, r.text
 
-    rows = client.get("/api/purchase-reports/three-way-match", headers=auth).json()
+    rows = client.get("/api/purchase-reports/three-way-match", headers=auth).json()["items"]
     assert len(rows) == 1
     row = rows[0]
     assert float(row["po_qty"]) == 10.0

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ScrollText, Search } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import Pagination from "@/components/Pagination"
 import DateRangePicker from "@/components/DateRangePicker"
 import { useFmt } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
@@ -38,6 +39,8 @@ const TYPE_OPTIONS = [
   { value: "scrap", label: "Scrap" },
 ]
 
+const PAGE_SIZE = 50
+
 function defaultRange() {
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
@@ -56,6 +59,8 @@ export default function GateOutwardRegisterPage() {
   const [q, setQ] = useState("")
   const [sourceDocType, setSourceDocType] = useState("")
   const [rows, setRows] = useState<GateOutwardRegisterRow[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -65,10 +70,14 @@ export default function GateOutwardRegisterPage() {
     if (end) params.set("end", end)
     if (q) params.set("q", q)
     if (sourceDocType) params.set("source_doc_type", sourceDocType)
-    apiFetch<GateOutwardRegisterRow[]>(`/api/store-reports/gate-outward-register?${params.toString()}`)
-      .then(d => { setRows(d); setIsLoading(false) })
-      .catch(() => { setRows([]); setIsLoading(false) })
-  }, [start, end, q, sourceDocType])
+    params.set("skip", String((page - 1) * PAGE_SIZE))
+    params.set("limit", String(PAGE_SIZE))
+    apiFetch<{ total: number; items: GateOutwardRegisterRow[] }>(`/api/store-reports/gate-outward-register?${params.toString()}`)
+      .then(d => { setRows(d.items); setTotal(d.total); setIsLoading(false) })
+      .catch(() => { setRows([]); setTotal(0); setIsLoading(false) })
+  }, [start, end, q, sourceDocType, page])
+
+  useEffect(() => { setPage(1) }, [start, end, q, sourceDocType])
 
   const printSubtitle = `Period: ${start} – ${end}${q ? `  |  Search: ${q}` : ""}`
 
@@ -166,6 +175,7 @@ export default function GateOutwardRegisterPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
       </div>
     </div>
   )

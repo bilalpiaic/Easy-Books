@@ -3,6 +3,7 @@ from datetime import date as _date
 from typing import Optional
 
 from fastapi import APIRouter
+from sqlalchemy import func, or_
 from sqlmodel import select
 
 from models import (BillLine, GateInward, GateInwardLine, Product, PurchaseOrder,
@@ -20,24 +21,28 @@ router = APIRouter(prefix="/api/purchase-reports", tags=["purchase-reports"])
 def gate_register(
     session: SessionDep, user: WriteUserDep,
     start: Optional[str] = None, end: Optional[str] = None, q: Optional[str] = None,
+    skip: int = 0, limit: int = 50,
 ):
     query = select(GateInward).where(GateInward.tenant_id == user.tenant_id)
     if start:
         query = query.where(GateInward.gate_date >= start)
     if end:
         query = query.where(GateInward.gate_date <= end)
+    if q:
+        like = f"%{q}%"
+        query = query.where(or_(
+            GateInward.vehicle_no.ilike(like), GateInward.challan_no.ilike(like),
+        ))
     query = apply_own_filter(query, GateInward, user, session)
-    gis = session.exec(query.order_by(GateInward.id.desc())).all()
+    total = session.exec(select(func.count()).select_from(query.subquery())).one()
+    gis = session.exec(
+        query.order_by(GateInward.id.desc()).offset(skip).limit(limit)
+    ).all()
 
     users = {u.id: u.full_name for u in session.exec(
         select(User).where(User.tenant_id == user.tenant_id)).all()}
     out = []
     for gi in gis:
-        if q:
-            needle = q.lower()
-            hay = f"{gi.vehicle_no or ''} {gi.challan_no or ''}".lower()
-            if needle not in hay:
-                continue
         lines = session.exec(
             select(GateInwardLine).where(GateInwardLine.gate_inward_id == gi.id)
         ).all()
@@ -49,27 +54,42 @@ def gate_register(
         row["total_qty"] = sum(D(l.qty_received) for l in lines)
         row["recorded_by"] = users.get(gi.created_by_id, "—")
         out.append(row)
-    return out
+    return {"total": total, "items": out}
 
 
 @router.get("/three-way-match", dependencies=[perm_dep("purchase.comparative")])
 def three_way_match(
     session: SessionDep, user: WriteUserDep,
-    start: Optional[str] = None, end: Optional[str] = None,
+    start: Optional[str] = None, end: Optional[str] = None, q: Optional[str] = None,
+    skip: int = 0, limit: int = 50,
 ):
-    query = select(PurchaseOrder).where(PurchaseOrder.tenant_id == user.tenant_id)
+    """Pagination is per PO (each PO expands to one row per line), and only
+    POs with match activity — a bill or a non-cancelled Gate Inward — count."""
+    has_gi = (
+        select(GateInward.id)
+        .where(GateInward.po_id == PurchaseOrder.id, GateInward.status != "cancelled")
+        .exists()
+    )
+    query = select(PurchaseOrder).where(
+        PurchaseOrder.tenant_id == user.tenant_id,
+        or_(PurchaseOrder.bill_id.is_not(None), has_gi),
+    )
     if start:
         query = query.where(PurchaseOrder.order_date >= start)
     if end:
         query = query.where(PurchaseOrder.order_date <= end)
-    pos = session.exec(query.order_by(PurchaseOrder.id)).all()
+    if q:
+        like = f"%{q}%"
+        query = query.where(or_(
+            PurchaseOrder.number.ilike(like), PurchaseOrder.vendor_name.ilike(like),
+        ))
+    total = session.exec(select(func.count()).select_from(query.subquery())).one()
+    pos = session.exec(query.order_by(PurchaseOrder.id).offset(skip).limit(limit)).all()
 
     out = []
     for po in pos:
         cov = gi_coverage(session, user.tenant_id, po.id)
         has_bill = bool(po.bill_id)
-        if not cov and not has_bill:
-            continue  # nothing received or billed — nothing to match
         po_lines = session.exec(
             select(PurchaseOrderLine).where(PurchaseOrderLine.po_id == po.id)
             .order_by(PurchaseOrderLine.id)
@@ -102,7 +122,7 @@ def three_way_match(
                 "amount_variance": amount_variance,
                 "flag": bool(qty_variance != 0 or amount_variance != 0),
             })
-    return out
+    return {"total": total, "items": out}
 
 
 @router.get("/vendor-performance", dependencies=[perm_dep("purchase.comparative")])

@@ -302,13 +302,13 @@ def test_gate_outward_register_and_search(client: TestClient):
         "gate_date": "2026-07-06", "vehicle_no": "LEB-8888", "challan_no": "CH-501",
         "lines": [{"product_id": inv["lines"][0]["product_id"], "qty": 3}],
     })
-    rows = client.get("/api/store-reports/gate-outward-register", headers=auth).json()
+    rows = client.get("/api/store-reports/gate-outward-register", headers=auth).json()["items"]
     assert len(rows) == 1
     assert rows[0]["reference"] == inv["number"]
 
-    rows = client.get("/api/store-reports/gate-outward-register?q=CH-501", headers=auth).json()
+    rows = client.get("/api/store-reports/gate-outward-register?q=CH-501", headers=auth).json()["items"]
     assert len(rows) == 1
-    rows = client.get("/api/store-reports/gate-outward-register?q=NOPE", headers=auth).json()
+    rows = client.get("/api/store-reports/gate-outward-register?q=NOPE", headers=auth).json()["items"]
     assert rows == []
 
 
@@ -321,7 +321,7 @@ def test_dispatch_reconciliation_flags_missing_exit(client: TestClient):
         "gate_date": "2026-07-06",
         "lines": [{"product_id": inv_with_exit["lines"][0]["product_id"], "qty": 3}],
     })
-    rows = client.get("/api/store-reports/dispatch-reconciliation", headers=auth).json()
+    rows = client.get("/api/store-reports/dispatch-reconciliation", headers=auth).json()["items"]
     by_number = {r["doc_number"]: r for r in rows}
     assert by_number[inv_with_exit["number"]]["has_gate_exit"] is True
     assert by_number[inv_without_exit["number"]]["has_gate_exit"] is False
@@ -352,17 +352,17 @@ def test_store_reports_honor_my_data_only(client: TestClient):
 
     # owner sees the entry; restricted user sees none (they recorded nothing) —
     # both on the list endpoint (already filtered) and the register (parity).
-    assert len(client.get("/api/store-reports/gate-outward-register", headers=auth).json()) == 1
+    assert client.get("/api/store-reports/gate-outward-register", headers=auth).json()["total"] == 1
     assert client.get("/api/gate-outwards", headers=store_user).json() == []
-    assert client.get("/api/store-reports/gate-outward-register", headers=store_user).json() == []
+    assert client.get("/api/store-reports/gate-outward-register", headers=store_user).json()["items"] == []
 
     # dispatch reconciliation: owner sees the exit, restricted user does not.
-    owner_rows = client.get("/api/store-reports/dispatch-reconciliation", headers=auth).json()
+    owner_rows = client.get("/api/store-reports/dispatch-reconciliation", headers=auth).json()["items"]
     owner_row = {r["doc_number"]: r for r in owner_rows}[inv["number"]]
     assert owner_row["has_gate_exit"] is True
     assert owner_row["go_number"] is not None
 
-    restricted_rows = client.get("/api/store-reports/dispatch-reconciliation", headers=store_user).json()
+    restricted_rows = client.get("/api/store-reports/dispatch-reconciliation", headers=store_user).json()["items"]
     restricted_row = {r["doc_number"]: r for r in restricted_rows}[inv["number"]]
     assert restricted_row["has_gate_exit"] is False
     assert restricted_row["go_number"] is None

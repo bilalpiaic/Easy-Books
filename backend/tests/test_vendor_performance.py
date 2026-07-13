@@ -122,7 +122,7 @@ def test_vendor_performance_short_receipt_matches_three_way_match(client: TestCl
         "lines": [{"po_line_id": po2["lines"][0]["id"], "qty_received": 7}],
     })
 
-    twm_rows = client.get("/api/purchase-reports/three-way-match", headers=auth).json()
+    twm_rows = client.get("/api/purchase-reports/three-way-match", headers=auth).json()["items"]
     twm_variance = sum(r["qty_variance"] for r in twm_rows if r["vendor_name"] == "Short Vendor")
 
     vp_rows = client.get("/api/purchase-reports/vendor-performance", headers=auth).json()
