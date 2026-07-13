@@ -2008,7 +2008,7 @@ Branch `feat/report-period-presets`.
 
 **Purchase/Store follow-ups (#137 carry-ins)**
 - ~~Concurrency: `FOR UPDATE` row lock on Gate Inward create/cancel and PO convert-to-bill~~ — fixed 2026-07-12 (`fix/purchase-store-debt`): all three sites now use the same `with_for_update()` idiom as Gate Outward's scrap approve.
-- Report pagination + SQL-side search on Gate Register / 3-Way Match / Gate Outward Register / Dispatch Reconciliation (currently unpaginated, Python-side substring search).
+- ~~Report pagination + SQL-side search on Gate Register / 3-Way Match / Gate Outward Register / Dispatch Reconciliation~~ — fixed 2026-07-14 (Issue Register included for parity): all five return `{total, items}` with `skip`/`limit` + `ilike` search in SQL; dispatch reconciliation is a SQL UNION of invoices + debit notes so paging/ordering span both.
 - ~~`purchase.gate` + `purchase_orders` permission coupling~~ — fixed 2026-07-14: gate-scoped PO views `GET /api/gate-inwards/pos` + `/pos/{id}` (gated by `purchase.gate`, deliberately price-free — gate work is quantity-only) and the GI serializer now carries line description/unit; the Gate Inward pages no longer call the PO API at all.
 - ~~Phase 3 (Store Issue + GL posting + `/purchases` hub page) and Phase 4 (vendor performance analysis, seeder, docs)~~ — shipped in PR #145 (2026-07-11); issue #137 closed.
 
