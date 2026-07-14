@@ -1855,9 +1855,11 @@ def _seed_purchase_store_chain(
     s.add(go_appr)
     s.flush()
 
-    # Store Issues (#137 Phase 4) — a handful of departmental consumption
-    # entries so Issue Register / Stock Tie-out / Vendor Performance all
-    # have data on first login.
+    # Store Issues (#137 Phase 4) — enough departmental consumption entries
+    # (60, one page over the Issue Register's 50/page default — #150/#154)
+    # that the register's Pagination control and search box actually have
+    # something to page/filter through on first login, not just a single
+    # short page that never demonstrates the feature.
     own_location = s.exec(
         select(StockLocation).where(StockLocation.tenant_id == tid, StockLocation.type == "own")
     ).first()
@@ -1867,11 +1869,14 @@ def _seed_purchase_store_chain(
         cost_centers = s.exec(
             select(AnalyticAccount).where(AnalyticAccount.tenant_id == tid)
         ).all()
-        issue_dates = _spread_dates(4, days_ago=90, min_days_ago=10)
-        for i, (product, acct) in enumerate(
-            zip(random.sample(stock_products, min(4, len(stock_products))),
-                [expense_acct, maint_acct, expense_acct, maint_acct])
-        ):
+        si_count = 60
+        issue_dates = _spread_dates(si_count, days_ago=300, min_days_ago=5)
+        accts_cycle = [expense_acct, maint_acct]
+        # random.choices (with replacement) since si_count exceeds the
+        # distinct stock product pool — random.sample would raise.
+        chosen_products = random.choices(stock_products, k=si_count)
+        for i, product in enumerate(chosen_products):
+            acct = accts_cycle[i % len(accts_cycle)]
             si_number = next_number(s, tid, "store_issue", "SI", fmt="{prefix}-{YYYY}-{seq:04d}")
             si = StoreIssue(
                 tenant_id=tid, number=si_number, issue_date=issue_dates[i],
@@ -3163,6 +3168,23 @@ def _seed_report_definitions(s: Session, tenant_id: int, user: User) -> None:
     ))
 
 
+def _seed_notification_settings(s: Session, tenant_id: int) -> None:
+    """Turn on email_notifications for every demo tenant so the overdue
+    sweep + aging-reminder feature (services/overdue.py) is actually live
+    against the seeded overdue invoices, not just dormant. Safe in dev/demo:
+    send_email() no-ops silently when SMTP_HOST isn't configured, so this
+    never dispatches a real email — it only exercises the tenant-eligibility
+    query and the per-customer grouping/throttle logic end-to-end."""
+    row = s.exec(
+        select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "email_notifications")
+    ).first()
+    if row:
+        row.value = "true"
+    else:
+        row = Settings(key="email_notifications", value="true", tenant_id=tenant_id)
+    s.add(row)
+
+
 def _seed_pra_settings(s: Session, tenant_id: int) -> None:
     """Write PRA e-Invoice settings for the PRA demo tenant (sandbox mode)."""
     pra_kvs = {
@@ -3656,6 +3678,9 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         owner = s.exec(select(User).where(User.email == email)).first()
 
         user = owner
+
+        _seed_notification_settings(s, tenant_id)
+        s.commit()
 
         customers = _seed_customers(s, tenant_id)
         vendors   = _seed_vendors(s, tenant_id)
