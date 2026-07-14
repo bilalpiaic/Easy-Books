@@ -536,10 +536,18 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
             session.add(assistant_msg)
             session.add(chat_session)
             session.commit()
+            # "reply" is the authoritative final text (falls back to a fixed
+            # string when the model only ever emitted tool_calls and no
+            # content deltas at all -- see above). Without it here, the
+            # frontend has no way to learn that text: it only knows what it
+            # accumulated from "token" events, which is empty in exactly
+            # that case, so the assistant bubble it commits on "done" would
+            # render blank even though a real (persisted) message exists.
             yield _sse({
                 "type": "done",
                 "session_id": chat_session.id,
                 "message_id": assistant_msg.id,
+                "reply": reply,
             })
         except Exception as exc:  # mid-stream: headers already sent → error event
             # The provider's actual error text (invalid model, bad key, rate

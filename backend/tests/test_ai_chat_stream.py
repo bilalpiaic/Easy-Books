@@ -142,6 +142,45 @@ def test_tool_call_round_trip_events(client: TestClient, monkeypatch):
     assert second_msgs[-2]["tool_calls"][0]["function"]["name"] == "get_ar_aging"
 
 
+def test_tool_only_reply_still_reaches_client_via_done_event(client: TestClient, monkeypatch):
+    """A model can finish a turn having only ever emitted tool_calls, with
+    zero content deltas at all (some providers do this when they consider
+    the tool result self-explanatory). The backend falls back to a fixed
+    "I wasn't able to..." string for the persisted message, but previously
+    never sent that text to the client at all -- no "token" events fired
+    (there was no content to stream), and the "done" event carried only
+    session_id/message_id. The frontend committed messages purely from
+    accumulated "token" text, so it rendered a blank assistant bubble even
+    though a real message was persisted server-side. Fixed by putting the
+    authoritative final text on the "done" event itself."""
+    auth, sid = _setup(client, "st2b@t.com", monkeypatch)
+
+    responses = [
+        _stream_from([
+            _Chunk(tool_calls=[_ToolCallDelta(0, id="call_1", name="get_ar_aging", arguments="")]),
+            _Chunk(tool_calls=[_ToolCallDelta(0, arguments="{}")]),
+            _Chunk(finish_reason="tool_calls"),
+        ]),
+        _stream_from([_Chunk(finish_reason="stop")]),   # no content at all
+    ]
+    async def fake_acompletion(**kwargs):
+        return responses.pop(0)
+    monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
+
+    with client.stream("POST", "/api/ai/chat", headers=auth,
+                       json={"session_id": sid, "message": "who owes me?"}) as r:
+        events = _events(list(r.iter_lines()))
+
+    types = [e["type"] for e in events]
+    assert "token" not in types            # nothing was ever streamed as content
+    assert types[-1] == "done"
+    done = events[-1]
+    assert done["reply"] == "I wasn't able to complete the analysis. Please try a more specific question."
+
+    msgs = client.get(f"/api/ai/sessions/{sid}/messages", headers=auth).json()
+    assert msgs[-1]["content"] == done["reply"]
+
+
 def test_pre_stream_errors(client: TestClient, monkeypatch):
     auth, sid = _setup(client, "st3@t.com", monkeypatch)
 
