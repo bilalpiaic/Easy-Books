@@ -162,6 +162,33 @@ def test_pre_stream_errors(client: TestClient, monkeypatch):
     assert r.status_code == 400
 
 
+def test_mid_stream_error_surfaces_provider_detail(client: TestClient, monkeypatch, capsys):
+    """A mid-stream provider failure (bad model, invalid key, rate limit from
+    the provider itself, etc.) used to be discarded entirely -- only
+    type(exc).__name__ reached the client and nothing was logged
+    server-side, making every such failure undiagnosable. The provider's
+    actual message must now reach both the client event and stdout."""
+    auth, sid = _setup(client, "st8@t.com", monkeypatch)
+
+    async def fake_acompletion(**kwargs):
+        raise ValueError("model `openai/gpt-4o-mini` not found: no access")
+    monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
+
+    with client.stream("POST", "/api/ai/chat", headers=auth,
+                       json={"session_id": sid, "message": "hi"}) as r:
+        assert r.status_code == 200
+        events = _events(list(r.iter_lines()))
+
+    assert [e["type"] for e in events] == ["error"]
+    detail = events[0]["detail"]
+    assert "ValueError" in detail
+    assert "not found: no access" in detail
+
+    captured = capsys.readouterr()
+    assert "[ai_chat]" in captured.out
+    assert "not found: no access" in captured.out
+
+
 def test_no_providers_returns_503(client: TestClient, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     auth = _signup(client, "st4@t.com")
