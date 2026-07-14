@@ -533,9 +533,19 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
                 "message_id": assistant_msg.id,
             })
         except Exception as exc:  # mid-stream: headers already sent → error event
+            # The provider's actual error text (invalid model, bad key, rate
+            # limit, etc.) was previously discarded entirely -- only the
+            # exception class name reached the client, and nothing was
+            # logged server-side, making every mid-stream failure
+            # undiagnosable. litellm exceptions carry the provider's message
+            # in str(exc); truncated here since some are verbose.
+            print(f"[ai_chat] {type(exc).__name__} for model={litellm_model}: {exc}", flush=True)
+            detail = str(exc).strip()
+            if len(detail) > 300:
+                detail = detail[:300] + "..."
             yield _sse({
                 "type": "error",
-                "detail": f"The AI service failed mid-response: {type(exc).__name__}. Please try again.",
+                "detail": f"The AI service failed mid-response: {type(exc).__name__}: {detail}",
             })
 
     return StreamingResponse(stream(), media_type="text/event-stream")
