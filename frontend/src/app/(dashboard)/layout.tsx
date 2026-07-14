@@ -23,6 +23,7 @@ import GlobalSearch from "@/components/GlobalSearch"
 import UpdateAvailablePopup from "@/components/UpdateAvailablePopup"
 import UpdateProgressScreen from "@/components/UpdateProgressScreen"
 import AIChatButton from "@/components/AIChatButton"
+import CalculatorButton from "@/components/CalculatorButton"
 
 const SKIP_KEY = "eb.update-skip"     // persisted per remote SHA
 const SESSION_LATER_KEY = "eb.update-later-session" // session-only dismiss
@@ -161,6 +162,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} />
                   <FAB />
                   <AIChatButton />
+                  <CalculatorButton />
                   <GlobalSearch />
                 </div>
 
