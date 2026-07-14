@@ -1,6 +1,6 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette, Sparkles } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
@@ -1333,7 +1333,14 @@ function AiAssistantSection() {
   const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({ anthropic: "", openai: "", gemini: "" })
   const [defaultModel, setDefaultModel] = useState("")
   const [rateLimit, setRateLimit] = useState("")
-  const initial = useRef({ defaultModel: "", rateLimit: "" })
+  // Ollama (self-hosted): no secret key -- gated by a tenant-tagged model
+  // list instead. ollamaModels/ollamaBaseUrl round-trip through the plain
+  // (non-secret) GET/PATCH /api/settings, unlike the cloud provider keys
+  // which are write-only and never re-read.
+  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("")
+  const [ollamaModels, setOllamaModels] = useState<string[]>([])
+  const [ollamaTagInput, setOllamaTagInput] = useState("")
+  const initial = useRef({ defaultModel: "", rateLimit: "", ollamaBaseUrl: "", ollamaModels: [] as string[] })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
@@ -1351,11 +1358,25 @@ function AiAssistantSection() {
     apiFetch<Record<string, string>>("/api/settings").then(s => {
       const dm = s.ai_default_model || ""
       const rl = s.ai_rate_limit_per_hour || ""
+      const obu = s.ai_ollama_base_url || ""
+      const om = (s.ai_ollama_models || "").split(",").map(t => t.trim()).filter(Boolean)
       setDefaultModel(dm)
       setRateLimit(rl)
-      initial.current = { defaultModel: dm, rateLimit: rl }
+      setOllamaBaseUrl(obu)
+      setOllamaModels(om)
+      initial.current = { defaultModel: dm, rateLimit: rl, ollamaBaseUrl: obu, ollamaModels: om }
     }).catch(() => {})
   }, [])
+
+  const addOllamaTags = (raw: string) => {
+    const tags = raw.split(",").map(t => t.trim()).filter(Boolean)
+    if (tags.length === 0) return
+    setOllamaModels(prev => Array.from(new Set([...prev, ...tags])))
+    setOllamaTagInput("")
+  }
+  const removeOllamaTag = (tag: string) => {
+    setOllamaModels(prev => prev.filter(t => t !== tag))
+  }
 
   const handleClearKey = async (provider: AiProviderId, label: string) => {
     if (!window.confirm(`Clear the ${label} API key?`)) return
@@ -1383,6 +1404,10 @@ function AiAssistantSection() {
       }
       if (defaultModel !== initial.current.defaultModel) payload.ai_default_model = defaultModel
       if (rateLimit !== initial.current.rateLimit) payload.ai_rate_limit_per_hour = rateLimit
+      if (ollamaBaseUrl !== initial.current.ollamaBaseUrl) payload.ai_ollama_base_url = ollamaBaseUrl
+      if (ollamaModels.join(",") !== initial.current.ollamaModels.join(",")) {
+        payload.ai_ollama_models = ollamaModels.join(",")
+      }
 
       if (Object.keys(payload).length > 0) {
         await apiFetch("/api/settings", {
@@ -1392,7 +1417,7 @@ function AiAssistantSection() {
         })
       }
       setNewKeys({ anthropic: "", openai: "", gemini: "" })
-      initial.current = { defaultModel, rateLimit }
+      initial.current = { defaultModel, rateLimit, ollamaBaseUrl, ollamaModels }
       loadKeyStatus()
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -1449,6 +1474,54 @@ function AiAssistantSection() {
             </div>
           )
         })}
+
+        <div className="pt-4 border-t border-[var(--border)] space-y-2">
+          <label className="block text-xs font-medium text-[var(--text-primary)]/60">
+            Ollama (Local) — self-hosted, no API key needed
+          </label>
+          <input
+            type="text"
+            placeholder="Server URL — http://localhost:11434"
+            value={ollamaBaseUrl}
+            onChange={e => setOllamaBaseUrl(e.target.value)}
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          />
+          <div className="flex flex-wrap gap-1.5 min-h-[1.75rem]">
+            {ollamaModels.map(tag => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-medium rounded-full pl-2.5 pr-1.5 py-1"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => removeOllamaTag(tag)}
+                  className="hover:bg-[var(--primary)]/20 rounded-full p-0.5"
+                  aria-label={`Remove ${tag}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <input
+            type="text"
+            placeholder="Tag a locally-pulled model and press Enter — e.g. llama3.1:8b"
+            value={ollamaTagInput}
+            onChange={e => setOllamaTagInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault()
+                addOllamaTags(ollamaTagInput)
+              }
+            }}
+            onBlur={() => ollamaTagInput && addOllamaTags(ollamaTagInput)}
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          />
+          <p className="text-xs text-[var(--text-primary)]/50">
+            Tag names must exactly match what `ollama list` shows on your server. Run `ollama pull &lt;model&gt;` first if it isn&apos;t listed there yet.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[var(--border)]">
@@ -1469,6 +1542,14 @@ function AiAssistantSection() {
                 </option>
               )
             }))}
+            {ollamaModels.map(m => {
+              const value = `ollama/${m}`
+              return (
+                <option key={value} value={value}>
+                  Ollama (Local) — {m}
+                </option>
+              )
+            })}
           </select>
         </div>
         <div>

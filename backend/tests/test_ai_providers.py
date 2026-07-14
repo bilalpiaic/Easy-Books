@@ -53,15 +53,52 @@ def test_validate_model_happy_and_sad_paths(client, monkeypatch):
     tid = _tenant(monkeypatch)
     _set_key(tid, "ai_api_key_gemini", "AIza-test")
     with Session(_db.engine) as s:
-        litellm_model, key = validate_model(s, tid, "gemini/gemini-2.5-flash")
+        litellm_model, key, api_base = validate_model(s, tid, "gemini/gemini-2.5-flash")
         assert litellm_model == "gemini/gemini-2.5-flash"
         assert key == "AIza-test"
+        assert api_base is None
         with pytest.raises(ValueError):
             validate_model(s, tid, "openai/gpt-4o-mini")     # provider not configured
         with pytest.raises(ValueError):
             validate_model(s, tid, "gemini/not-a-model")     # unknown model id
         with pytest.raises(ValueError):
             validate_model(s, tid, "made-up-string")         # bad format
+
+
+def test_ollama_models_are_tenant_tagged_not_a_fixed_catalog(client, monkeypatch):
+    """Ollama has no cloud key and no fixed model list -- it's configured once
+    the tenant tags at least one locally-pulled model name, and validate_model
+    must check against that tenant-specific tag list, not PROVIDERS[...]["models"]
+    (which is deliberately empty for ollama)."""
+    from services.ai_providers import (
+        configured_providers, ollama_base_url, ollama_models, validate_model,
+    )
+    tid = _tenant(monkeypatch)
+    with Session(_db.engine) as s:
+        assert ollama_models(s, tid) == []
+        assert ollama_base_url(s, tid) == "http://localhost:11434"
+        assert configured_providers(s, tid) == []   # no tags yet -> not configured
+        with pytest.raises(ValueError):
+            validate_model(s, tid, "ollama/llama3.1")
+
+    _set_key(tid, "ai_ollama_models", "llama3.1:8b, mistral,, llama3.1:8b")  # dupes/blank collapse
+    _set_key(tid, "ai_ollama_base_url", "http://gpu-box.local:11434")
+    with Session(_db.engine) as s:
+        assert ollama_models(s, tid) == ["llama3.1:8b", "mistral"]
+        assert ollama_base_url(s, tid) == "http://gpu-box.local:11434"
+
+        provs = configured_providers(s, tid)
+        assert [p["provider"] for p in provs] == ["ollama"]
+        assert provs[0]["models"] == ["ollama/llama3.1:8b", "ollama/mistral"]
+        assert provs[0]["default"] == "ollama/llama3.1:8b"
+
+        litellm_model, key, api_base = validate_model(s, tid, "ollama/mistral")
+        assert litellm_model == "ollama/mistral"
+        assert key is None
+        assert api_base == "http://gpu-box.local:11434"
+
+        with pytest.raises(ValueError):
+            validate_model(s, tid, "ollama/not-tagged")
 
 
 def test_mask_key_shows_tail_only(client):
