@@ -1324,7 +1324,7 @@ type AiProviderId = keyof AiKeyStatus
 const AI_PROVIDERS: { id: AiProviderId; label: string; settingsKey: string; models: string[] }[] = [
   { id: "anthropic", label: "Anthropic (Claude)", settingsKey: "ai_api_key_anthropic", models: ["claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"] },
   { id: "openai",    label: "OpenAI (GPT)",       settingsKey: "ai_api_key_openai",    models: ["gpt-4o-mini", "gpt-4o"] },
-  { id: "gemini",    label: "Google (Gemini)",    settingsKey: "ai_api_key_gemini",    models: ["gemini-2.5-flash", "gemini-2.5-pro"] },
+  { id: "gemini",    label: "Google (Gemini)",    settingsKey: "ai_api_key_gemini",    models: ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"] },
 ]
 
 function AiAssistantSection() {

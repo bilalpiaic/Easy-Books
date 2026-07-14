@@ -30,7 +30,14 @@ PROVIDERS: dict[str, dict] = {
         "label": "Google (Gemini)",
         "settings_key": "ai_api_key_gemini",
         "env_fallback": None,
-        "models": ["gemini-2.5-flash", "gemini-2.5-pro"],
+        # Dated gemini-2.5-* IDs are being sunset by Google for newer API
+        # keys ("model ... is no longer available to new users" -- a 404
+        # from the Gemini API itself, confirmed live 2026-07-14). The
+        # "-latest" aliases are Google's own auto-updating pointer to the
+        # current recommended model and stay available regardless of
+        # account age; dated IDs kept selectable for tenants whose key
+        # still has access to them.
+        "models": ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
     },
 }
 
