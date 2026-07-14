@@ -125,7 +125,7 @@ def delete_customer(session: SessionDep, user: WriteUserDep, customer_id: int):
     session.commit()
 
 
-@router.get("/{customer_id}/statement")
+@router.get("/{customer_id}/statement", dependencies=[perm_dep("customer_ledger")])
 def customer_statement(
     session: SessionDep, user: CurrentUserDep, customer_id: int,
     from_date: str, to_date: str,

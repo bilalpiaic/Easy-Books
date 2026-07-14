@@ -167,3 +167,28 @@ def test_my_data_only_toggle(client, admin_headers, accountant_user):
     )
     r = client.get(f"/api/permissions/users/{accountant_user['id']}", headers=admin_headers)
     assert r.json()["my_data_only"] is True
+
+
+def test_team_resource_removed_from_registry(client, admin_headers, accountant_user):
+    """'team' was registered in PERMISSION_RESOURCES (shown as a togglable row
+    in the admin matrix) but users.py is hardcoded AdminUserDep on every
+    endpoint — the resource had zero effect and was actively misleading.
+    Removed; it must now behave exactly like any other unknown key."""
+    r = client.get("/api/permissions/resources", headers=admin_headers)
+    keys = {item["key"] for item in r.json()}
+    assert "team" not in keys
+
+    r = client.put(
+        f"/api/permissions/users/{accountant_user['id']}",
+        headers=admin_headers,
+        json=[{"resource_key": "team", "access_level": "edit"}],
+    )
+    assert r.status_code == 400
+
+    # Team management stays admin-only regardless of any permission grant —
+    # unaffected by the removal, since AdminUserDep was always the real gate.
+    client.patch("/api/settings", headers=admin_headers, json={"user_rights_enabled": "true"})
+    accountant_headers = {
+        "Authorization": f"Bearer {client.post('/api/auth/login', data={'username': accountant_user['email'], 'password': 'pw12345678'}).json()['access_token']}"
+    }
+    assert client.get("/api/users", headers=accountant_headers).status_code == 403

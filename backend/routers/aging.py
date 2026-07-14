@@ -15,6 +15,7 @@ from sqlmodel import func, select
 
 from models import Bill, Invoice, PaymentAllocation
 from services.money import D, ZERO
+from services.permissions import perm_dep
 
 from .common import CurrentUserDep, SessionDep
 
@@ -40,7 +41,7 @@ def _empty_buckets() -> dict:
     }
 
 
-@router.get("/api/invoices/aging")
+@router.get("/api/invoices/aging", dependencies=[perm_dep("report.ar_aging")])
 def invoice_aging(session: SessionDep, user: CurrentUserDep):
     today = DateType.today()
     # Single query: gross total minus sum(allocations) per invoice.
@@ -79,7 +80,7 @@ def invoice_aging(session: SessionDep, user: CurrentUserDep):
     return buckets
 
 
-@router.get("/api/bills/aging")
+@router.get("/api/bills/aging", dependencies=[perm_dep("report.ap_aging")])
 def bill_aging(session: SessionDep, user: CurrentUserDep):
     today = DateType.today()
     rows = session.exec(
