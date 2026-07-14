@@ -403,7 +403,10 @@ Easy-Books implements the following international accounting standards and best 
 | `tax_id` | Tax identification number / EIN | String | **IAS 1.49** — statutory reporting |
 | `currency` | Base currency for all transactions | Code (PKR/USD/EUR/etc.) | **IAS 21** — functional currency |
 | `fiscal_year_start` | Accounting year start month | Month | **IAS 1.49** — reporting period |
+| `week_start_day` | First day of the week (default `monday`) — drives the report period presets' week-based options ("This Week", "Last Week", …) | monday \| sunday \| … | — |
 | `financial_statement_date` | Statement date preference | month_end \| quarter_end \| year_end | **IAS 1.49** |
+| `email_notifications` | Enables the daily overdue-invoice aging-reminder scan (§ Background Jobs) | true \| false | — |
+| `overdue_reminder_interval_days` | Days between reminder emails per overdue customer (default 7); only takes effect when `email_notifications=true` | Integer | — |
 | `invoice_prefix` / `bill_prefix` | Document numbering | String | **IAS 1.99** — document identification |
 
 ---
@@ -1356,6 +1359,10 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 
 **Freeze panes (v3.1).** Table-based report pages (aging AR/AP, performance reports, GL/product ledgers, report-builder grid, healthcare + manufacturing reports, statements, telecom tracker) scroll inside a `.table-freeze` bounded viewport: the header row and totals row stay pinned while data scrolls, and wide reports also lock the first column (`.freeze-col`). See §1.1 UI System for mechanics; all sticky rules are reset in print.
 
+**Report period presets (v3.6).** Every report's From/To date filter is driven by `components/DateRangePicker.tsx` — a QuickBooks-style preset dropdown (26 presets: Today, This/Last/Next Week, This/Last Fiscal Quarter, etc.) ahead of the raw date inputs, with the same prop contract the component always had (existing consumers gained presets for free). Resolution is pure and vitest-covered (`frontend/src/lib/datePresets.ts::resolvePreset`); fiscal presets follow the `fiscal_year_start` setting, week-based presets follow `week_start_day`. Picking a preset fills and disables From/To; "Custom" re-enables manual entry; `matchPreset` re-selects the right preset when a range is restored from a URL param. New report filters should use this component, not a hand-rolled `<input type="date">` pair.
+
+**Report pagination (v3.6).** The five Purchases/Store registers (Gate Register, 3-Way Match, Gate Outward Register, Dispatch Reconciliation, Issue Register) return `{total, items}` with server-side `skip`/`limit` and `ilike` search, rendered via the shared `components/Pagination.tsx` (50/page). See §8.7 Reports for the endpoint list.
+
 ---
 
 ## 8. API ENDPOINT CATALOG
@@ -1464,6 +1471,8 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/purchase-reports/gate-register`, `/three-way-match` | Gate register search; PO vs. received vs. billed variance detection (v3.4) |
 | GET/POST | `/api/gate-outwards` | Dispatch exit — memo for invoice/debit_note (create = approved); scrap is draft→`PATCH /{id}/approve` (GL-posting) →`/cancel` (v3.5) |
 | GET | `/api/store-reports/gate-outward-register`, `/dispatch-reconciliation` | Outward gate register search; posted invoices/debit-notes with no gate exit flagged (v3.5) |
+| GET | `/api/gate-inwards/pos`, `/pos/{po_id}` | Gate-scoped, price-free PO views (no `rate`/`amount`/`total`) — a `purchase.gate`-only user drives the whole GI flow without `purchase_orders` rights; must be declared before `/{gi_id}` or Starlette routes `"pos"` into the int param (v3.6) |
+| GET | `/api/purchase-reports/gate-register`, `/three-way-match`; `/api/store-reports/gate-outward-register`, `/dispatch-reconciliation`, `/issue-register` | All five now return `{total, items}` with `skip`/`limit` + SQL-side `ilike` `q` search (previously bare arrays with Python-side substring filtering); dispatch-reconciliation is a SQL `UNION ALL` of invoices + debit notes (v3.6) |
 | GET | `/api/reports/product-ledger?product_id=…&store=…` | Stock movements + running qty; `store=all` for consolidated view |
 | GET | `/api/reports/inventory-performance?start=…&end=…` | Per-product on-hand qty/value, low-stock flag, last movement, units sold + COGS |
 | GET | `/api/reports/customer-performance?start=…&end=…` | Per-customer revenue, invoice count, outstanding AR, avg days-to-pay |
@@ -1827,6 +1836,18 @@ relevant to that model (inventory & purchase orders for stock-keeping models, de
 services, production for manufacturing, tracker/RSO for telecom). See USER_GUIDE §18 for the matrix.
 
 ---
+
+---
+
+## BACKGROUND JOBS (v3.6)
+
+There is no task queue (Celery/ARQ/etc. — tracked separately as roadmap issue #115); the one recurring background job in the app is a plain `asyncio` task wired into `main.py`'s FastAPI `lifespan`.
+
+| Job | Cadence | What it does |
+|-----|---------|---------------|
+| **Overdue sweep + aging reminders** | Fires once on boot, then every `OVERDUE_SWEEP_INTERVAL_HOURS` (default 24) | `services/overdue.py::sweep_overdue()` — one cross-tenant SQL `UPDATE` flips past-due `posted`/`sent` invoices to `overdue` (deliberately excludes `draft`/`void`/`paid`/`partial` — a draft was never issued to the customer, so sweeping it would let the next step email them about an invoice they never received). `send_overdue_reminders()` — for each tenant with `email_notifications="true"`, one email per customer listing all their overdue invoices + balance due, throttled via the `overdue_reminder_interval_days` Settings field (default 7) against an internal `overdue_last_reminder_date` KV marker. |
+
+Blocking DB work runs via `asyncio.to_thread` so it never stalls the event loop. `OVERDUE_SWEEP_ENABLED=false` disables the whole thing (useful in tests, though the scheduler never actually runs under `TestClient` since no test in the repo invokes it as a context manager — `with TestClient(app) as client:`).
 
 ---
 
