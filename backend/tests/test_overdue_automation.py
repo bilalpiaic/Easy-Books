@@ -1,8 +1,13 @@
 """Core-platform leftovers: daily overdue sweep + aging reminder emails.
 
-sweep_overdue: one cross-tenant SQL UPDATE flips past-due open/sent invoices
-to 'overdue' (draft/void/paid/partial are never touched — narrower than the
-per-fetch _auto_overdue, which is retained for freshness between sweeps).
+sweep_overdue: one cross-tenant SQL UPDATE flips past-due posted/sent
+invoices to 'overdue' (draft/void/paid/partial are never touched — narrower
+than the per-fetch _auto_overdue, which is retained for freshness between
+sweeps). "sent" is set by the real mark_sent flow; "posted" is the status
+seed data and any direct-DB writes use for an issued invoice — nothing in
+routers/invoices.py sets "posted" via the API, but reports.py and the
+frontend both treat it as a real non-draft status, so the sweep must catch
+it too.
 
 send_overdue_reminders: for tenants with email_notifications=true, one email
 per customer listing their overdue invoices with balance due; throttled per
@@ -22,7 +27,7 @@ def _signup(client: TestClient, email: str) -> dict:
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
-def _invoice(client, auth, *, due, status="open", customer_id=None):
+def _invoice(client, auth, *, due, status="posted", customer_id=None):
     # POST /api/invoices always creates in "draft" regardless of any status
     # field in the body; PATCH .../status is the only way to set it directly.
     body = {
@@ -49,25 +54,30 @@ def _session(client):
     return Session(_db.engine)
 
 
-def test_sweep_marks_only_past_due_open_invoices(client: TestClient):
+def test_sweep_marks_only_past_due_posted_or_sent_invoices(client: TestClient):
     from services.overdue import sweep_overdue
 
     auth = _signup(client, "od1@t.com")
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
 
-    past_open = _invoice(client, auth, due=yesterday, status="open")
-    future_open = _invoice(client, auth, due=tomorrow, status="open")
+    past_posted = _invoice(client, auth, due=yesterday, status="posted")
+    past_sent = _invoice(client, auth, due=yesterday, status="sent")
+    future_posted = _invoice(client, auth, due=tomorrow, status="posted")
+    # A draft was never issued to the customer — the scheduled sweep must
+    # never flip it, or send_overdue_reminders would email a customer about
+    # an invoice they never received.
     past_draft = _invoice(client, auth, due=yesterday, status="draft")
 
     with _session(client) as s:
         changed = sweep_overdue(s)
-    assert changed == 1
+    assert changed == 2
 
     from models import Invoice
     with _session(client) as s:
-        assert s.get(Invoice, past_open["id"]).status == "overdue"
-        assert s.get(Invoice, future_open["id"]).status == "open"
+        assert s.get(Invoice, past_posted["id"]).status == "overdue"
+        assert s.get(Invoice, past_sent["id"]).status == "overdue"
+        assert s.get(Invoice, future_posted["id"]).status == "posted"
         assert s.get(Invoice, past_draft["id"]).status == "draft"
 
 
@@ -87,9 +97,9 @@ def test_reminders_email_per_customer_and_throttle(client: TestClient, monkeypat
     no_mail = client.post("/api/customers", headers=auth, json={"name": "Silent Co"}).json()
 
     yesterday = (date.today() - timedelta(days=1)).isoformat()
-    _invoice(client, auth, due=yesterday, status="open", customer_id=cust["id"])
-    _invoice(client, auth, due=yesterday, status="open", customer_id=cust["id"])
-    _invoice(client, auth, due=yesterday, status="open", customer_id=no_mail["id"])
+    _invoice(client, auth, due=yesterday, status="posted", customer_id=cust["id"])
+    _invoice(client, auth, due=yesterday, status="posted", customer_id=cust["id"])
+    _invoice(client, auth, due=yesterday, status="posted", customer_id=no_mail["id"])
 
     with _session(client) as s:
         sweep_overdue(s)
@@ -142,7 +152,7 @@ def test_reminders_skip_tenants_without_notifications(client: TestClient, monkey
     cust = client.post("/api/customers", headers=auth,
                        json={"name": "Quiet", "email": "q@t.test"}).json()
     yesterday = (date.today() - timedelta(days=1)).isoformat()
-    _invoice(client, auth, due=yesterday, status="open", customer_id=cust["id"])
+    _invoice(client, auth, due=yesterday, status="posted", customer_id=cust["id"])
 
     with _session(client) as s:
         sweep_overdue(s)

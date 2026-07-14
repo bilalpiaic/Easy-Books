@@ -3,9 +3,11 @@
 Both entry points are cross-tenant (they run from the scheduler in main.py,
 not from a request) and are safe to call repeatedly:
 
-- sweep_overdue: one SQL UPDATE flips past-due open/sent invoices to
+- sweep_overdue: one SQL UPDATE flips past-due posted/sent invoices to
   'overdue'. Narrower than routers/invoices._auto_overdue (kept for
-  freshness between sweeps): draft, void, paid and partial are never touched.
+  freshness between sweeps): draft, void, paid and partial are never touched
+  — a draft was never issued to the customer, so sweeping it would let
+  send_overdue_reminders email them about an invoice they never received.
 - send_overdue_reminders: for each tenant with email_notifications=true,
   one email per customer listing their overdue invoices with balance due.
   Throttled per tenant via the Settings KV — overdue_reminder_interval_days
@@ -27,12 +29,21 @@ DEFAULT_REMINDER_INTERVAL_DAYS = 7
 
 
 def sweep_overdue(session: Session) -> int:
-    """Mark every past-due open/sent invoice overdue (all tenants)."""
+    """Mark every past-due issued-but-unpaid invoice overdue (all tenants).
+
+    "sent" and "posted" are the two statuses that actually mean "issued to
+    the customer" in this app (`_auto_overdue` in routers/invoices.py excludes
+    only paid/partial/overdue and would also sweep "draft" — deliberately NOT
+    matched here: this sweep feeds send_overdue_reminders(), so silently
+    flipping a draft to overdue would end up emailing a customer about an
+    invoice they were never sent). "open" is kept for forward-compatibility
+    with the /for-payment filter's vocabulary, though nothing in the app
+    currently assigns it."""
     today = date.today().isoformat()
     result = session.execute(
         Invoice.__table__.update()
         .where(
-            Invoice.__table__.c.status.in_(["open", "sent"]),
+            Invoice.__table__.c.status.in_(["posted", "sent", "open"]),
             Invoice.__table__.c.due_date < today,
         )
         .values(status="overdue")
