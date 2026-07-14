@@ -1,13 +1,18 @@
 "use client"
 import { useState } from "react"
-import { BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock, AlertTriangle, Stethoscope } from "lucide-react"
+import { BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock, AlertTriangle, Stethoscope, Sparkles } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope,
+  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles,
 }
 
-const CATEGORY_ORDER = ["Core", "Accounting", "Operations", "HR", "Industry"]
+// Every backend MODULE_REGISTRY category (db.py) must be listed here or its
+// modules are silently dropped from the page — they still count toward the
+// "N of 9 installed" header and are still installable via the raw API, but
+// have no card and no Install button anywhere in the UI. ai_assistant's
+// "Intelligence" category was missing here for that exact reason.
+const CATEGORY_ORDER = ["Core", "Accounting", "Operations", "HR", "Industry", "Intelligence"]
 
 function categoryGroups(modules: ModuleInfo[]): [string, ModuleInfo[]][] {
   const map = new Map<string, ModuleInfo[]>()
