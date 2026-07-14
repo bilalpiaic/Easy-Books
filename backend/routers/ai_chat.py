@@ -410,7 +410,7 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
         )
     model = body.model or providers[0]["default"] or DEFAULT_MODEL
     try:
-        litellm_model, api_key = validate_model(session, user.tenant_id, model)
+        litellm_model, api_key, api_base = validate_model(session, user.tenant_id, model)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -450,8 +450,17 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
                 extra: dict = {}
                 if litellm_model.startswith("anthropic/"):
                     extra["thinking"] = {"type": "disabled"}
+                # litellm needs the "ollama_chat/" prefix (not "ollama/") for
+                # OpenAI-style chat + tool-calling + streaming, and api_base
+                # to reach the tenant's own server instead of localhost.
+                # litellm_model stays "ollama/<tag>" everywhere else (display,
+                # persisted AiChatMessage.model) -- only this call is translated.
+                call_model = litellm_model
+                if litellm_model.startswith("ollama/"):
+                    call_model = "ollama_chat/" + litellm_model[len("ollama/"):]
+                    extra["api_base"] = api_base
                 response = await litellm.acompletion(
-                    model=litellm_model,
+                    model=call_model,
                     api_key=api_key,
                     max_tokens=2048,
                     messages=messages,
@@ -561,7 +570,11 @@ def list_models(session: SessionDep, user: CurrentUserDep):
 
 @router.get("/key-status")
 def key_status(session: SessionDep, user: AdminUserDep):
+    # Ollama has no secret key to mask (self-hosted, gated by tagged models
+    # instead) -- ai_ollama_base_url/ai_ollama_models aren't secrets, so the
+    # frontend reads its configuration state straight off GET /api/settings.
     return {
         provider: mask_key(resolve_api_key(session, user.tenant_id, provider))
-        for provider in PROVIDERS
+        for provider, cfg in PROVIDERS.items()
+        if cfg["settings_key"]
     }

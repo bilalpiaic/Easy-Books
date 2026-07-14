@@ -84,6 +84,9 @@ class SettingsUpdate(BaseModel):
     ai_api_key_gemini: Optional[str] = None
     ai_default_model: Optional[str] = None
     ai_rate_limit_per_hour: Optional[str] = None
+    # Ollama (self-hosted, #163 follow-up) -- not a secret, no redaction needed
+    ai_ollama_base_url: Optional[str] = None
+    ai_ollama_models: Optional[str] = None  # comma-separated tags
 
 
 @router.get("")

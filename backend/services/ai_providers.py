@@ -4,7 +4,14 @@ Single source of truth for which providers/models exist, how their API
 keys resolve (tenant Settings KV wins; ANTHROPIC_API_KEY env is a
 dev/demo fallback for the anthropic provider only), and what the chat
 UI's model dropdown may offer. All key material stays server-side —
-callers that need to show key state use mask_key()."""
+callers that need to show key state use mask_key().
+
+Ollama is a self-hosted provider, not a cloud one: no secret key, and no
+fixed model catalog — a tenant tags whichever local models they've pulled
+(GET /api/tags on their own Ollama server) via Settings -> AI, stored as a
+comma-separated `ai_ollama_models` string. `PROVIDERS["ollama"]["models"]`
+is deliberately empty; ollama_models()/ollama_base_url() resolve the
+tenant-specific list instead."""
 import os
 from typing import Optional
 
@@ -39,13 +46,23 @@ PROVIDERS: dict[str, dict] = {
         # still has access to them.
         "models": ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
     },
+    "ollama": {
+        "label": "Ollama (Local)",
+        "settings_key": None,   # no secret -- self-hosted, gated by tagged models instead
+        "env_fallback": None,
+        "models": [],           # dynamic per tenant; see ollama_models()
+    },
 }
 
 DEFAULT_MODEL = "anthropic/claude-sonnet-5"
 
+OLLAMA_BASE_URL_SETTING = "ai_ollama_base_url"
+OLLAMA_MODELS_SETTING = "ai_ollama_models"
+OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434"
+
 # Settings keys that must never leave the server unredacted.
 AI_SECRET_SETTINGS_KEYS = frozenset(
-    cfg["settings_key"] for cfg in PROVIDERS.values()
+    cfg["settings_key"] for cfg in PROVIDERS.values() if cfg["settings_key"]
 )
 
 
@@ -58,7 +75,7 @@ def _setting(session: Session, tenant_id: int, key: str) -> Optional[str]:
 
 def resolve_api_key(session: Session, tenant_id: int, provider: str) -> Optional[str]:
     cfg = PROVIDERS.get(provider)
-    if not cfg:
+    if not cfg or not cfg["settings_key"]:
         return None
     tenant_key = _setting(session, tenant_id, cfg["settings_key"])
     if tenant_key:
@@ -68,11 +85,38 @@ def resolve_api_key(session: Session, tenant_id: int, provider: str) -> Optional
     return None
 
 
+def ollama_models(session: Session, tenant_id: int) -> list[str]:
+    """Tenant-tagged local model names (Settings -> AI), comma-separated in
+    storage. Order preserved, duplicates dropped, blanks filtered."""
+    raw = _setting(session, tenant_id, OLLAMA_MODELS_SETTING) or ""
+    seen: dict[str, None] = {}
+    for tag in raw.split(","):
+        tag = tag.strip()
+        if tag:
+            seen.setdefault(tag, None)
+    return list(seen)
+
+
+def ollama_base_url(session: Session, tenant_id: int) -> str:
+    return _setting(session, tenant_id, OLLAMA_BASE_URL_SETTING) or OLLAMA_DEFAULT_BASE_URL
+
+
 def configured_providers(session: Session, tenant_id: int) -> list[dict]:
-    """Providers with a resolvable key — the /api/ai/models payload."""
+    """Providers ready to use — the /api/ai/models payload. Cloud providers
+    need a resolvable key; Ollama needs at least one tagged model."""
     default_model = _setting(session, tenant_id, "ai_default_model") or DEFAULT_MODEL
     out = []
     for provider, cfg in PROVIDERS.items():
+        if provider == "ollama":
+            tags = ollama_models(session, tenant_id)
+            if not tags:
+                continue
+            out.append({
+                "provider": provider,
+                "label": cfg["label"],
+                "models": [f"ollama/{m}" for m in tags],
+            })
+            continue
         if resolve_api_key(session, tenant_id, provider) is None:
             continue
         out.append({
@@ -91,18 +135,28 @@ def configured_providers(session: Session, tenant_id: int) -> list[dict]:
     return out
 
 
-def validate_model(session: Session, tenant_id: int, model: str) -> tuple[str, str]:
-    """Return (litellm_model_string, api_key) or raise ValueError."""
+def validate_model(session: Session, tenant_id: int, model: str) -> tuple[str, Optional[str], Optional[str]]:
+    """Return (litellm_model_string, api_key, api_base) or raise ValueError.
+
+    api_key is None for Ollama (no cloud credential); api_base is None for
+    every provider except Ollama (which needs it to reach the tenant's own
+    server instead of a public API endpoint)."""
     if "/" not in model:
         raise ValueError(f"Unknown model: {model!r}")
     provider, _, model_id = model.partition("/")
     cfg = PROVIDERS.get(provider)
-    if not cfg or model_id not in cfg["models"]:
+    if not cfg:
+        raise ValueError(f"Unknown model: {model!r}")
+    if provider == "ollama":
+        if model_id not in ollama_models(session, tenant_id):
+            raise ValueError(f"Unknown model: {model!r}")
+        return model, None, ollama_base_url(session, tenant_id)
+    if model_id not in cfg["models"]:
         raise ValueError(f"Unknown model: {model!r}")
     key = resolve_api_key(session, tenant_id, provider)
     if not key:
         raise ValueError(f"Provider '{provider}' is not configured")
-    return model, key
+    return model, key, None
 
 
 def mask_key(value: Optional[str]) -> Optional[str]:

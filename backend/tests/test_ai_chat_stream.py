@@ -189,6 +189,41 @@ def test_mid_stream_error_surfaces_provider_detail(client: TestClient, monkeypat
     assert "not found: no access" in captured.out
 
 
+def test_ollama_call_translates_prefix_and_passes_api_base(client: TestClient, monkeypatch):
+    """Ollama is stored/displayed everywhere as "ollama/<tag>" (matches the
+    model dropdown and every other provider's own-name-as-prefix convention),
+    but litellm needs "ollama_chat/<tag>" + an explicit api_base to actually
+    reach the tenant's self-hosted server -- that translation must happen
+    only at the litellm.acompletion call, not leak into what gets persisted."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    auth = _signup(client, "st9@t.com")
+    _install_ai(client, auth)
+    client.patch("/api/settings", headers=auth, json={
+        "ai_ollama_models": "llama3.1:8b",
+        "ai_ollama_base_url": "http://gpu-box.local:11434",
+    })
+    sid = _new_session(client, auth)
+
+    calls = []
+    async def fake_acompletion(**kwargs):
+        calls.append(kwargs)
+        return _stream_from([_Chunk(content="hi"), _Chunk(finish_reason="stop")])
+    monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
+
+    with client.stream("POST", "/api/ai/chat", headers=auth,
+                       json={"session_id": sid, "message": "hi", "model": "ollama/llama3.1:8b"}) as r:
+        assert r.status_code == 200
+        list(r.iter_lines())
+
+    assert calls[0]["model"] == "ollama_chat/llama3.1:8b"
+    assert calls[0]["api_base"] == "http://gpu-box.local:11434"
+    assert calls[0]["api_key"] is None
+    assert "thinking" not in calls[0]
+
+    msgs = client.get(f"/api/ai/sessions/{sid}/messages", headers=auth).json()
+    assert msgs[1]["model"] == "ollama/llama3.1:8b"   # persisted form, not ollama_chat/
+
+
 def test_no_providers_returns_503(client: TestClient, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     auth = _signup(client, "st4@t.com")
