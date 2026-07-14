@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 # ── Journal ──────────────────────────────────────────────────────────────────
 
 
-@router.get("/journal")
+@router.get("/journal", dependencies=[perm_dep("report.general_ledger")])
 def get_journal_report(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
@@ -77,7 +77,7 @@ def get_journal_report(
 # ── Trial balance ────────────────────────────────────────────────────────────
 
 
-@router.get("/trial-balance")
+@router.get("/trial-balance", dependencies=[perm_dep("report.trial_balance")])
 def get_trial_balance(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
@@ -450,7 +450,7 @@ def get_net_worth_trend(
 # ── Income statement ─────────────────────────────────────────────────────────
 
 
-@router.get("/income-statement")
+@router.get("/income-statement", dependencies=[perm_dep("report.income_statement")])
 def get_income_statement(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
@@ -515,7 +515,7 @@ def get_income_statement(
 # ── General ledger (per-account with running balance) ────────────────────────
 
 
-@router.get("/ledger")
+@router.get("/ledger", dependencies=[perm_dep("report.general_ledger")])
 def get_ledger(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
@@ -660,7 +660,7 @@ def _account_gl_movement(session, tenant_id: int, account: Account, start: Optio
     }
 
 
-@router.get("/ledger/subledger")
+@router.get("/ledger/subledger", dependencies=[perm_dep("report.general_ledger")])
 def ledger_subledger(
     session: SessionDep, user: CurrentUserDep,
     control: str,
@@ -839,7 +839,7 @@ def ledger_subledger(
 # ── Balance sheet ────────────────────────────────────────────────────────────
 
 
-@router.get("/balance-sheet")
+@router.get("/balance-sheet", dependencies=[perm_dep("report.balance_sheet")])
 def get_balance_sheet(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
@@ -936,7 +936,7 @@ def get_balance_sheet(
 # ── Cash flow (indirect) ─────────────────────────────────────────────────────
 
 
-@router.get("/cash-flow")
+@router.get("/cash-flow", dependencies=[perm_dep("report.cash_flow")])
 def cash_flow_statement(
     session: SessionDep, user: CurrentUserDep,
     start: str = Query(default=""), end: str = Query(default=""),
@@ -1066,7 +1066,7 @@ def cash_flow_statement(
 # ── Tax summary ──────────────────────────────────────────────────────────────
 
 
-@router.get("/tax-summary")
+@router.get("/tax-summary", dependencies=[perm_dep("report.tax")])
 def tax_summary(
     session: SessionDep, user: CurrentUserDep,
     start: str = Query(default=""), end: str = Query(default=""),
@@ -1184,7 +1184,7 @@ def get_analytic_pl(
 # ── Budget vs Actual ──────────────────────────────────────────────────────────
 
 
-@router.get("/budget-vs-actual")
+@router.get("/budget-vs-actual", dependencies=[perm_dep("report.budget_vs_actual")])
 def get_budget_vs_actual(
     session: SessionDep, user: CurrentUserDep,
     year: int,
@@ -1351,7 +1351,7 @@ def run_fx_revaluation(
 _IN_DIRECTIONS = {"RECEIPT", "CUSTODIAL_RECEIPT", "COMPLETION", "CUSTODIAL_COMPLETION"}
 
 
-@router.get("/product-ledger")
+@router.get("/product-ledger", dependencies=[perm_dep("report.product_ledger")])
 def product_ledger(
     session: SessionDep, user: CurrentUserDep,
     product_id: int, location_id: Optional[int] = None,
@@ -1430,7 +1430,7 @@ def product_ledger(
 # ── Inventory Performance ─────────────────────────────────────────────────────
 
 
-@router.get("/inventory-performance")
+@router.get("/inventory-performance", dependencies=[perm_dep("report.inventory_performance")])
 def inventory_performance(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
@@ -1567,7 +1567,7 @@ def product_coa(session: SessionDep, user: CurrentUserDep):
 # ── Customer Performance ──────────────────────────────────────────────────────
 
 
-@router.get("/customer-performance")
+@router.get("/customer-performance", dependencies=[perm_dep("report.customer_performance")])
 def customer_performance(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,

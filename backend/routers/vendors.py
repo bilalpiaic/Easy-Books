@@ -90,7 +90,7 @@ def update_vendor(
     return v
 
 
-@router.get("/{vendor_id}/statement")
+@router.get("/{vendor_id}/statement", dependencies=[perm_dep("vendor_ledger")])
 def vendor_statement(
     session: SessionDep, user: CurrentUserDep, vendor_id: int,
     from_date: str, to_date: str,

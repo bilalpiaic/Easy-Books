@@ -59,7 +59,6 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "tax_codes":              {"label": "Tax Codes",               "category": "Reports"},
     "payment_terms":          {"label": "Payment Terms",           "category": "System"},
     "period_close":           {"label": "Period Close",            "category": "System"},
-    "team":                   {"label": "Team Management",         "category": "System"},
     "audit_log":              {"label": "Audit Log",               "category": "System"},
     "csv_import":             {"label": "CSV Import",              "category": "System"},
     "report_builder":         {"label": "Report Builder",          "category": "Reports"},
