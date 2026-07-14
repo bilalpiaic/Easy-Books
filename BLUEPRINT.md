@@ -1988,6 +1988,20 @@ Branch `feat/report-period-presets`.
 | **`DateRangePicker` preset dropdown** | Preset select ahead of From/To with unchanged prop contract — all 14 existing consumers gained presets with zero edits; preset fills + disables the inputs, "Custom" re-enables; `matchPreset` re-selects the preset when a range is restored from URL params (`eb82750`) |
 | **Report page sweep** | Hand-rolled `<input type="date">` from/to pairs replaced with the shared component across core/AR/AP (statements, audit, analytic P&L, attendance report, telecom tracker — `854c146`) and purchases/store/healthcare registers (`179f495`) |
 
+### Sprint 27 Shipped ✅ (Leftover Cleanup Batch + AI Chat Review + Seed Data Upgrade)
+
+Four stacked leftover-cleanup PRs (#149→#150→#151→#152, each retargeted straight to `main` after GitHub auto-closed two of them when their stacked base branches were deleted mid-merge — recovered by reopening fresh PRs #154/#155 from the same branches), plus a frontend review pass and a correctness fix found while building demo data around the new overdue feature.
+
+| PR | Feature | Notes |
+|----|---------|-------|
+| **#149** | FK-cycle fix + gate-permission decoupling + freeze panes | `ComparativeStatement.po_id` / `HcBed.current_admission_id` (a second, previously undocumented cycle) declared `use_alter=True`, making `sorted_tables` deterministic; demo purge nulls both back-pointers first. `GET /api/gate-inwards/pos` + `/pos/{id}` — gate-scoped, price-free PO views so a `purchase.gate`-only user never needs `purchase_orders` rights; GI serializer now carries line description/unit. `/pl` + `/balance` single-period trees gained real `<thead>` + `.table-freeze`. |
+| **#150 → #154** | Report pagination | Gate Register, 3-Way Match, Gate Outward Register, Dispatch Reconciliation, Issue Register all move from bare arrays + Python-side substring filtering to `{total, items}` with `skip`/`limit` and SQL `ilike` search; Dispatch Reconciliation is a SQL `UNION ALL` of invoices + debit notes. Frontend: shared `Pagination` component (50/page) on all five report pages. |
+| **#151 → #155** | Overdue automation | `services/overdue.py` — `sweep_overdue()` (cross-tenant SQL `UPDATE`) + `send_overdue_reminders()` (one email per customer, throttled via `overdue_reminder_interval_days`), wired into `main.py`'s FastAPI lifespan as a background asyncio task. New Settings field. |
+| **#152 → #155** | Anthropic default model → Claude Sonnet 5 | Not a bare string swap — Sonnet 5 runs adaptive thinking ON when `thinking` is omitted (silent behavior change from 4.6) and thinking output shares the reply's fixed `max_tokens`; `routers/ai_chat.py` now sends `thinking: {"type": "disabled"}` gated to anthropic calls only. |
+| **#153** | AI chat frontend review | Two real bugs: `/agent` sidebar never picked up a session's auto-generated title after its first message (no refetch wired); composer textarea had `max-h-24 overflow-y-auto` in its className but no resize JS, so it never actually grew past one line. Both fixed with a Playwright-verified round trip. |
+| **#156** | `sweep_overdue` status-vocabulary bug | Found immediately while building seed data around #151: the sweep targeted `status IN ("open", "sent")`, but nothing in `routers/invoices.py` ever sets `"open"` — dead vocabulary. The real issued-but-unpaid status this app produces is `"posted"`. The merged PR's own test passed only because its test helper used the same synthetic `"open"` value. Fixed to `("posted", "sent", "open")`, deliberately still excluding `"draft"` (sweeping a draft would email a customer about an invoice they were never sent). |
+| **#157** | Seed data upgrade | `email_notifications=true` for every demo tenant (was never set, so `send_overdue_reminders()` silently skipped all of them); Store Issue seeding bumped 4→60 rows so the Issue Register's new Pagination control has something to page through on first login. |
+
 ### Still Pending
 
 **Manufacturing track (V2 follow-ups)**

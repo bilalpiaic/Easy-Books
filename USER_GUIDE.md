@@ -150,7 +150,8 @@ Go to **Settings → Company Profile** to configure your business identity:
 | Website | "www.garmentloop.pk" | Printed on invoices |
 | Tax ID / NTN | "12-3456789" | Printed on invoices and tax reports |
 | Base Currency | PKR / USD / EUR | All transactions denominated in this currency |
-| Fiscal Year Start | January / April / July / October | Determines financial year boundaries |
+| Fiscal Year Start | January / April / July / October | Determines financial year boundaries; drives the report Fiscal Year/Quarter presets (§9, Report Period Filter) |
+| Week Starts On | Monday / Sunday | Drives the report This Week / Last Week presets (§9, Report Period Filter) |
 
 All fields auto-save via `/api/settings` PATCH.
 
@@ -203,6 +204,20 @@ In **Settings → Default GL Accounts**, override the hardcoded posting defaults
 | COGS Account | 5010 | Debited on stock sale |
 
 Select accounts from the dropdown — only accounts of the matching type are shown.
+
+### 2.6 Overdue Reminders
+
+In **Settings → Preferences**, under **Email Notifications**:
+
+1. Toggle **Email Notifications** on.
+2. A new field appears: **Overdue Reminder Interval** — how many days to wait between reminder emails per overdue customer (default 7).
+
+When enabled, Easy-Books runs a daily background check that:
+- Flips any invoice that's past its due date and still unpaid to **Overdue** status (this also happens automatically whenever you view the invoice list, but the background check catches it even if nobody opens the app that day).
+- Sends **one email per customer** listing every overdue invoice they owe and the total balance due — not one email per invoice, so a customer with three overdue invoices gets a single consolidated reminder.
+- Respects the interval you set: a customer who was already emailed within the last N days isn't emailed again on the next check.
+
+Reminders require a customer to have an email address on file and require SMTP to be configured on the server (`SMTP_HOST` env var) — without SMTP configured, the checks still run and update invoice statuses, but no email is actually sent.
 
 ---
 
@@ -485,6 +500,8 @@ Once all lines are matched, click **Lock & Close** — verifies GL balance = sta
 All reports are **live from the GL** — always current, no batch jobs.
 
 **Hierarchical statements.** Trial Balance, Balance Sheet, and P&L are displayed as an **expandable tree** that mirrors your Chart of Accounts: each group shows a rolled-up subtotal, and you can expand ▸ / collapse ▾ any group to show or hide its child accounts. Click a **leaf account line** to drill straight into its ledger, and from there into the underlying voucher. Turn on **Compare** (period selector) on the Balance Sheet or P&L to show a prior period side-by-side.
+
+**Report Period Filter.** Every report's date filter opens with a **Period** dropdown offering the same 26 presets QuickBooks uses — Today, This Week / Last Week / Next Week, This Month / Last Month, This Fiscal Quarter / Last Fiscal Quarter / Next Fiscal Quarter, This Fiscal Year / Last Fiscal Year / Next Fiscal Year, plus year-to-date and quarter-to-date variants, and **Custom** for a manual range. Choosing a preset fills the From/To fields for you and locks them (grey out) so you can't accidentally edit a preset range by hand; choosing **Custom** unlocks them again. The Fiscal Year/Quarter presets follow your **Fiscal Year Start** setting (§2.1) and the Week presets follow your **Week Starts On** setting — so if your fiscal year starts in July, "This Fiscal Quarter" always means the right three months for your business, not the calendar quarter.
 
 | Report | Path | IAS ref |
 |--------|------|---------|
@@ -2012,6 +2029,8 @@ Once conversion succeeds:
 
 A flagged row means something doesn't line up: a short delivery that got billed in full, an over-billed amount, or — the most valuable catch on an older company's books — a PO that was billed with **no Gate Inward record at all**, meaning nobody ever confirmed the goods arrived.
 
+Both reports (and every other register in this section — Gate Outward Register, Dispatch Reconciliation, Store Issue's Issue Register) page results 50 at a time once your company has enough activity, with page-navigation controls at the bottom of the table; the search box filters server-side, so it works across the whole register, not just the currently-visible page.
+
 ### 34.10 Settings: Chain & Gate Enforcement Toggles
 
 Go to **Settings** (`/settings`) — two toggles appear once Purchases & Store is installed:
@@ -2073,7 +2092,7 @@ Scrap is different from the other two: there's no earlier document to point to, 
 
 **Gate Outward Register** (`/store/gate-outward-register`) — every outward gate entry (invoice, debit note, and scrap), searchable by vehicle/challan, filterable by type and date. The outbound mirror of the Gate Register.
 
-**Dispatch Reconciliation** (`/store/dispatch-reconciliation`) — one row per posted invoice or debit note, showing whether a Gate Outward entry exists for it yet. Rows with **no gate exit** are highlighted — this is how you catch invoices that were created and (on paper) shipped, but never actually logged leaving the building. It's a flag for follow-up, not a block — invoice creation and posting are never held up by this report.
+**Dispatch Reconciliation** (`/store/dispatch-reconciliation`) — one row per posted invoice or debit note, showing whether a Gate Outward entry exists for it yet. Rows with **no gate exit** are highlighted — this is how you catch invoices that were created and (on paper) shipped, but never actually logged leaving the building. It's a flag for follow-up, not a block — invoice creation and posting are never held up by this report. Search by invoice/debit-note number or customer/vendor name to jump straight to a specific document.
 
 ### 34.15 Permissions for This Module
 
@@ -2087,3 +2106,5 @@ Four permission resources appear in the admin matrix (**System → Permissions**
 | **Gate Outward** | Recording, approving, and cancelling dispatch entries |
 
 Each can be set to **None / View / Edit** per user, and each supports **My Data Only** — a storekeeper flagged this way sees only the gate entries they personally recorded, on both the list pages and the register reports. Approving a demand, comparative, or scrap Gate Outward always requires admin or owner rights regardless of the granular permission level, and always blocks the creator from approving their own document.
+
+**A gate-only user doesn't need Purchase Order access.** Give someone **Edit** on **Gate Inward** but leave their **Purchase Orders** permission at **None**, and they can still pick a purchase order and record goods receipt against it — the gate screens show a stripped-down view of the PO (description, quantity, unit) with no pricing, so a receiving clerk can do their job without ever seeing what anything costs.
