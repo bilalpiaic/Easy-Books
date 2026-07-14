@@ -6,7 +6,8 @@ from datetime import date
 from sqlmodel import Session, select
 
 import db as _db_module
-from models import Account, AuditLog, DeferredRevenueSchedule, JournalEntry, Transaction, User
+from models import (Account, AuditLog, DeferredRevenueSchedule, JournalEntry,
+                    Settings, StoreIssue, Transaction, User)
 from scripts.seed_demo import seed_one_tenant
 
 
@@ -83,3 +84,21 @@ def test_every_segment_seeds_and_trial_balance_balances(client, model):
         cr = sum(D(r.credit) for r in rows)
     assert dr == cr, f"{model}: trial balance off by {dr - cr}"
     assert len(_txns(tid)) > 0, f"{model}: no transactions seeded"
+
+
+def test_every_segment_enables_email_notifications(client):
+    tid = _seed(client, "services", email="demo.notif@seedtest.app")
+    with Session(_db_module.engine) as s:
+        row = s.exec(select(Settings).where(
+            Settings.tenant_id == tid, Settings.key == "email_notifications")).first()
+    assert row is not None and row.value == "true"
+
+
+def test_manufacturing_seeds_enough_store_issues_to_paginate(client):
+    """#150/#154 gave the Issue Register a 50-row page; seed data must exceed
+    that so the Pagination control and search box aren't dormant on first
+    login."""
+    tid = _seed(client, "manufacturing")
+    with Session(_db_module.engine) as s:
+        count = len(s.exec(select(StoreIssue).where(StoreIssue.tenant_id == tid)).all())
+    assert count > 50, f"only {count} store issues seeded — Issue Register never paginates"
