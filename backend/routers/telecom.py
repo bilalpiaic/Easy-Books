@@ -43,7 +43,15 @@ from services.tracker_posting import (
 from services.permissions import perm_dep
 from .common import CurrentUserDep, SessionDep, WriteUserDep
 
-router = APIRouter(tags=["telecom"], prefix="/api/telecom", dependencies=[perm_dep("telecom.tracker")])
+router = APIRouter(tags=["telecom"], prefix="/api/telecom")
+# Each endpoint below is gated by its own telecom.* sub-resource (view for
+# GET, edit for POST/mutating) instead of one router-wide check, so an
+# admin can grant e.g. RSO Channel access without also granting Franchise
+# Admin or Devices. Previously ALL 54 endpoints shared a single
+# perm_dep("telecom.tracker") check at "view" level -- meaning POST
+# endpoints only required view-level access, not edit, and the other 8
+# registered telecom.* resources (rso/sim/fca/mobile_money/postpaid/
+# commissions/franchise/devices) had no effect at all.
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -82,7 +90,7 @@ class OperatorCreate(BaseModel):
     commission_settlement_cycle: str = "monthly"
 
 
-@router.get("/operators")
+@router.get("/operators", dependencies=[perm_dep("telecom.tracker")])
 def list_operators(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(Operator).where(Operator.tenant_id == user.tenant_id).order_by(Operator.name)
@@ -90,7 +98,7 @@ def list_operators(session: SessionDep, user: CurrentUserDep):
     return {"items": items, "total": len(items)}
 
 
-@router.post("/operators")
+@router.post("/operators", dependencies=[perm_dep("telecom.tracker", "edit")])
 def create_operator(payload: OperatorCreate, session: SessionDep, user: WriteUserDep):
     # Auto-link the operator to the standard franchise CoA codes if present.
     def _acc_id(code: str) -> Optional[int]:
@@ -124,7 +132,7 @@ class TrackerAccountCreate(BaseModel):
     account_number: str
 
 
-@router.get("/tracker-accounts")
+@router.get("/tracker-accounts", dependencies=[perm_dep("telecom.tracker")])
 def list_tracker_accounts(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(TrackerAccount).where(TrackerAccount.tenant_id == user.tenant_id)
@@ -132,7 +140,7 @@ def list_tracker_accounts(session: SessionDep, user: CurrentUserDep):
     return {"items": items, "total": len(items)}
 
 
-@router.post("/tracker-accounts")
+@router.post("/tracker-accounts", dependencies=[perm_dep("telecom.tracker", "edit")])
 def create_tracker_account(payload: TrackerAccountCreate, session: SessionDep, user: WriteUserDep):
     op = _get_one(session, Operator, payload.operator_id, user.tenant_id)
     ta = TrackerAccount(
@@ -151,7 +159,7 @@ class TrackerDepositPayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/tracker/deposits")
+@router.post("/tracker/deposits", dependencies=[perm_dep("telecom.tracker", "edit")])
 def post_deposit(payload: TrackerDepositPayload, session: SessionDep, user: WriteUserDep):
     ta = _get_one(session, TrackerAccount, payload.tracker_account_id, user.tenant_id)
     tt, txn = post_tracker_deposit(
@@ -171,7 +179,7 @@ class LoadOrderPayload(BaseModel):
     reference: Optional[str] = None
 
 
-@router.post("/tracker/load-orders")
+@router.post("/tracker/load-orders", dependencies=[perm_dep("telecom.tracker", "edit")])
 def post_load_order_ep(payload: LoadOrderPayload, session: SessionDep, user: WriteUserDep):
     ta = _get_one(session, TrackerAccount, payload.tracker_account_id, user.tenant_id)
     tt, txn = post_load_order(
@@ -192,7 +200,7 @@ class StockDebitPayload(BaseModel):
     batch_number: Optional[str] = None
 
 
-@router.post("/tracker/stock-debits")
+@router.post("/tracker/stock-debits", dependencies=[perm_dep("telecom.tracker", "edit")])
 def post_stock_debit_ep(payload: StockDebitPayload, session: SessionDep, user: WriteUserDep):
     ta = _get_one(session, TrackerAccount, payload.tracker_account_id, user.tenant_id)
     batch, txn = post_stock_debit(
@@ -205,7 +213,7 @@ def post_stock_debit_ep(payload: StockDebitPayload, session: SessionDep, user: W
     return {"batch": batch, "transaction": {"id": txn.id, "jv_number": txn.jv_number}}
 
 
-@router.get("/tracker/transactions")
+@router.get("/tracker/transactions", dependencies=[perm_dep("telecom.tracker")])
 def list_tracker_transactions(
     session: SessionDep, user: CurrentUserDep,
     tracker_account_id: Optional[int] = None, limit: int = 100,
@@ -229,7 +237,7 @@ class RsoAgentCreate(BaseModel):
     territory: Optional[str] = None
 
 
-@router.get("/rso/agents")
+@router.get("/rso/agents", dependencies=[perm_dep("telecom.rso")])
 def list_rso_agents(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(RsoAgent).where(RsoAgent.tenant_id == user.tenant_id).order_by(RsoAgent.name)
@@ -237,7 +245,7 @@ def list_rso_agents(session: SessionDep, user: CurrentUserDep):
     return {"items": items, "total": len(items)}
 
 
-@router.post("/rso/agents")
+@router.post("/rso/agents", dependencies=[perm_dep("telecom.rso", "edit")])
 def create_rso(payload: RsoAgentCreate, session: SessionDep, user: WriteUserDep):
     agent = RsoAgent(tenant_id=user.tenant_id, **payload.model_dump())
     session.add(agent); session.commit(); session.refresh(agent)
@@ -252,7 +260,7 @@ class RetailOutletCreate(BaseModel):
     address: Optional[str] = None
 
 
-@router.get("/rso/retail-outlets")
+@router.get("/rso/retail-outlets", dependencies=[perm_dep("telecom.rso")])
 def list_retail_outlets(
     session: SessionDep, user: CurrentUserDep, rso_id: Optional[int] = None,
 ):
@@ -263,7 +271,7 @@ def list_retail_outlets(
     return {"items": items, "total": len(items)}
 
 
-@router.post("/rso/retail-outlets")
+@router.post("/rso/retail-outlets", dependencies=[perm_dep("telecom.rso", "edit")])
 def create_retail_outlet(payload: RetailOutletCreate, session: SessionDep, user: WriteUserDep):
     _get_one(session, RsoAgent, payload.rso_id, user.tenant_id)
     outlet = RetailOutlet(tenant_id=user.tenant_id, **payload.model_dump())
@@ -278,7 +286,7 @@ class MsrToRsoTransferPayload(BaseModel):
     date: Optional[str] = None
 
 
-@router.post("/load-transfers/msr-to-rso")
+@router.post("/load-transfers/msr-to-rso", dependencies=[perm_dep("telecom.rso", "edit")])
 def transfer_msr_to_rso(payload: MsrToRsoTransferPayload, session: SessionDep, user: WriteUserDep):
     ta = _get_one(session, TrackerAccount, payload.tracker_account_id, user.tenant_id)
     rso = _get_one(session, RsoAgent, payload.rso_id, user.tenant_id)
@@ -297,7 +305,7 @@ class RsoToRetailTransferPayload(BaseModel):
     date: Optional[str] = None
 
 
-@router.post("/load-transfers/rso-to-retail")
+@router.post("/load-transfers/rso-to-retail", dependencies=[perm_dep("telecom.rso", "edit")])
 def transfer_rso_to_retail(payload: RsoToRetailTransferPayload, session: SessionDep, user: WriteUserDep):
     rso = _get_one(session, RsoAgent, payload.rso_id, user.tenant_id)
     outlet = _get_one(session, RetailOutlet, payload.retail_outlet_id, user.tenant_id)
@@ -309,7 +317,7 @@ def transfer_rso_to_retail(payload: RsoToRetailTransferPayload, session: Session
     return {"load_transfer": lt, "transaction": {"id": txn.id, "jv_number": txn.jv_number}}
 
 
-@router.get("/load-transfers")
+@router.get("/load-transfers", dependencies=[perm_dep("telecom.rso")])
 def list_load_transfers(
     session: SessionDep, user: CurrentUserDep, limit: int = 100,
     from_type: Optional[str] = None,
@@ -330,7 +338,7 @@ class RsoCollectionPayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/rso/collections")
+@router.post("/rso/collections", dependencies=[perm_dep("telecom.rso", "edit")])
 def post_collection(payload: RsoCollectionPayload, session: SessionDep, user: WriteUserDep):
     rso = _get_one(session, RsoAgent, payload.rso_id, user.tenant_id)
     coll, txn = post_rso_daily_collection(
@@ -344,7 +352,7 @@ def post_collection(payload: RsoCollectionPayload, session: SessionDep, user: Wr
     return {"collection": coll, "transaction": {"id": txn.id, "jv_number": txn.jv_number}}
 
 
-@router.get("/rso/collections")
+@router.get("/rso/collections", dependencies=[perm_dep("telecom.rso")])
 def list_collections(
     session: SessionDep, user: CurrentUserDep,
     rso_id: Optional[int] = None, limit: int = 100,
@@ -364,7 +372,7 @@ class RsoSimIssuePayload(BaseModel):
     date: Optional[str] = None
 
 
-@router.post("/rso/sim-issues")
+@router.post("/rso/sim-issues", dependencies=[perm_dep("telecom.rso", "edit")])
 def issue_sim_to_rso(payload: RsoSimIssuePayload, session: SessionDep, user: WriteUserDep):
     rso = _get_one(session, RsoAgent, payload.rso_id, user.tenant_id)
     batch = _get_one(session, SimBatch, payload.batch_id, user.tenant_id)
@@ -387,7 +395,7 @@ def issue_sim_to_rso(payload: RsoSimIssuePayload, session: SessionDep, user: Wri
 # ──────────────────────────────────────────────────────────────────────────
 
 
-@router.get("/sim/batches")
+@router.get("/sim/batches", dependencies=[perm_dep("telecom.sim")])
 def list_sim_batches(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(SimBatch).where(SimBatch.tenant_id == user.tenant_id).order_by(SimBatch.received_date.desc())
@@ -406,7 +414,7 @@ class SimActivationCreate(BaseModel):
     date: Optional[str] = None
 
 
-@router.get("/sim/activations")
+@router.get("/sim/activations", dependencies=[perm_dep("telecom.sim")])
 def list_sim_activations(
     session: SessionDep, user: CurrentUserDep,
     status: Optional[str] = None, limit: int = 200,
@@ -418,7 +426,7 @@ def list_sim_activations(
     return {"items": items, "total": len(items)}
 
 
-@router.post("/sim/activations")
+@router.post("/sim/activations", dependencies=[perm_dep("telecom.sim", "edit")])
 def create_sim_activation(payload: SimActivationCreate, session: SessionDep, user: WriteUserDep):
     op = _get_one(session, Operator, payload.operator_id, user.tenant_id)
     act = SimActivation(
@@ -443,7 +451,7 @@ class CommissionAccrualPayload(BaseModel):
     revenue_account_code: str = "4020"
 
 
-@router.post("/sim/activations/accrue-commission")
+@router.post("/sim/activations/accrue-commission", dependencies=[perm_dep("telecom.sim", "edit")])
 def accrue_commission_ep(payload: CommissionAccrualPayload, session: SessionDep, user: WriteUserDep):
     act = _get_one(session, SimActivation, payload.activation_id, user.tenant_id)
     txn = post_commission_accrual(
@@ -468,7 +476,7 @@ class CounterSimSalePayload(BaseModel):
     cash_account_code: str = "1000"
 
 
-@router.post("/sim/counter-sales")
+@router.post("/sim/counter-sales", dependencies=[perm_dep("telecom.sim", "edit")])
 def counter_sale(payload: CounterSimSalePayload, session: SessionDep, user: WriteUserDep):
     sale_txn, cogs_txn = post_counter_sim_sale(
         session, user, qty=payload.qty,
@@ -496,7 +504,7 @@ class FcaEventCreate(BaseModel):
     date: Optional[str] = None
 
 
-@router.get("/fca/events")
+@router.get("/fca/events", dependencies=[perm_dep("telecom.fca")])
 def list_fca_events(session: SessionDep, user: CurrentUserDep, limit: int = 200):
     items = session.exec(
         select(FcaEvent).where(FcaEvent.tenant_id == user.tenant_id)
@@ -505,7 +513,7 @@ def list_fca_events(session: SessionDep, user: CurrentUserDep, limit: int = 200)
     return {"items": items, "total": len(items)}
 
 
-@router.post("/fca/events")
+@router.post("/fca/events", dependencies=[perm_dep("telecom.fca", "edit")])
 def create_fca_event(payload: FcaEventCreate, session: SessionDep, user: WriteUserDep):
     ev = FcaEvent(
         tenant_id=user.tenant_id, msisdn=payload.msisdn,
@@ -525,7 +533,7 @@ class FcaTargetCommissionPayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/fca/target-commission")
+@router.post("/fca/target-commission", dependencies=[perm_dep("telecom.fca", "edit")])
 def post_target_commission(
     payload: FcaTargetCommissionPayload, session: SessionDep, user: WriteUserDep,
 ):
@@ -547,7 +555,7 @@ class FcaTargetPenaltyPayload(BaseModel):
     date: Optional[str] = None
 
 
-@router.post("/fca/target-penalty")
+@router.post("/fca/target-penalty", dependencies=[perm_dep("telecom.fca", "edit")])
 def post_target_penalty(payload: FcaTargetPenaltyPayload, session: SessionDep, user: WriteUserDep):
     ta = _get_one(session, TrackerAccount, payload.tracker_account_id, user.tenant_id)
     txn = post_fca_target_penalty(
@@ -570,7 +578,7 @@ class KpiTargetCreate(BaseModel):
     target_value: Decimal
 
 
-@router.get("/kpi/targets")
+@router.get("/kpi/targets", dependencies=[perm_dep("telecom.fca")])
 def list_kpi_targets(
     session: SessionDep, user: CurrentUserDep,
     operator_id: Optional[int] = None, month: Optional[str] = None,
@@ -584,7 +592,7 @@ def list_kpi_targets(
     return {"items": items, "total": len(items)}
 
 
-@router.post("/kpi/targets")
+@router.post("/kpi/targets", dependencies=[perm_dep("telecom.fca", "edit")])
 def create_kpi_target(payload: KpiTargetCreate, session: SessionDep, user: WriteUserDep):
     _get_one(session, Operator, payload.operator_id, user.tenant_id)
     target = KpiTarget(
@@ -607,7 +615,7 @@ class MmAccountCreate(BaseModel):
     account_type: str = "jazzcash"
 
 
-@router.get("/mm/accounts")
+@router.get("/mm/accounts", dependencies=[perm_dep("telecom.mobile_money")])
 def list_mm_accounts(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(MobileMoneyAccount).where(MobileMoneyAccount.tenant_id == user.tenant_id)
@@ -615,7 +623,7 @@ def list_mm_accounts(session: SessionDep, user: CurrentUserDep):
     return {"items": items, "total": len(items)}
 
 
-@router.post("/mm/accounts")
+@router.post("/mm/accounts", dependencies=[perm_dep("telecom.mobile_money", "edit")])
 def create_mm_account(payload: MmAccountCreate, session: SessionDep, user: WriteUserDep):
     _get_one(session, Operator, payload.operator_id, user.tenant_id)
 
@@ -644,7 +652,7 @@ class MmTxnPayload(BaseModel):
     cash_account_code: str = "1000"
 
 
-@router.post("/mm/top-up")
+@router.post("/mm/top-up", dependencies=[perm_dep("telecom.mobile_money", "edit")])
 def mm_top_up(payload: MmTxnPayload, session: SessionDep, user: WriteUserDep):
     mm = _get_one(session, MobileMoneyAccount, payload.mm_account_id, user.tenant_id)
     mt, txn = post_mm_float_top_up(
@@ -655,7 +663,7 @@ def mm_top_up(payload: MmTxnPayload, session: SessionDep, user: WriteUserDep):
     return {"mm_transaction": mt, "transaction": {"id": txn.id, "jv_number": txn.jv_number}}
 
 
-@router.post("/mm/deposit")
+@router.post("/mm/deposit", dependencies=[perm_dep("telecom.mobile_money", "edit")])
 def mm_deposit(payload: MmTxnPayload, session: SessionDep, user: WriteUserDep):
     mm = _get_one(session, MobileMoneyAccount, payload.mm_account_id, user.tenant_id)
     mt, txn = post_mm_customer_deposit(
@@ -668,7 +676,7 @@ def mm_deposit(payload: MmTxnPayload, session: SessionDep, user: WriteUserDep):
     return {"mm_transaction": mt, "transaction": {"id": txn.id, "jv_number": txn.jv_number}}
 
 
-@router.post("/mm/withdrawal")
+@router.post("/mm/withdrawal", dependencies=[perm_dep("telecom.mobile_money", "edit")])
 def mm_withdrawal(payload: MmTxnPayload, session: SessionDep, user: WriteUserDep):
     mm = _get_one(session, MobileMoneyAccount, payload.mm_account_id, user.tenant_id)
     mt, txn = post_mm_customer_withdrawal(
@@ -689,7 +697,7 @@ class MmCommissionPayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/mm/commission")
+@router.post("/mm/commission", dependencies=[perm_dep("telecom.mobile_money", "edit")])
 def mm_commission(payload: MmCommissionPayload, session: SessionDep, user: WriteUserDep):
     mm = _get_one(session, MobileMoneyAccount, payload.mm_account_id, user.tenant_id)
     mt, txn = post_mm_commission_credit(
@@ -707,7 +715,7 @@ class MmReconcilePayload(BaseModel):
     date: Optional[str] = None
 
 
-@router.post("/mm/reconcile")
+@router.post("/mm/reconcile", dependencies=[perm_dep("telecom.mobile_money", "edit")])
 def mm_reconcile(payload: MmReconcilePayload, session: SessionDep, user: WriteUserDep):
     mm = _get_one(session, MobileMoneyAccount, payload.mm_account_id, user.tenant_id)
     txn = post_mm_reconciliation(
@@ -719,7 +727,7 @@ def mm_reconcile(payload: MmReconcilePayload, session: SessionDep, user: WriteUs
     return {"transaction": {"id": txn.id, "jv_number": txn.jv_number} if txn else None}
 
 
-@router.get("/mm/transactions")
+@router.get("/mm/transactions", dependencies=[perm_dep("telecom.mobile_money")])
 def list_mm_transactions(
     session: SessionDep, user: CurrentUserDep,
     mm_account_id: Optional[int] = None, limit: int = 200,
@@ -747,7 +755,7 @@ class PostpaidConnectionCreate(BaseModel):
     date: Optional[str] = None
 
 
-@router.get("/postpaid/connections")
+@router.get("/postpaid/connections", dependencies=[perm_dep("telecom.postpaid")])
 def list_postpaid_connections(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(PostpaidConnection).where(PostpaidConnection.tenant_id == user.tenant_id)
@@ -756,7 +764,7 @@ def list_postpaid_connections(session: SessionDep, user: CurrentUserDep):
     return {"items": items, "total": len(items)}
 
 
-@router.post("/postpaid/connections")
+@router.post("/postpaid/connections", dependencies=[perm_dep("telecom.postpaid", "edit")])
 def create_postpaid_connection(payload: PostpaidConnectionCreate, session: SessionDep, user: WriteUserDep):
     _get_one(session, Operator, payload.operator_id, user.tenant_id)
     conn = PostpaidConnection(
@@ -777,7 +785,7 @@ class PostpaidBillPayload(BaseModel):
     gross_amount: Decimal
 
 
-@router.post("/postpaid/bills")
+@router.post("/postpaid/bills", dependencies=[perm_dep("telecom.postpaid", "edit")])
 def bill_postpaid(payload: PostpaidBillPayload, session: SessionDep, user: WriteUserDep):
     conn = _get_one(session, PostpaidConnection, payload.connection_id, user.tenant_id)
     cycle, txn = post_postpaid_bill(
@@ -795,7 +803,7 @@ class PostpaidCollectionPayload(BaseModel):
     cash_account_code: str = "1000"
 
 
-@router.post("/postpaid/collect")
+@router.post("/postpaid/collect", dependencies=[perm_dep("telecom.postpaid", "edit")])
 def collect_postpaid(payload: PostpaidCollectionPayload, session: SessionDep, user: WriteUserDep):
     cycle = _get_one(session, PostpaidBillCycle, payload.cycle_id, user.tenant_id)
     txn = post_postpaid_collection(
@@ -813,7 +821,7 @@ class PostpaidRemitPayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/postpaid/remit")
+@router.post("/postpaid/remit", dependencies=[perm_dep("telecom.postpaid", "edit")])
 def remit_postpaid(payload: PostpaidRemitPayload, session: SessionDep, user: WriteUserDep):
     cycle = _get_one(session, PostpaidBillCycle, payload.cycle_id, user.tenant_id)
     txn = post_postpaid_remittance(
@@ -825,7 +833,7 @@ def remit_postpaid(payload: PostpaidRemitPayload, session: SessionDep, user: Wri
     return {"transaction": {"id": txn.id, "jv_number": txn.jv_number}}
 
 
-@router.get("/postpaid/cycles")
+@router.get("/postpaid/cycles", dependencies=[perm_dep("telecom.postpaid")])
 def list_postpaid_cycles(session: SessionDep, user: CurrentUserDep, limit: int = 200):
     items = session.exec(
         select(PostpaidBillCycle).where(PostpaidBillCycle.tenant_id == user.tenant_id)
@@ -849,7 +857,7 @@ class CommissionStatementCreate(BaseModel):
     lines: list[dict] = []   # [{commission_type, accrued_amount, event_reference?}]
 
 
-@router.get("/commissions/statements")
+@router.get("/commissions/statements", dependencies=[perm_dep("telecom.commissions")])
 def list_commission_statements(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(CommissionStatement).where(CommissionStatement.tenant_id == user.tenant_id)
@@ -858,7 +866,7 @@ def list_commission_statements(session: SessionDep, user: CurrentUserDep):
     return {"items": items, "total": len(items)}
 
 
-@router.post("/commissions/statements")
+@router.post("/commissions/statements", dependencies=[perm_dep("telecom.commissions", "edit")])
 def create_commission_statement(payload: CommissionStatementCreate, session: SessionDep, user: WriteUserDep):
     _get_one(session, Operator, payload.operator_id, user.tenant_id)
     stmt = CommissionStatement(
@@ -889,7 +897,7 @@ class CommissionSettlePayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/commissions/settle")
+@router.post("/commissions/settle", dependencies=[perm_dep("telecom.commissions", "edit")])
 def settle_commission(payload: CommissionSettlePayload, session: SessionDep, user: WriteUserDep):
     stmt = _get_one(session, CommissionStatement, payload.statement_id, user.tenant_id)
     txn = post_commission_statement_settlement(
@@ -920,7 +928,7 @@ class FranchiseAgreementCreate(BaseModel):
     amortisation_months: int = 60
 
 
-@router.get("/franchise/agreements")
+@router.get("/franchise/agreements", dependencies=[perm_dep("telecom.franchise")])
 def list_agreements(session: SessionDep, user: CurrentUserDep):
     items = session.exec(
         select(FranchiseAgreement).where(FranchiseAgreement.tenant_id == user.tenant_id)
@@ -928,7 +936,7 @@ def list_agreements(session: SessionDep, user: CurrentUserDep):
     return {"items": items, "total": len(items)}
 
 
-@router.post("/franchise/agreements")
+@router.post("/franchise/agreements", dependencies=[perm_dep("telecom.franchise", "edit")])
 def create_agreement(payload: FranchiseAgreementCreate, session: SessionDep, user: WriteUserDep):
     _get_one(session, Operator, payload.operator_id, user.tenant_id)
 
@@ -955,7 +963,7 @@ class FranchiseFeePayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/franchise/capitalise-fee")
+@router.post("/franchise/capitalise-fee", dependencies=[perm_dep("telecom.franchise", "edit")])
 def capitalise_fee(payload: FranchiseFeePayload, session: SessionDep, user: WriteUserDep):
     ag = _get_one(session, FranchiseAgreement, payload.agreement_id, user.tenant_id)
     txn = post_franchise_fee_capitalisation(
@@ -972,7 +980,7 @@ class AmortisePayload(BaseModel):
     date: Optional[str] = None
 
 
-@router.post("/franchise/amortise")
+@router.post("/franchise/amortise", dependencies=[perm_dep("telecom.franchise", "edit")])
 def amortise_fee(payload: AmortisePayload, session: SessionDep, user: WriteUserDep):
     ag = _get_one(session, FranchiseAgreement, payload.agreement_id, user.tenant_id)
     txn = post_franchise_fee_amortisation(
@@ -988,7 +996,7 @@ class RoyaltyAccrualPayload(BaseModel):
     date: Optional[str] = None
 
 
-@router.post("/franchise/royalty/accrue")
+@router.post("/franchise/royalty/accrue", dependencies=[perm_dep("telecom.franchise", "edit")])
 def accrue_royalty(payload: RoyaltyAccrualPayload, session: SessionDep, user: WriteUserDep):
     ag = _get_one(session, FranchiseAgreement, payload.agreement_id, user.tenant_id)
     txn = post_royalty_accrual(
@@ -1005,7 +1013,7 @@ class RoyaltyPaymentPayload(BaseModel):
     bank_account_code: str = "1010"
 
 
-@router.post("/franchise/royalty/pay")
+@router.post("/franchise/royalty/pay", dependencies=[perm_dep("telecom.franchise", "edit")])
 def pay_royalty(payload: RoyaltyPaymentPayload, session: SessionDep, user: WriteUserDep):
     txn = post_royalty_payment(
         session, user, amount=payload.amount,
@@ -1028,7 +1036,7 @@ class DeviceImeiCreate(BaseModel):
     status: str = "in_stock"
 
 
-@router.get("/imei")
+@router.get("/imei", dependencies=[perm_dep("telecom.devices")])
 def list_imei(session: SessionDep, user: CurrentUserDep, status: Optional[str] = None):
     q = select(DeviceImei).where(DeviceImei.tenant_id == user.tenant_id)
     if status:
@@ -1037,7 +1045,7 @@ def list_imei(session: SessionDep, user: CurrentUserDep, status: Optional[str] =
     return {"items": items, "total": len(items)}
 
 
-@router.post("/imei")
+@router.post("/imei", dependencies=[perm_dep("telecom.devices", "edit")])
 def create_imei(payload: DeviceImeiCreate, session: SessionDep, user: WriteUserDep):
     imei = DeviceImei(tenant_id=user.tenant_id, **payload.model_dump())
     session.add(imei); session.commit(); session.refresh(imei)
