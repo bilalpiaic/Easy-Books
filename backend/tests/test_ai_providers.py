@@ -110,6 +110,11 @@ def test_models_endpoint_lists_only_configured_providers(client, monkeypatch):
     data = client.get("/api/ai/models", headers=auth).json()
     assert [p["provider"] for p in data["providers"]] == ["gemini"]
     assert "gemini/gemini-2.5-flash" in data["providers"][0]["models"]
+    # gemini-2.5-flash/-pro are being sunset by Google for newer API keys
+    # ("no longer available to new users" -- a live 404 from the Gemini
+    # API). The auto-updating "-latest" alias must be the default a fresh
+    # tenant gets, not a dated ID that may already be dead for their key.
+    assert data["providers"][0]["default"] == "gemini/gemini-flash-latest"
 
 
 def test_key_status_masked_and_admin_only(client, monkeypatch):
