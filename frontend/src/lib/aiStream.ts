@@ -5,7 +5,7 @@ export interface StreamHandlers {
   onToken: (text: string) => void
   onToolStart: (label: string) => void
   onToolEnd: () => void
-  onDone: (sessionId: number, messageId: number) => void
+  onDone: (sessionId: number, messageId: number, reply: string) => void
   onError: (detail: string) => void
 }
 
@@ -44,7 +44,7 @@ export async function streamChat(
           case "tool_start": h.onToolStart(ev.label as string); break
           case "tool_end": h.onToolEnd(); break
           case "done":
-            h.onDone(ev.session_id as number, ev.message_id as number)
+            h.onDone(ev.session_id as number, ev.message_id as number, (ev.reply as string) ?? "")
             terminalFired = true
             break
           case "error":

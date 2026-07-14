@@ -152,11 +152,17 @@ export default function ChatCore({ sessionId, models, className, onFirstMessageS
             if (!mountedRef.current) return
             setToolLabel(null)
           },
-          onDone: (_sid, messageId) => {
+          onDone: (_sid, messageId, reply) => {
             if (!mountedRef.current) return
+            // Trust the backend's authoritative "reply" over the locally
+            // accumulated token buffer: they normally match, but when the
+            // model only ever emits tool_calls with no content deltas, the
+            // backend substitutes a fallback message that was never
+            // streamed as tokens -- using streamingRef.current there would
+            // commit a blank bubble even though a real reply was persisted.
             setMessages(prev => [
               ...prev,
-              { id: messageId, role: "assistant", content: streamingRef.current, model: selectedModel || null },
+              { id: messageId, role: "assistant", content: reply || streamingRef.current, model: selectedModel || null },
             ])
             streamingRef.current = ""
             setStreamingText(null)
