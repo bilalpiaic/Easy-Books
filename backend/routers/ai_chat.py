@@ -31,12 +31,14 @@ from routers.reports import (
     get_trial_balance,
     cash_flow_statement,
 )
+from services.ai_agents import AGENTS, FALLBACK_AGENT_KEY, AgentDef, available_agents
 from services.ai_providers import (
     DEFAULT_MODEL,
     PROVIDERS,
     configured_providers,
     mask_key,
     resolve_api_key,
+    resolve_cheap_tier,
     validate_model,
 )
 from .common import AdminUserDep, CurrentUserDep, SessionDep
@@ -516,6 +518,60 @@ async def run_tool_loop(
     }
 
 
+def _build_triage_prompt(agents: dict[str, AgentDef]) -> str:
+    lines = [
+        "You are a routing classifier for a bookkeeping AI assistant. Given the user's message, "
+        "choose exactly ONE of the following agent keys that best matches what they are asking "
+        "about. Respond with ONLY the key itself — no punctuation, no explanation, nothing else.",
+        "",
+    ]
+    lines += [f"- {key}: {agent.trigger_hint}" for key, agent in agents.items()]
+    return "\n".join(lines)
+
+
+async def _run_triage(
+    session, user, agents: dict[str, AgentDef], history_tail: list[dict],
+    *, litellm_model: str, api_key, api_base, user_message: str,
+) -> str:
+    """Cheap-tier, non-streaming classification call. Never raises — any
+    failure (network, malformed/unparseable response, unknown key) falls
+    back to FALLBACK_AGENT_KEY so a triage hiccup can never abort the
+    request, only skip straight to the general (today's-behavior) agent."""
+    try:
+        cheap_model, cheap_key, cheap_base = resolve_cheap_tier(
+            session, user.tenant_id, litellm_model, api_key, api_base,
+        )
+        extra: dict = {}
+        if cheap_model.startswith("anthropic/"):
+            extra["thinking"] = {"type": "disabled"}
+        call_model = cheap_model
+        if cheap_model.startswith("ollama/"):
+            call_model = "ollama_chat/" + cheap_model[len("ollama/"):]
+            extra["api_base"] = cheap_base
+        response = await litellm.acompletion(
+            model=call_model,
+            api_key=cheap_key,
+            max_tokens=20,
+            temperature=0,
+            stream=False,
+            messages=[
+                {"role": "system", "content": _build_triage_prompt(agents)},
+                *history_tail,
+                {"role": "user", "content": user_message},
+            ],
+            **extra,
+        )
+        raw = (response.choices[0].message.content or "").strip().lower()
+    except Exception:
+        return FALLBACK_AGENT_KEY
+    if raw in agents:
+        return raw
+    for key in agents:
+        if key in raw or raw in key:
+            return key
+    return FALLBACK_AGENT_KEY
+
+
 @router.post("/chat")
 async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
     # ── Pre-stream validation: plain HTTP errors ────────────────────────
@@ -545,12 +601,23 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
         select(AiChatMessage).where(AiChatMessage.session_id == chat_session.id)
         .order_by(AiChatMessage.id.desc()).limit(MAX_HISTORY)
     ).all()
-    messages: list[dict] = [{"role": "system", "content": _build_system_prompt(_get_company_name(session, user))}]
+    company_name = _get_company_name(session, user)
+    messages: list[dict] = [{"role": "system", "content": _build_system_prompt(company_name)}]
     messages += [
         {"role": m.role, "content": m.content[:MAX_MESSAGE_CHARS]}
         for m in reversed(history_rows)
     ]
     messages.append({"role": "user", "content": body.message})
+    # Short tail (not the full MAX_HISTORY window) so triage can route a
+    # topic-continuation follow-up like "what about last month?" correctly,
+    # without meaningfully adding to its already-tiny (max_tokens=20) cost.
+    history_tail = [
+        {"role": m.role, "content": m.content[:500]}
+        for m in reversed(history_rows)
+    ][-2:]
+
+    tenant = session.get(Tenant, user.tenant_id)
+    agents = available_agents(_get_enabled(tenant))
 
     user_msg = AiChatMessage(session_id=chat_session.id, role="user", content=body.message)
     session.add(user_msg)
@@ -563,8 +630,23 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
     async def stream():
         loop_text = ""
         try:
+            yield _sse({"type": "stage", "label": "Routing your question…"})
+            agent_key = await _run_triage(
+                session, user, agents, history_tail,
+                litellm_model=litellm_model, api_key=api_key, api_base=api_base,
+                user_message=body.message,
+            )
+            agent = agents.get(agent_key) or AGENTS[FALLBACK_AGENT_KEY]
+            yield _sse({"type": "stage", "label": f"{agent.label} is looking into this…"})
+
+            agent_tools = [t for t in OPENAI_TOOLS if t["function"]["name"] in agent.tools]
+            agent_system_prompt = _build_system_prompt(company_name)
+            if agent.system_prompt_fragment:
+                agent_system_prompt += "\n\n" + agent.system_prompt_fragment
+            messages[0] = {"role": "system", "content": agent_system_prompt}
+
             async for ev in run_tool_loop(
-                messages, OPENAI_TOOLS, TOOL_LABELS,
+                messages, agent_tools, TOOL_LABELS,
                 lambda name, tool_input: _execute_tool(name, tool_input, session, user),
                 litellm_model=litellm_model, api_key=api_key, api_base=api_base,
                 yield_tokens=True,
@@ -578,7 +660,7 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
                 "I wasn't able to complete the analysis. Please try a more specific question."
             assistant_msg = AiChatMessage(
                 session_id=chat_session.id, role="assistant",
-                content=reply, model=litellm_model,
+                content=reply, model=litellm_model, agent=agent.key,
             )
             chat_session.updated_at = datetime.utcnow()
             session.add(assistant_msg)

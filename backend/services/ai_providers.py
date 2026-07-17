@@ -159,6 +159,38 @@ def validate_model(session: Session, tenant_id: int, model: str) -> tuple[str, O
     return model, key, None
 
 
+# Cheap/fast model per provider — used by the AI chat pipeline's triage
+# (routing) and drafting (formatting) stages so only the specialist stage's
+# actual analysis pays for the (possibly much pricier) model the user
+# selected. No entry for ollama: self-hosted has no cost-tiering concept, so
+# those stages just fall through to whatever model the user picked.
+CHEAP_TIER: dict[str, str] = {
+    "anthropic": "claude-haiku-4-5",
+    "openai": "gpt-4o-mini",
+    # "-latest" alias, not a dated ID — see the sunset note on PROVIDERS above.
+    "gemini": "gemini-flash-latest",
+}
+
+
+def resolve_cheap_tier(
+    session: Session, tenant_id: int,
+    litellm_model: str, api_key: Optional[str], api_base: Optional[str],
+) -> tuple[str, Optional[str], Optional[str]]:
+    """Cheap-tier (model, key, base) for the same provider as `litellm_model`,
+    falling back to the exact triple passed in if there's no cheap-tier entry
+    for that provider (ollama) or the mapped model is no longer valid (e.g.
+    removed from PROVIDERS) — never raises, always returns something usable.
+    """
+    provider = litellm_model.partition("/")[0]
+    cheap_model_id = CHEAP_TIER.get(provider)
+    if not cheap_model_id:
+        return litellm_model, api_key, api_base
+    try:
+        return validate_model(session, tenant_id, f"{provider}/{cheap_model_id}")
+    except ValueError:
+        return litellm_model, api_key, api_base
+
+
 def mask_key(value: Optional[str]) -> Optional[str]:
     if not value:
         return None

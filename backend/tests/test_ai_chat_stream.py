@@ -75,11 +75,37 @@ def _events(resp_text_lines):
     return out
 
 
+# ── triage fake (plain non-streaming completion shape) ───────────────────────
+# The pipeline now makes a cheap-tier, non-streaming (stream=False) triage
+# call before the specialist's streaming tool loop. These fakes let each
+# test's mock branch on kwargs["stream"] and return a plain completion object
+# for triage without disturbing the streaming-call fixtures/assertions below,
+# which is why "calls"/"captured"/"responses" in each test only ever track
+# the specialist (streaming) call(s), exactly as before this pipeline existed.
+class _TriageMessage:
+    def __init__(self, content):
+        self.content = content
+
+class _TriageChoice:
+    def __init__(self, content):
+        self.message = _TriageMessage(content)
+
+class _TriageCompletion:
+    def __init__(self, content):
+        self.choices = [_TriageChoice(content)]
+
+
+def _triage_completion(agent_key="general"):
+    return _TriageCompletion(agent_key)
+
+
 def test_plain_text_stream_and_persistence(client: TestClient, monkeypatch):
     auth, sid = _setup(client, "st1@t.com", monkeypatch)
 
     calls = []
     async def fake_acompletion(**kwargs):
+        if kwargs.get("stream") is False:
+            return _triage_completion("general")
         calls.append(kwargs)
         return _stream_from([
             _Chunk(content="Hel"),
@@ -95,7 +121,7 @@ def test_plain_text_stream_and_persistence(client: TestClient, monkeypatch):
         events = _events(list(r.iter_lines()))
 
     types = [e["type"] for e in events]
-    assert types == ["token", "token", "done"]
+    assert types == ["stage", "stage", "token", "token", "done"]
     assert "".join(e["text"] for e in events if e["type"] == "token") == "Hello!"
     assert calls[0]["model"] == "openai/gpt-4o-mini"   # tenant default = first configured
     assert calls[0]["api_key"] == "sk-test"
@@ -123,6 +149,8 @@ def test_tool_call_round_trip_events(client: TestClient, monkeypatch):
     ]
     captured = []
     async def fake_acompletion(**kwargs):
+        if kwargs.get("stream") is False:
+            return _triage_completion("receivables")
         captured.append(kwargs["messages"])
         return responses.pop(0)
     monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
@@ -132,8 +160,10 @@ def test_tool_call_round_trip_events(client: TestClient, monkeypatch):
         events = _events(list(r.iter_lines()))
 
     types = [e["type"] for e in events]
-    assert types == ["tool_start", "tool_end", "token", "done"]
-    assert "receivable" in events[0]["label"].lower() or "owe" in events[0]["label"].lower()
+    assert types == ["stage", "stage", "tool_start", "tool_end", "token", "done"]
+    assert "receivable" in events[1]["label"].lower()   # routed-agent stage label
+    tool_start = next(e for e in events if e["type"] == "tool_start")
+    assert "receivable" in tool_start["label"].lower() or "owe" in tool_start["label"].lower()
     # second call carried the tool result back in OpenAI format
     second_msgs = captured[1]
     assert second_msgs[-1]["role"] == "tool"
@@ -164,6 +194,8 @@ def test_tool_only_reply_still_reaches_client_via_done_event(client: TestClient,
         _stream_from([_Chunk(finish_reason="stop")]),   # no content at all
     ]
     async def fake_acompletion(**kwargs):
+        if kwargs.get("stream") is False:
+            return _triage_completion("general")
         return responses.pop(0)
     monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
 
@@ -218,8 +250,12 @@ def test_mid_stream_error_surfaces_provider_detail(client: TestClient, monkeypat
         assert r.status_code == 200
         events = _events(list(r.iter_lines()))
 
-    assert [e["type"] for e in events] == ["error"]
-    detail = events[0]["detail"]
+    # Triage's own acompletion call also raises, but _run_triage swallows
+    # any failure internally and falls back to "general" -- so the two
+    # "stage" progress frames still fire before the specialist's identical
+    # failure surfaces as the terminal error event.
+    assert [e["type"] for e in events] == ["stage", "stage", "error"]
+    detail = events[-1]["detail"]
     assert "ValueError" in detail
     assert "not found: no access" in detail
 
@@ -304,6 +340,8 @@ def test_anthropic_default_model_and_thinking_disabled(client: TestClient, monke
 
     calls = []
     async def fake_acompletion(**kwargs):
+        if kwargs.get("stream") is False:
+            return _triage_completion("general")
         calls.append(kwargs)
         return _stream_from([_Chunk(content="hi"), _Chunk(finish_reason="stop")])
     monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
