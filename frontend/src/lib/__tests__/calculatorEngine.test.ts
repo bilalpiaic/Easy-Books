@@ -289,6 +289,108 @@ describe("sqrt", () => {
   })
 })
 
+describe("expression history line", () => {
+  it("starts empty", () => {
+    expect(initialState.expression).toBe("")
+  })
+
+  it("builds a chained expression: 123+456+789+ with running subtotals (matches a 2-line business calculator)", () => {
+    let s = digits(initialState, "123")
+    s = inputOperator(s, "+")
+    expect(s.expression).toBe("123+")
+    expect(s.display).toBe("123")
+
+    s = digits(s, "456")
+    s = inputOperator(s, "+")
+    expect(s.expression).toBe("123+456+")
+    expect(s.display).toBe("579")
+
+    s = digits(s, "789")
+    s = inputOperator(s, "+")
+    expect(s.expression).toBe("123+456+789+")
+    expect(s.display).toBe("1368")
+  })
+
+  it("finalizes with '=' and the result: 200+300=500", () => {
+    let s = digits(initialState, "200")
+    s = inputOperator(s, "+")
+    s = digits(s, "300")
+    s = pressEquals(s)
+    expect(s.expression).toBe("200+300=")
+    expect(s.display).toBe("500")
+  })
+
+  it("shows the nicer minus glyph, not the internal ASCII operator key", () => {
+    let s = digits(initialState, "9")
+    s = inputOperator(s, "-")
+    s = digits(s, "4")
+    s = pressEquals(s)
+    expect(s.expression).toBe("9−4=")
+  })
+
+  it("swapping an operator before typing the next digit replaces the trailing symbol, not duplicates it", () => {
+    let s = digits(initialState, "5")
+    s = inputOperator(s, "+")
+    s = inputOperator(s, "×")
+    expect(s.expression).toBe("5×")
+    s = digits(s, "3")
+    s = pressEquals(s)
+    expect(s.expression).toBe("5×3=")
+    expect(s.display).toBe("15")
+  })
+
+  it("continuing from a finished result via an operator restarts the line from that result", () => {
+    let s = digits(initialState, "5")
+    s = inputOperator(s, "+")
+    s = digits(s, "3")
+    s = pressEquals(s)
+    expect(s.expression).toBe("5+3=")
+    s = inputOperator(s, "+")
+    expect(s.expression).toBe("8+")
+    s = digits(s, "2")
+    s = pressEquals(s)
+    expect(s.expression).toBe("8+2=")
+    expect(s.display).toBe("10")
+  })
+
+  it("typing a fresh digit after a finished result clears the line instead of leaving it stale", () => {
+    let s = digits(initialState, "5")
+    s = inputOperator(s, "+")
+    s = digits(s, "3")
+    s = pressEquals(s)
+    expect(s.expression).toBe("5+3=")
+    s = inputDigit(s, "9")
+    expect(s.expression).toBe("")
+    expect(s.display).toBe("9")
+  })
+
+  it("clear() resets the line", () => {
+    let s = digits(initialState, "5")
+    s = inputOperator(s, "+")
+    s = clear()
+    expect(s.expression).toBe("")
+  })
+
+  it("repeat-operand equals (5 + =) still finalizes the line", () => {
+    let s = digits(initialState, "5")
+    s = inputOperator(s, "+")
+    s = pressEquals(s)
+    expect(s.expression).toBe("5+5=")
+    expect(s.display).toBe("10")
+  })
+
+  it("percent doesn't disturb the pending trailing operator, and equals reflects the percent-adjusted operand", () => {
+    let s = digits(initialState, "200")
+    s = inputOperator(s, "+")
+    s = digits(s, "10")
+    s = percent(s)
+    expect(s.expression).toBe("200+")
+    s = pressEquals(s)
+    expect(s.expression).toBe("200+20=")
+    expect(s.display).toBe("220")
+  })
+})
+
 describe("inputDoubleZero", () => {
   it("pressed first (fresh state) yields a plain 0", () => {
     const s = inputDoubleZero(initialState)
