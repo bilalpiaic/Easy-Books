@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Send, Loader2 } from "lucide-react"
+import { Send, Loader2, KeyRound, ChevronDown } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { streamChat } from "@/lib/aiStream"
 import ChatMarkdown from "./ChatMarkdown"
+import AiModelKeyPanel from "./AiModelKeyPanel"
 
 interface Message {
   id?: number
@@ -32,6 +33,10 @@ interface ChatCoreProps {
    * auto-titles the session from that message, so callers with a visible
    * session list (the /agent sidebar) should refetch it here. */
   onFirstMessageSent?: () => void
+  /** Called after a key is saved/cleared in the Model & API Key panel so the
+   * caller can refetch /api/ai/models and pass an updated `models` prop back
+   * down — a newly-configured provider otherwise never appears in the picker. */
+  onModelsRefresh?: () => void
 }
 
 const QUICK_PROMPTS = [
@@ -41,7 +46,7 @@ const QUICK_PROMPTS = [
   "What's my cash balance?",
 ]
 
-export default function ChatCore({ sessionId, models, className, onFirstMessageSent }: ChatCoreProps) {
+export default function ChatCore({ sessionId, models, className, onFirstMessageSent, onModelsRefresh }: ChatCoreProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [input, setInput] = useState("")
@@ -50,6 +55,7 @@ export default function ChatCore({ sessionId, models, className, onFirstMessageS
   const [toolLabel, setToolLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedModel, setSelectedModel] = useState<string>(models.default_model ?? "")
+  const [showModelKeyPanel, setShowModelKeyPanel] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -203,24 +209,33 @@ export default function ChatCore({ sessionId, models, className, onFirstMessageS
 
   return (
     <div className={`flex flex-col min-h-0 flex-1 ${className ?? ""}`}>
-      {/* Model picker */}
-      {models.providers.length > 0 && (
-        <div className="print:hidden shrink-0 px-3 pt-2 pb-1 border-b border-[var(--text-primary)]/10 bg-white">
-          <select
-            value={selectedModel}
-            onChange={e => setSelectedModel(e.target.value)}
-            disabled={sending}
-            className="w-full text-xs rounded-lg border border-[var(--text-primary)]/15 px-2 py-1.5 bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 disabled:opacity-50"
-          >
-            {models.providers.map(p => (
-              <optgroup key={p.provider} label={p.label}>
-                {p.models.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </div>
+      {/* Model & API Key — always visible, regardless of configuration state,
+          so there is always a discoverable path to set up a provider instead
+          of the picker silently disappearing when none is configured yet. */}
+      <div className="print:hidden shrink-0 px-3 pt-2 pb-1 border-b border-[var(--text-primary)]/10 bg-white">
+        <button
+          type="button"
+          onClick={() => setShowModelKeyPanel(true)}
+          className="w-full flex items-center justify-between gap-2 text-xs rounded-lg border border-[var(--text-primary)]/15 px-2.5 py-1.5 bg-[var(--bg-page)] text-[var(--text-primary)] hover:border-[var(--primary)]/40 transition-colors"
+        >
+          <span className="flex items-center gap-1.5 min-w-0">
+            <KeyRound className="w-3.5 h-3.5 shrink-0 text-[var(--primary)]" />
+            <span className="truncate">
+              {selectedModel || (models.providers.length === 0 ? "No AI model configured" : "Choose a model")}
+            </span>
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-50" />
+        </button>
+      </div>
+
+      {showModelKeyPanel && (
+        <AiModelKeyPanel
+          models={models}
+          selectedModel={selectedModel}
+          onSelectModel={setSelectedModel}
+          onModelsRefresh={onModelsRefresh}
+          onClose={() => setShowModelKeyPanel(false)}
+        />
       )}
 
       {/* Messages */}
