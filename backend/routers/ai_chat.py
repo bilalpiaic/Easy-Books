@@ -392,6 +392,130 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
+async def run_tool_loop(
+    messages: list[dict],
+    tools: list[dict],
+    tool_labels: dict[str, str],
+    tool_executor,
+    *,
+    litellm_model: str,
+    api_key: str | None,
+    api_base: str | None,
+    max_steps: int = MAX_STEPS,
+    yield_tokens: bool = True,
+):
+    """Runs the tool-calling agent loop against `messages` (mutated in place
+    with the assistant/tool turns, exactly like a plain chat history would
+    grow), executing up to `max_steps` rounds of "model call -> tool calls ->
+    feed results back" until the model produces a plain-text finish.
+
+    Yields SSE-shaped dicts: `token` (only if `yield_tokens` -- a caller
+    whose own output isn't user-facing, e.g. a specialist stage feeding a
+    later drafting stage, can suppress these while still surfacing live
+    `tool_start`/`tool_end` progress), `tool_start`, `tool_end`. Always
+    yields exactly one final `_loop_result` sentinel (never meant to be
+    forwarded to an SSE client) carrying the accumulated final text plus a
+    transcript of every tool call's name/arguments/result, so a caller can
+    hand exact figures to a later stage without re-parsing `messages`.
+    """
+    assistant_text_parts: list[str] = []
+    tool_results: list[dict] = []
+    for _ in range(max_steps):
+        # Claude Sonnet 5 runs adaptive thinking ON when `thinking` is
+        # omitted entirely (a silent change from claude-sonnet-4-6,
+        # which ran thinking-off by default) — and thinking output
+        # shares this call's fixed max_tokens budget with the reply
+        # text, so an unmodified call risks truncating the answer.
+        # Disable it explicitly to keep today's plain-text behavior;
+        # other providers don't accept the kwarg at all.
+        extra: dict = {}
+        if litellm_model.startswith("anthropic/"):
+            extra["thinking"] = {"type": "disabled"}
+        # litellm needs the "ollama_chat/" prefix (not "ollama/") for
+        # OpenAI-style chat + tool-calling + streaming, and api_base
+        # to reach the tenant's own server instead of localhost.
+        # litellm_model stays "ollama/<tag>" everywhere else (display,
+        # persisted AiChatMessage.model) -- only this call is translated.
+        call_model = litellm_model
+        if litellm_model.startswith("ollama/"):
+            call_model = "ollama_chat/" + litellm_model[len("ollama/"):]
+            extra["api_base"] = api_base
+        response = await litellm.acompletion(
+            model=call_model,
+            api_key=api_key,
+            max_tokens=2048,
+            messages=messages,
+            tools=tools,
+            stream=True,
+            **extra,
+        )
+        # Accumulate this round's text + tool calls from the chunk stream.
+        round_text_parts: list[str] = []
+        tool_calls: dict[int, dict] = {}
+        finish_reason = None
+        async for chunk in response:
+            choice = chunk.choices[0]
+            delta = choice.delta
+            if getattr(delta, "content", None):
+                round_text_parts.append(delta.content)
+                if yield_tokens:
+                    yield {"type": "token", "text": delta.content}
+            for tc in getattr(delta, "tool_calls", None) or []:
+                slot = tool_calls.setdefault(
+                    tc.index, {"id": None, "name": None, "arguments": ""}
+                )
+                if tc.id:
+                    slot["id"] = tc.id
+                if tc.function.name:
+                    slot["name"] = tc.function.name
+                if tc.function.arguments:
+                    slot["arguments"] += tc.function.arguments
+            if choice.finish_reason:
+                finish_reason = choice.finish_reason
+        assistant_text_parts += round_text_parts
+
+        if finish_reason != "tool_calls" or not tool_calls:
+            break  # done — plain answer (or provider stopped)
+
+        # Echo the assistant tool-call turn, execute, append results.
+        ordered = [tool_calls[i] for i in sorted(tool_calls)]
+        messages.append({
+            "role": "assistant",
+            "content": "".join(round_text_parts) or None,
+            "tool_calls": [
+                {
+                    "id": c["id"],
+                    "type": "function",
+                    "function": {"name": c["name"], "arguments": c["arguments"] or "{}"},
+                }
+                for c in ordered
+            ],
+        })
+        for c in ordered:
+            yield {
+                "type": "tool_start",
+                "label": tool_labels.get(c["name"], f"Running {c['name']}…"),
+            }
+            try:
+                tool_input = json.loads(c["arguments"] or "{}")
+            except json.JSONDecodeError:
+                tool_input = {}
+            result_text, _is_error = tool_executor(c["name"], tool_input)
+            yield {"type": "tool_end"}
+            tool_results.append({"name": c["name"], "arguments": tool_input, "result": result_text})
+            messages.append({
+                "role": "tool",
+                "tool_call_id": c["id"],
+                "content": result_text,
+            })
+
+    yield {
+        "type": "_loop_result",
+        "text": "".join(assistant_text_parts),
+        "tool_results": tool_results,
+    }
+
+
 @router.post("/chat")
 async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
     # ── Pre-stream validation: plain HTTP errors ────────────────────────
@@ -437,96 +561,20 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
     session.commit()
 
     async def stream():
-        assistant_text_parts: list[str] = []
+        loop_text = ""
         try:
-            for _ in range(MAX_STEPS):
-                # Claude Sonnet 5 runs adaptive thinking ON when `thinking` is
-                # omitted entirely (a silent change from claude-sonnet-4-6,
-                # which ran thinking-off by default) — and thinking output
-                # shares this call's fixed max_tokens budget with the reply
-                # text, so an unmodified call risks truncating the answer.
-                # Disable it explicitly to keep today's plain-text behavior;
-                # other providers don't accept the kwarg at all.
-                extra: dict = {}
-                if litellm_model.startswith("anthropic/"):
-                    extra["thinking"] = {"type": "disabled"}
-                # litellm needs the "ollama_chat/" prefix (not "ollama/") for
-                # OpenAI-style chat + tool-calling + streaming, and api_base
-                # to reach the tenant's own server instead of localhost.
-                # litellm_model stays "ollama/<tag>" everywhere else (display,
-                # persisted AiChatMessage.model) -- only this call is translated.
-                call_model = litellm_model
-                if litellm_model.startswith("ollama/"):
-                    call_model = "ollama_chat/" + litellm_model[len("ollama/"):]
-                    extra["api_base"] = api_base
-                response = await litellm.acompletion(
-                    model=call_model,
-                    api_key=api_key,
-                    max_tokens=2048,
-                    messages=messages,
-                    tools=OPENAI_TOOLS,
-                    stream=True,
-                    **extra,
-                )
-                # Accumulate this round's text + tool calls from the chunk stream.
-                round_text_parts: list[str] = []
-                tool_calls: dict[int, dict] = {}
-                finish_reason = None
-                async for chunk in response:
-                    choice = chunk.choices[0]
-                    delta = choice.delta
-                    if getattr(delta, "content", None):
-                        round_text_parts.append(delta.content)
-                        yield _sse({"type": "token", "text": delta.content})
-                    for tc in getattr(delta, "tool_calls", None) or []:
-                        slot = tool_calls.setdefault(
-                            tc.index, {"id": None, "name": None, "arguments": ""}
-                        )
-                        if tc.id:
-                            slot["id"] = tc.id
-                        if tc.function.name:
-                            slot["name"] = tc.function.name
-                        if tc.function.arguments:
-                            slot["arguments"] += tc.function.arguments
-                    if choice.finish_reason:
-                        finish_reason = choice.finish_reason
-                assistant_text_parts += round_text_parts
+            async for ev in run_tool_loop(
+                messages, OPENAI_TOOLS, TOOL_LABELS,
+                lambda name, tool_input: _execute_tool(name, tool_input, session, user),
+                litellm_model=litellm_model, api_key=api_key, api_base=api_base,
+                yield_tokens=True,
+            ):
+                if ev["type"] == "_loop_result":
+                    loop_text = ev["text"]
+                    continue
+                yield _sse(ev)
 
-                if finish_reason != "tool_calls" or not tool_calls:
-                    break  # done — plain answer (or provider stopped)
-
-                # Echo the assistant tool-call turn, execute, append results.
-                ordered = [tool_calls[i] for i in sorted(tool_calls)]
-                messages.append({
-                    "role": "assistant",
-                    "content": "".join(round_text_parts) or None,
-                    "tool_calls": [
-                        {
-                            "id": c["id"],
-                            "type": "function",
-                            "function": {"name": c["name"], "arguments": c["arguments"] or "{}"},
-                        }
-                        for c in ordered
-                    ],
-                })
-                for c in ordered:
-                    yield _sse({
-                        "type": "tool_start",
-                        "label": TOOL_LABELS.get(c["name"], f"Running {c['name']}…"),
-                    })
-                    try:
-                        tool_input = json.loads(c["arguments"] or "{}")
-                    except json.JSONDecodeError:
-                        tool_input = {}
-                    result_text, _is_error = _execute_tool(c["name"], tool_input, session, user)
-                    yield _sse({"type": "tool_end"})
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": c["id"],
-                        "content": result_text,
-                    })
-
-            reply = "".join(assistant_text_parts) or \
+            reply = loop_text or \
                 "I wasn't able to complete the analysis. Please try a more specific question."
             assistant_msg = AiChatMessage(
                 session_id=chat_session.id, role="assistant",
