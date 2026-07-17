@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { X, Calculator as CalculatorIcon, Minus, Maximize2, Delete } from "lucide-react"
 import { useDraggablePanel } from "@/hooks/useDraggablePanel"
@@ -48,15 +48,59 @@ export default function Calculator({ open, onClose }: CalculatorProps) {
     if (el) el.scrollLeft = el.scrollWidth
   }, [state.expression])
 
-  const inputDigit = (d: string) => setState(s => engineInputDigit(s, d))
-  const inputOperator = (op: Operator) => setState(s => engineInputOperator(s, op))
-  const equals = () => setState(pressEquals)
-  const clear = () => setState(engineClear())
-  const backspace = () => setState(engineBackspace)
+  const inputDigit = useCallback((d: string) => setState(s => engineInputDigit(s, d)), [])
+  const inputOperator = useCallback((op: Operator) => setState(s => engineInputOperator(s, op)), [])
+  const equals = useCallback(() => setState(pressEquals), [])
+  const clear = useCallback(() => setState(engineClear()), [])
+  const backspace = useCallback(() => setState(engineBackspace), [])
   const toggleSign = () => setState(engineToggleSign)
-  const percent = () => setState(enginePercent)
+  const percent = useCallback(() => setState(enginePercent), [])
   const sqrt = () => setState(engineSqrt)
   const doubleZero = () => setState(engineInputDoubleZero)
+
+  // Physical keyboard support — only while the panel is open and not
+  // minimized (a minimized entry has no visible display to show feedback
+  // in), and only when the user isn't actively typing into some other
+  // field on the page (an input/textarea/select/contenteditable element) so
+  // this floating widget never steals keystrokes meant for a form.
+  useEffect(() => {
+    if (!open || minimized) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement as HTMLElement | null
+      const tag = active?.tagName
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || active?.isContentEditable) return
+
+      if (e.key >= "0" && e.key <= "9") {
+        e.preventDefault()
+        inputDigit(e.key)
+        return
+      }
+      switch (e.key) {
+        case ".":
+          e.preventDefault(); inputDigit("."); break
+        case "+":
+          e.preventDefault(); inputOperator("+"); break
+        case "-":
+          e.preventDefault(); inputOperator("-"); break
+        case "*":
+          e.preventDefault(); inputOperator("×"); break
+        case "/":
+          e.preventDefault(); inputOperator("÷"); break
+        case "Enter":
+        case "=":
+          e.preventDefault(); equals(); break
+        case "Backspace":
+          e.preventDefault(); backspace(); break
+        case "Delete":
+        case "Escape":
+          e.preventDefault(); clear(); break
+        case "%":
+          e.preventDefault(); percent(); break
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [open, minimized, inputDigit, inputOperator, equals, backspace, clear, percent])
 
   if (!open) return null
 
