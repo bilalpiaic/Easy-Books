@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Send, Loader2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { streamChat } from "@/lib/aiStream"
+import ChatMarkdown from "./ChatMarkdown"
 
 interface Message {
   id?: number
@@ -141,6 +142,10 @@ export default function ChatCore({ sessionId, models, className, onFirstMessageS
         {
           onToken: text => {
             if (!mountedRef.current) return
+            // The first real token is the implicit end of any pipeline-stage
+            // or tool-progress label (e.g. "Drafting your report…") — no
+            // separate stage-end frame needed.
+            setToolLabel(null)
             streamingRef.current += text
             setStreamingText(streamingRef.current)
           },
@@ -151,6 +156,10 @@ export default function ChatCore({ sessionId, models, className, onFirstMessageS
           onToolEnd: () => {
             if (!mountedRef.current) return
             setToolLabel(null)
+          },
+          onStage: label => {
+            if (!mountedRef.current) return
+            setToolLabel(label)
           },
           onDone: (_sid, messageId, reply) => {
             if (!mountedRef.current) return
@@ -244,13 +253,13 @@ export default function ChatCore({ sessionId, models, className, onFirstMessageS
         {messages.map((msg, i) => (
           <div key={msg.id ?? i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
+              className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                 msg.role === "user"
-                  ? "bg-[var(--primary)] text-white rounded-br-md"
+                  ? "bg-[var(--primary)] text-white rounded-br-md whitespace-pre-wrap"
                   : "bg-white border border-[var(--text-primary)]/10 text-[var(--text-primary)] rounded-bl-md"
               }`}
             >
-              {msg.content}
+              {msg.role === "assistant" ? <ChatMarkdown content={msg.content} /> : msg.content}
             </div>
           </div>
         ))}
@@ -266,9 +275,9 @@ export default function ChatCore({ sessionId, models, className, onFirstMessageS
 
         {streamingText !== null && !toolLabel && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed bg-white border border-[var(--text-primary)]/10 text-[var(--text-primary)] rounded-bl-md">
+            <div className="max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed bg-white border border-[var(--text-primary)]/10 text-[var(--text-primary)] rounded-bl-md">
               {streamingText.length > 0
-                ? streamingText
+                ? <ChatMarkdown content={streamingText} />
                 : <Loader2 className="w-4 h-4 animate-spin text-[var(--primary)]" />}
             </div>
           </div>
