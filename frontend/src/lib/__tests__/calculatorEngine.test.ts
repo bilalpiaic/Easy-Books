@@ -195,22 +195,33 @@ describe("percent", () => {
     expect(s.display).toBe("180")
   })
 
-  it("200 × 10% -> 20 (plain fraction for ×)", () => {
+  it("200 × 10% -> intermediate is 20 (10% of 200), not a bare fraction (0.1); final = 4000", () => {
     let s = digits(initialState, "200")
     s = inputOperator(s, "×")
     s = digits(s, "10")
     s = percent(s)
-    s = pressEquals(s)
     expect(s.display).toBe("20")
+    s = pressEquals(s)
+    expect(s.display).toBe("4000")
   })
 
-  it("200 ÷ 10% -> 2000 (plain fraction for ÷: 200 / 0.1)", () => {
+  it("200 ÷ 10% -> intermediate is 20 (10% of 200), not a bare fraction (0.1); final = 10", () => {
     let s = digits(initialState, "200")
     s = inputOperator(s, "÷")
     s = digits(s, "10")
     s = percent(s)
+    expect(s.display).toBe("20")
     s = pressEquals(s)
-    expect(s.display).toBe("2000")
+    expect(s.display).toBe("10")
+  })
+
+  it("regression: base × 10% always reflects the base, never flattens to a constant 0.1", () => {
+    let s = digits(initialState, "36.4142829121")
+    s = inputOperator(s, "×")
+    s = digits(s, "10")
+    s = percent(s)
+    expect(s.display).not.toBe("0.1")
+    expect(s.display).toBe(formatResult((36.4142829121 * 10) / 100))
   })
 
   it("percent pressed with no second entry yet reuses the pending operand (5 + % -> 0.25, then = -> 5.25)", () => {
