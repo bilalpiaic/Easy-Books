@@ -130,12 +130,6 @@ export function toggleSign(state: CalcState): CalcState {
   }
 }
 
-/**
- * `+`/`-` treat the entered number as a percentage *of the pending operand*
- * (e.g. 200 + 10% -> operand becomes 20, so "=" yields 220). `×`/`÷` treat
- * it as a plain fraction of the entered number (200 × 10% -> operand 0.1).
- * With no pending operator, percent is just value/100.
- */
 export function sqrt(state: CalcState): CalcState {
   const result = Math.sqrt(parseFloat(state.display))
   return { ...state, display: formatResult(result), overwrite: true }
@@ -145,15 +139,17 @@ export function inputDoubleZero(state: CalcState): CalcState {
   return inputDigit(inputDigit(state, "0"), "0")
 }
 
+/**
+ * With a pending operator, the entered number is always treated as a
+ * percentage *of the pending operand* — same rule for every operator, so
+ * "200 × 10%" shows 20 (10% of 200), not a bare fraction (0.1) that
+ * discards the base and looks identical no matter what "200" was. With no
+ * pending operator, percent is just value/100.
+ */
 export function percent(state: CalcState): CalcState {
   const current = parseFloat(state.display)
-  let result: number
-  if (state.operator !== null && state.prevValue !== null) {
-    result = state.operator === "+" || state.operator === "-"
-      ? (state.prevValue * current) / 100
-      : current / 100
-  } else {
-    result = current / 100
-  }
+  const result = state.operator !== null && state.prevValue !== null
+    ? (state.prevValue * current) / 100
+    : current / 100
   return { ...state, display: formatResult(result), overwrite: true }
 }
