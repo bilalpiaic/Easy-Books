@@ -121,7 +121,8 @@ def test_plain_text_stream_and_persistence(client: TestClient, monkeypatch):
         events = _events(list(r.iter_lines()))
 
     types = [e["type"] for e in events]
-    assert types == ["stage", "stage", "token", "token", "done"]
+    # 3 stages: routing, "<agent> is looking into this", drafting.
+    assert types == ["stage", "stage", "stage", "token", "token", "done"]
     assert "".join(e["text"] for e in events if e["type"] == "token") == "Hello!"
     assert calls[0]["model"] == "openai/gpt-4o-mini"   # tenant default = first configured
     assert calls[0]["api_key"] == "sk-test"
@@ -143,7 +144,11 @@ def test_tool_call_round_trip_events(client: TestClient, monkeypatch):
             _Chunk(finish_reason="tool_calls"),
         ]),
         _stream_from([
-            _Chunk(content="You are owed money."),
+            _Chunk(content="You are owed money."),          # specialist's raw finding (not user-facing)
+            _Chunk(finish_reason="stop"),
+        ]),
+        _stream_from([
+            _Chunk(content="## Receivables\n\nYou are owed money."),   # drafting's polished output
             _Chunk(finish_reason="stop"),
         ]),
     ]
@@ -160,10 +165,14 @@ def test_tool_call_round_trip_events(client: TestClient, monkeypatch):
         events = _events(list(r.iter_lines()))
 
     types = [e["type"] for e in events]
-    assert types == ["stage", "stage", "tool_start", "tool_end", "token", "done"]
+    assert types == ["stage", "stage", "tool_start", "tool_end", "stage", "token", "done"]
     assert "receivable" in events[1]["label"].lower()   # routed-agent stage label
     tool_start = next(e for e in events if e["type"] == "tool_start")
     assert "receivable" in tool_start["label"].lower() or "owe" in tool_start["label"].lower()
+    # the specialist's raw finding never reaches the client as a "token" --
+    # only drafting's polished rewrite does.
+    token_text = "".join(e["text"] for e in events if e["type"] == "token")
+    assert token_text == "## Receivables\n\nYou are owed money."
     # second call carried the tool result back in OpenAI format
     second_msgs = captured[1]
     assert second_msgs[-1]["role"] == "tool"
