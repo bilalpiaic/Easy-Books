@@ -133,11 +133,20 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - `Tenant.module_meta` JSON column records `{tier, installed_at, expires_at}` per module — billing-ready schema without a future destructive migration
 - Legacy `enabled_modules` strings auto-normalized on read — zero-downtime upgrade for existing installs
 
-**AI Financial Assistant (v3.2)**
-- **Conversational chat** — floating Sparkles button opens a chat panel; ask "What's my revenue this month?" or "Which invoices are overdue?" in plain language, with one-tap quick prompts
-- **Grounded in live data** — a Claude agent loop calls 7 read-only report tools (dashboard KPIs, P&L, trial balance, cash flow, AR/AP aging, top customers) that reuse the existing tenant-scoped report functions, so answers come from real numbers, never guesses
+**AI Financial Assistant (v3.2, agentic pipeline v3.6)**
+- **Conversational chat** — floating Sparkles button opens a chat panel, or use the full-page `/agent` view with a session sidebar; ask "What's my revenue this month?" or "Which invoices are overdue?" in plain language, with one-tap quick prompts
+- **Triage → Specialist → Drafting pipeline** — a cheap/fast classifier routes each question to a focused specialist agent (Receivables, Payables, Financial Reports, or a General fallback), which calls the relevant read-only report tools against real tenant data, then a second cheap pass rewrites the findings into a clean Markdown reply — tables, headings, bold labels — instead of one model doing routing, analysis, and formatting all at once
+- **Grounded in live data** — every specialist calls the same tenant-scoped report functions the rest of the app already uses (dashboard KPIs, P&L, trial balance, cash flow, AR/AP aging, top customers), so answers come from real numbers, never guesses, and can never write, post, or modify anything
+- **Multi-provider** — Anthropic (Claude), OpenAI (GPT), Google (Gemini), or a self-hosted Ollama server; pick per-conversation from whatever the tenant has configured
+- **Model & API Key, right in the chat** — a button in the chat header opens a panel to pick a model or add a provider key on the spot (admin/owner for the key; anyone can pick a model), so a fresh install's chat is never a dead end with no visible way to configure it
 - **Installable module** — `ai_assistant` (Intelligence category, pro tier, off by default); the gate is enforced server-side and the chat button hides when the module isn't installed
-- **Safeguards** — requires `ANTHROPIC_API_KEY` on the backend; message-length and history caps; friendly errors on rate limits or outages; strictly read-only — it cannot create, post, or modify anything
+- **Safeguards** — message-length and history caps; a per-tenant hourly rate limit (one request per user turn, regardless of the pipeline's internal model calls); friendly errors on rate limits or outages
+
+**Calculator (v3.6)**
+- **Globally available** — a floating widget on every page (no module gate), drag-anywhere and minimizable like the AI Assistant panel, styled as a silver-chassis Casio-HL-122-style desk calculator with a green-tinted LCD
+- **2-line display** — a running expression history above the main result (`123+456+789+`), finalizing to `200+300=` on equals, matching a real 2-line business calculator
+- **Full keyboard support** — type digits, `+ - * /`, `Enter`/`=`, `Backspace`, `Escape`/`Delete`, `%` directly; steps aside automatically if you're typing into an unrelated form field elsewhere on the page
+- **12-digit precision** with `√` and `00` keys; percent is consistent across every operator (`200 × 10%` shows `20`, not a bare `0.1` that ignores the base number)
 
 **Purchases & Store module (v3.3–v3.5)**
 - **Demand → Comparative → PO chain** — Purchase Demand (PD-YYYY-seq, quantity-only, no rates — the requester never sets prices) → Vendor Quotations (VQ-YYYY-seq, per-vendor pricing against demand lines) → Comparative Statement (CS-YYYY-seq, one per demand) → convert to Purchase Order

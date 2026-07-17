@@ -140,9 +140,24 @@ Results carry `label`, `sub`, `href`, `date`, `amount`, `status` badge (color-co
 
 `components/dashboard/KpiCard.tsx` replaced the divergent `PrimaryKpi`/`SecondaryKpi`. Props: `title`, `value` (null → shimmer), optional `icon` (layout switches: icon top-left / title bottom-left / value bottom-right when present; title top-left / value bottom-right when absent), `tone` (`green|red|amber|emerald|blue|neutral` colored-tile variants), `href` (renders a `Link`), `sub`, `badge`, `iconClass`, `valueClass`. Neutral tone uses CSS theme variables (`--bg-card`, `--border`, `--text-primary`) — never hardcode hex in stat tiles; dark mode depends on it.
 
-### AI Financial Assistant (v3.2)
+### AI Financial Assistant (v3.2, agentic pipeline v3.6)
 
-Floating Sparkles FAB (`components/AIChatButton.tsx`, hidden unless the `ai_assistant` module is installed) opens a portal chat panel (`components/AIChat.tsx` — quick prompts, session-only history, `createPortal` at `document.body`). Backend: `routers/ai_chat.py` — `POST /api/ai/chat` runs an Anthropic agent loop (max 6 steps, `claude-sonnet-4-6`) over 7 read-only tools that call the existing report functions directly, so tenant scoping and business rules are reused. Gates: `ANTHROPIC_API_KEY` (503 when unset), module install (403), 4,000-char message / 20-turn history caps; typed SDK errors map to 503/429/502. Strictly read-only — no posting or mutation tools.
+Floating Sparkles FAB (`components/AIChatButton.tsx`, hidden unless the `ai_assistant` module is installed) opens a portal chat panel (`components/AIChat.tsx`); a full-page `/agent` route offers the same `ChatCore.tsx` thread component with a session sidebar (new/rename/delete). Both surfaces persist history server-side per user (`AiChatSession`/`AiChatMessage`), not session-only.
+
+Backend: `routers/ai_chat.py` — `POST /api/ai/chat` is an async SSE endpoint running a 3-stage pipeline per turn, not one model call:
+1. **Triage** — `_run_triage()`, a one-shot non-streaming classification call on a cheap/fast per-provider tier (`services/ai_providers.CHEAP_TIER`), picks one specialist agent key from `services/ai_agents.AGENTS` (`receivables`/`payables`/`financial_reports`/`general`), filtered to the tenant's installed modules. Any failure falls back to `general` silently.
+2. **Specialist** — `run_tool_loop()` (max 6 rounds), the routed agent's own narrow subset of the 7 read-only tools, on the model the user actually selected. Calls the existing report functions directly so tenant scoping/business rules are reused. Its own text never streams to the client.
+3. **Drafting** — `_run_drafting()`, cheap tier again, streaming, no tools — rewrites the specialist's findings + raw tool results into Markdown (tables/headings, verbatim figures). This is the only text that streams.
+
+Frontend renders replies through `components/ai/ChatMarkdown.tsx` (`react-markdown`+`remark-gfm` — no markdown rendering existed before this pipeline). SSE frames: `stage` (pipeline-progress label, reuses the existing tool-progress UI slot), `tool_start`/`tool_end` (specialist only), `token` (drafting only), `done`, `error`.
+
+Providers: Anthropic/OpenAI/Gemini/Ollama via LiteLLM (`services/ai_providers.py`) — cloud keys resolve tenant-first from Settings, Ollama is self-hosted (server URL + tagged models, no key). Configuration is reachable from **Settings → AI** or the **Model & API Key** button now built directly into `ChatCore.tsx`'s header (`components/ai/AiModelKeyPanel.tsx`) — always visible, even with zero providers configured, so the chat UI is never a silent dead end.
+
+Gates: module install (403), no provider configured (503), unknown/misconfigured model (400), 4,000-char message cap, 20-message history cap (a short 2-message tail also feeds Triage), sliding-hour rate limit (429, one decrement per user turn regardless of the pipeline's 3 internal model calls). Strictly read-only — no posting or mutation tools.
+
+### Calculator (v3.6)
+
+`frontend/src/lib/calculatorEngine.ts` — a pure, framework-free state-transition module (`CalcState`, `inputDigit`/`inputOperator`/`pressEquals`/`backspace`/`toggleSign`/`percent`/`sqrt`/`inputDoubleZero`/`formatResult`), unit-tested independently of the UI (74 tests). `components/Calculator.tsx` is a thin `useState` wrapper over it, styled as a Casio-HL-122-style skin and mounted globally (no module gate) alongside the AI Assistant FAB, sharing `hooks/useDraggablePanel.ts` for drag/minimize. A `keydown` listener (only while open and not minimized) maps the physical keyboard to the same engine functions the on-screen buttons use, bailing out immediately if `document.activeElement` is an input/textarea/select/contenteditable so it never steals keystrokes from an unrelated form elsewhere on the page. Percent is contextual on the pending operand for every operator (not a bare fraction for `×`/`÷`); the expression-history line (`CalcState.expression`) tracks the running calculation for the 2-line LCD display.
 
 ### Purchase chain (v3.3)
 
@@ -1463,7 +1478,11 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/dashboard` | KPIs (outstanding net of allocations) |
 | GET | `/api/reports/dashboard/charts?months=12` | Chart series (Top Customers capped at 10, v3.1) |
 | GET | `/api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1) |
-| POST | `/api/ai/chat` | AI Financial Assistant — agent-loop chat over live report data; `ai_assistant` module + `ANTHROPIC_API_KEY` required (v3.2) |
+| POST | `/api/ai/chat` | AI Financial Assistant — SSE, 3-stage Triage→Specialist→Drafting pipeline over live report data; `ai_assistant` module + at least one configured provider required (v3.6) |
+| GET | `/api/ai/models` | Configured providers + default model for the chat UI's picker |
+| GET | `/api/ai/key-status` | *(admin+)* masked per-provider key status |
+| GET/POST | `/api/ai/sessions` | Chat sessions, per-user-private |
+| GET/PATCH/DELETE | `/api/ai/sessions/{id}` | Session messages / rename / delete |
 | GET/POST/PUT | `/api/purchase-demands` | Purchase Demand CRUD; `PATCH /{id}/approve\|cancel\|close`; quantity-only lines, self-approval blocked (v3.3) |
 | GET/POST/PUT/DELETE | `/api/quotations` | Vendor Quotation against an approved demand; freezes once its comparative is approved/converted (v3.3) |
 | GET/POST/PUT | `/api/comparatives` | Comparative Statement — matrix + lowest-or-justify approval; `PATCH /{id}/approve`, `POST /{id}/convert-to-po` (v3.3) |
