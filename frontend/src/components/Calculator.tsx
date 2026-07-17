@@ -4,117 +4,57 @@ import { useState } from "react"
 import { createPortal } from "react-dom"
 import { X, Calculator as CalculatorIcon, Minus, Maximize2, Delete } from "lucide-react"
 import { useDraggablePanel } from "@/hooks/useDraggablePanel"
+import {
+  type CalcState,
+  type Operator,
+  initialState,
+  MAX_DIGITS,
+  inputDigit as engineInputDigit,
+  inputOperator as engineInputOperator,
+  pressEquals,
+  clear as engineClear,
+  backspace as engineBackspace,
+  toggleSign as engineToggleSign,
+  percent as enginePercent,
+} from "@/lib/calculatorEngine"
 
 interface CalculatorProps {
   open: boolean
   onClose: () => void
 }
 
-const MAX_DIGITS = 12
-
-type Operator = "+" | "-" | "×" | "÷"
-
-function compute(a: number, b: number, op: Operator): number {
-  switch (op) {
-    case "+": return a + b
-    case "-": return a - b
-    case "×": return a * b
-    case "÷": return b === 0 ? NaN : a / b
-  }
-}
-
-/** Render a result within the 12-digit display, falling back to
- * exponential notation for values too large/small to fit. */
-function formatResult(n: number): string {
-  if (!isFinite(n)) return "Error"
-  if (Number.isInteger(n) && Math.abs(n).toString().length <= MAX_DIGITS) {
-    return n.toString()
-  }
-  let s = parseFloat(n.toPrecision(MAX_DIGITS)).toString()
-  if (s.replace("-", "").replace(".", "").length > MAX_DIGITS) {
-    s = n.toExponential(6)
-  }
-  return s
-}
-
 export default function Calculator({ open, onClose }: CalculatorProps) {
-  const [display, setDisplay] = useState("0")
-  const [prevValue, setPrevValue] = useState<number | null>(null)
-  const [operator, setOperator] = useState<Operator | null>(null)
-  const [overwrite, setOverwrite] = useState(true)
+  const [state, setState] = useState<CalcState>(initialState)
+  const { display } = state
 
   const { panelRef, pos, minimized, dragging, startDrag, toggleMinimized } =
     useDraggablePanel("eb.calculator")
 
-  const inputDigit = (d: string) => {
-    if (overwrite) {
-      setDisplay(d === "." ? "0." : d)
-      setOverwrite(false)
-      return
-    }
-    if (d === "." && display.includes(".")) return
-    if (display.replace("-", "").replace(".", "").length >= MAX_DIGITS) return
-    setDisplay(display === "0" && d !== "." ? d : display + d)
-  }
-
-  const applyPendingOperator = (): number => {
-    const current = parseFloat(display)
-    if (operator && prevValue !== null) {
-      return compute(prevValue, current, operator)
-    }
-    return current
-  }
-
-  const inputOperator = (op: Operator) => {
-    const result = applyPendingOperator()
-    setDisplay(formatResult(result))
-    setPrevValue(result)
-    setOperator(op)
-    setOverwrite(true)
-  }
-
-  const equals = () => {
-    if (operator === null || prevValue === null) return
-    const result = applyPendingOperator()
-    setDisplay(formatResult(result))
-    setPrevValue(null)
-    setOperator(null)
-    setOverwrite(true)
-  }
-
-  const clear = () => {
-    setDisplay("0")
-    setPrevValue(null)
-    setOperator(null)
-    setOverwrite(true)
-  }
-
-  const backspace = () => {
-    if (overwrite) return
-    setDisplay(prev => (prev.length > 1 ? prev.slice(0, -1) : "0"))
-  }
-
-  const toggleSign = () => {
-    if (display === "0") return
-    setDisplay(prev => (prev.startsWith("-") ? prev.slice(1) : "-" + prev))
-  }
-
-  const percent = () => {
-    setDisplay(formatResult(parseFloat(display) / 100))
-    setOverwrite(true)
-  }
+  const inputDigit = (d: string) => setState(s => engineInputDigit(s, d))
+  const inputOperator = (op: Operator) => setState(s => engineInputOperator(s, op))
+  const equals = () => setState(pressEquals)
+  const clear = () => setState(engineClear())
+  const backspace = () => setState(engineBackspace)
+  const toggleSign = () => setState(engineToggleSign)
+  const percent = () => setState(enginePercent)
 
   if (!open) return null
 
-  const btnBase = "rounded-xl text-base font-medium py-3 transition-colors active:scale-95"
-  const numBtn = `${btnBase} bg-[var(--bg-page)] hover:bg-[var(--text-primary)]/10 text-[var(--text-primary)]`
-  const opBtn = `${btnBase} bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)]`
-  const fnBtn = `${btnBase} bg-[var(--text-primary)]/5 hover:bg-[var(--text-primary)]/10 text-[var(--text-primary)]/70`
+  // Casio HL-122-style skin: silver chassis, black LCD bezel over a
+  // green-tinted display, navy keys with a maroon clear key and teal
+  // secondary-function keys. Each key gets a small drop "ledge" shadow that
+  // disappears on press for a tactile, embossed feel.
+  const keyBase =
+    "rounded-2xl text-lg font-semibold py-3 transition-all duration-75 active:translate-y-[3px] active:shadow-none"
+  const numKey = `${keyBase} bg-[#31334a] hover:bg-[#3b3d57] text-white shadow-[0_3px_0_0_#1b1c29]`
+  const opKey = `${keyBase} bg-[#31334a] hover:bg-[#3b3d57] text-[#c9cdf0] shadow-[0_3px_0_0_#1b1c29]`
+  const clearKey = `${keyBase} bg-[#7c3548] hover:bg-[#8f4058] text-white shadow-[0_3px_0_0_#4a1e2b]`
+  const fnKey = `${keyBase} bg-[#3f7d74] hover:bg-[#4a9086] text-white shadow-[0_3px_0_0_#274f48]`
 
   const panel = (
     <div
       ref={panelRef}
-      className={`fixed z-[900] w-[calc(100vw-2rem)] max-w-xs flex flex-col bg-white rounded-3xl shadow-2xl border border-[var(--text-primary)]/10 overflow-hidden ${
+      className={`fixed z-[900] w-[calc(100vw-2rem)] max-w-[300px] flex flex-col bg-gradient-to-b from-[#eceef0] via-[#dcdee1] to-[#c7c9cd] rounded-[28px] shadow-2xl border border-[#9a9da3] overflow-hidden ${
         pos ? "" : "bottom-36 right-4 md:bottom-24 md:right-6"
       } ${dragging ? "select-none" : ""}`}
       style={pos ? { left: pos.x, top: pos.y } : undefined}
@@ -122,72 +62,80 @@ export default function Calculator({ open, onClose }: CalculatorProps) {
       {/* Header — also the drag handle */}
       <div
         onPointerDown={startDrag}
-        className={`flex items-center justify-between px-4 py-3 bg-[var(--primary)] text-white shrink-0 ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`flex items-center justify-between px-4 pt-3 pb-2 shrink-0 ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
       >
-        <div className="flex items-center gap-2">
-          <CalculatorIcon className="w-4 h-4" />
-          <span className="font-semibold text-sm">Calculator</span>
+        <div className="flex items-center gap-1.5">
+          <CalculatorIcon className="w-3.5 h-3.5 text-[#4a4c52]" />
+          <div className="leading-none">
+            <div className="font-bold text-[13px] tracking-wide text-[#2b2c30]">Calculator</div>
+            <div className="text-[8px] tracking-[0.18em] text-[#6b6d73] uppercase">Electronic Calculator</div>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={toggleMinimized}
-            className="p-1 rounded-lg hover:bg-white/20 transition-colors"
+            className="p-1 rounded-lg hover:bg-black/10 text-[#4a4c52] transition-colors"
             aria-label={minimized ? "Restore" : "Minimize"}
             title={minimized ? "Restore" : "Minimize"}
           >
-            {minimized ? <Maximize2 className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+            {minimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/20 transition-colors"
+            className="p-1 rounded-lg hover:bg-black/10 text-[#4a4c52] transition-colors"
             aria-label="Close"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Body — collapsed (not unmounted) while minimized so the current
           calculation isn't lost. */}
-      <div className={minimized ? "hidden" : "p-3 space-y-3"}>
-        <div className="bg-[var(--bg-page)] rounded-2xl px-4 py-4 text-right">
-          <div className="text-3xl font-mono font-semibold text-[var(--text-primary)] truncate" title={display}>
-            {display}
+      <div className={minimized ? "hidden" : "px-3 pb-3 space-y-3"}>
+        {/* LCD bezel */}
+        <div className="bg-[#26282c] rounded-2xl p-2.5 shadow-inner">
+          <div className="bg-gradient-to-b from-[#dfe8d0] to-[#ccd9bc] rounded-lg px-3 py-3 shadow-inner">
+            <div className="flex items-center justify-between text-[9px] font-semibold tracking-widest text-[#5b6b4f] uppercase h-3">
+              <span>{state.operator ?? ""}</span>
+              <span>{MAX_DIGITS} digit</span>
+            </div>
+            <div
+              className="text-right text-4xl font-mono font-semibold tracking-wider tabular-nums text-[#1d2b1a] truncate [text-shadow:0_0_1px_rgba(29,43,26,0.25)]"
+              title={display}
+            >
+              {display}
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-4 gap-2">
-          <button className={fnBtn} onClick={clear}>C</button>
-          <button className={fnBtn} onClick={backspace} aria-label="Backspace">
+          <button className={clearKey} onClick={clear}>C</button>
+          <button className={fnKey} onClick={backspace} aria-label="Backspace">
             <Delete className="w-4 h-4 mx-auto" />
           </button>
-          <button className={fnBtn} onClick={percent}>%</button>
-          <button className={opBtn} onClick={() => inputOperator("÷")}>÷</button>
+          <button className={fnKey} onClick={percent}>%</button>
+          <button className={opKey} onClick={() => inputOperator("÷")}>÷</button>
 
-          <button className={numBtn} onClick={() => inputDigit("7")}>7</button>
-          <button className={numBtn} onClick={() => inputDigit("8")}>8</button>
-          <button className={numBtn} onClick={() => inputDigit("9")}>9</button>
-          <button className={opBtn} onClick={() => inputOperator("×")}>×</button>
+          <button className={numKey} onClick={() => inputDigit("7")}>7</button>
+          <button className={numKey} onClick={() => inputDigit("8")}>8</button>
+          <button className={numKey} onClick={() => inputDigit("9")}>9</button>
+          <button className={opKey} onClick={() => inputOperator("×")}>×</button>
 
-          <button className={numBtn} onClick={() => inputDigit("4")}>4</button>
-          <button className={numBtn} onClick={() => inputDigit("5")}>5</button>
-          <button className={numBtn} onClick={() => inputDigit("6")}>6</button>
-          <button className={opBtn} onClick={() => inputOperator("-")}>−</button>
+          <button className={numKey} onClick={() => inputDigit("4")}>4</button>
+          <button className={numKey} onClick={() => inputDigit("5")}>5</button>
+          <button className={numKey} onClick={() => inputDigit("6")}>6</button>
+          <button className={opKey} onClick={() => inputOperator("-")}>−</button>
 
-          <button className={numBtn} onClick={() => inputDigit("1")}>1</button>
-          <button className={numBtn} onClick={() => inputDigit("2")}>2</button>
-          <button className={numBtn} onClick={() => inputDigit("3")}>3</button>
-          <button className={opBtn} onClick={() => inputOperator("+")}>+</button>
+          <button className={numKey} onClick={() => inputDigit("1")}>1</button>
+          <button className={numKey} onClick={() => inputDigit("2")}>2</button>
+          <button className={numKey} onClick={() => inputDigit("3")}>3</button>
+          <button className={opKey} onClick={() => inputOperator("+")}>+</button>
 
-          <button className={fnBtn} onClick={toggleSign}>±</button>
-          <button className={numBtn} onClick={() => inputDigit("0")}>0</button>
-          <button className={numBtn} onClick={() => inputDigit(".")}>.</button>
-          <button
-            className={`${btnBase} bg-[var(--primary)] hover:opacity-90 text-white`}
-            onClick={equals}
-          >
-            =
-          </button>
+          <button className={fnKey} onClick={toggleSign}>±</button>
+          <button className={numKey} onClick={() => inputDigit("0")}>0</button>
+          <button className={numKey} onClick={() => inputDigit(".")}>.</button>
+          <button className={numKey} onClick={equals}>=</button>
         </div>
       </div>
     </div>
