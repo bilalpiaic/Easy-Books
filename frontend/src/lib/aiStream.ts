@@ -5,6 +5,10 @@ export interface StreamHandlers {
   onToken: (text: string) => void
   onToolStart: (label: string) => void
   onToolEnd: () => void
+  /** Pipeline-stage progress (e.g. "Routing your question…", "Drafting your
+   * report…") — reuses the same evolving single-label slot as tool
+   * progress; not a separate multi-row display. */
+  onStage: (label: string) => void
   onDone: (sessionId: number, messageId: number, reply: string) => void
   onError: (detail: string) => void
 }
@@ -43,6 +47,7 @@ export async function streamChat(
           case "token": h.onToken(ev.text as string); break
           case "tool_start": h.onToolStart(ev.label as string); break
           case "tool_end": h.onToolEnd(); break
+          case "stage": h.onStage(ev.label as string); break
           case "done":
             h.onDone(ev.session_id as number, ev.message_id as number, (ev.reply as string) ?? "")
             terminalFired = true
