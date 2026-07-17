@@ -1271,6 +1271,7 @@ class AiChatMessage(SQLModel, table=True):
     role: str
     content: str
     model: Optional[str] = None          # litellm model string, assistant rows
+    agent: Optional[str] = None          # routed specialist-agent key, assistant rows
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
