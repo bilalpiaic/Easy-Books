@@ -86,6 +86,17 @@ export default function AgentPage() {
     }
   }, [])
 
+  // Re-fetches just the model list — used after a key is saved/cleared in
+  // the Model & API Key panel so a newly-configured provider's models show
+  // up without needing to reload the page.
+  const loadModels = useCallback(async () => {
+    try {
+      setModels(await apiFetch<ModelsPayload>("/api/ai/models"))
+    } catch {
+      // Silent — the panel's own save/clear call already surfaces its own error.
+    }
+  }, [])
+
   const newChat = useCallback(async () => {
     if (creating) return
     setCreating(true)
@@ -297,6 +308,7 @@ export default function AgentPage() {
           models={models}
           className="min-h-0"
           onFirstMessageSent={refreshSessions}
+          onModelsRefresh={loadModels}
         />
       </div>
     </div>

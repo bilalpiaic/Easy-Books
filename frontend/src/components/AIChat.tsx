@@ -70,6 +70,17 @@ export default function AIChat({ open, onClose }: AIChatProps) {
     }
   }
 
+  // Re-fetches just the model list — used after a key is saved/cleared in
+  // the Model & API Key panel so a newly-configured provider's models show
+  // up without needing to close and reopen the chat.
+  const loadModels = async () => {
+    try {
+      setModels(await apiFetch<ModelsPayload>("/api/ai/models"))
+    } catch {
+      // Silent — the panel's own save/clear call already surfaces its own error.
+    }
+  }
+
   if (!open) return null
 
   const panel = (
@@ -136,7 +147,13 @@ export default function AIChat({ open, onClose }: AIChatProps) {
         )}
 
         {!initLoading && !initError && models && sessionId !== null && (
-          <ChatCore key={sessionId} sessionId={sessionId} models={models} className="min-h-0" />
+          <ChatCore
+            key={sessionId}
+            sessionId={sessionId}
+            models={models}
+            className="min-h-0"
+            onModelsRefresh={loadModels}
+          />
         )}
       </div>
     </div>
