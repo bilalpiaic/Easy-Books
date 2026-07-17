@@ -129,9 +129,9 @@ def test_triage_cheap_tier_differs_from_specialist_model(client: TestClient, mon
     _install_ai(client, auth)
     sid = _new_session(client, auth)
 
-    seen_models = []
+    seen = []   # (stream, max_tokens, model) per call
     async def fake_acompletion(**kwargs):
-        seen_models.append((kwargs.get("stream"), kwargs["model"]))
+        seen.append((kwargs.get("stream"), kwargs["max_tokens"], kwargs["model"]))
         if kwargs.get("stream") is False:
             return _TriageCompletion("general")
         return _stream_from([_Chunk(content="hi"), _Chunk(finish_reason="stop")])
@@ -141,10 +141,16 @@ def test_triage_cheap_tier_differs_from_specialist_model(client: TestClient, mon
                        json={"session_id": sid, "message": "hi", "model": "anthropic/claude-sonnet-5"}) as r:
         list(r.iter_lines())
 
-    triage_calls = [m for streamed, m in seen_models if streamed is False]
-    specialist_calls = [m for streamed, m in seen_models if streamed is True]
-    assert triage_calls == ["anthropic/claude-haiku-4-5"]
-    assert specialist_calls == ["anthropic/claude-sonnet-5"]
+    # Three calls total: triage (non-streaming, cheap tier), specialist
+    # (streaming, user's own model, max_tokens=2048), drafting (streaming,
+    # cheap tier again, max_tokens=4096) -- distinguished by (stream,
+    # max_tokens) since triage and drafting share the same cheap-tier model.
+    triage = [m for streamed, mt, m in seen if streamed is False]
+    specialist = [m for streamed, mt, m in seen if streamed is True and mt == 2048]
+    drafting = [m for streamed, mt, m in seen if streamed is True and mt == 4096]
+    assert triage == ["anthropic/claude-haiku-4-5"]
+    assert specialist == ["anthropic/claude-sonnet-5"]
+    assert drafting == ["anthropic/claude-haiku-4-5"]
 
 
 def test_unparseable_triage_response_falls_back_to_general(client: TestClient, monkeypatch):
@@ -192,4 +198,5 @@ def test_triage_call_raising_falls_back_to_general(client: TestClient, monkeypat
         events = _events(list(r.iter_lines()))
 
     assert events[-1]["type"] == "done"
-    assert len(calls) == 1   # specialist call still happened, on the general agent
+    # specialist + drafting calls still happened, on the general agent
+    assert len(calls) == 2

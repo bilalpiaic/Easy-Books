@@ -572,6 +572,82 @@ async def _run_triage(
     return FALLBACK_AGENT_KEY
 
 
+def _build_drafting_prompt(company_name: str) -> str:
+    today = DateType.today().isoformat()
+    return (
+        f"You are the presentation layer for the AI Financial Assistant at {company_name}. "
+        f"Today's date is {today}.\n\n"
+        "You will be given a specialist's analysis (plain text) plus the raw tool-call results "
+        "that back it up (JSON). Rewrite the analysis as a clean, professional, well-formatted "
+        "Markdown reply for a business chat interface:\n"
+        "- Use Markdown tables (GFM pipe syntax) for any list of multiple items (invoices, "
+        "customers, accounts, line items, etc.) with clear column headers.\n"
+        "- Use ## / ### headings and **bold** labels to organize sections when there is more "
+        "than one topic to cover; a short one-line answer needs no headings at all.\n"
+        "- Use EXACTLY the figures given — never invent, round, or alter a number that appears "
+        "in the specialist's analysis or the raw tool results.\n"
+        "- Be concise: no filler, no restating the question, no meta-commentary about your own "
+        "formatting.\n"
+        "- If the specialist's analysis says data is unavailable or an error occurred, say so "
+        "plainly — do not fabricate a table to fill the gap."
+    )
+
+
+async def _run_drafting(
+    session, user, company_name: str,
+    *, litellm_model: str, api_key, api_base,
+    specialist_text: str, tool_results: list[dict],
+):
+    """Streaming, cheap-tier, no-tools formatting pass over the specialist's
+    already-verified findings. Yields SSE-shaped {"type": "token", ...}
+    dicts — these ARE forwarded to the client, unlike the specialist's own
+    (suppressed) token output. Falls back to yielding `specialist_text`
+    verbatim, as a single token event, if the drafting call itself never
+    produces any content (bad key, network failure, etc.) — the user still
+    gets the correct, already-fetched answer, just unformatted, rather than
+    nothing. A failure partway through an already-started stream is left as
+    whatever text made it out (matching how the specialist loop's own
+    mid-stream failures already behave) rather than risking a duplicated
+    fallback appended after partial output.
+    """
+    cheap_model, cheap_key, cheap_base = resolve_cheap_tier(
+        session, user.tenant_id, litellm_model, api_key, api_base,
+    )
+    extra: dict = {}
+    if cheap_model.startswith("anthropic/"):
+        extra["thinking"] = {"type": "disabled"}
+    call_model = cheap_model
+    if cheap_model.startswith("ollama/"):
+        call_model = "ollama_chat/" + cheap_model[len("ollama/"):]
+        extra["api_base"] = cheap_base
+
+    payload = {"specialist_analysis": specialist_text, "supporting_data": tool_results}
+    messages = [
+        {"role": "system", "content": _build_drafting_prompt(company_name)},
+        {"role": "user", "content": json.dumps(_json_safe(payload))},
+    ]
+
+    got_any = False
+    try:
+        response = await litellm.acompletion(
+            model=call_model,
+            api_key=cheap_key,
+            max_tokens=4096,
+            messages=messages,
+            stream=True,
+            **extra,
+        )
+        async for chunk in response:
+            delta = chunk.choices[0].delta
+            if getattr(delta, "content", None):
+                got_any = True
+                yield {"type": "token", "text": delta.content}
+    except Exception:
+        pass
+    if not got_any and specialist_text:
+        yield {"type": "token", "text": specialist_text}
+
+
 @router.post("/chat")
 async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
     # ── Pre-stream validation: plain HTTP errors ────────────────────────
@@ -629,6 +705,7 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
 
     async def stream():
         loop_text = ""
+        tool_results: list[dict] = []
         try:
             yield _sse({"type": "stage", "label": "Routing your question…"})
             agent_key = await _run_triage(
@@ -645,19 +722,34 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
                 agent_system_prompt += "\n\n" + agent.system_prompt_fragment
             messages[0] = {"role": "system", "content": agent_system_prompt}
 
+            # The specialist's own text is never user-facing on its own — it
+            # is the input to the drafting stage below, not the reply.
             async for ev in run_tool_loop(
                 messages, agent_tools, TOOL_LABELS,
                 lambda name, tool_input: _execute_tool(name, tool_input, session, user),
                 litellm_model=litellm_model, api_key=api_key, api_base=api_base,
-                yield_tokens=True,
+                yield_tokens=False,
             ):
                 if ev["type"] == "_loop_result":
                     loop_text = ev["text"]
+                    tool_results = ev["tool_results"]
                     continue
                 yield _sse(ev)
 
-            reply = loop_text or \
-                "I wasn't able to complete the analysis. Please try a more specific question."
+            if loop_text:
+                yield _sse({"type": "stage", "label": "Drafting your report…"})
+                drafted_parts: list[str] = []
+                async for ev in _run_drafting(
+                    session, user, company_name,
+                    litellm_model=litellm_model, api_key=api_key, api_base=api_base,
+                    specialist_text=loop_text, tool_results=tool_results,
+                ):
+                    drafted_parts.append(ev["text"])
+                    yield _sse(ev)
+                reply = "".join(drafted_parts) or loop_text
+            else:
+                reply = "I wasn't able to complete the analysis. Please try a more specific question."
+
             assistant_msg = AiChatMessage(
                 session_id=chat_session.id, role="assistant",
                 content=reply, model=litellm_model, agent=agent.key,
@@ -666,13 +758,16 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
             session.add(assistant_msg)
             session.add(chat_session)
             session.commit()
-            # "reply" is the authoritative final text (falls back to a fixed
-            # string when the model only ever emitted tool_calls and no
-            # content deltas at all -- see above). Without it here, the
-            # frontend has no way to learn that text: it only knows what it
-            # accumulated from "token" events, which is empty in exactly
-            # that case, so the assistant bubble it commits on "done" would
-            # render blank even though a real (persisted) message exists.
+            # "reply" is the authoritative final text. Originally this only
+            # mattered for the rare tool-only-turn-with-zero-content-deltas
+            # edge case; now that the specialist's own text is never
+            # streamed as "token" events at all (only drafting's output is),
+            # this is the ONLY way the frontend learns the final answer if
+            # drafting itself produced zero token events for any reason
+            # (_run_drafting's own fallback already covers that by yielding
+            # specialist_text as one token event, but "reply" being
+            # authoritative here means the frontend never has to special-case
+            # that path itself).
             yield _sse({
                 "type": "done",
                 "session_id": chat_session.id,
