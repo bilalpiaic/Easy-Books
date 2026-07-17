@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { X, Calculator as CalculatorIcon, Minus, Maximize2, Delete } from "lucide-react"
 import { useDraggablePanel } from "@/hooks/useDraggablePanel"
@@ -8,7 +8,6 @@ import {
   type CalcState,
   type Operator,
   initialState,
-  MAX_DIGITS,
   inputDigit as engineInputDigit,
   inputOperator as engineInputOperator,
   pressEquals,
@@ -40,6 +39,14 @@ export default function Calculator({ open, onClose }: CalculatorProps) {
 
   const { panelRef, pos, minimized, dragging, startDrag, toggleMinimized } =
     useDraggablePanel("eb.calculator")
+
+  // Keeps the history line scrolled to its newest (rightmost) characters
+  // once it grows wider than the LCD, like a real dot-matrix display.
+  const expressionRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = expressionRef.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [state.expression])
 
   const inputDigit = (d: string) => setState(s => engineInputDigit(s, d))
   const inputOperator = (op: Operator) => setState(s => engineInputOperator(s, op))
@@ -109,9 +116,14 @@ export default function Calculator({ open, onClose }: CalculatorProps) {
         {/* LCD bezel */}
         <div className="bg-[#26282c] rounded-2xl p-2.5 shadow-inner">
           <div className="bg-gradient-to-b from-[#dfe8d0] to-[#ccd9bc] rounded-lg px-3 py-3 shadow-inner">
-            <div className="flex items-center justify-between text-[9px] font-semibold tracking-widest text-[#5b6b4f] uppercase h-3">
-              <span>{state.operator ?? ""}</span>
-              <span>{MAX_DIGITS} digit</span>
+            {/* History line — what was typed, e.g. "123+456+789+" while
+                composing or "200+300=" once finalized. Scrolled to its
+                newest characters when it outgrows the LCD width. */}
+            <div
+              ref={expressionRef}
+              className="overflow-x-auto whitespace-nowrap text-right text-xs font-mono text-[#4a5a42] h-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {state.expression || " "}
             </div>
             <div
               className={`text-right ${displayFontSize(display)} font-mono font-semibold tabular-nums text-[#1d2b1a] truncate [text-shadow:0_0_1px_rgba(29,43,26,0.25)]`}
