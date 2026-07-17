@@ -45,6 +45,8 @@
 32. [In-app Update Notifications](#32-in-app-update-notifications)
 33. [Sidebar Navigation (Auto-hide)](#33-sidebar-navigation-auto-hide)
 34. [Purchases & Store — Procure-to-Pay & Dispatch Control](#34-purchases--store--procure-to-pay--dispatch-control)
+35. [AI Financial Assistant](#35-ai-financial-assistant)
+36. [Calculator](#36-calculator)
 
 ---
 
@@ -759,6 +761,8 @@ Go to **Profile** (`/profile`):
 | `Ctrl+P` / `Cmd+P` | Print the current document (on detail/print pages) |
 
 `N` is ignored when focus is inside any input, textarea, select, or contenteditable element.
+
+The floating **Calculator** widget (§36) also responds to the keyboard — digits, `+ - * /`, `Enter`/`=`, `Backspace`, `Escape`/`Delete`, `%` — while it's open, with the same guard against stealing keystrokes from other fields.
 
 ### Breadcrumbs
 
@@ -2108,3 +2112,79 @@ Four permission resources appear in the admin matrix (**System → Permissions**
 Each can be set to **None / View / Edit** per user, and each supports **My Data Only** — a storekeeper flagged this way sees only the gate entries they personally recorded, on both the list pages and the register reports. Approving a demand, comparative, or scrap Gate Outward always requires admin or owner rights regardless of the granular permission level, and always blocks the creator from approving their own document.
 
 **A gate-only user doesn't need Purchase Order access.** Give someone **Edit** on **Gate Inward** but leave their **Purchase Orders** permission at **None**, and they can still pick a purchase order and record goods receipt against it — the gate screens show a stripped-down view of the PO (description, quantity, unit) with no pricing, so a receiving clerk can do their job without ever seeing what anything costs.
+
+---
+
+## 35. AI FINANCIAL ASSISTANT
+
+Ask plain-language questions about your books — "What's my revenue this month?", "Which invoices are overdue?", "What do I owe vendors?" — and get an answer grounded in your actual data, formatted as a proper report with tables and headings.
+
+### 35.1 Opening the Assistant
+
+Two ways in, both showing the same conversation history:
+
+- **Sparkles button** — bottom-right on every page (once the module is installed). Opens a small chat popup you can drag anywhere and minimize, the same way as the Calculator.
+- **Full page** — the **AI Assistant** entry, or go directly to `/agent`, for a two-column view with a session sidebar (new chat, rename, delete).
+
+If you don't see the Sparkles button at all, the module isn't installed yet — go to **System → Apps** and install **AI Financial Assistant** (admin/owner only).
+
+### 35.2 Asking a Question
+
+Type your question and press Enter, or tap one of the quick-prompt suggestions on a new chat ("What's my revenue this month?", "Which invoices are overdue?", "Show me my P&L summary", "What's my cash balance?"). While it's working you'll see a short status line change a few times — "Routing your question…", then something like "Receivables Agent is looking into this…" — before the answer streams in.
+
+**Output:** a formatted reply — tables for anything with multiple rows (overdue invoices, top customers), headings and bold labels for structure, using the exact figures from your books.
+
+### 35.3 How a Question Gets Answered
+
+Behind the scenes, every question runs through three quick steps instead of one:
+
+1. **Routing** — figures out which topic your question is about (receivables, payables, financial reports, or general) and hands it to the right specialist.
+2. **Analysis** — that specialist looks up the real numbers from your accounting data — it can only *read*, never create, post, or change anything.
+3. **Drafting** — a final pass turns the findings into the clean report you actually see.
+
+This is why a longer answer (like an aging table with several invoices) may take a few seconds and show its progress along the way — it's doing real work in stages, not just typing.
+
+### 35.4 Setting Up a Model & API Key
+
+Click the model row at the top of the chat (it reads the current model name, or **"No AI model configured"** if nothing's set up yet) to open the **Model & API Key** window:
+
+- **Model** — pick from whichever providers/models are already configured. Anyone can do this.
+- **API Key** — admins and owners can paste a key for Anthropic (Claude), OpenAI (GPT), or Google (Gemini) right here and click **Save**; existing keys show a masked status (`••••1234`) so you can tell one's already set without ever seeing it again. **Clear** removes a key. A link at the bottom, **More AI settings (Ollama, rate limit) →**, goes to the full Settings page for self-hosted Ollama setup and the hourly rate-limit field.
+- If you're not an admin or owner, this section shows a note instead of input fields — ask an admin or owner to add a key.
+
+Saving or clearing a key updates the model list immediately, with nothing to reload.
+
+### 35.5 Chat Sessions
+
+On the full-page view (`/agent`), the left sidebar lists your past conversations. **+ New chat** starts a fresh one; hover a chat to reveal rename (pencil) and delete (trash) buttons. A session automatically takes its title from your first message in it. Chat history is private per user — even another admin on the same company can't see your conversations.
+
+### 35.6 Limits & Safeguards
+
+- Messages are capped at 4,000 characters.
+- There's an hourly limit on how many questions you can ask (configurable in Settings → AI, default 20/hour) — you'll see a friendly "try again in a few minutes" message if you hit it.
+- The assistant is **strictly read-only** — no matter what you ask, it cannot create an invoice, post a journal entry, or change anything in your books.
+
+---
+
+## 36. CALCULATOR
+
+A globally available calculator widget — no module install needed, available on every page.
+
+### 36.1 Opening It
+
+Click the calculator icon button, stacked just above the AI Assistant's Sparkles button on the right edge of every page. It opens as a small floating window styled like a classic desk calculator, with a green-tinted display.
+
+### 36.2 Using It
+
+- **Mouse** — click any key, same as a physical calculator: digits, `+ − × ÷`, `%`, `±` (sign toggle), `√` (square root), `00`, `.`, `C` (clear), and the backspace key (⌫) to correct the last digit.
+- **Keyboard** — type directly: number keys, `+ - * /`, `Enter` or `=` for equals, `Backspace` to correct, `Escape` or `Delete` to clear, `%` for percent. This only responds while the calculator window is open (and not minimized), and it automatically steps aside if you're typing into an invoice field, a search box, or any other field elsewhere on the page — it won't steal your keystrokes.
+
+**Percent works the way you'd expect at a business:** `200 + 10%` gives you `220` (10% of 200, added on), and this is consistent no matter which operator you're using — `×`, `÷`, `+`, or `−`.
+
+### 36.3 Reading the Display
+
+The display has two lines: a small line above showing your running calculation (e.g. `123+456+789+`), and the large main result below. Once you press `=`, the top line finalizes to the full expression (e.g. `200+300=`) and the bottom shows the answer. Starting a new calculation clears the top line automatically.
+
+### 36.4 Moving & Minimizing It
+
+Drag the header bar to move the calculator anywhere on screen — it remembers where you left it (per browser) the next time you open it. Click the minus button to collapse it to just its header without losing whatever you were calculating; click again (or the restore icon) to bring it back.
