@@ -16,7 +16,18 @@ import {
   backspace as engineBackspace,
   toggleSign as engineToggleSign,
   percent as enginePercent,
+  sqrt as engineSqrt,
+  inputDoubleZero as engineInputDoubleZero,
 } from "@/lib/calculatorEngine"
+
+/** Shrinks the LCD font as the display string grows so all 12 digits (plus
+ * an optional sign/decimal point) stay on screen instead of clipping. */
+function displayFontSize(display: string): string {
+  if (display.length > 11) return "text-xl"
+  if (display.length > 9) return "text-2xl"
+  if (display.length > 7) return "text-3xl"
+  return "text-4xl"
+}
 
 interface CalculatorProps {
   open: boolean
@@ -37,6 +48,8 @@ export default function Calculator({ open, onClose }: CalculatorProps) {
   const backspace = () => setState(engineBackspace)
   const toggleSign = () => setState(engineToggleSign)
   const percent = () => setState(enginePercent)
+  const sqrt = () => setState(engineSqrt)
+  const doubleZero = () => setState(engineInputDoubleZero)
 
   if (!open) return null
 
@@ -101,7 +114,7 @@ export default function Calculator({ open, onClose }: CalculatorProps) {
               <span>{MAX_DIGITS} digit</span>
             </div>
             <div
-              className="text-right text-4xl font-mono font-semibold tracking-wider tabular-nums text-[#1d2b1a] truncate [text-shadow:0_0_1px_rgba(29,43,26,0.25)]"
+              className={`text-right ${displayFontSize(display)} font-mono font-semibold tabular-nums text-[#1d2b1a] truncate [text-shadow:0_0_1px_rgba(29,43,26,0.25)]`}
               title={display}
             >
               {display}
@@ -132,10 +145,13 @@ export default function Calculator({ open, onClose }: CalculatorProps) {
           <button className={numKey} onClick={() => inputDigit("3")}>3</button>
           <button className={opKey} onClick={() => inputOperator("+")}>+</button>
 
+          <button className={fnKey} onClick={sqrt} aria-label="Square root">√</button>
           <button className={fnKey} onClick={toggleSign}>±</button>
-          <button className={numKey} onClick={() => inputDigit("0")}>0</button>
+          <button className={numKey} onClick={doubleZero}>00</button>
           <button className={numKey} onClick={() => inputDigit(".")}>.</button>
-          <button className={numKey} onClick={equals}>=</button>
+
+          <button className={`${numKey} col-span-2`} onClick={() => inputDigit("0")}>0</button>
+          <button className={`${numKey} col-span-2`} onClick={equals}>=</button>
         </div>
       </div>
     </div>

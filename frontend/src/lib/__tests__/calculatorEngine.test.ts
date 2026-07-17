@@ -11,6 +11,8 @@ import {
   backspace,
   toggleSign,
   percent,
+  sqrt,
+  inputDoubleZero,
 } from "../calculatorEngine"
 
 const digits = (state: CalcState, s: string) =>
@@ -200,5 +202,116 @@ describe("percent", () => {
     s = percent(s)
     s = pressEquals(s)
     expect(s.display).toBe("20")
+  })
+
+  it("200 ÷ 10% -> 2000 (plain fraction for ÷: 200 / 0.1)", () => {
+    let s = digits(initialState, "200")
+    s = inputOperator(s, "÷")
+    s = digits(s, "10")
+    s = percent(s)
+    s = pressEquals(s)
+    expect(s.display).toBe("2000")
+  })
+
+  it("percent pressed with no second entry yet reuses the pending operand (5 + % -> 0.25, then = -> 5.25)", () => {
+    let s = digits(initialState, "5")
+    s = inputOperator(s, "+")   // overwrite=true, display still shows "5"
+    s = percent(s)
+    expect(s.display).toBe("0.25")
+    s = pressEquals(s)
+    expect(s.display).toBe("5.25")
+  })
+
+  it("percent compounds when pressed twice in a row", () => {
+    let s = percent(digits(initialState, "50"))
+    expect(s.display).toBe("0.5")
+    s = percent(s)
+    expect(s.display).toBe("0.005")
+  })
+
+  it("percent of a decimal operand", () => {
+    const s = percent(digits(initialState, "12.5"))
+    expect(s.display).toBe("0.125")
+  })
+
+  it("negative pending operand: -200 + 10% -> -20, then = -> -220", () => {
+    let s = digits(initialState, "200")
+    s = toggleSign(s)          // -200
+    s = inputOperator(s, "+")
+    s = digits(s, "10")
+    s = percent(s)
+    expect(s.display).toBe("-20")
+    s = pressEquals(s)
+    expect(s.display).toBe("-220")
+  })
+
+  it("does not disturb prevValue/operator (stays composable, doesn't auto-finalize)", () => {
+    let s = digits(initialState, "200")
+    s = inputOperator(s, "+")
+    s = digits(s, "10")
+    s = percent(s)
+    expect(s.operator).toBe("+")
+    expect(s.prevValue).toBe(200)
+    expect(s.overwrite).toBe(true)
+  })
+})
+
+describe("sqrt", () => {
+  it("computes a perfect square", () => {
+    const s = sqrt(digits(initialState, "16"))
+    expect(s.display).toBe("4")
+  })
+  it("computes an irrational root within the 12-digit display", () => {
+    const s = sqrt(digits(initialState, "2"))
+    expect(s.display).toBe(formatResult(Math.sqrt(2)))
+  })
+  it("sqrt of 0 is 0", () => {
+    const s = sqrt(initialState)
+    expect(s.display).toBe("0")
+  })
+  it("sqrt of a negative number is an Error", () => {
+    let s = digits(initialState, "4")
+    s = toggleSign(s)
+    s = sqrt(s)
+    expect(s.display).toBe("Error")
+  })
+  it("composes with a pending operator: 16 √ + 4 = -> 8", () => {
+    let s = digits(initialState, "16")
+    s = sqrt(s)
+    s = inputOperator(s, "+")
+    s = digits(s, "4")
+    s = pressEquals(s)
+    expect(s.display).toBe("8")
+  })
+  it("starts a fresh entry afterward (overwrite set)", () => {
+    const s = sqrt(digits(initialState, "16"))
+    expect(s.overwrite).toBe(true)
+  })
+})
+
+describe("inputDoubleZero", () => {
+  it("pressed first (fresh state) yields a plain 0", () => {
+    const s = inputDoubleZero(initialState)
+    expect(s.display).toBe("0")
+  })
+  it("appends '00' mid-entry", () => {
+    const s = inputDoubleZero(digits(initialState, "5"))
+    expect(s.display).toBe("500")
+  })
+  it("right after an operator (fresh operand) yields a plain 0, same as a single 0 press", () => {
+    let s = digits(initialState, "5")
+    s = inputOperator(s, "+")
+    s = inputDoubleZero(s)
+    expect(s.display).toBe("0")
+  })
+  it("respects the 12-digit cap, appending only what fits", () => {
+    const eleven9s = digits(initialState, "9".repeat(11))
+    const s = inputDoubleZero(eleven9s)
+    expect(s.display).toBe("9".repeat(11) + "0")
+  })
+  it("does nothing after a decimal point beyond making it '0.00'", () => {
+    let s = digits(initialState, "1.")
+    s = inputDoubleZero(s)
+    expect(s.display).toBe("1.00")
   })
 })

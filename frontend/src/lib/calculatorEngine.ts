@@ -112,6 +112,15 @@ export function toggleSign(state: CalcState): CalcState {
  * it as a plain fraction of the entered number (200 × 10% -> operand 0.1).
  * With no pending operator, percent is just value/100.
  */
+export function sqrt(state: CalcState): CalcState {
+  const result = Math.sqrt(parseFloat(state.display))
+  return { ...state, display: formatResult(result), overwrite: true }
+}
+
+export function inputDoubleZero(state: CalcState): CalcState {
+  return inputDigit(inputDigit(state, "0"), "0")
+}
+
 export function percent(state: CalcState): CalcState {
   const current = parseFloat(state.display)
   let result: number
