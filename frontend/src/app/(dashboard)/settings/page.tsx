@@ -1,8 +1,9 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette, Sparkles, X } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Briefcase, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '@/lib/api'
+import { fmtDate } from '@/lib/utils'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import { useModules } from '@/context/ModuleContext'
 import { getCurrentUser } from '@/lib/auth'
@@ -214,11 +215,18 @@ export default function SettingsPage() {
     if (t) setTab(t)
   }, [])
 
+  const isAdminOrOwner =
+    getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner"
+
   const TABS = [
     { id: "company",     label: "Company"     },
     { id: "accounting",  label: "Accounting"  },
     { id: "preferences", label: "Preferences" },
     { id: "advanced",    label: "Advanced"    },
+    // Machine-to-machine keys are admin/owner territory (matches the
+    // backend's AdminUserDep gate) — hide the tab entirely for others
+    // rather than showing content that would just 403.
+    ...(isAdminOrOwner ? [{ id: "api-keys", label: "API Keys" }] : []),
     { id: "updates",     label: "Updates"     },
   ]
 
@@ -1147,6 +1155,10 @@ export default function SettingsPage() {
 
       </> }
 
+      {/* API Keys tab (#113) — machine-to-machine access, admin/owner only
+          (the tab itself is hidden for other roles) */}
+      { tab === "api-keys" && isAdminOrOwner && <ApiKeysSection /> }
+
       {/* Updates tab */}
       { tab === "updates" && (
         <div className="space-y-6">
@@ -1577,5 +1589,208 @@ function AiAssistantSection() {
         {saved && <span className="text-sm text-green-700">Saved</span>}
       </div>
     </section>
+  )
+}
+
+/* ── API Keys (#113) — machine-to-machine access, admin/owner only ── */
+interface ApiKeyRow {
+  id: number
+  name: string
+  key_hint: string
+  scopes: string[]
+  last_used: string | null
+  expires_at: string | null
+  is_active: boolean
+  created_at: string
+}
+
+function ApiKeysSection() {
+  const [rows, setRows] = useState<ApiKeyRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [newName, setNewName] = useState("")
+  const [creating, setCreating] = useState(false)
+  // The raw key, held ONLY while the reveal modal is open — cleared the
+  // moment it closes; the backend cannot return it again.
+  const [createdKey, setCreatedKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    apiFetch<ApiKeyRow[]>("/api/auth/keys")
+      .then(setRows)
+      .catch(err => setError(err instanceof Error ? err.message : "Failed to load API keys."))
+      .finally(() => setLoading(false))
+  }
+  useEffect(load, [])
+
+  const handleCreate = async () => {
+    const name = newName.trim()
+    if (!name || creating) return
+    setCreating(true)
+    setError("")
+    try {
+      const created = await apiFetch<ApiKeyRow & { key: string }>("/api/auth/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      setCreatedKey(created.key)
+      setCopied(false)
+      setNewName("")
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create the key.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleCopy = async () => {
+    if (!createdKey) return
+    try {
+      await navigator.clipboard.writeText(createdKey)
+      setCopied(true)
+    } catch {
+      // Clipboard unavailable (e.g. non-HTTPS) — the key is still visible to select manually.
+    }
+  }
+
+  const handleRevoke = async (row: ApiKeyRow) => {
+    if (!window.confirm(`Revoke the key "${row.name}"? Anything using it stops working immediately.`)) return
+    setError("")
+    try {
+      await apiFetch(`/api/auth/keys/${row.id}`, { method: "DELETE" })
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to revoke the key.")
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-[var(--primary)]" /> API Keys
+        </h2>
+        <p className="text-xs text-[var(--text-primary)]/50">
+          API keys let scripts and integrations call the Easy-Books API with the same access as your
+          account — send one as <code className="px-1 bg-[var(--bg-page)] rounded">Authorization: Bearer &lt;key&gt;</code>.
+          A key is shown only once, at creation; revoking takes effect immediately.
+        </p>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">{error}</div>
+        )}
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder='Key name — e.g. "Zapier integration"'
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleCreate() }}
+            className="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={!newName.trim() || creating}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" /> Create Key
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-[var(--text-muted)]">Loading…</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-[var(--text-muted)]">No API keys yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-[var(--text-muted)] border-b border-[var(--border)]">
+                  <th className="py-2 pr-3">Name</th>
+                  <th className="py-2 pr-3">Key</th>
+                  <th className="py-2 pr-3">Created</th>
+                  <th className="py-2 pr-3">Last used</th>
+                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(row => (
+                  <tr key={row.id} className="border-b border-[var(--border)] last:border-0">
+                    <td className="py-2 pr-3 font-medium text-[var(--text-primary)]">{row.name}</td>
+                    <td className="py-2 pr-3 font-mono text-xs text-[var(--text-muted)] whitespace-nowrap">
+                      eb_live_…{row.key_hint}
+                    </td>
+                    <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(row.created_at)}</td>
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      {row.last_used ? fmtDate(row.last_used) : "Never"}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {row.is_active
+                        ? <span className="text-green-700 text-xs font-medium">Active</span>
+                        : <span className="text-red-600 text-xs font-medium">Revoked</span>}
+                    </td>
+                    <td className="py-2 text-right">
+                      {row.is_active && (
+                        <button
+                          type="button"
+                          onClick={() => handleRevoke(row)}
+                          className="px-3 py-1 border border-[var(--border)] rounded-lg text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Reveal-once modal */}
+      {createdKey && (
+        <div className="fixed inset-0 z-[950] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setCreatedKey(null)} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-[var(--border)] p-5 space-y-4">
+            <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-[var(--primary)]" /> Copy your new API key
+            </h3>
+            <p className="text-xs text-[var(--text-primary)]/60">
+              This is the <strong>only time</strong> the full key is shown. Store it somewhere safe —
+              once you close this window it cannot be retrieved again.
+            </p>
+            <div className="flex gap-2 items-center">
+              <code className="flex-1 min-w-0 break-all text-xs bg-[var(--bg-page)] border border-[var(--border)] rounded-lg px-3 py-2">
+                {createdKey}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label="Copy key"
+                className="shrink-0 p-2 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-page)]"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setCreatedKey(null)}
+                className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)]"
+              >
+                I&apos;ve saved it — close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
