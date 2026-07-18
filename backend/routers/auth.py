@@ -21,17 +21,20 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 from sqlmodel import Session, func, select
 
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    ALGORITHM,
+    SECRET_KEY,
     create_access_token,
     get_password_hash,
     verify_password,
 )
 from db import MODULES_BY_MODEL, seed_data
-from models import LoginAttempt, Tenant, User, UserInvite
+from models import LoginAttempt, RevokedToken, Tenant, User, UserInvite
 
 from .common import CurrentUserDep, SessionDep
 
@@ -197,6 +200,9 @@ def login(
             "tenant_id": user.tenant_id,
             "full_name": user.full_name,
             "role": user.role,
+            # Unique token id — lets /logout revoke exactly this token via
+            # the RevokedToken denylist (#113).
+            "jti": str(uuid.uuid4()),
         },
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
@@ -218,7 +224,37 @@ def login(
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(session: SessionDep, request: Request, response: Response):
+    """Clears the auth cookies AND revokes the presented token server-side
+    (#113): its jti goes into the RevokedToken denylist, so a copy of the
+    token kept elsewhere (another tab, a captured header) dies immediately
+    instead of remaining valid until natural expiry. Deliberately not
+    auth-gated — logout with a bad/absent token still clears cookies, same
+    as before."""
+    auth_header = request.headers.get("authorization", "")
+    token = auth_header[7:] if auth_header.lower().startswith("bearer ") else None
+    if not token:
+        token = request.cookies.get(ACCESS_COOKIE_NAME)
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            jti = payload.get("jti")
+            tenant_id = payload.get("tenant_id")
+            exp = payload.get("exp")
+            if jti and tenant_id is not None and exp is not None:
+                session.add(RevokedToken(
+                    jti=jti,
+                    tenant_id=tenant_id,
+                    expires_at=datetime.utcfromtimestamp(exp),
+                ))
+                try:
+                    session.commit()
+                except Exception:
+                    # Double logout of the same token — jti is unique; the
+                    # first row already does the job.
+                    session.rollback()
+        except JWTError:
+            pass  # invalid/expired token — nothing to revoke
     response.delete_cookie(ACCESS_COOKIE_NAME, path="/")
     response.delete_cookie(CSRF_COOKIE_NAME, path="/")
     return {"success": True}
@@ -344,7 +380,8 @@ def accept_invite(data: AcceptInvite, session: SessionDep, response: Response):
 
     token = create_access_token(
         data={"sub": user.email, "tenant_id": user.tenant_id,
-              "full_name": user.full_name, "role": user.role},
+              "full_name": user.full_name, "role": user.role,
+              "jti": str(uuid.uuid4())},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     _set_access_cookie(response, token)

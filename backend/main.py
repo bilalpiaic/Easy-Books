@@ -67,6 +67,39 @@ async def _overdue_scheduler_loop() -> None:
         await asyncio.sleep(interval_seconds)
 
 
+def _run_revoked_token_prune_once() -> None:
+    """Deletes RevokedToken rows past their expires_at (#113) — the token
+    they denylist would have expired on its own by then, so the row is dead
+    weight. Sync/blocking; called via asyncio.to_thread. Lazy db import for
+    the same reason as _run_overdue_sweep_once."""
+    from datetime import datetime as _dt
+
+    import db as _db
+    from sqlalchemy import delete as _delete
+    from sqlmodel import Session as _Session
+    from models import RevokedToken as _RevokedToken
+    with _Session(_db.engine) as session:
+        result = session.execute(
+            _delete(_RevokedToken).where(_RevokedToken.expires_at < _dt.utcnow())
+        )
+        session.commit()
+        if result.rowcount:
+            print(f"[revoked-tokens] pruned {result.rowcount} expired row(s)", flush=True)
+
+
+async def _revoked_token_prune_loop() -> None:
+    """Once at startup, then every 6 hours — tokens live 24h, so pruning
+    lags expiry by at most a quarter of a token's lifetime, keeping the
+    denylist bounded at roughly one day's worth of logouts."""
+    while True:
+        try:
+            await asyncio.to_thread(_run_revoked_token_prune_once)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        await asyncio.sleep(6 * 3600)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # `lifespan` replaces the deprecated @app.on_event("startup") hook.
@@ -77,13 +110,15 @@ async def lifespan(_app: FastAPI):
     if os.environ.get("SCHEMA_BOOTSTRAP", "create_all") == "create_all":
         create_db_and_tables()
 
-    task = None
+    tasks = []
     if os.environ.get("OVERDUE_SWEEP_ENABLED", "true").lower() != "false":
-        task = asyncio.create_task(_overdue_scheduler_loop())
+        tasks.append(asyncio.create_task(_overdue_scheduler_loop()))
+    if os.environ.get("REVOKED_TOKEN_PRUNE_ENABLED", "true").lower() != "false":
+        tasks.append(asyncio.create_task(_revoked_token_prune_loop()))
 
     yield
 
-    if task:
+    for task in tasks:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task

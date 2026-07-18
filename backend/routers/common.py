@@ -25,7 +25,7 @@ from sqlmodel import Session, select
 
 from auth import ALGORITHM, SECRET_KEY
 from db import get_session
-from models import Account, ApiKey, AuditLog, SequenceCounter, Settings, User
+from models import Account, ApiKey, AuditLog, RevokedToken, SequenceCounter, Settings, User
 
 
 # auto_error=False so a missing Authorization header falls through to the
@@ -94,6 +94,18 @@ def get_current_user(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
+
+    # Logout inserts the token's jti into RevokedToken (#113) — reject a
+    # revoked token on every request, not just at natural expiry. Tokens
+    # minted before jti existed carry none and skip the check (no forced
+    # re-login on deploy).
+    jti = payload.get("jti")
+    if jti is not None:
+        revoked = session.exec(
+            select(RevokedToken).where(RevokedToken.jti == jti)
+        ).first()
+        if revoked is not None:
+            raise credentials_exception
 
     user = session.exec(select(User).where(User.email == email)).first()
     if user is None:
