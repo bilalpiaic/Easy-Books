@@ -34,6 +34,7 @@ from routers.pra import pra_router
 from routers import healthcare, healthcare_reports
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
+from services.rate_limit import RateLimitMiddleware
 
 
 def _run_overdue_sweep_once() -> None:
@@ -90,12 +91,15 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Easy-Books API", lifespan=lifespan)
 
-# Middleware ordering: CSRF runs first (outermost), then idempotency, then
-# CORS. Starlette wraps in reverse-add order, so add_middleware last → runs
-# first on the request path. We want CSRF to reject before the idempotency
-# cache is consulted.
+# Middleware ordering: rate limiting runs first (outermost), then CSRF, then
+# idempotency, then CORS. Starlette wraps in reverse-add order, so
+# add_middleware last → runs first on the request path. Rate limiting goes
+# first so an over-limit request is rejected before any CSRF/idempotency
+# work happens; CSRF still rejects before the idempotency cache is
+# consulted.
 app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(CsrfMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 _allowed_origins = [o.strip() for o in os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").split(",")]
 app.add_middleware(

@@ -30,6 +30,21 @@ def _clear_ai_rate_limit():
     _RATE.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_global_rate_limit():
+    """RateLimitMiddleware's buckets are process-global too. The anon bucket
+    is keyed by client IP, which TestClient keeps constant across tests
+    (unlike tenant/user ids, which restart at 1 in each test's fresh
+    in-memory DB but don't help here) — without clearing, unauthenticated
+    request counts leak across every test in the whole suite."""
+    from services.rate_limit import _AUTH_BUCKETS, _ANON_BUCKETS
+    _AUTH_BUCKETS.clear()
+    _ANON_BUCKETS.clear()
+    yield
+    _AUTH_BUCKETS.clear()
+    _ANON_BUCKETS.clear()
+
+
 @pytest.fixture(name="client")
 def client_fixture(monkeypatch):
     """In-memory SQLite engine; overrides the FastAPI session dep AND the
