@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 from db import create_db_and_tables
 from routers import (
-    accounts, admin, advances, aging, analytic_accounts, assets, attachments,
+    accounts, admin, advances, aging, analytic_accounts, api_keys, assets, attachments,
     audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets,
     comparatives, credit_notes, dashboard_layout, customers, debit_notes, deferred_revenue, exchange_rates, gate_inward, gate_outward, grn,
     imports, invoices, manufacturing_reports, modules, payment_terms, payments, periods,
@@ -116,7 +116,7 @@ app.add_middleware(
 # breaking changes ship under /api/v2/ without disturbing the legacy
 # surface.
 _ROUTERS = [
-    auth.router, settings.router, modules.router, accounts.router, customers.router,
+    auth.router, api_keys.router, settings.router, modules.router, accounts.router, customers.router,
     vendors.router, products.router, product_categories.router, aging.router, invoices.router, bills.router,
     report_builder.router,
     payments.router, payment_terms.router, bank_accounts.router,
