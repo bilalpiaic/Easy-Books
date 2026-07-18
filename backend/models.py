@@ -1357,6 +1357,24 @@ class LoginAttempt(SQLModel, table=True):
     attempted_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class RevokedToken(SQLModel, table=True):
+    """JWT denylist (#113). Logout inserts the token's jti here; every
+    authenticated request checks it, so a logged-out token dies immediately
+    instead of surviving until its natural 24h expiry. DB-backed (not
+    in-memory) for the same reason as LoginAttempt: revocation must hold
+    across every uvicorn worker, and this app can't take a Redis dependency
+    (offline Electron/script-installer distribution).
+
+    expires_at is copied from the token's own exp claim, so the background
+    prune (main.py lifespan) never keeps a row alive past the point the
+    token would have expired anyway.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    jti: str = Field(unique=True, index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    expires_at: datetime = Field(index=True)
+
+
 class SequenceCounter(SQLModel, table=True):
     """Per-tenant atomic counter for document numbers.
 
