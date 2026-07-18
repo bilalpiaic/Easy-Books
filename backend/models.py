@@ -106,6 +106,31 @@ class UserInvite(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ApiKey(SQLModel, table=True):
+    """Machine-to-machine API key (#113). The raw key ("eb_live_" +
+    token_urlsafe) is returned exactly once at creation and never stored —
+    only its SHA-256 hex lands in key_hash (unique, the lookup column), plus
+    the last 4 raw characters in key_hint for display in the Settings list.
+
+    A key authenticates AS its owning user: get_current_user() resolves
+    key_hash → ApiKey → User, so role checks, permission gates, and audit
+    attribution all behave exactly as if that user had presented a JWT.
+    Revocation is a soft is_active=False (keeps the audit trail), enforced
+    on every request.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    key_hash: str = Field(unique=True, index=True)
+    key_hint: str  # last 4 chars of the raw key — non-secret, for display
+    name: str
+    scopes: str = Field(default="[]")  # json.dumps(list[str]); unused in v1, reserved
+    last_used: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class UserPermission(SQLModel, table=True):
     """Sparse per-user permission overrides. When no row exists for a
     (user_id, resource_key) pair, the role default applies:

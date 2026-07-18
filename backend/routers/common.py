@@ -13,7 +13,9 @@ router stays focused on its own domain logic:
 Keeping these out of any individual router prevents the import cycles that
 would otherwise force everything back into one mega-file.
 """
+import hashlib as _hashlib
 import json as _json
+from datetime import datetime as _datetime
 from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -23,7 +25,7 @@ from sqlmodel import Session, select
 
 from auth import ALGORITHM, SECRET_KEY
 from db import get_session
-from models import Account, AuditLog, SequenceCounter, Settings, User
+from models import Account, ApiKey, AuditLog, SequenceCounter, Settings, User
 
 
 # auto_error=False so a missing Authorization header falls through to the
@@ -32,14 +34,46 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False
 
 ACCESS_COOKIE_NAME = "eb_access"
 
+# Machine-to-machine API keys (#113) share the Authorization: Bearer header
+# with JWTs; this static prefix disambiguates them without ever attempting
+# (and failing) a jwt.decode on a raw key.
+API_KEY_PREFIX = "eb_live_"
+
+
+def _user_from_api_key(session: Session, token: str, credentials_exception) -> User:
+    """Resolve an eb_live_ key to its owning User. The key authenticates AS
+    that user — role checks, permission gates, and audit attribution behave
+    exactly as if they had presented a JWT."""
+    key_hash = _hashlib.sha256(token.encode()).hexdigest()
+    api_key = session.exec(select(ApiKey).where(ApiKey.key_hash == key_hash)).first()
+    if (
+        api_key is None
+        or not api_key.is_active
+        or (api_key.expires_at is not None and api_key.expires_at < _datetime.utcnow())
+    ):
+        raise credentials_exception
+    user = session.get(User, api_key.user_id)
+    if user is None:
+        raise credentials_exception
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated. Contact an administrator.",
+        )
+    api_key.last_used = _datetime.utcnow()
+    session.add(api_key)
+    session.commit()
+    return user
+
 
 def get_current_user(
     request: Request,
     session: Session = Depends(get_session),
     token: Optional[str] = Depends(oauth2_scheme),
 ) -> User:
-    """Resolve the authenticated user from either the Authorization: Bearer
-    header (SDK / curl clients) or the HttpOnly access cookie (SPA clients).
+    """Resolve the authenticated user from the Authorization: Bearer header
+    (a JWT or an eb_live_ API key — SDK / curl clients) or the HttpOnly
+    access cookie (SPA clients).
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -50,6 +84,8 @@ def get_current_user(
         token = request.cookies.get(ACCESS_COOKIE_NAME)
     if not token:
         raise credentials_exception
+    if token.startswith(API_KEY_PREFIX):
+        return _user_from_api_key(session, token, credentials_exception)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
