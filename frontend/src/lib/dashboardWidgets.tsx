@@ -11,6 +11,18 @@ import HRMSummaryWidget from "@/components/dashboard/widgets/HRMSummaryWidget"
 import QuickActionsWidget from "@/components/dashboard/widgets/QuickActionsWidget"
 import KpiCard from "@/components/dashboard/KpiCard"
 import NetWorthTrendWidget from "@/components/dashboard/widgets/NetWorthTrendWidget"
+import CashFlowTrendWidget from "@/components/dashboard/widgets/trends/CashFlowTrendWidget"
+import CashBalanceTrendWidget from "@/components/dashboard/widgets/trends/CashBalanceTrendWidget"
+import SalesPurchasesWidget from "@/components/dashboard/widgets/trends/SalesPurchasesWidget"
+import CollectionsTrendWidget from "@/components/dashboard/widgets/trends/CollectionsTrendWidget"
+import ProfitMarginWidget from "@/components/dashboard/widgets/trends/ProfitMarginWidget"
+import RevenueBreakdownWidget from "@/components/dashboard/widgets/trends/RevenueBreakdownWidget"
+import TopVendorsWidget from "@/components/dashboard/widgets/trends/TopVendorsWidget"
+import InvoiceStatusWidget from "@/components/dashboard/widgets/trends/InvoiceStatusWidget"
+import ApAgingWidget from "@/components/dashboard/widgets/trends/ApAgingWidget"
+import ExpenseTrendWidget from "@/components/dashboard/widgets/trends/ExpenseTrendWidget"
+import ArApTrendWidget from "@/components/dashboard/widgets/trends/ArApTrendWidget"
+import DayBookWidget from "@/components/dashboard/widgets/trends/DayBookWidget"
 import { apiFetch } from "@/lib/api"
 import type { AppSettings } from "@/context/SettingsContext"
 import {
@@ -362,7 +374,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     // h:4 keeps 10 horizontal bars legible (was 5 rows at h:3)
     defaultSize: { w: 2, h: 4 }, minSize: { w: 2, h: 2 },
     render: (ctx) => {
-      const { charts } = ctx
+      const { charts, fmt } = ctx
       const { customerBarData, baseChartOpts } = ctx.chartConfigs
       return (
         <div className="bg-white rounded-xl border border-[#ede9e2] p-4 shadow-sm h-full flex flex-col">
@@ -370,13 +382,83 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
           <div className="flex-1 min-h-0">
             {charts ? (
               charts.top_customers.length > 0
-                ? <Bar data={customerBarData as ChartJsData<"bar">} options={{ ...baseChartOpts, indexAxis: "y" } as ChartOptions<"bar">} />
+                ? <Bar data={customerBarData as ChartJsData<"bar">} options={{
+                    ...baseChartOpts, indexAxis: "y",
+                    // horizontal bar: y is the category axis (names), x is money —
+                    // baseChartOpts' money-formatting y callback would render tick
+                    // indices ("0".."9") instead of customer names here
+                    scales: {
+                      x: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { font: { size: 10 }, callback: (v: unknown) => fmt(Number(v)) } },
+                      y: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                    },
+                  } as ChartOptions<"bar">} />
                 : <div className="h-full flex items-center justify-center text-sm text-[#1a1814]/40">No invoice data</div>
             ) : <ChartSkeleton />}
           </div>
         </div>
       )
     },
+  },
+  // ── Trend & graph widgets (one shared /dashboard/trends fetch) ────────────
+  {
+    id: "cashflow_trend", title: "Cash Flow", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <CashFlowTrendWidget />,
+  },
+  {
+    id: "cash_balance_trend", title: "Cash Balance Trend", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <CashBalanceTrendWidget />,
+  },
+  {
+    id: "sales_purchases", title: "Sales vs Purchases", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <SalesPurchasesWidget />,
+  },
+  {
+    id: "collections_trend", title: "Collections", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <CollectionsTrendWidget />,
+  },
+  {
+    id: "profit_margin_trend", title: "Profit Margin", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: (ctx) => <ProfitMarginWidget charts={ctx.charts} />,
+  },
+  {
+    id: "revenue_breakdown", title: "Revenue Breakdown", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <RevenueBreakdownWidget />,
+  },
+  {
+    id: "invoice_status", title: "Invoice Pipeline", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <InvoiceStatusWidget />,
+  },
+  {
+    id: "ap_aging", title: "AP Aging", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <ApAgingWidget />,
+  },
+  {
+    id: "top_vendors", title: "Top Vendors", defaultVisible: true,
+    defaultSize: { w: 2, h: 4 }, minSize: { w: 2, h: 2 },
+    render: () => <TopVendorsWidget />,
+  },
+  {
+    id: "expense_trend", title: "Expense Trend", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <ExpenseTrendWidget />,
+  },
+  {
+    id: "ar_ap_trend", title: "AR vs AP Trend", defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    render: () => <ArApTrendWidget />,
+  },
+  {
+    id: "day_book", title: "Day Book", defaultVisible: true,
+    defaultSize: { w: 2, h: 4 }, minSize: { w: 2, h: 2 },
+    render: () => <DayBookWidget />,
   },
   {
     id: "recent_transactions",

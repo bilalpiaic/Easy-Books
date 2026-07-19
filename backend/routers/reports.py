@@ -14,7 +14,8 @@ from sqlmodel import func, select
 
 from models import (
     Account, Bill, Budget, Customer, Invoice, InvoiceLine, JournalEntry,
-    PaymentAllocation, Product, ProductCategory, Transaction,
+    PaymentAllocation, PaymentReceived, Product, ProductCategory, Transaction,
+    Vendor,
 )
 from services.account_tree import build_account_tree
 from services.export_utils import stream_csv, stream_xlsx
@@ -445,6 +446,372 @@ def get_net_worth_trend(
             m, y = 1, y + 1
 
     return {"series": series[-months:], "as_of": today.isoformat()}
+
+
+@router.get("/dashboard/trends")
+def get_dashboard_trends(
+    session: SessionDep, user: CurrentUserDep, months: int = 12,
+):
+    """One-call payload for the dashboard trend widgets: monthly cash flow,
+    cumulative cash balance, sales vs purchases, collections, top-5 expense
+    trend, YTD revenue breakdown, top vendors, invoice pipeline by status and
+    AP aging buckets. Every series is aligned to the same `months` spine so
+    widgets can index arrays directly."""
+    months = max(1, min(months, 36))
+    today = DateType.today()
+
+    spine: list[str] = []
+    y, m = today.year, today.month - (months - 1)
+    while m <= 0:
+        m += 12
+        y -= 1
+    for _ in range(months):
+        spine.append(f"{y:04d}-{m:02d}")
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+    window_start = f"{spine[0]}-01"
+    spine_idx = {mo: i for i, mo in enumerate(spine)}
+
+    month_expr = func.substr(Transaction.date, 1, 7)
+
+    # Cash flow (all 10xx Cash & Bank accounts) — full history so the
+    # cumulative balance line starts from the true opening position.
+    cash_rows = session.exec(
+        select(
+            month_expr.label("month"),
+            func.sum(JournalEntry.debit),
+            func.sum(JournalEntry.credit),
+        )
+        .join(Account, Account.id == JournalEntry.account_id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Account.code.like("10%"),
+        )
+        .group_by(month_expr)
+        .order_by(month_expr)
+    ).all()
+    inflow = [ZERO] * months
+    outflow = [ZERO] * months
+    opening_cash = ZERO
+    for month, debit, credit in cash_rows:
+        d, c = D(debit or 0), D(credit or 0)
+        if month < spine[0]:
+            opening_cash += d - c
+        elif month in spine_idx:
+            i = spine_idx[month]
+            inflow[i] += d
+            outflow[i] += c
+    cash_balance = []
+    running = opening_cash
+    for i in range(months):
+        running += inflow[i] - outflow[i]
+        cash_balance.append(money(running))
+
+    # Sales (invoices issued) vs Purchases (bills received), void excluded
+    def _doc_monthly(model, date_col):
+        rows = session.exec(
+            select(
+                func.substr(date_col, 1, 7).label("month"),
+                func.sum(model.total),
+            )
+            .where(
+                model.tenant_id == user.tenant_id,
+                model.status != "void",
+                date_col >= window_start,
+            )
+            .group_by(func.substr(date_col, 1, 7))
+        ).all()
+        out = [ZERO] * months
+        for month, total in rows:
+            if month in spine_idx:
+                out[spine_idx[month]] = D(total or 0)
+        return out
+
+    sales = _doc_monthly(Invoice, Invoice.issue_date)
+    purchases = _doc_monthly(Bill, Bill.bill_date)
+
+    # Collections: customer payments actually received per month
+    coll_rows = session.exec(
+        select(
+            func.substr(PaymentReceived.payment_date, 1, 7).label("month"),
+            func.sum(PaymentReceived.amount),
+        )
+        .where(
+            PaymentReceived.tenant_id == user.tenant_id,
+            PaymentReceived.payment_date >= window_start,
+        )
+        .group_by(func.substr(PaymentReceived.payment_date, 1, 7))
+    ).all()
+    collected = [ZERO] * months
+    for month, total in coll_rows:
+        if month in spine_idx:
+            collected[spine_idx[month]] = D(total or 0)
+
+    # Top-5 expense accounts in the window, then their monthly series
+    top_exp = session.exec(
+        select(Account.id, Account.name)
+        .join(JournalEntry, JournalEntry.account_id == Account.id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Account.type == "Expense",
+            Transaction.date >= window_start,
+        )
+        .group_by(Account.id)
+        .order_by(func.sum(JournalEntry.debit - JournalEntry.credit).desc())
+        .limit(5)
+    ).all()
+    exp_accounts = [name for _id, name in top_exp]
+    exp_series = [[ZERO] * months for _ in top_exp]
+    if top_exp:
+        exp_pos = {acc_id: i for i, (acc_id, _name) in enumerate(top_exp)}
+        exp_rows = session.exec(
+            select(
+                month_expr.label("month"),
+                JournalEntry.account_id,
+                func.sum(JournalEntry.debit - JournalEntry.credit),
+            )
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .where(
+                Transaction.tenant_id == user.tenant_id,
+                JournalEntry.account_id.in_(list(exp_pos)),
+                Transaction.date >= window_start,
+            )
+            .group_by(month_expr, JournalEntry.account_id)
+        ).all()
+        for month, acc_id, total in exp_rows:
+            if month in spine_idx:
+                exp_series[exp_pos[acc_id]][spine_idx[month]] = D(total or 0)
+
+    # YTD revenue breakdown by account (mirror of the expense doughnut)
+    rev_rows = session.exec(
+        select(Account.name, func.sum(JournalEntry.credit - JournalEntry.debit).label("total"))
+        .join(JournalEntry, Account.id == JournalEntry.account_id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Account.type == "Revenue",
+            Transaction.date >= f"{today.year:04d}-01-01",
+        )
+        .group_by(Account.id)
+        .order_by(func.sum(JournalEntry.credit - JournalEntry.debit).desc())
+        .limit(8)
+    ).all()
+    revenue_breakdown = [
+        {"account": name, "amount": money(D(total or 0))}
+        for name, total in rev_rows
+        if D(total or 0) > 0
+    ]
+
+    # Top vendors by billed spend (all-time, mirror of top customers)
+    vend_rows = session.exec(
+        select(Vendor.name, func.sum(Bill.total).label("total"))
+        .join(Bill, Bill.vendor_id == Vendor.id)
+        .where(Vendor.tenant_id == user.tenant_id, Bill.status != "void")
+        .group_by(Vendor.id)
+        .order_by(func.sum(Bill.total).desc())
+        .limit(10)
+    ).all()
+    top_vendors = [{"name": n, "total": money(D(t or 0))} for n, t in vend_rows]
+
+    # Invoice pipeline: count + amount by status
+    status_rows = session.exec(
+        select(Invoice.status, func.count(Invoice.id), func.sum(Invoice.total))
+        .where(Invoice.tenant_id == user.tenant_id)
+        .group_by(Invoice.status)
+    ).all()
+    invoice_status = [
+        {"status": st, "count": cnt, "amount": money(D(total or 0))}
+        for st, cnt, total in status_rows
+    ]
+
+    # AP aging buckets (mirror of the dashboard's AR aging)
+    open_statuses_ap = ["draft", "received", "overdue", "partial"]
+    ap_rows = session.exec(
+        select(
+            Bill.id, Bill.due_date, Bill.total,
+            func.coalesce(
+                select(func.sum(PaymentAllocation.amount))
+                .where(PaymentAllocation.bill_id == Bill.id)
+                .correlate(Bill).scalar_subquery(),
+                0,
+            ).label("allocated"),
+        ).where(
+            Bill.tenant_id == user.tenant_id,
+            Bill.status.in_(open_statuses_ap),
+        )
+    ).all()
+    ap_aging = {"current": ZERO, "1_30": ZERO, "31_60": ZERO, "61_90": ZERO, "over_90": ZERO}
+    for row in ap_rows:
+        outstanding = D(row.total) - D(row.allocated)
+        if outstanding <= 0:
+            continue
+        days_past = (today - DateType.fromisoformat(str(row.due_date))).days
+        if days_past <= 0:
+            ap_aging["current"] += outstanding
+        elif days_past <= 30:
+            ap_aging["1_30"] += outstanding
+        elif days_past <= 60:
+            ap_aging["31_60"] += outstanding
+        elif days_past <= 90:
+            ap_aging["61_90"] += outstanding
+        else:
+            ap_aging["over_90"] += outstanding
+
+    # AR total vs AP total, month-end balances over up to 36 months. Uses the
+    # seeded control accounts (1100 AR / 2000 AP, incl. children) — same codes
+    # the default_ar_account / default_ap_account settings point at. Own spine
+    # (fixed 36 mo) so the widget's timeline selector can slice client-side.
+    arap_rows = session.exec(
+        select(
+            month_expr.label("month"),
+            Account.code,
+            func.sum(JournalEntry.debit),
+            func.sum(JournalEntry.credit),
+        )
+        .join(Account, Account.id == JournalEntry.account_id)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            (Account.code.like("1100%")) | (Account.code.like("2000%")),
+        )
+        .group_by(month_expr, Account.code)
+        .order_by(month_expr)
+    ).all()
+    ARAP_MONTHS = 36
+    arap_spine: list[str] = []
+    ay, am = today.year, today.month - (ARAP_MONTHS - 1)
+    while am <= 0:
+        am += 12
+        ay -= 1
+    for _ in range(ARAP_MONTHS):
+        arap_spine.append(f"{ay:04d}-{am:02d}")
+        am += 1
+        if am > 12:
+            am, ay = 1, ay + 1
+    arap_deltas: dict[str, dict[str, Decimal]] = {}
+    for month, code, debit, credit in arap_rows:
+        d = arap_deltas.setdefault(month, {"ar": ZERO, "ap": ZERO})
+        if code.startswith("1100"):
+            d["ar"] += D(debit or 0) - D(credit or 0)   # AR is debit-normal
+        else:
+            d["ap"] += D(credit or 0) - D(debit or 0)   # AP is credit-normal
+    ar_bal = ap_bal = ZERO
+    for month in sorted(arap_deltas):
+        if month < arap_spine[0]:
+            ar_bal += arap_deltas[month]["ar"]
+            ap_bal += arap_deltas[month]["ap"]
+    ar_series, ap_series = [], []
+    for month in arap_spine:
+        d = arap_deltas.get(month)
+        if d:
+            ar_bal += d["ar"]
+            ap_bal += d["ap"]
+        ar_series.append(money(ar_bal))
+        ap_series.append(money(ap_bal))
+
+    return {
+        "months": spine,
+        "ar_ap_trend": {"months": arap_spine, "ar": ar_series, "ap": ap_series},
+        "cashflow": {
+            "inflow": [money(v) for v in inflow],
+            "outflow": [money(v) for v in outflow],
+            "net": [money(i - o) for i, o in zip(inflow, outflow)],
+        },
+        "cash_balance": cash_balance,
+        "sales_purchases": {
+            "sales": [money(v) for v in sales],
+            "purchases": [money(v) for v in purchases],
+        },
+        "collections": [money(v) for v in collected],
+        "expense_trend": {
+            "accounts": exp_accounts,
+            "series": [[money(v) for v in row] for row in exp_series],
+        },
+        "revenue_breakdown": revenue_breakdown,
+        "top_vendors": top_vendors,
+        "invoice_status": invoice_status,
+        "ap_aging": {k: money(v) for k, v in ap_aging.items()},
+    }
+
+
+@router.get("/dashboard/day-book")
+def get_day_book(
+    session: SessionDep, user: CurrentUserDep, date: Optional[str] = None,
+):
+    """One day's activity under main headings for the Day Book widget:
+    vouchers grouped by type, source documents, and an audit-log category
+    view covering financial and non-financial activity alike."""
+    from models import AuditLog, BillPayment
+
+    try:
+        day = DateType.fromisoformat(date) if date else DateType.today()
+    except ValueError:
+        raise HTTPException(400, "date must be YYYY-MM-DD")
+    day_str = day.isoformat()
+
+    voucher_rows = session.exec(
+        select(
+            Transaction.voucher_type,
+            func.count(func.distinct(Transaction.id)),
+            func.sum(JournalEntry.debit),
+        )
+        .join(JournalEntry, JournalEntry.transaction_id == Transaction.id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Transaction.date == day_str,
+        )
+        .group_by(Transaction.voucher_type)
+    ).all()
+    vouchers = [
+        {"type": vt or "JV", "count": cnt, "total": money(D(total or 0))}
+        for vt, cnt, total in voucher_rows
+    ]
+    vouchers.sort(key=lambda v: v["type"])
+
+    def _doc_summary(model, date_col, amount_col, extra=()):
+        row = session.exec(
+            select(func.count(model.id), func.sum(amount_col)).where(
+                model.tenant_id == user.tenant_id, date_col == day_str, *extra
+            )
+        ).one()
+        return {"count": row[0] or 0, "total": money(D(row[1] or 0))}
+
+    documents = {
+        "invoices": _doc_summary(Invoice, Invoice.issue_date, Invoice.total, (Invoice.status != "void",)),
+        "bills": _doc_summary(Bill, Bill.bill_date, Bill.total, (Bill.status != "void",)),
+        "payments_received": _doc_summary(PaymentReceived, PaymentReceived.payment_date, PaymentReceived.amount),
+        "payments_made": _doc_summary(BillPayment, BillPayment.payment_date, BillPayment.amount),
+    }
+
+    # Category view: everything the audit trail saw that day — covers
+    # non-financial entities (customers, products, users, …) too.
+    day_start = _dt.datetime(day.year, day.month, day.day)
+    day_end = day_start + timedelta(days=1)
+    activity_rows = session.exec(
+        select(AuditLog.entity_type, func.count(AuditLog.id))
+        .where(
+            AuditLog.tenant_id == user.tenant_id,
+            AuditLog.timestamp >= day_start,
+            AuditLog.timestamp < day_end,
+        )
+        .group_by(AuditLog.entity_type)
+        .order_by(func.count(AuditLog.id).desc())
+    ).all()
+    activity = [{"category": et, "count": cnt} for et, cnt in activity_rows]
+
+    return {
+        "date": day_str,
+        "vouchers": vouchers,
+        "voucher_totals": {
+            "count": sum(v["count"] for v in vouchers),
+            "total": money(sum((D(v["total"]) for v in vouchers), ZERO)),
+        },
+        "documents": documents,
+        "activity": activity,
+    }
 
 
 # ── Income statement ─────────────────────────────────────────────────────────
