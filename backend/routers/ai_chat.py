@@ -27,7 +27,13 @@ from sqlmodel import select
 from models import AiChatMessage, AiChatSession, Settings, Tenant
 from routers.modules import _get_enabled
 from services.ai_agents import AGENTS, FALLBACK_AGENT_KEY, AgentDef, available_agents
-from services.ai_tools import _json_safe, execute_tool, openai_tools, tool_labels
+from services.ai_tools import (
+    _json_safe,
+    execute_tool,
+    filter_by_modules,
+    openai_tools,
+    tool_labels,
+)
 from services.ai_providers import (
     DEFAULT_MODEL,
     PROVIDERS,
@@ -577,7 +583,8 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
     ][-2:]
 
     tenant = session.get(Tenant, user.tenant_id)
-    agents = available_agents(_get_enabled(tenant))
+    enabled_modules = _get_enabled(tenant)
+    agents = available_agents(enabled_modules)
 
     user_msg = AiChatMessage(session_id=chat_session.id, role="user", content=body.message)
     session.add(user_msg)
@@ -600,7 +607,7 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
             agent = agents.get(agent_key) or AGENTS[FALLBACK_AGENT_KEY]
             yield _sse({"type": "stage", "label": f"{agent.label} is looking into this…"})
 
-            agent_tools = openai_tools(agent.tools)
+            agent_tools = openai_tools(filter_by_modules(agent.tools, enabled_modules))
             agent_system_prompt = _build_system_prompt(company_name)
             if agent.system_prompt_fragment:
                 agent_system_prompt += "\n\n" + agent.system_prompt_fragment
