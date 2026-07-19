@@ -14,7 +14,7 @@ interface ChatMarkdownProps {
  * text (no need to interpret user input as Markdown). */
 export default function ChatMarkdown({ content }: ChatMarkdownProps) {
   return (
-    <div className="text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+    <div className="text-sm leading-relaxed break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

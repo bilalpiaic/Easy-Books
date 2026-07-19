@@ -98,7 +98,7 @@ export default function AiModelKeyPanel({
       <div className="absolute inset-0 bg-black/30" />
       <div
         onClick={e => e.stopPropagation()}
-        className="relative w-full max-w-sm max-h-[85vh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-[var(--text-primary)]/10"
+        className="relative w-full max-w-sm max-h-[85dvh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-[var(--text-primary)]/10"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--text-primary)]/10 sticky top-0 bg-white">
           <div className="flex items-center gap-2">
