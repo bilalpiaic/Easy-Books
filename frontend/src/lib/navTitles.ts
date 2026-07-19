@@ -134,6 +134,20 @@ export const TITLE_MAP: Record<string, string> = {
   "/healthcare/procedures":        "Procedures",
   "/healthcare/store":             "Hospital Store",
   "/healthcare/reports":           "HC Reports",
+  // Weaving
+  "/weaving":                      "Weaving Overview",
+  "/weaving/setup":                "Weaving Setup",
+  "/weaving/contracts":            "Weaving Contracts",
+  "/weaving/contracts/":           "Contract Detail",
+  "/weaving/contracts/new":        "New Contract",
+  "/weaving/yarn-inward":          "Yarn Inward",
+  "/weaving/sizing":               "Sizing",
+  "/weaving/production":           "Weaving Production",
+  "/weaving/dispatch":             "Weaving Dispatch",
+  "/weaving/reports/daily":        "Daily Operations",
+  "/weaving/reports/contract-control": "Contract Control Panel",
+  "/weaving/reports/customer-kpi": "Customer & Contract KPI",
+  "/weaving/dashboard":            "Weaving Dashboard",
 }
 
 /**
