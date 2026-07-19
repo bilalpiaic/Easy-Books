@@ -90,7 +90,7 @@ AGENTS: dict[str, AgentDef] = {
         tools=(
             "get_income_statement", "get_balance_sheet", "get_trial_balance", "get_cash_flow",
             "get_tax_summary", "get_budget_vs_actual", "get_net_worth_trend",
-            "get_dashboard_summary",
+            "get_dashboard_summary", "list_report_sources", "run_custom_report",
         ),
     ),
     "sales": AgentDef(
@@ -235,10 +235,14 @@ AGENTS: dict[str, AgentDef] = {
             "Anything that doesn't clearly match one specific domain above — general questions, "
             "small talk, or ambiguous/multi-topic requests."
         ),
-        system_prompt_fragment="",
+        system_prompt_fragment=(
+            "For questions no dedicated report tool answers, you can query raw records with "
+            "run_custom_report — call list_report_sources first to see valid sources and fields."
+        ),
         tools=(
             "get_dashboard_summary", "get_income_statement", "get_ar_aging", "get_ap_aging",
             "get_trial_balance", "get_cash_flow", "get_top_customers",
+            "list_report_sources", "run_custom_report",
         ),
     ),
 }
