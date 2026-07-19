@@ -174,6 +174,9 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - RBAC: `owner | admin | accountant | viewer`; team management with invite links
 - Tenant isolation at the data layer — every query filters by `tenant_id`
 - JWT + HttpOnly cookie; CSRF double-submit; login throttle; idempotency keys
+- **API keys (v3.7)** — machine-to-machine access for scripts and integrations: create in **Settings → API Keys** (admin/owner), key shown once, sent as `Authorization: Bearer eb_live_…`, authenticates with the owning user's exact permissions, revocable with immediate effect
+- **Real logout (v3.7)** — logging out revokes the session token server-side (jti denylist), so a copied token dies immediately instead of surviving to natural expiry
+- **Global rate limiting (v3.7)** — 1000 req/min per authenticated user, 100 req/min per anonymous IP (env-configurable), on top of the existing login throttle
 
 **Business-model tracks**
 - **Manufacturing (V2):** multi-location inventory, Bills of Material, Rate Plans, GRN, Production Order lifecycle (draft→started→completed→delivered→billed) with full GL postings
