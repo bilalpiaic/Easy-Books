@@ -23,6 +23,7 @@
    - 6.7 [Manufacturing (V2)](#47-manufacturing-v2)
    - 6.8 [Telecom Franchise (V3)](#48-telecom-franchise-v3)
    - 6.9 [Healthcare / Hospital (V3.0)](#49-healthcare--hospital-v30)
+   - 6.10 [Weaving Unit Control (#140)](#410-weaving-unit-control-140)
 7. [Cross-Cutting Features](#5-cross-cutting-features)
    - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 7.2 [Tax Codes](#52-tax-codes)
@@ -1051,6 +1052,29 @@ any       → maintenance (PUT /beds/{id} status=maintenance — admin only)
 | `lab-summary` | Lab orders by status + source; revenue |
 | `ipd-census` | Ward-level admissions/discharges/avg LOS, bed utilisation |
 | `revenue-by-type` | GL credits 4100–4121 by account (OPD/Lab/Procedure/Ward) |
+
+### 4.10 WEAVING UNIT CONTROL (#140)
+
+Installable Industry module (`weaving`, deps `base`+`inventory`). **v1 is operational / memo only — no GL posting.**
+
+```
+Master Data → Contracts (+ Rate/Costing) → Yarn Inward → Sizing → Production → Dispatch
+                                         ↘──────── yellow reports ──────────↗
+```
+
+| Screen | Notes |
+|---|---|
+| Setup | Fabric qualities, looms, yarn types, shifts, operators; customers/vendors reuse existing masters |
+| Contracts | WC-YYYY-seq; meters, pick/inch, yarn rate/kg (+ derived /lb), fabric return price, weaving rate, shrinkage %, status |
+| Yarn Inward | YI-…; gross/tare → net kg; Lbs/Bags derived; yarn value |
+| Sizing | SZ-…; input/output kg + gain/shrink %; vendor optional |
+| Production | WP-…; warp+weft → total yarn; grey m; efficiency %; weaving charges |
+| Dispatch | WD-…; meters → dispatch value / weaving billed / net receivable |
+
+**Shared conversion** (`services/weaving_calc.py` + frontend `lib/weavingUnits.ts`):
+`Lbs = Kg × 2.2046226218`, `Bags = Lbs ÷ 100`, `Rate/Lb = Rate/Kg ÷ 2.2046226218`.
+
+**Reports (`/api/weaving/reports/`):** `dashboard` (KPIs + monthly trend), `daily`, `contract-control?contract_id=`, `customer-kpi`.
 
 ---
 

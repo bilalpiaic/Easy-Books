@@ -32,6 +32,7 @@ from routers import (
 )
 from routers.pra import pra_router
 from routers import healthcare, healthcare_reports
+from routers import weaving, weaving_reports
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 from services.rate_limit import RateLimitMiddleware
@@ -192,6 +193,8 @@ _ROUTERS = [
     attendance.router,
     healthcare.router,
     healthcare_reports.router,
+    weaving.router,
+    weaving_reports.router,
     system_update.router,
     search.router,
     ai_chat.router,

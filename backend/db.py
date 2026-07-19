@@ -483,6 +483,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Purchases"],
     },
+    "weaving": {
+        "label":       "Weaving",
+        "description": "Weaving unit control: contracts, yarn inward, sizing, production, dispatch, and operational dashboards (Kg/Lbs/Bags). Memo/ops in v1 — no GL posting.",
+        "category":    "Industry",
+        "icon":        "Scissors",
+        "deps":        ["base", "inventory"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Weaving"],
+    },
 }
 
 # Maps legacy business_model → sensible default module set.
@@ -492,7 +503,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "simple":            ["base"],
     "services":          ["base"],
     "trader":            ["base", "inventory"],
-    "manufacturing":     ["base", "inventory", "production", "purchase_store"],
+    "manufacturing":     ["base", "inventory", "production", "purchase_store", "weaving"],
     "telecom_franchise": ["base", "inventory", "telecom"],
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],

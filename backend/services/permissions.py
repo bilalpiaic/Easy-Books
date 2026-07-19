@@ -97,6 +97,14 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "healthcare.procedures":  {"label": "Procedures & Services", "category": "Healthcare"},
     "healthcare.store":       {"label": "Hospital Store",        "category": "Healthcare"},
     "healthcare.reports":     {"label": "Healthcare Reports",    "category": "Healthcare"},
+    # Weaving (#140)
+    "weaving.setup":          {"label": "Weaving Setup",         "category": "Weaving"},
+    "weaving.contracts":      {"label": "Weaving Contracts",     "category": "Weaving"},
+    "weaving.yarn_inward":    {"label": "Yarn Inward",           "category": "Weaving"},
+    "weaving.sizing":         {"label": "Sizing",                "category": "Weaving"},
+    "weaving.production":     {"label": "Weaving Production",    "category": "Weaving"},
+    "weaving.dispatch":       {"label": "Weaving Dispatch",      "category": "Weaving"},
+    "weaving.reports":        {"label": "Weaving Reports",       "category": "Weaving"},
 }
 
 # Role defaults: owner/admin/accountant → edit, viewer → view

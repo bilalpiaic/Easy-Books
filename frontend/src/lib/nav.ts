@@ -9,7 +9,7 @@ import {
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
-  ClipboardCheck, DoorOpen, PackageMinus, Sparkles,
+  ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors,
 } from "lucide-react"
 
 export type NavItem = {
@@ -18,7 +18,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -140,9 +140,21 @@ export const NAV: NavItem[] = [
   { label: "Procedures",        href: "/healthcare/procedures",   icon: Syringe,      section: "Healthcare", forModule: "healthcare" },
   { label: "HC Store",          href: "/healthcare/store",        icon: Warehouse,    section: "Healthcare", forModule: "healthcare" },
   { label: "HC Reports",        href: "/healthcare/reports",      icon: BarChart2,    section: "Healthcare", forModule: "healthcare" },
+  // Weaving
+  { label: "Weaving Overview",  href: "/weaving",                 icon: Scissors,      section: "Weaving", forModule: "weaving" },
+  { label: "Weaving Setup",     href: "/weaving/setup",           icon: Settings2,     section: "Weaving", forModule: "weaving" },
+  { label: "Contracts",         href: "/weaving/contracts",       icon: FileSignature, section: "Weaving", forModule: "weaving" },
+  { label: "Yarn Inward",       href: "/weaving/yarn-inward",     icon: PackagePlus,   section: "Weaving", forModule: "weaving" },
+  { label: "Sizing",            href: "/weaving/sizing",          icon: Layers,        section: "Weaving", forModule: "weaving" },
+  { label: "Production",        href: "/weaving/production",      icon: Factory,       section: "Weaving", forModule: "weaving" },
+  { label: "Dispatch",          href: "/weaving/dispatch",        icon: Truck,         section: "Weaving", forModule: "weaving" },
+  { label: "Daily Ops",         href: "/weaving/reports/daily",   icon: Activity,      section: "Weaving", forModule: "weaving" },
+  { label: "Contract Control",  href: "/weaving/reports/contract-control", icon: ClipboardList, section: "Weaving", forModule: "weaving" },
+  { label: "Customer KPI",      href: "/weaving/reports/customer-kpi", icon: PieChart, section: "Weaving", forModule: "weaving" },
+  { label: "Weaving Dashboard", href: "/weaving/dashboard",       icon: LayoutDashboard, section: "Weaving", forModule: "weaving" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Store","Inventory","Manufacturing","Telecom","Healthcare","Banking","Reports","Payroll","System"]
+export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Store","Inventory","Manufacturing","Telecom","Healthcare","Weaving","Banking","Reports","Payroll","System"]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.
@@ -171,7 +183,7 @@ export type TopNavSection = {
   key: string
   label: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -188,6 +200,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "inventory",     label: "Inventory",     forModule: "inventory"   },
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
+  { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
   { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
   { key: "pra",           label: "PRA e-Invoice", forModule: "pra"         },
@@ -205,6 +218,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
+  weaving:       ["/weaving"],
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
@@ -243,6 +257,7 @@ export function getSectionHref(key: string): string {
     inventory:     "/inventory",
     payroll:       "/hrm",
     healthcare:    "/healthcare",
+    weaving:       "/weaving",
     manufacturing: "/manufacturing",
     telecom:       "/telecom",
     pra:           "/pra-dashboard",
@@ -343,6 +358,19 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Procedures",     href: "/healthcare/procedures", icon: Syringe,      section: "healthcare", forModule: "healthcare" },
     { label: "HC Store",       href: "/healthcare/store",      icon: Warehouse,    section: "healthcare", forModule: "healthcare" },
     { label: "HC Reports",     href: "/healthcare/reports",    icon: BarChart2,    section: "healthcare", forModule: "healthcare" },
+  ],
+  weaving: [
+    { label: "Overview",         href: "/weaving",              icon: Scissors,       section: "weaving", forModule: "weaving" },
+    { label: "Setup",            href: "/weaving/setup",        icon: Settings2,      section: "weaving", forModule: "weaving" },
+    { label: "Contracts",        href: "/weaving/contracts",    icon: FileSignature,  section: "weaving", forModule: "weaving" },
+    { label: "Yarn Inward",      href: "/weaving/yarn-inward",  icon: PackagePlus,    section: "weaving", forModule: "weaving" },
+    { label: "Sizing",           href: "/weaving/sizing",       icon: Layers,         section: "weaving", forModule: "weaving" },
+    { label: "Production",       href: "/weaving/production",   icon: Factory,        section: "weaving", forModule: "weaving" },
+    { label: "Dispatch",         href: "/weaving/dispatch",     icon: Truck,          section: "weaving", forModule: "weaving" },
+    { label: "Daily Ops",        href: "/weaving/reports/daily", icon: Activity,      section: "weaving", forModule: "weaving" },
+    { label: "Contract Control", href: "/weaving/reports/contract-control", icon: ClipboardList, section: "weaving", forModule: "weaving" },
+    { label: "Customer KPI",     href: "/weaving/reports/customer-kpi", icon: PieChart, section: "weaving", forModule: "weaving" },
+    { label: "Dashboard",        href: "/weaving/dashboard",    icon: LayoutDashboard, section: "weaving", forModule: "weaving" },
   ],
   manufacturing: [
     { label: "Production Floor",  href: "/manufacturing",                   icon: Factory,      section: "manufacturing", forModule: "production" },

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ChevronDown, ChevronLeft, ChevronRight,
   LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon, Search,
-  PlusCircle, Scale, Stethoscope, Factory, Radio, LayoutDashboard, Settings,
+  PlusCircle, Scale, Stethoscope, Factory, Radio, LayoutDashboard, Settings, Scissors,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -26,6 +26,7 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: Reac
   inventory:     { href: "/inventory",      label: "Inventory Overview",  icon: LayoutGrid      },
   payroll:       { href: "/hrm",            label: "Payroll Overview",    icon: LayoutGrid      },
   healthcare:    { href: "/healthcare",     label: "HC Overview",         icon: Stethoscope     },
+  weaving:       { href: "/weaving",         label: "Weaving Overview",     icon: Scissors        },
   manufacturing: { href: "/manufacturing",  label: "Production Overview", icon: Factory         },
   telecom:       { href: "/telecom",        label: "Telecom Overview",    icon: Radio           },
   pra:           { href: "/pra-dashboard",  label: "PRA Dashboard",       icon: LayoutDashboard },

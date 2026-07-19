@@ -1948,3 +1948,7 @@ from models_healthcare import (  # noqa: E402,F401
     HcLabTest, HcLabOrder, HcLabOrderItem, HcSampleCollection,
     HcProcedureOrder, HcStoreIssue, HcStoreIssueItem,
 )
+from models_weaving import (  # noqa: E402,F401
+    WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
+    WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch,
+)

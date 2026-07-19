@@ -1,10 +1,10 @@
 "use client"
 import { useState } from "react"
-import { BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock, AlertTriangle, Stethoscope, Sparkles } from "lucide-react"
+import { BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock, AlertTriangle, Stethoscope, Sparkles, Scissors, ShoppingCart } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles,
+  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles, Scissors, ShoppingCart,
 }
 
 // Every backend MODULE_REGISTRY category (db.py) must be listed here or its

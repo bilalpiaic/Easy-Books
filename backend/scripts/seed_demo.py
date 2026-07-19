@@ -68,6 +68,10 @@ from models_healthcare import (
     HcAdmission, HcAdmissionCharge, HcLabTest, HcLabOrder, HcLabOrderItem,
     HcSampleCollection, HcProcedureOrder,
 )
+from models_weaving import (
+    WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
+    WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch,
+)
 from routers.common import get_or_create_account, next_number
 from services.franchise_posting import (
     post_commission_accrual, post_franchise_fee_amortisation,
@@ -3622,6 +3626,139 @@ def _seed_healthcare(s: Session, user: User) -> None:
     s.flush()
 
 
+def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: list[Vendor]) -> None:
+    """Weaving unit-control demo (#140). Idempotent — skips if contracts exist."""
+    tid = user.tenant_id
+    if s.exec(select(WvContract).where(WvContract.tenant_id == tid)).first():
+        return
+
+    today = date.today()
+    from services import weaving_calc as calc
+
+    fq = WvFabricQuality(tenant_id=tid, code="FQ-PC", name="Plain Cotton 60x60", description="Grey fabric")
+    yt = WvYarnType(tenant_id=tid, code="YT-30s", name="Cotton 30s", description="Warp/weft yarn")
+    loom_a = WvLoom(tenant_id=tid, code="L-01", name="Loom 1", loom_type="airjet")
+    loom_b = WvLoom(tenant_id=tid, code="L-02", name="Loom 2", loom_type="rapier")
+    shift_a = WvShift(tenant_id=tid, code="A", name="Morning")
+    shift_b = WvShift(tenant_id=tid, code="B", name="Evening")
+    op1 = WvOperator(tenant_id=tid, code="OP-01", name="Imran Ali")
+    op2 = WvOperator(tenant_id=tid, code="OP-02", name="Saeed Khan")
+    for row in (fq, yt, loom_a, loom_b, shift_a, shift_b, op1, op2):
+        s.add(row)
+    s.flush()
+
+    cust = customers[0] if customers else None
+    if not cust:
+        return
+    vendor = vendors[0] if vendors else None
+
+    contracts_spec = [
+        ("in_process", Decimal("10000"), Decimal("450"), Decimal("85"), Decimal("12")),
+        ("completed", Decimal("5000"), Decimal("420"), Decimal("90"), Decimal("10")),
+        ("delayed", Decimal("8000"), Decimal("480"), Decimal("80"), Decimal("15")),
+    ]
+    contracts: list[WvContract] = []
+    for i, (status, meters, yarn_rate, weave_rate, shrink) in enumerate(contracts_spec):
+        start = (today - timedelta(days=60 - i * 10)).isoformat()
+        end = (today + timedelta(days=30 + i * 15)).isoformat()
+        c = WvContract(
+            tenant_id=tid,
+            number=next_number(s, tid, "wv_contract", "WC", fmt="{prefix}-{YYYY}-{seq:04d}"),
+            customer_id=cust.id,
+            fabric_quality_id=fq.id,
+            yarn_type_id=yt.id,
+            start_date=start,
+            end_date=end,
+            contract_meters=meters,
+            pick_per_inch=Decimal("72"),
+            assumed_yarn_rate_per_kg=yarn_rate,
+            fabric_return_price_per_meter=Decimal("55"),
+            weaving_rate=weave_rate,
+            expected_shrinkage_pct=shrink,
+            payment_terms="Net 30",
+            status=status,
+            created_by_id=user.id,
+        )
+        s.add(c)
+        s.flush()
+        contracts.append(c)
+
+    # Activity on first (in_process) contract — enough for all four reports
+    c0 = contracts[0]
+    for i, (gross, tare) in enumerate([(Decimal("520"), Decimal("20")), (Decimal("310"), Decimal("10"))]):
+        net = calc.net_kg(gross, tare)
+        rate = c0.assumed_yarn_rate_per_kg
+        s.add(WvYarnInward(
+            tenant_id=tid,
+            number=next_number(s, tid, "wv_yarn_inward", "YI", fmt="{prefix}-{YYYY}-{seq:04d}"),
+            contract_id=c0.id, yarn_type_id=yt.id,
+            date=(today - timedelta(days=40 - i * 5)).isoformat(),
+            gross_kg=gross, tare_kg=tare, net_kg=net,
+            rate_per_kg=rate, yarn_value=money(net * rate),
+            created_by_id=user.id,
+        ))
+    s.flush()
+
+    s.add(WvSizing(
+        tenant_id=tid,
+        number=next_number(s, tid, "wv_sizing", "SZ", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        contract_id=c0.id, vendor_id=vendor.id if vendor else None,
+        date=(today - timedelta(days=30)).isoformat(),
+        input_kg=Decimal("500"), output_kg=Decimal("485"),
+        gain_shrink_pct=calc.sizing_gain_shrink_pct(Decimal("500"), Decimal("485")),
+        sizing_cost=Decimal("12500"), created_by_id=user.id,
+    ))
+    s.flush()
+
+    for i, (warp, weft, grey, loom, shift, op) in enumerate([
+        (Decimal("120"), Decimal("80"), Decimal("2200"), loom_a, shift_a, op1),
+        (Decimal("100"), Decimal("70"), Decimal("1900"), loom_b, shift_b, op2),
+        (Decimal("90"), Decimal("60"), Decimal("1600"), loom_a, shift_a, op1),
+    ]):
+        total = warp + weft
+        s.add(WvProduction(
+            tenant_id=tid,
+            number=next_number(s, tid, "wv_production", "WP", fmt="{prefix}-{YYYY}-{seq:04d}"),
+            contract_id=c0.id, loom_id=loom.id, shift_id=shift.id, operator_id=op.id,
+            date=(today - timedelta(days=25 - i * 5)).isoformat(),
+            warp_yarn_kg=warp, weft_yarn_kg=weft, total_yarn_kg=total,
+            grey_meters=grey,
+            efficiency_pct=calc.production_efficiency_pct(grey, c0.contract_meters),
+            weaving_charges=calc.weaving_charges(grey, c0.weaving_rate),
+            created_by_id=user.id,
+        ))
+    s.flush()
+
+    for i, meters in enumerate([Decimal("2000"), Decimal("1500")]):
+        dval = calc.dispatch_value(meters, c0.fabric_return_price_per_meter)
+        billed = calc.weaving_charges(meters, c0.weaving_rate)
+        s.add(WvDispatch(
+            tenant_id=tid,
+            number=next_number(s, tid, "wv_dispatch", "WD", fmt="{prefix}-{YYYY}-{seq:04d}"),
+            contract_id=c0.id,
+            date=(today - timedelta(days=12 - i * 4)).isoformat(),
+            meters=meters, dispatch_value=dval,
+            weaving_charges_billed=billed,
+            net_receivable=calc.net_receivable(dval, billed),
+            created_by_id=user.id,
+        ))
+
+    # Light activity on completed contract
+    c1 = contracts[1]
+    net = calc.net_kg(Decimal("260"), Decimal("10"))
+    s.add(WvYarnInward(
+        tenant_id=tid,
+        number=next_number(s, tid, "wv_yarn_inward", "YI", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        contract_id=c1.id, yarn_type_id=yt.id,
+        date=(today - timedelta(days=50)).isoformat(),
+        gross_kg=Decimal("260"), tare_kg=Decimal("10"), net_kg=net,
+        rate_per_kg=c1.assumed_yarn_rate_per_kg,
+        yarn_value=net * c1.assumed_yarn_rate_per_kg,
+        created_by_id=user.id,
+    ))
+    s.flush()
+
+
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
@@ -3737,6 +3874,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             _seed_manufacturing(s, user, customers, stock, custom_supp)
             s.commit()
             _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
+            s.commit()
+            _seed_weaving(s, user, customers, vendors)
             s.commit()
 
         if business_model == "telecom_franchise":
