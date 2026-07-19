@@ -2119,6 +2119,8 @@ Each can be set to **None / View / Edit** per user, and each supports **My Data 
 
 Ask plain-language questions about your books — "What's my revenue this month?", "Which invoices are overdue?", "What do I owe vendors?" — and get an answer grounded in your actual data, formatted as a proper report with tables and headings.
 
+The assistant covers every part of the app you have installed: core accounting (receivables, payables, P&L, balance sheet, trial balance, cash flow, tax, budgets), sales and customer analysis, and — when the matching module is installed — inventory and stock, payroll and attendance, hospital operations (OPD/IPD/lab), the telecom franchise chain, purchasing and store registers, and manufacturing. It can also answer one-off questions that no standard report covers ("list my five biggest unpaid invoices from March") by querying the same data sources the Report Builder uses.
+
 ### 35.1 Opening the Assistant
 
 Two ways in, both showing the same conversation history:
@@ -2136,11 +2138,12 @@ Type your question and press Enter, or tap one of the quick-prompt suggestions o
 
 ### 35.3 How a Question Gets Answered
 
-Behind the scenes, every question runs through three quick steps instead of one:
+Behind the scenes, every question runs through four quick steps instead of one:
 
-1. **Routing** — figures out which topic your question is about (receivables, payables, financial reports, or general) and hands it to the right specialist.
+1. **Routing** — figures out which topic your question is about and hands it to the right specialist agent. There's a specialist for each area — receivables, payables, financial reports, sales, and (when installed) inventory, payroll, healthcare, telecom, purchasing, and manufacturing — plus a general assistant for everything else.
 2. **Analysis** — that specialist looks up the real numbers from your accounting data — it can only *read*, never create, post, or change anything.
-3. **Drafting** — a final pass turns the findings into the clean report you actually see.
+3. **Review** — a separate checking pass ("Reviewing figures…" in the status line) verifies every number in the draft answer against the raw data it was based on, correcting anything that doesn't match before you ever see it.
+4. **Drafting** — a final pass turns the verified findings into the clean report you actually see.
 
 This is why a longer answer (like an aging table with several invoices) may take a few seconds and show its progress along the way — it's doing real work in stages, not just typing.
 
