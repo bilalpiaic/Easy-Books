@@ -16,13 +16,38 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Callable, Iterable
 
 from sqlmodel import Session, select
 
-from models import Customer, User, Vendor
+from models import Customer, Employee, Product, User, Vendor
+from models_healthcare import HcPatient
+from models_telecom import RsoAgent
 from routers.aging import invoice_aging, bill_aging
+from routers.attendance import get_summary as attendance_summary
+from routers.healthcare_reports import (
+    dashboard as hc_dashboard,
+    doctor_collections,
+    ipd_census,
+    lab_summary,
+    opd_summary,
+    patient_statement,
+    revenue_by_type as hc_revenue_by_type,
+)
+from routers.manufacturing_reports import (
+    customer_custody,
+    dashboard as mfg_dashboard,
+    production_summary,
+    wip_aging,
+)
+from routers.payroll import hrm_summary
+from routers.purchase_reports import (
+    gate_register,
+    three_way_match,
+    vendor_performance as purchase_vendor_performance,
+)
 from routers.reports import (
     get_dashboard_data,
     get_dashboard_charts,
@@ -33,13 +58,33 @@ from routers.reports import (
     get_balance_sheet,
     get_budget_vs_actual,
     get_net_worth_trend,
+    inventory_performance,
+    product_coa,
+    product_ledger,
+    product_performance,
     tax_summary,
+)
+from routers.store_reports import (
+    dispatch_reconciliation,
+    gate_outward_register,
+    issue_register,
+    stock_tie_out,
 )
 from routers.subledger import (
     customer_ledger,
     customer_statement,
     vendor_ledger,
     vendor_statement,
+)
+from routers.telecom_reports import (
+    commission_aging,
+    dashboard as tc_dashboard,
+    fca_target_progress,
+    float_statement,
+    revenue_by_stream,
+    rso_ledger,
+    sim_utilisation,
+    stock_issuance,
 )
 
 # Oversized tool results are truncated before they re-enter the LLM loop —
@@ -58,6 +103,25 @@ _DATE_RANGE_SCHEMA = {
 
 _EMPTY_SCHEMA = {"type": "object", "properties": {}, "required": []}
 
+_HC_PERIOD_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "from_date": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+        "to_date":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+    },
+    "required": [],
+}
+
+_REGISTER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+        "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+        "q":     {"type": "string", "description": "Search text (optional)"},
+    },
+    "required": [],
+}
+
 
 @dataclass(frozen=True)
 class ToolDef:
@@ -70,9 +134,12 @@ class ToolDef:
 
 
 def _json_safe(obj):
-    """Recursively convert Decimal to float for JSON serialization."""
+    """Recursively convert Decimal → float and date/datetime → ISO string for
+    JSON serialization (module report functions return both)."""
     if isinstance(obj, Decimal):
         return float(obj)
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
     if isinstance(obj, dict):
         return {k: _json_safe(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -231,6 +298,233 @@ def _exec_find_vendor(session, user, tool_input):
         ).limit(10)
     ).all()
     return [{"id": v.id, "name": v.name} for v in rows]
+
+
+def _dates(tool_input, start_key="start", end_key="end"):
+    return tool_input.get(start_key), tool_input.get(end_key)
+
+
+# inventory ──────────────────────────────────────────────────────────────────
+
+def _exec_product_ledger(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return product_ledger(
+        session, user,
+        product_id=_require_id(tool_input, "product_id", "find_product"),
+        start=start, end=end,
+    )
+
+
+def _exec_inventory_performance(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return inventory_performance(session, user, start=start, end=end)
+
+
+def _exec_product_performance(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return product_performance(
+        session, user, start=start, end=end, group_by=tool_input.get("group_by"),
+    )
+
+
+def _exec_product_valuation(session, user, tool_input):
+    return product_coa(session, user)
+
+
+def _exec_find_product(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(Product).where(
+            Product.tenant_id == user.tenant_id,
+            (Product.name.ilike(f"%{q}%")) | (Product.code.ilike(f"%{q}%")),
+        ).limit(10)
+    ).all()
+    return [{"id": p.id, "code": p.code, "name": p.name} for p in rows]
+
+
+# hrm — note (user, session, ...) arg order on the wrapped functions ─────────
+
+def _exec_hrm_summary(session, user, tool_input):
+    return hrm_summary(user, session)
+
+
+def _exec_attendance_summary(session, user, tool_input):
+    year, month = tool_input.get("year"), tool_input.get("month")
+    if not year or not month:
+        raise ValueError("year and month are both required (e.g. year=2026, month=7).")
+    return attendance_summary(user, session, year=int(year), month=int(month))
+
+
+def _exec_find_employee(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(Employee).where(
+            Employee.tenant_id == user.tenant_id,
+            (Employee.name.ilike(f"%{q}%")) | (Employee.employee_code.ilike(f"%{q}%")),
+        ).limit(10)
+    ).all()
+    return [{"id": e.id, "code": e.employee_code, "name": e.name} for e in rows]
+
+
+# healthcare — note (user, session, ...) arg order on the wrapped functions ──
+
+def _exec_hc_dashboard(session, user, tool_input):
+    return hc_dashboard(user, session, date=tool_input.get("date"))
+
+
+def _hc_period(fn):
+    def exec_(session, user, tool_input):
+        return fn(
+            user, session,
+            from_date=tool_input.get("from_date", ""),
+            to_date=tool_input.get("to_date", ""),
+        )
+    return exec_
+
+
+_exec_opd_summary = _hc_period(opd_summary)
+_exec_doctor_collections = _hc_period(doctor_collections)
+_exec_lab_summary = _hc_period(lab_summary)
+_exec_ipd_census = _hc_period(ipd_census)
+_exec_hc_revenue_by_type = _hc_period(hc_revenue_by_type)
+
+
+def _exec_patient_statement(session, user, tool_input):
+    return patient_statement(
+        user, session,
+        patient_id=_require_id(tool_input, "patient_id", "find_patient"),
+        from_date=tool_input.get("from_date", ""),
+        to_date=tool_input.get("to_date", ""),
+    )
+
+
+def _exec_find_patient(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(HcPatient).where(
+            HcPatient.tenant_id == user.tenant_id,
+            (HcPatient.name.ilike(f"%{q}%")) | (HcPatient.mr_number.ilike(f"%{q}%")),
+        ).limit(10)
+    ).all()
+    return [{"id": p.id, "mr_number": p.mr_number, "name": p.name} for p in rows]
+
+
+# telecom ────────────────────────────────────────────────────────────────────
+
+def _exec_tc_dashboard(session, user, tool_input):
+    return tc_dashboard(session, user)
+
+
+def _exec_commission_aging(session, user, tool_input):
+    return commission_aging(session, user)
+
+
+def _exec_float_statement(session, user, tool_input):
+    return float_statement(session, user)
+
+
+def _exec_sim_utilisation(session, user, tool_input):
+    return sim_utilisation(session, user)
+
+
+def _exec_revenue_by_stream(session, user, tool_input):
+    return revenue_by_stream(session, user)
+
+
+def _exec_fca_target_progress(session, user, tool_input):
+    return fca_target_progress(session, user, month=tool_input.get("month"))
+
+
+def _exec_stock_issuance(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return stock_issuance(session, user, start=start, end=end)
+
+
+def _exec_rso_ledger(session, user, tool_input):
+    return rso_ledger(session, user, rso_id=tool_input.get("rso_id"))
+
+
+def _exec_find_rso(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(RsoAgent).where(
+            RsoAgent.tenant_id == user.tenant_id,
+            RsoAgent.name.ilike(f"%{q}%"),
+        ).limit(10)
+    ).all()
+    return [{"id": r.id, "name": r.name, "territory": r.territory} for r in rows]
+
+
+# purchase_store — registers pin skip=0, limit=50 (one page for the model) ───
+
+def _exec_gate_register(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return gate_register(session, user, start=start, end=end, q=tool_input.get("q"))
+
+
+def _exec_three_way_match(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return three_way_match(session, user, start=start, end=end, q=tool_input.get("q"))
+
+
+def _exec_purchase_vendor_performance(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return purchase_vendor_performance(
+        session, user, start=start, end=end, vendor_id=tool_input.get("vendor_id"),
+    )
+
+
+def _exec_gate_outward_register(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return gate_outward_register(
+        session, user, start=start, end=end,
+        q=tool_input.get("q"), source_doc_type=tool_input.get("source_doc_type"),
+    )
+
+
+def _exec_dispatch_reconciliation(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return dispatch_reconciliation(session, user, start=start, end=end, q=tool_input.get("q"))
+
+
+def _exec_issue_register(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return issue_register(
+        session, user, start=start, end=end,
+        analytic_account_id=tool_input.get("analytic_account_id"), q=tool_input.get("q"),
+    )
+
+
+def _exec_stock_tie_out(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return stock_tie_out(session, user, start=start, end=end, product_id=tool_input.get("product_id"))
+
+
+# production ─────────────────────────────────────────────────────────────────
+
+def _exec_mfg_dashboard(session, user, tool_input):
+    return mfg_dashboard(session, user)
+
+
+def _exec_wip_aging(session, user, tool_input):
+    return wip_aging(session, user)
+
+
+def _exec_production_summary(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return production_summary(session, user, start=start, end=end)
+
+
+def _exec_customer_custody(session, user, tool_input):
+    return customer_custody(session, user)
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────
@@ -494,6 +788,491 @@ _TOOLS: tuple[ToolDef, ...] = (
         label="Looking up the vendor…",
         executor=_exec_find_vendor,
     ),
+    # ── inventory ────────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_product_ledger",
+        description=(
+            "Get one product's stock movement ledger: every in/out movement with source "
+            "document, location, and running quantity/value. Use find_product first to "
+            "resolve a product name to its numeric id."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "product_id": {"type": "integer", "description": "Product id (required)"},
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+            },
+            "required": ["product_id"],
+        },
+        label="Fetching the product ledger…",
+        executor=_exec_product_ledger,
+        required_module="inventory",
+    ),
+    ToolDef(
+        name="get_inventory_performance",
+        description=(
+            "Get inventory performance for a period: per-product turnover, movement totals, "
+            "and on-hand value."
+        ),
+        input_schema=_DATE_RANGE_SCHEMA,
+        label="Checking inventory performance…",
+        executor=_exec_inventory_performance,
+        required_module="inventory",
+    ),
+    ToolDef(
+        name="get_product_performance",
+        description=(
+            "Get per-product period movement: opening, purchased, sold (net), and closing "
+            "quantities/values, optionally grouped by category."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+                "group_by": {"type": "string", "description": "Set to 'category' to group by product category (optional)"},
+            },
+            "required": [],
+        },
+        label="Checking product performance…",
+        executor=_exec_product_performance,
+        required_module="inventory",
+    ),
+    ToolDef(
+        name="get_product_valuation",
+        description=(
+            "Get the closing-stock valuation tree: products grouped Main category → "
+            "Sub-category → Item with closing quantity, average rate, and value."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking stock valuation…",
+        executor=_exec_product_valuation,
+        required_module="inventory",
+    ),
+    ToolDef(
+        name="find_product",
+        description=(
+            "Search products by (partial) name or code and return up to 10 matches as "
+            "{id, code, name}. Use this first to resolve a product to its numeric id "
+            "before calling get_product_ledger."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial product name or code"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the product…",
+        executor=_exec_find_product,
+        required_module="inventory",
+    ),
+    # ── hrm ──────────────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_hrm_summary",
+        description=(
+            "Get HR & payroll KPIs: active headcount, employees added this month, latest "
+            "payroll run status and totals."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking HR & payroll summary…",
+        executor=_exec_hrm_summary,
+        required_module="hrm",
+    ),
+    ToolDef(
+        name="get_attendance_summary",
+        description=(
+            "Get the monthly attendance summary: per-employee present/absent/half-day/leave "
+            "counts and hours worked for a given year and month."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "year":  {"type": "integer", "description": "Year, e.g. 2026"},
+                "month": {"type": "integer", "description": "Month 1-12"},
+            },
+            "required": ["year", "month"],
+        },
+        label="Checking attendance…",
+        executor=_exec_attendance_summary,
+        required_module="hrm",
+    ),
+    ToolDef(
+        name="find_employee",
+        description=(
+            "Search employees by (partial) name or employee code and return up to 10 matches "
+            "as {id, code, name}."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial employee name or code"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the employee…",
+        executor=_exec_find_employee,
+        required_module="hrm",
+    ),
+    # ── healthcare ───────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_healthcare_dashboard",
+        description=(
+            "Get hospital KPIs for a date (default today): OPD tokens issued, patients "
+            "currently admitted, bed occupancy, and pending lab results."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "Date YYYY-MM-DD (optional, default today)"},
+            },
+            "required": [],
+        },
+        label="Checking hospital KPIs…",
+        executor=_exec_hc_dashboard,
+        required_module="healthcare",
+    ),
+    ToolDef(
+        name="get_opd_summary",
+        description="Get daily OPD visit counts and revenue by doctor for a period.",
+        input_schema=_HC_PERIOD_SCHEMA,
+        label="Checking OPD summary…",
+        executor=_exec_opd_summary,
+        required_module="healthcare",
+    ),
+    ToolDef(
+        name="get_doctor_collections",
+        description="Get total consultations and billed amounts per doctor for a period.",
+        input_schema=_HC_PERIOD_SCHEMA,
+        label="Checking doctor collections…",
+        executor=_exec_doctor_collections,
+        required_module="healthcare",
+    ),
+    ToolDef(
+        name="get_lab_summary",
+        description="Get lab orders grouped by status and source (OPD/IPD) for a period.",
+        input_schema=_HC_PERIOD_SCHEMA,
+        label="Checking lab summary…",
+        executor=_exec_lab_summary,
+        required_module="healthcare",
+    ),
+    ToolDef(
+        name="get_ipd_census",
+        description="Get IPD admissions and average length of stay per ward for a period.",
+        input_schema=_HC_PERIOD_SCHEMA,
+        label="Checking IPD census…",
+        executor=_exec_ipd_census,
+        required_module="healthcare",
+    ),
+    ToolDef(
+        name="get_hc_revenue_by_type",
+        description="Get hospital revenue split across OPD, Lab, Procedures, and IPD for a period.",
+        input_schema=_HC_PERIOD_SCHEMA,
+        label="Checking revenue by service type…",
+        executor=_exec_hc_revenue_by_type,
+        required_module="healthcare",
+    ),
+    ToolDef(
+        name="get_patient_statement",
+        description=(
+            "Get a patient's account statement: visits, admissions, lab orders, invoices and "
+            "payments. Use find_patient first to resolve a patient name or MR number to its id."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "patient_id": {"type": "integer", "description": "Patient id (required)"},
+                "from_date": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "to_date":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+            },
+            "required": ["patient_id"],
+        },
+        label="Fetching the patient statement…",
+        executor=_exec_patient_statement,
+        required_module="healthcare",
+    ),
+    ToolDef(
+        name="find_patient",
+        description=(
+            "Search patients by (partial) name or MR number and return up to 10 matches as "
+            "{id, mr_number, name}. Use this first to resolve a patient to its numeric id "
+            "before calling get_patient_statement."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial patient name or MR number"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the patient…",
+        executor=_exec_find_patient,
+        required_module="healthcare",
+    ),
+    # ── telecom ──────────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_telecom_dashboard",
+        description=(
+            "Get telecom-franchise KPIs: tracker/load-float balances, SIM stock, activations, "
+            "and commission position."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking franchise KPIs…",
+        executor=_exec_tc_dashboard,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_commission_aging",
+        description="Get telecom commission receivable grouped by age bucket (current → 90+ days).",
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking commission aging…",
+        executor=_exec_commission_aging,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_float_statement",
+        description=(
+            "Get the mobile-money float statement: per-account system balance vs GL balance "
+            "for reconciliation."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking the float statement…",
+        executor=_exec_float_statement,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_sim_utilisation",
+        description="Get per-batch SIM utilisation: received, issued, activated, remaining.",
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking SIM utilisation…",
+        executor=_exec_sim_utilisation,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_revenue_by_stream",
+        description=(
+            "Get telecom revenue aggregated per franchise stream: airtime/recharge, SIM "
+            "activation, load & recharge commissions, and other streams."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking revenue by stream…",
+        executor=_exec_revenue_by_stream,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_fca_target_progress",
+        description="Get FCA actual-vs-target progress for a month (default: current month).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "month": {"type": "string", "description": "Month YYYY-MM (optional, default current)"},
+            },
+            "required": [],
+        },
+        label="Checking FCA target progress…",
+        executor=_exec_fca_target_progress,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_stock_issuance",
+        description="Get the per-RSO stock & issuance report for a period (load and SIM movement per agent).",
+        input_schema=_DATE_RANGE_SCHEMA,
+        label="Checking stock issuance…",
+        executor=_exec_stock_issuance,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_rso_ledger",
+        description=(
+            "Get the per-RSO ledger: load issued/settled, stock issued, and cash collected. "
+            "Covers all RSO agents unless rso_id narrows it to one (use find_rso to resolve "
+            "an agent name)."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "rso_id": {"type": "integer", "description": "Limit to one RSO agent (optional)"},
+            },
+            "required": [],
+        },
+        label="Fetching the RSO ledger…",
+        executor=_exec_rso_ledger,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="find_rso",
+        description=(
+            "Search RSO agents by (partial) name and return up to 10 matches as "
+            "{id, name, territory}."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial RSO agent name"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the RSO agent…",
+        executor=_exec_find_rso,
+        required_module="telecom",
+    ),
+    # ── purchase_store ───────────────────────────────────────────────────────
+    ToolDef(
+        name="get_gate_register",
+        description=(
+            "Get the Gate Inward register: goods received at the gate against purchase "
+            "orders, with vehicle/challan details (first 50 rows)."
+        ),
+        input_schema=_REGISTER_SCHEMA,
+        label="Checking the gate register…",
+        executor=_exec_gate_register,
+        required_module="purchase_store",
+    ),
+    ToolDef(
+        name="get_three_way_match",
+        description=(
+            "Get the 3-way match report: purchase order vs goods received (Gate Inward) vs "
+            "billed quantities, with variance flags per PO line (first 50 rows)."
+        ),
+        input_schema=_REGISTER_SCHEMA,
+        label="Running the 3-way match…",
+        executor=_exec_three_way_match,
+        required_module="purchase_store",
+    ),
+    ToolDef(
+        name="get_purchase_vendor_performance",
+        description=(
+            "Get vendor performance for purchasing: delivery lead time, quotation rate trend, "
+            "and short-receipt rate per vendor."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+                "vendor_id": {"type": "integer", "description": "Limit to one vendor (optional; use find_vendor)"},
+            },
+            "required": [],
+        },
+        label="Checking vendor performance…",
+        executor=_exec_purchase_vendor_performance,
+        required_module="purchase_store",
+    ),
+    ToolDef(
+        name="get_gate_outward_register",
+        description=(
+            "Get the Gate Outward register: dispatch exits for invoices, debit notes, and "
+            "scrap (first 50 rows). Optionally filter by source document type."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+                "q":     {"type": "string", "description": "Search text (optional)"},
+                "source_doc_type": {"type": "string", "description": "invoice | debit_note | scrap (optional)"},
+            },
+            "required": [],
+        },
+        label="Checking the outward register…",
+        executor=_exec_gate_outward_register,
+        required_module="purchase_store",
+    ),
+    ToolDef(
+        name="get_dispatch_reconciliation",
+        description=(
+            "Get the dispatch reconciliation: posted invoices and debit notes with no "
+            "matching gate exit flagged (first 50 rows)."
+        ),
+        input_schema=_REGISTER_SCHEMA,
+        label="Reconciling dispatches…",
+        executor=_exec_dispatch_reconciliation,
+        required_module="purchase_store",
+    ),
+    ToolDef(
+        name="get_issue_register",
+        description=(
+            "Get the Store Issue register: departmental/cost-center material consumption "
+            "with expense account and analytic tagging (first 50 rows)."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+                "q":     {"type": "string", "description": "Search text (optional)"},
+                "analytic_account_id": {"type": "integer", "description": "Limit to one analytic account (optional)"},
+            },
+            "required": [],
+        },
+        label="Checking the issue register…",
+        executor=_exec_issue_register,
+        required_module="purchase_store",
+    ),
+    ToolDef(
+        name="get_stock_tie_out",
+        description=(
+            "Get the stock tie-out: per-product received vs issued vs on-hand variance "
+            "reconciliation. Optionally limit to one product."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+                "product_id": {"type": "integer", "description": "Limit to one product (optional; use find_product)"},
+            },
+            "required": [],
+        },
+        label="Running the stock tie-out…",
+        executor=_exec_stock_tie_out,
+        required_module="purchase_store",
+    ),
+    # ── production ───────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_manufacturing_dashboard",
+        description=(
+            "Get manufacturing KPIs: production orders by state, WIP value, and recent "
+            "completion/billing activity."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking manufacturing KPIs…",
+        executor=_exec_mfg_dashboard,
+        required_module="production",
+    ),
+    ToolDef(
+        name="get_wip_aging",
+        description=(
+            "Get work-in-progress aging: open production orders grouped by days since started."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking WIP aging…",
+        executor=_exec_wip_aging,
+        required_module="production",
+    ),
+    ToolDef(
+        name="get_production_summary",
+        description=(
+            "Get the production summary for a period: orders grouped by state with value "
+            "totals and billed revenue."
+        ),
+        input_schema=_DATE_RANGE_SCHEMA,
+        label="Checking production summary…",
+        executor=_exec_production_summary,
+        required_module="production",
+    ),
+    ToolDef(
+        name="get_customer_custody",
+        description=(
+            "Get customer custody stock: goods currently held on behalf of customers, one "
+            "row per customer and product."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking customer custody stock…",
+        executor=_exec_customer_custody,
+        required_module="production",
+    ),
 )
 
 TOOL_REGISTRY: dict[str, ToolDef] = {t.name: t for t in _TOOLS}
@@ -530,6 +1309,21 @@ def openai_tools(names: Iterable[str]) -> list[dict]:
 
 def tool_labels() -> dict[str, str]:
     return {t.name: t.label for t in TOOL_REGISTRY.values()}
+
+
+def filter_by_modules(names: Iterable[str], enabled_modules: set[str]) -> list[str]:
+    """Drop tool names whose required_module isn't installed for the tenant.
+    Agent-level gating (AgentDef.required_module) already implies this for
+    well-formed agents — this is defense in depth against a registry entry
+    granted to an agent outside its module."""
+    return [
+        n for n in names
+        if n in TOOL_REGISTRY
+        and (
+            TOOL_REGISTRY[n].required_module is None
+            or TOOL_REGISTRY[n].required_module in enabled_modules
+        )
+    ]
 
 
 def execute_tool(name: str, tool_input: dict, session: Session, user: User) -> tuple[str, bool]:

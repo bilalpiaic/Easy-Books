@@ -111,6 +111,123 @@ AGENTS: dict[str, AgentDef] = {
             "get_customer_statement", "get_customer_ledger", "get_dashboard_summary",
         ),
     ),
+    "inventory": AgentDef(
+        key="inventory",
+        label="Inventory Agent",
+        trigger_hint=(
+            "Stock and products: on-hand quantities, stock valuation, product movement/ledger, "
+            "inventory turnover, low stock, product performance."
+        ),
+        system_prompt_fragment=(
+            "You specialize in inventory and products. Use get_product_valuation for the "
+            "closing-stock valuation tree, get_inventory_performance / get_product_performance "
+            "for movement and turnover, and find_product + get_product_ledger to trace one "
+            "product's movements."
+        ),
+        tools=(
+            "get_product_valuation", "get_inventory_performance", "get_product_performance",
+            "find_product", "get_product_ledger", "get_dashboard_summary",
+        ),
+        required_module="inventory",
+    ),
+    "payroll": AgentDef(
+        key="payroll",
+        label="Payroll & HR Agent",
+        trigger_hint=(
+            "Employees, payroll, salaries, and attendance: headcount, payroll runs, salary "
+            "totals, who was present/absent."
+        ),
+        system_prompt_fragment=(
+            "You specialize in HR and payroll. Use get_hrm_summary for headcount and payroll "
+            "KPIs, get_attendance_summary for a month's per-employee attendance, and "
+            "find_employee to resolve an employee name to their record."
+        ),
+        tools=("get_hrm_summary", "get_attendance_summary", "find_employee"),
+        required_module="hrm",
+    ),
+    "healthcare": AgentDef(
+        key="healthcare",
+        label="Healthcare Agent",
+        trigger_hint=(
+            "Hospital operations: patients, OPD visits, admissions/IPD, beds, lab orders, "
+            "doctor collections, hospital revenue."
+        ),
+        system_prompt_fragment=(
+            "You specialize in hospital operations. Use get_healthcare_dashboard for today's "
+            "KPIs, get_opd_summary / get_doctor_collections / get_lab_summary / get_ipd_census "
+            "for period reports, get_hc_revenue_by_type for the revenue split, and "
+            "find_patient + get_patient_statement for one patient's account."
+        ),
+        tools=(
+            "get_healthcare_dashboard", "get_opd_summary", "get_doctor_collections",
+            "get_lab_summary", "get_ipd_census", "get_hc_revenue_by_type",
+            "find_patient", "get_patient_statement",
+        ),
+        required_module="healthcare",
+    ),
+    "telecom": AgentDef(
+        key="telecom",
+        label="Telecom Agent",
+        trigger_hint=(
+            "Telecom franchise: load/tracker balances, SIM stock and activations, RSO agents, "
+            "commissions, mobile-money float, FCA targets."
+        ),
+        system_prompt_fragment=(
+            "You specialize in the telecom franchise business. Use get_telecom_dashboard for "
+            "headline KPIs, get_commission_aging for commission receivables, "
+            "get_float_statement for mobile-money reconciliation, get_sim_utilisation and "
+            "get_stock_issuance for SIM/load movement, get_revenue_by_stream for the revenue "
+            "split, get_fca_target_progress for targets, and find_rso + get_rso_ledger for a "
+            "specific agent's position."
+        ),
+        tools=(
+            "get_telecom_dashboard", "get_commission_aging", "get_float_statement",
+            "get_sim_utilisation", "get_revenue_by_stream", "get_fca_target_progress",
+            "get_stock_issuance", "find_rso", "get_rso_ledger",
+        ),
+        required_module="telecom",
+    ),
+    "purchasing": AgentDef(
+        key="purchasing",
+        label="Purchasing & Store Agent",
+        trigger_hint=(
+            "Purchasing chain and store: gate inward/outward, goods received vs ordered vs "
+            "billed (3-way match), store issues, dispatch reconciliation, vendor delivery "
+            "performance."
+        ),
+        system_prompt_fragment=(
+            "You specialize in the purchase and store chain. Use get_gate_register / "
+            "get_gate_outward_register for gate movement, get_three_way_match for PO vs "
+            "received vs billed variances, get_dispatch_reconciliation for un-exited "
+            "dispatches, get_issue_register for departmental consumption, get_stock_tie_out "
+            "for stock reconciliation, and get_purchase_vendor_performance (with find_vendor) "
+            "for vendor delivery metrics."
+        ),
+        tools=(
+            "get_gate_register", "get_three_way_match", "get_purchase_vendor_performance",
+            "get_gate_outward_register", "get_dispatch_reconciliation", "get_issue_register",
+            "get_stock_tie_out", "find_vendor",
+        ),
+        required_module="purchase_store",
+    ),
+    "manufacturing": AgentDef(
+        key="manufacturing",
+        label="Manufacturing Agent",
+        trigger_hint=(
+            "Production: production orders, work in progress (WIP), production output and "
+            "billing, customer custody stock."
+        ),
+        system_prompt_fragment=(
+            "You specialize in manufacturing. Use get_manufacturing_dashboard for pipeline "
+            "KPIs, get_wip_aging for open orders by age, get_production_summary for period "
+            "output and billed revenue, and get_customer_custody for goods held for customers."
+        ),
+        tools=(
+            "get_manufacturing_dashboard", "get_wip_aging", "get_production_summary",
+            "get_customer_custody",
+        ),
+        required_module="production",
+    ),
     "general": AgentDef(
         key="general",
         label="Assistant",
