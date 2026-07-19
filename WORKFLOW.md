@@ -140,20 +140,21 @@ Results carry `label`, `sub`, `href`, `date`, `amount`, `status` badge (color-co
 
 `components/dashboard/KpiCard.tsx` replaced the divergent `PrimaryKpi`/`SecondaryKpi`. Props: `title`, `value` (null → shimmer), optional `icon` (layout switches: icon top-left / title bottom-left / value bottom-right when present; title top-left / value bottom-right when absent), `tone` (`green|red|amber|emerald|blue|neutral` colored-tile variants), `href` (renders a `Link`), `sub`, `badge`, `iconClass`, `valueClass`. Neutral tone uses CSS theme variables (`--bg-card`, `--border`, `--text-primary`) — never hardcode hex in stat tiles; dark mode depends on it.
 
-### AI Financial Assistant (v3.2, agentic pipeline v3.6)
+### AI Financial Assistant (v3.2, agentic pipeline v3.6, full-spectrum agents + reviewer v3.8)
 
 Floating Sparkles FAB (`components/AIChatButton.tsx`, hidden unless the `ai_assistant` module is installed) opens a portal chat panel (`components/AIChat.tsx`); a full-page `/agent` route offers the same `ChatCore.tsx` thread component with a session sidebar (new/rename/delete). Both surfaces persist history server-side per user (`AiChatSession`/`AiChatMessage`), not session-only.
 
-Backend: `routers/ai_chat.py` — `POST /api/ai/chat` is an async SSE endpoint running a 3-stage pipeline per turn, not one model call:
-1. **Triage** — `_run_triage()`, a one-shot non-streaming classification call on a cheap/fast per-provider tier (`services/ai_providers.CHEAP_TIER`), picks one specialist agent key from `services/ai_agents.AGENTS` (`receivables`/`payables`/`financial_reports`/`general`), filtered to the tenant's installed modules. Any failure falls back to `general` silently.
-2. **Specialist** — `run_tool_loop()` (max 6 rounds), the routed agent's own narrow subset of the 7 read-only tools, on the model the user actually selected. Calls the existing report functions directly so tenant scoping/business rules are reused. Its own text never streams to the client.
-3. **Drafting** — `_run_drafting()`, cheap tier again, streaming, no tools — rewrites the specialist's findings + raw tool results into Markdown (tables/headings, verbatim figures). This is the only text that streams.
+Backend: `routers/ai_chat.py` — `POST /api/ai/chat` is an async SSE endpoint running a 4-stage pipeline per turn, not one model call:
+1. **Triage** — `_run_triage()`, a one-shot non-streaming classification call on a cheap/fast per-provider tier (`services/ai_providers.CHEAP_TIER`), picks one specialist agent key from `services/ai_agents.AGENTS`, filtered to the tenant's installed modules. **11 agents** (v3.8): base `receivables`/`payables`/`financial_reports`/`sales`/`general`, plus module-gated `inventory`/`payroll` (hrm)/`healthcare`/`telecom`/`purchasing` (purchase_store)/`manufacturing` (production). Any failure falls back to `general` silently.
+2. **Specialist** — `run_tool_loop()` (max 6 rounds), the routed agent's own narrow subset of the ~50 read-only tools in `services/ai_tools.TOOL_REGISTRY`, on the model the user actually selected. Executors call the existing report functions directly so tenant scoping/business rules are reused; `find_*` lookup tools resolve customer/vendor/product/employee/patient/RSO names to ids; `run_custom_report` (general + financial_reports agents) runs ad-hoc queries over the report-builder engine's whitelisted, module-gated sources. Its own text never streams to the client.
+3. **Reviewer** (v3.8) — `_run_reviewer()`, cheap tier, non-streaming, no tools — silently verifies every figure in the specialist's analysis against the raw tool results and passes the corrected analysis onward. Skipped when the turn ran no tools; any failure falls back to the unreviewed text, never aborting the stream.
+4. **Drafting** — `_run_drafting()`, cheap tier again, streaming, no tools — rewrites the reviewed findings + raw tool results into Markdown (tables/headings, verbatim figures). This is the only text that streams.
 
 Frontend renders replies through `components/ai/ChatMarkdown.tsx` (`react-markdown`+`remark-gfm` — no markdown rendering existed before this pipeline). SSE frames: `stage` (pipeline-progress label, reuses the existing tool-progress UI slot), `tool_start`/`tool_end` (specialist only), `token` (drafting only), `done`, `error`.
 
 Providers: Anthropic/OpenAI/Gemini/Ollama via LiteLLM (`services/ai_providers.py`) — cloud keys resolve tenant-first from Settings, Ollama is self-hosted (server URL + tagged models, no key). Configuration is reachable from **Settings → AI** or the **Model & API Key** button now built directly into `ChatCore.tsx`'s header (`components/ai/AiModelKeyPanel.tsx`) — always visible, even with zero providers configured, so the chat UI is never a silent dead end.
 
-Gates: module install (403), no provider configured (503), unknown/misconfigured model (400), 4,000-char message cap, 20-message history cap (a short 2-message tail also feeds Triage), sliding-hour rate limit (429, one decrement per user turn regardless of the pipeline's 3 internal model calls). Strictly read-only — no posting or mutation tools.
+Gates: module install (403), no provider configured (503), unknown/misconfigured model (400), 4,000-char message cap, 20-message history cap (a short 2-message tail also feeds Triage), sliding-hour rate limit (429, one decrement per user turn regardless of the pipeline's 4 internal model calls). Strictly read-only — no posting or mutation tools.
 
 ### Calculator (v3.6)
 
@@ -1478,7 +1479,7 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/dashboard` | KPIs (outstanding net of allocations) |
 | GET | `/api/reports/dashboard/charts?months=12` | Chart series (Top Customers capped at 10, v3.1) |
 | GET | `/api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1) |
-| POST | `/api/ai/chat` | AI Financial Assistant — SSE, 3-stage Triage→Specialist→Drafting pipeline over live report data; `ai_assistant` module + at least one configured provider required (v3.6) |
+| POST | `/api/ai/chat` | AI Financial Assistant — SSE, 4-stage Triage→Specialist→Reviewer→Drafting pipeline over live report data (11 domain agents, ~50 read-only tools, module-gated); `ai_assistant` module + at least one configured provider required (v3.8) |
 | GET | `/api/ai/models` | Configured providers + default model for the chat UI's picker |
 | GET | `/api/ai/key-status` | *(admin+)* masked per-provider key status |
 | GET/POST | `/api/ai/sessions` | Chat sessions, per-user-private |

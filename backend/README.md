@@ -58,8 +58,11 @@ backend/
 │   ├── reports.py       # GL + hierarchical statements + dashboards (see below)
 │   ├── report_builder.py  # dynamic report builder — whitelisted sources, saved reports, CSV/XLSX export
 │   ├── search.py        # GET /api/search — universal search across 8 entity types
-│   ├── ai_chat.py       # POST /api/ai/chat — AI Financial Assistant (Anthropic agent loop over
-│   │                    #   7 read-only report tools; gated by ai_assistant module + ANTHROPIC_API_KEY)
+│   ├── ai_chat.py       # POST /api/ai/chat — AI Financial Assistant: SSE, 4-stage pipeline
+│   │                    #   (Triage → Specialist → Reviewer → Drafting) over ~50 read-only tools
+│   │                    #   (services/ai_tools.py registry, 11 module-gated agents in
+│   │                    #   services/ai_agents.py); multi-provider via LiteLLM, gated by
+│   │                    #   ai_assistant module + a configured provider key
 │   ├── purchase_demands.py  # PD-YYYY-seq quantity-only requisitions; approve/cancel/close, self-approval blocked
 │   ├── quotations.py    # VQ-YYYY-seq vendor quotations against an approved demand; freezes on CS approval
 │   ├── comparatives.py  # CS-YYYY-seq comparison matrix + lowest-or-justify approval + convert-to-PO
@@ -78,6 +81,9 @@ backend/
 │   ├── inventory.py     # Weighted-Average cost + FIFO layer relief
 │   ├── report_engine.py # Pure query builder for the report builder (tenant-safe select())
 │   ├── report_sources/  # Declarative data-source registry — the report-builder security boundary
+│   ├── ai_tools.py      # AI assistant tool registry (~50 read-only ToolDefs wrapping report fns)
+│   ├── ai_agents.py     # AI specialist-agent registry (11 agents, module-gated via required_module)
+│   ├── ai_providers.py  # Multi-provider LLM registry (anthropic/openai/gemini/ollama, cheap tier)
 │   ├── depreciation.py  # Asset depreciation schedules
 │   ├── pdf.py  email.py # Document rendering + SMTP delivery
 │   ├── healthcare_posting.py  tracker_posting.py  franchise_posting.py  # domain GL posting
