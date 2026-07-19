@@ -9,13 +9,15 @@ system-prompt fragment describing its domain — so the specialist stage runs
 with a narrow, focused prompt instead of the current one-size-fits-all
 prompt bound to all 7 tools on every turn.
 
-v1 covers the 3 domains the existing 7 read-only tools actually support
-(Receivables, Payables, Financial Reports) plus a General fallback that
-reproduces today's single-agent behavior verbatim. `required_module` is
-wired now (all four are None here — they only need the `ai_assistant`
-module, already gated) so a future domain agent (inventory/payroll/
-healthcare/telecom, once those domains have their own read-tools) is a new
-registry entry, not a pipeline rewrite.
+Base agents (required_module=None) cover Receivables, Payables, Financial
+Reports, and Sales & Customers, plus a General fallback bound to the original
+7 tools. `required_module` gates module-specific agents to tenants with that
+module installed — adding a domain agent is a new registry entry (tools come
+from services/ai_tools.TOOL_REGISTRY), not a pipeline change.
+
+Invariants (enforced by tests + the import-time assert below): every name in
+an AgentDef.tools must exist in TOOL_REGISTRY, and no agent key may be a
+substring of another (triage's fallback matcher is substring-based).
 """
 from __future__ import annotations
 
@@ -38,49 +40,83 @@ AGENTS: dict[str, AgentDef] = {
         label="Receivables Agent",
         trigger_hint=(
             "Who owes the business money: outstanding/overdue customer invoices, AR aging, "
-            "top customers."
+            "a specific customer's statement or ledger balance."
         ),
         system_prompt_fragment=(
             "You specialize in Accounts Receivable. Use get_ar_aging and get_top_customers to "
             "answer questions about who owes the business money, overdue invoices, and customer "
-            "balances. Use get_dashboard_summary only if you need a quick cross-check of the "
-            "overall AR total."
+            "balances. For a specific customer's account, resolve their id with find_customer, "
+            "then use get_customer_statement or get_customer_ledger. Use get_dashboard_summary "
+            "only if you need a quick cross-check of the overall AR total."
         ),
-        tools=("get_ar_aging", "get_top_customers", "get_dashboard_summary"),
+        tools=(
+            "get_ar_aging", "get_top_customers", "get_dashboard_summary",
+            "find_customer", "get_customer_statement", "get_customer_ledger",
+        ),
     ),
     "payables": AgentDef(
         key="payables",
         label="Payables Agent",
         trigger_hint=(
-            "What the business owes vendors: outstanding/overdue bills, AP aging."
+            "What the business owes vendors: outstanding/overdue bills, AP aging, a specific "
+            "vendor's statement or ledger balance."
         ),
         system_prompt_fragment=(
             "You specialize in Accounts Payable. Use get_ap_aging to answer questions about what "
-            "the business owes vendors and which bills are overdue. Use get_dashboard_summary "
-            "only if you need a quick cross-check of the overall AP total."
+            "the business owes vendors and which bills are overdue. For a specific vendor's "
+            "account, resolve their id with find_vendor, then use get_vendor_statement or "
+            "get_vendor_ledger. Use get_dashboard_summary only if you need a quick cross-check "
+            "of the overall AP total."
         ),
-        tools=("get_ap_aging", "get_dashboard_summary"),
+        tools=(
+            "get_ap_aging", "get_dashboard_summary",
+            "find_vendor", "get_vendor_statement", "get_vendor_ledger",
+        ),
     ),
     "financial_reports": AgentDef(
         key="financial_reports",
         label="Financial Reports Agent",
         trigger_hint=(
-            "Overall financial performance: profit & loss / income statement, trial balance, "
-            "cash flow, revenue, expenses, profit, account balances."
+            "Overall financial statements and position: profit & loss / income statement, "
+            "balance sheet, trial balance, cash flow, tax summary, budget vs actual, net worth, "
+            "revenue, expenses, profit, account balances."
         ),
         system_prompt_fragment=(
             "You specialize in financial statements and performance. Use get_income_statement, "
-            "get_trial_balance, and get_cash_flow to answer questions about profit, revenue, "
-            "expenses, account balances, and cash movement."
+            "get_balance_sheet, get_trial_balance, and get_cash_flow for statements; "
+            "get_tax_summary for tax collected/paid; get_budget_vs_actual for budget variance; "
+            "get_net_worth_trend for the assets/liabilities/net-worth trajectory."
         ),
-        tools=("get_income_statement", "get_trial_balance", "get_cash_flow", "get_dashboard_summary"),
+        tools=(
+            "get_income_statement", "get_balance_sheet", "get_trial_balance", "get_cash_flow",
+            "get_tax_summary", "get_budget_vs_actual", "get_net_worth_trend",
+            "get_dashboard_summary",
+        ),
+    ),
+    "sales": AgentDef(
+        key="sales",
+        label="Sales & Customers Agent",
+        trigger_hint=(
+            "Sales analysis and customer performance: revenue per customer, best/top customers, "
+            "sales trends, how much a customer bought — NOT who owes money (that is receivables)."
+        ),
+        system_prompt_fragment=(
+            "You specialize in sales and customer analysis. Use get_customer_performance for "
+            "per-customer invoiced/received/outstanding figures, get_top_customers for rankings "
+            "and revenue trend, and find_customer to resolve a customer name to an id when "
+            "drilling into one customer (get_customer_statement / get_customer_ledger)."
+        ),
+        tools=(
+            "get_customer_performance", "get_top_customers", "find_customer",
+            "get_customer_statement", "get_customer_ledger", "get_dashboard_summary",
+        ),
     ),
     "general": AgentDef(
         key="general",
         label="Assistant",
         trigger_hint=(
-            "Anything not clearly about receivables, payables, or financial statements — general "
-            "questions, small talk, or ambiguous/multi-topic requests."
+            "Anything that doesn't clearly match one specific domain above — general questions, "
+            "small talk, or ambiguous/multi-topic requests."
         ),
         system_prompt_fragment="",
         tools=(
