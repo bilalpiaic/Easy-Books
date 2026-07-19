@@ -101,7 +101,10 @@ def test_routes_to_specialist_with_narrowed_tool_subset(client: TestClient, monk
         events = _events(list(r.iter_lines()))
 
     tool_names = {t["function"]["name"] for t in calls[0]["tools"]}
-    assert tool_names == {"get_ap_aging", "get_dashboard_summary"}
+    assert tool_names == {
+        "get_ap_aging", "get_dashboard_summary",
+        "find_vendor", "get_vendor_statement", "get_vendor_ledger",
+    }
 
     stage_labels = [e["label"] for e in events if e["type"] == "stage"]
     assert stage_labels[0] == "Routing your question…"
