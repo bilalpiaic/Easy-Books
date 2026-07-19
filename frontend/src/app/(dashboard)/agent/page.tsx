@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { Check, Loader2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react"
+import { Check, Loader2, MessagesSquare, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
 import ChatCore, { type ModelsPayload } from "@/components/ai/ChatCore"
@@ -31,6 +31,11 @@ export default function AgentPage() {
 
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  // Below md the session rail and the chat thread are two swappable panes
+  // (the fixed 260px rail would leave almost nothing for the thread on a
+  // phone); md+ always shows both side by side and ignores this state.
+  const [mobileRailOpen, setMobileRailOpen] = useState(false)
 
   // Initial load: models (raw fetch so we can inspect the 403 status directly —
   // apiFetch collapses non-ok responses to an Error with no status code attached),
@@ -203,13 +208,21 @@ export default function AgentPage() {
 
   if (!models || selectedId === null) return null
 
+  const currentTitle = sessions.find(s => s.id === selectedId)?.title ?? "New chat"
+
   return (
     <div className={`flex gap-3 ${PAGE_HEIGHT}`}>
-      {/* Session rail */}
-      <div className="print:hidden flex w-[260px] shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--text-primary)]/10 bg-white">
+      {/* Session rail — always visible md+; below md it swaps with the chat
+          thread (opened from the thread's mobile header). */}
+      <div
+        className={`print:hidden ${mobileRailOpen ? "flex" : "hidden"} w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--text-primary)]/10 bg-white md:flex md:w-[260px]`}
+      >
         <div className="shrink-0 border-b border-[var(--text-primary)]/10 p-2">
           <button
-            onClick={newChat}
+            onClick={() => {
+              setMobileRailOpen(false)
+              newChat()
+            }}
             disabled={creating}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-3 py-2 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
           >
@@ -224,7 +237,11 @@ export default function AgentPage() {
             return (
               <div
                 key={s.id}
-                onClick={() => !isRenaming && setSelectedId(s.id)}
+                onClick={() => {
+                  if (isRenaming) return
+                  setSelectedId(s.id)
+                  setMobileRailOpen(false)
+                }}
                 className={`group rounded-xl px-2 py-2 text-sm transition-all ${
                   isRenaming ? "" : "cursor-pointer"
                 } ${
@@ -276,7 +293,7 @@ export default function AgentPage() {
                       }}
                       aria-label="Rename chat"
                       title="Rename"
-                      className="shrink-0 rounded-lg p-1 opacity-0 transition-opacity hover:bg-[var(--text-primary)]/10 group-hover:opacity-100"
+                      className="shrink-0 rounded-lg p-1 transition-opacity hover:bg-[var(--text-primary)]/10 md:opacity-0 md:group-hover:opacity-100"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -288,7 +305,7 @@ export default function AgentPage() {
                       disabled={deletingId === s.id}
                       aria-label="Delete chat"
                       title="Delete"
-                      className="shrink-0 rounded-lg p-1 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 disabled:opacity-50"
+                      className="shrink-0 rounded-lg p-1 transition-opacity hover:bg-red-50 hover:text-red-600 disabled:opacity-50 md:opacity-0 md:group-hover:opacity-100"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -300,8 +317,22 @@ export default function AgentPage() {
         </div>
       </div>
 
-      {/* Chat thread */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--text-primary)]/10 bg-white">
+      {/* Chat thread — hidden below md while the session rail is open */}
+      <div
+        className={`${mobileRailOpen ? "hidden" : "flex"} min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--text-primary)]/10 bg-white md:flex`}
+      >
+        {/* Mobile-only header: opens the session rail (md+ shows it side by side) */}
+        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--text-primary)]/10 px-2 py-1.5 md:hidden">
+          <button
+            onClick={() => setMobileRailOpen(true)}
+            aria-label="Show chats"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors"
+          >
+            <MessagesSquare className="h-4 w-4" />
+            Chats
+          </button>
+          <span className="min-w-0 flex-1 truncate text-xs text-[var(--text-primary)]/60">{currentTitle}</span>
+        </div>
         <ChatCore
           key={selectedId}
           sessionId={selectedId}

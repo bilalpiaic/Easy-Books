@@ -91,7 +91,9 @@ export default function AIChat({ open, onClose }: AIChatProps) {
       } ${dragging ? "select-none" : ""}`}
       style={{
         ...(pos ? { left: pos.x, top: pos.y } : {}),
-        height: minimized ? "auto" : "min(520px, calc(100vh - 7rem))",
+        // dvh, not vh: on mobile Safari/Chrome 100vh includes the collapsed
+        // URL bar, pushing the composer off-screen when the bar is visible.
+        height: minimized ? "auto" : "min(520px, calc(100dvh - 7rem))",
       }}
     >
       {/* Header — also the drag handle */}
