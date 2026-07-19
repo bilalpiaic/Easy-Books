@@ -15,14 +15,14 @@ way AgentDef.required_module gates agents (None = base, always available).
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Callable, Iterable
 
 from sqlmodel import Session, select
 
-from models import Customer, Employee, Product, User, Vendor
+from models import Customer, Employee, Product, Tenant, User, Vendor
 from models_healthcare import HcPatient
 from models_telecom import RsoAgent
 from routers.aging import invoice_aging, bill_aging
@@ -76,6 +76,8 @@ from routers.subledger import (
     vendor_ledger,
     vendor_statement,
 )
+from services.report_engine import DateRange, ReportConfig, run_report
+from services.report_sources import REGISTRY as REPORT_SOURCE_REGISTRY
 from routers.telecom_reports import (
     commission_aging,
     dashboard as tc_dashboard,
@@ -506,6 +508,96 @@ def _exec_issue_register(session, user, tool_input):
 def _exec_stock_tie_out(session, user, tool_input):
     start, end = _dates(tool_input)
     return stock_tie_out(session, user, start=start, end=end, product_id=tool_input.get("product_id"))
+
+
+# generic report-builder engine ──────────────────────────────────────────────
+
+# Report-builder sources gated to the module whose data they expose; None =
+# base, always queryable. The report_sources registry itself is not
+# module-aware, so the gate lives here in the AI tool wrapper.
+_REPORT_SOURCE_MODULES: dict[str, str | None] = {
+    "invoices": None, "bills": None, "invoice_lines": None, "bill_lines": None,
+    "journal_lines": None, "payments_received": None, "payments_made": None,
+    "customers": None, "vendors": None, "accounts": None,
+    "products": "inventory", "stock_movements": "inventory",
+    "employees": "hrm", "payroll_runs": "hrm", "payroll_lines": "hrm",
+    "attendance": "hrm",
+    "purchase_orders": "purchase_store",
+}
+
+_CUSTOM_REPORT_MAX_ROWS = 50
+
+
+def _enabled_modules(session, user) -> set[str]:
+    from routers.modules import _get_enabled
+    tenant = session.get(Tenant, user.tenant_id)
+    return _get_enabled(tenant) if tenant else {"base"}
+
+
+def _allowed_source(source_key: str, enabled: set[str]) -> bool:
+    mod = _REPORT_SOURCE_MODULES.get(source_key)
+    return source_key in REPORT_SOURCE_REGISTRY and (mod is None or mod in enabled)
+
+
+def _exec_list_report_sources(session, user, tool_input):
+    enabled = _enabled_modules(session, user)
+    source_key = (tool_input.get("source_key") or "").strip()
+    if not source_key:
+        return [
+            {"key": s.key, "label": s.label}
+            for s in REPORT_SOURCE_REGISTRY.values()
+            if _allowed_source(s.key, enabled)
+        ]
+    if not _allowed_source(source_key, enabled):
+        raise ValueError(
+            f"unknown or unavailable source {source_key!r} — call list_report_sources "
+            "with no arguments to see the valid keys."
+        )
+    s = REPORT_SOURCE_REGISTRY[source_key]
+    return {
+        "key": s.key, "label": s.label, "date_field": s.date_field,
+        "default_columns": s.default_columns,
+        "fields": [
+            {"key": f.key, "label": f.label, "type": f.type.value,
+             "enum_values": f.enum_values, "aggregatable": f.aggregatable,
+             "groupable": f.groupable}
+            for f in s.fields.values()
+        ],
+    }
+
+
+def _exec_run_custom_report(session, user, tool_input):
+    source_key = (tool_input.get("source_key") or "").strip()
+    if not _allowed_source(source_key, _enabled_modules(session, user)):
+        raise ValueError(
+            f"unknown or unavailable source {source_key!r} — call list_report_sources "
+            "with no arguments to see the valid keys."
+        )
+    date_range = None
+    if tool_input.get("date_start") or tool_input.get("date_end"):
+        date_range = DateRange(start=tool_input.get("date_start"), end=tool_input.get("date_end"))
+    config = ReportConfig(
+        columns=tool_input.get("columns") or [],
+        filters=tool_input.get("filters") or [],
+        sort=tool_input.get("sort") or [],
+        group_by=tool_input.get("group_by") or [],
+        aggregates=tool_input.get("aggregates") or [],
+        date_range=date_range,
+    )
+    page_size = min(int(tool_input.get("page_size") or _CUSTOM_REPORT_MAX_ROWS),
+                    _CUSTOM_REPORT_MAX_ROWS)
+    res = run_report(
+        session, tenant_id=user.tenant_id, source_key=source_key,
+        config=config, page=0, page_size=page_size,
+    )
+    return {
+        "columns": [asdict(c) for c in res.columns],
+        "rows": res.rows,
+        "group_by": res.group_by,
+        "footers": res.footers,
+        "total_count": res.total_count,
+        "rows_returned": len(res.rows),
+    }
 
 
 # production ─────────────────────────────────────────────────────────────────
@@ -1228,6 +1320,77 @@ _TOOLS: tuple[ToolDef, ...] = (
         label="Running the stock tie-out…",
         executor=_exec_stock_tie_out,
         required_module="purchase_store",
+    ),
+    # ── generic report builder ───────────────────────────────────────────────
+    ToolDef(
+        name="list_report_sources",
+        description=(
+            "List the raw data sources available to run_custom_report. Without arguments: "
+            "all available source keys with labels. With a source_key: that source's full "
+            "field list (key, type, enum values, aggregatable/groupable flags), date field, "
+            "and default columns. Always call this before run_custom_report to get valid "
+            "field names."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "source_key": {"type": "string", "description": "Source key to describe in detail (optional)"},
+            },
+            "required": [],
+        },
+        label="Checking available data sources…",
+        executor=_exec_list_report_sources,
+    ),
+    ToolDef(
+        name="run_custom_report",
+        description=(
+            "Run an ad-hoc tabular query over raw records (invoices, bills, journal lines, "
+            "payments, customers, vendors, accounts, and module data) when no dedicated tool "
+            "fits the question. Supports column selection, filters, grouping, aggregates "
+            "(sum/avg/count/min/max), sorting, and a date range. Call list_report_sources "
+            "first to discover valid source keys and field names. Returns at most 50 rows."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "source_key": {"type": "string", "description": "Data source key (from list_report_sources)"},
+                "columns": {"type": "array", "items": {"type": "string"},
+                            "description": "Field keys to return (optional; defaults per source)"},
+                "filters": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        "field": {"type": "string"},
+                        "op": {"type": "string", "description": "equals, not_equals, contains, gt, gte, lt, lte, in, between, is_null…"},
+                        "value": {},
+                    },
+                    "required": ["field", "op"],
+                }, "description": "Filter clauses (optional)"},
+                "group_by": {"type": "array", "items": {"type": "string"},
+                             "description": "Field keys to group by (optional)"},
+                "aggregates": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        "field": {"type": "string"},
+                        "fn": {"type": "string", "enum": ["sum", "avg", "count", "min", "max"]},
+                    },
+                    "required": ["field", "fn"],
+                }, "description": "Aggregates (required when group_by is used)"},
+                "sort": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        "field": {"type": "string"},
+                        "dir": {"type": "string", "enum": ["asc", "desc"]},
+                    },
+                    "required": ["field"],
+                }, "description": "Sort order (optional)"},
+                "date_start": {"type": "string", "description": "Date range start YYYY-MM-DD (optional)"},
+                "date_end":   {"type": "string", "description": "Date range end YYYY-MM-DD (optional)"},
+                "page_size":  {"type": "integer", "description": "Max rows (capped at 50)"},
+            },
+            "required": ["source_key"],
+        },
+        label="Running a custom report…",
+        executor=_exec_run_custom_report,
     ),
     # ── production ───────────────────────────────────────────────────────────
     ToolDef(

@@ -179,6 +179,7 @@ def test_unparseable_triage_response_falls_back_to_general(client: TestClient, m
     assert tool_names == {
         "get_dashboard_summary", "get_income_statement", "get_ar_aging",
         "get_ap_aging", "get_trial_balance", "get_cash_flow", "get_top_customers",
+        "list_report_sources", "run_custom_report",
     }
 
 
