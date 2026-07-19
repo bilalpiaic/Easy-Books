@@ -1,5 +1,5 @@
-"""Seed six demo tenants (one per business model) with rich mock data spanning
-a full calendar year.
+"""Seed the seven demo tenants (one per business model) with rich mock data
+spanning two fiscal years.
 
 Idempotent — if a demo tenant already exists, the script reuses it and
 skips entities that are already present. Safe to re-run.
@@ -18,7 +18,14 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap):
   (G-07) Analytic Accounts: 7 dimensions per tenant, ~30 % of invoices/bills/payments/JVs tagged
   • PRA e-Invoice demo tenant (demo.pra@easy-books.app) — Pakistani retail trader
     with PRA sandbox enabled, PKR currency, NTN/CNIC on customers, PCT codes on
-    products, payment_mode set on invoices, and realistic FINs stamped
+    products, payment_mode set on invoices, realistic FINs stamped, and a
+    PRASubmissionLog audit trail (successes + a failed-then-retried pair)
+  • Promo rules (bulk %, giveaway, category-scoped, invoice-value threshold)
+  • Commission plans + 3-month ledger (draft → approved → posted w/ GL entry);
+    ~half of posted invoices get assigned_to_id so compute maths is real
+  • Accounting periods (locked FY predating the data window + open FYs/quarters)
+  • Bank reconciliations (one closed, one open ~70% matched) and an imported
+    bank statement (~60% auto-matched) on the main bank account
 
 Usage:
     PYTHONPATH=. uv run python -m scripts.seed_demo
@@ -30,6 +37,7 @@ Credentials:
     demo.manufacturing@easy-books.app  / demo1234
     demo.telecom@easy-books.app        / demo1234
     demo.pra@easy-books.app            / demo1234  (PRA e-Invoice / Pakistan)
+    demo.hospital@easy-books.app       / demo1234  (Healthcare / Hospital)
 """
 from __future__ import annotations
 
@@ -45,17 +53,20 @@ from db import MODULE_REGISTRY, MODULES_BY_MODEL, _coa_for, engine, seed_data
 import json as _json
 
 from models import (
-    Account, AnalyticAccount, AttendanceRecord, AuditLog, BankAccount, BomHeader,
-    BomLine, Bill, BillLine, BillPayment, Budget, ComparativeStatement, CreditNote,
+    Account, AccountingPeriod, AnalyticAccount, AttendanceRecord, AuditLog, BankAccount,
+    BankStatementImport, BomHeader,
+    BomLine, Bill, BillLine, BillPayment, Budget, CommissionLedger, CommissionPlan,
+    ComparativeStatement, CreditNote,
     CreditNoteLine, Customer, CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
     DeferredRevenueSchedule, DepreciationEntry, Employee, EmployeeSalaryStructure,
     ExchangeRate, FixedAsset, GateInward, GateInwardLine, GateOutward, GateOutwardLine,
     GRNLine, GoodsReceiptNote, InventoryLayer, Invoice,
-    InvoiceLine, PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
-    PayrollLineDetail, PayrollRun, Product, ProductCategory, ProductionOrder,
-    PurchaseDemand, PurchaseDemandLine, PurchaseOrder, PurchaseOrderLine,
-    RatePlan, RecurringTemplate, ReportDefinition,
-    SalaryComponent, SequenceCounter, Settings, StockLocation, StoreIssue, StoreIssueLine, TaxCode, Tenant, User, Vendor,
+    InvoiceLine, JournalEntry, PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
+    PayrollLineDetail, PayrollRun, PRASubmissionLog, Product, ProductCategory, ProductionOrder,
+    PromoRule, PurchaseDemand, PurchaseDemandLine, PurchaseOrder, PurchaseOrderLine,
+    RatePlan, Reconciliation, ReconciliationLine, RecurringTemplate, ReportDefinition,
+    SalaryComponent, SequenceCounter, Settings, StatementLine, StockLocation, StoreIssue,
+    StoreIssueLine, TaxCode, Tenant, Transaction, User, Vendor,
     VendorAdvance, VendorQuotation, VendorQuotationLine,
 )
 from models_telecom import (
@@ -3283,6 +3294,414 @@ def _stamp_pra_invoices(s: Session, invoices: list[Invoice]) -> None:
         fin_counter += 1
 
 
+def _seed_promo_rules(s: Session, tenant_id: int) -> None:
+    """Seed 2–4 promotional price rules so the Promo Discounts page and the
+    InvoiceForm "Apply Promos" button have live data (idempotent)."""
+    if s.exec(select(PromoRule).where(PromoRule.tenant_id == tenant_id)).first():
+        return
+    today = date.today()
+    stock = s.exec(
+        select(Product).where(
+            Product.tenant_id == tenant_id,
+            Product.product_type == "stock",
+            Product.is_active == True,  # noqa: E712
+        ).order_by(Product.id).limit(3)
+    ).all()
+    category = s.exec(
+        select(ProductCategory).where(
+            ProductCategory.tenant_id == tenant_id,
+            ProductCategory.parent_id != None,  # noqa: E711 — sub-categories only
+        ).order_by(ProductCategory.id)
+    ).first()
+
+    # Always applicable: invoice-value threshold discount (no product scope).
+    s.add(PromoRule(
+        tenant_id=tenant_id,
+        name="Big Order 5% Off",
+        description="5% off any invoice line once the invoice value crosses the threshold.",
+        min_invoice_value=D("5000"),
+        discount_type="percent", discount_value=D("5"),
+        start_date=(today - timedelta(days=180)).isoformat(),
+    ))
+    if stock:
+        s.add(PromoRule(
+            tenant_id=tenant_id,
+            name=f"Bulk Buy — {stock[0].name}",
+            description="10% off when ordering 10 or more units.",
+            product_id=stock[0].id, min_qty=D("10"),
+            discount_type="percent", discount_value=D("10"),
+        ))
+    if len(stock) >= 2:
+        s.add(PromoRule(
+            tenant_id=tenant_id,
+            name=f"Baker's Dozen — {stock[1].name}",
+            description="Buy 12, get 1 free.",
+            product_id=stock[1].id, min_qty=D("12"),
+            discount_type="giveaway",
+            giveaway_product_id=stock[1].id, giveaway_qty=D("1"),
+        ))
+    if category:
+        s.add(PromoRule(
+            tenant_id=tenant_id,
+            name=f"Seasonal — {category.name}",
+            description="Limited-time 7.5% category-wide promotion.",
+            category_id=category.id,
+            discount_type="percent", discount_value=D("7.5"),
+            start_date=(today - timedelta(days=30)).isoformat(),
+            end_date=(today + timedelta(days=60)).isoformat(),
+        ))
+
+
+def _month_bounds(year: int, month: int) -> tuple[str, str]:
+    """(first-day, first-day-of-next-month) as ISO strings — [start, end)."""
+    start = f"{year}-{month:02d}-01"
+    if month == 12:
+        return start, f"{year + 1}-01-01"
+    return start, f"{year}-{month + 1:02d}-01"
+
+
+def _seed_commissions(s: Session, owner: User, staff: list[User]) -> None:
+    """Commission plans for the demo staff + a computed ledger over the last
+    3 full months, exercising the whole draft → approved → posted flow.
+
+    Mirrors routers/commissions.py's compute maths: assigns ~half the posted
+    invoices to the staff users first (assigned_to_id was never set by the
+    base seeder), then aggregates invoiced/recovered per period. Idempotent —
+    skips once any CommissionPlan exists for the tenant."""
+    tid = owner.tenant_id
+    if s.exec(select(CommissionPlan).where(CommissionPlan.tenant_id == tid)).first():
+        return
+
+    today = date.today()
+    # Plans became effective well before the seeded transaction window.
+    eff_from = (today - timedelta(days=700)).isoformat()
+    plans = []
+    for i, u in enumerate(staff):
+        plan = CommissionPlan(
+            tenant_id=tid, user_id=u.id,
+            rate=D("2.5") if i == 0 else D("1.5"),
+            sales_target=D("20000") if i == 0 else None,
+            recovery_target=D("15000") if i == 0 else None,
+            target_bonus=D("500") if i == 0 else None,
+            effective_from=eff_from, active=True,
+        )
+        s.add(plan)
+        plans.append(plan)
+    s.flush()
+
+    # Spread posted invoices across the sales staff so compute has inputs.
+    invoices = s.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == tid,
+            Invoice.status != "draft",
+            Invoice.assigned_to_id == None,  # noqa: E711
+        ).order_by(Invoice.id)
+    ).all()
+    assigned = 0
+    for i, inv in enumerate(invoices):
+        if i % 2 == 0:                      # ~half stay unassigned (house accounts)
+            continue
+        inv.assigned_to_id = staff[assigned % len(staff)].id
+        assigned += 1
+        s.add(inv)
+    s.flush()
+
+    # Ledger for 3 consecutive full months anchored on the tenant's most
+    # recent payment (so total_recovered is non-zero even when the payment
+    # seeder left the last few months unpaid): oldest posted, middle
+    # approved, newest draft — same upsert semantics as POST /api/commissions/compute.
+    latest_pay = s.exec(
+        select(PaymentReceived.payment_date).where(
+            PaymentReceived.tenant_id == tid,
+            PaymentReceived.payment_date < today.isoformat()[:8] + "01",
+        ).order_by(PaymentReceived.payment_date.desc())  # type: ignore[attr-defined]
+    ).first()
+    anchor = date.fromisoformat(latest_pay) if latest_pay else today
+    periods: list[tuple[int, int]] = [(anchor.year, anchor.month)]
+    y, m = anchor.year, anchor.month
+    for _ in range(2):
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+        periods.append((y, m))
+    periods.reverse()                        # chronological: oldest first
+    statuses = ["posted", "approved", "draft"]
+
+    expense = get_or_create_account(s, tid, "5160", "Commission Expense", "Expense")
+    payable = get_or_create_account(s, tid, "2260", "Commissions Payable", "Liability")
+
+    for (py, pm), status in zip(periods, statuses):
+        period = f"{py}-{pm:02d}"
+        start, end = _month_bounds(py, pm)
+        for plan in plans:
+            uid = plan.user_id
+            invoiced = s.exec(
+                select(Invoice.total).where(
+                    Invoice.tenant_id == tid,
+                    Invoice.assigned_to_id == uid,
+                    Invoice.issue_date >= start,
+                    Invoice.issue_date < end,
+                    Invoice.status != "cancelled",
+                )
+            ).all()
+            total_invoiced = sum(invoiced, D("0"))
+            recovered = s.exec(
+                select(PaymentReceived.amount).join(
+                    Invoice, PaymentReceived.invoice_id == Invoice.id
+                ).where(
+                    PaymentReceived.tenant_id == tid,
+                    Invoice.assigned_to_id == uid,
+                    PaymentReceived.payment_date >= start,
+                    PaymentReceived.payment_date < end,
+                )
+            ).all()
+            total_recovered = sum(recovered, D("0"))
+            commission = (total_recovered * plan.rate / D("100")).quantize(D("0.01"))
+            bonus = D("0")
+            if plan.target_bonus:
+                sales_ok = (not plan.sales_target) or (total_invoiced >= plan.sales_target)
+                recovery_ok = (not plan.recovery_target) or (total_recovered >= plan.recovery_target)
+                if sales_ok and recovery_ok:
+                    bonus = plan.target_bonus
+            total_payable = commission + bonus
+
+            entry = CommissionLedger(
+                tenant_id=tid, user_id=uid, period=period,
+                total_invoiced=total_invoiced, total_recovered=total_recovered,
+                rate=plan.rate, commission_amount=commission,
+                bonus_amount=bonus, total_payable=total_payable,
+                status="draft",
+            )
+            s.add(entry)
+            s.flush()
+
+            if status == "draft" or total_payable <= 0:
+                continue
+            entry.status = "approved"
+            if status == "posted":
+                staff_user = next(u for u in staff if u.id == uid)
+                txn = post_transaction(
+                    s, owner,
+                    date=min(end, today.isoformat()),
+                    description=f"Commission — {staff_user.full_name or staff_user.email} — {period}",
+                    voucher_type="JV",
+                    entries=[
+                        EntryInput(account_id=expense.id, debit=float(total_payable), credit=0),
+                        EntryInput(account_id=payable.id, debit=0, credit=float(total_payable)),
+                    ],
+                    audit_detail={"commission_ledger_id": entry.id, "period": period},
+                )
+                entry.transaction_id = txn.id
+                entry.status = "posted"
+            s.add(entry)
+
+
+def _seed_accounting_periods(s: Session, tenant_id: int) -> None:
+    """Named accounting periods for the Period Close page. The only *locked*
+    period predates the seeded transaction window (~640 days), so re-running
+    any top-up seeder can never trip posting.py's locked-period guard."""
+    if s.exec(select(AccountingPeriod).where(AccountingPeriod.tenant_id == tenant_id)).first():
+        return
+    today = date.today()
+    y = today.year
+    s.add(AccountingPeriod(
+        tenant_id=tenant_id, name=f"FY {y - 3}",
+        period_start=f"{y - 3}-01-01", period_end=f"{y - 3}-12-31",
+        is_locked=True,
+    ))
+    for fy in (y - 2, y - 1):
+        s.add(AccountingPeriod(
+            tenant_id=tenant_id, name=f"FY {fy}",
+            period_start=f"{fy}-01-01", period_end=f"{fy}-12-31",
+            is_locked=False,
+        ))
+    q = (today.month - 1) // 3 + 1
+    for qi in range(1, q + 1):
+        qs_month = (qi - 1) * 3 + 1
+        qs, qe = _month_bounds(y, qs_month)[0], _month_bounds(y, qs_month + 2)[1]
+        s.add(AccountingPeriod(
+            tenant_id=tenant_id, name=f"Q{qi} {y}",
+            period_start=qs,
+            period_end=(date.fromisoformat(qe) - timedelta(days=1)).isoformat(),
+            is_locked=False,
+        ))
+
+
+def _bank_gl_balance(s: Session, tenant_id: int, account_id: int, upto_exclusive: str) -> Decimal:
+    """Net GL balance (Σdebit − Σcredit) of a bank CoA account before a date."""
+    rows = s.exec(
+        select(JournalEntry.debit, JournalEntry.credit)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            JournalEntry.tenant_id == tenant_id,
+            JournalEntry.account_id == account_id,
+            Transaction.date < upto_exclusive,
+        )
+    ).all()
+    total = D("0")
+    for dr, cr in rows:
+        total += D(dr) - D(cr)
+    return total
+
+
+def _seed_reconciliations(s: Session, tenant_id: int) -> None:
+    """Two bank reconciliations on the main bank account: the month before
+    last fully matched + closed, the last full month left open with ~70%
+    of lines ticked — so both states of the Reconciliations UI have data."""
+    if s.exec(select(Reconciliation).where(Reconciliation.tenant_id == tenant_id)).first():
+        return
+    ba = s.exec(
+        select(BankAccount).where(
+            BankAccount.tenant_id == tenant_id,
+            BankAccount.coa_account_id != None,  # noqa: E711
+        ).order_by(BankAccount.id)
+    ).first()
+    if not ba:
+        return
+    today = date.today()
+    for months_back, close_it in ((2, True), (1, False)):
+        y, m = today.year, today.month
+        for _ in range(months_back):
+            m -= 1
+            if m == 0:
+                y, m = y - 1, 12
+        start, end_excl = _month_bounds(y, m)
+        end = (date.fromisoformat(end_excl) - timedelta(days=1)).isoformat()
+        entries = s.exec(
+            select(JournalEntry)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .where(
+                JournalEntry.tenant_id == tenant_id,
+                JournalEntry.account_id == ba.coa_account_id,
+                Transaction.date >= start,
+                Transaction.date <= end,
+            )
+        ).all()
+        if not entries:
+            continue
+        rec = Reconciliation(
+            tenant_id=tenant_id, bank_account_id=ba.id,
+            period_start=start, period_end=end,
+            statement_balance=_bank_gl_balance(s, tenant_id, ba.coa_account_id, end_excl),
+            status="closed" if close_it else "open",
+        )
+        s.add(rec)
+        s.flush()
+        for i, e in enumerate(entries):
+            s.add(ReconciliationLine(
+                reconciliation_id=rec.id, journal_entry_id=e.id,
+                is_matched=close_it or (i % 10 < 7),
+            ))
+
+
+def _seed_bank_imports(s: Session, tenant_id: int) -> None:
+    """One imported bank statement (last full month) built from the actual GL
+    activity on the main bank account, ~60% auto-matched — feeds the Bank
+    Imports page and leaves realistic unmatched lines to demo manual matching."""
+    if s.exec(select(BankStatementImport).where(BankStatementImport.tenant_id == tenant_id)).first():
+        return
+    ba = s.exec(
+        select(BankAccount).where(
+            BankAccount.tenant_id == tenant_id,
+            BankAccount.coa_account_id != None,  # noqa: E711
+        ).order_by(BankAccount.id)
+    ).first()
+    if not ba:
+        return
+    today = date.today()
+    y, m = (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
+    start, end_excl = _month_bounds(y, m)
+    rows = s.exec(
+        select(JournalEntry, Transaction)
+        .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+        .where(
+            JournalEntry.tenant_id == tenant_id,
+            JournalEntry.account_id == ba.coa_account_id,
+            Transaction.date >= start,
+            Transaction.date < end_excl,
+        )
+        .order_by(Transaction.date)
+    ).all()
+    if not rows:
+        return
+    imp = BankStatementImport(
+        tenant_id=tenant_id, bank_account_id=ba.id,
+        file_name=f"statement-{y}-{m:02d}.csv",
+        file_hash=f"demo-{tenant_id}-{y}-{m:02d}",
+        line_count=len(rows), status="matched",
+    )
+    s.add(imp)
+    s.flush()
+    balance = _bank_gl_balance(s, tenant_id, ba.coa_account_id, start)
+    matched = 0
+    for i, (je, txn) in enumerate(rows):
+        # Bank's perspective: GL debit (money in) = statement credit column.
+        stmt_credit = D(je.debit)
+        stmt_debit = D(je.credit)
+        balance += stmt_credit - stmt_debit
+        is_matched = i % 5 < 3
+        if is_matched:
+            matched += 1
+        s.add(StatementLine(
+            tenant_id=tenant_id, import_id=imp.id,
+            date=txn.date,
+            description=(txn.description or txn.jv_number)[:120],
+            debit=stmt_debit, credit=stmt_credit, balance=balance,
+            matched_transaction_id=txn.id if is_matched else None,
+            is_matched=is_matched,
+        ))
+    imp.matched_count = matched
+    s.add(imp)
+
+
+def _seed_pra_submission_logs(s: Session, tenant_id: int) -> None:
+    """PRA e-IMS submission audit trail for the PRA demo tenant so the
+    Submission Logs page has data: one success row per stamped invoice
+    (capped at 20) plus a failed-then-retried pair on the first two —
+    mirrors the log rows services/pra.py writes on a real submission."""
+    if s.exec(select(PRASubmissionLog).where(PRASubmissionLog.tenant_id == tenant_id)).first():
+        return
+    from services.pra import SANDBOX_URL
+    invoices = s.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.pra_status == "submitted",
+        ).order_by(Invoice.issue_date.desc()).limit(20)  # type: ignore[attr-defined]
+    ).all()
+    for i, inv in enumerate(invoices):
+        submitted_at = inv.pra_submitted_at or datetime.utcnow()
+        request_json = _json.dumps({
+            "InvoiceNumber": "", "POSID": 100001, "USIN": inv.pra_usin or inv.number,
+            "DateTime": f"{inv.issue_date} 09:30:00",
+            "TotalBillAmount": float(inv.total),
+            "TotalSaleValue": float(inv.subtotal),
+            "TotalTaxCharged": float(inv.gst_amount),
+            "PaymentMode": inv.payment_mode or 1,
+        })
+        if i < 2:
+            # A realistic first-attempt failure, retried successfully 3 min later.
+            s.add(PRASubmissionLog(
+                tenant_id=tenant_id, invoice_id=inv.id,
+                attempt_at=submitted_at - timedelta(minutes=3),
+                endpoint=SANDBOX_URL, request_json=request_json,
+                response_code="102",
+                response_json=_json.dumps({"Code": "102", "Response": "Invalid BuyerPNTN format"}),
+                http_status=200, success=False,
+                error_message="Invalid BuyerPNTN format",
+            ))
+        s.add(PRASubmissionLog(
+            tenant_id=tenant_id, invoice_id=inv.id,
+            attempt_at=submitted_at,
+            endpoint=SANDBOX_URL, request_json=request_json,
+            response_code="100",
+            response_json=_json.dumps({
+                "Code": "100", "Response": "Invoice statement submitted successfully.",
+                "InvoiceNumber": inv.pra_fiscal_number,
+            }),
+            http_status=200, success=True,
+        ))
+
+
 def _seed_healthcare(s: Session, user: User) -> None:
     """Seed hospital demo data: doctors, wards, beds, patients, OPD, IPD, lab, procedures.
     Idempotent — skips if HcDoctor rows already exist for this tenant."""
@@ -3733,6 +4152,17 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _seed_vendor_advances(s, user, vendors, bills)
         s.commit()
 
+        # ── Sales incentives + close/reconcile (gap-fill batch) ──
+        _seed_promo_rules(s, tenant_id)
+        s.commit()
+        _seed_commissions(s, owner, [accountant, clerk])
+        s.commit()
+        _seed_accounting_periods(s, tenant_id)
+        s.commit()
+        _seed_reconciliations(s, tenant_id)
+        _seed_bank_imports(s, tenant_id)
+        s.commit()
+
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
             s.commit()
@@ -3762,6 +4192,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             ).all()
             _stamp_pra_invoices(s, list(all_invoices))
             s.commit()
+            _seed_pra_submission_logs(s, tenant_id)
+            s.commit()
 
         # ── Starter saved report (Report Builder) ──────────────────────────────
         _seed_report_definitions(s, tenant_id, user)
@@ -3778,7 +4210,6 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _seed_attendance(s, tenant_id, employees_hrm)
         s.commit()
 
-        from models import Transaction
         return {
             "tenant":       company_name,
             "email":        email,
@@ -3807,6 +4238,12 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             "employees":          len(s.exec(select(Employee).where(Employee.tenant_id == tenant_id)).all()),
             "payroll_runs":       len(s.exec(select(PayrollRun).where(PayrollRun.tenant_id == tenant_id)).all()),
             "attendance_records": len(s.exec(select(AttendanceRecord).where(AttendanceRecord.tenant_id == tenant_id)).all()),
+            "promo_rules":        len(s.exec(select(PromoRule).where(PromoRule.tenant_id == tenant_id)).all()),
+            "commission_entries": len(s.exec(select(CommissionLedger).where(CommissionLedger.tenant_id == tenant_id)).all()),
+            "accounting_periods": len(s.exec(select(AccountingPeriod).where(AccountingPeriod.tenant_id == tenant_id)).all()),
+            "reconciliations":    len(s.exec(select(Reconciliation).where(Reconciliation.tenant_id == tenant_id)).all()),
+            "bank_imports":       len(s.exec(select(BankStatementImport).where(BankStatementImport.tenant_id == tenant_id)).all()),
+            "pra_logs":           len(s.exec(select(PRASubmissionLog).where(PRASubmissionLog.tenant_id == tenant_id)).all()),
             "hc_patients":        len(s.exec(select(HcPatient).where(HcPatient.tenant_id == tenant_id)).all()),
             "hc_doctors":         len(s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tenant_id)).all()),
             "hc_lab_orders":      len(s.exec(select(HcLabOrder).where(HcLabOrder.tenant_id == tenant_id)).all()),

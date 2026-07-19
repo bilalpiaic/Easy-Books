@@ -2,7 +2,8 @@
 >
 > **Shipped through v2.7:** multi-level CoA + hierarchical TB/BS/P&L, deferred-revenue origination + recognition schedule, posted-document editing (reverse-and-repost), comparative statements, credit/debit notes, fixed assets + depreciation, purchase orders (all tenants), analytic accounts, budget vs actual, advances/expense claims, Alembic migrations (0022+), server-side PDF (`services/pdf.py`), email service (`services/email.py`), granular permissions (60-resource RBAC matrix), sales commissions, promo discount rules, section hub pages, collapsible sidebar, 3-mode voucher entry, print system overhaul.
 >
-> **Still open:** bank recon zero-diff enforcement (G-01), multi-currency frontend (G-04), FIFO inventory (G-09), Stripe payment links (G-12), FX revaluation at period end (G-15), payroll (G-17).
+> **Still open:** none — G-01, G-04, G-09, G-12, G-15, and G-17 all shipped by 2026-07
+> (verified 2026-07-19; see the header of `claude-improvement.md`). This file is historical.
 
 # Copilot Improvement Plan
 

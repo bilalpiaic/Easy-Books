@@ -431,11 +431,11 @@ Easy-Books implements the following international accounting standards and best 
 
 ### Demo Tenant Initialization
 
-**Both standalone script installs** (`install-and-run.*`) **and the desktop (Electron) app auto-load the 6 demo companies on first install** (`SEED_DEMO=true` default). Both run `scripts.autoseed_demo` after `alembic upgrade head`; the guard skips if any user already exists, so **updating an existing install is migrate-only — no demo data is added**. Set `SEED_DEMO=false` for a clean install with no demo data. Log in immediately with `demo1234` — no signup required.
+**Both standalone script installs** (`install-and-run.*`) **and the desktop (Electron) app auto-load the 7 demo companies on first install** (`SEED_DEMO=true` default). Both run `scripts.autoseed_demo` after `alembic upgrade head`; the guard skips if any user already exists, so **updating an existing install is migrate-only — no demo data is added**. Set `SEED_DEMO=false` for a clean install with no demo data. Log in immediately with `demo1234` — no signup required.
 
 **Settings → Sample / Demo Data** lets you **Load** or **Remove** the demo companies at any time on any install type. (Admin/owner only.)
 
-**Dev / cloud installs** (`dev.sh` / hosted): Easy-Books auto-creates 6 pre-seeded demo tenants (one per business model) on first database run. `dev.sh` also seeds each with 50+ records per entity type:
+**Dev / cloud installs** (`dev.sh` / hosted): Easy-Books auto-creates 7 pre-seeded demo tenants (one per business model) on first database run. `dev.sh` also seeds each with 50+ records per entity type:
 
 | Tenant | Email | Model | Use Case |
 |---|---|---|---|
@@ -445,6 +445,7 @@ Easy-Books implements the following international accounting standards and best 
 | Demo Mfg Co. | `demo.manufacturing@easy-books.app` | Manufacturing | Value-addition (BoMs, GRN, PO lifecycle) |
 | Demo Telecom Co. | `demo.telecom@easy-books.app` | Telecom Franchise | Operator franchise — Tracker, RSO chain, FCA targets |
 | Demo PRA Co. | `demo.pra@easy-books.app` | PRA e-Invoice | Pakistani retail — PRA eIMS, PKR, NTN/CNIC, PCT codes |
+| City General Hospital | `demo.hospital@easy-books.app` | Healthcare / Hospital | OPD/IPD, Lab, Procedures, Pharmacy store |
 
 **Password (all):** `demo1234`
 
@@ -471,6 +472,11 @@ Each demo tenant receives:
 - 6 Recurring Templates across all frequencies
 - 60+ Manual Journal Entries cycling through all CoA accounts
 - Manufacturing tenant: 12 BOMs, 12 Rate Plans, 12 GRNs, 12 Production Orders
+- Promo rules (bulk %, giveaway, category-scoped, invoice-value threshold)
+- Commission plans + a 3-month ledger per staff user (draft → approved → posted with GL entry)
+- Accounting periods (a locked prior FY + open FYs/quarters for Period Close)
+- Bank reconciliations (one closed, one open ~70% matched) + an imported bank statement (~60% auto-matched)
+- PRA tenant: a PRA submission-log audit trail (successes + a failed-then-retried pair)
 
 **Script is idempotent:** re-running skips entities already present.
 

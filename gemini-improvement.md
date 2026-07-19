@@ -1,9 +1,9 @@
-> 📋 **Audit log (originally pre-v2.5.0).** Phases 1–3 are largely shipped as of v2.7 (2026-06-20). See `claude-improvement.md` for the full gap-by-gap status. For sprint history see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
->
-> **Phase 1 status (v2.7):** §1.1 Multi-currency frontend — ⏳ still open. §1.2 Fixed assets — ✅ shipped (`assets` router + `services/depreciation.py`). §1.3 Bank recon hardening — ⏳ still open (G-01).
-> **Phase 2 status (v2.7):** §2.1 Tax engine — ⏳ partial (tax slabs in `reports.py`; `TaxSlab` table not yet introduced). §2.2 Comparative reports — ✅ shipped; Budgets — ✅ shipped (`budgets` router).
-> **Phase 3 status (v2.7):** §3.1 Document lifecycle/locking — ✅ shipped (CN/DN + reverse-and-repost). §3.2 Enhanced inventory — FIFO ⏳ open; Stock Adjustments ✅ shipped.
-> **Phase 4 status (v2.7):** §4.1 Batch processing — ⏳ not yet. §4.2 API docs/webhooks — ⏳ not yet.
+> 📋 **HISTORICAL audit log (originally pre-v2.5.0) — superseded.** As of 2026-07-19
+> every gap tracked here is shipped except §4.1 batch processing and §4.2 webhooks,
+> which are now formal GitHub issues (#115 Background Task Queue, #114 Webhook /
+> Event Bus) in the v4.0 backlog. See [`claude-improvement.md`](./claude-improvement.md)
+> for the closed gap-by-gap detail and [`docs/ROADMAP.md`](./docs/ROADMAP.md) for
+> current status.
 
 # Easy-Books Improvement Roadmap (Phase 2)
 
