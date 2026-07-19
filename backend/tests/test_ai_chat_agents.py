@@ -89,7 +89,7 @@ def test_routes_to_specialist_with_narrowed_tool_subset(client: TestClient, monk
     calls = []
     async def fake_acompletion(**kwargs):
         if kwargs.get("stream") is False:
-            assert kwargs["max_tokens"] == 20
+            assert kwargs["max_tokens"] == 30
             assert kwargs["temperature"] == 0
             return _TriageCompletion("payables")
         calls.append(kwargs)

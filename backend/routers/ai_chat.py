@@ -1,19 +1,22 @@
 """
-Level 1 AI Financial Assistant.
+AI Financial Assistant — agentic chat pipeline.
 
-Calls existing report functions directly (no HTTP re-request) so all
+Each turn runs a 4-stage pipeline: Triage (cheap-tier classifier picks a
+specialist agent from services/ai_agents.AGENTS, filtered to the tenant's
+installed modules) → Specialist (tool-calling loop over that agent's narrow
+tool subset from services/ai_tools.TOOL_REGISTRY, up to MAX_STEPS rounds) →
+Reviewer (cheap-tier silent fact-check of the specialist's figures against
+the raw tool results; skipped when no tools ran) → Drafting (cheap-tier
+streaming rewrite into polished Markdown — the only stage whose tokens
+reach the client).
+
+Tools call existing report functions directly (no HTTP re-request) so all
 business rules, tenant filters, and calculations are automatically reused.
-Claude acts as a natural-language orchestration layer on top of the
-accounting API.
-
-The agent loop runs up to MAX_STEPS iterations, executing tool calls and
-feeding results back until Claude produces a plain-text reply.
 """
 import json
 import time
 from collections import defaultdict, deque
 from datetime import date as DateType, datetime
-from decimal import Decimal
 
 import litellm
 from fastapi import APIRouter, HTTPException
@@ -22,16 +25,9 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from models import AiChatMessage, AiChatSession, Settings, Tenant
-from routers.aging import invoice_aging, bill_aging
 from routers.modules import _get_enabled
-from routers.reports import (
-    get_dashboard_data,
-    get_dashboard_charts,
-    get_income_statement,
-    get_trial_balance,
-    cash_flow_statement,
-)
 from services.ai_agents import AGENTS, FALLBACK_AGENT_KEY, AgentDef, available_agents
+from services.ai_tools import _json_safe, execute_tool, openai_tools, tool_labels
 from services.ai_providers import (
     DEFAULT_MODEL,
     PROVIDERS,
@@ -150,119 +146,7 @@ def session_messages(session: SessionDep, user: CurrentUserDep, session_id: int)
     ]
 
 
-# ── Tool registry ─────────────────────────────────────────────────────────────
-
-TOOLS: list[dict] = [
-    {
-        "name": "get_dashboard_summary",
-        "description": (
-            "Get the current financial dashboard KPIs: total revenue, total expenses, "
-            "AR outstanding, AP outstanding, overdue invoices, low stock items, cash & bank balance, "
-            "and AR aging buckets. Optionally filter by date range."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "start": {"type": "string", "description": "Start date YYYY-MM-DD (optional)"},
-                "end":   {"type": "string", "description": "End date YYYY-MM-DD (optional)"},
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "get_income_statement",
-        "description": (
-            "Get the Profit & Loss / Income Statement showing revenue and expense totals "
-            "and net profit for a period."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "start": {"type": "string", "description": "Period start YYYY-MM-DD"},
-                "end":   {"type": "string", "description": "Period end YYYY-MM-DD"},
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "get_ar_aging",
-        "description": (
-            "Get Accounts Receivable aging: outstanding invoice amounts grouped by age bucket "
-            "(current, 1-30 days, 31-60 days, 61-90 days, 90+ days overdue), plus a list of "
-            "individual outstanding invoices with customer names and amounts."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-    {
-        "name": "get_ap_aging",
-        "description": (
-            "Get Accounts Payable aging: outstanding bill amounts grouped by age bucket, "
-            "plus individual outstanding bills with vendor names."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-    {
-        "name": "get_trial_balance",
-        "description": (
-            "Get the Trial Balance showing debit and credit totals for all accounts. "
-            "Useful for checking if books are balanced or auditing account balances."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
-                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "get_cash_flow",
-        "description": (
-            "Get the Cash Flow Statement showing operating, investing, and financing cash flows "
-            "for a period."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "start": {"type": "string", "description": "Period start YYYY-MM-DD"},
-                "end":   {"type": "string", "description": "Period end YYYY-MM-DD"},
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "get_top_customers",
-        "description": "Get the top 10 customers by total invoiced amount and the monthly revenue/expense trend for the last 12 months.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-    },
-]
-
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _json_safe(obj):
-    """Recursively convert Decimal to float for JSON serialization."""
-    if isinstance(obj, Decimal):
-        return float(obj)
-    if isinstance(obj, dict):
-        return {k: _json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_json_safe(i) for i in obj]
-    return obj
-
 
 def _get_company_name(session, user) -> str:
     row = session.exec(
@@ -293,71 +177,7 @@ def _build_system_prompt(company_name: str) -> str:
     )
 
 
-# ── Tool execution ────────────────────────────────────────────────────────────
-
-def _execute_tool(name: str, tool_input: dict, session, user) -> tuple[str, bool]:
-    """Run one tool call; returns (json_text, is_error)."""
-    try:
-        if name == "get_dashboard_summary":
-            result = get_dashboard_data(
-                session, user,
-                start=tool_input.get("start"),
-                end=tool_input.get("end"),
-            )
-        elif name == "get_income_statement":
-            result = get_income_statement(
-                session, user,
-                start=tool_input.get("start"),
-                end=tool_input.get("end"),
-            )
-        elif name == "get_ar_aging":
-            result = invoice_aging(session, user)
-        elif name == "get_ap_aging":
-            result = bill_aging(session, user)
-        elif name == "get_trial_balance":
-            result = get_trial_balance(
-                session, user,
-                start=tool_input.get("start"),
-                end=tool_input.get("end"),
-            )
-        elif name == "get_cash_flow":
-            result = cash_flow_statement(
-                session, user,
-                start=tool_input.get("start", ""),
-                end=tool_input.get("end", ""),
-            )
-        elif name == "get_top_customers":
-            result = get_dashboard_charts(session, user, months=12)
-        else:
-            return json.dumps({"error": f"Unknown tool: {name}"}), True
-        return json.dumps(_json_safe(result)), False
-    except Exception as exc:
-        return json.dumps({"error": str(exc)}), True
-
-
-# ── Tool conversion (Anthropic → OpenAI function format) + rate limiting ──────
-
-OPENAI_TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": t["name"],
-            "description": t["description"],
-            "parameters": t["input_schema"],
-        },
-    }
-    for t in TOOLS
-]
-
-TOOL_LABELS = {
-    "get_dashboard_summary": "Checking your dashboard…",
-    "get_income_statement": "Checking your P&L…",
-    "get_ar_aging": "Checking who owes you (receivables)…",
-    "get_ap_aging": "Checking what you owe (payables)…",
-    "get_trial_balance": "Checking your trial balance…",
-    "get_cash_flow": "Checking your cash flow…",
-    "get_top_customers": "Checking your top customers…",
-}
+# ── Rate limiting ─────────────────────────────────────────────────────────────
 
 # Sliding-hour rate limiter. Per-process by design (single-process deploy);
 # resets on restart — acceptable, documented in the spec.
@@ -548,10 +368,13 @@ async def _run_triage(
         if cheap_model.startswith("ollama/"):
             call_model = "ollama_chat/" + cheap_model[len("ollama/"):]
             extra["api_base"] = cheap_base
+        # max_tokens=30 must stay unique across the pipeline's four LLM
+        # calls (triage 30 / reviewer 1500 / specialist 2048 / drafting
+        # 4096) — the test fakes tell the calls apart by (stream, max_tokens).
         response = await litellm.acompletion(
             model=call_model,
             api_key=cheap_key,
-            max_tokens=20,
+            max_tokens=30,
             temperature=0,
             stream=False,
             messages=[
@@ -570,6 +393,67 @@ async def _run_triage(
         if key in raw or raw in key:
             return key
     return FALLBACK_AGENT_KEY
+
+
+_REVIEWER_PROMPT = (
+    "You are a silent fact-checker for an AI financial assistant. You are given the "
+    "user's question, a specialist's draft analysis, and the raw JSON tool results the "
+    "analysis is based on. Verify every figure, total, name, and date in the analysis "
+    "against the raw data. Output the corrected analysis as plain text, preserving the "
+    "specialist's structure and level of detail. Fix any number that contradicts the "
+    "data, remove any claim the data does not support, and add nothing that is not in "
+    "the data. If the analysis is fully consistent with the data, return it verbatim. "
+    "Output ONLY the analysis text — no preamble, no commentary, no list of changes."
+)
+
+
+async def _run_reviewer(
+    session, user,
+    *, litellm_model: str, api_key, api_base,
+    user_message: str, specialist_text: str, tool_results: list[dict],
+) -> str:
+    """Silent verify-and-correct pass between the specialist and drafting
+    stages: checks every figure in the specialist's analysis against the raw
+    tool results so drafting formats verified numbers, not hallucinated ones.
+    Cheap-tier, non-streaming, no tools. Never raises — any failure or empty
+    output returns `specialist_text` unchanged, so a reviewer hiccup can only
+    skip the check, never lose the answer.
+
+    max_tokens=1500 must stay unique across the pipeline's four LLM calls
+    (triage 30 / reviewer 1500 / specialist 2048 / drafting 4096) — the test
+    fakes tell the calls apart by (stream, max_tokens)."""
+    try:
+        cheap_model, cheap_key, cheap_base = resolve_cheap_tier(
+            session, user.tenant_id, litellm_model, api_key, api_base,
+        )
+        extra: dict = {}
+        if cheap_model.startswith("anthropic/"):
+            extra["thinking"] = {"type": "disabled"}
+        call_model = cheap_model
+        if cheap_model.startswith("ollama/"):
+            call_model = "ollama_chat/" + cheap_model[len("ollama/"):]
+            extra["api_base"] = cheap_base
+        payload = {
+            "question": user_message,
+            "specialist_analysis": specialist_text,
+            "supporting_data": tool_results,
+        }
+        response = await litellm.acompletion(
+            model=call_model,
+            api_key=cheap_key,
+            max_tokens=1500,
+            temperature=0,
+            stream=False,
+            messages=[
+                {"role": "system", "content": _REVIEWER_PROMPT},
+                {"role": "user", "content": json.dumps(_json_safe(payload))},
+            ],
+            **extra,
+        )
+        reviewed = (response.choices[0].message.content or "").strip()
+        return reviewed or specialist_text
+    except Exception:
+        return specialist_text
 
 
 def _build_drafting_prompt(company_name: str) -> str:
@@ -716,7 +600,7 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
             agent = agents.get(agent_key) or AGENTS[FALLBACK_AGENT_KEY]
             yield _sse({"type": "stage", "label": f"{agent.label} is looking into this…"})
 
-            agent_tools = [t for t in OPENAI_TOOLS if t["function"]["name"] in agent.tools]
+            agent_tools = openai_tools(agent.tools)
             agent_system_prompt = _build_system_prompt(company_name)
             if agent.system_prompt_fragment:
                 agent_system_prompt += "\n\n" + agent.system_prompt_fragment
@@ -725,8 +609,8 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
             # The specialist's own text is never user-facing on its own — it
             # is the input to the drafting stage below, not the reply.
             async for ev in run_tool_loop(
-                messages, agent_tools, TOOL_LABELS,
-                lambda name, tool_input: _execute_tool(name, tool_input, session, user),
+                messages, agent_tools, tool_labels(),
+                lambda name, tool_input: execute_tool(name, tool_input, session, user),
                 litellm_model=litellm_model, api_key=api_key, api_base=api_base,
                 yield_tokens=False,
             ):
@@ -735,6 +619,18 @@ async def ai_chat(body: ChatRequest, session: SessionDep, user: CurrentUserDep):
                     tool_results = ev["tool_results"]
                     continue
                 yield _sse(ev)
+
+            # Reviewer: only when there is both an analysis and data to check
+            # it against — a no-tool turn (small talk, capability questions)
+            # has nothing to verify and skips straight to drafting.
+            if loop_text and tool_results:
+                yield _sse({"type": "stage", "label": "Reviewing figures…"})
+                loop_text = await _run_reviewer(
+                    session, user,
+                    litellm_model=litellm_model, api_key=api_key, api_base=api_base,
+                    user_message=body.message,
+                    specialist_text=loop_text, tool_results=tool_results,
+                )
 
             if loop_text:
                 yield _sse({"type": "stage", "label": "Drafting your report…"})

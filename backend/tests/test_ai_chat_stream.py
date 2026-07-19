@@ -155,7 +155,13 @@ def test_tool_call_round_trip_events(client: TestClient, monkeypatch):
     captured = []
     async def fake_acompletion(**kwargs):
         if kwargs.get("stream") is False:
-            return _triage_completion("receivables")
+            # non-streaming calls are triage (max_tokens=30) and — because
+            # this turn ran a tool — the reviewer (max_tokens=1500), which
+            # here confirms the specialist's finding verbatim.
+            if kwargs["max_tokens"] == 30:
+                return _triage_completion("receivables")
+            assert kwargs["max_tokens"] == 1500
+            return _TriageCompletion("You are owed money.")
         captured.append(kwargs["messages"])
         return responses.pop(0)
     monkeypatch.setattr("routers.ai_chat.litellm.acompletion", fake_acompletion)
@@ -165,7 +171,8 @@ def test_tool_call_round_trip_events(client: TestClient, monkeypatch):
         events = _events(list(r.iter_lines()))
 
     types = [e["type"] for e in events]
-    assert types == ["stage", "stage", "tool_start", "tool_end", "stage", "token", "done"]
+    # 4 stages: routing, "<agent> is looking into this", reviewing, drafting.
+    assert types == ["stage", "stage", "tool_start", "tool_end", "stage", "stage", "token", "done"]
     assert "receivable" in events[1]["label"].lower()   # routed-agent stage label
     tool_start = next(e for e in events if e["type"] == "tool_start")
     assert "receivable" in tool_start["label"].lower() or "owe" in tool_start["label"].lower()
