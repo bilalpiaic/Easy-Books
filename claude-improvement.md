@@ -1,8 +1,10 @@
-> 📋 **Audit log (originally pre-v2.5.0).** Shipped items are marked ✅; open items reflect the state as of **v2.7 (2026-06-20)**. For sprint history and forward backlog see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
->
-> **Shipped since initial audit (v2.5–v2.7):** G-02 (CN/DN) · G-03 (comparative statements) · G-05 (fixed assets + depreciation) · G-06 (purchase orders) · G-07 (analytic accounts) · G-08 (deferred revenue schedule) · G-10 (budget vs actual) · G-11 (advances/expense claims) · G-13 (Alembic migrations) · G-14 (server-side PDF — `services/pdf.py`) · G-16 (email service — `services/email.py`).
->
-> **Still open:** G-01 (bank recon zero-diff) · G-04 (multi-currency frontend) · G-09 (FIFO) · G-12 (payment links) · G-15 (FX revaluation) · G-17 (payroll).
+> 📋 **HISTORICAL audit log (originally pre-v2.5.0) — all 17 gaps are now shipped.**
+> Verified 2026-07-19: G-01 (bank recon w/ adjustment posting), G-04 (multi-currency
+> frontend — `/exchange-rates`), G-09 (FIFO — `InventoryLayer` across inventory/GRN/
+> production), G-12 (Stripe payment links on invoices), G-15 (FX revaluation —
+> `routers/reports.py`), and G-17 (payroll — v2.8 HRM) closed the last open set.
+> This file is kept for methodology reference only; for current status and the
+> forward backlog see [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 
 # Easy-Books — Realistic Improvement Roadmap
 

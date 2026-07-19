@@ -209,7 +209,7 @@ Your data lives **outside** the app folder:
 | macOS / Linux | `~/.easy-books` (override: `EB_DATA_DIR`) |
 | Windows | `%USERPROFILE%\.easy-books` (override: `%EB_DATA_DIR%`) |
 
-On first install the 6 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
+On first install the 7 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
 
 Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a source update.
 

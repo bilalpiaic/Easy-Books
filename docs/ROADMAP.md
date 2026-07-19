@@ -1,23 +1,35 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-06-28 (against `main` @ commit `4c0f1d0`)._
+_Last reviewed: 2026-07-19 (against `main` @ merge of PR #190)._
 
 ## Status summary
 
-**All open GitHub issues are implemented and on `main`.** The forward work is a small
-**future-scope backlog** (no open issue yet), outlined at the bottom.
+Everything up to and including the **Strategic Roadmap v4.0 groundwork** is on `main`:
+report period presets (#141, PR #148), the Purchase/Store chain incl. registers +
+pagination (#137, PRs #145–#155), permissions dead-resource enforcement audit
+(PRs #160–#161), the Calculator + 4-stage agentic AI pipeline
+(Triage → Specialist → Reviewer → Drafting, PRs #167–#179 and #185–#188 — 11
+specialist agents, ~50 registry tools), public API keys with rate-limiting +
+JTI revocation (#113, PRs #180–#183), and the demo-seed gap-fill batch
+(commissions, promo rules, periods, reconciliations, bank imports, PRA logs).
 
-| Issue | Title | Status | Delivered by |
-|-------|-------|--------|--------------|
-| **#40** | Full-page data-entry forms | ✅ Shipped | v2.6.0 — 7 New/Edit flows converted modal→route (invoices, bills, payments-received, bill-payments, products, customers, vendors) |
-| **#41** | Configurable columns for Recent Transactions | ✅ Shipped | v2.5.0 — `RecentTransactions` widget: "Columns ▾" dropdown with per-column checkboxes, persisted in `localStorage`; voucher-type filter, sort, search, click-to-open |
-| **#42** | Telecom Stock & Issuance table | ✅ Shipped | merge `d433cf8` — `GET /api/telecom/reports/stock-issuance` (per-RSO aggregation + franchise FCA footer) + table on `telecom/page.tsx`; 3 tests |
-| **#47** | Rebuild deferred-revenue schedule on invoice edit | ✅ Shipped | v2.5.0 — `services/deferred.py`; `update_invoice` blocks edit once recognised, else reverses + rebuilds the schedule (origination + edit path unified) |
-| **#52** | COA Management & Dashboard bundle | ✅ Shipped | §1/§2/§5 → #53/#41/#40; **§3** customizable dashboard (P1 `8e6a896` reorder/show-hide + P2 `b9f961d` resizable grid + shortcut tiles); **§4** voucher-type selector on New Entry; **§6** standard nav (breadcrumbs + always-on Home) |
-| **#53** | Flexible Multi-Level Chart of Accounts | ✅ Shipped | Phase 1 v2.4.0 (multi-level CoA, `parent_id`/`is_group`, post-to-leaf) + Phase 2 v2.5.0 (hierarchical TB / Balance Sheet / P&L roll-up + drill-to-ledger via `services/account_tree.py`) |
+**Open issues (the v4.0 Cloud Launch + Agentic AI backlog):**
 
-**Recommended action:** close #40, #41, #42, #47, #52, #53 with a comment citing the delivery
-above. (See "Issue closure" below.)
+| Issue | Title |
+|-------|-------|
+| **#112** | 🗺️ Strategic Roadmap v4.0 — Cloud Launch + Agentic AI (umbrella) |
+| **#114** | Webhook / Event Bus — outgoing events (next up) |
+| **#115** | Background Task Queue — async PDF, email, bulk imports |
+| **#116** | Cloud Deployment Stack — S3, docker-compose.prod, Caddy TLS, CI/CD |
+| **#118** | 2FA (TOTP) + SSO (Google / Microsoft OAuth2) |
+| **#119** | Multi-Tenant SaaS Management — plans, billing, quotas, Stripe |
+| **#120** | Customer & Vendor Portal + Dunning Automation |
+| **#121** | Bank Feeds — Plaid Open Banking + auto-categorization |
+| **#122** | AI Agent Level 2 — assisted data entry, receipt/invoice OCR |
+| **#123** | Approval Workflows — multi-level approval for invoices/bills/POs |
+| **#124** | AI Agent Level 3–4 — proactive insights, month-end automation |
+| **#125** | AI Agent Level 5 — forecasting, cash-flow prediction, budget-variance AI |
+| **#140** | Addon: New Module Weaving |
 
 ---
 
@@ -159,15 +171,8 @@ rough priority order.
 
 ---
 
-## Issue closure (recommended)
+## Issue closure
 
-Close all six open issues as delivered:
-
-| Issue | Suggested closing comment |
-|-------|---------------------------|
-| #40 | Shipped in v2.6.0 — all 7 New/Edit flows now full-page routes. |
-| #41 | Shipped in v2.5.0 — Recent Transactions has a Columns ▾ selector (per-column checkboxes, persisted) + filter/sort/search. |
-| #42 | Shipped — `GET /api/telecom/reports/stock-issuance` + per-RSO table on the telecom dashboard (merge `d433cf8`). |
-| #47 | Shipped in v2.5.0 — `update_invoice` rebuilds the deferred-revenue schedule (block-if-recognised, else reverse + rebuild). |
-| #52 | Shipped — §3 customizable dashboard (P1 reorder/show-hide + P2 resizable grid + shortcut tiles), §4 voucher selector, §6 nav controls; §1/§2/§5 delivered via #53/#41/#40. |
-| #53 | Shipped — multi-level CoA (P1 v2.4.0) + hierarchical TB/BS/P&L reporting with drill-to-ledger (P2 v2.5.0). |
+Historical note: #40, #41, #42, #47, #52, #53 (the 2026-06-28 review's open set) were
+all closed as delivered. The current open set is the v4.0 backlog listed in the
+status summary above — see each issue on GitHub for its phase breakdown.

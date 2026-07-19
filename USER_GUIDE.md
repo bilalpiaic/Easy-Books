@@ -73,7 +73,8 @@ Easy-Books provides **7 pre-seeded demo tenants** for immediate exploration:
 - All invoices and bills have notes, payment terms, and realistic status distributions
 - Manufacturing tenant: 50 BoMs, 50 GRNs, 50 production orders, 50 rate plans
 - Telecom tenant: full RSO chain, SIM activations, FCA events, franchise agreement
-- PRA tenant: invoices with FINs, PKR currency, NTN/CNIC on customers, PCT codes on products
+- PRA tenant: invoices with FINs, PKR currency, NTN/CNIC on customers, PCT codes on products, and a PRA submission-log audit trail
+- Promo rules, commission plans + a 3-month commission ledger (draft/approved/posted), accounting periods (incl. a locked prior year), bank reconciliations, and an imported bank statement per tenant
 - **Hospital tenant: 5 doctors, 4 wards (38 beds), 50 patients, ~200 OPD tokens/visits, 20 admissions, 80 lab orders, 25 procedure orders**
 
 ### 1.2 Sample / Demo Data (standalone and desktop installs)

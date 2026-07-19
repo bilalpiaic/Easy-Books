@@ -38,7 +38,7 @@ def purge_demo(session: SessionDep, user: AdminUserDep):
     the seeder's DEMO_TENANTS so seed and purge can never drift apart.
     """
     from scripts.seed_demo import DEMO_TENANTS  # lazy: avoids import cycle
-    from models import ComparativeStatement
+    from models import ComparativeStatement, Reconciliation, ReconciliationLine
     from models_healthcare import HcBed
 
     demo_emails = [email for email, _, _ in DEMO_TENANTS]
@@ -56,6 +56,19 @@ def purge_demo(session: SessionDep, user: AdminUserDep):
             session.execute(
                 table.update().where(table.c.tenant_id == tid).values(**{col: None})
             )
+        # ReconciliationLine has neither tenant_id nor ON DELETE CASCADE, so
+        # the generic tenant_id sweep below never reaches it — delete via its
+        # parent reconciliation first or the parent/journalentry deletes fail
+        # under Postgres FK enforcement.
+        session.execute(
+            ReconciliationLine.__table__.delete().where(
+                ReconciliationLine.__table__.c.reconciliation_id.in_(
+                    select(Reconciliation.__table__.c.id).where(
+                        Reconciliation.__table__.c.tenant_id == tid
+                    )
+                )
+            )
+        )
         # Delete all tenant-scoped child rows in reverse FK order.
         for table in reversed(SQLModel.metadata.sorted_tables):
             if "tenant_id" in table.c:
