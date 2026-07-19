@@ -425,6 +425,7 @@ Frontend: set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.loca
 | [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) | One-click installer, Electron desktop app, data safety, update paths |
 | [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud / Vercel deployment for backend + frontend |
 | [`BLUEPRINT.md`](./BLUEPRINT.md) | Complete project blueprint: every model, endpoint, flow, and decision |
+| [`docs/PRESENTATION.md`](./docs/PRESENTATION.md) | Project review pack — architecture Mermaid diagrams + Good/Better/Best vs Odoo, QB, peers |
 | [`CLAUDE.md`](./CLAUDE.md) | AI-assistant instructions and architecture reference |
 | [`backend/README.md`](./backend/README.md) | Backend quick-start, commands, structure, API conventions |
 | [`frontend/README.md`](./frontend/README.md) | Frontend quick-start, scripts, environment variables |
