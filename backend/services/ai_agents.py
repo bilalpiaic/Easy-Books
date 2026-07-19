@@ -28,7 +28,7 @@ class AgentDef:
     label: str                      # shown in the chat's stage-progress label
     trigger_hint: str                # one-line description fed to the triage prompt
     system_prompt_fragment: str      # appended to the base system prompt
-    tools: tuple[str, ...]           # subset of ai_chat.TOOLS names this agent may call
+    tools: tuple[str, ...]           # subset of ai_tools.TOOL_REGISTRY names this agent may call
     required_module: str | None = None  # None = always offered once ai_assistant is installed
 
 
@@ -104,3 +104,12 @@ def available_agents(installed_modules: set[str]) -> dict[str, AgentDef]:
         for key, agent in AGENTS.items()
         if agent.required_module is None or agent.required_module in installed_modules
     }
+
+
+# A tool name that isn't in TOOL_REGISTRY would be silently dropped when the
+# specialist's tool subset is built — fail loudly at import instead.
+from services.ai_tools import TOOL_REGISTRY as _TOOL_REGISTRY  # noqa: E402
+
+for _agent in AGENTS.values():
+    _unknown = set(_agent.tools) - _TOOL_REGISTRY.keys()
+    assert not _unknown, f"agent {_agent.key!r} references unknown tools: {sorted(_unknown)}"
