@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiFetch } from "@/lib/api"
@@ -13,7 +13,7 @@ type ContractOpt = { id: number; number: string; planned_total_yarn_kg?: number 
 const inputCls = "w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--bg-card)]"
 const labelCls = "block text-xs font-medium text-[var(--text-muted)] mb-1"
 
-export default function WeavingCalculatorPage() {
+function WeavingCalculatorInner() {
   const router = useRouter()
   const search = useSearchParams()
   const [contracts, setContracts] = useState<ContractOpt[]>([])
@@ -180,5 +180,13 @@ export default function WeavingCalculatorPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function WeavingCalculatorPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-sm text-[var(--text-muted)]">Loading…</div>}>
+      <WeavingCalculatorInner />
+    </Suspense>
   )
 }
