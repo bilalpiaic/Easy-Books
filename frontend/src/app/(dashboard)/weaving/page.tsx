@@ -7,7 +7,7 @@ import { useFmt } from "@/context/SettingsContext"
 import KpiCard from "@/components/dashboard/KpiCard"
 import { WeightTripleDisplay } from "@/components/weaving/WeightDisplays"
 import { formatWeightTriple, type WeightTriple } from "@/lib/weavingUnits"
-import { Activity, Factory, PackagePlus, Truck, Scissors, Layers } from "lucide-react"
+import { Activity, Factory, PackagePlus, Truck, Scissors, Layers, Calculator } from "lucide-react"
 
 type Dash = {
   kpis: {
@@ -31,6 +31,8 @@ const LINKS = [
   { href: "/weaving/sizing", label: "Sizing", icon: Layers },
   { href: "/weaving/production", label: "Production", icon: Activity },
   { href: "/weaving/dispatch", label: "Dispatch", icon: Truck },
+  { href: "/weaving/calculators/weaving", label: "Weaving Calc", icon: Calculator },
+  { href: "/weaving/calculators/sizing", label: "Sizing Calc", icon: Calculator },
   { href: "/weaving/dashboard", label: "Full Dashboard", icon: Factory },
 ]
 

@@ -49,6 +49,9 @@ def _ser_weight(kg: Decimal | float | None) -> dict[str, float]:
 
 
 def _ser_contract(c: WvContract) -> dict[str, Any]:
+    def _opt(v):
+        return float(v) if v is not None else None
+
     return {
         "id": c.id,
         "number": c.number,
@@ -70,6 +73,12 @@ def _ser_contract(c: WvContract) -> dict[str, Any]:
         "payment_terms": c.payment_terms,
         "status": c.status,
         "notes": c.notes,
+        "planned_warp_kg": _opt(c.planned_warp_kg),
+        "planned_weft_kg": _opt(c.planned_weft_kg),
+        "planned_total_yarn_kg": _opt(c.planned_total_yarn_kg),
+        "warp_count_ne": _opt(c.warp_count_ne),
+        "weft_count_ne": _opt(c.weft_count_ne),
+        "last_calc_at": c.last_calc_at.isoformat() if c.last_calc_at else None,
         "created_at": c.created_at.isoformat() if c.created_at else None,
     }
 
@@ -168,6 +177,7 @@ class MasterCreate(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     phone: Optional[str] = None
+    count_ne: Optional[Decimal] = None
     is_active: bool = True
 
 
@@ -179,6 +189,7 @@ class MasterUpdate(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     phone: Optional[str] = None
+    count_ne: Optional[Decimal] = None
     is_active: Optional[bool] = None
 
 
@@ -192,6 +203,8 @@ def _ser_master(row) -> dict[str, Any]:
     for attr in ("description", "loom_type", "start_time", "end_time", "phone"):
         if hasattr(row, attr):
             d[attr] = getattr(row, attr)
+    if hasattr(row, "count_ne"):
+        d["count_ne"] = float(row.count_ne) if row.count_ne is not None else None
     return d
 
 
@@ -281,7 +294,7 @@ def create_yarn_type(user: WriteUserDep, session: SessionDep, body: MasterCreate
     _require_weaving(session, user)
     row = WvYarnType(
         tenant_id=user.tenant_id, code=body.code.strip(), name=body.name.strip(),
-        description=body.description, is_active=body.is_active,
+        description=body.description, count_ne=body.count_ne, is_active=body.is_active,
     )
     session.add(row)
     session.commit()

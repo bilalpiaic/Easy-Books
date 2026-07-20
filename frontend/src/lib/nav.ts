@@ -9,7 +9,7 @@ import {
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
-  ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors,
+  ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator,
 } from "lucide-react"
 
 export type NavItem = {
@@ -148,6 +148,8 @@ export const NAV: NavItem[] = [
   { label: "Sizing",            href: "/weaving/sizing",          icon: Layers,        section: "Weaving", forModule: "weaving" },
   { label: "Production",        href: "/weaving/production",      icon: Factory,       section: "Weaving", forModule: "weaving" },
   { label: "Dispatch",          href: "/weaving/dispatch",        icon: Truck,         section: "Weaving", forModule: "weaving" },
+  { label: "Weaving Calc",      href: "/weaving/calculators/weaving", icon: Calculator, section: "Weaving", forModule: "weaving" },
+  { label: "Sizing Calc",       href: "/weaving/calculators/sizing",  icon: Calculator, section: "Weaving", forModule: "weaving" },
   { label: "Daily Ops",         href: "/weaving/reports/daily",   icon: Activity,      section: "Weaving", forModule: "weaving" },
   { label: "Contract Control",  href: "/weaving/reports/contract-control", icon: ClipboardList, section: "Weaving", forModule: "weaving" },
   { label: "Customer KPI",      href: "/weaving/reports/customer-kpi", icon: PieChart, section: "Weaving", forModule: "weaving" },
@@ -367,6 +369,8 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Sizing",           href: "/weaving/sizing",       icon: Layers,         section: "weaving", forModule: "weaving" },
     { label: "Production",       href: "/weaving/production",   icon: Factory,        section: "weaving", forModule: "weaving" },
     { label: "Dispatch",         href: "/weaving/dispatch",     icon: Truck,          section: "weaving", forModule: "weaving" },
+    { label: "Weaving Calc",     href: "/weaving/calculators/weaving", icon: Calculator, section: "weaving", forModule: "weaving" },
+    { label: "Sizing Calc",      href: "/weaving/calculators/sizing",  icon: Calculator, section: "weaving", forModule: "weaving" },
     { label: "Daily Ops",        href: "/weaving/reports/daily", icon: Activity,      section: "weaving", forModule: "weaving" },
     { label: "Contract Control", href: "/weaving/reports/contract-control", icon: ClipboardList, section: "weaving", forModule: "weaving" },
     { label: "Customer KPI",     href: "/weaving/reports/customer-kpi", icon: PieChart, section: "weaving", forModule: "weaving" },

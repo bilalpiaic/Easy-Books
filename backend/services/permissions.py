@@ -104,6 +104,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "weaving.sizing":         {"label": "Sizing",                "category": "Weaving"},
     "weaving.production":     {"label": "Weaving Production",    "category": "Weaving"},
     "weaving.dispatch":       {"label": "Weaving Dispatch",      "category": "Weaving"},
+    "weaving.calculators":    {"label": "Weaving Calculators",   "category": "Weaving"},
     "weaving.reports":        {"label": "Weaving Reports",       "category": "Weaving"},
 }
 
