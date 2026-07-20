@@ -3,10 +3,9 @@
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import {
-  ChevronDown, ChevronLeft, ChevronRight,
-  LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon, Search,
+  ChevronDown, LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon, Search,
   PlusCircle, Scale, Stethoscope, Factory, Radio, LayoutDashboard, Settings, Scissors,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -31,10 +30,83 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: Reac
   telecom:       { href: "/telecom",        label: "Telecom Overview",    icon: Radio           },
   pra:           { href: "/pra-dashboard",  label: "PRA Dashboard",       icon: LayoutDashboard },
   system:        { href: "/settings",       label: "Settings",            icon: Settings        },
+  store:         { href: "/store/gate-outward", label: "Store Overview",  icon: LayoutGrid      },
 }
 
 const LEFT_KEYS  = new Set(["dashboard", "banking", "sales", "purchases"])
 const RIGHT_KEYS = new Set(["accounting", "reports", "system"])
+
+/** Pixel budget for the two vertical separators around the add-on cluster. */
+const ADDON_SEP_BUDGET = 18
+/** Gap between flex children (`gap-0.5` = 2px). */
+const TAB_GAP = 2
+
+function tabLabel(section: TopNavSection, compact: boolean): string {
+  if (compact && section.shortLabel) return section.shortLabel
+  return section.label
+}
+
+/** Greedy fit: keep add-ons from the front until the next would overflow. */
+function fitAddonCount(
+  available: number,
+  widths: number[],
+  orderedKeys: string[],
+  promoteKey: string | null,
+): { visibleKeys: string[]; overflowKeys: string[] } {
+  if (widths.length === 0 || available <= 0) {
+    return { visibleKeys: [], overflowKeys: orderedKeys.slice() }
+  }
+
+  const widthByKey = new Map(orderedKeys.map((k, i) => [k, widths[i] ?? 90]))
+
+  // Promote active overflow candidate to the front of the fit order.
+  let order = orderedKeys.slice()
+  if (promoteKey && order.includes(promoteKey)) {
+    order = [promoteKey, ...order.filter(k => k !== promoteKey)]
+  }
+
+  let used = ADDON_SEP_BUDGET
+  const visible: string[] = []
+  for (const key of order) {
+    const w = (widthByKey.get(key) ?? 90) + (visible.length > 0 ? TAB_GAP : 0)
+    if (used + w > available) break
+    used += w
+    visible.push(key)
+  }
+
+  // If promotion didn't fit (tiny viewport), force-show it by dropping the last.
+  if (promoteKey && order.includes(promoteKey) && !visible.includes(promoteKey)) {
+    const pw = widthByKey.get(promoteKey) ?? 90
+    if (visible.length === 0) {
+      if (ADDON_SEP_BUDGET + pw <= available) visible.push(promoteKey)
+    } else {
+      while (visible.length > 0) {
+        const trial = [...visible.slice(0, -1), promoteKey]
+        let t = ADDON_SEP_BUDGET
+        let ok = true
+        for (let i = 0; i < trial.length; i++) {
+          t += (widthByKey.get(trial[i]) ?? 90) + (i > 0 ? TAB_GAP : 0)
+          if (t > available) { ok = false; break }
+        }
+        if (ok) {
+          visible.length = 0
+          visible.push(...trial)
+          break
+        }
+        visible.pop()
+      }
+      if (!visible.includes(promoteKey) && ADDON_SEP_BUDGET + pw <= available) {
+        visible.length = 0
+        visible.push(promoteKey)
+      }
+    }
+  }
+
+  const visSet = new Set(visible)
+  // Preserve TOP_NAV order in the overflow list (not promote order).
+  const overflow = orderedKeys.filter(k => !visSet.has(k))
+  return { visibleKeys: visible, overflowKeys: overflow }
+}
 
 export default function TopNav() {
   const pathname             = usePathname()
@@ -48,22 +120,80 @@ export default function TopNav() {
   const [isAdmin, setIsAdmin]   = useState(false)
   const [userOpen, setUserOpen] = useState(false)
 
-  // open: which section key is expanded (or "__more__"), panelAnchor: the button's rect
   const [open, setOpen]               = useState<string | null>(null)
   const [panelAnchor, setPanelAnchor] = useState<DOMRect | null>(null)
+  const [moreExpanded, setMoreExpanded] = useState<string | null>(null)
 
-  // Portal requires document — guard against SSR
   const [mounted, setMounted] = useState(false)
 
-  // Scroll state for nav strip indicators
-  const navScrollRef                    = useRef<HTMLDivElement>(null)
-  const userRef                         = useRef<HTMLDivElement>(null)
-  const [canScrollLeft, setCanScrollLeft]   = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
+  const userRef       = useRef<HTMLDivElement>(null)
+  const stripRef      = useRef<HTMLDivElement>(null)
+  const leftRef       = useRef<HTMLDivElement>(null)
+  const rightRef      = useRef<HTMLDivElement>(null)
+  const moreRef       = useRef<HTMLButtonElement>(null)
+  const measureRef    = useRef<HTMLDivElement>(null)
+
+  const [addonWidths, setAddonWidths] = useState<number[]>([])
+  const [budget, setBudget]           = useState(0)
 
   const activeSection = getActiveSection(pathname, installedModules)
 
-  // ── One-time effects ────────────────────────────────────────────────────────
+  const leftNav  = useMemo(() => TOP_NAV.filter(s => LEFT_KEYS.has(s.key)), [])
+  const rightNav = useMemo(() => TOP_NAV.filter(s => RIGHT_KEYS.has(s.key)), [])
+  const installedMods = useMemo(
+    () => TOP_NAV.filter(s => !!s.forModule && installedModules.has(s.forModule!)),
+    [installedModules],
+  )
+
+  const promoteKey =
+    installedMods.some(s => s.key === activeSection) ? activeSection : null
+
+  const { visibleKeys, overflowKeys } = useMemo(() => {
+    const keys = installedMods.map(s => s.key)
+    return fitAddonCount(budget, addonWidths, keys, promoteKey)
+  }, [budget, addonWidths, installedMods, promoteKey])
+
+  const visibleAddons = useMemo(
+    () => visibleKeys.map(k => installedMods.find(s => s.key === k)!).filter(Boolean),
+    [visibleKeys, installedMods],
+  )
+  const overflowAddons = useMemo(
+    () => overflowKeys.map(k => installedMods.find(s => s.key === k)!).filter(Boolean),
+    [overflowKeys, installedMods],
+  )
+
+  // ── Measure addon tab natural widths (hidden row) ──────────────────────────
+  useLayoutEffect(() => {
+    const el = measureRef.current
+    if (!el) { setAddonWidths([]); return }
+    const kids = Array.from(el.children) as HTMLElement[]
+    setAddonWidths(kids.map(k => Math.ceil(k.getBoundingClientRect().width)))
+  }, [installedMods])
+
+  // ── Available width for the add-on cluster ─────────────────────────────────
+  const recomputeBudget = useCallback(() => {
+    const strip = stripRef.current
+    if (!strip) return
+    const leftW  = leftRef.current?.offsetWidth ?? 0
+    const rightW = rightRef.current?.offsetWidth ?? 0
+    const moreW  = moreRef.current?.offsetWidth ?? 72
+    // strip contains left + addons + right + more; budget is what's left for addons
+    const avail = strip.clientWidth - leftW - rightW - moreW - 8
+    setBudget(Math.max(0, avail))
+  }, [])
+
+  useLayoutEffect(() => {
+    recomputeBudget()
+    const strip = stripRef.current
+    if (!strip) return
+    const ro = new ResizeObserver(() => recomputeBudget())
+    ro.observe(strip)
+    if (leftRef.current) ro.observe(leftRef.current)
+    if (rightRef.current) ro.observe(rightRef.current)
+    if (moreRef.current) ro.observe(moreRef.current)
+    return () => ro.disconnect()
+  }, [recomputeBudget, leftNav, rightNav, installedMods.length])
+
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
@@ -75,7 +205,6 @@ export default function TopNav() {
     }
   }, [])
 
-  // Close user dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (userRef.current && !userRef.current.contains(e.target as Node)) {
@@ -86,47 +215,25 @@ export default function TopNav() {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  // Close section panel on route change
-  useEffect(() => { setOpen(null); setPanelAnchor(null) }, [pathname])
-
-  // ── Nav scroll indicators ───────────────────────────────────────────────────
-  const checkScroll = useCallback(() => {
-    const el = navScrollRef.current
-    if (!el) return
-    setCanScrollLeft(el.scrollLeft > 2)
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2)
-  }, [])
-
   useEffect(() => {
-    checkScroll()
-    const el = navScrollRef.current
-    if (!el) return
-    el.addEventListener("scroll", checkScroll, { passive: true })
-    const ro = new ResizeObserver(checkScroll)
-    ro.observe(el)
-    return () => { el.removeEventListener("scroll", checkScroll); ro.disconnect() }
-  }, [checkScroll])
-
-  // ── Nav data ─────────────────────────────────────────────────────────────────
-  const leftNav       = TOP_NAV.filter(s => LEFT_KEYS.has(s.key))
-  const rightNav      = TOP_NAV.filter(s => RIGHT_KEYS.has(s.key))
-  const installedMods = TOP_NAV.filter(s => !!s.forModule && installedModules.has(s.forModule!))
+    setOpen(null)
+    setPanelAnchor(null)
+    setMoreExpanded(null)
+  }, [pathname])
 
   const handleLogout = () => { removeAuthToken(); router.push("/login") }
 
-  // Toggle open dropdown — captures button rect for portal positioning
   const toggle = (key: string, e: React.MouseEvent<HTMLButtonElement>) => {
     if (open === key) {
-      setOpen(null); setPanelAnchor(null)
+      setOpen(null); setPanelAnchor(null); setMoreExpanded(null)
     } else {
       setPanelAnchor(e.currentTarget.getBoundingClientRect())
       setOpen(key)
+      if (key !== "__more__") setMoreExpanded(null)
     }
   }
 
-  const closePanel = () => { setOpen(null); setPanelAnchor(null) }
-
-  // ── Dropdown content builders ───────────────────────────────────────────────
+  const closePanel = () => { setOpen(null); setPanelAnchor(null); setMoreExpanded(null) }
 
   function buildSectionItems(sectionKey: string) {
     const ov    = SECTION_OVERVIEW[sectionKey]
@@ -136,9 +243,6 @@ export default function TopNav() {
       if (ov && item.href === ov.href) return false
       return true
     })
-    // The overview link renders through the same template as every other
-    // item (#132) — a distinct icon/bold first row read as a section
-    // heading, so users skipped it.
     return (
       <>
         {[...(ov ? [ov] : []), ...items].map(item => (
@@ -160,6 +264,44 @@ export default function TopNav() {
   function buildMoreItems() {
     return (
       <>
+        {overflowAddons.length > 0 && (
+          <>
+            <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+              Sections
+            </p>
+            {overflowAddons.map(section => {
+              const expanded = moreExpanded === section.key
+              const isActive = activeSection === section.key
+              return (
+                <div key={section.key}>
+                  <button
+                    type="button"
+                    onClick={() => setMoreExpanded(expanded ? null : section.key)}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-2 px-4 py-2 text-[13px] transition-colors",
+                      isActive
+                        ? "text-[var(--primary)] font-semibold bg-[var(--primary-light)]"
+                        : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                    )}
+                  >
+                    <span>{section.label}</span>
+                    <ChevronDown className={cn(
+                      "w-3 h-3 opacity-50 transition-transform duration-150",
+                      expanded && "rotate-180",
+                    )} />
+                  </button>
+                  {expanded && (
+                    <div className="bg-[var(--bg-page)]/60 border-y border-[var(--border-light)] py-0.5 mb-0.5">
+                      {buildSectionItems(section.key)}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            <div className="border-t border-[var(--border-light)] mt-1" />
+          </>
+        )}
+
         <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
           Custom Reports
         </p>
@@ -195,24 +337,24 @@ export default function TopNav() {
     )
   }
 
-  // ── Portal panel (one shared portal for all dropdowns) ────────────────────
   function renderPortal() {
     if (!mounted || !open || !panelAnchor) return null
 
     const isMore  = open === "__more__"
     const content = isMore ? buildMoreItems() : buildSectionItems(open)
     const top     = panelAnchor.bottom + 4
-    // More ▾ aligns right edge to button right edge; others align left edge
     const style: React.CSSProperties = isMore
       ? { top, right: Math.max(8, window.innerWidth - panelAnchor.right) }
       : { top, left: Math.min(panelAnchor.left, window.innerWidth - 230) }
 
     return createPortal(
       <>
-        {/* Full-screen backdrop — click it to close */}
         <div className="fixed inset-0 z-[99]" onClick={closePanel} />
         <div
-          className="fixed bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 min-w-[210px] z-[100]"
+          className={cn(
+            "fixed bg-[var(--bg-card)] border border-[var(--border)] rounded-lg shadow-xl py-1 z-[100]",
+            isMore && overflowAddons.length > 0 ? "min-w-[240px] max-h-[min(70vh,480px)] overflow-y-auto" : "min-w-[210px]",
+          )}
           style={style}
         >
           {content}
@@ -222,10 +364,10 @@ export default function TopNav() {
     )
   }
 
-  // ── Tab renderer ──────────────────────────────────────────────────────────
-  function renderTab(section: TopNavSection) {
+  function renderTab(section: TopNavSection, compact = false) {
     const isActive = activeSection === section.key
     const isOpen   = open === section.key
+    const label    = tabLabel(section, compact)
     const cls = cn(
       "flex items-center gap-0.5 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer shrink-0",
       isActive
@@ -236,7 +378,7 @@ export default function TopNav() {
     if (section.key === "dashboard") {
       return (
         <Link key={section.key} href="/dashboard" className={cls}>
-          {section.label}
+          {label}
         </Link>
       )
     }
@@ -244,13 +386,14 @@ export default function TopNav() {
     return (
       <button key={section.key} type="button"
         onClick={(e) => toggle(section.key, e)} className={cls}>
-        {section.label}
+        {label}
         <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", isOpen && "rotate-180")} />
       </button>
     )
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const moreHighlightsOverflow = overflowAddons.some(s => s.key === activeSection)
+
   return (
     <>
       <header className="h-[52px] bg-[var(--nav-bg)] flex items-center px-3 gap-1 shrink-0 z-50 relative print:hidden">
@@ -265,57 +408,58 @@ export default function TopNav() {
           </span>
         </Link>
 
-        {/* Desktop nav — scrollable strip */}
-        <div className="hidden md:flex items-center flex-1 min-w-0 relative">
+        {/* Desktop nav — priority strip + More overflow (no horizontal scroll) */}
+        <div ref={stripRef} className="hidden md:flex items-center flex-1 min-w-0">
 
-          {/* Left scroll arrow */}
-          {canScrollLeft && (
-            <button type="button" aria-label="Scroll nav left"
-              onClick={() => navScrollRef.current?.scrollBy({ left: -200, behavior: "smooth" })}
-              className="absolute left-0 top-0 bottom-0 w-7 z-10 flex items-center justify-center bg-gradient-to-r from-[var(--nav-bg)] via-[var(--nav-bg)]/80 to-transparent text-[var(--nav-dim)] hover:text-[var(--nav-text)] transition-colors">
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
+          <div ref={leftRef} className="flex items-center gap-0.5 shrink-0">
+            {leftNav.map(s => renderTab(s))}
+          </div>
+
+          {visibleAddons.length > 0 && (
+            <>
+              <span className="w-px h-4 bg-[var(--nav-sep)] mx-1 shrink-0" aria-hidden />
+              <div className="flex items-center gap-0.5 min-w-0">
+                {visibleAddons.map(s => renderTab(s, true))}
+              </div>
+              <span className="w-px h-4 bg-[var(--nav-sep)] mx-1 shrink-0" aria-hidden />
+            </>
           )}
 
-          {/* Scrollable tab strip — overflow-x here is safe because dropdowns use portal */}
-          <div ref={navScrollRef}
-            className="flex items-center gap-0.5 overflow-x-auto flex-1 scrollbar-hide px-1"
-            style={{ scrollBehavior: "smooth" }}>
-
-            {leftNav.map(s => renderTab(s))}
-
-            {installedMods.length > 0 && (
-              <span className="w-px h-4 bg-[var(--nav-sep)] mx-1 shrink-0" aria-hidden />
-            )}
-            {installedMods.map(s => renderTab(s))}
-            {installedMods.length > 0 && (
-              <span className="w-px h-4 bg-[var(--nav-sep)] mx-1 shrink-0" aria-hidden />
-            )}
-
+          <div ref={rightRef} className="flex items-center gap-0.5 shrink-0">
             {rightNav.map(s => renderTab(s))}
           </div>
 
-          {/* Right scroll arrow */}
-          {canScrollRight && (
-            <button type="button" aria-label="Scroll nav right"
-              onClick={() => navScrollRef.current?.scrollBy({ left: 200, behavior: "smooth" })}
-              className="absolute right-[72px] top-0 bottom-0 w-7 z-10 flex items-center justify-center bg-gradient-to-l from-[var(--nav-bg)] via-[var(--nav-bg)]/80 to-transparent text-[var(--nav-dim)] hover:text-[var(--nav-text)] transition-colors">
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* More ▾ — fixed at right, NOT inside scroll container */}
-          <button type="button"
+          <button ref={moreRef} type="button"
             onClick={(e) => toggle("__more__", e)}
             className={cn(
               "flex items-center gap-1 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer shrink-0 ml-1",
-              open === "__more__"
+              open === "__more__" || moreHighlightsOverflow
                 ? "bg-[var(--nav-hover)] text-[var(--nav-text)]"
                 : "text-[var(--nav-dim)] hover:bg-[var(--nav-hover)] hover:text-[var(--nav-text)]"
             )}>
             More
+            {overflowAddons.length > 0 && (
+              <span className="text-[10px] opacity-60 tabular-nums">+{overflowAddons.length}</span>
+            )}
             <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", open === "__more__" && "rotate-180")} />
           </button>
+        </div>
+
+        {/* Off-screen measure row — natural widths of every installed add-on tab */}
+        <div
+          ref={measureRef}
+          aria-hidden
+          className="fixed left-[-9999px] top-0 flex items-center gap-0.5 opacity-0 pointer-events-none"
+        >
+          {installedMods.map(s => (
+            <span
+              key={s.key}
+              className="flex items-center gap-0.5 px-3 py-1.5 rounded-md text-[13px] whitespace-nowrap shrink-0"
+            >
+              {tabLabel(s, true)}
+              <ChevronDown className="w-3 h-3" />
+            </span>
+          ))}
         </div>
 
         {/* Right side — search + theme toggle + avatar */}
@@ -359,7 +503,6 @@ export default function TopNav() {
         </div>
       </header>
 
-      {/* Portal-rendered dropdown panel — lives at body level, never clipped */}
       {renderPortal()}
     </>
   )
