@@ -48,6 +48,10 @@ const STATUS_COLORS: Record<string, string> = {
   performed:         "bg-green-100 text-green-800",
   active:            "bg-emerald-100 text-emerald-800",
   inactive:          "bg-gray-100 text-gray-700",
+  scheduled:         "bg-sky-100 text-sky-800",
+  in_progress:       "bg-amber-100 text-amber-800",
+  completed:         "bg-emerald-100 text-emerald-800",
+  no_show:           "bg-rose-100 text-rose-800",
 }
 
 export function StatusBadge({ status }: { status: string }) {

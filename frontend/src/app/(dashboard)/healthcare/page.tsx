@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
-import { Stethoscope, BedDouble, FlaskConical, Activity, AlertCircle } from "lucide-react"
+import { Stethoscope, BedDouble, FlaskConical, Activity, AlertCircle, Droplets } from "lucide-react"
 import { HcCard, StatusBadge } from "@/components/healthcare/primitives"
 import Link from "next/link"
 
@@ -14,6 +14,10 @@ type Dashboard = {
   occupied_beds: number
   bed_occupancy_pct: number
   pending_lab_results: number
+  dialysis_sessions_today?: number
+  dialysis_capacity?: number
+  dialysis_machines?: number
+  dialysis_shifts?: number
 }
 
 type PendingLab = {
@@ -58,11 +62,12 @@ export default function HealthcarePage() {
       color: "text-rose-500",
     },
     {
-      label: "Bed Occupancy",
-      value: `${dash.bed_occupancy_pct}%`,
-      sub: `${dash.total_beds} total beds`,
-      icon: Stethoscope,
-      color: "text-amber-500",
+      label: "Dialysis Today",
+      value: `${dash.dialysis_sessions_today ?? 0}/${dash.dialysis_capacity ?? 0}`,
+      sub: `${dash.dialysis_machines ?? 0} machines · ${dash.dialysis_shifts ?? 0} shifts`,
+      icon: Droplets,
+      color: "text-sky-500",
+      href: "/healthcare/dialysis",
     },
     {
       label: "Pending Lab Results",
@@ -88,24 +93,31 @@ export default function HealthcarePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {kpis.map(k => {
           const Icon = k.icon
-          return (
-            <div key={k.label} className="bg-white rounded-xl border border-neutral-200 p-4">
+          const inner = (
+            <>
               <div className="flex items-center gap-2 text-neutral-500 text-xs mb-2">
                 <Icon className={`w-4 h-4 ${k.color}`} />
                 {k.label}
               </div>
               <div className="text-2xl font-bold text-neutral-900">{k.value}</div>
               <div className="text-xs text-neutral-400 mt-0.5">{k.sub}</div>
-            </div>
+            </>
+          )
+          const cls = "bg-white rounded-xl border border-neutral-200 p-4 block hover:border-rose-300 transition-colors"
+          return k.href ? (
+            <Link key={k.label} href={k.href} className={cls}>{inner}</Link>
+          ) : (
+            <div key={k.label} className={cls}>{inner}</div>
           )
         })}
       </div>
 
       {/* Quick links */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { href: "/healthcare/opd", label: "OPD Queue", icon: Activity },
           { href: "/healthcare/ipd", label: "Ward View", icon: BedDouble },
+          { href: "/healthcare/dialysis", label: "Dialysis", icon: Droplets },
           { href: "/healthcare/lab", label: "Lab Orders", icon: FlaskConical },
           { href: "/healthcare/patients", label: "Patient Registry", icon: Stethoscope },
         ].map(l => {
@@ -132,7 +144,7 @@ export default function HealthcarePage() {
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
                   <Link
-                    href={`/healthcare/lab?order=${order.id}`}
+                    href={`/healthcare/lab/${order.id}`}
                     className="text-sm font-medium text-neutral-800 hover:text-rose-600"
                   >
                     {order.order_number}

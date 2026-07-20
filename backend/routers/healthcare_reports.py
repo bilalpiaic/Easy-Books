@@ -7,7 +7,8 @@ from fastapi import APIRouter
 from sqlmodel import Session, func, select
 
 from models_healthcare import (
-    HcAdmission, HcAdmissionCharge, HcBed, HcDoctor, HcLabOrder,
+    HcAdmission, HcAdmissionCharge, HcBed, HcDialysisMachine, HcDialysisSession,
+    HcDialysisShift, HcDoctor, HcLabOrder,
     HcLabOrderItem, HcOpdToken, HcOpdVisit, HcPatient, HcProcedureOrder,
     HcWard,
 )
@@ -64,6 +65,30 @@ def dashboard(user: CurrentUserDep, session: SessionDep, date: Optional[str] = N
         )
     ).one() or 0
 
+    dialysis_booked = session.exec(
+        select(func.count(HcDialysisSession.id)).where(
+            HcDialysisSession.tenant_id == tid,
+            HcDialysisSession.session_date == today,
+            HcDialysisSession.status.in_(["scheduled", "in_progress", "completed", "no_show"]),
+        )
+    ).one() or 0
+
+    dialysis_machines = session.exec(
+        select(func.count(HcDialysisMachine.id)).where(
+            HcDialysisMachine.tenant_id == tid,
+            HcDialysisMachine.is_active == True,  # noqa: E712
+        )
+    ).one() or 0
+
+    dialysis_shifts = session.exec(
+        select(func.count(HcDialysisShift.id)).where(
+            HcDialysisShift.tenant_id == tid,
+            HcDialysisShift.is_active == True,  # noqa: E712
+        )
+    ).one() or 0
+
+    dialysis_capacity = int(dialysis_machines) * int(dialysis_shifts)
+
     return {
         "date": today,
         "tokens_today": tokens_today,
@@ -73,6 +98,10 @@ def dashboard(user: CurrentUserDep, session: SessionDep, date: Optional[str] = N
         "occupied_beds": occupied_beds,
         "bed_occupancy_pct": round(occupied_beds / total_beds * 100, 1) if total_beds else 0,
         "pending_lab_results": pending_labs,
+        "dialysis_sessions_today": dialysis_booked,
+        "dialysis_capacity": dialysis_capacity,
+        "dialysis_machines": dialysis_machines,
+        "dialysis_shifts": dialysis_shifts,
     }
 
 

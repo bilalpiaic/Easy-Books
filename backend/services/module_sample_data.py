@@ -55,6 +55,7 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
             sd._seed_telecom_franchise(session, user)
         elif module_id == "healthcare":
             sd._seed_healthcare(session, user)
+            sd._seed_dialysis(session, user)
         elif module_id == "pra":
             sd._seed_pra_settings(session, tid)
             sd._seed_pra_customers(session, tid)

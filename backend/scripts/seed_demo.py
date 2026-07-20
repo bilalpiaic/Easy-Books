@@ -87,6 +87,7 @@ from models_healthcare import (
     HcOpdToken, HcOpdVisit, HcPrescription, HcPrescriptionItem,
     HcAdmission, HcAdmissionCharge, HcLabTest, HcLabOrder, HcLabOrderItem,
     HcSampleCollection, HcProcedureOrder, HcStoreIssue, HcStoreIssueItem,
+    HcDialysisUnit, HcDialysisMachine, HcDialysisShift, HcDialysisSession,
 )
 from models_weaving import (
     WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
@@ -100,7 +101,7 @@ from services.franchise_posting import (
 )
 from services.healthcare_posting import (
     post_opd_consultation, post_ipd_deposit, post_lab_order,
-    post_discharge_bill, post_store_issue,
+    post_discharge_bill, post_store_issue, post_procedure,
 )
 from services.inventory import (
     InventoryError, consume_stock, record_movement, record_purchase,
@@ -4097,6 +4098,63 @@ def _seed_pra_submission_logs(s: Session, tenant_id: int) -> None:
         added += 1
 
 
+def _lab_demo_result(test: HcLabTest) -> tuple[str, str, str, bool]:
+    """Return (value, unit, reference_range, is_abnormal) tuned to the catalogue
+    row so the printable lab report looks realistic instead of a generic 5–15."""
+    unit = test.unit or ""
+    ref = test.normal_range or ""
+    code = (test.code or "").upper()
+    abnormal = random.random() < 0.15
+
+    # Qualitative / imaging
+    qualitative = {
+        "URINE-R": ("Negative", "Trace", "Positive"),
+        "HBSAG": ("Non-Reactive", "Reactive"),
+        "HCV-AB": ("Non-Reactive", "Reactive"),
+        "COVID-AG": ("Negative", "Positive"),
+        "DENGUE": ("Negative", "Positive"),
+        "PREG": ("Negative", "Positive"),
+        "C/S": ("No growth", "E. coli isolated", "S. aureus isolated"),
+        "CHEST-PA": ("Normal study", "Mild congestion", "Clear lung fields"),
+        "USG-ABD": ("Normal study", "Mild fatty liver", "Normal visceral organs"),
+        "ECG-LAB": ("Sinus rhythm", "Sinus tachycardia", "Normal ECG"),
+        "LFT": ("Within normal limits", "Mild elevation", "WNL"),
+        "RFT": ("Within normal limits", "Mild elevation", "WNL"),
+        "LIPID": ("Desirable", "Borderline high", "High"),
+    }
+    if code in qualitative:
+        choices = qualitative[code]
+        if abnormal and len(choices) > 1:
+            return choices[-1], unit, ref, True
+        return choices[0], unit, ref, False
+
+    # Numeric assays — mid-range normal with occasional outliers
+    numeric = {
+        "CBC": (4.0, 11.0, 1),
+        "HB": (12.0, 17.0, 1),
+        "ESR": (0.0, 20.0, 0),
+        "PT-INR": (11.0, 13.5, 1),
+        "BS-F": (70.0, 100.0, 0),
+        "BS-R": (80.0, 140.0, 0),
+        "TSH": (0.4, 4.0, 2),
+    }
+    if code in numeric:
+        lo, hi, places = numeric[code]
+        mid = (lo + hi) / 2
+        span = (hi - lo) / 2
+        if abnormal:
+            val = hi + span * random.uniform(0.2, 0.8) if random.random() < 0.5 else max(0, lo - span * random.uniform(0.2, 0.6))
+        else:
+            val = mid + span * random.uniform(-0.6, 0.6)
+        fmt = f"{{:.{places}f}}"
+        return fmt.format(val), unit, ref, abnormal
+
+    # Fallback: stay near catalogue range text or a mild numeric
+    if abnormal:
+        return "Elevated", unit, ref, True
+    return "Normal", unit, ref, False
+
+
 def _seed_healthcare(s: Session, user: User) -> None:
     """Seed hospital demo data: doctors, wards, beds, patients, OPD, IPD, lab, procedures.
     Idempotent — skips if HcDoctor rows already exist for this tenant."""
@@ -4377,6 +4435,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
         lo_num = next_number(s, tid, "hc_lab_order", "LO")
         order = HcLabOrder(
             tenant_id=tid, order_number=lo_num, patient_id=pat.id,
+            doctor_id=random.choice(doctors).id if source in ("opd", "ipd") else None,
             order_date=order_date, source=source, status=status,
         )
         s.add(order); s.flush()
@@ -4384,15 +4443,16 @@ def _seed_healthcare(s: Session, user: User) -> None:
         lab_total = Decimal("0")
         for test in tests_chosen:
             item = HcLabOrderItem(
-                tenant_id=tid, lab_order_id=order.id,
+                lab_order_id=order.id,
                 test_id=test.id, fee=test.standard_fee,
             )
             if status in ("resulted", "delivered"):
-                item.result_value  = f"{random.randint(5, 15)}.{random.randint(0, 9)}"
-                item.result_unit   = test.unit or ""
-                item.reference_range = test.normal_range or ""
-                item.is_abnormal   = random.random() < 0.15
-                item.resulted_at   = datetime.utcnow()
+                value, unit, ref, abnormal = _lab_demo_result(test)
+                item.result_value = value
+                item.result_unit = unit
+                item.reference_range = ref
+                item.is_abnormal = abnormal
+                item.resulted_at = datetime.utcnow()
                 item.resulted_by_id = user.id
             s.add(item)
             lab_total += test.standard_fee
@@ -4442,6 +4502,324 @@ def _seed_healthcare(s: Session, user: User) -> None:
         else:
             s.add(SequenceCounter(tenant_id=tid, name=seq_name, next_value=next_val))
     s.flush()
+
+
+def _seed_dialysis(s: Session, user: User) -> None:
+    """Dialysis Treatment Unit: 17 machines, 3×4h shifts (08:00–20:00), capacity 51/day.
+    Idempotent — skips when a dialysis unit already exists for the tenant."""
+    tid = user.tenant_id
+    if s.exec(select(HcDialysisUnit).where(HcDialysisUnit.tenant_id == tid)).first():
+        return
+
+    today = date.today()
+    unit = HcDialysisUnit(
+        tenant_id=tid,
+        name="Dialysis Treatment Unit",
+        open_time="08:00",
+        close_time="20:00",
+        shift_hours=4,
+        created_at=datetime.utcnow(),
+    )
+    s.add(unit)
+    s.flush()
+
+    SHIFT_DATA = [
+        ("A", "Morning", "08:00", "12:00", 1),
+        ("B", "Afternoon", "12:00", "16:00", 2),
+        ("C", "Evening", "16:00", "20:00", 3),
+    ]
+    shifts: list[HcDialysisShift] = []
+    for code, name, start, end, order in SHIFT_DATA:
+        sh = HcDialysisShift(
+            tenant_id=tid, unit_id=unit.id, code=code, name=name,
+            start_time=start, end_time=end, sort_order=order,
+        )
+        s.add(sh)
+        s.flush()
+        shifts.append(sh)
+
+    machines: list[HcDialysisMachine] = []
+    for i in range(1, 18):
+        status = "maintenance" if i in (16, 17) else "available"
+        m = HcDialysisMachine(
+            tenant_id=tid, unit_id=unit.id,
+            code=f"DM-{i:02d}",
+            name=f"Dialysis Machine {i:02d}",
+            status=status,
+            created_at=datetime.utcnow(),
+        )
+        s.add(m)
+        s.flush()
+        machines.append(m)
+
+    # Nephrologist
+    neph = s.exec(
+        select(HcDoctor).where(
+            HcDoctor.tenant_id == tid,
+            HcDoctor.specialization == "Nephrology",
+        )
+    ).first()
+    if not neph:
+        neph = HcDoctor(
+            tenant_id=tid,
+            name="Dr. Imran Qureshi",
+            specialization="Nephrology",
+            qualification="MBBS, FCPS (Nephrology)",
+            phone="0300-1111006",
+            opd_fee=Decimal("2000"),
+        )
+        s.add(neph)
+        s.flush()
+
+    # HD procedure catalogue
+    hd = s.exec(
+        select(HcProcedureCatalog).where(
+            HcProcedureCatalog.tenant_id == tid,
+            HcProcedureCatalog.code == "HD-SESSION",
+        )
+    ).first()
+    if not hd:
+        hd = HcProcedureCatalog(
+            tenant_id=tid,
+            code="HD-SESSION",
+            name="Hemodialysis Session (4h)",
+            category="therapy",
+            standard_fee=Decimal("4500"),
+            created_at=datetime.utcnow(),
+        )
+        s.add(hd)
+        s.flush()
+
+    patients = list(s.exec(select(HcPatient).where(HcPatient.tenant_id == tid)).all())
+    if len(patients) < 12:
+        # Create extra chronic HD patients if hospital seed ran thin
+        for i in range(12 - len(patients)):
+            mr = next_number(s, tid, "hc_mr", "MR", fmt="{prefix}-{YYYY}{seq:04d}")
+            cust = Customer(
+                tenant_id=tid,
+                name=f"HD Patient {i + 1}",
+                phone=f"0301-55{i:04d}",
+            )
+            s.add(cust)
+            s.flush()
+            pat = HcPatient(
+                tenant_id=tid,
+                customer_id=cust.id,
+                mr_number=mr,
+                name=f"HD Patient {i + 1}",
+                gender=random.choice(["male", "female"]),
+                phone=f"0301-55{i:04d}",
+                created_at=datetime.utcnow(),
+                created_by_id=user.id,
+            )
+            s.add(pat)
+            s.flush()
+            patients.append(pat)
+
+    hd_patients = patients[:12]
+    usable = [m for m in machines if m.status != "maintenance"]
+
+    # Past completed sessions (~2–3 weeks, MWF pattern feel)
+    seq_next = 1
+    for days_ago in range(21, 0, -1):
+        d = today - timedelta(days=days_ago)
+        if d.weekday() not in (0, 2, 4):  # Mon/Wed/Fri heavy days
+            continue
+        day_s = d.isoformat()
+        # ~30–40 of 51 slots historically
+        n = random.randint(28, 40)
+        slots = [(m, sh) for m in usable for sh in shifts]
+        random.shuffle(slots)
+        for m, sh in slots[:n]:
+            pat = random.choice(hd_patients)
+            sn = f"DS-{d.year}{seq_next:04d}"
+            seq_next += 1
+            row = HcDialysisSession(
+                tenant_id=tid,
+                session_number=sn,
+                patient_id=pat.id,
+                doctor_id=neph.id,
+                machine_id=m.id,
+                shift_id=sh.id,
+                session_date=day_s,
+                status="completed",
+                fee=hd.standard_fee,
+                procedure_id=hd.id,
+                started_at=datetime.utcnow(),
+                completed_at=datetime.utcnow(),
+                created_at=datetime.utcnow(),
+                created_by_id=user.id,
+            )
+            s.add(row)
+            s.flush()
+            try:
+                txn = post_procedure(
+                    s, user,
+                    amount=hd.standard_fee,
+                    date=day_s,
+                    patient_name=pat.name,
+                    procedure_name=hd.name,
+                    customer_id=pat.customer_id,
+                )
+                row.transaction_id = txn.id
+                s.add(row)
+            except Exception:
+                pass  # CoA missing in edge cases — keep memo session
+
+    # Today's board — fill ~40 of usable capacity (15×3=45)
+    today_s = today.isoformat()
+    slots = [(m, sh) for m in usable for sh in shifts]
+    random.shuffle(slots)
+    n_today = min(40, len(slots))
+    statuses_cycle = (
+        ["completed"] * 12
+        + ["in_progress"] * 5
+        + ["scheduled"] * 23
+    )
+    for idx, (m, sh) in enumerate(slots[:n_today]):
+        pat = hd_patients[idx % len(hd_patients)]
+        st = statuses_cycle[idx % len(statuses_cycle)]
+        sn = f"DS-{today.year}{seq_next:04d}"
+        seq_next += 1
+        row = HcDialysisSession(
+            tenant_id=tid,
+            session_number=sn,
+            patient_id=pat.id,
+            doctor_id=neph.id,
+            machine_id=m.id,
+            shift_id=sh.id,
+            session_date=today_s,
+            status=st,
+            fee=hd.standard_fee,
+            procedure_id=hd.id,
+            started_at=datetime.utcnow() if st in ("in_progress", "completed") else None,
+            completed_at=datetime.utcnow() if st == "completed" else None,
+            created_at=datetime.utcnow(),
+            created_by_id=user.id,
+        )
+        s.add(row)
+        s.flush()
+        if st == "in_progress":
+            m.status = "in_use"
+            s.add(m)
+        if st == "completed":
+            try:
+                txn = post_procedure(
+                    s, user,
+                    amount=hd.standard_fee,
+                    date=today_s,
+                    patient_name=pat.name,
+                    procedure_name=hd.name,
+                    customer_id=pat.customer_id,
+                )
+                row.transaction_id = txn.id
+                s.add(row)
+            except Exception:
+                pass
+
+    # Sync sequence counter for DS numbers
+    row = s.exec(
+        select(SequenceCounter).where(
+            SequenceCounter.tenant_id == tid,
+            SequenceCounter.name == "hc_dialysis",
+        )
+    ).first()
+    if row:
+        row.next_value = max(row.next_value, seq_next)
+    else:
+        s.add(SequenceCounter(tenant_id=tid, name="hc_dialysis", next_value=seq_next))
+    s.flush()
+
+
+def _seed_lab_serial_history(s: Session, user: User) -> None:
+    """Ensure a few patients have multi-visit numeric trends for the lab report
+    historgram (CLSI cumulative charts). Idempotent — skips when any patient
+    already has ≥4 resulted Haemoglobin points."""
+    tid = user.tenant_id
+    hb = s.exec(
+        select(HcLabTest).where(HcLabTest.tenant_id == tid, HcLabTest.code == "HB")
+    ).first()
+    if not hb:
+        return
+    # Count patients with ≥4 HB results
+    hb_items = s.exec(
+        select(HcLabOrderItem, HcLabOrder)
+        .join(HcLabOrder, HcLabOrderItem.lab_order_id == HcLabOrder.id)
+        .where(
+            HcLabOrder.tenant_id == tid,
+            HcLabOrderItem.test_id == hb.id,
+            HcLabOrderItem.resulted_at.is_not(None),  # type: ignore[attr-defined]
+        )
+    ).all()
+    by_patient: dict[int, int] = {}
+    for item, order in hb_items:
+        by_patient[order.patient_id] = by_patient.get(order.patient_id, 0) + 1
+    if any(c >= 4 for c in by_patient.values()):
+        return
+
+    patients = s.exec(select(HcPatient).where(HcPatient.tenant_id == tid)).all()
+    doctors = s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tid)).all()
+    if len(patients) < 3:
+        return
+
+    serial_codes = ["CBC", "HB", "BS-F", "TSH", "ESR"]
+    tests = {
+        t.code: t
+        for t in s.exec(
+            select(HcLabTest).where(
+                HcLabTest.tenant_id == tid,
+                HcLabTest.code.in_(serial_codes),  # type: ignore[attr-defined]
+            )
+        ).all()
+    }
+    if len(tests) < 3:
+        return
+
+    today = date.today()
+    for pi, pat in enumerate(patients[:3]):
+        doc = doctors[pi % len(doctors)] if doctors else None
+        for visit in range(5):
+            order_date = (today - timedelta(days=14 * (5 - visit))).isoformat()
+            lo_num = next_number(s, tid, "hc_lab_order", "LO")
+            order = HcLabOrder(
+                tenant_id=tid, order_number=lo_num, patient_id=pat.id,
+                doctor_id=doc.id if doc else None,
+                order_date=order_date, source="opd", status="delivered",
+            )
+            s.add(order); s.flush()
+            for code in serial_codes:
+                test = tests.get(code)
+                if not test:
+                    continue
+                value, unit, ref, abnormal = _lab_demo_result(test)
+                # Mild upward drift for visual trend demos
+                num = _try_float(value)
+                if num is not None and code in ("HB", "BS-F", "CBC"):
+                    num = round(num + visit * 0.3, 1)
+                    value = f"{num}"
+                    abnormal = False
+                item = HcLabOrderItem(
+                    lab_order_id=order.id, test_id=test.id, fee=test.standard_fee,
+                    result_value=value, result_unit=unit or test.unit or "",
+                    reference_range=ref or test.normal_range or "",
+                    is_abnormal=abnormal,
+                    resulted_at=datetime.utcnow(),
+                    resulted_by_id=user.id,
+                )
+                s.add(item)
+            s.add(HcSampleCollection(
+                tenant_id=tid, lab_order_id=order.id,
+                collected_by_id=user.id, collected_at=datetime.utcnow(),
+                collection_point="lab", specimen_type="blood", status="received",
+            ))
+    s.flush()
+
+
+def _try_float(value: str) -> Optional[float]:
+    try:
+        return float(str(value).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return None
 
 
 def _seed_healthcare_store(s: Session, user: User) -> None:
@@ -4825,6 +5203,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             _seed_healthcare(s, user)
             s.commit()
             _seed_healthcare_store(s, user)
+            s.commit()
+            _seed_lab_serial_history(s, user)
+            s.commit()
+            _seed_dialysis(s, user)
             s.commit()
 
         # ── PRA e-Invoice demo (Pakistani retail trader) ───────────────────────

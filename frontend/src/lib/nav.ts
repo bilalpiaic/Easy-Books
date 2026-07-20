@@ -9,7 +9,7 @@ import {
   Building2, Undo2, CalendarCheck, Clock, Table2, Upload, Layers, Play, BarChart2,
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
-  ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator,
+  ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
 } from "lucide-react"
 
 export type NavItem = {
@@ -138,6 +138,7 @@ export const NAV: NavItem[] = [
   { label: "Laboratory",        href: "/healthcare/lab",          icon: FlaskConical, section: "Healthcare", forModule: "healthcare" },
   { label: "Lab Tests",         href: "/healthcare/lab/tests",    icon: FlaskConical, section: "Healthcare", forModule: "healthcare" },
   { label: "Procedures",        href: "/healthcare/procedures",   icon: Syringe,      section: "Healthcare", forModule: "healthcare" },
+  { label: "Dialysis",          href: "/healthcare/dialysis",     icon: Droplets,     section: "Healthcare", forModule: "healthcare" },
   { label: "HC Store",          href: "/healthcare/store",        icon: Warehouse,    section: "Healthcare", forModule: "healthcare" },
   { label: "HC Reports",        href: "/healthcare/reports",      icon: BarChart2,    section: "Healthcare", forModule: "healthcare" },
   // Weaving
@@ -360,6 +361,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Laboratory",     href: "/healthcare/lab",        icon: FlaskConical, section: "healthcare", forModule: "healthcare" },
     { label: "Lab Tests",      href: "/healthcare/lab/tests",  icon: FlaskConical, section: "healthcare", forModule: "healthcare" },
     { label: "Procedures",     href: "/healthcare/procedures", icon: Syringe,      section: "healthcare", forModule: "healthcare" },
+    { label: "Dialysis",       href: "/healthcare/dialysis",   icon: Droplets,     section: "healthcare", forModule: "healthcare" },
     { label: "HC Store",       href: "/healthcare/store",      icon: Warehouse,    section: "healthcare", forModule: "healthcare" },
     { label: "HC Reports",     href: "/healthcare/reports",    icon: BarChart2,    section: "healthcare", forModule: "healthcare" },
   ],

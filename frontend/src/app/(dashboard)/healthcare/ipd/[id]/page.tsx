@@ -199,8 +199,12 @@ export default function AdmissionDetailPage({ params }: { params: Promise<{ id: 
               {labOrders.length === 0 ? (
                 <tr><td colSpan={3} className="px-4 py-6 text-center text-neutral-400">No lab orders</td></tr>
               ) : labOrders.map(o => (
-                <tr key={o.id}>
-                  <td className="px-4 py-3 font-medium">{o.order_number}</td>
+                <tr key={o.id} className="hover:bg-neutral-50">
+                  <td className="px-4 py-3 font-medium">
+                    <Link href={`/healthcare/lab/${o.id}`} className="text-rose-600 hover:underline">
+                      {o.order_number}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap">{fmtDate(o.order_date)}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                 </tr>

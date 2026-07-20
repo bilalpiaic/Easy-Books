@@ -1,5 +1,7 @@
 "use client"
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { FlaskConical, Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/healthcare/primitives"
@@ -9,8 +11,10 @@ type LabOrder = { id: number; order_number: string; order_date: string; source: 
 type LabTest = { id: number; code: string; name: string; standard_fee: number; category: string }
 type Patient = { id: number; mr_number: string; name: string }
 
-export default function LabPage() {
+function LabPageInner() {
   const today = todayLocal()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [orders, setOrders] = useState<LabOrder[]>([])
   const [tests, setTests] = useState<LabTest[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
@@ -21,10 +25,10 @@ export default function LabPage() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState("")
 
-  async function loadOrders() {
+  async function loadOrders(status = filter.status) {
     setLoading(true)
     try {
-      const qs = new URLSearchParams(filter.status ? { status: filter.status } : {})
+      const qs = new URLSearchParams(status ? { status } : {})
       const json = await apiFetch<LabOrder[] | { items: LabOrder[] }>(`/api/healthcare/lab/orders?${qs}&limit=50`)
       setOrders(Array.isArray(json) ? json : json.items ?? [])
     } catch {
@@ -35,12 +39,18 @@ export default function LabPage() {
   }
 
   useEffect(() => {
+    const orderId = searchParams.get("order")
+    if (orderId) {
+      router.replace(`/healthcare/lab/${orderId}`)
+      return
+    }
     loadOrders()
     apiFetch<LabTest[]>("/api/healthcare/lab/tests").then(d => setTests(d ?? [])).catch(() => setTests([]))
     apiFetch<Patient[] | { items: Patient[] }>("/api/healthcare/patients?limit=200")
       .then(d => setPatients(Array.isArray(d) ? d : d.items ?? []))
       .catch(() => setPatients([]))
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount / ?order= redirect
+  }, [searchParams, router])
 
   function toggleTest(id: number) {
     setForm(f => ({
@@ -105,7 +115,7 @@ export default function LabPage() {
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         {["", "ordered", "sample_collected", "processing", "resulted", "delivered"].map(s => (
-          <button key={s} onClick={() => { setFilter(f => ({ ...f, status: s })); loadOrders() }}
+          <button key={s} onClick={() => { setFilter(f => ({ ...f, status: s })); loadOrders(s) }}
             className={`px-3 py-1.5 text-xs rounded-lg font-medium border ${
               filter.status === s ? "bg-rose-500 text-white border-rose-500" : "bg-white border-neutral-200 text-neutral-600 hover:border-rose-300"
             }`}>
@@ -136,12 +146,20 @@ export default function LabPage() {
               </td></tr>
             ) : orders.map(o => (
               <tr key={o.id} className="hover:bg-neutral-50">
-                <td className="px-4 py-3 font-medium">{o.order_number}</td>
+                <td className="px-4 py-3 font-medium">
+                  <Link href={`/healthcare/lab/${o.id}`} className="text-rose-600 hover:underline">
+                    {o.order_number}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 whitespace-nowrap">{fmtDate(o.order_date)}</td>
                 <td className="px-4 py-3 capitalize text-neutral-600">{o.source.replace("_", " ")}</td>
                 <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1.5">
+                    <Link href={`/healthcare/lab/${o.id}`}
+                      className="text-xs bg-neutral-50 text-neutral-700 px-2 py-0.5 rounded hover:bg-neutral-100 border border-neutral-200">
+                      {["resulted", "delivered"].includes(o.status) ? "View / Print" : "Open"}
+                    </Link>
                     {o.status === "ordered" && (
                       <button onClick={() => updateStatus(o.id, "collect")}
                         className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded hover:bg-orange-100">
@@ -223,5 +241,13 @@ export default function LabPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function LabPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-neutral-400">Loading…</div>}>
+      <LabPageInner />
+    </Suspense>
   )
 }

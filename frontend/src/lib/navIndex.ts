@@ -120,9 +120,10 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/healthcare/doctors":     ["doctor", "physician", "consultant"],
   "/healthcare/opd":         ["opd", "outpatient", "token"],
   "/healthcare/ipd":         ["ipd", "admission", "inpatient", "ward", "bed"],
-  "/healthcare/lab":         ["lab orders", "laboratory", "pathology"],
+  "/healthcare/lab":         ["lab orders", "laboratory", "pathology", "lab report", "test report", "print results"],
   "/healthcare/lab/tests":   ["lab test catalog", "test list"],
   "/healthcare/procedures":  ["procedure", "ot", "surgery catalog"],
+  "/healthcare/dialysis":    ["dialysis", "hemodialysis", "hd machine", "dialysis shift", "renal"],
   "/healthcare/store":       ["pharmacy", "hc store", "dispense"],
   "/healthcare/reports":     ["hospital reports", "opd summary", "ipd census", "doctor collections"],
   "/weaving":                ["weaving hub", "loom unit"],
@@ -426,12 +427,17 @@ const ACTIONS: NavResult[] = [
   {
     id: "qa:hc-lab", type: "action", label: "Laboratory Orders",
     sub: "Collect samples and enter results", href: "/healthcare/lab",
-    keywords: ["lab order", "sample", "result entry"],
+    keywords: ["lab order", "sample", "result entry", "lab report", "test report", "print results"],
   },
   {
     id: "qa:hc-procedures", type: "action", label: "Procedures",
     sub: "Procedure catalog and orders", href: "/healthcare/procedures",
     keywords: ["procedure order", "ot form"],
+  },
+  {
+    id: "qa:hc-dialysis", type: "action", label: "Dialysis Unit",
+    sub: "Machines, shifts, daily schedule", href: "/healthcare/dialysis",
+    keywords: ["hemodialysis", "hd session", "dialysis machine", "renal"],
   },
   {
     id: "qa:hc-store", type: "action", label: "HC Store / Pharmacy",
@@ -642,6 +648,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:hc", type: "report", label: "Healthcare Reports",
     sub: "OPD, IPD, lab, doctor collections", href: "/healthcare/reports",
     keywords: ["hospital reports", "opd summary", "ipd census", "lab summary", "doctor collections", "analysis", "output"],
+  },
+  {
+    id: "rpt:hc-lab-report", type: "report", label: "Lab Patient Test Report",
+    sub: "View and print laboratory results", href: "/healthcare/lab",
+    keywords: ["lab report", "test report", "print results", "patient lab results", "pathology report", "output"],
   },
   {
     id: "rpt:wv-daily", type: "report", label: "Weaving Daily Ops",

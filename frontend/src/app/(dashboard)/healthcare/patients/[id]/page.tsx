@@ -34,12 +34,12 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         apiFetch<Patient>(`/api/healthcare/patients/${id}`).catch(() => null),
         apiFetch<Visit[] | { items: Visit[] }>(`/api/healthcare/opd/visits?patient_id=${id}&limit=30`).catch(() => [] as Visit[]),
         apiFetch<Admission[] | { items: Admission[] }>(`/api/healthcare/admissions?patient_id=${id}&limit=20`).catch(() => [] as Admission[]),
-        apiFetch<LabOrder[] | { items: LabOrder[] }>(`/api/healthcare/lab/orders?patient_id=${id}&limit=30`).catch(() => [] as LabOrder[]),
+        apiFetch<LabOrder[]>(`/api/healthcare/patients/${id}/lab-orders`).catch(() => [] as LabOrder[]),
       ])
       setPatient(p)
       setVisits(Array.isArray(v) ? v : (v as { items: Visit[] }).items ?? [])
       setAdmissions(Array.isArray(a) ? a : (a as { items: Admission[] }).items ?? [])
-      setLabOrders(Array.isArray(l) ? l : (l as { items: LabOrder[] }).items ?? [])
+      setLabOrders(Array.isArray(l) ? l : [])
       setLoading(false)
     }
     load()
@@ -179,8 +179,12 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
               {labOrders.length === 0 ? (
                 <tr><td colSpan={3} className="px-4 py-6 text-center text-neutral-400">No lab orders</td></tr>
               ) : labOrders.map(o => (
-                <tr key={o.id}>
-                  <td className="px-4 py-3 font-medium">{o.order_number}</td>
+                <tr key={o.id} className="hover:bg-neutral-50">
+                  <td className="px-4 py-3 font-medium">
+                    <Link href={`/healthcare/lab/${o.id}`} className="text-rose-600 hover:underline">
+                      {o.order_number}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap">{fmtDate(o.order_date)}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                 </tr>
