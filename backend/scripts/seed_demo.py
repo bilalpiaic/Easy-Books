@@ -77,14 +77,16 @@ from models import (
     VendorAdvance, VendorQuotation, VendorQuotationLine,
 )
 from models_telecom import (
-    FcaEvent, FranchiseAgreement, KpiTarget, Operator, RetailOutlet,
-    RsoAgent, SimActivation, TrackerAccount,
+    AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
+    DeviceImei, FcaEvent, FranchiseAgreement, KpiTarget,
+    MobileMoneyAccount, Operator, PostpaidBillCycle, PostpaidConnection,
+    RetailOutlet, RsoAgent, RsoTarget, SimActivation, TrackerAccount,
 )
 from models_healthcare import (
     HcPatient, HcDoctor, HcWard, HcBed, HcProcedureCatalog,
     HcOpdToken, HcOpdVisit, HcPrescription, HcPrescriptionItem,
     HcAdmission, HcAdmissionCharge, HcLabTest, HcLabOrder, HcLabOrderItem,
-    HcSampleCollection, HcProcedureOrder,
+    HcSampleCollection, HcProcedureOrder, HcStoreIssue, HcStoreIssueItem,
 )
 from models_weaving import (
     WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
@@ -93,11 +95,12 @@ from models_weaving import (
 from routers.common import get_or_create_account, next_number
 from services.franchise_posting import (
     post_commission_accrual, post_franchise_fee_amortisation,
-    post_franchise_fee_capitalisation,
+    post_franchise_fee_capitalisation, post_mm_commission_credit,
+    post_mm_customer_deposit, post_mm_float_top_up,
 )
 from services.healthcare_posting import (
     post_opd_consultation, post_ipd_deposit, post_lab_order,
-    post_discharge_bill,
+    post_discharge_bill, post_store_issue,
 )
 from services.inventory import (
     InventoryError, consume_stock, record_movement, record_purchase,
@@ -246,6 +249,19 @@ TELECOM_SERVICES = [
     ("VAS-VOICEMAIL", "Voicemail Subscription", "mo",    2.00),
     ("PLAN-POST-BASIC","Postpaid Basic Plan",   "mo",   25.00),
     ("PLAN-POST-PRO", "Postpaid Pro Plan",      "mo",   55.00),
+]
+# Pharmacy / ward consumables for the hospital demo (HC Store + dispense queue).
+HOSPITAL_STOCK = [
+    ("MED-PARA",  "Paracetamol 500mg",     "box", 120, 45),
+    ("MED-AMOX",  "Amoxicillin 250mg",     "box", 280, 95),
+    ("MED-IBU",   "Ibuprofen 400mg",       "box", 150, 55),
+    ("MED-ORS",   "ORS Sachets",           "box",  80, 25),
+    ("MED-INJ",   "Normal Saline 500ml",   "bag",  90, 35),
+    ("MED-SYR",   "Disposable Syringe 5ml","box",  60, 18),
+    ("MED-GLU",   "Gloves (pair)",         "box", 200, 70),
+    ("MED-BAND",  "Bandage Roll",          "ea",   40, 12),
+    ("MED-IV",    "IV Cannula 20G",        "ea",   55, 18),
+    ("MED-MASK",  "Surgical Mask",         "box", 100, 30),
 ]
 TAX_CODES = [
     ("GST-OUT-17", "GST Output 17%", 17, "output", "2200"),
@@ -478,6 +494,8 @@ def _ensure_categories(s: Session, tenant_id: int, model: str) -> None:
                               "Finished Goods": ["Standard"]},
         "telecom_franchise": {"SIM": ["Prepaid", "Postpaid"],
                               "Devices": ["Handsets", "Accessories"]},
+        "hospital":          {"Pharmacy": ["Medicines", "Consumables"],
+                              "Services": ["OPD", "Lab", "IPD"]},
     }
     for parent_name, subs in STARTER_CATEGORIES.get(model, {}).items():
         parent = ProductCategory(tenant_id=tenant_id, name=parent_name)
@@ -635,6 +653,10 @@ def _seed_products(
             customer_supplied.append(upsert(code, name, unit, ZERO, "stock"))
         for code, name, unit in FINISHED_GOODS_MFG:
             stock.append(upsert(code, name, unit, D(0), "stock"))
+
+    if business_model == "hospital":
+        for code, name, unit, sale, cost in HOSPITAL_STOCK:
+            stock.append(upsert(code, name, unit, D(sale), "stock"))
 
     # Assign categories (idempotent — only sets category_id when currently None)
     cats = s.exec(
@@ -2010,63 +2032,69 @@ def _seed_purchase_store_chain(
     s.add(go_appr)
     s.flush()
 
-    # Store Issues (#137 Phase 4) — enough departmental consumption entries
-    # (60, one page over the Issue Register's 50/page default — #150/#154)
-    # that the register's Pagination control and search box actually have
-    # something to page/filter through on first login, not just a single
-    # short page that never demonstrates the feature.
+
+def _seed_store_issues(
+    s: Session, owner: User, clerk: User, products: list[Product],
+) -> None:
+    """Store Issues (#137 Phase 4) — departmental consumption for the
+    manufacturing demo. Own idempotency (StoreIssue rows), so re-runs still
+    backfill when the purchase-demand chain already exists — the previous
+    early-return on PurchaseDemand left Issue Register empty forever.
+    Seeds 60 rows (one page over the Issue Register's 50/page default)."""
+    tid = owner.tenant_id
+    if s.exec(select(StoreIssue).where(StoreIssue.tenant_id == tid)).first():
+        return
+    stock_products = [p for p in products if p.product_type == "stock"]
+    if not stock_products:
+        return
     own_location = s.exec(
         select(StockLocation).where(StockLocation.tenant_id == tid, StockLocation.type == "own")
     ).first()
-    if own_location:
-        expense_acct = get_or_create_account(s, tid, "5100", "Office Supplies Expense", "Expense")
-        maint_acct = get_or_create_account(s, tid, "5150", "Maintenance Expense", "Expense")
-        cost_centers = s.exec(
-            select(AnalyticAccount).where(AnalyticAccount.tenant_id == tid)
-        ).all()
-        si_count = 60
-        issue_dates = _spread_dates(si_count, min_days_ago=5)
-        accts_cycle = [expense_acct, maint_acct]
-        # random.choices (with replacement) since si_count exceeds the
-        # distinct stock product pool — random.sample would raise.
-        chosen_products = random.choices(stock_products, k=si_count)
-        for i, product in enumerate(chosen_products):
-            acct = accts_cycle[i % len(accts_cycle)]
-            si_number = next_number(s, tid, "store_issue", "SI", fmt="{prefix}-{YYYY}-{seq:04d}")
-            si = StoreIssue(
-                tenant_id=tid, number=si_number, issue_date=issue_dates[i],
-                from_location_id=own_location.id, debit_account_id=acct.id,
-                analytic_account_id=cost_centers[i % len(cost_centers)].id if cost_centers else None,
-                notes=f"Demo store issue #{i + 1}", created_by_id=clerk.id,
+    if not own_location:
+        return
+
+    expense_acct = get_or_create_account(s, tid, "5100", "Office Supplies Expense", "Expense")
+    maint_acct = get_or_create_account(s, tid, "5150", "Maintenance Expense", "Expense")
+    cost_centers = s.exec(
+        select(AnalyticAccount).where(AnalyticAccount.tenant_id == tid)
+    ).all()
+    si_count = 60
+    issue_dates = _spread_dates(si_count, min_days_ago=5)
+    accts_cycle = [expense_acct, maint_acct]
+    chosen_products = random.choices(stock_products, k=si_count)
+    for i, product in enumerate(chosen_products):
+        acct = accts_cycle[i % len(accts_cycle)]
+        si_number = next_number(s, tid, "store_issue", "SI", fmt="{prefix}-{YYYY}-{seq:04d}")
+        si = StoreIssue(
+            tenant_id=tid, number=si_number, issue_date=issue_dates[i],
+            from_location_id=own_location.id, debit_account_id=acct.id,
+            analytic_account_id=cost_centers[i % len(cost_centers)].id if cost_centers else None,
+            notes=f"Demo store issue #{i + 1}", created_by_id=clerk.id,
+        )
+        s.add(si); s.flush()
+        qty = D(random.randint(2, 8))
+        cost = consume_stock(
+            s, tenant_id=tid, product_id=product.id, qty=qty,
+            source_doc_id=si.id, source_doc_type="store_issue",
+        )
+        s.add(StoreIssueLine(
+            store_issue_id=si.id, product_id=product.id, qty=qty,
+            unit_cost=money(cost / qty) if qty else D("0"),
+        ))
+        if cost > 0:
+            inv_acct = get_or_create_account(s, tid, "1200", "Inventory (Raw Material)", "Asset")
+            txn = post_transaction(
+                s, owner, date=issue_dates[i], description=f"Store issue — {si_number}",
+                entries=[
+                    EntryInput(account_id=acct.id, debit=money(cost),
+                               analytic_account_id=si.analytic_account_id),
+                    EntryInput(account_id=inv_acct.id, credit=money(cost)),
+                ],
+                voucher_type="JV", audit_entity_type="store_issue",
+                audit_detail={"si_number": si_number},
             )
-            s.add(si); s.flush()
-            qty = D(random.randint(2, 8))
-            cost = consume_stock(
-                s, tenant_id=tid, product_id=product.id, qty=qty,
-                source_doc_id=si.id, source_doc_type="store_issue",
-            )
-            s.add(StoreIssueLine(
-                store_issue_id=si.id, product_id=product.id, qty=qty,
-                unit_cost=money(cost / qty) if qty else D("0"),
-            ))
-            if cost > 0:
-                inv_acct = get_or_create_account(s, tid, "1200", "Inventory (Raw Material)", "Asset")
-                txn = post_transaction(
-                    s, owner, date=issue_dates[i], description=f"Store issue — {si_number}",
-                    entries=[
-                        EntryInput(account_id=acct.id, debit=money(cost),
-                                   analytic_account_id=si.analytic_account_id),
-                        EntryInput(account_id=inv_acct.id, credit=money(cost)),
-                    ],
-                    voucher_type="JV", audit_entity_type="store_issue",
-                    audit_detail={"si_number": si_number},
-                )
-                si.transaction_id = txn.id
-            # No per-iteration commit: like every other block in this
-            # function, rely on the caller's single commit so a crash
-            # mid-seed can't strand a partially-seeded tenant behind the
-            # PurchaseDemand idempotency guard.
-            s.flush()
+            si.transaction_id = txn.id
+        s.flush()
 
 
 # ── Telecom-franchise-specific ─────────────────────────────────────────────────
@@ -2075,9 +2103,11 @@ def _seed_purchase_store_chain(
 def _seed_telecom_franchise(s: Session, user: User) -> None:
     """Seed a full daily-operations slice: operator, tracker, load chain, RSO
     collections, SIM batch + activations, FCA events + target, and a franchise
-    agreement with amortisation. Idempotent — skips if an operator exists."""
+    agreement with amortisation. Idempotent — core skips if an operator exists;
+    extended screens (MM / devices / postpaid / …) backfill independently."""
     tid = user.tenant_id
     if s.exec(select(Operator).where(Operator.tenant_id == tid)).first():
+        _seed_telecom_extended(s, user)
         return
 
     def acc_id(code: str) -> Optional[int]:
@@ -2217,8 +2247,202 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
     )
     s.flush()
 
+    # Extended screens (MM / devices / postpaid / airtime / commissions /
+    # RSO targets) are backfillable on their own guards — see below.
+    _seed_telecom_extended(s, user)
 
-# ── Improvement-roadmap modules (Sprint 7–12) ─────────────────────────────────
+
+def _seed_telecom_extended(s: Session, user: User) -> None:
+    """Fill every Telecom nav leaf that the core franchise seeder leaves empty.
+    Each block is independently idempotent so re-runs backfill without
+    requiring an Operator purge."""
+    tid = user.tenant_id
+    op = s.exec(select(Operator).where(Operator.tenant_id == tid)).first()
+    if not op:
+        return
+
+    def acc_id(code: str) -> Optional[int]:
+        a = _account(s, tid, code)
+        return a.id if a else None
+
+    today = date.today()
+    span = _seed_span_days(today)
+    rsos = s.exec(select(RsoAgent).where(RsoAgent.tenant_id == tid)).all()
+    devices = s.exec(
+        select(Product).where(
+            Product.tenant_id == tid,
+            Product.product_type == "stock",
+            Product.code.in_(["ROUTER-4G", "ROUTER-5G", "MIFI", "DONGLE-USB"]),  # type: ignore[attr-defined]
+        )
+    ).all()
+    if not devices:
+        devices = s.exec(
+            select(Product).where(Product.tenant_id == tid, Product.product_type == "stock")
+        ).all()
+
+    # ── Mobile Money (JazzCash + EasyPaisa) ───────────────────────────────────
+    if not s.exec(select(MobileMoneyAccount).where(MobileMoneyAccount.tenant_id == tid)).first():
+        mm_specs = [
+            ("03001234567", "jazzcash"),
+            ("03451234567", "easypaisa"),
+        ]
+        for acct_no, acct_type in mm_specs:
+            mm = MobileMoneyAccount(
+                tenant_id=tid, operator_id=op.id, account_number=acct_no,
+                account_type=acct_type,
+                float_asset_account_id=acc_id("1214"),
+                float_liability_account_id=acc_id("2100"),
+                commission_account_id=acc_id("4022"),
+                current_float_balance=ZERO,
+            )
+            s.add(mm); s.flush()
+            top_up_day = _past_days(int(span * 0.85), today=today)
+            post_mm_float_top_up(
+                s, user, mm_account=mm, amount=D("150000"), date=top_up_day,
+            )
+            for i in range(8):
+                post_mm_customer_deposit(
+                    s, user, mm_account=mm, amount=D(str(2000 + i * 250)),
+                    date=_past_days(int(span * (0.7 - i * 0.05)), today=today),
+                    customer_reference=f"CUST-{acct_type[:2].upper()}-{i + 1}",
+                )
+            post_mm_commission_credit(
+                s, user, mm_account=mm, amount=D("3500"),
+                date=_past_days(20, today=today),
+            )
+        s.flush()
+
+    # ── Device IMEI tracking ──────────────────────────────────────────────────
+    if devices and not s.exec(select(DeviceImei).where(DeviceImei.tenant_id == tid)).first():
+        statuses = ["in_stock", "in_stock", "sold", "sold", "demo", "returned"]
+        for i in range(30):
+            prod = devices[i % len(devices)]
+            status = statuses[i % len(statuses)]
+            sale_date = _past_days(int(span * (0.4 - (i % 10) * 0.02)), today=today) if status == "sold" else None
+            s.add(DeviceImei(
+                tenant_id=tid, product_id=prod.id,
+                imei_number=f"35{1000000000000 + i:013d}"[:15],
+                serial_number=f"SN-{prod.code}-{i + 1:03d}",
+                status=status, sale_date=sale_date,
+            ))
+        s.flush()
+
+    # ── Postpaid connections + bill cycles ────────────────────────────────────
+    if not s.exec(select(PostpaidConnection).where(PostpaidConnection.tenant_id == tid)).first():
+        plans = [
+            ("Postpaid Basic", D("1500"), D("8")),
+            ("Postpaid Pro", D("3500"), D("10")),
+            ("Postpaid Family", D("5500"), D("12")),
+        ]
+        connections: list[PostpaidConnection] = []
+        for i in range(12):
+            plan_name, rental, rate = plans[i % len(plans)]
+            conn = PostpaidConnection(
+                tenant_id=tid, operator_id=op.id,
+                msisdn=f"0321{3000000 + i:07d}",
+                customer_name=f"Postpaid Customer {i + 1}",
+                customer_cnic=f"35201{1000000 + i:07d}",
+                plan_name=plan_name, monthly_rental=rental,
+                activation_date=_past_days(int(span * (0.9 - i * 0.05)), today=today),
+                status="active" if i < 10 else "suspended",
+                franchise_commission_rate=rate,
+                last_billed_date=(today.replace(day=1) - timedelta(days=1)).isoformat(),
+            )
+            s.add(conn); s.flush()
+            connections.append(conn)
+        month_start = today.replace(day=1).isoformat()
+        prev_month = (today.replace(day=1) - timedelta(days=1)).replace(day=1).isoformat()
+        for conn in connections:
+            for billing_month, collected in ((prev_month, True), (month_start, False)):
+                commission = money(D(conn.monthly_rental) * D(conn.franchise_commission_rate) / D("100"))
+                remittance = money(D(conn.monthly_rental) - commission)
+                s.add(PostpaidBillCycle(
+                    tenant_id=tid, connection_id=conn.id,
+                    billing_month=billing_month,
+                    gross_amount=conn.monthly_rental,
+                    franchise_commission=commission,
+                    net_remittance=remittance,
+                    collection_status="collected" if collected else "pending",
+                    remittance_status="remitted" if collected else "pending",
+                ))
+        s.flush()
+
+    # ── Airtime / scratch-card stock + sales ──────────────────────────────────
+    if not s.exec(select(AirtimeStock).where(AirtimeStock.tenant_id == tid)).first():
+        stocks: list[AirtimeStock] = []
+        for denom, qty, cost in ((D("100"), 200, D("92")), (D("500"), 80, D("460")), (D("1000"), 40, D("920"))):
+            st = AirtimeStock(
+                tenant_id=tid, operator_id=op.id, stock_type="scratch_card",
+                denomination=denom, qty_received=qty, qty_sold=0,
+                unit_cost=cost,
+                purchase_date=_past_days(int(span * 0.6), today=today),
+            )
+            s.add(st); s.flush()
+            stocks.append(st)
+        for i, st in enumerate(stocks):
+            sold = min(12, st.qty_received // 4)
+            st.qty_sold = sold
+            s.add(st)
+            face = st.denomination
+            sale_price = money(face * D("1.05"))
+            s.add(AirtimeSale(
+                tenant_id=tid, stock_id=st.id,
+                sale_date=_past_days(10 + i * 3, today=today),
+                qty=sold, face_value=money(face * D(sold)),
+                sale_price=money(sale_price * D(sold)),
+                margin=money((sale_price - st.unit_cost) * D(sold)),
+                channel="rso" if rsos and i % 2 == 0 else "walk_in",
+                rso_id=rsos[i % len(rsos)].id if rsos and i % 2 == 0 else None,
+            ))
+        s.flush()
+
+    # ── Commission statements ─────────────────────────────────────────────────
+    if not s.exec(select(CommissionStatement).where(CommissionStatement.tenant_id == tid)).first():
+        period_to = today.replace(day=1) - timedelta(days=1)
+        period_from = period_to.replace(day=1)
+        stmt = CommissionStatement(
+            tenant_id=tid, operator_id=op.id,
+            statement_date=today.isoformat(),
+            period_from=period_from.isoformat(),
+            period_to=period_to.isoformat(),
+            statement_reference="JAZZ-COMM-DEMO-01",
+            total_commission=D("18500"),
+            status="reconciled",
+        )
+        s.add(stmt); s.flush()
+        for ctype, accrued, settled in (
+            ("activation", D("7500"), D("7500")),
+            ("recharge", D("4200"), D("4000")),
+            ("load_uplift", D("3800"), D("3800")),
+            ("fca_target", D("3000"), D("3000")),
+        ):
+            s.add(CommissionLine(
+                tenant_id=tid, statement_id=stmt.id,
+                commission_type=ctype,
+                event_date=period_to.isoformat(),
+                accrued_amount=accrued, settled_amount=settled,
+                variance=money(accrued - settled),
+                is_disputed=accrued != settled,
+            ))
+        s.flush()
+
+    # ── RSO monthly targets ───────────────────────────────────────────────────
+    if rsos and not s.exec(select(RsoTarget).where(RsoTarget.tenant_id == tid)).first():
+        month = today.replace(day=1).isoformat()
+        for i, rso in enumerate(rsos):
+            target_act = 40 + i * 10
+            actual_act = target_act - 5 + i * 3
+            s.add(RsoTarget(
+                tenant_id=tid, rso_id=rso.id, target_month=month,
+                target_activations=target_act,
+                target_recharge_value=D(str(80000 + i * 15000)),
+                actual_activations=actual_act,
+                actual_recharge_value=D(str(75000 + i * 12000)),
+                incentive_earned=D("2500") if actual_act >= target_act else ZERO,
+                penalty_applied=ZERO if actual_act >= target_act else D("500"),
+            ))
+        s.flush()
+
 
 
 def _seed_credit_notes(s: Session, user: User, invoices: list, count: int = 6) -> None:
@@ -3807,17 +4031,37 @@ def _seed_pra_submission_logs(s: Session, tenant_id: int) -> None:
     """PRA e-IMS submission audit trail for the PRA demo tenant so the
     Submission Logs page has data: one success row per stamped invoice
     (capped at 20) plus a failed-then-retried pair on the first two —
-    mirrors the log rows services/pra.py writes on a real submission."""
-    if s.exec(select(PRASubmissionLog).where(PRASubmissionLog.tenant_id == tenant_id)).first():
+    mirrors the log rows services/pra.py writes on a real submission.
+
+    Convergent: if fewer than 20 success logs exist, keep adding for
+    stamped invoices that have no log yet (older demos only had 1 row)."""
+    existing_success = s.exec(
+        select(PRASubmissionLog).where(
+            PRASubmissionLog.tenant_id == tenant_id,
+            PRASubmissionLog.success == True,  # noqa: E712
+        )
+    ).all()
+    if len(existing_success) >= 20:
         return
+    logged_invoice_ids = {
+        row.invoice_id for row in s.exec(
+            select(PRASubmissionLog).where(PRASubmissionLog.tenant_id == tenant_id)
+        ).all()
+        if row.invoice_id is not None
+    }
     from services.pra import SANDBOX_URL
     invoices = s.exec(
         select(Invoice).where(
             Invoice.tenant_id == tenant_id,
             Invoice.pra_status == "submitted",
-        ).order_by(Invoice.issue_date.desc()).limit(20)  # type: ignore[attr-defined]
+        ).order_by(Invoice.issue_date.desc())  # type: ignore[attr-defined]
     ).all()
+    added = 0
     for i, inv in enumerate(invoices):
+        if len(existing_success) + added >= 20:
+            break
+        if inv.id in logged_invoice_ids:
+            continue
         submitted_at = inv.pra_submitted_at or datetime.utcnow()
         request_json = _json.dumps({
             "InvoiceNumber": "", "POSID": 100001, "USIN": inv.pra_usin or inv.number,
@@ -3827,7 +4071,7 @@ def _seed_pra_submission_logs(s: Session, tenant_id: int) -> None:
             "TotalTaxCharged": float(inv.gst_amount),
             "PaymentMode": inv.payment_mode or 1,
         })
-        if i < 2:
+        if added < 2 and len(existing_success) == 0:
             # A realistic first-attempt failure, retried successfully 3 min later.
             s.add(PRASubmissionLog(
                 tenant_id=tenant_id, invoice_id=inv.id,
@@ -3849,6 +4093,8 @@ def _seed_pra_submission_logs(s: Session, tenant_id: int) -> None:
             }),
             http_status=200, success=True,
         ))
+        logged_invoice_ids.add(inv.id)
+        added += 1
 
 
 def _seed_healthcare(s: Session, user: User) -> None:
@@ -4198,6 +4444,100 @@ def _seed_healthcare(s: Session, user: User) -> None:
     s.flush()
 
 
+def _seed_healthcare_store(s: Session, user: User) -> None:
+    """HC Store / pharmacy issues — backfillable so hospital demos that were
+    seeded before this block still get a populated HC Store screen."""
+    tid = user.tenant_id
+    if s.exec(select(HcStoreIssue).where(HcStoreIssue.tenant_id == tid)).first():
+        return
+
+    patients = s.exec(select(HcPatient).where(HcPatient.tenant_id == tid)).all()
+    admissions = s.exec(
+        select(HcAdmission).where(
+            HcAdmission.tenant_id == tid, HcAdmission.status == "admitted",
+        )
+    ).all()
+    products = s.exec(
+        select(Product).where(
+            Product.tenant_id == tid, Product.product_type == "stock",
+        )
+    ).all()
+    if not products:
+        # Ensure pharmacy SKUs exist even on older hospital tenants.
+        for code, name, unit, sale, _cost in HOSPITAL_STOCK:
+            existing = s.exec(
+                select(Product).where(Product.tenant_id == tid, Product.code == code)
+            ).first()
+            if existing:
+                products.append(existing)
+                continue
+            p = Product(
+                tenant_id=tid, code=code, name=name, unit=unit,
+                product_type="stock", default_rate=money(D(sale)),
+            )
+            s.add(p); s.flush()
+            products.append(p)
+    if not products:
+        return
+
+    loc = s.exec(
+        select(StockLocation).where(StockLocation.tenant_id == tid, StockLocation.type == "own")
+    ).first()
+    if not loc:
+        loc = StockLocation(
+            tenant_id=tid, code="PHARM", name="Pharmacy Store", type="own",
+        )
+        s.add(loc); s.flush()
+
+    today = date.today()
+    purposes = ["pharmacy", "pharmacy", "ward", "lab", "procedure"]
+    issue_count = 25
+    for i in range(issue_count):
+        issue_date = _past_days(2 + i * 2, today=today)
+        purpose = purposes[i % len(purposes)]
+        pat = patients[i % len(patients)] if patients else None
+        adm = admissions[i % len(admissions)] if admissions and purpose in ("pharmacy", "ward") else None
+        charge = purpose == "pharmacy" and pat is not None
+        issue_number = next_number(s, tid, "hc_store", "HSI", fmt="{prefix}-{YYYY}{seq:04d}")
+        issue = HcStoreIssue(
+            tenant_id=tid, issue_number=issue_number, issue_date=issue_date,
+            from_location_id=loc.id, patient_id=pat.id if pat else None,
+            admission_id=adm.id if adm else None, purpose=purpose,
+            created_by_id=user.id,
+        )
+        s.add(issue); s.flush()
+
+        total_charged = ZERO
+        for j in range(random.randint(1, 3)):
+            prod = products[(i + j) % len(products)]
+            qty = D(random.randint(1, 4))
+            unit_cost = money(D(prod.default_rate) * D("0.4"))
+            charge_amt = money(D(prod.default_rate) * qty) if charge else ZERO
+            s.add(HcStoreIssueItem(
+                issue_id=issue.id, product_id=prod.id, qty=qty,
+                unit_cost=unit_cost, charge_to_patient=charge,
+                charge_amount=charge_amt,
+            ))
+            if charge:
+                total_charged += charge_amt
+                if adm:
+                    s.add(HcAdmissionCharge(
+                        tenant_id=tid, admission_id=adm.id,
+                        charge_date=issue_date, charge_type="pharmacy",
+                        description=f"Store: {prod.name}", amount=charge_amt,
+                        created_by_id=user.id,
+                    ))
+        if total_charged > ZERO:
+            txn = post_store_issue(
+                s, user, amount=total_charged, date=issue_date,
+                issue_number=issue_number, purpose=purpose,
+                charge_to_patient=True, customer_id=None,
+            )
+            issue.transaction_id = txn.id
+            s.add(issue)
+        s.flush()
+
+
 def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: list[Vendor]) -> None:
     """Weaving unit-control demo (#140). Idempotent — skips if contracts exist."""
     tid = user.tenant_id
@@ -4357,17 +4697,22 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 current = _json.loads(tenant.enabled_modules or "[]")
             except Exception:
                 current = []
+            defaults = set(MODULES_BY_MODEL.get(business_model, ["base"]))
+            # PRA demo is a trader model but must expose the PRA nav/logs.
+            if email == "demo.pra@easy-books.app":
+                defaults.add("pra")
             merged = sorted(
-                {m for m in current if m in MODULE_REGISTRY}
-                | set(MODULES_BY_MODEL.get(business_model, ["base"]))
+                {m for m in current if m in MODULE_REGISTRY} | defaults
             )
             tenant.enabled_modules = _json.dumps(merged)
             s.add(tenant); s.commit()
         else:
+            modules = list(MODULES_BY_MODEL.get(business_model, ["base"]))
+            if email == "demo.pra@easy-books.app" and "pra" not in modules:
+                modules.append("pra")
             tenant = Tenant(name=company_name, business_model=business_model,
                             base_currency="USD",
-                            enabled_modules=_json.dumps(
-                                MODULES_BY_MODEL.get(business_model, ["base"])))
+                            enabled_modules=_json.dumps(modules))
             s.add(tenant); s.commit(); s.refresh(tenant)
             tenant_id = tenant.id
             seed_data(tenant_id, session=s)
@@ -4466,6 +4811,9 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             s.commit()
             _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
             s.commit()
+            # Own guard — backfills Issue Register when the PD chain already existed.
+            _seed_store_issues(s, owner, clerk, all_products)
+            s.commit()
             _seed_weaving(s, user, customers, vendors)
             s.commit()
 
@@ -4475,6 +4823,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
 
         if business_model == "hospital":
             _seed_healthcare(s, user)
+            s.commit()
+            _seed_healthcare_store(s, user)
             s.commit()
 
         # ── PRA e-Invoice demo (Pakistani retail trader) ───────────────────────
@@ -4547,6 +4897,12 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             "hc_patients":        len(s.exec(select(HcPatient).where(HcPatient.tenant_id == tenant_id)).all()),
             "hc_doctors":         len(s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tenant_id)).all()),
             "hc_lab_orders":      len(s.exec(select(HcLabOrder).where(HcLabOrder.tenant_id == tenant_id)).all()),
+            "hc_store_issues":    len(s.exec(select(HcStoreIssue).where(HcStoreIssue.tenant_id == tenant_id)).all()),
+            "store_issues":       len(s.exec(select(StoreIssue).where(StoreIssue.tenant_id == tenant_id)).all()),
+            "mm_accounts":        len(s.exec(select(MobileMoneyAccount).where(MobileMoneyAccount.tenant_id == tenant_id)).all()),
+            "device_imeis":       len(s.exec(select(DeviceImei).where(DeviceImei.tenant_id == tenant_id)).all()),
+            "postpaid":          len(s.exec(select(PostpaidConnection).where(PostpaidConnection.tenant_id == tenant_id)).all()),
+            "airtime_stock":     len(s.exec(select(AirtimeStock).where(AirtimeStock.tenant_id == tenant_id)).all()),
         }
 
 
