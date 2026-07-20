@@ -22,11 +22,18 @@ export async function apiFetch<T = unknown>(
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     const detail = (data as { detail?: unknown }).detail
-    const msg = Array.isArray(detail)
-      ? (detail as { msg?: string }[]).map(d => d.msg ?? String(d)).join(", ")
-      : typeof detail === "string"
-        ? detail
-        : `HTTP ${res.status}`
+    let msg: string
+    if (Array.isArray(detail)) {
+      msg = (detail as { msg?: string }[]).map(d => d.msg ?? String(d)).join(", ")
+    } else if (typeof detail === "string") {
+      msg = detail
+    } else if (detail && typeof detail === "object") {
+      const d = detail as { message?: string; warnings?: string[] }
+      const parts = [d.message, ...(d.warnings ?? [])].filter(Boolean)
+      msg = parts.length ? parts.join(" — ") : `HTTP ${res.status}`
+    } else {
+      msg = `HTTP ${res.status}`
+    }
     throw new Error(msg)
   }
   return res.json() as Promise<T>

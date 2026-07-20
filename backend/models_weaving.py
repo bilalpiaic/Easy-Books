@@ -11,7 +11,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Column, Numeric, UniqueConstraint
+from sqlalchemy import Column, JSON, Numeric, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from services.money import ZERO
@@ -66,6 +66,9 @@ class WvYarnType(SQLModel, table=True):
     code: str = Field(index=True)
     name: str
     description: Optional[str] = None
+    count_ne: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -125,6 +128,37 @@ class WvContract(SQLModel, table=True):
     # draft | in_process | completed | delayed | cancelled
     status: str = Field(default="draft", index=True)
     notes: Optional[str] = None
+    # Planned yarn from calculators (#196)
+    planned_warp_kg: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
+    planned_weft_kg: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
+    planned_total_yarn_kg: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
+    warp_count_ne: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
+    weft_count_ne: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
+    last_calc_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class WvCalcRun(SQLModel, table=True):
+    """Append-only calculator history (#196)."""
+    __tablename__ = "wv_calc_run"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    contract_id: int = Field(foreign_key="wv_contract.id", index=True)
+    calc_type: str = Field(index=True)  # weaving | sizing
+    inputs: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    outputs: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    override_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 

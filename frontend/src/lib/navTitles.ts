@@ -144,6 +144,8 @@ export const TITLE_MAP: Record<string, string> = {
   "/weaving/sizing":               "Sizing",
   "/weaving/production":           "Weaving Production",
   "/weaving/dispatch":             "Weaving Dispatch",
+  "/weaving/calculators/weaving":   "Weaving Calculator",
+  "/weaving/calculators/sizing":   "Sizing Calculator",
   "/weaving/reports/daily":        "Daily Operations",
   "/weaving/reports/contract-control": "Contract Control Panel",
   "/weaving/reports/customer-kpi": "Customer & Contract KPI",

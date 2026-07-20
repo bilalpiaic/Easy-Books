@@ -28,9 +28,23 @@ type Contract = {
   payment_terms?: string | null
   status: string
   notes?: string | null
+  planned_warp_kg?: number | null
+  planned_weft_kg?: number | null
+  planned_total_yarn_kg?: number | null
+  warp_count_ne?: number | null
+  weft_count_ne?: number | null
+  last_calc_at?: string | null
 }
 
 type Opt = { id: number; name: string; code?: string }
+
+type CalcRun = {
+  id: number
+  calc_type: string
+  override_reason?: string | null
+  created_at?: string | null
+  outputs?: { total_kg?: number }
+}
 
 export default function ContractDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -41,6 +55,7 @@ export default function ContractDetailPage() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
   const [form, setForm] = useState<Record<string, string>>({})
+  const [history, setHistory] = useState<CalcRun[]>([])
 
   const load = useCallback(async () => {
     const row = await apiFetch<Contract>(`/api/weaving/contracts/${id}`).catch(() => null)
@@ -60,6 +75,8 @@ export default function ContractDetailPage() {
     })
     const cust = await apiFetch<Opt>(`/api/customers/${row.customer_id}`).catch(() => null)
     if (cust) setCustomerName(cust.name)
+    const runs = await apiFetch<CalcRun[]>(`/api/weaving/calculators/history?contract_id=${id}`).catch(() => [])
+    setHistory(Array.isArray(runs) ? runs : [])
   }, [id])
 
   useEffect(() => { load() }, [load])
@@ -106,6 +123,12 @@ export default function ContractDetailPage() {
           <p className="text-sm text-[var(--text-muted)]">{customerName || `Customer #${c.customer_id}`} · started {fmtDate(c.start_date)}</p>
         </div>
         <div className="flex gap-2 print:hidden">
+          <Link href={`/weaving/calculators/weaving?contract=${c.id}`} className="px-3 py-2 text-sm rounded-lg border border-[var(--border)]">
+            Weaving calc
+          </Link>
+          <Link href={`/weaving/calculators/sizing?contract=${c.id}`} className="px-3 py-2 text-sm rounded-lg border border-[var(--border)]">
+            Sizing calc
+          </Link>
           <Link href={`/weaving/reports/contract-control?contract=${c.id}`} className="px-3 py-2 text-sm rounded-lg border border-[var(--border)]">
             Control panel
           </Link>
@@ -176,6 +199,48 @@ export default function ContractDetailPage() {
             <div>{c.notes || "—"}</div>
           )}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4 space-y-3 text-sm">
+        <h2 className="font-medium text-[var(--text-primary)]">Planned yarn (from calculators)</h2>
+        {c.planned_total_yarn_kg == null ? (
+          <p className="text-[var(--text-muted)]">No calculator assignment yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs text-[var(--text-muted)]">Warp / Weft / Total</div>
+              <div className="font-medium tabular-nums">
+                {fmt(c.planned_warp_kg ?? 0)} / {fmt(c.planned_weft_kg ?? 0)} / {fmt(c.planned_total_yarn_kg)} kg
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-[var(--text-muted)]">Warp / Weft count (Ne)</div>
+              <div className="font-medium tabular-nums">
+                {c.warp_count_ne ?? "—"} / {c.weft_count_ne ?? "—"}
+              </div>
+            </div>
+            {c.last_calc_at && (
+              <div className="sm:col-span-2 text-xs text-[var(--text-muted)]">
+                Last calc: {fmtDate(c.last_calc_at)}
+              </div>
+            )}
+          </div>
+        )}
+        {history.length > 0 && (
+          <div className="pt-2 border-t border-[var(--border)]">
+            <div className="text-xs text-[var(--text-muted)] mb-2">History</div>
+            <ul className="space-y-1">
+              {history.map(h => (
+                <li key={h.id} className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                  <span className="capitalize font-medium">{h.calc_type}</span>
+                  <span className="tabular-nums">{h.outputs?.total_kg != null ? `${fmt(h.outputs.total_kg)} kg` : "—"}</span>
+                  <span className="text-[var(--text-muted)]">{h.created_at ? fmtDate(h.created_at) : ""}</span>
+                  {h.override_reason && <span className="text-amber-700">override: {h.override_reason}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )

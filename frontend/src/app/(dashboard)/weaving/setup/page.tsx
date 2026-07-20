@@ -10,6 +10,7 @@ type Master = {
   name: string
   description?: string | null
   loom_type?: string | null
+  count_ne?: number | null
   is_active: boolean
 }
 
@@ -23,7 +24,7 @@ const TABS: { key: TabKey; label: string; extra?: string }[] = [
   { key: "operators", label: "Operators" },
 ]
 
-const BLANK = { code: "", name: "", description: "", loom_type: "", is_active: true }
+const BLANK = { code: "", name: "", description: "", loom_type: "", count_ne: "", is_active: true }
 
 export default function WeavingSetupPage() {
   const [tab, setTab] = useState<TabKey>("fabric-qualities")
@@ -63,6 +64,7 @@ export default function WeavingSetupPage() {
       name: r.name,
       description: r.description ?? "",
       loom_type: r.loom_type ?? "",
+      count_ne: r.count_ne != null ? String(r.count_ne) : "",
       is_active: r.is_active,
     })
     setErr("")
@@ -80,6 +82,9 @@ export default function WeavingSetupPage() {
     }
     if (tab === "looms") body.loom_type = form.loom_type || null
     else body.description = form.description || null
+    if (tab === "yarn-types") {
+      body.count_ne = form.count_ne.trim() === "" ? null : parseFloat(form.count_ne)
+    }
     try {
       if (editing) {
         await apiFetch(`/api/weaving/${tab}/${editing.id}`, { method: "PUT", body: JSON.stringify(body) })
@@ -96,6 +101,7 @@ export default function WeavingSetupPage() {
   }
 
   const showLoomType = tab === "looms"
+  const showCountNe = tab === "yarn-types"
 
   return (
     <div className="p-4 space-y-4 max-w-5xl mx-auto">
@@ -135,15 +141,16 @@ export default function WeavingSetupPage() {
               <th className="px-3 py-2">Code</th>
               <th className="px-3 py-2">Name</th>
               {showLoomType ? <th className="px-3 py-2">Type</th> : <th className="px-3 py-2">Description</th>}
+              {showCountNe && <th className="px-3 py-2">Count (Ne)</th>}
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2 text-right print:hidden">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-[var(--text-muted)]">Loading…</td></tr>
+              <tr><td colSpan={showCountNe ? 6 : 5} className="px-3 py-8 text-center text-[var(--text-muted)]">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-[var(--text-muted)]">No records yet</td></tr>
+              <tr><td colSpan={showCountNe ? 6 : 5} className="px-3 py-8 text-center text-[var(--text-muted)]">No records yet</td></tr>
             ) : rows.map(r => (
               <tr key={r.id} className={`border-t border-[var(--border)] ${!r.is_active ? "opacity-50" : ""}`}>
                 <td className="px-3 py-2 whitespace-nowrap font-medium">{r.code}</td>
@@ -151,6 +158,9 @@ export default function WeavingSetupPage() {
                 <td className="px-3 py-2 text-[var(--text-muted)]">
                   {showLoomType ? (r.loom_type || "—") : (r.description || "—")}
                 </td>
+                {showCountNe && (
+                  <td className="px-3 py-2 tabular-nums">{r.count_ne != null ? r.count_ne : "—"}</td>
+                )}
                 <td className="px-3 py-2">{r.is_active ? "Active" : "Inactive"}</td>
                 <td className="px-3 py-2 text-right print:hidden">
                   <button onClick={() => openEdit(r)} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]" title="Edit">
@@ -189,6 +199,14 @@ export default function WeavingSetupPage() {
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Description</label>
                   <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm" />
+                </div>
+              )}
+              {showCountNe && (
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Count (Ne)</label>
+                  <input type="number" step="any" value={form.count_ne}
+                    onChange={e => setForm(f => ({ ...f, count_ne: e.target.value }))}
                     className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm" />
                 </div>
               )}

@@ -1950,5 +1950,5 @@ from models_healthcare import (  # noqa: E402,F401
 )
 from models_weaving import (  # noqa: E402,F401
     WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
-    WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch,
+    WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch, WvCalcRun,
 )
