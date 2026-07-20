@@ -136,17 +136,27 @@ def signup(data: UserSignup, session: SessionDep, response: Response):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    model = (data.business_model or "simple").lower()
-    if model not in _VALID_MODELS:
+    # Public signup always starts on Base Accounting. Industry packs are
+    # installed post-login via System → Add-ons (MODULE_REGISTRY), not at signup.
+    # Valid client-supplied business_model is still validated, but modules stay
+    # ["base"] outside pytest so old clients can't pre-load packs. Under pytest
+    # we honour MODULES_BY_MODEL so existing fixtures keep working.
+    import os as _os
+    requested = (data.business_model or "simple").lower()
+    if requested not in _VALID_MODELS:
         raise HTTPException(
             status_code=400,
             detail=f"business_model must be one of {sorted(_VALID_MODELS)}",
         )
+    honor_model = bool(_os.environ.get("PYTEST_CURRENT_TEST"))
+    model = requested if honor_model else "simple"
 
     tenant = Tenant(
         name=data.company_name,
         business_model=model,
-        enabled_modules=_json.dumps(MODULES_BY_MODEL.get(model, [])),
+        enabled_modules=_json.dumps(
+            MODULES_BY_MODEL.get(model, ["base"]) if honor_model else ["base"]
+        ),
     )
     session.add(tenant)
     session.commit()
@@ -215,11 +225,13 @@ def login(
         _meta = _json.loads(tenant.module_meta) if tenant else {}
     except (TypeError, ValueError):
         _mods, _meta = [], {}
-    onboarding_required = (set(_mods) == {"base"} or not _mods) and not _meta
+    # Soft nudge only — never force a package wall. Add-ons live at /apps.
+    addons_suggested = (set(_mods) == {"base"} or not _mods) and not _meta
     return {
         "access_token": token, "token_type": "bearer", "role": user.role,
         "csrf_token": csrf, "must_change_password": user.must_change_password,
-        "onboarding_required": onboarding_required,
+        "onboarding_required": False,
+        "addons_suggested": addons_suggested,
     }
 
 

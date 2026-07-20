@@ -1,0 +1,98 @@
+"""Optional sample-data seeding when a module is installed from Add-ons.
+
+Reuses the idempotent helpers in scripts.seed_demo so install+seed is safe
+to re-run. Default is off for real tenants; Apps UI opts in for the demo.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+from sqlmodel import Session, select
+
+from models import Customer, Product, Settings, User, Vendor
+
+
+def _set_setting(session: Session, tenant_id: int, key: str, value: str) -> None:
+    row = session.exec(
+        select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)
+    ).first()
+    if row:
+        row.value = value
+        session.add(row)
+    else:
+        session.add(Settings(key=key, value=value, tenant_id=tenant_id))
+
+
+def _ensure_party(session: Session, tenant_id: int) -> tuple[list[Customer], list[Vendor]]:
+    """Weaving seed needs at least one customer; create stubs if the company is empty."""
+    customers = list(session.exec(select(Customer).where(Customer.tenant_id == tenant_id)).all())
+    vendors = list(session.exec(select(Vendor).where(Vendor.tenant_id == tenant_id)).all())
+    if not customers:
+        c = Customer(tenant_id=tenant_id, name="Sample Customer", email="sample.customer@example.com")
+        session.add(c)
+        session.flush()
+        customers = [c]
+    if not vendors:
+        v = Vendor(tenant_id=tenant_id, name="Sample Vendor", email="sample.vendor@example.com")
+        session.add(v)
+        session.flush()
+        vendors = [v]
+    return customers, vendors
+
+
+def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str, Any]:
+    """Seed sample rows for *module_id* on the current tenant. Idempotent.
+
+    Returns a small status dict for the install API response.
+    Unknown / non-seedable modules return ``{"seeded": False, "reason": "..."}``.
+    """
+    # Lazy import keeps the hot install path light when seed_sample=false.
+    from scripts import seed_demo as sd
+
+    tid = user.tenant_id
+    try:
+        if module_id == "telecom":
+            sd._seed_telecom_franchise(session, user)
+        elif module_id == "healthcare":
+            sd._seed_healthcare(session, user)
+        elif module_id == "pra":
+            sd._seed_pra_settings(session, tid)
+            sd._seed_pra_customers(session, tid)
+            sd._seed_pra_products(session, tid)
+            sd._seed_pra_submission_logs(session, tid)
+        elif module_id == "weaving":
+            customers, vendors = _ensure_party(session, tid)
+            sd._seed_weaving(session, user, customers, vendors)
+        elif module_id == "hrm":
+            components = sd._seed_salary_components(session, tid)
+            employees = sd._seed_employees(session, tid, "simple")
+            if employees and components:
+                sd._seed_salary_structures(session, employees, components)
+                sd._seed_attendance(session, tid, employees)
+        elif module_id == "inventory":
+            if not session.exec(select(Product).where(Product.tenant_id == tid)).first():
+                sd._seed_products(session, tid, "trader")
+        elif module_id in ("production", "purchase_store", "ai_assistant"):
+            return {
+                "seeded": False,
+                "reason": (
+                    f"{module_id} sample data is available via "
+                    "Settings → Sample / Demo Data"
+                ),
+            }
+        else:
+            return {"seeded": False, "reason": f"no sample seeder for {module_id}"}
+
+        session.commit()
+        return {"seeded": True, "module": module_id}
+    except Exception as exc:  # noqa: BLE001 — never fail the install on sample seed
+        session.rollback()
+        print(f"[module_sample_data] seed failed for {module_id}: {exc}")
+        return {"seeded": False, "reason": str(exc)[:200]}
+
+
+def enable_pra_settings(session: Session, tenant_id: int) -> None:
+    """Turn on sandbox PRA flags when the pra module is installed."""
+    _set_setting(session, tenant_id, "pra_enabled", "true")
+    _set_setting(session, tenant_id, "pra_sandbox_mode", "true")
+    session.commit()

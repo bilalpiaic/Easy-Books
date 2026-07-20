@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. It supports seven business models: **Simple**, **Services**, **Trader**, **Manufacturing**, **Telecom Franchise**, **PRA e-Invoice (Pakistan)**, and **Healthcare / Hospital** — all with IAS/IFRS-aligned accounting, an enforced ∑Dr = ∑Cr invariant, and live reports computed directly from the General Ledger.
+**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. Everyone starts on **Base Accounting**; industry capabilities (Inventory, Manufacturing, Telecom Franchise, PRA e-Invoice, Healthcare, Weaving, AI Assistant, …) are **Add-ons** installed after login from System → Add-ons. IAS/IFRS-aligned accounting with an enforced ∑Dr = ∑Cr invariant and live reports from the General Ledger.
 
 Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend) · SQLite for dev/local, PostgreSQL for production.
 
@@ -276,17 +276,19 @@ npm run dev
 
 ## Demo / sample data
 
-**Standalone script installs** (`install-and-run.bat` / `.sh`) **auto-load the 7 demo companies on first install** — sign in immediately with password `demo1234`, no signup required:
+**Public path:** Login → **Try the live demo** signs into one Base Accounting company (`demo.simple@easy-books.app` / `demo1234`). Install industry packs from **System → Add-ons** (optional “Include sample data”). There is no pre-login multi-company picker.
 
-| Email | Business model |
+**QA / admin:** Standalone installs and `dev.sh` still seed seven fully-populated demo companies for regression testing. They are not advertised on the login page; use Settings → Sample / Demo Data or the emails below with password `demo1234`:
+
+| Email | Pre-loaded pack (QA) |
 |---|---|
-| `demo.simple@easy-books.app` | Simple invoicing |
-| `demo.services@easy-books.app` | Services / recurring revenue |
-| `demo.trader@easy-books.app` | Inventory / buy-and-resell |
-| `demo.manufacturing@easy-books.app` | Manufacturing / value-addition |
+| `demo.simple@easy-books.app` | Base (public demo) |
+| `demo.services@easy-books.app` | Services / deferred revenue |
+| `demo.trader@easy-books.app` | Inventory |
+| `demo.manufacturing@easy-books.app` | Manufacturing + Purchases/Store + Weaving |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
-| `demo.pra@easy-books.app` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
-| `demo.hospital@easy-books.app` | Healthcare — hospital/clinic (OPD, IPD, Lab, Procedures, Store) |
+| `demo.pra@easy-books.app` | PRA e-Invoice |
+| `demo.hospital@easy-books.app` | Healthcare |
 
 The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 

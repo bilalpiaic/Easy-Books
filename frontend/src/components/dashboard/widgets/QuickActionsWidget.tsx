@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Pencil, Check, X } from "lucide-react"
 import { ALL_QUICK_ACTIONS } from "@/lib/dashboardWidgets"
+import { useModules } from "@/context/ModuleContext"
 
 interface Props {
   quickActions: string[]
@@ -11,12 +12,17 @@ interface Props {
 }
 
 export default function QuickActionsWidget({ quickActions, updateQuickActions }: Props) {
+  const { installedModules } = useModules()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
+  const available = ALL_QUICK_ACTIONS.filter(
+    a => !a.requiredModule || installedModules.has(a.requiredModule),
+  )
+
   const activeActions = quickActions
-    .map(id => ALL_QUICK_ACTIONS.find(a => a.id === id))
+    .map(id => available.find(a => a.id === id))
     .filter(Boolean) as typeof ALL_QUICK_ACTIONS
 
   const startEdit = () => {
@@ -57,7 +63,7 @@ export default function QuickActionsWidget({ quickActions, updateQuickActions }:
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {ALL_QUICK_ACTIONS.map(action => {
+          {available.map(action => {
             const active = draft.includes(action.id)
             return (
               <button

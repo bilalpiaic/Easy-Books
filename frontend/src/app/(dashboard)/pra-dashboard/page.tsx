@@ -43,7 +43,7 @@ function paymentLabel(mode: number | null) {
 }
 
 export default function PRADashboardPage() {
-  const { isPortal, settled } = usePRAPortal()
+  const { isPortal, settled, praModuleInstalled } = usePRAPortal()
   const router = useRouter()
   const fmt = useFmt()
   const { settings } = useSettings()
@@ -52,10 +52,10 @@ export default function PRADashboardPage() {
   const [invoices, setInvoices] = useState<InvoiceItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Redirect only if PRA is not enabled for this tenant at all
+  // Primary gate is the PRA add-on; pra_enabled is the compliance/API switch.
   useEffect(() => {
-    if (settled && settings.pra_enabled !== "true") router.replace("/dashboard")
-  }, [settled, settings.pra_enabled, router])
+    if (settled && !praModuleInstalled) router.replace("/dashboard")
+  }, [settled, praModuleInstalled, router])
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)

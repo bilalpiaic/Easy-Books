@@ -21,7 +21,7 @@ interface ModuleContextValue {
   modules: ModuleInfo[]
   installedModules: Set<string>
   loading: boolean
-  install: (id: string) => Promise<void>
+  install: (id: string, opts?: { seedSample?: boolean }) => Promise<void>
   uninstall: (id: string) => Promise<void>
   refresh: () => Promise<void>
 }
@@ -52,8 +52,9 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { refresh() }, [refresh])
 
-  const install = useCallback(async (id: string) => {
-    await apiFetch(`/api/modules/${id}/install`, { method: "POST" })
+  const install = useCallback(async (id: string, opts?: { seedSample?: boolean }) => {
+    const q = opts?.seedSample ? "?seed_sample=true" : ""
+    await apiFetch(`/api/modules/${id}/install${q}`, { method: "POST" })
     await refresh()
   }, [refresh])
 

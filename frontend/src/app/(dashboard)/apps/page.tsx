@@ -1,17 +1,19 @@
 "use client"
-import { useState } from "react"
-import { BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock, AlertTriangle, Stethoscope, Sparkles, Scissors, ShoppingCart } from "lucide-react"
+
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import {
+  BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock,
+  AlertTriangle, Stethoscope, Sparkles, Scissors, ShoppingCart, Layers,
+} from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
+import { ADDON_PACKS, HOME_PREF_KEY } from "@/lib/addonPacks"
+import { getCurrentUser } from "@/lib/auth"
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles, Scissors, ShoppingCart,
 }
 
-// Every backend MODULE_REGISTRY category (db.py) must be listed here or its
-// modules are silently dropped from the page — they still count toward the
-// "N of 9 installed" header and are still installable via the raw API, but
-// have no card and no Install button anywhere in the UI. ai_assistant's
-// "Intelligence" category was missing here for that exact reason.
 const CATEGORY_ORDER = ["Core", "Accounting", "Operations", "HR", "Industry", "Intelligence"]
 
 function categoryGroups(modules: ModuleInfo[]): [string, ModuleInfo[]][] {
@@ -78,21 +80,50 @@ function ModuleCard({ mod, onInstall, onUninstall, busy }: {
   )
 }
 
-export default function AppsPage() {
-  const { modules, install, uninstall } = useModules()
+function AppsPageInner() {
+  const { modules, installedModules, install, uninstall } = useModules()
+  const router = useRouter()
+  const search = useSearchParams()
+  const welcome = search.get("welcome") === "1"
+
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [praPrompt, setPraPrompt] = useState(false)
+  // Demo tenants default to including sample rows; real signups opt in.
+  const [seedSample, setSeedSample] = useState(() => {
+    const email = getCurrentUser()?.email ?? ""
+    return email.startsWith("demo.")
+  })
 
-  const handleInstall = async (id: string) => {
+  const handleInstall = useCallback(async (id: string) => {
     setBusyId(id); setError(null); setSuccess(null)
     try {
-      await install(id)
+      await install(id, { seedSample })
       const mod = modules.find(m => m.id === id)
       setSuccess(`${mod?.label ?? id} installed successfully.`)
+      if (id === "pra") setPraPrompt(true)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg || "Install failed. Check console for details.")
+    } finally {
+      setBusyId(null)
+    }
+  }, [install, modules, seedSample])
+
+  const handlePack = async (packId: string) => {
+    const pack = ADDON_PACKS.find(p => p.id === packId)
+    if (!pack) return
+    setBusyId(packId); setError(null); setSuccess(null)
+    try {
+      for (const mid of pack.modules) {
+        if (!installedModules.has(mid)) await install(mid, { seedSample })
+      }
+      setSuccess(`${pack.label} pack installed.`)
+      if (pack.modules.includes("pra")) setPraPrompt(true)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg || "Pack install failed.")
     } finally {
       setBusyId(null)
     }
@@ -104,6 +135,10 @@ export default function AppsPage() {
     setBusyId(id); setError(null); setSuccess(null)
     try {
       await uninstall(id)
+      if (id === "pra") {
+        localStorage.setItem(HOME_PREF_KEY, "accounting")
+        localStorage.setItem("eb.pra_portal_mode", "0")
+      }
       setSuccess(`${mod?.label ?? id} uninstalled.`)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -113,18 +148,74 @@ export default function AppsPage() {
     }
   }
 
+  const choosePraHome = (usePra: boolean) => {
+    localStorage.setItem(HOME_PREF_KEY, usePra ? "pra" : "accounting")
+    localStorage.setItem("eb.pra_portal_mode", usePra ? "1" : "0")
+    setPraPrompt(false)
+    router.push(usePra ? "/pra-dashboard" : "/dashboard")
+  }
+
   const groups = categoryGroups(modules)
   const installedCount = modules.filter(m => m.installed).length
 
+  const packsWithStatus = useMemo(() => ADDON_PACKS.map(p => ({
+    ...p,
+    fullyInstalled: p.modules.every(m => installedModules.has(m)),
+  })), [installedModules])
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8 p-4 md:p-0">
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Add-ons</h1>
         <p className="text-sm text-gray-500 mt-1">
           {installedCount} of {modules.length} modules installed.
-          Install add-ons to unlock additional sections in your sidebar.
+          Start with Base Accounting, then install what your business needs.
         </p>
       </div>
+
+      {welcome && (
+        <div className="rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-4 py-3 text-sm text-[var(--text-primary)]">
+          Welcome! Your company starts with <strong>Base Accounting</strong>.
+          Pick a recommended pack below, or install individual modules.
+        </div>
+      )}
+
+      <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]/70 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={seedSample}
+          onChange={e => setSeedSample(e.target.checked)}
+          className="rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+        />
+        Include sample data when installing
+        <span className="text-xs text-gray-400">(demo tenants on by default)</span>
+      </label>
+
+      {praPrompt && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 space-y-3">
+          <p className="text-sm font-semibold text-amber-900">Use PRA Sales Dashboard as your home?</p>
+          <p className="text-xs text-amber-800/80">
+            The retail counter view shows today&apos;s invoices and PRA submission status.
+            You can switch back to the full Accounting dashboard anytime.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => choosePraHome(true)}
+              className="text-xs bg-[var(--primary)] text-white rounded-lg px-3 py-2 font-medium"
+            >
+              Yes — PRA Sales home
+            </button>
+            <button
+              type="button"
+              onClick={() => choosePraHome(false)}
+              className="text-xs border border-amber-300 text-amber-900 rounded-lg px-3 py-2 font-medium bg-white"
+            >
+              Keep Accounting home
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
@@ -138,6 +229,52 @@ export default function AppsPage() {
           {success}
         </div>
       )}
+
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Layers className="w-4 h-4 text-[var(--primary)]" />
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Recommended packs</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {packsWithStatus.map(pack => (
+            <div
+              key={pack.id}
+              className={`bg-white rounded-xl border p-5 flex flex-col gap-3 shadow-sm ${
+                pack.fullyInstalled ? "border-[var(--primary)]/40" : "border-gray-200"
+              }`}
+            >
+              <div>
+                <h3 className="font-semibold text-sm text-[var(--text-primary)]">{pack.label}</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">{pack.tagline}</p>
+              </div>
+              <ul className="text-xs text-gray-500 space-y-1 flex-1">
+                {pack.features.map(f => (
+                  <li key={f} className="flex gap-1.5">
+                    <span className="text-[var(--primary)]">·</span> {f}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] text-gray-400">
+                Modules: {pack.modules.join(", ")}
+              </p>
+              {pack.fullyInstalled ? (
+                <span className="inline-flex items-center gap-1 text-xs text-[var(--primary)] font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Installed
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busyId !== null}
+                  onClick={() => handlePack(pack.id)}
+                  className="text-xs bg-[var(--primary)] text-white rounded px-3 py-1.5 hover:bg-[#a07832] transition-colors disabled:opacity-50 font-medium self-start"
+                >
+                  {busyId === pack.id ? "Installing…" : "Install pack"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       {groups.map(([category, mods]) => (
         <section key={category}>
@@ -160,5 +297,13 @@ export default function AppsPage() {
         <div className="text-center py-16 text-gray-400">Loading modules…</div>
       )}
     </div>
+  )
+}
+
+export default function AppsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-gray-400">Loading Add-ons…</div>}>
+      <AppsPageInner />
+    </Suspense>
   )
 }

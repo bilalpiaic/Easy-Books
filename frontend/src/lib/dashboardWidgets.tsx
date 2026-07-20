@@ -89,6 +89,8 @@ export interface WidgetDef {
   pinned?: boolean               // rendered in the fixed notices strip, NOT a grid item
   conditional?: boolean          // render() may return null (e.g. ar_aging when no data)
   defaultOnGrid?: boolean        // default true; false = not on the default dashboard, add via panel
+  /** When set, widget is only available if this module is installed. */
+  requiredModule?: string
   render: (ctx: WidgetContext) => React.ReactNode
 }
 
@@ -111,16 +113,17 @@ export interface QuickActionDef {
   href: string
   icon: React.ComponentType<{ className?: string }>
   color: string
+  requiredModule?: string
 }
 
 export const ALL_QUICK_ACTIONS: QuickActionDef[] = [
   { id: "new_invoice",   label: "New Invoice",       href: "/invoices",          icon: FileSignature, color: "text-green-600" },
   { id: "new_bill",      label: "New Bill",          href: "/bills",             icon: Receipt,       color: "text-orange-600" },
   { id: "new_entry",     label: "New Entry",         href: "/entry",             icon: Hash,          color: "text-blue-600" },
-  { id: "attendance",    label: "Attendance",        href: "/attendance",        icon: CalendarDays,  color: "text-indigo-600" },
-  { id: "new_payroll",   label: "New Payroll Run",   href: "/payroll/new",       icon: Briefcase,     color: "text-violet-600" },
-  { id: "employees",     label: "Employees",         href: "/employees",         icon: Users,         color: "text-cyan-600" },
-  { id: "products",      label: "Products",          href: "/products",          icon: Package,       color: "text-purple-600" },
+  { id: "attendance",    label: "Attendance",        href: "/attendance",        icon: CalendarDays,  color: "text-indigo-600", requiredModule: "hrm" },
+  { id: "new_payroll",   label: "New Payroll Run",   href: "/payroll/new",       icon: Briefcase,     color: "text-violet-600", requiredModule: "hrm" },
+  { id: "employees",     label: "Employees",         href: "/employees",         icon: Users,         color: "text-cyan-600", requiredModule: "hrm" },
+  { id: "products",      label: "Products",          href: "/products",          icon: Package,       color: "text-purple-600", requiredModule: "inventory" },
   { id: "customers",     label: "Customers",         href: "/customers",         icon: ArrowDownLeft, color: "text-emerald-600" },
   { id: "vendors",       label: "Vendors",           href: "/vendors",           icon: Truck,         color: "text-amber-700" },
   { id: "bank",          label: "Banking",           href: "/banking",           icon: Landmark,      color: "text-slate-600" },
@@ -130,7 +133,7 @@ export const ALL_QUICK_ACTIONS: QuickActionDef[] = [
 ]
 
 export const DEFAULT_QUICK_ACTION_IDS = [
-  "new_invoice", "new_bill", "new_entry", "attendance", "products", "workflow", "guide",
+  "new_invoice", "new_bill", "new_entry", "products", "workflow", "guide",
 ]
 
 export const WIDGET_REGISTRY: WidgetDef[] = [
@@ -475,16 +478,19 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
   {
     id: "top_products", title: "Top Products", defaultVisible: true, defaultOnGrid: false,
     defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    requiredModule: "inventory",
     render: () => <TopProductsWidget />,
   },
   {
     id: "inventory_summary", title: "Inventory Summary", defaultVisible: true, defaultOnGrid: false,
     defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    requiredModule: "inventory",
     render: () => <InventorySummaryWidget />,
   },
   {
     id: "hrm_summary", title: "HRM & Payroll", defaultVisible: true,
     defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    requiredModule: "hrm",
     render: () => <HRMSummaryWidget />,
   },
 ]
