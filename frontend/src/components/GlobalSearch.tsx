@@ -7,7 +7,7 @@ import Link from "next/link"
 import {
   Search, X, LayoutGrid, Users, Truck, FileSignature, Receipt,
   BookOpen, Package, UserCog, ClipboardList, Layers, Zap, BarChart2,
-  Clock, ArrowRight,
+  Clock, ArrowRight, Banknote, FileMinus, FilePlus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
@@ -27,14 +27,18 @@ interface ApiRow {
 }
 
 interface ApiResults {
-  customers?:    ApiRow[]
-  vendors?:      ApiRow[]
-  invoices?:     ApiRow[]
-  bills?:        ApiRow[]
-  accounts?:     ApiRow[]
-  products?:     ApiRow[]
-  employees?:    ApiRow[]
-  transactions?: ApiRow[]
+  customers?:          ApiRow[]
+  vendors?:            ApiRow[]
+  invoices?:           ApiRow[]
+  bills?:              ApiRow[]
+  accounts?:           ApiRow[]
+  products?:           ApiRow[]
+  employees?:          ApiRow[]
+  transactions?:       ApiRow[]
+  payments_received?:  ApiRow[]
+  bill_payments?:      ApiRow[]
+  credit_notes?:       ApiRow[]
+  debit_notes?:        ApiRow[]
 }
 
 interface SearchItem {
@@ -57,19 +61,27 @@ const RECENT_KEY = "eb.recent-searches"
 const MAX_RECENT = 5
 
 const TYPE_META: Record<string, { label: string; icon: React.ElementType }> = {
-  nav:          { label: "Pages",              icon: LayoutGrid    },
-  action:       { label: "Forms & Inputs",     icon: Zap           },
-  report:       { label: "Reports & Analysis", icon: BarChart2     },
-  tabs:         { label: "Open Tabs",          icon: Layers        },
-  customers:    { label: "Customers",          icon: Users         },
-  vendors:      { label: "Vendors",            icon: Truck         },
-  invoices:     { label: "Invoices",           icon: FileSignature },
-  bills:        { label: "Bills",              icon: Receipt       },
-  accounts:     { label: "Accounts",           icon: BookOpen      },
-  products:     { label: "Products",           icon: Package       },
-  employees:    { label: "Employees",          icon: UserCog       },
-  transactions: { label: "Transactions",       icon: ClipboardList },
+  nav:                { label: "Pages",              icon: LayoutGrid    },
+  action:             { label: "Forms & Inputs",     icon: Zap           },
+  report:             { label: "Reports & Analysis", icon: BarChart2     },
+  tabs:               { label: "Open Tabs",          icon: Layers        },
+  customers:          { label: "Customers",          icon: Users         },
+  vendors:            { label: "Vendors",            icon: Truck         },
+  invoices:           { label: "Invoices",           icon: FileSignature },
+  bills:              { label: "Bills",              icon: Receipt       },
+  payments_received:  { label: "Payments Received",  icon: Banknote      },
+  bill_payments:      { label: "Bill Payments",      icon: Banknote      },
+  credit_notes:       { label: "Credit Notes",       icon: FileMinus     },
+  debit_notes:        { label: "Debit Notes",        icon: FilePlus      },
+  accounts:           { label: "Accounts",           icon: BookOpen      },
+  products:           { label: "Products",           icon: Package       },
+  employees:          { label: "Employees",          icon: UserCog       },
+  transactions:       { label: "Transactions",       icon: ClipboardList },
 }
+
+/** Entity types searched when the query is an amount (`amt:` or a bare number). */
+const AMOUNT_TYPES =
+  "invoices,bills,transactions,payments_received,bill_payments,credit_notes,debit_notes"
 
 const STATUS_COLORS: Record<string, string> = {
   draft:     "bg-amber-100  text-amber-700  dark:bg-amber-900/30  dark:text-amber-400",
@@ -224,10 +236,13 @@ export default function GlobalSearch() {
     let cancelled = false
     setLoading(true)
 
-    // Map prefix → `types` param (only real entity types)
-    const entityTypes = (apiType && !apiType.startsWith("__")) ? apiType : ""
+    // Map prefix → `types` param (only real entity types / amount bundle)
+    let entityTypes = ""
+    if (apiType === "__amount__") entityTypes = AMOUNT_TYPES
+    else if (apiType && !apiType.startsWith("__")) entityTypes = apiType
+
     apiFetch<ApiResults>(
-      `/api/search?q=${encodeURIComponent(cleanQ)}&limit=5${entityTypes ? `&types=${entityTypes}` : ""}`
+      `/api/search?q=${encodeURIComponent(cleanQ)}&limit=8${entityTypes ? `&types=${entityTypes}` : ""}`
     )
       .then(data  => { if (!cancelled) { setApiResults(data); setLoading(false) } })
       .catch(()   => { if (!cancelled)   setLoading(false) })
@@ -242,7 +257,7 @@ export default function GlobalSearch() {
 
     const showTabs    = !prefix || apiType === "__tabs__"
     const showNav     = !prefix || apiType === "__nav__" || apiType === "__reports__" || apiType === "__actions__"
-    const showApi     = !prefix || (apiType && !apiType.startsWith("__"))
+    const showApi     = !prefix || (apiType && !apiType.startsWith("__")) || apiType === "__amount__"
 
     const result: Group[] = []
 
@@ -296,7 +311,11 @@ export default function GlobalSearch() {
 
     // 3. API results
     if (showApi && apiResults) {
-      const apiOrder = ["invoices","bills","customers","vendors","accounts","products","employees","transactions"] as const
+      const apiOrder = [
+        "invoices", "bills", "payments_received", "bill_payments",
+        "credit_notes", "debit_notes",
+        "customers", "vendors", "accounts", "products", "employees", "transactions",
+      ] as const
       for (const key of apiOrder) {
         const rows = apiResults[key as keyof ApiResults]
         if (!rows?.length) continue
@@ -363,7 +382,7 @@ export default function GlobalSearch() {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search pages, forms, reports… or inv:, form:, rpt:, analysis:"
+              placeholder="Search pages, forms, amounts… or inv:, amt:, form:, rpt:"
               className="flex-1 bg-transparent text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none"
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -433,7 +452,7 @@ export default function GlobalSearch() {
                   <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
                     <span className="font-semibold text-[var(--text-secondary)]">Tip:</span>{" "}
                     Browse by layer —{" "}
-                    {["form:", "rpt:", "analysis:", "output:", "nav:", "inv:", "cust:", "tab:"].map(p => (
+                    {["form:", "rpt:", "amt:", "inv:", "nav:", "tab:"].map(p => (
                       <button key={p} type="button" onClick={() => setQuery(p)}
                         className="inline-block font-mono text-[10px] bg-[var(--bg-page)] border border-[var(--border)] rounded px-1 py-0.5 mr-1 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors">
                         {p}
