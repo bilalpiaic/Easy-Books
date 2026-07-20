@@ -20,7 +20,14 @@ interface BankAccount {
   balance: number
 }
 
-interface CoaAccount { id: number; code: string; name: string; type: string }
+interface CoaAccount {
+  id: number
+  code: string
+  name: string
+  type: string
+  is_group?: boolean
+  is_active?: boolean
+}
 
 interface BankForm {
   name: string
@@ -47,6 +54,16 @@ export default function BankAccounts() {
   const [coaAccounts, setCoaAccounts] = useState<CoaAccount[]>([])
   const [coaMap, setCoaMap] = useState<Record<number, { code: string; name: string }>>({})
 
+  const loadCoaMap = () => {
+    apiFetch<{ items: CoaAccount[] }>('/api/accounts?limit=500')
+      .then(d => {
+        const m: Record<number, { code: string; name: string }> = {}
+        d.items.forEach(a => { m[a.id] = { code: a.code, name: a.name } })
+        setCoaMap(m)
+      })
+      .catch(() => {})
+  }
+
   const load = () => {
     setLoading(true)
     apiFetch<BankAccount[]>('/api/bank-accounts')
@@ -56,23 +73,34 @@ export default function BankAccounts() {
   }
 
   useEffect(load, [])
+  useEffect(loadCoaMap, [])
 
-  // Resolve coa_account_id → {code,name} so each bank card links to its ledger.
-  useEffect(() => {
-    apiFetch<{ items: CoaAccount[] }>('/api/accounts?limit=500')
+  const loadUnusedAssetLeaves = (keepCoaId?: number | null) => {
+    apiFetch<{ total: number; items: CoaAccount[] }>('/api/accounts?limit=500')
       .then(d => {
-        const m: Record<number, { code: string; name: string }> = {}
-        d.items.forEach(a => { m[a.id] = { code: a.code, name: a.name } })
-        setCoaMap(m)
+        const linked = new Set(
+          accounts
+            .map(a => a.coa_account_id)
+            .filter((id): id is number => id != null && id !== keepCoaId)
+        )
+        setCoaAccounts(
+          d.items.filter(a =>
+            a.type === 'Asset'
+            && !a.is_group
+            && a.is_active !== false
+            && !linked.has(a.id)
+          )
+        )
       })
       .catch(() => {})
-  }, [])
+  }
 
   const openAdd = () => {
-    apiFetch<{ total: number; items: CoaAccount[] }>('/api/accounts?limit=500')
-      .then(d => setCoaAccounts(d.items.filter(a => a.type === 'Asset')))
-      .catch(() => {})
-    setEditAccount(null); setForm(emptyForm); setFormError(''); setModalOpen(true)
+    loadUnusedAssetLeaves()
+    setEditAccount(null)
+    setForm(emptyForm)
+    setFormError('')
+    setModalOpen(true)
   }
 
   useEffect(() => {
@@ -80,28 +108,60 @@ export default function BankAccounts() {
     window.addEventListener("kbd:new", h)
     return () => window.removeEventListener("kbd:new", h)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [accounts])
 
   const openEdit = (ba: BankAccount) => {
-    apiFetch<{ total: number; items: CoaAccount[] }>('/api/accounts?limit=500')
-      .then(d => setCoaAccounts(d.items.filter(a => a.type === 'Asset')))
-      .catch(() => {})
+    loadUnusedAssetLeaves(ba.coa_account_id)
     setEditAccount(ba)
-    setForm({ name: ba.name, bank_name: ba.bank_name ?? '', account_number: ba.account_number ?? '', coa_account_id: ba.coa_account_id ? String(ba.coa_account_id) : '' })
-    setFormError(''); setModalOpen(true)
+    setForm({
+      name: ba.name,
+      bank_name: ba.bank_name ?? '',
+      account_number: ba.account_number ?? '',
+      coa_account_id: ba.coa_account_id ? String(ba.coa_account_id) : '',
+    })
+    setFormError('')
+    setModalOpen(true)
   }
 
   const handleSave = async () => {
     if (!form.name.trim()) { setFormError('Name is required'); return }
     setSaving(true); setFormError('')
     try {
-      const body = { name: form.name, bank_name: form.bank_name || null, account_number: form.account_number || null, coa_account_id: form.coa_account_id ? parseInt(form.coa_account_id) : null }
-      if (editAccount) {
-        await apiFetch(`/api/bank-accounts/${editAccount.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      } else {
-        await apiFetch('/api/bank-accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const body: Record<string, unknown> = {
+        name: form.name,
+        bank_name: form.bank_name || null,
+        account_number: form.account_number || null,
       }
-      setModalOpen(false); load()
+      if (editAccount) {
+        if (!form.coa_account_id) {
+          setFormError('Select a linked GL account')
+          setSaving(false)
+          return
+        }
+        body.coa_account_id = parseInt(form.coa_account_id)
+        await apiFetch(`/api/bank-accounts/${editAccount.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      } else if (form.coa_account_id) {
+        body.coa_account_id = parseInt(form.coa_account_id)
+        await apiFetch('/api/bank-accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      } else {
+        // Omit coa_account_id → backend auto-creates a dedicated CoA leaf
+        await apiFetch('/api/bank-accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      }
+      setModalOpen(false)
+      load()
+      loadCoaMap()
     } catch (err) {
       setFormError((err as Error).message)
     } finally {
@@ -132,7 +192,9 @@ export default function BankAccounts() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold">Bank Accounts</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">Monitor bank balances and track cash positions</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            Each bank links to its own CoA leaf — balances match Trial Balance and Bank Book
+          </p>
         </div>
         <div className="flex gap-3">
           <button onClick={() => setHideBalance(!hideBalance)} className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-page)]">
@@ -227,12 +289,26 @@ export default function BankAccounts() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Linked GL Account (CoA)</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+                  Linked GL Account (CoA)
+                </label>
                 <select value={form.coa_account_id} onChange={e => setForm(p => ({ ...p, coa_account_id: e.target.value }))}
                   className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]">
-                  <option value="">— No GL link —</option>
-                  {coaAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+                  {!editAccount && (
+                    <option value="">Auto-create new CoA leaf (recommended)</option>
+                  )}
+                  {editAccount && !form.coa_account_id && (
+                    <option value="">— Select a GL leaf —</option>
+                  )}
+                  {coaAccounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                  ))}
                 </select>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  {editAccount
+                    ? "Each bank must use a unique Asset leaf so balances match Trial Balance."
+                    : "Leave on auto-create to mint a dedicated leaf under Current Assets."}
+                </p>
               </div>
               {formError && <p className="text-red-600 text-sm">{formError}</p>}
               <div className="flex justify-end gap-3 pt-2">

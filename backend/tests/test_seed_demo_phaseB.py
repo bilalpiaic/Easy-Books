@@ -70,7 +70,7 @@ def test_seeded_transactions_carry_document_voucher_types(client):
     with Session(_db_module.engine) as s:
         vtypes = {t.voucher_type for t in s.exec(
             select(Transaction).where(Transaction.tenant_id == tid)).all()}
-    assert {"SL", "PU", "CR", "CP"}.issubset(vtypes), f"got {sorted(vtypes)}"
+    assert {"SL", "PU", "CR", "CP", "BR", "BP"}.issubset(vtypes), f"got {sorted(vtypes)}"
 
 
 def test_seeded_deferred_revenue_is_originated_and_partially_recognised(client):
