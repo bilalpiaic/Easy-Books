@@ -13,6 +13,7 @@ import { isAuthenticated, getMustChangePwd, getCurrentUser } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
 import { PermissionProvider } from "@/context/PermissionContext"
 import { ModuleProvider } from "@/context/ModuleContext"
+import { MessageProvider } from "@/context/MessageContext"
 import { OnboardingGuard } from "@/components/OnboardingGuard"
 import { TabProvider } from "@/context/TabContext"
 import NavBar from "@/components/NavBar"
@@ -140,6 +141,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <SettingsProvider>
       <ModuleProvider>
+        <MessageProvider>
         <OnboardingGuard>
           <PermissionProvider>
             <BreadcrumbProvider>
@@ -208,6 +210,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </BreadcrumbProvider>
           </PermissionProvider>
         </OnboardingGuard>
+        </MessageProvider>
       </ModuleProvider>
     </SettingsProvider>
   )

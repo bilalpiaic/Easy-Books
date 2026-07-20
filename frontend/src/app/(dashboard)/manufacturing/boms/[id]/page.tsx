@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Package, Archive } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface BomLine {
   id: number
@@ -37,6 +38,7 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 export default function BomDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const { id } = use(params)
@@ -65,7 +67,14 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
   }, [id])
 
   const archive = async () => {
-    if (!bom || !confirm(`Archive BOM #${bom.id} (v${bom.version})? Production orders referencing it will keep their cost basis.`)) return
+    if (!bom) return
+    const ok = await confirm({
+      title: `Archive BOM #${bom.id} (v${bom.version})?`,
+      message: "Production orders referencing it will keep their cost basis.",
+      confirmLabel: "Archive",
+      danger: true,
+    })
+    if (!ok) return
     setArchiving(true)
     try {
       await apiFetch(`/api/bom/${id}/deactivate`, { method: "PATCH" })

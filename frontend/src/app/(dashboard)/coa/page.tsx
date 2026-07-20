@@ -12,6 +12,7 @@ import AccountFormModal from "@/components/AccountFormModal"
 import SkeletonRow from "@/components/SkeletonRow"
 import CsvImportButton from "@/components/CsvImportButton"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface Account {
   id: number
@@ -59,6 +60,7 @@ function buildTree(accounts: Account[]): Account[] {
 }
 
 export default function COAPage() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -96,12 +98,18 @@ export default function COAPage() {
   useEffect(loadAccounts, [loadAccounts])
 
   const handleDelete = async (acc: Account) => {
-    if (!window.confirm(`Delete account "${acc.name}"? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Delete account "${acc.name}"?`,
+      message: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/accounts/${acc.id}`, { method: "DELETE" })
       loadAccounts()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
@@ -113,7 +121,7 @@ export default function COAPage() {
       })
       loadAccounts()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 

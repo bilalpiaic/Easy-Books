@@ -7,6 +7,7 @@ import { X, KeyRound, Check, Loader2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
 import type { ModelsPayload } from "./ChatCore"
+import { useMessages } from "@/context/MessageContext"
 
 type AiProviderId = "anthropic" | "openai" | "gemini"
 type AiKeyStatus = Record<AiProviderId, string | null>
@@ -36,6 +37,7 @@ export default function AiModelKeyPanel({
   models, selectedModel, onSelectModel, onModelsRefresh, onClose,
 }: AiModelKeyPanelProps) {
   const isAdmin = getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner"
+  const { confirm } = useMessages()
   const [keyStatus, setKeyStatus] = useState<AiKeyStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(isAdmin)
   const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({ anthropic: "", openai: "", gemini: "" })
@@ -78,7 +80,12 @@ export default function AiModelKeyPanel({
   }
 
   const handleClearKey = async (provider: AiProviderId, settingsKey: string, label: string) => {
-    if (!window.confirm(`Clear the ${label} API key?`)) return
+    const ok = await confirm({
+      title: `Clear the ${label} API key?`,
+      confirmLabel: "Clear key",
+      danger: true,
+    })
+    if (!ok) return
     setError("")
     try {
       await apiFetch("/api/settings", {

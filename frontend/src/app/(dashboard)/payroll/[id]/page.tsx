@@ -9,6 +9,7 @@ import { fmtDate } from "@/lib/utils"
 import { useFmt, useCurrency } from "@/context/SettingsContext"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface LineDetail {
   id: number
@@ -53,6 +54,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function PayrollRunPage() {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
   const params = useParams()
   const runId = params.id as string
@@ -219,10 +221,14 @@ export default function PayrollRunPage() {
                 <Printer className="w-4 h-4" /> Print
               </button>
               <button
-                onClick={() => {
-                  if (confirm("Void this payroll run? This will create a reversing journal entry.")) {
-                    doAction("void")
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Void this payroll run?",
+                    message: "This will create a reversing journal entry.",
+                    confirmLabel: "Void",
+                    danger: true,
+                  })
+                  if (ok) doAction("void")
                 }}
                 disabled={!!actionLoading}
                 className="inline-flex items-center gap-1 px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 disabled:opacity-50"

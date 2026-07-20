@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface PaymentTerm {
   id: number
@@ -23,6 +24,7 @@ interface TermForm {
 const emptyForm: TermForm = { code: "", name: "", days: "" }
 
 export default function PaymentTermsPage() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const [terms, setTerms]       = useState<PaymentTerm[]>([])
@@ -78,12 +80,17 @@ export default function PaymentTermsPage() {
   }
 
   const handleDelete = async (t: PaymentTerm) => {
-    if (!confirm(`Delete payment term "${t.name}"?`)) return
+    const ok = await confirm({
+      title: `Delete payment term "${t.name}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/payment-terms/${t.id}`, { method: "DELETE" })
       load()
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Delete failed")
+      toast(e instanceof Error ? e.message : "Delete failed", "error")
     }
   }
 

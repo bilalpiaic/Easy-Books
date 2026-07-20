@@ -19,6 +19,7 @@ import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
 import StatusBadge from "@/components/StatusBadge"
+import { useMessages } from "@/context/MessageContext"
 
 interface Invoice {
   id: number
@@ -47,6 +48,7 @@ const PAGE_SIZE = 50
 const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue']
 
 function InvoicesContent() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
   const { can } = usePermission()
   const fmt = useFmt()
@@ -118,19 +120,33 @@ function InvoicesContent() {
   const handleBulkAction = async (action: string) => {
     const ids = Array.from(selectedIds)
     if (ids.length === 0) return
-    if (action === 'delete' && !window.confirm(`Delete ${ids.length} draft invoice(s)?`)) return
-    if (action === 'void' && !window.confirm(`Void ${ids.length} invoice(s)?`)) return
+    if (action === 'delete') {
+      const ok = await confirm({
+        title: `Delete ${ids.length} draft invoice(s)?`,
+        confirmLabel: "Delete",
+        danger: true,
+      })
+      if (!ok) return
+    }
+    if (action === 'void') {
+      const ok = await confirm({
+        title: `Void ${ids.length} invoice(s)?`,
+        confirmLabel: "Void",
+        danger: true,
+      })
+      if (!ok) return
+    }
     try {
       const res = await apiFetch<{ affected: number; errors: string[] }>('/api/invoices/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, action }),
       })
-      if (res.errors.length > 0) alert(res.errors.join('\n'))
+      if (res.errors.length > 0) toast(res.errors.join("\n"), "error")
       setSelectedIds(new Set())
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 

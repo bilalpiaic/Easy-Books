@@ -11,6 +11,7 @@ import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT 
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
 import StatusBadge from "@/components/StatusBadge"
+import { useMessages } from "@/context/MessageContext"
 
 interface AuditEntry {
   id: number
@@ -77,6 +78,7 @@ const PRA_STATUS_LABEL: Record<string, string> = {
 }
 
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -104,7 +106,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => { load(); loadHistory() }, [id])
 
   const voidInvoice = async () => {
-    if (!window.confirm(`Void invoice ${inv?.number}? This cannot be undone and removes it from reports.`)) return
+    const ok = await confirm({
+      title: `Void invoice ${inv?.number}?`,
+      message: "This cannot be undone and removes it from reports.",
+      confirmLabel: "Void",
+      danger: true,
+    })
+    if (!ok) return
     setBusy(true); setError(null)
     try {
       await apiFetch(`/api/invoices/${id}/status?status=void`, { method: "PATCH" })
@@ -117,7 +125,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const markSent = async () => {
-    if (!window.confirm(`Mark invoice ${inv?.number} as Sent? This may send an email notification to the customer.`)) return
+    const ok = await confirm({
+      title: `Mark invoice ${inv?.number} as Sent?`,
+      message: "This may send an email notification to the customer.",
+      confirmLabel: "Mark sent",
+    })
+    if (!ok) return
     setBusy(true); setError(null)
     try {
       await apiFetch(`/api/invoices/${id}/status?status=sent`, { method: "PATCH" })
@@ -134,7 +147,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       setError("This invoice has no posted transaction to reverse.")
       return
     }
-    if (!window.confirm(`Reverse invoice ${inv.number}? A new equal-and-opposite JV will be posted today.`)) return
+    const ok = await confirm({
+      title: `Reverse invoice ${inv.number}?`,
+      message: "A new equal-and-opposite JV will be posted today.",
+      confirmLabel: "Reverse",
+      danger: true,
+    })
+    if (!ok) return
     setBusy(true)
     setError(null)
     try {
@@ -199,7 +218,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               const res = await fetch(`${apiUrl}/api/invoices/${inv.id}/pdf`, {
                 headers: getAuthHeader() as HeadersInit,
               })
-              if (!res.ok) return alert("PDF generation failed")
+              if (!res.ok) { toast("PDF generation failed", "error"); return }
               const blob = await res.blob()
               const url = URL.createObjectURL(blob)
               const a = document.createElement("a")
@@ -221,7 +240,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   )
                   window.open(res.payment_link_url, "_blank")
                 } catch (e) {
-                  alert((e as Error).message)
+                  toast((e as Error).message, "error")
                 }
               }}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]"

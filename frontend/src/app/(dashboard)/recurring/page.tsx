@@ -8,6 +8,7 @@ import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
 import PrintHeader from '@/components/PrintHeader'
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface RecurringEntry {
   account_id: number
@@ -51,6 +52,7 @@ const FREQ_LABELS: Record<string, string> = {
 }
 
 export default function RecurringPage() {
+  const { confirm, toast } = useMessages()
   const { t: tr } = useTranslation()
 
   const [templates, setTemplates] = useState<RecurringTemplate[]>([])
@@ -138,22 +140,31 @@ export default function RecurringPage() {
       await apiFetch(`/api/recurring/${t.id}?is_active=${!t.is_active}`, { method: 'PATCH' })
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
   const handleDelete = async (t: RecurringTemplate) => {
-    if (!window.confirm(`Delete template "${t.name}"?`)) return
+    const ok = await confirm({
+      title: `Delete template "${t.name}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/recurring/${t.id}`, { method: 'DELETE' })
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
   const handleRunDue = async () => {
-    if (!window.confirm('Post all templates due today or earlier?')) return
+    const ok = await confirm({
+      title: "Post all templates due today or earlier?",
+      confirmLabel: "Post due",
+    })
+    if (!ok) return
     setRunning(true)
     setLastRunResult(null)
     try {

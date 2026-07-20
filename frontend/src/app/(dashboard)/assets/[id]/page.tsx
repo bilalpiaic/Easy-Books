@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface DepreciationEntry {
   id: number
@@ -30,6 +31,7 @@ interface AssetDetail {
 }
 
 export default function FixedAssetRegisterPage({ params }: { params: Promise<{ id: string }> }) {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const { id } = use(params)
@@ -71,7 +73,14 @@ export default function FixedAssetRegisterPage({ params }: { params: Promise<{ i
   }
 
   const runDispose = async () => {
-    if (!asset || !confirm(`Mark "${asset.name}" as disposed? This cannot be undone.`)) return
+    if (!asset) return
+    const ok = await confirm({
+      title: `Mark "${asset.name}" as disposed?`,
+      message: "This cannot be undone.",
+      confirmLabel: "Dispose",
+      danger: true,
+    })
+    if (!ok) return
     setBusy(true); setActionMsg(null)
     try {
       await apiFetch(`/api/assets/${id}/dispose`, { method: "PATCH" })

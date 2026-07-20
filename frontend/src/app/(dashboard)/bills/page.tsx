@@ -18,6 +18,7 @@ import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
+import { useMessages } from "@/context/MessageContext"
 
 interface Bill {
   id: number
@@ -42,6 +43,7 @@ const PAGE_SIZE = 50
 const BILL_STATUSES = ['draft', 'received', 'partial', 'paid', 'overdue']
 
 function BillsContent() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
   const { can } = usePermission()
   if (!can("bills")) return <NoAccessBanner resource="bills" />
@@ -75,19 +77,33 @@ function BillsContent() {
   const handleBulkAction = async (action: string) => {
     const ids = Array.from(selectedIds)
     if (ids.length === 0) return
-    if (action === 'delete' && !window.confirm(`Delete ${ids.length} draft bill(s)?`)) return
-    if (action === 'void' && !window.confirm(`Void ${ids.length} bill(s)?`)) return
+    if (action === 'delete') {
+      const ok = await confirm({
+        title: `Delete ${ids.length} draft bill(s)?`,
+        confirmLabel: "Delete",
+        danger: true,
+      })
+      if (!ok) return
+    }
+    if (action === 'void') {
+      const ok = await confirm({
+        title: `Void ${ids.length} bill(s)?`,
+        confirmLabel: "Void",
+        danger: true,
+      })
+      if (!ok) return
+    }
     try {
       const res = await apiFetch<{ affected: number; errors: string[] }>('/api/bills/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, action }),
       })
-      if (res.errors.length > 0) alert(res.errors.join('\n'))
+      if (res.errors.length > 0) toast(res.errors.join("\n"), "error")
       setSelectedIds(new Set())
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 

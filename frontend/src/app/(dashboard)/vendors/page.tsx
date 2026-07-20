@@ -16,6 +16,7 @@ import CsvImportButton from '@/components/CsvImportButton'
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface Vendor {
   id: number
@@ -30,6 +31,7 @@ interface Vendor {
 const PAGE_SIZE = 50
 
 export default function Vendors() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const { can } = usePermission()
@@ -45,10 +47,16 @@ export default function Vendors() {
 
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds)
-    if (!window.confirm(`Delete ${ids.length} vendor(s)? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Delete ${ids.length} vendor(s)?`,
+      message: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     const results = await Promise.allSettled(ids.map(id => apiFetch(`/api/vendors/${id}`, { method: 'DELETE' })))
     const failed = results.filter(r => r.status === 'rejected').length
-    if (failed > 0) alert(`${failed} deletion(s) failed — they may have linked bills.`)
+    if (failed > 0) toast(`${failed} deletion(s) failed — they may have linked bills.`, "error")
     setSelectedIds(new Set())
     load()
   }
@@ -76,12 +84,18 @@ export default function Vendors() {
   }, [])
 
   const handleDelete = async (v: Vendor) => {
-    if (!window.confirm(`Delete vendor "${v.name}"? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Delete vendor "${v.name}"?`,
+      message: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/vendors/${v.id}`, { method: 'DELETE' })
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
