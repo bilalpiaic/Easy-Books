@@ -13,7 +13,7 @@ import json
 from datetime import datetime, timezone
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from db import get_session, MODULE_REGISTRY
@@ -157,7 +157,15 @@ def list_modules(current_user: CurrentUserDep, session: SessionDep):
 
 
 @router.post("/api/modules/{module_id}/install")
-def install_module(module_id: str, current_user: CurrentUserDep, session: SessionDep):
+def install_module(
+    module_id: str,
+    current_user: CurrentUserDep,
+    session: SessionDep,
+    seed_sample: bool = Query(
+        False,
+        description="When true, seed idempotent sample rows for newly installed modules.",
+    ),
+):
     """Install a module (and its transitive deps) for the current tenant.
     Only admin/owner may install modules.
     """
@@ -193,10 +201,21 @@ def install_module(module_id: str, current_user: CurrentUserDep, session: Sessio
     _set_enabled(tenant, enabled, session)
     _set_meta(tenant, meta, session)
 
+    sample_results: list[dict] = []
+    if "pra" in to_install:
+        from services.module_sample_data import enable_pra_settings
+        enable_pra_settings(session, current_user.tenant_id)
+
+    if seed_sample:
+        from services.module_sample_data import seed_module_sample
+        for mid in to_install:
+            sample_results.append(seed_module_sample(session, current_user, mid))
+
     return {
         "enabled_modules": sorted(set(enabled)),
         "installed": to_install,
         "message": f"Installed: {', '.join(to_install)}",
+        "sample_data": sample_results,
     }
 
 

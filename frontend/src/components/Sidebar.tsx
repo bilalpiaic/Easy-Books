@@ -305,7 +305,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
           })}
         </nav>
 
-        {/* PRA portal mode toggle — admin/owner on PRA-enabled tenants only */}
+        {/* Home selector — any user with the PRA add-on installed */}
         {canToggle && (
           <div className="px-3 pb-2 shrink-0">
             <button
@@ -313,10 +313,10 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
               className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--primary)]/15 hover:bg-[var(--primary)]/25 border border-[var(--primary)]/30 transition-colors text-left"
             >
               <span className="text-[11px] font-bold text-[#ffd966] uppercase tracking-widest">
-                {isPortal ? "Portal View" : "Full View"}
+                Home: {isPortal ? "PRA Sales" : "Accounting"}
               </span>
               <span className="text-[10px] text-white/50 shrink-0">
-                {isPortal ? "Switch to Full →" : "Switch to Portal →"}
+                {isPortal ? "→ Accounting" : "→ PRA Sales"}
               </span>
             </button>
           </div>

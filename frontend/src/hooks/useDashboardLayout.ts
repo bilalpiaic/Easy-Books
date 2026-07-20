@@ -52,10 +52,12 @@ export function packItems(sized: { id: string; w: number; h: number }[]): GridIt
   return items
 }
 
-export function defaultGrid(): GridItem[] {
+export function defaultGrid(installedModules?: Set<string>): GridItem[] {
+  const mods = installedModules ?? new Set(["base"])
   return packItems(
     gridDefs
       .filter(d => d.defaultOnGrid !== false)
+      .filter(d => !d.requiredModule || mods.has(d.requiredModule))
       .map(d => ({ id: d.id, w: d.defaultSize.w, h: d.defaultSize.h })),
   )
 }
@@ -79,6 +81,7 @@ function validateV2(items: GridItem[], meta: Meta): GridItem[] {
     } else {
       const def = registryById.get(it.id)
       if (!def || def.pinned) continue
+      if (def.requiredModule && !meta.installedModules.has(def.requiredModule)) continue
       if (it.w < def.minSize.w) it = { ...it, w: def.minSize.w }
       if (it.h < def.minSize.h) it = { ...it, h: def.minSize.h }
     }
@@ -104,6 +107,7 @@ function validateBreakpoint(
     } else {
       const def = registryById.get(it.id)
       if (!def || def.pinned) continue
+      if (def.requiredModule && !meta.installedModules.has(def.requiredModule)) continue
       const minW = Math.min(def.minSize.w, cols)
       const minH = def.minSize.h
       if (it.w < minW) it = { ...it, w: minW }
@@ -119,12 +123,22 @@ function validateBreakpoint(
 
 /**
  * Inject any default-on-grid widgets missing from an existing layout.
- * Skips widgets the user has explicitly dismissed via removeWidget.
+ * Skips widgets the user has explicitly dismissed via removeWidget,
+ * and widgets whose requiredModule is not installed.
  */
-function injectMissingDefaults(lg: GridItem[], dismissed: Set<string>): GridItem[] {
+function injectMissingDefaults(
+  lg: GridItem[],
+  dismissed: Set<string>,
+  installedModules?: Set<string>,
+): GridItem[] {
+  const mods = installedModules ?? new Set(["base"])
   const present = new Set(lg.map(i => i.id))
   const missing = gridDefs.filter(
-    d => d.defaultOnGrid !== false && !present.has(d.id) && !dismissed.has(d.id),
+    d =>
+      d.defaultOnGrid !== false &&
+      !present.has(d.id) &&
+      !dismissed.has(d.id) &&
+      (!d.requiredModule || mods.has(d.requiredModule)),
   )
   if (missing.length === 0) return lg
   const baseY = lg.reduce((m, i) => Math.max(m, i.y + i.h), 0)
@@ -134,20 +148,20 @@ function injectMissingDefaults(lg: GridItem[], dismissed: Set<string>): GridItem
 
 /** Resolve a saved blob (null | v1 | v2 | v3) into validated layouts by breakpoint. */
 export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
-  if (!saved || typeof saved !== "object") return { lg: defaultGrid() }
+  if (!saved || typeof saved !== "object") return { lg: defaultGrid(meta.installedModules) }
   const v = (saved as { version?: number }).version
 
   if (v === 3) {
     const s = saved as GridLayoutV3
-    if (!Array.isArray(s.layouts?.lg)) return { lg: defaultGrid() }
+    if (!Array.isArray(s.layouts?.lg)) return { lg: defaultGrid(meta.installedModules) }
     // Auto-clamp KPI rows: they were previously h:2 but now max h:1
     const KPI_H1_IDS = new Set(["primary_kpis", "secondary_kpis", "quick_actions", "alerts"])
     const clampKpi = (items: GridItem[]): GridItem[] =>
       items.map(i => KPI_H1_IDS.has(i.id) && i.h > 1 ? { ...i, h: 1 } : i)
     const dismissed = new Set<string>(Array.isArray(s.dismissed) ? s.dismissed : [])
     const validated = validateV2(clampKpi(s.layouts.lg), meta)
-    if (validated.length === 0) return { lg: defaultGrid() }
-    const lg = injectMissingDefaults(validated, dismissed)
+    if (validated.length === 0) return { lg: defaultGrid(meta.installedModules) }
+    const lg = injectMissingDefaults(validated, dismissed, meta.installedModules)
     const lgIds = new Set(lg.map(i => i.id))
     const result: ResolvedLayouts = { lg }
     for (const bp of ["sm", "xs"] as const) {
@@ -165,7 +179,7 @@ export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
   if (v === 1 && Array.isArray((saved as StoredLayoutV1).widgets)) {
     return { lg: migrateV1toV2(saved as StoredLayoutV1) }
   }
-  return { lg: defaultGrid() }
+  return { lg: defaultGrid(meta.installedModules) }
 }
 
 export interface UseDashboardLayout {

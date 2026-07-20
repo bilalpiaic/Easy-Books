@@ -21,7 +21,12 @@ export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
   const [tab, setTab] = useState<"widgets" | "shortcuts">("widgets")
   const present = useMemo(() => new Set(items.map(i => i.id)), [items])
 
-  const coreWidgets = WIDGET_REGISTRY.filter(w => !w.pinned && !present.has(w.id))
+  const coreWidgets = WIDGET_REGISTRY.filter(
+    w =>
+      !w.pinned &&
+      !present.has(w.id) &&
+      (!w.requiredModule || installedModules.has(w.requiredModule)),
+  )
   const catalog = useMemo(() => shortcutCatalog(installedModules, meta.role), [installedModules, meta.role])
 
   return (
