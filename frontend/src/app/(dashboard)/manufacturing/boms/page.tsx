@@ -9,6 +9,7 @@ import { downloadCSV } from "@/lib/utils"
 import { HelpCallout } from "@/components/guidance/HelpCallout"
 import { EmptyStateGuide } from "@/components/guidance/EmptyStateGuide"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface BomLine {
   id: number; component_product_id: number; qty_per_output: string
@@ -21,6 +22,7 @@ interface Bom {
 interface Product { id: number; code: string; name: string }
 
 export default function BomsListPage() {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const [boms, setBoms]         = useState<Bom[]>([])
@@ -44,7 +46,13 @@ export default function BomsListPage() {
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const deactivate = async (bom: Bom) => {
-    if (!confirm(`Archive BOM #${bom.id} (v${bom.version})? Production orders referencing it will keep their cost basis.`)) return
+    const ok = await confirm({
+      title: `Archive BOM #${bom.id} (v${bom.version})?`,
+      message: "Production orders referencing it will keep their cost basis.",
+      confirmLabel: "Archive",
+      danger: true,
+    })
+    if (!ok) return
     setBusyId(bom.id)
     try {
       await apiFetch(`/api/bom/${bom.id}/deactivate`, { method: "PATCH" })

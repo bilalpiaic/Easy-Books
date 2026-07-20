@@ -9,6 +9,7 @@ import { useFmt } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
+import { useMessages } from "@/context/MessageContext"
 
 interface AuditEntry {
   id: number
@@ -57,6 +58,7 @@ interface Bill {
 
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -82,7 +84,11 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => { load(); loadHistory() }, [id])
 
   const markReceived = async () => {
-    if (!window.confirm(`Mark bill ${bill?.number} as Received?`)) return
+    const ok = await confirm({
+      title: `Mark bill ${bill?.number} as Received?`,
+      confirmLabel: "Mark received",
+    })
+    if (!ok) return
     setBusy(true); setError(null)
     try {
       await apiFetch(`/api/bills/${id}/status?status=received`, { method: "PATCH" })
@@ -99,7 +105,13 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
       setError("This bill has no posted transaction to reverse.")
       return
     }
-    if (!window.confirm(`Reverse bill ${bill.number}? A new equal-and-opposite JV will be posted today.`)) return
+    const ok = await confirm({
+      title: `Reverse bill ${bill.number}?`,
+      message: "A new equal-and-opposite JV will be posted today.",
+      confirmLabel: "Reverse",
+      danger: true,
+    })
+    if (!ok) return
     setBusy(true); setError(null)
     try {
       await apiFetch(`/api/transactions/${bill.transaction_id}/reverse`, { method: "POST" })

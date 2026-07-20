@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
 import PrintHeader from "@/components/PrintHeader"
+import { useMessages } from "@/context/MessageContext"
 
 interface Account {
   id: number
@@ -49,6 +50,7 @@ const emptyRow = (): EditRow => ({
 })
 
 export default function SalaryComponentsPage() {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
   const [components, setComponents] = useState<SalaryComponent[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -130,7 +132,12 @@ export default function SalaryComponentsPage() {
   }
 
   const deleteComp = async (id: number) => {
-    if (!confirm("Delete this component?")) return
+    const ok = await confirm({
+      title: "Delete this component?",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     setError("")
     try {
       await apiFetch(`/api/payroll/components/${id}`, { method: "DELETE" })

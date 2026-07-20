@@ -7,6 +7,7 @@ import { useDp } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ function thisMonth(): string {
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function CommissionsPage() {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const dp = useDp()
@@ -141,7 +143,12 @@ export default function CommissionsPage() {
   }
 
   const deactivatePlan = async (id: number) => {
-    if (!confirm("Deactivate this commission plan?")) return
+    const ok = await confirm({
+      title: "Deactivate this commission plan?",
+      confirmLabel: "Deactivate",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/commissions/plans/${id}`, { method: "DELETE" })
       load()

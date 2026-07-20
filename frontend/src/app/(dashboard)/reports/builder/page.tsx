@@ -11,6 +11,7 @@ import ExportMenu from "@/components/report-builder/ExportMenu"
 import { emptyConfig } from "@/lib/reportTypes"
 import type { SourceMeta, ReportConfig, RunResult, SavedReport } from "@/lib/reportTypes"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 const PAGE_SIZE = 100
 
@@ -23,6 +24,7 @@ const PERIOD_OPTIONS = [
 ]
 
 export default function ReportBuilderPage() {
+  const { confirm, prompt } = useMessages()
   const { t } = useTranslation()
 
   const [sources, setSources] = useState<SourceMeta[]>([])
@@ -88,9 +90,19 @@ export default function ReportBuilderPage() {
   const totalPages = result ? Math.ceil(result.total_count / PAGE_SIZE) : 0
 
   const saveCurrent = async () => {
-    const name = window.prompt("Report name?")
+    const name = await prompt({
+      title: "Save report",
+      message: "Enter a name for this report.",
+      placeholder: "Report name",
+      confirmLabel: "Continue",
+    })
     if (!name) return
-    const shared = window.confirm("Share with the whole organisation? (Cancel = private)")
+    const shared = await confirm({
+      title: "Share report?",
+      message: "Share with the whole organisation, or keep it private to you.",
+      confirmLabel: "Share with organisation",
+      cancelLabel: "Keep private",
+    })
     const rd = await apiFetch<SavedReport>("/api/report-builder/reports", {
       method: "POST",
       body: JSON.stringify({ name, source_key: sourceKey, config, visibility: shared ? "shared" : "private" }),

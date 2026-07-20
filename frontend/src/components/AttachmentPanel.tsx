@@ -8,6 +8,7 @@ import {
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthToken } from "@/lib/auth"
 import { fmtDate } from "@/lib/utils"
+import { useMessages } from "@/context/MessageContext"
 
 export type ParentType =
   | "invoice" | "bill" | "transaction" | "payment_received"
@@ -61,6 +62,7 @@ function fmtBytes(n: number): string {
 }
 
 export default function AttachmentPanel({ parentType, parentId, embedded = false, onSelect }: Props) {
+  const { confirm } = useMessages()
   const [items, setItems] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -134,7 +136,12 @@ export default function AttachmentPanel({ parentType, parentId, embedded = false
   }
 
   async function handleDelete(att: Attachment) {
-    if (!confirm(`Delete "${att.original_name}"?`)) return
+    const ok = await confirm({
+      title: `Delete "${att.original_name}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     setErr(null)
     try {
       const token = getAuthToken()

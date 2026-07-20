@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface PromoRule {
   id: number
@@ -44,6 +45,7 @@ const EMPTY: Omit<PromoRule, "id"> = {
 }
 
 export default function PromoDiscountsPage() {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const [rules, setRules] = useState<PromoRule[]>([])
@@ -112,7 +114,12 @@ export default function PromoDiscountsPage() {
   }
 
   async function handleDeactivate(id: number) {
-    if (!confirm("Deactivate this promo rule?")) return
+    const ok = await confirm({
+      title: "Deactivate this promo rule?",
+      confirmLabel: "Deactivate",
+      danger: true,
+    })
+    if (!ok) return
     await apiFetch(`/api/promo-rules/${id}`, { method: "DELETE" })
     await load()
   }

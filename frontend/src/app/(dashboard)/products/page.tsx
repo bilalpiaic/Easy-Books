@@ -16,6 +16,7 @@ import CsvImportButton from '@/components/CsvImportButton'
 import { usePermission } from "@/context/PermissionContext"
 import { NoAccessBanner } from "@/components/NoAccessBanner"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface Product {
   id: number
@@ -53,6 +54,7 @@ function stockBadge(p: Product) {
 }
 
 function ProductsInner() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
   const fmt = useFmt()
   const router = useRouter()
@@ -83,10 +85,16 @@ function ProductsInner() {
 
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds)
-    if (!window.confirm(`Delete ${ids.length} product(s)? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Delete ${ids.length} product(s)?`,
+      message: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     const results = await Promise.allSettled(ids.map(id => apiFetch(`/api/products/${id}`, { method: 'DELETE' })))
     const failed = results.filter(r => r.status === 'rejected').length
-    if (failed > 0) alert(`${failed} deletion(s) failed — they may be referenced in existing invoices.`)
+    if (failed > 0) toast(`${failed} deletion(s) failed — they may be referenced in existing invoices.`, "error")
     setSelectedIds(new Set())
     load()
   }
@@ -122,12 +130,18 @@ function ProductsInner() {
   }, [])
 
   const handleDelete = async (p: Product) => {
-    if (!window.confirm(`Delete product "${p.name}"? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Delete product "${p.name}"?`,
+      message: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/products/${p.id}`, { method: 'DELETE' })
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 

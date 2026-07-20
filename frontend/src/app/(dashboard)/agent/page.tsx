@@ -6,6 +6,7 @@ import { Check, Loader2, MessagesSquare, Pencil, Plus, Sparkles, Trash2, X } fro
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
 import ChatCore, { type ModelsPayload } from "@/components/ai/ChatCore"
+import { useMessages } from "@/context/MessageContext"
 
 interface SessionSummary {
   id: number
@@ -17,6 +18,7 @@ interface SessionSummary {
 const PAGE_HEIGHT = "h-[calc(100dvh-190px)] min-h-[480px]"
 
 export default function AgentPage() {
+  const { confirm } = useMessages()
   const [models, setModels] = useState<ModelsPayload | null>(null)
   const [moduleBlocked, setModuleBlocked] = useState(false)
   const [sessions, setSessions] = useState<SessionSummary[]>([])
@@ -150,7 +152,13 @@ export default function AgentPage() {
   }
 
   const removeSession = async (id: number) => {
-    if (!window.confirm("Delete this chat? This cannot be undone.")) return
+    const ok = await confirm({
+      title: "Delete this chat?",
+      message: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     setDeletingId(id)
     try {
       await apiFetch(`/api/ai/sessions/${id}`, { method: "DELETE" })

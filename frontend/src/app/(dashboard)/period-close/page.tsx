@@ -7,6 +7,7 @@ import { useFmt, useSettings } from "@/context/SettingsContext"
 import { downloadCSV } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface Period {
   id: number
@@ -30,6 +31,7 @@ function pad(n: number) { return String(n).padStart(2, "0") }
 function lastDay(year: number, month0: number) { return new Date(year, month0 + 1, 0).getDate() }
 
 export default function PeriodClosePage() {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -88,9 +90,15 @@ export default function PeriodClosePage() {
   }
 
   async function close(p: Period, mode: "soft" | "year_end") {
-    if (mode === "year_end" && !window.confirm(
-      `Year-end close for "${p.name ?? p.period_start}"?\n\nThis posts the P&L → Retained Earnings closing journal and locks the period. Use only at fiscal year-end.`
-    )) return
+    if (mode === "year_end") {
+      const ok = await confirm({
+        title: `Year-end close for "${p.name ?? p.period_start}"?`,
+        message: "This posts the P&L → Retained Earnings closing journal and locks the period. Use only at fiscal year-end.",
+        confirmLabel: "Close year-end",
+        danger: true,
+      })
+      if (!ok) return
+    }
     setBusy(true); setErr("")
     try {
       await apiFetch(`/api/periods/${p.id}/close?mode=${mode}`, { method: "POST" })
@@ -99,7 +107,12 @@ export default function PeriodClosePage() {
   }
 
   async function reopen(p: Period) {
-    if (!window.confirm(`Reopen "${p.name ?? p.period_start}"? This unlocks the period.`)) return
+    const ok = await confirm({
+      title: `Reopen "${p.name ?? p.period_start}"?`,
+      message: "This unlocks the period.",
+      confirmLabel: "Reopen",
+    })
+    if (!ok) return
     setBusy(true); setErr("")
     try {
       await apiFetch(`/api/periods/${p.id}/reopen`, { method: "POST" })

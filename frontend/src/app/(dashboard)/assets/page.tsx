@@ -8,6 +8,7 @@ import { useFmt } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface FixedAsset {
   id: number
@@ -49,6 +50,7 @@ const emptyForm: AssetForm = {
 }
 
 export default function AssetsPage() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -111,12 +113,18 @@ export default function AssetsPage() {
   }
 
   async function disposeAsset(assetId: number, name: string) {
-    if (!confirm(`Mark "${name}" as disposed? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Mark "${name}" as disposed?`,
+      message: "This cannot be undone.",
+      confirmLabel: "Dispose",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/assets/${assetId}/dispose`, { method: 'PATCH' })
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
@@ -126,10 +134,10 @@ export default function AssetsPage() {
         `/api/assets/${assetId}/depreciate`,
         { method: 'POST', body: JSON.stringify({ depreciation_date: deprDate }) },
       )
-      alert(result.message ?? `Depreciation posted: ${fmt(result.depreciation_amount ?? 0)} (${result.jv_number})`)
+      toast(result.message ?? `Depreciation posted: ${fmt(result.depreciation_amount ?? 0)} (${result.jv_number})`, "success")
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
     setDeprTarget(null)
   }

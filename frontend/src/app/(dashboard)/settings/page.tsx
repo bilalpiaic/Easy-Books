@@ -14,6 +14,7 @@ import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContex
 import { useLocale } from '@/context/LocaleContext'
 import { LANGUAGES, type Language } from '@/i18n/config'
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface PaymentTerm {
   id: number
@@ -38,6 +39,7 @@ interface AccountingPeriod {
 }
 
 export default function SettingsPage() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const { settings: ctxSettings, reload } = useSettings()
@@ -97,7 +99,7 @@ export default function SettingsPage() {
       setPeriodForm({ name: "", period_start: "", period_end: "" })
       setAddingPeriod(false)
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
@@ -110,17 +112,22 @@ export default function SettingsPage() {
       })
       setPeriods(prev => prev.map(p => p.id === updated.id ? updated : p))
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
   const handleDeletePeriod = async (period: AccountingPeriod) => {
-    if (!window.confirm(`Delete period "${period.name || period.period_start}"?`)) return
+    const ok = await confirm({
+      title: `Delete period "${period.name || period.period_start}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/periods/${period.id}`, { method: "DELETE" })
       setPeriods(prev => prev.filter(p => p.id !== period.id))
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
@@ -137,19 +144,24 @@ export default function SettingsPage() {
       setTermForm({ code: "", name: "", days: "" })
       setAddingTerm(false)
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     } finally {
       setTermSaving(false)
     }
   }
 
   const handleDeleteTerm = async (term: PaymentTerm) => {
-    if (!window.confirm(`Delete payment term "${term.name}"?`)) return
+    const ok = await confirm({
+      title: `Delete payment term "${term.name}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/payment-terms/${term.id}`, { method: "DELETE" })
       setPaymentTerms(prev => prev.filter(t => t.id !== term.id))
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
@@ -919,7 +931,7 @@ export default function SettingsPage() {
               const res = await fetch(`${base}/api/backup/download`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
               })
-              if (!res.ok) { alert("Backup is only available on local SQLite installs."); return }
+              if (!res.ok) { toast("Backup is only available on local SQLite installs.", "error"); return }
               const blob = await res.blob()
               const url = URL.createObjectURL(blob)
               const a = document.createElement("a")
@@ -938,7 +950,13 @@ export default function SettingsPage() {
               className="hidden"
               onChange={async (e) => {
                 const f = e.target.files?.[0]; if (!f) return
-                if (!confirm("Restore will overwrite current data. Continue?")) return
+                const ok = await confirm({
+                  title: "Restore from backup?",
+                  message: "Restore will overwrite current data.",
+                  confirmLabel: "Restore",
+                  danger: true,
+                })
+                if (!ok) return
                 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
                 const fd = new FormData(); fd.append("file", f)
                 const res = await fetch(`${base}/api/backup/restore`, {
@@ -946,9 +964,10 @@ export default function SettingsPage() {
                   headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
                   body: fd,
                 })
-                alert(res.ok
+                toast(res.ok
                   ? "Restored. Restart the app to load the restored data."
-                  : "Restore failed — check the file is a valid Easy-Books backup.")
+                  : "Restore failed — check the file is a valid Easy-Books backup.",
+                  res.ok ? "success" : "error")
               }}
             />
           </label>
@@ -1080,22 +1099,29 @@ export default function SettingsPage() {
                   method: "POST",
                   headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
                 })
-                alert(res.ok
+                toast(res.ok
                   ? "QA demo companies loaded. They remain separate from your company."
-                  : "Could not load demo data (admin only).")
+                  : "Could not load demo data (admin only).",
+                  res.ok ? "success" : "error")
               } finally { btn.disabled = false }
             }}
           >Load demo companies</button>
           <button
             className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
             onClick={async () => {
-              if (!confirm("Remove all QA demo companies and their data? Your own company is not affected.")) return
+              const ok = await confirm({
+                title: "Remove demo companies?",
+                message: "Remove all QA demo companies and their data? Your own company is not affected.",
+                confirmLabel: "Remove",
+                danger: true,
+              })
+              if (!ok) return
               const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
               const res = await fetch(`${base}/api/admin/demo/seed`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
               })
-              alert(res.ok ? "Demo companies removed." : "Could not remove demo data (admin only).")
+              toast(res.ok ? "Demo companies removed." : "Could not remove demo data (admin only).", res.ok ? "success" : "error")
             }}
           >Remove demo companies</button>
         </div>
@@ -1293,6 +1319,7 @@ const AI_PROVIDERS: { id: AiProviderId; label: string; settingsKey: string; mode
 ]
 
 function AiAssistantSection() {
+  const { confirm } = useMessages()
   const [keyStatus, setKeyStatus] = useState<AiKeyStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
   const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({ anthropic: "", openai: "", gemini: "" })
@@ -1344,7 +1371,12 @@ function AiAssistantSection() {
   }
 
   const handleClearKey = async (provider: AiProviderId, label: string) => {
-    if (!window.confirm(`Clear the ${label} API key?`)) return
+    const ok = await confirm({
+      title: `Clear the ${label} API key?`,
+      confirmLabel: "Clear key",
+      danger: true,
+    })
+    if (!ok) return
     setError("")
     try {
       await apiFetch("/api/settings", {
@@ -1558,6 +1590,7 @@ interface ApiKeyRow {
 }
 
 function ApiKeysSection() {
+  const { confirm } = useMessages()
   const [rows, setRows] = useState<ApiKeyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -1610,7 +1643,13 @@ function ApiKeysSection() {
   }
 
   const handleRevoke = async (row: ApiKeyRow) => {
-    if (!window.confirm(`Revoke the key "${row.name}"? Anything using it stops working immediately.`)) return
+    const ok = await confirm({
+      title: `Revoke the key "${row.name}"?`,
+      message: "Anything using it stops working immediately.",
+      confirmLabel: "Revoke",
+      danger: true,
+    })
+    if (!ok) return
     setError("")
     try {
       await apiFetch(`/api/auth/keys/${row.id}`, { method: "DELETE" })

@@ -9,6 +9,7 @@ import { useFmt } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface Entry {
   account_id: number
@@ -47,6 +48,7 @@ const DOC_HREF: Record<string, (id: number) => string> = {
 }
 
 export default function JvDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -73,11 +75,17 @@ export default function JvDetailPage({ params }: { params: Promise<{ id: string 
 
   const reverse = async () => {
     if (!txn) return
-    if (!window.confirm(`Reverse ${txn.jv_number}? A new equal-and-opposite JV will be posted today.`)) return
+    const ok = await confirm({
+      title: `Reverse ${txn.jv_number}?`,
+      message: "A new equal-and-opposite JV will be posted today.",
+      confirmLabel: "Reverse",
+      danger: true,
+    })
+    if (!ok) return
     setBusy(true); setError(null)
     try {
       const r = await apiFetch<{ reversal_jv_number: string }>(`/api/transactions/${txn.id}/reverse`, { method: "POST" })
-      window.alert(`Reversal posted as ${r.reversal_jv_number}`)
+      toast(`Reversal posted as ${r.reversal_jv_number}`, "success")
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Reverse failed")

@@ -8,6 +8,7 @@ import {
   List, Layers,
 } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
+import { useMessages } from "@/context/MessageContext"
 import { ADDON_PACKS, HOME_PREF_KEY, type AddonPack } from "@/lib/addonPacks"
 import { getCurrentUser } from "@/lib/auth"
 
@@ -221,6 +222,7 @@ function BucketSection({
 
 function AppsPageInner() {
   const { modules, installedModules, install, uninstall } = useModules()
+  const { confirm } = useMessages()
   const router = useRouter()
   const search = useSearchParams()
   const welcome = search.get("welcome") === "1"
@@ -289,7 +291,13 @@ function AppsPageInner() {
 
   const handleUninstall = async (id: string) => {
     const mod = modules.find(m => m.id === id)
-    if (!window.confirm(`Uninstall "${mod?.label ?? id}"?\n\nThe sidebar will update immediately. Your data is not deleted.`)) return
+    const ok = await confirm({
+      title: `Uninstall "${mod?.label ?? id}"?`,
+      message: "The sidebar will update immediately. Your data is not deleted.",
+      confirmLabel: "Uninstall",
+      danger: true,
+    })
+    if (!ok) return
     setBusyId(id); setError(null); setSuccess(null)
     try {
       await uninstall(id)

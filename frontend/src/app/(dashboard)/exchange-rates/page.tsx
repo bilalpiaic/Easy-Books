@@ -7,6 +7,7 @@ import { useSettings } from "@/context/SettingsContext"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface ExchangeRate {
   id: number
@@ -33,6 +34,7 @@ const emptyForm = (): FormState => ({
 })
 
 export default function ExchangeRatesPage() {
+  const { confirm } = useMessages()
   const { t } = useTranslation()
 
   const { settings }          = useSettings()
@@ -107,7 +109,12 @@ export default function ExchangeRatesPage() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this rate?")) return
+    const ok = await confirm({
+      title: "Delete this rate?",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/exchange-rates/${id}`, { method: "DELETE" })
       setRates(prev => prev.filter(r => r.id !== id))

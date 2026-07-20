@@ -13,6 +13,7 @@ import SkeletonRow from "@/components/SkeletonRow"
 import PrintHeader from "@/components/PrintHeader"
 import CsvImportButton from "@/components/CsvImportButton"
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface JournalEntry {
   id: number
@@ -42,6 +43,7 @@ function defaultRange() {
 const PAGE_SIZE = 50
 
 export default function JournalPage() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -72,14 +74,20 @@ export default function JournalPage() {
   useEffect(loadEntries, [start, end, voucherTypeFilter, page])
 
   const handleReverse = async (entry: JournalEntry) => {
-    if (!window.confirm(`Reverse ${entry.jv_number}? A new equal-and-opposite JV will be posted today.`)) return
+    const ok = await confirm({
+      title: `Reverse ${entry.jv_number}?`,
+      message: "A new equal-and-opposite JV will be posted today.",
+      confirmLabel: "Reverse",
+      danger: true,
+    })
+    if (!ok) return
     setReversing(entry.transaction_id)
     try {
       const result = await apiFetch<{ reversal_jv_number: string }>(`/api/transactions/${entry.transaction_id}/reverse`, { method: "POST" })
-      alert(`Reversal posted as ${result.reversal_jv_number}`)
+      toast(`Reversal posted as ${result.reversal_jv_number}`, "success")
       loadEntries()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     } finally {
       setReversing(null)
     }

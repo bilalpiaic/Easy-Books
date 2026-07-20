@@ -10,6 +10,7 @@ import { NAV, ALL_SECTIONS, navVisible } from "@/lib/nav"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
 import { useModules } from "@/context/ModuleContext"
+import { useMessages } from "@/context/MessageContext"
 
 const SECTION_COLORS: Record<string, string> = {
   Overview:      "text-[#ffd966]",
@@ -78,6 +79,7 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
   const [userInitial, setInitial] = useState("U")
   const [role, setRole] = useState<string>("viewer")
   const { installedModules } = useModules()
+  const { confirm } = useMessages()
 
   // Start with empty set (matches server render), then restore from localStorage after mount
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
@@ -158,8 +160,9 @@ export default function Sidebar({ open, onClose, pinned, onTogglePinned }: Sideb
     ? [...new Set(PORTAL_NAV.map(i => i.section))]
     : ALL_SECTIONS.filter(s => visibleNav.some(i => i.section === s))
 
-  const logout = () => {
-    if (!window.confirm("Log out?")) return
+  const logout = async () => {
+    const ok = await confirm({ title: "Log out?", confirmLabel: "Log out" })
+    if (!ok) return
     removeAuthToken(); router.push("/login")
   }
 

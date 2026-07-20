@@ -4,6 +4,7 @@ import { Tag, Plus, Pencil, Trash2, Check, X, Download } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { downloadCSV } from '@/lib/utils'
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
 
@@ -14,6 +15,7 @@ type ModalMode =
   | null
 
 export default function CategoriesPage() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const [tree, setTree] = useState<Cat[]>([])
@@ -73,9 +75,14 @@ export default function CategoriesPage() {
 
   const remove = async (cat: Cat) => {
     const label = cat.parent_id == null ? 'category' : 'sub-category'
-    if (!confirm(`Delete ${label} "${cat.name}"?`)) return
+    const ok = await confirm({
+      title: `Delete ${label} "${cat.name}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try { await apiFetch(`/api/product-categories/${cat.id}`, { method: 'DELETE' }); load() }
-    catch (e) { alert(e instanceof Error ? e.message : 'Delete failed') }
+    catch (e) { toast(e instanceof Error ? e.message : "Delete failed", "error") }
   }
 
   const modalTitle =

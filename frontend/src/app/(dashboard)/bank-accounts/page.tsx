@@ -8,6 +8,7 @@ import { useFmt } from '@/context/SettingsContext'
 import { downloadCSV } from '@/lib/utils'
 import DocLink from '@/components/DocLink'
 import { useTranslation } from "react-i18next"
+import { useMessages } from "@/context/MessageContext"
 
 interface BankAccount {
   id: number
@@ -31,6 +32,7 @@ interface BankForm {
 const emptyForm: BankForm = { name: '', bank_name: '', account_number: '', coa_account_id: '' }
 
 export default function BankAccounts() {
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
@@ -108,12 +110,17 @@ export default function BankAccounts() {
   }
 
   const handleDelete = async (ba: BankAccount) => {
-    if (!window.confirm(`Delete bank account "${ba.name}"?`)) return
+    const ok = await confirm({
+      title: `Delete bank account "${ba.name}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await apiFetch(`/api/bank-accounts/${ba.id}`, { method: 'DELETE' })
       load()
     } catch (err) {
-      alert((err as Error).message)
+      toast((err as Error).message, "error")
     }
   }
 
