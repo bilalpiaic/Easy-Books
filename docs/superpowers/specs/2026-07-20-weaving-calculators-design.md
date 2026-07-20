@@ -111,9 +111,9 @@ Module gate `_require_weaving` on all. Resource: `weaving.calculators`.
 
 ## Acceptance
 
-- [ ] Calculators work independently with accurate formulas
-- [ ] Unit conversions correct (Kg | Lbs | Bags via shared utility)
-- [ ] Assign button updates contract (API)
-- [ ] Popup / block triggers on mismatch; override with reason allowed
-- [ ] Clean UI, mobile-friendly under Weaving
-- [ ] Backend + frontend tests with shared numeric fixtures
+- [x] Calculators work independently with accurate formulas
+- [x] Unit conversions correct (Kg | Lbs | Bags via shared utility)
+- [x] Assign button updates contract (API)
+- [x] Popup / block triggers on mismatch; override with reason allowed
+- [x] Clean UI, mobile-friendly under Weaving
+- [x] Backend + frontend tests with shared numeric fixtures
