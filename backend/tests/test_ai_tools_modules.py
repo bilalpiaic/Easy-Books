@@ -47,7 +47,7 @@ def test_module_tools_smoke(client: TestClient):
     auth = _signup(client, "mt1@t.com")
     # deps are installed recursively by the modules router
     _install(client, auth, "inventory", "production", "hrm", "telecom",
-             "healthcare", "purchase_store")
+             "healthcare", "purchase_store", "weaving", "pra")
 
     r = client.post("/api/products", headers=auth,
                     json={"name": "Widget", "product_type": "stock"})
@@ -58,6 +58,31 @@ def test_module_tools_smoke(client: TestClient):
     r = client.post("/api/healthcare/patients", headers=auth, json={"name": "Pat Ient"})
     assert r.status_code in (200, 201), r.text
     patient_id = r.json()["id"]
+
+    r = client.post("/api/customers", headers=auth, json={"name": "Weave Co"})
+    assert r.status_code in (200, 201), r.text
+    customer_id = r.json()["id"]
+    r = client.post("/api/weaving/contracts", headers=auth, json={
+        "customer_id": customer_id,
+        "start_date": "2026-01-01",
+        "contract_meters": 1000,
+        "pick_per_inch": 50,
+        "assumed_yarn_rate_per_kg": 10,
+        "fabric_return_price_per_meter": 5,
+        "weaving_rate": 2,
+        "expected_shrinkage_pct": 1,
+    })
+    assert r.status_code in (200, 201), r.text
+    wv_contract_id = r.json()["id"]
+
+    r = client.post("/api/invoices", headers=auth, json={
+        "customer_id": customer_id,
+        "issue_date": "2026-07-20",
+        "due_date": "2026-08-20",
+        "lines": [{"description": "Svc", "qty": 1, "rate": 100}],
+    })
+    assert r.status_code in (200, 201), r.text
+    invoice_id = r.json()["id"]
 
     session, user = _user_for(client, "mt1@t.com")
     try:
@@ -91,6 +116,8 @@ def test_module_tools_smoke(client: TestClient):
             "get_stock_issuance": {},
             "get_rso_ledger": {},
             "find_rso": {"query": "x"},
+            "get_postpaid_book": {},
+            "get_tracker_statement": {},
             # purchase_store
             "get_gate_register": {},
             "get_three_way_match": {},
@@ -104,6 +131,16 @@ def test_module_tools_smoke(client: TestClient):
             "get_wip_aging": {},
             "get_production_summary": {},
             "get_customer_custody": {},
+            # weaving — (user, session) arg order inside
+            "get_weaving_dashboard": {},
+            "get_weaving_daily": {},
+            "get_contract_control": {"contract_id": wv_contract_id},
+            "get_weaving_customer_kpi": {},
+            "find_wv_contract": {"query": "WC"},
+            # pra
+            "get_pra_logs": {},
+            "get_invoice_pra_status": {"invoice_id": invoice_id},
+            "get_pra_today_summary": {"start": "2026-07-01", "end": "2026-07-31"},
         }
         for name, tool_input in cases.items():
             payload, is_error = _run(session, user, name, tool_input)

@@ -44,6 +44,10 @@ def test_base_tools_smoke(client: TestClient):
 
     session, user = _user_for(client, "bt1@t.com")
     try:
+        found, err = _run(session, user, "find_account", {"query": "cash"})
+        assert err is False and found, found
+        account_id = found[0]["id"]
+
         cases = {
             "get_balance_sheet": {},
             "get_tax_summary": {},
@@ -56,6 +60,20 @@ def test_base_tools_smoke(client: TestClient):
             "get_vendor_ledger": {"vendor_id": vendor_id},
             "find_customer": {"query": "acme"},
             "find_vendor": {"query": "bulk"},
+            # banking / GL / deferred / commissions / assets (gap-fill)
+            "get_day_book": {},
+            "find_account": {"query": "cash"},
+            "get_account_ledger": {
+                "account_id": account_id, "start": "2026-01-01", "end": "2026-12-31",
+            },
+            "get_cash_bank_subledger": {},
+            "list_bank_accounts": {},
+            "get_journal_report": {"start": "2026-01-01", "end": "2026-12-31"},
+            "find_analytic_account": {"query": "x"},
+            "list_deferred_schedules": {},
+            "get_commission_ledger": {},
+            "list_commission_plans": {},
+            "list_fixed_assets": {},
         }
         for name, tool_input in cases.items():
             payload, is_error = _run(session, user, name, tool_input)

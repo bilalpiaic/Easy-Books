@@ -22,11 +22,18 @@ from typing import Any, Callable, Iterable
 
 from sqlmodel import Session, select
 
-from models import Customer, Employee, Product, Tenant, User, Vendor
+from models import (
+    Account, AnalyticAccount, Customer, Employee, Invoice, Product, Tenant, User, Vendor,
+)
 from models_healthcare import HcPatient
 from models_telecom import RsoAgent
+from models_weaving import WvContract
 from routers.aging import invoice_aging, bill_aging
+from routers.assets import list_assets
 from routers.attendance import get_summary as attendance_summary
+from routers.bank_accounts import list_bank_accounts
+from routers.commissions import list_ledger as commission_list_ledger, list_plans as commission_list_plans
+from routers.deferred_revenue import list_schedules as deferred_list_schedules
 from routers.healthcare_reports import (
     dashboard as hc_dashboard,
     doctor_collections,
@@ -43,6 +50,7 @@ from routers.manufacturing_reports import (
     wip_aging,
 )
 from routers.payroll import hrm_summary
+from routers.pra import get_invoice_pra_status, list_pra_logs
 from routers.purchase_reports import (
     gate_register,
     three_way_match,
@@ -51,14 +59,19 @@ from routers.purchase_reports import (
 from routers.reports import (
     get_dashboard_data,
     get_dashboard_charts,
+    get_day_book,
     get_income_statement,
+    get_journal_report,
+    get_ledger,
     get_trial_balance,
     cash_flow_statement,
     customer_performance,
+    get_analytic_pl,
     get_balance_sheet,
     get_budget_vs_actual,
     get_net_worth_trend,
     inventory_performance,
+    ledger_subledger,
     product_coa,
     product_ledger,
     product_performance,
@@ -83,10 +96,18 @@ from routers.telecom_reports import (
     dashboard as tc_dashboard,
     fca_target_progress,
     float_statement,
+    postpaid_book,
     revenue_by_stream,
     rso_ledger,
     sim_utilisation,
     stock_issuance,
+    tracker_statement,
+)
+from routers.weaving_reports import (
+    contract_control,
+    customer_contract_kpi,
+    daily_operations,
+    weaving_dashboard,
 )
 
 # Oversized tool results are truncated before they re-enter the LLM loop —
@@ -617,6 +638,244 @@ def _exec_production_summary(session, user, tool_input):
 
 def _exec_customer_custody(session, user, tool_input):
     return customer_custody(session, user)
+
+
+# weaving — note (user, session, ...) arg order on the wrapped functions ─────
+
+def _exec_weaving_dashboard(session, user, tool_input):
+    return weaving_dashboard(user, session)
+
+
+def _exec_weaving_daily(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return daily_operations(user, session, start=start, end=end)
+
+
+def _exec_contract_control(session, user, tool_input):
+    return contract_control(
+        user, session,
+        contract_id=_require_id(tool_input, "contract_id", "find_wv_contract"),
+    )
+
+
+def _exec_weaving_customer_kpi(session, user, tool_input):
+    return customer_contract_kpi(user, session)
+
+
+def _exec_find_wv_contract(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(WvContract).where(
+            WvContract.tenant_id == user.tenant_id,
+            WvContract.number.ilike(f"%{q}%"),
+        ).limit(10)
+    ).all()
+    return [
+        {"id": c.id, "number": c.number, "status": c.status, "customer_id": c.customer_id}
+        for c in rows
+    ]
+
+
+# pra ────────────────────────────────────────────────────────────────────────
+
+def _exec_pra_logs(session, user, tool_input):
+    return list_pra_logs(
+        user, session,
+        invoice_id=tool_input.get("invoice_id"),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+    )
+
+
+def _exec_invoice_pra_status(session, user, tool_input):
+    return get_invoice_pra_status(
+        _require_id(tool_input, "invoice_id", "run_custom_report (source invoices)"),
+        user, session,
+    )
+
+
+def _exec_pra_today_summary(session, user, tool_input):
+    """Group tenant invoices by pra_status for a date window (default today)."""
+    start = tool_input.get("start") or date.today().isoformat()
+    end = tool_input.get("end") or start
+    rows = session.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.issue_date >= start,
+            Invoice.issue_date <= end,
+        )
+    ).all()
+    buckets: dict[str, int] = {}
+    for inv in rows:
+        status = inv.pra_status or "not_required"
+        buckets[status] = buckets.get(status, 0) + 1
+    return {
+        "start": start,
+        "end": end,
+        "total_invoices": len(rows),
+        "by_status": buckets,
+        "submitted": buckets.get("submitted", 0),
+        "pending": buckets.get("pending", 0),
+        "failed": buckets.get("failed", 0),
+        "not_required": buckets.get("not_required", 0),
+    }
+
+
+# banking / GL ───────────────────────────────────────────────────────────────
+
+def _exec_day_book(session, user, tool_input):
+    return get_day_book(session, user, date=tool_input.get("date"))
+
+
+def _exec_account_ledger(session, user, tool_input):
+    account_id = tool_input.get("account_id")
+    account_code = tool_input.get("account_code")
+    if not account_id and not account_code:
+        raise ValueError(
+            "account_id or account_code is required — use find_account first to resolve a name."
+        )
+    return get_ledger(
+        session, user,
+        start=tool_input.get("start"),
+        end=tool_input.get("end"),
+        account_id=int(account_id) if account_id else None,
+        account_code=account_code,
+        skip=0,
+        limit=min(int(tool_input.get("limit") or 50), 100),
+    )
+
+
+def _exec_cash_bank_subledger(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return ledger_subledger(session, user, control="bank", start=start, end=end)
+
+
+def _exec_list_bank_accounts(session, user, tool_input):
+    return list_bank_accounts(session, user)
+
+
+def _exec_find_account(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(Account).where(
+            Account.tenant_id == user.tenant_id,
+            (Account.name.ilike(f"%{q}%")) | (Account.code.ilike(f"%{q}%")),
+        ).limit(10)
+    ).all()
+    return [
+        {"id": a.id, "code": a.code, "name": a.name, "type": a.type, "is_group": a.is_group}
+        for a in rows
+    ]
+
+
+def _exec_analytic_pl(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return get_analytic_pl(
+        session, user,
+        analytic_account_id=_require_id(tool_input, "analytic_account_id", "find_analytic_account"),
+        start=start, end=end,
+    )
+
+
+def _exec_find_analytic_account(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(AnalyticAccount).where(
+            AnalyticAccount.tenant_id == user.tenant_id,
+            (AnalyticAccount.name.ilike(f"%{q}%")) | (AnalyticAccount.code.ilike(f"%{q}%")),
+        ).limit(10)
+    ).all()
+    return [
+        {"id": a.id, "code": a.code, "name": a.name, "type": a.type}
+        for a in rows
+    ]
+
+
+def _exec_journal_report(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return get_journal_report(
+        session, user,
+        start=start, end=end,
+        voucher_type=tool_input.get("voucher_type"),
+        voucher_number=tool_input.get("voucher_number"),
+        skip=0,
+        limit=min(int(tool_input.get("limit") or 50), 100),
+    )
+
+
+# deferred revenue / commissions / fixed assets ──────────────────────────────
+
+def _exec_list_deferred_schedules(session, user, tool_input):
+    result = deferred_list_schedules(
+        session, user,
+        status=tool_input.get("status"),
+        skip=0,
+        limit=min(int(tool_input.get("limit") or 50), 100),
+    )
+    items = result.get("items") or []
+    return {
+        "total": result.get("total", len(items)),
+        "items": [i.model_dump() if hasattr(i, "model_dump") else i for i in items],
+    }
+
+
+def _exec_commission_ledger(session, user, tool_input):
+    return commission_list_ledger(
+        user, session,
+        period=tool_input.get("period"),
+        user_id=tool_input.get("user_id"),
+    )
+
+
+def _exec_list_commission_plans(session, user, tool_input):
+    return commission_list_plans(user, session)
+
+
+def _exec_list_fixed_assets(session, user, tool_input):
+    result = list_assets(
+        session, user,
+        skip=0,
+        limit=min(int(tool_input.get("limit") or 50), 100),
+    )
+    items = result.get("items") or []
+    return {
+        "total": result.get("total", len(items)),
+        "items": [i.model_dump() if hasattr(i, "model_dump") else i for i in items],
+    }
+
+
+# telecom leftovers ──────────────────────────────────────────────────────────
+
+def _exec_postpaid_book(session, user, tool_input):
+    result = postpaid_book(session, user)
+    items = result.get("items") or []
+    return {
+        "total": result.get("total", len(items)),
+        "items": [i.model_dump() if hasattr(i, "model_dump") else i for i in items],
+    }
+
+
+def _exec_tracker_statement(session, user, tool_input):
+    result = tracker_statement(
+        session, user,
+        tracker_account_id=tool_input.get("tracker_account_id"),
+    )
+    txns = result.get("transactions") or []
+    return {
+        "tracker_accounts": result.get("tracker_accounts"),
+        "gl_deposit_balance": result.get("gl_deposit_balance"),
+        "gl_load_balance": result.get("gl_load_balance"),
+        "transactions": [
+            t.model_dump() if hasattr(t, "model_dump") else t for t in txns[:100]
+        ],
+        "transactions_returned": min(len(txns), 100),
+        "transactions_total": len(txns),
+    }
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────
@@ -1435,6 +1694,339 @@ _TOOLS: tuple[ToolDef, ...] = (
         label="Checking customer custody stock…",
         executor=_exec_customer_custody,
         required_module="production",
+    ),
+    # ── weaving ──────────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_weaving_dashboard",
+        description=(
+            "Get weaving unit KPIs: yarn received/used/balance (Kg/Lbs/Bags), grey meters, "
+            "dispatch meters, weaving revenue, average efficiency, and contract status counts."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking weaving KPIs…",
+        executor=_exec_weaving_dashboard,
+        required_module="weaving",
+    ),
+    ToolDef(
+        name="get_weaving_daily",
+        description=(
+            "Get weaving daily operations for a period: yarn received/sized, fabric produced/"
+            "delivered, efficiency by shift/operator/loom, and an activity feed."
+        ),
+        input_schema=_DATE_RANGE_SCHEMA,
+        label="Checking weaving daily ops…",
+        executor=_exec_weaving_daily,
+        required_module="weaving",
+    ),
+    ToolDef(
+        name="get_contract_control",
+        description=(
+            "Get one weaving contract's control panel: yarn received/sized/used/balance, "
+            "grey vs dispatched meters, progress %, and activity. Use find_wv_contract first."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "contract_id": {"type": "integer", "description": "Weaving contract id (required)"},
+            },
+            "required": ["contract_id"],
+        },
+        label="Checking contract control…",
+        executor=_exec_contract_control,
+        required_module="weaving",
+    ),
+    ToolDef(
+        name="get_weaving_customer_kpi",
+        description=(
+            "Get weaving customer contract KPIs: meters, yarn, progress, and revenue rolled "
+            "up per customer."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking weaving customer KPIs…",
+        executor=_exec_weaving_customer_kpi,
+        required_module="weaving",
+    ),
+    ToolDef(
+        name="find_wv_contract",
+        description=(
+            "Search weaving contracts by (partial) contract number and return up to 10 matches "
+            "as {id, number, status, customer_id}. Use this first before get_contract_control."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial contract number"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the weaving contract…",
+        executor=_exec_find_wv_contract,
+        required_module="weaving",
+    ),
+    # ── pra ──────────────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_pra_logs",
+        description=(
+            "Get recent PRA e-invoice submission log entries (success/failure, response codes). "
+            "Optionally filter by invoice_id."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "invoice_id": {"type": "integer", "description": "Filter to one invoice (optional)"},
+                "limit": {"type": "integer", "description": "Max rows (default 50, max 100)"},
+            },
+            "required": [],
+        },
+        label="Checking PRA submission logs…",
+        executor=_exec_pra_logs,
+        required_module="pra",
+    ),
+    ToolDef(
+        name="get_invoice_pra_status",
+        description=(
+            "Get one invoice's PRA status: pra_status, fiscal number, USIN, and submitted_at."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "invoice_id": {"type": "integer", "description": "Invoice id (required)"},
+            },
+            "required": ["invoice_id"],
+        },
+        label="Checking invoice PRA status…",
+        executor=_exec_invoice_pra_status,
+        required_module="pra",
+    ),
+    ToolDef(
+        name="get_pra_today_summary",
+        description=(
+            "Summarize PRA e-invoice compliance for a date window (default today): invoice "
+            "counts by pra_status (submitted/pending/failed/not_required)."
+        ),
+        input_schema=_DATE_RANGE_SCHEMA,
+        label="Summarising PRA status…",
+        executor=_exec_pra_today_summary,
+        required_module="pra",
+    ),
+    # ── banking / GL ─────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_day_book",
+        description=(
+            "Get the Day Book for a date (default today): vouchers grouped by type with "
+            "counts and debit totals, plus source-document activity."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "Date YYYY-MM-DD (optional, default today)"},
+            },
+            "required": [],
+        },
+        label="Checking the day book…",
+        executor=_exec_day_book,
+    ),
+    ToolDef(
+        name="get_account_ledger",
+        description=(
+            "Get the General Ledger for one account (opening balance, period movements, "
+            "closing). Pass account_id or account_code — use find_account first to resolve a name."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "account_id": {"type": "integer", "description": "Account id (preferred)"},
+                "account_code": {"type": "string", "description": "Account code (alternative)"},
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+                "limit": {"type": "integer", "description": "Max lines (default 50, max 100)"},
+            },
+            "required": [],
+        },
+        label="Fetching the account ledger…",
+        executor=_exec_account_ledger,
+    ),
+    ToolDef(
+        name="get_cash_bank_subledger",
+        description=(
+            "Get the cash/bank sub-ledger: per cash/bank GL account opening, debit, credit, "
+            "and closing balances that reconcile to the bank control."
+        ),
+        input_schema=_DATE_RANGE_SCHEMA,
+        label="Checking cash & bank sub-ledger…",
+        executor=_exec_cash_bank_subledger,
+    ),
+    ToolDef(
+        name="list_bank_accounts",
+        description="List linked bank accounts with their current GL balances.",
+        input_schema=_EMPTY_SCHEMA,
+        label="Listing bank accounts…",
+        executor=_exec_list_bank_accounts,
+    ),
+    ToolDef(
+        name="find_account",
+        description=(
+            "Search Chart of Accounts by (partial) name or code and return up to 10 matches "
+            "as {id, code, name, type, is_group}. Use before get_account_ledger."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial account name or code"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the account…",
+        executor=_exec_find_account,
+    ),
+    ToolDef(
+        name="get_analytic_pl",
+        description=(
+            "Get a P&L filtered to one analytic dimension (cost center / project / department). "
+            "Use find_analytic_account first to resolve the name to an id."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "analytic_account_id": {
+                    "type": "integer",
+                    "description": "Analytic account id (required)",
+                },
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+            },
+            "required": ["analytic_account_id"],
+        },
+        label="Checking analytic P&L…",
+        executor=_exec_analytic_pl,
+    ),
+    ToolDef(
+        name="find_analytic_account",
+        description=(
+            "Search analytic accounts (cost centers / projects / departments) by name or code "
+            "and return up to 10 matches as {id, code, name, type}."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial analytic name or code"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the cost center…",
+        executor=_exec_find_analytic_account,
+    ),
+    ToolDef(
+        name="get_journal_report",
+        description=(
+            "Get journal voucher lines for a period (optionally filtered by voucher_type or "
+            "voucher_number). Returns at most 100 lines — narrow the date range for full data."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "Period start YYYY-MM-DD (optional)"},
+                "end":   {"type": "string", "description": "Period end YYYY-MM-DD (optional)"},
+                "voucher_type": {"type": "string", "description": "e.g. JV, CP, BR (optional)"},
+                "voucher_number": {"type": "string", "description": "Partial JV number (optional)"},
+                "limit": {"type": "integer", "description": "Max lines (default 50, max 100)"},
+            },
+            "required": [],
+        },
+        label="Fetching journal lines…",
+        executor=_exec_journal_report,
+    ),
+    # ── deferred revenue ─────────────────────────────────────────────────────
+    ToolDef(
+        name="list_deferred_schedules",
+        description=(
+            "List deferred-revenue recognition schedules (IFRS-15), optionally filtered by "
+            "status (active/completed/cancelled)."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "active | completed | cancelled"},
+                "limit": {"type": "integer", "description": "Max rows (default 50, max 100)"},
+            },
+            "required": [],
+        },
+        label="Listing deferred-revenue schedules…",
+        executor=_exec_list_deferred_schedules,
+    ),
+    # ── staff commissions ────────────────────────────────────────────────────
+    ToolDef(
+        name="get_commission_ledger",
+        description=(
+            "Get staff sales-commission ledger entries (draft/approved/posted) with invoiced, "
+            "recovered, and payable amounts. Optional period (YYYY-MM) or user_id filter. "
+            "Not telecom franchise commissions — those use get_commission_aging."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "period": {"type": "string", "description": "Period YYYY-MM (optional)"},
+                "user_id": {"type": "integer", "description": "Staff user id (optional)"},
+            },
+            "required": [],
+        },
+        label="Checking staff commissions…",
+        executor=_exec_commission_ledger,
+    ),
+    ToolDef(
+        name="list_commission_plans",
+        description="List staff commission plans: rate, sales/recovery targets, and bonus.",
+        input_schema=_EMPTY_SCHEMA,
+        label="Listing commission plans…",
+        executor=_exec_list_commission_plans,
+    ),
+    # ── fixed assets ─────────────────────────────────────────────────────────
+    ToolDef(
+        name="list_fixed_assets",
+        description=(
+            "List active fixed assets (not disposed): acquisition date, cost, accumulated "
+            "depreciation, and net book value."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Max rows (default 50, max 100)"},
+            },
+            "required": [],
+        },
+        label="Listing fixed assets…",
+        executor=_exec_list_fixed_assets,
+    ),
+    # ── telecom leftovers ────────────────────────────────────────────────────
+    ToolDef(
+        name="get_postpaid_book",
+        description=(
+            "Get telecom postpaid billing cycles with collection and remittance status."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking postpaid book…",
+        executor=_exec_postpaid_book,
+        required_module="telecom",
+    ),
+    ToolDef(
+        name="get_tracker_statement",
+        description=(
+            "Get the telecom tracker (wallet) statement: account balances and recent "
+            "transactions reconciled to GL deposit/load accounts."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "tracker_account_id": {
+                    "type": "integer",
+                    "description": "Filter to one tracker account (optional)",
+                },
+            },
+            "required": [],
+        },
+        label="Checking tracker statement…",
+        executor=_exec_tracker_statement,
+        required_module="telecom",
     ),
 )
 
