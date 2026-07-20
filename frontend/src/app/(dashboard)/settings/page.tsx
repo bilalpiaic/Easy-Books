@@ -682,13 +682,29 @@ export default function SettingsPage() {
       <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-black">
           <Bell className="w-5 h-5 text-[var(--primary)]" />
-          Notifications &amp; Controls
+          Alerts &amp; email
         </h2>
 
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-black">Email Notifications</h3>
-            <p className="text-sm text-[var(--text-muted)] mt-1">Receive alerts for overdue invoices and bills</p>
+            <h3 className="font-semibold text-black">In-app Alerts</h3>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Show the Alerts bell for overdue invoices, low stock, and pending approvals</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.in_app_alerts !== "false"}
+              onChange={e => handleChange('in_app_alerts', e.target.checked ? "true" : "false")}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary)]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-[var(--border)]">
+          <div>
+            <h3 className="font-semibold text-black">Email reminders (customers)</h3>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Send overdue invoice reminder emails to customers</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input

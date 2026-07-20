@@ -15,6 +15,7 @@ import { useModules } from "@/context/ModuleContext"
 import { useTheme } from "@/context/ThemeContext"
 import { TOP_NAV, SUB_NAV, getActiveSection, navVisible } from "@/lib/nav"
 import type { TopNavSection } from "@/lib/nav"
+import AlertsBell from "@/components/AlertsBell"
 
 const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: React.ElementType }> = {
   banking:       { href: "/banking",        label: "Banking Overview",    icon: LayoutGrid      },
@@ -471,6 +472,8 @@ export default function TopNav() {
             className="w-7 h-7 flex items-center justify-center rounded-full text-[var(--nav-dim)] hover:text-[var(--nav-text)] hover:bg-[var(--nav-icon-hover)] transition-colors">
             <Search className="w-4 h-4" />
           </button>
+
+          <AlertsBell />
 
           <button type="button"
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}

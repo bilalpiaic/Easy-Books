@@ -103,6 +103,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/team":                   ["users", "invite", "staff accounts"],
   "/settings/permissions":   ["permissions", "user rights", "access matrix"],
   "/audit":                  ["audit log", "activity trail", "who changed"],
+  "/alerts":                 ["alerts", "inbox", "notifications", "bell"],
   "/workflow":               ["approvals", "workflow"],
   "/guide":                  ["help", "user guide", "docs", "manual"],
   "/agent":                  ["ai chat", "assistant", "ask books", "ai agent"],
@@ -711,6 +712,11 @@ const REPORTS: NavResult[] = [
     id: "sys:addons", type: "nav", label: "Add-ons / Modules",
     sub: "Install or remove modules", href: "/apps",
     keywords: ["addons", "modules", "apps", "install module", "extensions"],
+  },
+  {
+    id: "sys:alerts", type: "nav", label: "Alerts",
+    sub: "Ops alerts inbox", href: "/alerts",
+    keywords: ["alerts", "inbox", "bell", "overdue alert", "low stock alert"],
   },
   {
     id: "sys:guide", type: "nav", label: "User Guide",

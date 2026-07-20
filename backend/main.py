@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 from db import create_db_and_tables
 from routers import (
-    accounts, admin, advances, aging, analytic_accounts, api_keys, assets, attachments,
+    accounts, admin, advances, aging, alerts, analytic_accounts, api_keys, assets, attachments,
     audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets,
     comparatives, credit_notes, dashboard_layout, customers, debit_notes, deferred_revenue, exchange_rates, gate_inward, gate_outward, grn,
     imports, invoices, manufacturing_reports, modules, payment_terms, payments, periods,
@@ -47,11 +47,17 @@ def _run_overdue_sweep_once() -> None:
     import db as _db
     from sqlmodel import Session as _Session
     from services.overdue import send_overdue_reminders, sweep_overdue
+    from services.alerts import refresh_ops_alerts
     with _Session(_db.engine) as session:
         changed = sweep_overdue(session)
         sent = send_overdue_reminders(session)
-        if changed or sent:
-            print(f"[overdue] swept {changed} invoice(s), sent {sent} reminder(s)", flush=True)
+        alerts_n = refresh_ops_alerts(session, force=True)
+        if changed or sent or alerts_n:
+            print(
+                f"[overdue] swept {changed} invoice(s), sent {sent} reminder(s), "
+                f"alerts +{alerts_n}",
+                flush=True,
+            )
 
 
 async def _overdue_scheduler_loop() -> None:
@@ -199,6 +205,7 @@ _ROUTERS = [
     system_update.router,
     search.router,
     ai_chat.router,
+    alerts.router,
 ]
 
 # PRA e-Invoice router mounted separately (not in the shared prefix list above)
