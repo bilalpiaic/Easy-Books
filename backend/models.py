@@ -196,6 +196,35 @@ class UserDashboardLayout(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class UserAlert(SQLModel, table=True):
+    """Per-user in-app ops alert (overdue, low stock, pending approval)."""
+    __tablename__ = "user_alert"
+    __table_args__ = (
+        UniqueConstraint("user_id", "dedupe_key", name="uq_user_alert_dedupe"),
+        CheckConstraint(
+            "kind IN ('overdue_invoice','low_stock','approval_needed','system')",
+            name="ck_user_alert_kind",
+        ),
+        CheckConstraint(
+            "severity IN ('info','warning','critical')",
+            name="ck_user_alert_severity",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    kind: str = Field(index=True)
+    severity: str = Field(default="warning")
+    title: str
+    body: Optional[str] = None
+    href: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    dedupe_key: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    read_at: Optional[datetime] = None
+
+
 class Account(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="unique_account_code_per_tenant"),

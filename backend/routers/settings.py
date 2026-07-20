@@ -33,6 +33,8 @@ class SettingsUpdate(BaseModel):
     # Days between automated overdue-invoice reminder emails per tenant
     # (services/overdue.py); only takes effect when email_notifications="true"
     overdue_reminder_interval_days: Optional[str] = None
+    # In-app Alerts bell (ops alerts for staff). Default on when unset.
+    in_app_alerts: Optional[str] = None
     invoice_prefix: Optional[str] = None
     bill_prefix: Optional[str] = None
     financial_statement_date: Optional[str] = None
