@@ -10,10 +10,11 @@ with a narrow, focused prompt instead of the current one-size-fits-all
 prompt bound to all 7 tools on every turn.
 
 Base agents (required_module=None) cover Receivables, Payables, Financial
-Reports, and Sales & Customers, plus a General fallback bound to the original
-7 tools. `required_module` gates module-specific agents to tenants with that
-module installed — adding a domain agent is a new registry entry (tools come
-from services/ai_tools.TOOL_REGISTRY), not a pipeline change.
+Reports, Sales & Customers, Banking, Deferred Revenue, Staff Commissions,
+Fixed Assets, plus a General fallback. `required_module` gates module-
+specific agents to tenants with that module installed — adding a domain
+agent is a new registry entry (tools come from services/ai_tools.TOOL_REGISTRY),
+not a pipeline change.
 
 Invariants (enforced by tests + the import-time assert below): every name in
 an AgentDef.tools must exist in TOOL_REGISTRY, and no agent key may be a
@@ -79,18 +80,22 @@ AGENTS: dict[str, AgentDef] = {
         trigger_hint=(
             "Overall financial statements and position: profit & loss / income statement, "
             "balance sheet, trial balance, cash flow, tax summary, budget vs actual, net worth, "
-            "revenue, expenses, profit, account balances."
+            "revenue, expenses, profit, account balances, analytic/cost-center P&L, journal report."
         ),
         system_prompt_fragment=(
             "You specialize in financial statements and performance. Use get_income_statement, "
             "get_balance_sheet, get_trial_balance, and get_cash_flow for statements; "
             "get_tax_summary for tax collected/paid; get_budget_vs_actual for budget variance; "
-            "get_net_worth_trend for the assets/liabilities/net-worth trajectory."
+            "get_net_worth_trend for the assets/liabilities/net-worth trajectory; "
+            "get_account_ledger / get_day_book / get_journal_report for GL detail; "
+            "find_analytic_account + get_analytic_pl for cost-center P&L."
         ),
         tools=(
             "get_income_statement", "get_balance_sheet", "get_trial_balance", "get_cash_flow",
             "get_tax_summary", "get_budget_vs_actual", "get_net_worth_trend",
             "get_dashboard_summary", "list_report_sources", "run_custom_report",
+            "get_account_ledger", "get_day_book", "get_journal_report",
+            "get_analytic_pl", "find_analytic_account", "find_account",
         ),
     ),
     "sales": AgentDef(
@@ -110,6 +115,67 @@ AGENTS: dict[str, AgentDef] = {
             "get_customer_performance", "get_top_customers", "find_customer",
             "get_customer_statement", "get_customer_ledger", "get_dashboard_summary",
         ),
+    ),
+    "banking": AgentDef(
+        key="banking",
+        label="Banking & Cash Agent",
+        trigger_hint=(
+            "Cash and bank: day book, cash book / bank book / account ledger for cash or bank "
+            "accounts, cash/bank sub-ledger, linked bank account balances."
+        ),
+        system_prompt_fragment=(
+            "You specialize in cash and banking. Use get_day_book for one day's voucher activity, "
+            "list_bank_accounts for linked bank balances, get_cash_bank_subledger for the cash/"
+            "bank control reconciliation, and find_account + get_account_ledger for a specific "
+            "cash or bank GL account's movements."
+        ),
+        tools=(
+            "get_day_book", "get_account_ledger", "get_cash_bank_subledger",
+            "list_bank_accounts", "find_account", "get_dashboard_summary",
+        ),
+    ),
+    "deferred_rev": AgentDef(
+        key="deferred_rev",
+        label="Deferred Revenue Agent",
+        trigger_hint=(
+            "Deferred revenue / IFRS-15 recognition schedules: unearned revenue, recognition "
+            "status, remaining deferred balances."
+        ),
+        system_prompt_fragment=(
+            "You specialize in deferred revenue. Use list_deferred_schedules to inspect active "
+            "and completed recognition schedules. Do not attempt to run recognition — that is "
+            "a write action outside your tools."
+        ),
+        tools=("list_deferred_schedules",),
+    ),
+    "staff_commissions": AgentDef(
+        key="staff_commissions",
+        label="Staff Commissions Agent",
+        trigger_hint=(
+            "Staff sales commissions (internal sales team, not franchise channel commissions): "
+            "commission plans, ledger periods, amounts payable to sales staff."
+        ),
+        system_prompt_fragment=(
+            "You specialize in staff sales commissions (base feature — not franchise channel). "
+            "Use list_commission_plans for rate/target plans and get_commission_ledger for "
+            "period commission amounts. Franchise-channel commissions belong to the franchise "
+            "operations specialist."
+        ),
+        tools=("get_commission_ledger", "list_commission_plans"),
+    ),
+    "fixed_assets": AgentDef(
+        key="fixed_assets",
+        label="Fixed Assets Agent",
+        trigger_hint=(
+            "Fixed assets register: asset cost, accumulated depreciation, net book value, "
+            "acquisition dates — not inventory stock."
+        ),
+        system_prompt_fragment=(
+            "You specialize in the fixed-asset register. Use list_fixed_assets for active "
+            "(non-disposed) assets with cost and book value. Do not attempt depreciation or "
+            "disposal — those are write actions outside your tools."
+        ),
+        tools=("list_fixed_assets",),
     ),
     "inventory": AgentDef(
         key="inventory",
@@ -170,43 +236,61 @@ AGENTS: dict[str, AgentDef] = {
         label="Telecom Agent",
         trigger_hint=(
             "Telecom franchise: load/tracker balances, SIM stock and activations, RSO agents, "
-            "commissions, mobile-money float, FCA targets."
+            "commissions, mobile-money float, FCA targets, postpaid book, tracker statement."
         ),
         system_prompt_fragment=(
             "You specialize in the telecom franchise business. Use get_telecom_dashboard for "
             "headline KPIs, get_commission_aging for commission receivables, "
             "get_float_statement for mobile-money reconciliation, get_sim_utilisation and "
             "get_stock_issuance for SIM/load movement, get_revenue_by_stream for the revenue "
-            "split, get_fca_target_progress for targets, and find_rso + get_rso_ledger for a "
-            "specific agent's position."
+            "split, get_fca_target_progress for targets, get_postpaid_book / "
+            "get_tracker_statement for postpaid and wallet detail, and find_rso + "
+            "get_rso_ledger for a specific agent's position."
         ),
         tools=(
             "get_telecom_dashboard", "get_commission_aging", "get_float_statement",
             "get_sim_utilisation", "get_revenue_by_stream", "get_fca_target_progress",
             "get_stock_issuance", "find_rso", "get_rso_ledger",
+            "get_postpaid_book", "get_tracker_statement",
         ),
         required_module="telecom",
     ),
     "purchasing": AgentDef(
         key="purchasing",
-        label="Purchasing & Store Agent",
+        label="Purchasing Agent",
         trigger_hint=(
-            "Purchasing chain and store: gate inward/outward, goods received vs ordered vs "
-            "billed (3-way match), store issues, dispatch reconciliation, vendor delivery "
-            "performance."
+            "Purchasing chain: gate inward receipts, goods received vs ordered vs billed "
+            "(3-way match), vendor delivery performance — NOT store issues or gate outward "
+            "(those are store_ops)."
         ),
         system_prompt_fragment=(
-            "You specialize in the purchase and store chain. Use get_gate_register / "
-            "get_gate_outward_register for gate movement, get_three_way_match for PO vs "
-            "received vs billed variances, get_dispatch_reconciliation for un-exited "
-            "dispatches, get_issue_register for departmental consumption, get_stock_tie_out "
-            "for stock reconciliation, and get_purchase_vendor_performance (with find_vendor) "
-            "for vendor delivery metrics."
+            "You specialize in the purchase chain. Use get_gate_register for gate inward "
+            "receipts, get_three_way_match for PO vs received vs billed variances, and "
+            "get_purchase_vendor_performance (with find_vendor) for vendor delivery metrics. "
+            "Store issues, gate outward, and dispatch reconciliation belong to the Store Agent."
         ),
         tools=(
             "get_gate_register", "get_three_way_match", "get_purchase_vendor_performance",
-            "get_gate_outward_register", "get_dispatch_reconciliation", "get_issue_register",
-            "get_stock_tie_out", "find_vendor",
+            "find_vendor",
+        ),
+        required_module="purchase_store",
+    ),
+    "store_ops": AgentDef(
+        key="store_ops",
+        label="Store Agent",
+        trigger_hint=(
+            "Store operations: gate outward / dispatch exit, store issues (departmental "
+            "consumption), dispatch reconciliation, stock tie-out — NOT purchase gate inward "
+            "or 3-way match (those are purchasing)."
+        ),
+        system_prompt_fragment=(
+            "You specialize in store operations. Use get_gate_outward_register for dispatch "
+            "exits, get_dispatch_reconciliation for un-exited dispatches, get_issue_register "
+            "for departmental consumption, and get_stock_tie_out for stock reconciliation."
+        ),
+        tools=(
+            "get_gate_outward_register", "get_dispatch_reconciliation",
+            "get_issue_register", "get_stock_tie_out",
         ),
         required_module="purchase_store",
     ),
@@ -227,6 +311,41 @@ AGENTS: dict[str, AgentDef] = {
             "get_customer_custody",
         ),
         required_module="production",
+    ),
+    "weaving": AgentDef(
+        key="weaving",
+        label="Weaving Ops Agent",
+        trigger_hint=(
+            "Weaving unit: yarn inward/sizing/production/dispatch, contract control, daily "
+            "ops, customer weaving KPIs, efficiency (Kg/Lbs/Bags)."
+        ),
+        system_prompt_fragment=(
+            "You specialize in weaving unit control. Use get_weaving_dashboard for headline "
+            "KPIs, get_weaving_daily for period activity and efficiency breakdowns, "
+            "get_weaving_customer_kpi for per-customer rollups, and find_wv_contract + "
+            "get_contract_control for one contract's yarn/meter progress."
+        ),
+        tools=(
+            "get_weaving_dashboard", "get_weaving_daily", "get_contract_control",
+            "get_weaving_customer_kpi", "find_wv_contract",
+        ),
+        required_module="weaving",
+    ),
+    "pra_status": AgentDef(
+        key="pra_status",
+        label="PRA Compliance Agent",
+        trigger_hint=(
+            "PRA e-invoice compliance (Punjab Revenue Authority): submission status, fiscal "
+            "numbers, submission logs, today's submitted/pending/failed counts."
+        ),
+        system_prompt_fragment=(
+            "You specialize in PRA e-invoice compliance. Use get_pra_today_summary for "
+            "status buckets in a date window, get_pra_logs for recent submission attempts, "
+            "and get_invoice_pra_status for one invoice's fiscal number / status. Do not "
+            "attempt to submit or retry — those are write actions outside your tools."
+        ),
+        tools=("get_pra_logs", "get_invoice_pra_status", "get_pra_today_summary"),
+        required_module="pra",
     ),
     "general": AgentDef(
         key="general",
@@ -252,10 +371,7 @@ FALLBACK_AGENT_KEY = "general"
 
 def available_agents(installed_modules: set[str]) -> dict[str, AgentDef]:
     """Registry entries usable by this tenant right now — filters out any
-    agent whose required_module isn't installed. All v1 agents have
-    required_module=None (always available), so this is a no-op filter today;
-    it exists so a future module-gated agent doesn't need triage-prompt
-    changes anywhere else."""
+    agent whose required_module isn't installed."""
     return {
         key: agent
         for key, agent in AGENTS.items()
