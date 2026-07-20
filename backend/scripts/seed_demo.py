@@ -1,12 +1,18 @@
 """Seed the seven demo tenants (one per business model) with rich mock data
-spanning two fiscal years.
+spanning at least the last two calendar years from the seed trigger date.
 
 Idempotent — if a demo tenant already exists, the script reuses it and
 skips entities that are already present. Safe to re-run.
 
+Date window (computed at trigger time via date.today()):
+  • Inclusive range [today − 2 years, today]
+    e.g. triggered 2026-07-21 → 2024-07-21 … 2026-07-21
+         triggered 2026-01-01 → 2024-01-01 … 2026-01-01
+  • Transactional / ops dates stay inside that window (never future-dated
+    except still-active contract/promo end dates)
+
 Data coverage (v4 — Sprint 7–12 improvement roadmap):
-  • All dates within the past 12 months (365-day rolling window)
-  • 100 invoices + 100 bills per tenant, evenly spread month-by-month
+  • 100 invoices + 100 bills per tenant, evenly spread across the 2-year window
   • Every model-specific COA account exercised (4010/4020/5100/5200/5030 etc.)
   • 2–3 bank accounts seeded per tenant
   • Payment terms randomly assigned to customers, vendors, invoices, bills
@@ -300,18 +306,64 @@ BILL_MEMO_POOL = [
 
 # ── Date helpers ──────────────────────────────────────────────────────────────
 
+# Rolling demo window anchored to the seed trigger day (date.today()).
+# Inclusive [today − 2 calendar years, today] — at least a 2-year span.
+SEED_SPAN_YEARS = 2
 
-def _spread_dates(count: int, days_ago: int = 640, min_days_ago: int = 3) -> list[str]:
-    """Return `count` ascending ISO date strings spread across the past
-    `days_ago` days (~21 months -> spans prior + current fiscal year) with +/-3
-    day jitter so dates are not mechanically even."""
-    today = date.today()
+
+def _seed_today() -> date:
+    """Seed trigger day — always evaluated at call time so re-seeds slide forward."""
+    return date.today()
+
+
+def _seed_window_start(today: date | None = None) -> date:
+    """Inclusive start of the demo data window (today minus 2 calendar years)."""
+    end = today or _seed_today()
+    try:
+        return end.replace(year=end.year - SEED_SPAN_YEARS)
+    except ValueError:
+        # Feb 29 → Feb 28 two years earlier
+        return end.replace(year=end.year - SEED_SPAN_YEARS, month=2, day=28)
+
+
+def _seed_span_days(today: date | None = None) -> int:
+    """Days from window start → today (730 or 731 depending on leap days)."""
+    end = today or _seed_today()
+    return (end - _seed_window_start(end)).days
+
+
+def _past_days(days_back: int, *, today: date | None = None) -> str:
+    """ISO date `days_back` before today, clamped into the 2-year seed window."""
+    end = today or _seed_today()
+    start = _seed_window_start(end)
+    span = (end - start).days
+    clamped = max(0, min(int(days_back), span))
+    return (end - timedelta(days=clamped)).isoformat()
+
+
+def _spread_dates(
+    count: int,
+    days_ago: int | None = None,
+    min_days_ago: int = 3,
+) -> list[str]:
+    """Return `count` ascending ISO dates spread across the past `days_ago`
+    days (default = full 2-year seed window) with ±3 day jitter.
+
+    Always clamped to [today − span, today]; never emits future dates.
+    """
+    today = _seed_today()
+    span = _seed_span_days(today)
+    if days_ago is None:
+        days_ago = span
+    else:
+        days_ago = max(min_days_ago, min(int(days_ago), span))
+    min_days_ago = max(0, min(min_days_ago, days_ago))
     dates: list[str] = []
     for i in range(count):
         frac = i / max(count - 1, 1)
         base_days = int(days_ago - frac * (days_ago - min_days_ago))
         jitter = random.randint(-3, 3)
-        days_back = max(min_days_ago, base_days + jitter)
+        days_back = max(min_days_ago, min(span, base_days + jitter))
         dates.append((today - timedelta(days=days_back)).isoformat())
     return sorted(dates)
 
@@ -319,6 +371,13 @@ def _spread_dates(count: int, days_ago: int = 640, min_days_ago: int = 3) -> lis
 def _due_date(issue: str, term_days: int) -> str:
     """Return due date string `term_days` after `issue`."""
     return (date.fromisoformat(issue) + timedelta(days=term_days)).isoformat()
+
+
+def _clamp_to_today(iso: str, *, today: date | None = None) -> str:
+    """Clamp an ISO date so seeded GL / ops never post in the future."""
+    end = today or _seed_today()
+    d = date.fromisoformat(iso[:10])
+    return (d if d <= end else end).isoformat()
 
 
 # ── COA routing helpers ───────────────────────────────────────────────────────
@@ -715,7 +774,7 @@ def _seed_bills(
     if len(existing) >= count:
         return list(existing)
 
-    dates = _spread_dates(count, days_ago=640, min_days_ago=5)
+    dates = _spread_dates(count, min_days_ago=5)
     bills: list[Bill] = list(existing)
 
     ap = _account(s, tid, "2000")
@@ -825,7 +884,7 @@ def _seed_invoices(
     if len(existing) >= count:
         return list(existing)
 
-    dates = _spread_dates(count, days_ago=640, min_days_ago=5)
+    dates = _spread_dates(count, min_days_ago=5)
     invoices: list[Invoice] = list(existing)
 
     ar = _account(s, tid, "1100")
@@ -1254,7 +1313,7 @@ def _seed_manual_jvs(s: Session, user: User, count: int = 60) -> None:
     if to_create == 0:
         return
 
-    jv_dates = _spread_dates(to_create, days_ago=365, min_days_ago=3)
+    jv_dates = _spread_dates(to_create, min_days_ago=3)
 
     for i in range(to_create):
         desc, dr_acc, cr_acc, base_amt = valid[i % len(valid)]
@@ -1431,7 +1490,7 @@ def _seed_manufacturing(
     ).all()
     grn_objs: list[GoodsReceiptNote] = list(existing_grns)
     grns_to_create = max(0, 50 - len(existing_grns))
-    grn_dates = _spread_dates(grns_to_create, days_ago=360, min_days_ago=10)
+    grn_dates = _spread_dates(grns_to_create, min_days_ago=10)
     for i in range(grns_to_create):
         customer = customers[i % len(customers)]
         cs = customer_supplied_products[i % len(customer_supplied_products)]
@@ -1508,7 +1567,7 @@ def _seed_manufacturing(
             customer_id=customer.id,
             rate_plan_id=rate_plan.id if rate_plan else None,
             output_qty=qty, state=state_pattern[i % len(state_pattern)],
-            created_at=datetime.utcnow() - timedelta(days=random.randint(10, 300)),
+            created_at=datetime.utcnow() - timedelta(days=random.randint(10, max(10, _seed_span_days()))),
         )
         s.add(po); s.flush()
 
@@ -1535,7 +1594,7 @@ def _seed_purchase_store_chain(
     if len(vendors) < 2 or len(stock_products) < 3:
         return
 
-    demand_dates = _spread_dates(6, days_ago=150, min_days_ago=30)
+    demand_dates = _spread_dates(6, min_days_ago=30)
 
     def _demand_line(pd: PurchaseDemand) -> PurchaseDemandLine:
         return s.exec(
@@ -1730,7 +1789,7 @@ def _seed_purchase_store_chain(
     s.flush()
     _gate_inward(po_b, _demand_line(pd_b).qty,
                 gate_date=_due_date(po_b.order_date, 6), vehicle_no="LEB-5582", challan_no="CH-2202")
-    _flat_bill(po_b, _demand_line(pd_b).qty, bill_date=_due_date(po_b.order_date, 7))
+    _flat_bill(po_b, _demand_line(pd_b).qty, bill_date=_clamp_to_today(_due_date(po_b.order_date, 7)))
     # full receipt + billed — clean, matched 3-way-match row
 
     # CS-C: quotations gathered, winner selected via the matrix, approval still pending
@@ -1744,9 +1803,9 @@ def _seed_purchase_store_chain(
     po_c = _bare_po(vendors[0], stock_products[0], D("40"), D("25"), po_c_dates[0])
     po_c.status = "approved"; s.add(po_c)
     s.flush()
-    _gate_inward(po_c, D("30"), gate_date=_due_date(po_c.order_date, 5),
+    _gate_inward(po_c, D("30"), gate_date=_clamp_to_today(_due_date(po_c.order_date, 5)),
                 vehicle_no="LEB-6693", challan_no="CH-2203")
-    _flat_bill(po_c, D("40"), bill_date=_due_date(po_c.order_date, 6))
+    _flat_bill(po_c, D("40"), bill_date=_clamp_to_today(_due_date(po_c.order_date, 6)))
 
     # PO-D: bare PO, a Gate Inward recorded with the wrong details is cancelled
     # (append-only, reason required), then re-entered correctly — demonstrates
@@ -1809,7 +1868,7 @@ def _seed_purchase_store_chain(
     go_draft_number = next_number(s, tid, "gate_outward", "GO", fmt="{prefix}-{YYYY}-{seq:04d}")
     go_draft = GateOutward(
         tenant_id=tid, number=go_draft_number, source_doc_type="scrap",
-        gate_date=_due_date(demand_dates[-1], 100), time_out="16:30",
+        gate_date=_past_days(8), time_out="16:30",
         vehicle_no="LEB-9931", remarks="Off-cuts from cutting floor, awaiting approval",
         status="draft", created_by_id=clerk.id,
     )
@@ -1824,7 +1883,7 @@ def _seed_purchase_store_chain(
     go_appr_number = next_number(s, tid, "gate_outward", "GO", fmt="{prefix}-{YYYY}-{seq:04d}")
     go_appr = GateOutward(
         tenant_id=tid, number=go_appr_number, source_doc_type="scrap",
-        gate_date=_due_date(demand_dates[-1], 110), time_out="17:00",
+        gate_date=_past_days(5), time_out="17:00",
         vehicle_no="LEB-9942", remarks="Fabric scrap sold to recycler",
         status="draft", created_by_id=clerk.id,
     )
@@ -1885,7 +1944,7 @@ def _seed_purchase_store_chain(
             select(AnalyticAccount).where(AnalyticAccount.tenant_id == tid)
         ).all()
         si_count = 60
-        issue_dates = _spread_dates(si_count, days_ago=300, min_days_ago=5)
+        issue_dates = _spread_dates(si_count, min_days_ago=5)
         accts_cycle = [expense_acct, maint_acct]
         # random.choices (with replacement) since si_count exceeds the
         # distinct stock product pool — random.sample would raise.
@@ -1945,7 +2004,9 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
         return a.id if a else None
 
     today = date.today()
-    setup_day = (today - timedelta(days=340)).isoformat()
+    span = _seed_span_days(today)
+    # Open near the start of the 2-year window so subsequent ops fill the span.
+    setup_day = _past_days(span - 5, today=today)
 
     op = Operator(
         tenant_id=tid, name="Jazz", operator_code="JAZZ",
@@ -1988,12 +2049,12 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
     for r in rsos:
         post_msr_to_rso_transfer(
             s, user, tracker_account=ta, rso=r, amount=D("50000"),
-            date=(today - timedelta(days=280)).isoformat(),
+            date=_past_days(int(span * 280 / 340), today=today),
         )
     s.flush()
     post_rso_to_retail_transfer(
         s, user, rso=rsos[0], retail_outlet_id=outlets[0].id,
-        amount=D("20000"), date=(today - timedelta(days=270)).isoformat(),
+        amount=D("20000"), date=_past_days(int(span * 270 / 340), today=today),
     )
     s.flush()
 
@@ -2002,7 +2063,7 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
             post_rso_sim_issue(
                 s, user, rso=r, batch=batch, qty=20,
                 retail_price=D("80"),
-                date=(today - timedelta(days=250 - i)).isoformat(),
+                date=_past_days(int(span * (250 - i) / 340), today=today),
             )
             batch.qty_activated += 20
         s.add(batch)
@@ -2012,7 +2073,7 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
         post_rso_daily_collection(
             s, user, rso=r, load_portion=D("30000"), stock_portion=D("1500"),
             total_deposited=D("31500"),
-            date=(today - timedelta(days=200 - i)).isoformat(),
+            date=_past_days(int(span * (200 - i) / 340), today=today),
         )
     s.flush()
 
@@ -2022,7 +2083,7 @@ def _seed_telecom_franchise(s: Session, user: User) -> None:
             tenant_id=tid, operator_id=op.id,
             sim_number=f"0300{1000000 + i:07d}",
             batch_id=batch.id if batch else None,
-            activation_date=(today - timedelta(days=300 - i * 6)).isoformat(),
+            activation_date=_past_days(int(span * (300 - i * 6) / 340), today=today),
             customer_name=f"Customer {i+1}",
             activation_type="prepaid" if i % 3 != 0 else "postpaid",
             status="active", commission_rate=D("150"),
@@ -2097,7 +2158,7 @@ def _seed_credit_notes(s: Session, user: User, invoices: list, count: int = 6) -
         "Short shipment credit", "Goods returned — wrong item",
         "Volume rebate", "Quality complaint settlement",
     ]
-    cn_dates = _spread_dates(len(sample), days_ago=300, min_days_ago=5)
+    cn_dates = _spread_dates(len(sample), min_days_ago=5)
     for i, inv in enumerate(sample):
         # Credit ~30% of the invoice subtotal
         amt = money(D(inv.subtotal) * D("0.30"))
@@ -2149,7 +2210,7 @@ def _seed_fixed_assets(s: Session, user: User) -> None:
         ("Office Furniture",       "FA-003", D(350000), D(20000), 120),
         ("Production Machinery",   "FA-004", D(1800000), D(150000), 84),
     ]
-    acq = (date.today() - timedelta(days=90)).isoformat()
+    acq = _past_days(min(400, _seed_span_days() - 30))
     from services.depreciation import compute_depreciation
     for name, code, cost, salvage, life in assets:
         asset = FixedAsset(
@@ -2219,7 +2280,7 @@ def _seed_purchase_orders(s: Session, user: User, vendors: list,
     if not ap or not exp:
         return
 
-    po_dates = _spread_dates(count, days_ago=200, min_days_ago=10)
+    po_dates = _spread_dates(count, min_days_ago=10)
     for i in range(count):
         vendor = vendors[i % len(vendors)]
         number = next_number(s, tid, "purchase_order", "PO")
@@ -2254,7 +2315,7 @@ def _seed_purchase_orders(s: Session, user: User, vendors: list,
             bill_number = next_number(s, tid, "bill", "BILL")
             bill = Bill(
                 tenant_id=tid, number=bill_number, vendor_id=vendor.id,
-                vendor_name=vendor.name, bill_date=_due_date(po_dates[i], 14),
+                vendor_name=vendor.name, bill_date=_clamp_to_today(_due_date(po_dates[i], 14)),
                 due_date=_due_date(po_dates[i], 44),
                 description=f"From PO {number}", subtotal=money(subtotal),
                 gst_rate=ZERO, gst_amount=ZERO, total=money(subtotal),
@@ -2467,9 +2528,11 @@ def _seed_deferred_revenue(s: Session, user: User, invoices: list, count: int = 
             charge = min(remaining, per_month)
             if charge <= ZERO:
                 break
+            # Never post recognition into the future (recent invoices' +1 month).
+            rec_date = _clamp_to_today(recognition_date)
             post_transaction(
                 s, user,
-                date=recognition_date,
+                date=rec_date,
                 description=f"Deferred Revenue Recognition — Schedule {sched.id}",
                 entries=[
                     EntryInput(account_id=sched.deferred_revenue_account_id, debit=charge),
@@ -2639,7 +2702,7 @@ def _seed_customer_advances(s: Session, user: User, customers: list, invoices: l
     if not bank or not adv_acc or not customers:
         return
 
-    adv_dates = _spread_dates(count, days_ago=250, min_days_ago=10)
+    adv_dates = _spread_dates(count, min_days_ago=10)
     open_invoices = [i for i in invoices if i.customer_id]
     for idx in range(min(count, len(customers))):
         cust = customers[idx]
@@ -2702,7 +2765,7 @@ def _seed_vendor_advances(s: Session, user: User, vendors: list, bills: list,
     if not bank or not adv_acc or not vendors:
         return
 
-    adv_dates = _spread_dates(count, days_ago=250, min_days_ago=10)
+    adv_dates = _spread_dates(count, min_days_ago=10)
     for idx in range(min(count, len(vendors))):
         vendor = vendors[idx]
         amount = money(D(random.randint(500, 3000)))
@@ -2849,8 +2912,9 @@ def _seed_employees(s: Session, tenant_id: int, business_model: str) -> list:
             employees.append(existing)
             continue
         dept, designation = dept_roles[i % len(dept_roles)]
-        # join date: 1–3 years ago with variety based on index
-        days_back = 365 + (i * 73) % 730
+        # join date: spread across the 2-year seed window
+        span = _seed_span_days(today)
+        days_back = max(30, (i * 97) % max(span, 1))
         join_dt = today - timedelta(days=days_back)
         emp = Employee(
             tenant_id=tenant_id,
@@ -3325,7 +3389,7 @@ def _seed_promo_rules(s: Session, tenant_id: int) -> None:
         description="5% off any invoice line once the invoice value crosses the threshold.",
         min_invoice_value=D("5000"),
         discount_type="percent", discount_value=D("5"),
-        start_date=(today - timedelta(days=180)).isoformat(),
+        start_date=_past_days(min(180, _seed_span_days()), today=today),
     ))
     if stock:
         s.add(PromoRule(
@@ -3351,7 +3415,7 @@ def _seed_promo_rules(s: Session, tenant_id: int) -> None:
             description="Limited-time 7.5% category-wide promotion.",
             category_id=category.id,
             discount_type="percent", discount_value=D("7.5"),
-            start_date=(today - timedelta(days=30)).isoformat(),
+            start_date=_past_days(30, today=today),
             end_date=(today + timedelta(days=60)).isoformat(),
         ))
 
@@ -3378,7 +3442,7 @@ def _seed_commissions(s: Session, owner: User, staff: list[User]) -> None:
 
     today = date.today()
     # Plans became effective well before the seeded transaction window.
-    eff_from = (today - timedelta(days=700)).isoformat()
+    eff_from = _past_days(_seed_span_days(today), today=today)
     plans = []
     for i, u in enumerate(staff):
         plan = CommissionPlan(
@@ -3502,7 +3566,7 @@ def _seed_commissions(s: Session, owner: User, staff: list[User]) -> None:
 
 def _seed_accounting_periods(s: Session, tenant_id: int) -> None:
     """Named accounting periods for the Period Close page. The only *locked*
-    period predates the seeded transaction window (~640 days), so re-running
+    period predates the seeded transaction window (~2 years), so re-running
     any top-up seeder can never trip posting.py's locked-period guard."""
     if s.exec(select(AccountingPeriod).where(AccountingPeriod.tenant_id == tenant_id)).first():
         return
@@ -3845,8 +3909,16 @@ def _seed_healthcare(s: Session, user: User) -> None:
                   "Syp Benadryl", "Tab Omeprazole 20mg", "Tab Ciprofloxacin 500mg"]
     token_seq: dict[int, int] = {}
     visit_counter = 0
-    # range(90, -1, -1) → days 90 down to 0 (today), so OPD queue shows live activity
-    for day_offset in range(90, -1, -1):
+    span = _seed_span_days(today)
+    # Dense recent band (last ≤90 days) keeps the live OPD queue; extra sample
+    # days stretch the rest of the 2-year window so hospital reports have history.
+    recent = list(range(min(90, span), -1, -1))
+    historical: list[int] = []
+    if span > 90:
+        for i in range(60):
+            historical.append(90 + int((span - 90) * (i + 1) / 61))
+    day_offsets = sorted(set(recent + historical), reverse=True)
+    for day_offset in day_offsets:
         visit_date = (today - timedelta(days=day_offset)).isoformat()
         # Fewer tokens today (3–5 waiting), more on past days
         n_tokens = random.randint(3, 5) if day_offset == 0 else random.randint(1, 4)
@@ -3907,7 +3979,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
     for i in range(20):
         pat    = random.choice(patients)
         doc    = random.choice(doctors[:3])
-        days_ago = random.randint(5 + i * 4, 10 + i * 4)
+        days_ago = max(5, int(span * (i + 1) / 22))
         adm_date = (today - timedelta(days=days_ago)).isoformat()
         adm_num  = f"ADM-{today.year}{i + 1:04d}"
         bed      = available_beds[i % len(available_beds)]
@@ -3971,7 +4043,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
     SOURCES   = ["walkin", "opd", "opd", "opd", "collection_centre"]
     STATUSES  = ["delivered", "delivered", "delivered", "resulted", "sample_collected"]
     for _ in range(80):
-        order_date = (today - timedelta(days=random.randint(1, 89))).isoformat()
+        order_date = _past_days(random.randint(1, max(1, span - 1)), today=today)
         pat    = random.choice(patients)
         source = random.choice(SOURCES)
         status = random.choice(STATUSES)
@@ -4015,7 +4087,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
 
     # ── Procedure Orders (25) ─────────────────────────────────────────────────
     for _ in range(25):
-        order_date = (today - timedelta(days=random.randint(1, 89))).isoformat()
+        order_date = _past_days(random.randint(1, max(1, span - 1)), today=today)
         pat  = random.choice(patients)
         proc = random.choice(procedures)
         doc  = random.choice(doctors)
@@ -4077,8 +4149,10 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
         ("delayed", Decimal("8000"), Decimal("480"), Decimal("80"), Decimal("15")),
     ]
     contracts: list[WvContract] = []
+    span = _seed_span_days(today)
     for i, (status, meters, yarn_rate, weave_rate, shrink) in enumerate(contracts_spec):
-        start = (today - timedelta(days=60 - i * 10)).isoformat()
+        # Spread contract starts across the 2-year window; open ones still end in the future.
+        start = _past_days(int(span * (0.85 - i * 0.2)), today=today)
         end = (today + timedelta(days=30 + i * 15)).isoformat()
         c = WvContract(
             tenant_id=tid,
@@ -4102,8 +4176,14 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
         s.flush()
         contracts.append(c)
 
-    # Activity on first (in_process) contract — enough for all four reports
+    # Activity on first (in_process) contract — enough for all four reports.
+    # Scale the original ~60-day process offsets across the 2-year window so
+    # yarn → sizing → production → dispatch stay chronological.
     c0 = contracts[0]
+
+    def _wv_days(old_offset: int) -> int:
+        return max(1, int(span * old_offset / 60)) if span else max(1, old_offset)
+
     for i, (gross, tare) in enumerate([(Decimal("520"), Decimal("20")), (Decimal("310"), Decimal("10"))]):
         net = calc.net_kg(gross, tare)
         rate = c0.assumed_yarn_rate_per_kg
@@ -4111,7 +4191,7 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
             tenant_id=tid,
             number=next_number(s, tid, "wv_yarn_inward", "YI", fmt="{prefix}-{YYYY}-{seq:04d}"),
             contract_id=c0.id, yarn_type_id=yt.id,
-            date=(today - timedelta(days=40 - i * 5)).isoformat(),
+            date=_past_days(_wv_days(40 - i * 5), today=today),
             gross_kg=gross, tare_kg=tare, net_kg=net,
             rate_per_kg=rate, yarn_value=money(net * rate),
             created_by_id=user.id,
@@ -4122,7 +4202,7 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
         tenant_id=tid,
         number=next_number(s, tid, "wv_sizing", "SZ", fmt="{prefix}-{YYYY}-{seq:04d}"),
         contract_id=c0.id, vendor_id=vendor.id if vendor else None,
-        date=(today - timedelta(days=30)).isoformat(),
+        date=_past_days(_wv_days(30), today=today),
         input_kg=Decimal("500"), output_kg=Decimal("485"),
         gain_shrink_pct=calc.sizing_gain_shrink_pct(Decimal("500"), Decimal("485")),
         sizing_cost=Decimal("12500"), created_by_id=user.id,
@@ -4139,7 +4219,7 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
             tenant_id=tid,
             number=next_number(s, tid, "wv_production", "WP", fmt="{prefix}-{YYYY}-{seq:04d}"),
             contract_id=c0.id, loom_id=loom.id, shift_id=shift.id, operator_id=op.id,
-            date=(today - timedelta(days=25 - i * 5)).isoformat(),
+            date=_past_days(_wv_days(25 - i * 5), today=today),
             warp_yarn_kg=warp, weft_yarn_kg=weft, total_yarn_kg=total,
             grey_meters=grey,
             efficiency_pct=calc.production_efficiency_pct(grey, c0.contract_meters),
@@ -4155,21 +4235,21 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
             tenant_id=tid,
             number=next_number(s, tid, "wv_dispatch", "WD", fmt="{prefix}-{YYYY}-{seq:04d}"),
             contract_id=c0.id,
-            date=(today - timedelta(days=12 - i * 4)).isoformat(),
+            date=_past_days(_wv_days(12 - i * 4), today=today),
             meters=meters, dispatch_value=dval,
             weaving_charges_billed=billed,
             net_receivable=calc.net_receivable(dval, billed),
             created_by_id=user.id,
         ))
 
-    # Light activity on completed contract
+    # Light activity on completed contract (just after its start within the window)
     c1 = contracts[1]
     net = calc.net_kg(Decimal("260"), Decimal("10"))
     s.add(WvYarnInward(
         tenant_id=tid,
         number=next_number(s, tid, "wv_yarn_inward", "YI", fmt="{prefix}-{YYYY}-{seq:04d}"),
         contract_id=c1.id, yarn_type_id=yt.id,
-        date=(today - timedelta(days=50)).isoformat(),
+        date=_past_days(max(1, int(span * 0.55)), today=today),
         gross_kg=Decimal("260"), tare_kg=Decimal("10"), net_kg=net,
         rate_per_kg=c1.assumed_yarn_rate_per_kg,
         yarn_value=net * c1.assumed_yarn_rate_per_kg,

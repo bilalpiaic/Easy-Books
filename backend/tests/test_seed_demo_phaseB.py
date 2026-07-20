@@ -23,15 +23,46 @@ def _txns(tid):
         return s.exec(select(Transaction).where(Transaction.tenant_id == tid)).all()
 
 
-def test_seeded_data_spans_more_than_one_year(client):
-    # Date-independent: the seeded transactions must span >400 days, which the
-    # old 365-day window provably cannot — proving the 2-FY widening took effect
-    # regardless of the calendar date the suite runs on.
+def test_seeded_data_spans_at_least_two_years(client):
+    # Window is [today − 2 calendar years, today]. Assert transactions actually
+    # fill most of that span (allowing a few days of jitter at the edges).
+    from scripts.seed_demo import _seed_span_days, _seed_today, _seed_window_start
+
     tid = _seed(client, "services")
     dates = sorted(t.date for t in _txns(tid))
     assert dates, "no transactions seeded"
-    span_days = (date.fromisoformat(dates[-1]) - date.fromisoformat(dates[0])).days
-    assert span_days > 400, f"date span only {span_days} days — not multi-year"
+    first, last = date.fromisoformat(dates[0]), date.fromisoformat(dates[-1])
+    span_days = (last - first).days
+    window = _seed_span_days()
+    today = _seed_today()
+    assert first >= _seed_window_start(today), f"first {first} before window start"
+    assert last <= today, f"last {last} is in the future"
+    assert span_days >= window - 30, (
+        f"date span only {span_days} days — expected ~{window} (2-year window)"
+    )
+
+
+def test_seed_window_is_today_relative():
+    from scripts.seed_demo import (
+        _clamp_to_today, _past_days, _seed_span_days, _seed_window_start,
+    )
+
+    # Fixed anchors matching the product rule examples
+    d1 = date(2026, 7, 21)
+    assert _seed_window_start(d1) == date(2024, 7, 21)
+    assert _seed_span_days(d1) == (d1 - date(2024, 7, 21)).days
+    assert _past_days(10_000, today=d1) == "2024-07-21"  # clamp to window start
+    assert _past_days(0, today=d1) == "2026-07-21"
+    assert _clamp_to_today("2026-08-15", today=d1) == "2026-07-21"
+    assert _clamp_to_today("2025-01-01", today=d1) == "2025-01-01"
+
+    d2 = date(2026, 1, 1)
+    assert _seed_window_start(d2) == date(2024, 1, 1)
+    assert _seed_span_days(d2) == (d2 - date(2024, 1, 1)).days
+
+    # Leap-day trigger: Feb 29 → Feb 28 two years earlier
+    leap = date(2024, 2, 29)
+    assert _seed_window_start(leap) == date(2022, 2, 28)
 
 
 def test_seeded_transactions_carry_document_voucher_types(client):
