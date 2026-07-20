@@ -14,7 +14,8 @@ Date window (computed at trigger time via date.today()):
 Data coverage (v4 — Sprint 7–12 improvement roadmap):
   • 100 invoices + 100 bills per tenant, evenly spread across the 2-year window
   • Every model-specific COA account exercised (4010/4020/5100/5200/5030 etc.)
-  • 2–3 bank accounts seeded per tenant
+  • 2–3 bank accounts seeded per tenant, each on its own CoA leaf
+    (1011 HBL, 1012 SCB, 1000 petty cash) so Bank Book / TB balances match
   • Payment terms randomly assigned to customers, vendors, invoices, bills
   • notes / internal_memo fields populated with realistic text
   • 60+ manual JVs covering all expense / revenue / balance-sheet accounts
@@ -702,19 +703,77 @@ def _seed_exchange_rates(s: Session, tenant_id: int) -> None:
         ))
 
 
+def _ensure_bank_leaf(s: Session, tenant_id: int, code: str, name: str) -> Account:
+    """Create (or reuse) a dedicated Asset leaf under Current Assets for a bank."""
+    existing = _account(s, tenant_id, code)
+    if existing:
+        return existing
+    bank1010 = _account(s, tenant_id, "1010")
+    parent_id = bank1010.parent_id if bank1010 else None
+    if parent_id is None:
+        ca = _account(s, tenant_id, "11")
+        parent_id = ca.id if ca else None
+    acc = Account(
+        tenant_id=tenant_id,
+        code=code,
+        name=name,
+        type="Asset",
+        parent_id=parent_id,
+        is_group=False,
+        is_active=True,
+    )
+    s.add(acc)
+    s.flush()
+    return acc
+
+
+def _bank_cash_pool(s: Session, tenant_id: int) -> list[Account]:
+    """Cash/bank leaves linked to BankAccounts (preferred) with CoA fallbacks."""
+    seen: dict[int, Account] = {}
+    for ba in s.exec(
+        select(BankAccount).where(BankAccount.tenant_id == tenant_id)
+    ).all():
+        if not ba.coa_account_id:
+            continue
+        acc = s.get(Account, ba.coa_account_id)
+        if acc and acc.tenant_id == tenant_id:
+            seen[acc.id] = acc
+    if seen:
+        return list(seen.values())
+    out: list[Account] = []
+    for code in ("1011", "1012", "1010", "1000"):
+        a = _account(s, tenant_id, code)
+        if a:
+            out.append(a)
+    return out
+
+
+def _pick_cash_account(
+    pool: list[Account], i: int, method: str,
+) -> Account:
+    """Prefer cash leaf for cash methods; rotate banks otherwise."""
+    cash_leaves = [a for a in pool if a.code == "1000"]
+    bank_leaves = [a for a in pool if a.code != "1000"] or pool
+    if method == "cash" and cash_leaves:
+        return cash_leaves[0]
+    return bank_leaves[i % len(bank_leaves)]
+
+
 def _seed_recurring_templates(s: Session, tenant_id: int) -> None:
     if s.exec(
         select(RecurringTemplate).where(RecurringTemplate.tenant_id == tenant_id)
     ).first():
         return
     today = date.today()
+    # Prefer dedicated Main Current leaf; fall back to generic Bank.
+    cash_code = "1011" if _account(s, tenant_id, "1011") else "1010"
     templates = [
-        ("Office Rent",        "monthly",   "5000", "1010", "Monthly office rent"),
-        ("Internet & Phone",   "monthly",   "5000", "1010", "Connectivity"),
-        ("Cleaning Services",  "monthly",   "5000", "1010", "Office cleaning"),
-        ("Software Licenses",  "monthly",   "5000", "1010", "SaaS subscriptions"),
-        ("Bookkeeping Fee",    "quarterly", "5000", "1010", "External bookkeeping"),
-        ("Insurance Premium",  "yearly",    "5000", "1010", "Annual policy"),
+        ("Office Rent",        "monthly",   "5000", cash_code, "Monthly office rent"),
+        ("Internet & Phone",   "monthly",   "5000", cash_code, "Connectivity"),
+        ("Cleaning Services",  "monthly",   "5000", cash_code, "Office cleaning"),
+        ("Software Licenses",  "monthly",   "5000", cash_code, "SaaS subscriptions"),
+        ("Bookkeeping Fee",    "quarterly", "5000", cash_code, "External bookkeeping"),
+        ("Insurance Premium",  "yearly",    "5000", cash_code, "Annual policy"),
     ]
     for name, freq, expense_code, cash_code, descr in templates:
         exp = _account(s, tenant_id, expense_code)
@@ -736,18 +795,24 @@ def _seed_recurring_templates(s: Session, tenant_id: int) -> None:
 
 
 def _seed_bank_accounts(s: Session, tenant_id: int) -> None:
-    """Seed 2–3 bank accounts per tenant, linked to the Bank (1010) COA account."""
+    """Seed 3 bank/cash accounts, each on its own CoA leaf (1011 / 1012 / 1000).
+
+    Generic ``1010 Bank`` stays in the CoA as an unlinked default; dedicated
+    leaves keep Bank Book, Bank Accounts balances, and Trial Balance aligned.
+    """
     existing = s.exec(
         select(BankAccount).where(BankAccount.tenant_id == tenant_id)
     ).all()
     if existing:
         return
-    bank_coa = _account(s, tenant_id, "1010")
-    cash_coa  = _account(s, tenant_id, "1000")
+
+    leaf_hbl = _ensure_bank_leaf(s, tenant_id, "1011", "HBL Main Current")
+    leaf_scb = _ensure_bank_leaf(s, tenant_id, "1012", "SCB USD Operating")
+    cash_coa = _account(s, tenant_id, "1000")
 
     configs = [
-        ("Main Current Account", "Habib Bank Ltd.",  "1234-5678-9012", bank_coa),
-        ("USD Operating Account", "Standard Chartered", "9876-5432-1098", bank_coa),
+        ("Main Current Account", "Habib Bank Ltd.",  "1234-5678-9012", leaf_hbl),
+        ("USD Operating Account", "Standard Chartered", "9876-5432-1098", leaf_scb),
         ("Petty Cash Float",     None,               None,             cash_coa),
     ]
     for name, bank_name, acc_no, coa in configs:
@@ -760,6 +825,7 @@ def _seed_bank_accounts(s: Session, tenant_id: int) -> None:
             account_number=acc_no,
             coa_account_id=coa.id,
         ))
+    s.flush()
 
 
 # ── Bills (purchase) ──────────────────────────────────────────────────────────
@@ -1059,9 +1125,9 @@ def _seed_payments_received(
     ).all()
     if len(existing) >= count:
         return
-    cash = _account(s, tid, "1010") or _account(s, tid, "1000")
+    pool = _bank_cash_pool(s, tid)
     ar   = _account(s, tid, "1100")
-    if not cash or not ar:
+    if not pool or not ar:
         return
 
     to_create = min(count - len(existing), len(posted))
@@ -1079,10 +1145,16 @@ def _seed_payments_received(
         if amount <= 0:
             continue
 
+        method = random.choice(["bank", "cash", "cheque"])
+        cash = _pick_cash_account(pool, i, method)
+        # Voucher by instrument: cash → CR, bank/cheque → BR (CoA leaf may still
+        # be the petty-cash BankAccount link for the cash path).
+        voucher = "CR" if method == "cash" else "BR"
+
         pay = PaymentReceived(
             tenant_id=tid, invoice_id=inv.id, customer_name=inv.customer_name,
             payment_date=pay_date, amount=amount,
-            method=random.choice(["bank", "cash", "cheque"]),
+            method=method,
             cash_account_id=cash.id,
         )
         s.add(pay); s.flush()
@@ -1098,7 +1170,7 @@ def _seed_payments_received(
             ],
             audit_entity_type="payment",
             audit_detail={"invoice": inv.number, "amount": str(amount)},
-            voucher_type="CR",
+            voucher_type=voucher,
         )
         pay.transaction_id = txn.id
         s.add(pay)
@@ -1113,9 +1185,9 @@ def _seed_bill_payments(
     ).all()
     if len(existing) >= count:
         return
-    cash = _account(s, tid, "1010") or _account(s, tid, "1000")
+    pool = _bank_cash_pool(s, tid)
     ap   = _account(s, tid, "2000")
-    if not cash or not ap:
+    if not pool or not ap:
         return
 
     to_create = min(count - len(existing), len(bills))
@@ -1132,10 +1204,14 @@ def _seed_bill_payments(
         if amount <= 0:
             continue
 
+        method = random.choice(["bank", "cheque", "cash"])
+        cash = _pick_cash_account(pool, i, method)
+        voucher = "CP" if method == "cash" else "BP"
+
         pay = BillPayment(
             tenant_id=tid, bill_id=bill.id, vendor_name=bill.vendor_name,
             payment_date=pay_date, amount=amount,
-            method=random.choice(["bank", "cheque"]),
+            method=method,
             cash_account_id=cash.id,
         )
         s.add(pay); s.flush()
@@ -1151,7 +1227,7 @@ def _seed_bill_payments(
             ],
             audit_entity_type="bill_payment",
             audit_detail={"bill": bill.number, "amount": str(amount)},
-            voucher_type="CP",
+            voucher_type=voucher,
         )
         pay.transaction_id = txn.id
         s.add(pay)
@@ -1167,8 +1243,9 @@ def _seed_manual_jvs(s: Session, user: User, count: int = 60) -> None:
     def acc(code: str) -> Optional[Account]:
         return _account(s, tid, code)
 
-    cash       = acc("1010") or acc("1000")
-    bank       = acc("1010") or acc("1000")
+    cash       = acc("1000") or acc("1010")
+    bank       = acc("1011") or acc("1010") or acc("1000")
+    bank2      = acc("1012") or bank
     ar         = acc("1100")
     ap         = acc("2000")
     gst_out    = acc("2200")
@@ -1292,6 +1369,10 @@ def _seed_manual_jvs(s: Session, user: User, count: int = 60) -> None:
         ("GST payable settlement — Q2",     gst_out,   bank,      D(18000)),
         ("GST payable settlement — Q3",     gst_out,   bank,      D(22000)),
         ("GST input credit claimed",        bank,      gst_in,    D(8000)),
+        # Inter-bank transfers — give both dedicated bank leaves contra legs
+        ("Inter-bank transfer HBL→SCB",     bank2,     bank,      D(8500)),
+        ("Inter-bank transfer SCB→HBL",     bank,      bank2,     D(4200)),
+        ("Petty cash replenishment",        cash,      bank,      D(1500)),
     ]
 
     # Filter to patterns where both accounts are non-None and distinct
@@ -2696,7 +2777,7 @@ def _seed_customer_advances(s: Session, user: User, customers: list, invoices: l
     tid = user.tenant_id
     if s.exec(select(CustomerAdvance).where(CustomerAdvance.tenant_id == tid)).first():
         return
-    bank = _account(s, tid, "1010") or _account(s, tid, "1000")
+    bank = _account(s, tid, "1011") or _account(s, tid, "1010") or _account(s, tid, "1000")
     adv_acc = _account(s, tid, "2310")
     ar = _account(s, tid, "1100")
     if not bank or not adv_acc or not customers:
@@ -2759,7 +2840,7 @@ def _seed_vendor_advances(s: Session, user: User, vendors: list, bills: list,
     tid = user.tenant_id
     if s.exec(select(VendorAdvance).where(VendorAdvance.tenant_id == tid)).first():
         return
-    bank = _account(s, tid, "1010") or _account(s, tid, "1000")
+    bank = _account(s, tid, "1011") or _account(s, tid, "1010") or _account(s, tid, "1000")
     adv_acc = _account(s, tid, "1260")
     ap = _account(s, tid, "2000")
     if not bank or not adv_acc or not vendors:
