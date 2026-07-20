@@ -57,18 +57,18 @@ const RECENT_KEY = "eb.recent-searches"
 const MAX_RECENT = 5
 
 const TYPE_META: Record<string, { label: string; icon: React.ElementType }> = {
-  nav:          { label: "Navigation",   icon: LayoutGrid    },
-  action:       { label: "Quick Actions",icon: Zap           },
-  report:       { label: "Reports",      icon: BarChart2     },
-  tabs:         { label: "Open Tabs",    icon: Layers        },
-  customers:    { label: "Customers",    icon: Users         },
-  vendors:      { label: "Vendors",      icon: Truck         },
-  invoices:     { label: "Invoices",     icon: FileSignature },
-  bills:        { label: "Bills",        icon: Receipt       },
-  accounts:     { label: "Accounts",     icon: BookOpen      },
-  products:     { label: "Products",     icon: Package       },
-  employees:    { label: "Employees",    icon: UserCog       },
-  transactions: { label: "Transactions", icon: ClipboardList },
+  nav:          { label: "Pages",              icon: LayoutGrid    },
+  action:       { label: "Forms & Inputs",     icon: Zap           },
+  report:       { label: "Reports & Analysis", icon: BarChart2     },
+  tabs:         { label: "Open Tabs",          icon: Layers        },
+  customers:    { label: "Customers",          icon: Users         },
+  vendors:      { label: "Vendors",            icon: Truck         },
+  invoices:     { label: "Invoices",           icon: FileSignature },
+  bills:        { label: "Bills",              icon: Receipt       },
+  accounts:     { label: "Accounts",           icon: BookOpen      },
+  products:     { label: "Products",           icon: Package       },
+  employees:    { label: "Employees",          icon: UserCog       },
+  transactions: { label: "Transactions",       icon: ClipboardList },
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -98,6 +98,9 @@ const EMPTY_CHIPS: Array<{ label: string; href: string }> = [
   { label: "New Customer",   href: "/customers/new"         },
   { label: "New Entry",      href: "/entry"                 },
   { label: "Trial Balance",  href: "/trial-balance"         },
+  { label: "Report Builder", href: "/reports/builder"       },
+  { label: "Gate Inward",    href: "/purchases/gate-inward/new" },
+  { label: "AI Assistant",   href: "/agent"                 },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -263,19 +266,20 @@ export default function GlobalSearch() {
       }
     }
 
-    // 2. Static nav / actions / reports
-    if (showNav && cleanQ.length >= 1) {
-      const navResults = searchNav(cleanQ, 10)
+    // 2. Static pages / forms / reports (prefix alone = browse that layer)
+    const typedLayer =
+      apiType === "__reports__" ? "report" as const :
+      apiType === "__actions__" ? "action" as const :
+      apiType === "__nav__"     ? "nav" as const :
+      undefined
+    const wantStatic = showNav && (cleanQ.length >= 1 || !!typedLayer)
 
-      // Group by type
+    if (wantStatic) {
+      const navResults = searchNav(cleanQ, typedLayer ? 40 : 18, typedLayer ? { type: typedLayer } : undefined)
+
       const byType: Record<string, NavResult[]> = {}
       for (const r of navResults) {
-        const bucket =
-          apiType === "__reports__" ? (r.type === "report" ? "report" : null) :
-          apiType === "__actions__" ? (r.type === "action" ? "action" : null) :
-          r.type
-        if (!bucket) continue
-        ;(byType[bucket] ??= []).push(r)
+        ;(byType[r.type] ??= []).push(r)
       }
 
       for (const [type, items] of Object.entries(byType)) {
@@ -359,7 +363,7 @@ export default function GlobalSearch() {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search or type inv:, cust:, tab:, rpt:, new: …"
+              placeholder="Search pages, forms, reports… or inv:, form:, rpt:, analysis:"
               className="flex-1 bg-transparent text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none"
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -428,8 +432,8 @@ export default function GlobalSearch() {
                 <div className="pt-1 pb-1 border-t border-[var(--border)]">
                   <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
                     <span className="font-semibold text-[var(--text-secondary)]">Tip:</span>{" "}
-                    Use prefix shortcuts:{" "}
-                    {["inv:", "cust:", "bill:", "acc:", "emp:", "tab:", "rpt:", "new:"].map(p => (
+                    Browse by layer —{" "}
+                    {["form:", "rpt:", "analysis:", "output:", "nav:", "inv:", "cust:", "tab:"].map(p => (
                       <button key={p} type="button" onClick={() => setQuery(p)}
                         className="inline-block font-mono text-[10px] bg-[var(--bg-page)] border border-[var(--border)] rounded px-1 py-0.5 mr-1 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors">
                         {p}
