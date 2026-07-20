@@ -662,6 +662,8 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                                   "Finished Goods": ["Standard"]},
             "telecom_franchise": {"SIM": ["Prepaid", "Postpaid"],
                                   "Devices": ["Handsets", "Accessories"]},
+            "hospital":          {"Pharmacy": ["Medicines", "Consumables"],
+                                  "Services": ["OPD", "Lab", "IPD"]},
         }
         if not s.exec(select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)).first():
             for parent_name, subs in STARTER_CATEGORIES.get(model, {}).items():

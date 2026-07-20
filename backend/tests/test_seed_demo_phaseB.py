@@ -7,7 +7,8 @@ from sqlmodel import Session, select
 
 import db as _db_module
 from models import (Account, AuditLog, DeferredRevenueSchedule, JournalEntry,
-                    Settings, StoreIssue, Transaction, User)
+                    PRASubmissionLog, Settings, StoreIssue, StoreIssueLine,
+                    Transaction, User)
 from scripts.seed_demo import seed_one_tenant
 
 
@@ -104,7 +105,7 @@ def test_seeded_tenant_has_multiple_users_with_varied_audit(client):
 import pytest
 
 
-@pytest.mark.parametrize("model", ["simple", "services", "trader", "manufacturing", "telecom_franchise"])
+@pytest.mark.parametrize("model", ["simple", "services", "trader", "manufacturing", "telecom_franchise", "hospital"])
 def test_every_segment_seeds_and_trial_balance_balances(client, model):
     tid = _seed(client, model)
     from services.money import D
@@ -133,3 +134,69 @@ def test_manufacturing_seeds_enough_store_issues_to_paginate(client):
     with Session(_db_module.engine) as s:
         count = len(s.exec(select(StoreIssue).where(StoreIssue.tenant_id == tid)).all())
     assert count > 50, f"only {count} store issues seeded — Issue Register never paginates"
+
+
+def test_manufacturing_store_issues_backfill_when_purchase_chain_exists(client):
+    """Re-run seed after PurchaseDemands exist must still fill Store Issues —
+    the old early-return on PD left /store/issues empty forever."""
+    from scripts.seed_demo import seed_one_tenant
+    email = "demo.mfg.backfill@seedtest.app"
+    seed_one_tenant(email, "Mfg Backfill Co", "manufacturing")
+    with Session(_db_module.engine) as s:
+        from models import PurchaseDemand, User
+        user = s.exec(select(User).where(User.email == email)).first()
+        tid = user.tenant_id
+        assert s.exec(select(PurchaseDemand).where(PurchaseDemand.tenant_id == tid)).first()
+        # Wipe store issues to simulate the pre-fix state.
+        for line in s.exec(select(StoreIssueLine)).all():
+            si = s.get(StoreIssue, line.store_issue_id)
+            if si and si.tenant_id == tid:
+                s.delete(line)
+        s.flush()
+        for si in s.exec(select(StoreIssue).where(StoreIssue.tenant_id == tid)).all():
+            s.delete(si)
+        s.commit()
+    seed_one_tenant(email, "Mfg Backfill Co", "manufacturing")
+    with Session(_db_module.engine) as s:
+        user = s.exec(select(User).where(User.email == email)).first()
+        count = len(s.exec(select(StoreIssue).where(StoreIssue.tenant_id == user.tenant_id)).all())
+    assert count > 50, f"backfill produced only {count} store issues"
+
+
+def test_hospital_seeds_patients_and_hc_store(client):
+    tid = _seed(client, "hospital", email="demo.hospital@seedtest.app")
+    from models_healthcare import HcPatient, HcDoctor, HcStoreIssue
+    with Session(_db_module.engine) as s:
+        assert len(s.exec(select(HcPatient).where(HcPatient.tenant_id == tid)).all()) >= 50
+        assert len(s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tid)).all()) >= 5
+        assert len(s.exec(select(HcStoreIssue).where(HcStoreIssue.tenant_id == tid)).all()) >= 20
+
+
+def test_telecom_seeds_extended_nav_screens(client):
+    tid = _seed(client, "telecom_franchise", email="demo.telecom@seedtest.app")
+    from models_telecom import (
+        AirtimeStock, DeviceImei, MobileMoneyAccount, Operator,
+        PostpaidConnection, RsoTarget,
+    )
+    with Session(_db_module.engine) as s:
+        assert s.exec(select(Operator).where(Operator.tenant_id == tid)).first()
+        assert len(s.exec(select(MobileMoneyAccount).where(MobileMoneyAccount.tenant_id == tid)).all()) >= 2
+        assert len(s.exec(select(DeviceImei).where(DeviceImei.tenant_id == tid)).all()) >= 20
+        assert len(s.exec(select(PostpaidConnection).where(PostpaidConnection.tenant_id == tid)).all()) >= 10
+        assert len(s.exec(select(AirtimeStock).where(AirtimeStock.tenant_id == tid)).all()) >= 1
+        assert len(s.exec(select(RsoTarget).where(RsoTarget.tenant_id == tid)).all()) >= 1
+
+
+def test_pra_demo_enables_pra_module_and_logs(client):
+    from scripts.seed_demo import seed_one_tenant
+    import json
+    from models import Tenant, User
+    rep = seed_one_tenant("demo.pra@easy-books.app", "PRA Demo", "trader")
+    tid = rep["tenant_id"]
+    with Session(_db_module.engine) as s:
+        tenant = s.get(Tenant, tid)
+        modules = json.loads(tenant.enabled_modules or "[]")
+        assert "pra" in modules
+        logs = s.exec(select(PRASubmissionLog).where(PRASubmissionLog.tenant_id == tid)).all()
+    # Fresh seed should stamp invoices and write a full log trail.
+    assert len(logs) >= 10, f"only {len(logs)} PRA logs"
