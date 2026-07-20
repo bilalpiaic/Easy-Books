@@ -1088,6 +1088,45 @@ export default function SettingsPage() {
           install industry packs from <Link href="/apps" className="text-[var(--primary)] underline">Add-ons</Link>
           with optional sample data. Your own company is never affected by Load/Remove below.
         </p>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] overflow-hidden">
+          <div className="px-3 py-2 border-b border-[var(--border)]">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">How to see specialty demo data</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              After Load, log out and sign in with the matching company below. Password for all:{" "}
+              <code className="px-1 bg-white rounded border border-[var(--border)]">demo1234</code>
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                  <th className="px-3 py-2 font-semibold">Screen / area</th>
+                  <th className="px-3 py-2 font-semibold">Login</th>
+                </tr>
+              </thead>
+              <tbody className="text-[var(--text-primary)]">
+                {[
+                  { screen: "HC Store (Healthcare pharmacy)", login: "demo.hospital@easy-books.app" },
+                  { screen: "Telecom — Mobile Money, Devices, Postpaid", login: "demo.telecom@easy-books.app" },
+                  { screen: "Store Issues, Purchases chain, Weaving", login: "demo.manufacturing@easy-books.app" },
+                  { screen: "PRA Logs", login: "demo.pra@easy-books.app" },
+                  { screen: "Simple books (shared AR/AP baseline)", login: "demo.simple@easy-books.app" },
+                  { screen: "Services + deferred revenue", login: "demo.services@easy-books.app" },
+                  { screen: "Trader + inventory", login: "demo.trader@easy-books.app" },
+                ].map(row => (
+                  <tr key={row.login} className="border-t border-[var(--border)]">
+                    <td className="px-3 py-2 align-top">{row.screen}</td>
+                    <td className="px-3 py-2 align-top">
+                      <code className="text-xs px-1.5 py-0.5 bg-white rounded border border-[var(--border)] break-all">
+                        {row.login}
+                      </code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button
             className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:bg-[#a07f33] disabled:opacity-50"
