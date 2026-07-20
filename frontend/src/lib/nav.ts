@@ -184,6 +184,8 @@ export function resolveBreadcrumb(pathname: string): {
 export type TopNavSection = {
   key: string
   label: string
+  /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
+  shortLabel?: string
   /** If present, only visible when this module is installed */
   forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
 }
@@ -205,7 +207,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
   { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
-  { key: "pra",           label: "PRA e-Invoice", forModule: "pra"         },
+  { key: "pra",           label: "PRA e-Invoice", shortLabel: "PRA", forModule: "pra" },
 ]
 
 /** Pathname-prefix → top-nav section key mapping */
