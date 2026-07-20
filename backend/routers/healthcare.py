@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
@@ -30,6 +31,9 @@ from services.permissions import perm_dep
 
 router = APIRouter(prefix="/api/healthcare", tags=["healthcare"])
 
+# Max serial points per analyte on a printed report (CLSI cumulative / trend).
+_LAB_HISTORY_LIMIT = 10
+
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +53,278 @@ def _doctor_or_404(session: Session, tenant_id: int, doctor_id: int) -> HcDoctor
     if not d:
         raise HTTPException(404, "Doctor not found")
     return d
+
+
+def _parse_lab_numeric(value: Optional[str]) -> Optional[float]:
+    """Extract a float from a lab result string; None for qualitative text."""
+    if value is None:
+        return None
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return None
+    m = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", text)
+    if not m:
+        return None
+    # Reject when the string is mostly words ("Non-Reactive", "Normal study")
+    if re.search(r"[A-Za-z]{3,}", text) and not re.fullmatch(r"[-+]?\d*\.?\d+", text):
+        return None
+    try:
+        return float(m.group(0))
+    except ValueError:
+        return None
+
+
+def _parse_reference_interval(ref: Optional[str]) -> dict:
+    """Parse catalogue reference text into {low, high} for trend banding.
+    Supports '12–17', '12-17', '0.4–4.0', '<140', '>70'. Qualitative → empty."""
+    if not ref:
+        return {}
+    text = str(ref).strip().replace("–", "-").replace("—", "-").replace("−", "-")
+    if not text or text.lower() in ("varies", "negative", "normal", "n/a", "na"):
+        return {}
+    m = re.fullmatch(r"<\s*([-+]?\d*\.?\d+)", text)
+    if m:
+        return {"high": float(m.group(1))}
+    m = re.fullmatch(r">\s*([-+]?\d*\.?\d+)", text)
+    if m:
+        return {"low": float(m.group(1))}
+    m = re.fullmatch(r"([-+]?\d*\.?\d+)\s*-\s*([-+]?\d*\.?\d+)", text)
+    if m:
+        lo, hi = float(m.group(1)), float(m.group(2))
+        if lo > hi:
+            lo, hi = hi, lo
+        return {"low": lo, "high": hi}
+    return {}
+
+
+_POSITIVE_WORDS = re.compile(
+    r"\b(positive|reactive|detected|present|abnormal|elevated|high|growth)\b",
+    re.I,
+)
+_NEGATIVE_WORDS = re.compile(
+    r"\b(negative|non[-\s]?reactive|not\s+detected|absent|nil|clear|normal\s+study|wnl|"
+    r"within\s+normal|desirable|sinus\s+rhythm|no\s+growth)\b",
+    re.I,
+)
+
+
+def _classify_lab_flag(
+    result_value: Optional[str],
+    *,
+    reference_interval: Optional[dict] = None,
+    reference_range: Optional[str] = None,
+    is_abnormal: bool = False,
+) -> dict:
+    """International H/L / Pos/Neg interpretation for a single result.
+
+    Returns {code, label, symbol} where code is one of:
+      high | low | positive | negative | normal | abnormal | pending
+    """
+    if result_value is None or not str(result_value).strip():
+        return {"code": "pending", "label": "Pending", "symbol": "…"}
+
+    text = str(result_value).strip()
+    interval = reference_interval if reference_interval is not None else _parse_reference_interval(reference_range)
+    numeric = _parse_lab_numeric(text)
+
+    if numeric is not None and interval:
+        lo = interval.get("low")
+        hi = interval.get("high")
+        if hi is not None and numeric > hi:
+            return {"code": "high", "label": "Excess (High)", "symbol": "H"}
+        if lo is not None and numeric < lo:
+            return {"code": "low", "label": "Reduced (Low)", "symbol": "L"}
+        if lo is not None or hi is not None:
+            return {"code": "normal", "label": "Within range", "symbol": "N"}
+
+    # Qualitative / semi-quantitative text
+    if _NEGATIVE_WORDS.search(text):
+        return {"code": "negative", "label": "Negative", "symbol": "−"}
+    if _POSITIVE_WORDS.search(text):
+        return {"code": "positive", "label": "Positive", "symbol": "+"}
+
+    if is_abnormal:
+        return {"code": "abnormal", "label": "Abnormal", "symbol": "!"}
+    if numeric is not None:
+        return {"code": "normal", "label": "Within range", "symbol": "N"}
+    return {"code": "normal", "label": "Normal", "symbol": "N"}
+
+
+def _patient_lab_history(
+    session: Session,
+    *,
+    tenant_id: int,
+    patient_id: int,
+    test_ids: set[int],
+    current_order_id: int,
+    limit: int = _LAB_HISTORY_LIMIT,
+    catalogue_ranges: Optional[dict[int, Optional[str]]] = None,
+) -> dict[int, list[dict]]:
+    """Prior + current resulted values per test for this patient (chronological).
+    Aligns with cumulative / serial reporting used in ISO 15189 / CLSI lab reports."""
+    if not test_ids:
+        return {}
+    ranges = catalogue_ranges or {}
+    rows = session.exec(
+        select(HcLabOrderItem, HcLabOrder)
+        .join(HcLabOrder, HcLabOrderItem.lab_order_id == HcLabOrder.id)
+        .where(
+            HcLabOrder.tenant_id == tenant_id,
+            HcLabOrder.patient_id == patient_id,
+            HcLabOrderItem.test_id.in_(test_ids),
+            HcLabOrderItem.resulted_at.is_not(None),  # type: ignore[attr-defined]
+            HcLabOrderItem.result_value.is_not(None),  # type: ignore[attr-defined]
+        )
+        .order_by(HcLabOrder.order_date.asc(), HcLabOrderItem.resulted_at.asc())  # type: ignore[attr-defined]
+    ).all()
+
+    by_test: dict[int, list[dict]] = {tid: [] for tid in test_ids}
+    for item, order in rows:
+        ref = item.reference_range or ranges.get(item.test_id)
+        flag = _classify_lab_flag(
+            item.result_value,
+            reference_range=ref,
+            is_abnormal=bool(item.is_abnormal),
+        )
+        by_test.setdefault(item.test_id, []).append({
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "order_date": order.order_date,
+            "result_value": item.result_value,
+            "result_unit": item.result_unit,
+            "reference_range": ref,
+            "is_abnormal": bool(item.is_abnormal) or flag["code"] in ("high", "low", "positive", "abnormal"),
+            "numeric_value": _parse_lab_numeric(item.result_value),
+            "flag": flag,
+            "is_current": order.id == current_order_id,
+            "resulted_at": item.resulted_at.isoformat() if item.resulted_at else None,
+        })
+
+    # Keep the most recent `limit` points per analyte (includes current when present)
+    trimmed: dict[int, list[dict]] = {}
+    for tid, points in by_test.items():
+        if not points:
+            continue
+        series = points[-limit:]
+        # Only useful when there is at least one prior (or current alone for table)
+        if len(series) >= 2 or (len(series) == 1 and series[0]["is_current"]):
+            trimmed[tid] = series
+    return trimmed
+
+
+def _patient_age(dob: Optional[str]) -> Optional[int]:
+    """Derive age in whole years from an ISO YYYY-MM-DD DOB string."""
+    if not dob:
+        return None
+    try:
+        born = date.fromisoformat(dob[:10])
+    except ValueError:
+        return None
+    today = date.today()
+    years = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+    return max(0, years)
+
+
+def _serialize_lab_order(session: Session, order: HcLabOrder) -> dict:
+    """Report-ready lab order payload with patient, doctor, tests, sample, history."""
+    patient = session.get(HcPatient, order.patient_id)
+    doctor = session.get(HcDoctor, order.doctor_id) if order.doctor_id else None
+    items = session.exec(
+        select(HcLabOrderItem).where(HcLabOrderItem.lab_order_id == order.id)
+    ).all()
+    test_ids = {i.test_id for i in items}
+    tests_by_id: dict[int, HcLabTest] = {}
+    if test_ids:
+        for t in session.exec(select(HcLabTest).where(HcLabTest.id.in_(test_ids))).all():
+            tests_by_id[t.id] = t
+
+    history_by_test = _patient_lab_history(
+        session,
+        tenant_id=order.tenant_id,
+        patient_id=order.patient_id,
+        test_ids=test_ids,
+        current_order_id=order.id,
+        catalogue_ranges={tid: t.normal_range for tid, t in tests_by_id.items()},
+    )
+
+    serialized_items = []
+    for item in items:
+        test = tests_by_id.get(item.test_id)
+        series = history_by_test.get(item.test_id, [])
+        priors = [p for p in series if not p["is_current"]]
+        last_prior = priors[-1] if priors else None
+        ref_text = item.reference_range or (test.normal_range if test else None)
+        interval = _parse_reference_interval(ref_text)
+        flag = _classify_lab_flag(
+            item.result_value,
+            reference_interval=interval,
+            reference_range=ref_text,
+            is_abnormal=bool(item.is_abnormal),
+        )
+        # Enrich prior point with flag if serializer already attached one
+        if last_prior and "flag" not in last_prior:
+            last_prior = {
+                **last_prior,
+                "flag": _classify_lab_flag(
+                    last_prior.get("result_value"),
+                    reference_range=last_prior.get("reference_range") or ref_text,
+                    is_abnormal=bool(last_prior.get("is_abnormal")),
+                ),
+            }
+        serialized_items.append({
+            **item.model_dump(),
+            "test_code": test.code if test else None,
+            "test_name": test.name if test else f"Test #{item.test_id}",
+            "category": test.category if test else "other",
+            "catalogue_unit": test.unit if test else None,
+            "catalogue_normal_range": test.normal_range if test else None,
+            "reference_interval": interval,
+            "flag": flag,
+            "previous_result": last_prior,
+            "history": series,
+        })
+
+    sample = session.exec(
+        select(HcSampleCollection)
+        .where(HcSampleCollection.lab_order_id == order.id)
+        .order_by(HcSampleCollection.id.desc())
+    ).first()
+
+    payload: dict = {
+        **order.model_dump(),
+        "patient": None,
+        "doctor": None,
+        "sample": None,
+        "items": serialized_items,
+        "history_by_test": history_by_test,
+    }
+    if patient:
+        payload["patient"] = {
+            "id": patient.id,
+            "name": patient.name,
+            "mr_number": patient.mr_number,
+            "gender": patient.gender,
+            "dob": patient.dob,
+            "age": _patient_age(patient.dob),
+            "phone": patient.phone,
+            "blood_group": patient.blood_group,
+        }
+    if doctor:
+        payload["doctor"] = {
+            "id": doctor.id,
+            "name": doctor.name,
+            "specialization": doctor.specialization,
+        }
+    if sample:
+        payload["sample"] = {
+            "id": sample.id,
+            "collected_at": sample.collected_at.isoformat() if sample.collected_at else None,
+            "collection_point": sample.collection_point,
+            "specimen_type": sample.specimen_type,
+            "barcode": sample.barcode,
+            "status": sample.status,
+        }
+    return payload
 
 
 def _ward_or_404(session: Session, tenant_id: int, ward_id: int) -> HcWard:
@@ -1098,6 +1374,8 @@ def list_lab_orders(
     user: CurrentUserDep, session: SessionDep,
     source: Optional[str] = None,
     status: Optional[str] = None,
+    patient_id: Optional[int] = None,
+    admission_id: Optional[int] = None,
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     skip: int = 0, limit: int = 50,
@@ -1107,6 +1385,10 @@ def list_lab_orders(
         q = q.where(HcLabOrder.source == source)
     if status:
         q = q.where(HcLabOrder.status == status)
+    if patient_id is not None:
+        q = q.where(HcLabOrder.patient_id == patient_id)
+    if admission_id is not None:
+        q = q.where(HcLabOrder.admission_id == admission_id)
     if from_date:
         q = q.where(HcLabOrder.order_date >= from_date)
     if to_date:
@@ -1156,10 +1438,7 @@ def get_lab_order(user: CurrentUserDep, session: SessionDep, order_id: int):
     ).first()
     if not order:
         raise HTTPException(404, "Lab order not found")
-    items = session.exec(
-        select(HcLabOrderItem).where(HcLabOrderItem.lab_order_id == order_id)
-    ).all()
-    return {**order.model_dump(), "items": items}
+    return _serialize_lab_order(session, order)
 
 
 @router.put("/lab/orders/{order_id}/items/{item_id}/result",
@@ -1176,7 +1455,13 @@ def enter_result(user: WriteUserDep, session: SessionDep,
     item.result_value = body.result_value
     item.result_unit = body.result_unit
     item.reference_range = body.reference_range
-    item.is_abnormal = body.is_abnormal
+    # Prefer range / Pos-Neg classification; fall back to tech checkbox
+    flag = _classify_lab_flag(
+        body.result_value,
+        reference_range=body.reference_range,
+        is_abnormal=body.is_abnormal,
+    )
+    item.is_abnormal = flag["code"] in ("high", "low", "positive", "abnormal")
     item.resulted_at = datetime.utcnow()
     item.resulted_by_id = user.id
     session.add(item)

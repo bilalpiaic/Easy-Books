@@ -396,3 +396,76 @@ class HcStoreIssueItem(SQLModel, table=True):
     unit_cost: Decimal = _money()               # avg cost snapshot
     charge_to_patient: bool = Field(default=False)
     charge_amount: Decimal = _money()           # markup price if charged to patient
+
+
+# ── Dialysis Treatment Unit ───────────────────────────────────────────────────
+
+
+class HcDialysisUnit(SQLModel, table=True):
+    """Dialysis centre master — open hours + shift length (v1: one active unit/tenant)."""
+    __tablename__ = "hc_dialysis_unit"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str = Field(default="Dialysis Treatment Unit")
+    open_time: str = Field(default="08:00")     # HH:MM
+    close_time: str = Field(default="20:00")
+    shift_hours: int = Field(default=4)
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HcDialysisMachine(SQLModel, table=True):
+    __tablename__ = "hc_dialysis_machine"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="uq_hc_dialysis_machine_code"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    unit_id: int = Field(foreign_key="hc_dialysis_unit.id", index=True)
+    code: str                                   # DM-01 … DM-17
+    name: str
+    status: str = Field(default="available")    # available|in_use|maintenance
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HcDialysisShift(SQLModel, table=True):
+    __tablename__ = "hc_dialysis_shift"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "unit_id", "code", name="uq_hc_dialysis_shift_code"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    unit_id: int = Field(foreign_key="hc_dialysis_unit.id", index=True)
+    code: str                                   # A|B|C
+    name: str                                   # Morning / Afternoon / Evening
+    start_time: str                             # HH:MM
+    end_time: str
+    sort_order: int = Field(default=0)
+    is_active: bool = Field(default=True)
+
+
+class HcDialysisSession(SQLModel, table=True):
+    """One machine × shift × date treatment booking (capacity slot)."""
+    __tablename__ = "hc_dialysis_session"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "session_number", name="uq_hc_dialysis_session_number"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    session_number: str = Field(index=True)     # DS-YYYYNNNN
+    patient_id: int = Field(foreign_key="hc_patient.id", index=True)
+    doctor_id: Optional[int] = Field(default=None, foreign_key="hc_doctor.id")
+    machine_id: int = Field(foreign_key="hc_dialysis_machine.id", index=True)
+    shift_id: int = Field(foreign_key="hc_dialysis_shift.id", index=True)
+    session_date: str = Field(index=True)       # ISO YYYY-MM-DD
+    status: str = Field(default="scheduled")    # scheduled|in_progress|completed|cancelled|no_show
+    fee: Decimal = _money()
+    procedure_id: Optional[int] = Field(default=None, foreign_key="hc_procedure_catalog.id")
+    notes: Optional[str] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")

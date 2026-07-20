@@ -31,7 +31,7 @@ from routers import (
     search, ai_chat,
 )
 from routers.pra import pra_router
-from routers import healthcare, healthcare_reports
+from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
@@ -199,6 +199,7 @@ _ROUTERS = [
     attendance.router,
     healthcare.router,
     healthcare_reports.router,
+    healthcare_dialysis.router,
     weaving.router,
     weaving_reports.router,
     weaving_calculators.router,

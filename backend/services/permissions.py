@@ -95,6 +95,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "healthcare.ipd":         {"label": "IPD / Inpatient",       "category": "Healthcare"},
     "healthcare.lab":         {"label": "Laboratory",            "category": "Healthcare"},
     "healthcare.procedures":  {"label": "Procedures & Services", "category": "Healthcare"},
+    "healthcare.dialysis":    {"label": "Dialysis Unit",         "category": "Healthcare"},
     "healthcare.store":       {"label": "Hospital Store",        "category": "Healthcare"},
     "healthcare.reports":     {"label": "Healthcare Reports",    "category": "Healthcare"},
     # Weaving (#140)

@@ -1976,6 +1976,7 @@ from models_healthcare import (  # noqa: E402,F401
     HcAdmission, HcAdmissionCharge,
     HcLabTest, HcLabOrder, HcLabOrderItem, HcSampleCollection,
     HcProcedureOrder, HcStoreIssue, HcStoreIssueItem,
+    HcDialysisUnit, HcDialysisMachine, HcDialysisShift, HcDialysisSession,
 )
 from models_weaving import (  # noqa: E402,F401
     WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
