@@ -61,9 +61,19 @@ def create_checkout(body: CheckoutBody, session: SessionDep, user: AdminUserDep)
         "pro": os.environ.get("STRIPE_PRICE_PRO", ""),
         "enterprise": os.environ.get("STRIPE_PRICE_ENTERPRISE", ""),
     }
-    price = price_env.get(body.plan) or None
+    price = (price_env.get(body.plan) or "").strip() or None
     if not price:
-        raise HTTPException(400, f"No Stripe price configured for plan {body.plan}")
+        env_name = {
+            "starter": "STRIPE_PRICE_STARTER",
+            "pro": "STRIPE_PRICE_PRO",
+            "enterprise": "STRIPE_PRICE_ENTERPRISE",
+        }.get(body.plan, f"STRIPE_PRICE_{body.plan.upper()}")
+        raise HTTPException(
+            400,
+            f"No Stripe price configured for plan '{body.plan}'. "
+            f"Set {env_name} to your Stripe Price ID (see README Environment variables), "
+            f"or unset STRIPE_SECRET_KEY to apply the plan offline.",
+        )
     if not tenant.stripe_customer_id:
         cust = stripe.Customer.create(email=user.email, metadata={"tenant_id": tenant.id})
         tenant.stripe_customer_id = cust.id

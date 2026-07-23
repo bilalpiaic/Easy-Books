@@ -913,6 +913,48 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     return result
 
 
+@router.post(
+    "/api/invoices/{invoice_id}/submit-for-approval",
+    dependencies=[perm_dep("invoices", "edit")],
+)
+def submit_invoice_for_approval(
+    session: SessionDep, user: WriteUserDep, invoice_id: int
+):
+    """Enter approval workflow when one is configured for invoices (#214)."""
+    from routers.approvals import submit_document
+
+    inv = session.exec(
+        select(Invoice).where(
+            Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    if inv.approval_status in ("pending", "approved"):
+        raise HTTPException(
+            400,
+            f"Invoice is already {inv.approval_status}",
+        )
+    if inv.status in ("void", "voided", "reversed", "paid"):
+        raise HTTPException(400, f"Cannot submit a {inv.status} invoice for approval")
+    req = submit_document(session, user, "invoice", inv.id, float(inv.total or 0))
+    session.commit()
+    if req is None:
+        return {
+            "ok": False,
+            "submitted": False,
+            "message": "No active approval workflow for invoices — document unchanged",
+            "approval_status": inv.approval_status,
+        }
+    session.refresh(inv)
+    return {
+        "ok": True,
+        "submitted": True,
+        "request_id": req.id,
+        "approval_status": inv.approval_status or "pending",
+    }
+
+
 @router.patch("/api/invoices/{invoice_id}/status", dependencies=[perm_dep("invoices", "edit")])
 def update_invoice_status(
     session: SessionDep, user: WriteUserDep, invoice_id: int, status: str

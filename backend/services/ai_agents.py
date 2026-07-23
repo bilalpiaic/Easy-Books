@@ -114,6 +114,7 @@ AGENTS: dict[str, AgentDef] = {
         tools=(
             "get_customer_performance", "get_top_customers", "find_customer",
             "get_customer_statement", "get_customer_ledger", "get_dashboard_summary",
+            "create_draft_invoice",
         ),
     ),
     "banking": AgentDef(
@@ -374,8 +375,8 @@ AGENTS: dict[str, AgentDef] = {
             "Never invent IDs. Confirm destructive or financial writes with the user first."
         ),
         tools=(
-            "find_customer", "update_customer_email", "list_agent_suggestions",
-            "get_dashboard_summary",
+            "find_customer", "update_customer_email", "create_draft_invoice",
+            "list_agent_suggestions", "get_dashboard_summary",
         ),
     ),
 }

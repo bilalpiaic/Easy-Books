@@ -610,6 +610,43 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     return result
 
 
+@router.post(
+    "/api/bills/{bill_id}/submit-for-approval",
+    dependencies=[perm_dep("bills", "edit")],
+)
+def submit_bill_for_approval(
+    session: SessionDep, user: WriteUserDep, bill_id: int
+):
+    """Enter approval workflow when one is configured for bills (#214)."""
+    from routers.approvals import submit_document
+
+    b = session.exec(
+        select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)
+    ).first()
+    if not b:
+        raise HTTPException(404, "Bill not found")
+    if b.approval_status in ("pending", "approved"):
+        raise HTTPException(400, f"Bill is already {b.approval_status}")
+    if b.status in ("void", "voided", "reversed", "paid"):
+        raise HTTPException(400, f"Cannot submit a {b.status} bill for approval")
+    req = submit_document(session, user, "bill", b.id, float(b.total or 0))
+    session.commit()
+    if req is None:
+        return {
+            "ok": False,
+            "submitted": False,
+            "message": "No active approval workflow for bills — document unchanged",
+            "approval_status": b.approval_status,
+        }
+    session.refresh(b)
+    return {
+        "ok": True,
+        "submitted": True,
+        "request_id": req.id,
+        "approval_status": b.approval_status or "pending",
+    }
+
+
 @router.patch("/api/bills/{bill_id}/status", dependencies=[perm_dep("bills", "edit")])
 def update_bill_status(
     session: SessionDep, user: WriteUserDep, bill_id: int, status: str

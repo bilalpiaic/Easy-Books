@@ -1548,6 +1548,8 @@ class StatementLine(SQLModel, table=True):
     balance: Money = money_col()
     matched_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     is_matched: bool = Field(default=False)
+    # Plaid (or other feed) transaction id for de-dupe on sync (#214)
+    external_id: Optional[str] = Field(default=None, index=True)
 
 
 class ExchangeRate(SQLModel, table=True):

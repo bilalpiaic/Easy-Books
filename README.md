@@ -412,8 +412,29 @@ uv run alembic upgrade head
 | `UPLOAD_ROOT` | Root dir for avatars and attachments | `uploads` |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Create an admin user on first boot | — |
 | `SEED_COMPANY_NAME` | Default company name for the seeded tenant | `My Company` |
+| `STRIPE_SECRET_KEY` | Stripe secret for SaaS Checkout + invoice payment links. When unset, billing upgrades apply **offline** (plan written locally) and payment-link creation returns 400 | — |
+| `STRIPE_PRICE_STARTER` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | Stripe Price IDs for live Checkout (`POST /api/billing/checkout`). Required when `STRIPE_SECRET_KEY` is set; Checkout returns an actionable 400 naming the missing env var otherwise | — |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret for `/api/stripe/webhook` | — |
+| `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | Bank feeds (Plaid). Sync upserts `StatementLine` rows when credentials + a linked bank account are present | — |
+| `REDIS_URL` | When set, background jobs go to Redis via ARQ; when unset, tasks run **inline** in-process (Electron / script install / local pytest) | unset (inline) |
+| `ANTHROPIC_API_KEY` | Dev/demo fallback for the AI assistant (anthropic only); per-tenant keys in Settings → AI take priority | — |
 
 Frontend: set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`.
+
+### Background workers (ARQ / Redis)
+
+Easy-Books never requires Redis for a working install. [`backend/services/queue.py`](./backend/services/queue.py) checks `REDIS_URL`:
+
+- **Unset** — `enqueue(...)` runs the matching task from `tasks.REGISTRY` in-process and returns `{status: complete|failed}`. This is the default for script installs, Electron, and pytest.
+- **Set** — jobs are pushed to Redis. Run a worker from `backend/`:
+
+```bash
+cd backend
+export REDIS_URL=redis://localhost:6379/0
+uv run arq worker.WorkerSettings
+```
+
+[`backend/worker.py`](./backend/worker.py) registers PDF generation, email, webhooks, dunning, recurring journals, and insight scans. Cron drains the webhook outbox every minute and posts due recurring entries daily at 01:00 UTC. Self-hosters who prefer zero ops can leave `REDIS_URL` unset and rely on inline execution.
 
 ---
 

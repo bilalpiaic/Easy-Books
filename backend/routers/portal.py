@@ -11,7 +11,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import select
 
-from models import Customer, Invoice, InvoiceLine, PortalToken, Settings, Tenant
+from models import (
+    Bill, BillPayment, Customer, Invoice, InvoiceLine, PortalToken, Settings, Tenant, Vendor,
+)
 from .common import CurrentUserDep, SessionDep, WriteUserDep
 
 router = APIRouter(prefix="/api/portal", tags=["portal"])
@@ -69,6 +71,9 @@ def portal_home(token: str, session: SessionDep):
     if pt.entity_type == "customer":
         cust = session.get(Customer, pt.entity_id)
         entity_name = cust.name if cust else None
+    elif pt.entity_type == "vendor":
+        vend = session.get(Vendor, pt.entity_id)
+        entity_name = vend.name if vend else None
     return {
         "tenant_name": tenant.name if tenant else "",
         "company_name": settings.get("company_name", tenant.name if tenant else ""),
@@ -129,6 +134,76 @@ def portal_invoice_pdf(token: str, invoice_id: int, session: SessionDep):
         content=pdf, media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{inv.number}.pdf"'},
     )
+
+
+@router.get("/{token}/bills")
+def portal_bills(token: str, session: SessionDep):
+    """Open bills for a vendor portal token (#214)."""
+    pt = _resolve(session, token)
+    if pt.entity_type != "vendor":
+        raise HTTPException(400, "Bills only available for vendor portals")
+    rows = session.exec(
+        select(Bill).where(
+            Bill.tenant_id == pt.tenant_id,
+            Bill.vendor_id == pt.entity_id,
+        ).order_by(Bill.bill_date.desc())  # type: ignore
+    ).all()
+    rows = [r for r in rows if r.status not in ("draft", "void", "voided", "reversed")]
+    return [
+        {
+            "id": r.id, "number": r.number, "bill_date": r.bill_date,
+            "due_date": r.due_date, "total": float(r.total), "status": r.status,
+            "currency": r.currency,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/{token}/statement")
+def portal_vendor_statement(token: str, session: SessionDep):
+    """Lightweight vendor statement: open bills + recent bill payments (#214)."""
+    pt = _resolve(session, token)
+    if pt.entity_type != "vendor":
+        raise HTTPException(400, "Statement only available for vendor portals")
+    bills = session.exec(
+        select(Bill).where(
+            Bill.tenant_id == pt.tenant_id,
+            Bill.vendor_id == pt.entity_id,
+        ).order_by(Bill.bill_date.desc())  # type: ignore
+    ).all()
+    open_bills = [
+        b for b in bills
+        if b.status not in ("draft", "void", "voided", "reversed", "paid")
+    ]
+    bill_ids = [b.id for b in bills if b.id is not None]
+    payments = []
+    if bill_ids:
+        payments = session.exec(
+            select(BillPayment).where(
+                BillPayment.tenant_id == pt.tenant_id,
+                BillPayment.bill_id.in_(bill_ids),  # type: ignore
+            ).order_by(BillPayment.payment_date.desc()).limit(50)  # type: ignore
+        ).all()
+    outstanding = sum(float(b.total or 0) for b in open_bills)
+    return {
+        "entity_type": "vendor",
+        "outstanding": outstanding,
+        "open_bills": [
+            {
+                "id": b.id, "number": b.number, "bill_date": b.bill_date,
+                "due_date": b.due_date, "total": float(b.total), "status": b.status,
+                "currency": b.currency,
+            }
+            for b in open_bills
+        ],
+        "payments": [
+            {
+                "id": p.id, "bill_id": p.bill_id, "payment_date": p.payment_date,
+                "amount": float(p.amount), "method": p.method, "reference": p.reference,
+            }
+            for p in payments
+        ],
+    }
 
 
 class PayBody(BaseModel):

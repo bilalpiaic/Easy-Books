@@ -889,6 +889,56 @@ def _exec_update_customer_email(session, user, tool_input):
     return {"ok": True, "customer_id": cust.id, "email": cust.email}
 
 
+def _exec_create_draft_invoice(session, user, tool_input):
+    """Create an invoice via the invoices router (posts GL; status starts as draft)."""
+    from datetime import date as DateType
+
+    from fastapi import BackgroundTasks, HTTPException
+
+    from routers.invoices import InvoiceCreate, InvoiceLineCreate, create_invoice
+
+    customer_id = tool_input.get("customer_id")
+    if customer_id is None:
+        return {"error": "customer_id is required — use find_customer first"}
+    lines_in = tool_input.get("lines") or []
+    if not lines_in:
+        return {"error": "at least one line is required"}
+    try:
+        lines = [
+            InvoiceLineCreate(
+                product_id=ln.get("product_id"),
+                description=str(ln.get("description") or "Line"),
+                qty=ln.get("qty", 1),
+                rate=ln.get("rate", 0),
+                unit=ln.get("unit"),
+            )
+            for ln in lines_in
+        ]
+        body = InvoiceCreate(
+            customer_id=int(customer_id),
+            issue_date=str(tool_input.get("issue_date") or DateType.today().isoformat()),
+            due_date=str(tool_input.get("due_date") or ""),
+            description=tool_input.get("description"),
+            notes=tool_input.get("notes"),
+            lines=lines,
+            gst_rate=tool_input.get("gst_rate", 0),
+        )
+        result = create_invoice(session, user, body, BackgroundTasks())
+    except HTTPException as exc:
+        return {"error": str(exc.detail)}
+    except Exception as exc:  # noqa: BLE001 — tool errors must be recoverable
+        return {"error": f"{type(exc).__name__}: {exc}"}
+    return {
+        "ok": True,
+        "invoice_id": result.get("id"),
+        "number": result.get("number"),
+        "status": result.get("status"),
+        "total": result.get("total"),
+        "currency": result.get("currency"),
+        "customer_name": result.get("customer_name"),
+    }
+
+
 def _exec_list_suggestions(session, user, tool_input):
     from datetime import datetime
     from models import AgentSuggestion
@@ -2072,6 +2122,43 @@ _TOOLS: tuple[ToolDef, ...] = (
         },
         label="Updating customer email…",
         executor=_exec_update_customer_email,
+    ),
+    ToolDef(
+        name="create_draft_invoice",
+        description=(
+            "Create a sales invoice for a customer through the normal invoice API "
+            "(same path as the UI). Use find_customer first. Requires at least one line "
+            "with description, qty, and rate. Only call when the user explicitly asks to "
+            "create an invoice. Returns invoice id, number, status, and total."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "customer_id": {"type": "integer", "description": "Customer id from find_customer"},
+                "issue_date": {"type": "string", "description": "YYYY-MM-DD (optional, defaults today)"},
+                "due_date": {"type": "string", "description": "YYYY-MM-DD (optional)"},
+                "description": {"type": "string"},
+                "notes": {"type": "string"},
+                "gst_rate": {"type": "number", "description": "Header GST % (default 0)"},
+                "lines": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "qty": {"type": "number"},
+                            "rate": {"type": "number"},
+                            "product_id": {"type": "integer"},
+                            "unit": {"type": "string"},
+                        },
+                        "required": ["description", "qty", "rate"],
+                    },
+                },
+            },
+            "required": ["customer_id", "lines"],
+        },
+        label="Creating draft invoice…",
+        executor=_exec_create_draft_invoice,
     ),
     ToolDef(
         name="list_agent_suggestions",
