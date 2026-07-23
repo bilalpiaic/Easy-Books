@@ -58,6 +58,12 @@ def create_db_and_tables():
                 )
                 session.add(admin_user)
                 session.commit()
+                session.refresh(admin_user)
+                from services.memberships import ensure_membership
+                ensure_membership(
+                    session, user_id=admin_user.id, tenant_id=default_tenant.id, role="owner"
+                )
+                session.commit()
         elif admin_email and admin_password:
             existing = session.exec(select(User).where(User.email == admin_email)).first()
             if not existing:
@@ -68,6 +74,12 @@ def create_db_and_tables():
                     tenant_id=default_tenant.id,
                 )
                 session.add(admin_user)
+                session.commit()
+                session.refresh(admin_user)
+                from services.memberships import ensure_membership
+                ensure_membership(
+                    session, user_id=admin_user.id, tenant_id=default_tenant.id, role="owner"
+                )
                 session.commit()
 
         # SEED_DEMO=true seeds the demo *login* tenants here (empty — CoA only).
@@ -109,6 +121,12 @@ def create_db_and_tables():
                         role="owner",
                     )
                     session.add(demo_user)
+                    session.commit()
+                    session.refresh(demo_user)
+                    from services.memberships import ensure_membership
+                    ensure_membership(
+                        session, user_id=demo_user.id, tenant_id=demo_tenant.id, role="owner"
+                    )
                     session.commit()
                     created += 1
 
@@ -546,7 +564,12 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == "company_name")
         ).first()
         if not settings_count:
-            company = os.environ.get("SEED_COMPANY_NAME", "My Company")
+            tenant_row = s.get(Tenant, tenant_id)
+            company = (
+                os.environ.get("SEED_COMPANY_NAME")
+                or (tenant_row.name if tenant_row and tenant_row.name else None)
+                or "My Company"
+            )
             s.add(Settings(key="company_name", value=company, tenant_id=tenant_id))
             s.commit()
 

@@ -48,6 +48,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/tax":              "Tax Reports",
   "/profile":          "My Profile",
   "/team":             "Team",
+  "/practice":         "Practice clients",
   "/workflow":         "Workflow",
   "/guide":            "User Guide",
   "/agent":            "AI Assistant",

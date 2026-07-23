@@ -101,6 +101,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/imports":                ["csv import", "bulk upload", "spreadsheet"],
   "/payment-terms":          ["payment terms", "net 30", "due terms"],
   "/team":                   ["users", "invite", "staff accounts"],
+  "/practice":               ["practice", "clients", "switch company", "multi client", "accountant"],
   "/settings/permissions":   ["permissions", "user rights", "access matrix"],
   "/audit":                  ["audit log", "activity trail", "who changed"],
   "/alerts":                 ["alerts", "inbox", "notifications", "bell"],
@@ -708,6 +709,11 @@ const REPORTS: NavResult[] = [
     id: "sys:team", type: "nav", label: "Team / Users",
     sub: "Manage team members and roles", href: "/team",
     keywords: ["team", "users", "roles", "staff", "members", "access"],
+  },
+  {
+    id: "sys:practice", type: "nav", label: "Practice clients",
+    sub: "Switch between companies you can access", href: "/practice",
+    keywords: ["practice", "clients", "switch company", "multi client", "accountant"],
   },
   {
     id: "sys:permissions", type: "nav", label: "Permissions",

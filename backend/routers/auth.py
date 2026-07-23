@@ -35,6 +35,7 @@ from auth import (
 )
 from db import MODULES_BY_MODEL, seed_data
 from models import LoginAttempt, RevokedToken, Tenant, User, UserInvite
+from services.memberships import ensure_membership, get_membership, list_user_memberships
 
 from .common import CurrentUserDep, SessionDep
 
@@ -55,6 +56,45 @@ _LOGIN_ATTEMPT_WINDOW_SEC = 60
 _LOGIN_ATTEMPT_MAX = 10
 # Kept as an alias for tests that still clear the legacy in-memory dict.
 _login_attempts: dict[str, deque] = {}
+
+
+def _mint_user_token(user: User) -> str:
+    return create_access_token(
+        data={
+            "sub": user.email,
+            "tenant_id": user.tenant_id,
+            "full_name": user.full_name,
+            "role": user.role,
+            "jti": str(uuid.uuid4()),
+        },
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+
+def _revoke_presented_token(session: Session, request: Request) -> None:
+    auth_header = request.headers.get("authorization", "")
+    token = auth_header[7:] if auth_header.lower().startswith("bearer ") else None
+    if not token:
+        token = request.cookies.get(ACCESS_COOKIE_NAME)
+    if not token:
+        return
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        tenant_id = payload.get("tenant_id")
+        exp = payload.get("exp")
+        if jti and tenant_id is not None and exp is not None:
+            session.add(RevokedToken(
+                jti=jti,
+                tenant_id=tenant_id,
+                expires_at=datetime.utcfromtimestamp(exp),
+            ))
+            try:
+                session.commit()
+            except Exception:
+                session.rollback()
+    except JWTError:
+        pass
 
 
 def _cookie_secure() -> bool:
@@ -174,6 +214,8 @@ def signup(data: UserSignup, session: SessionDep, response: Response):
     session.add(user)
     session.commit()
     session.refresh(user)
+    ensure_membership(session, user_id=user.id, tenant_id=tenant.id, role="owner")
+    session.commit()
     return {"success": True, "tenant_id": tenant.id}
 
 
@@ -233,6 +275,11 @@ def login(
         },
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
+    # Ensure home membership exists (covers legacy users created before #220)
+    ensure_membership(
+        session, user_id=user.id, tenant_id=user.tenant_id, role=user.role
+    )
+    session.commit()
     _set_access_cookie(response, token)
     csrf = secrets.token_urlsafe(32)
     _set_csrf_cookie(response, csrf)
@@ -296,6 +343,9 @@ def get_me(session: SessionDep, user: CurrentUserDep):
         enabled = _json.loads(tenant.enabled_modules) if tenant else []
     except (TypeError, ValueError):
         enabled = []
+    memberships = list_user_memberships(session, user.id)
+    for m in memberships:
+        m["is_active"] = m["tenant_id"] == user.tenant_id
     return {
         "id": user.id,
         "email": user.email,
@@ -306,13 +356,68 @@ def get_me(session: SessionDep, user: CurrentUserDep):
         "must_change_password": user.must_change_password,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
+        "memberships_count": len(memberships),
         "tenant": {
             "id": tenant.id if tenant else user.tenant_id,
             "name": tenant.name if tenant else "",
             "business_model": tenant.business_model if tenant else "simple",
             "enabled_modules": enabled,
             "base_currency": tenant.base_currency if tenant else "USD",
+            "plan": tenant.plan if tenant else "free",
         },
+    }
+
+
+class SwitchTenantBody(BaseModel):
+    tenant_id: int
+
+
+@router.get("/tenants")
+def list_my_tenants(session: SessionDep, user: CurrentUserDep):
+    """Clients the current user can switch into (#220)."""
+    memberships = list_user_memberships(session, user.id)
+    for m in memberships:
+        m["is_active"] = m["tenant_id"] == user.tenant_id
+    return {"items": memberships, "total": len(memberships)}
+
+
+@router.post("/switch-tenant")
+def switch_tenant(
+    body: SwitchTenantBody,
+    session: SessionDep,
+    user: CurrentUserDep,
+    request: Request,
+    response: Response,
+):
+    """Switch active tenant: update User.tenant_id/role, remint JWT (#220)."""
+    membership = get_membership(session, user.id, body.tenant_id)
+    if membership is None:
+        raise HTTPException(403, "You are not a member of that company")
+    tenant = session.get(Tenant, body.tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Company not found")
+    if tenant.is_suspended:
+        raise HTTPException(403, "This company is suspended")
+
+    _revoke_presented_token(session, request)
+
+    user.tenant_id = membership.tenant_id
+    user.role = membership.role
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    token = _mint_user_token(user)
+    _set_access_cookie(response, token)
+    csrf = secrets.token_urlsafe(32)
+    _set_csrf_cookie(response, csrf)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user.role,
+        "csrf_token": csrf,
+        "tenant_id": user.tenant_id,
+        "tenant_name": tenant.name,
     }
 
 
@@ -385,12 +490,41 @@ def inspect_invite(token: str, session: SessionDep):
 @router.post("/accept-invite")
 def accept_invite(data: AcceptInvite, session: SessionDep, response: Response):
     """Public — materialises an active User from a pending invite and logs
-    them in (sets the same cookies as /login)."""
+    them in (sets the same cookies as /login).
+
+    If the email already has an account, attaching a membership is handled by
+    POST /api/users/invites (immediate attach) — accept-invite is for new users.
+    """
     invite = session.exec(select(UserInvite).where(UserInvite.token == data.token)).first()
     if invite is None or invite.accepted_at is not None or invite.expires_at < datetime.utcnow():
         raise HTTPException(status_code=404, detail="Invite is invalid or has expired")
-    if session.exec(select(User).where(User.email == invite.email)).first():
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
+    existing = session.exec(select(User).where(User.email == invite.email)).first()
+    if existing:
+        # Attach membership for an existing account that somehow still has a
+        # pending invite token (e.g. emailed before attach was available).
+        ensure_membership(
+            session,
+            user_id=existing.id,
+            tenant_id=invite.tenant_id,
+            role=invite.role,
+            invited_by_id=invite.invited_by_id,
+        )
+        invite.accepted_at = datetime.utcnow()
+        session.add(invite)
+        existing.tenant_id = invite.tenant_id
+        existing.role = invite.role
+        existing.last_login_at = datetime.utcnow()
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        token = _mint_user_token(existing)
+        _set_access_cookie(response, token)
+        csrf = secrets.token_urlsafe(32)
+        _set_csrf_cookie(response, csrf)
+        return {
+            "access_token": token, "token_type": "bearer",
+            "role": existing.role, "csrf_token": csrf, "attached": True,
+        }
 
     user = User(
         email=invite.email,
@@ -402,17 +536,20 @@ def accept_invite(data: AcceptInvite, session: SessionDep, response: Response):
         last_login_at=datetime.utcnow(),
     )
     session.add(user)
+    session.flush()
+    ensure_membership(
+        session,
+        user_id=user.id,
+        tenant_id=invite.tenant_id,
+        role=invite.role,
+        invited_by_id=invite.invited_by_id,
+    )
     invite.accepted_at = datetime.utcnow()
     session.add(invite)
     session.commit()
     session.refresh(user)
 
-    token = create_access_token(
-        data={"sub": user.email, "tenant_id": user.tenant_id,
-              "full_name": user.full_name, "role": user.role,
-              "jti": str(uuid.uuid4())},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-    )
+    token = _mint_user_token(user)
     _set_access_cookie(response, token)
     csrf = secrets.token_urlsafe(32)
     _set_csrf_cookie(response, csrf)

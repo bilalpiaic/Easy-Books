@@ -450,6 +450,8 @@ def _revenue_pool(s: Session, tid: int, model: str) -> list[Account]:
 
 
 def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int, role: str = "owner") -> User:
+    from services.memberships import ensure_membership
+
     u = s.exec(select(User).where(User.email == email)).first()
     if u:
         # Convergent reseed: always restore the canonical demo credentials so a
@@ -461,6 +463,7 @@ def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int, ro
         if hasattr(u, "must_change_password"):
             u.must_change_password = False
         s.add(u); s.flush()
+        ensure_membership(s, user_id=u.id, tenant_id=tenant_id, role=role)
         return u
     u = User(
         email=email,
@@ -470,6 +473,7 @@ def _get_or_make_user(s: Session, email: str, full_name: str, tenant_id: int, ro
         role=role,
     )
     s.add(u); s.flush()
+    ensure_membership(s, user_id=u.id, tenant_id=tenant_id, role=role)
     return u
 
 

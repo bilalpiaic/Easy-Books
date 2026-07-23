@@ -103,6 +103,27 @@ class User(SQLModel, table=True):
     tenant: Tenant = Relationship(back_populates="users")
 
 
+class TenantMembership(SQLModel, table=True):
+    """User ↔ tenant membership for practice multi-client switcher (#220).
+
+    `User.tenant_id` / `User.role` remain the *active* membership (updated on
+    switch) so existing routers keep filtering by user.tenant_id unchanged.
+    """
+    __table_args__ = (
+        UniqueConstraint("user_id", "tenant_id", name="uq_tenant_membership_user_tenant"),
+        CheckConstraint(
+            "role IN ('owner','admin','accountant','viewer')",
+            name="ck_membership_role",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    role: str = Field(default="viewer", index=True)
+    invited_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class UserInvite(SQLModel, table=True):
     """Pending invitation for a new user to join a tenant. The recipient
     accepts by POSTing the token + a chosen password to

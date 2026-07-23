@@ -225,18 +225,36 @@ function AddMember({ isOwner, onChange }: { isOwner: boolean; onChange: () => vo
     e.preventDefault(); setBusy(true); setErr(null); setCreated(null)
     try {
       if (mode === "create") {
-        const r = await apiFetch<{ temporary_password: string; email: string }>("/api/users", {
+        const r = await apiFetch<{
+          temporary_password?: string; email: string; attached?: boolean
+        }>("/api/users", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, full_name: name, role }),
         })
-        setCreated({ label: `Temporary password for ${r.email}`, value: r.temporary_password })
+        if (r.attached) {
+          setCreated({
+            label: `${r.email} already had an account — attached to this company`,
+            value: "They can switch via the company switcher in the top nav.",
+          })
+        } else {
+          setCreated({ label: `Temporary password for ${r.email}`, value: r.temporary_password ?? "" })
+        }
       } else {
-        const r = await apiFetch<{ accept_path: string }>("/api/users/invites", {
+        const r = await apiFetch<{
+          accept_path?: string; attached?: boolean; email?: string; message?: string
+        }>("/api/users/invites", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, role }),
         })
-        const link = `${window.location.origin}${r.accept_path}`
-        setCreated({ label: `Invite link for ${email}`, value: link })
+        if (r.attached) {
+          setCreated({
+            label: `${r.email ?? email} attached to this company`,
+            value: r.message ?? "They can switch via the client switcher.",
+          })
+        } else {
+          const link = `${window.location.origin}${r.accept_path}`
+          setCreated({ label: `Invite link for ${email}`, value: link })
+        }
       }
       setEmail(""); setName(""); setRole("viewer"); onChange()
     } catch (e) { setErr(e instanceof Error ? e.message : "Failed") }
@@ -277,8 +295,8 @@ function AddMember({ isOwner, onChange }: { isOwner: boolean; onChange: () => vo
         {err && <p className="text-sm text-red-700">{err}</p>}
         <p className="text-[11px] text-[var(--text-primary)]/45">
           {mode === "create"
-            ? "Creates the account immediately with a temporary password (shown once). The user must change it at first login."
-            : "Generates a one-time invite link valid for 7 days. Share it with the recipient — they set their own password."}
+            ? "Creates a new account with a temporary password (shown once), or attaches an existing Easy-Books email to this company."
+            : "For a new email: generates a 7-day invite link. If the email already has an account, they are attached immediately and can switch companies from the top nav."}
         </p>
         <button type="submit" disabled={busy}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
