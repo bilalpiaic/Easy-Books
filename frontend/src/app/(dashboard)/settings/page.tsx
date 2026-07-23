@@ -1171,6 +1171,36 @@ export default function SettingsPage() {
         (getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner") &&
         <AiAssistantSection /> }
 
+      {/* Webhooks (#114) — outgoing event notifications */}
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">Webhooks</h2>
+        <p className="text-sm text-[var(--text-primary)]/60">
+          Push signed HTTP notifications (invoices, payments, stock alerts and more) to Zapier, Make,
+          Slack, or your own systems the moment they happen.
+        </p>
+        <Link
+          href="/settings/webhooks"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
+        >
+          Manage webhook endpoints →
+        </Link>
+      </section>
+
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">Billing</h2>
+        <p className="text-sm text-[var(--text-primary)]/60">
+          Plan limits, usage meters, and upgrades.
+        </p>
+        <Link
+          href="/settings/billing"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
+        >
+          Open billing →
+        </Link>
+      </section>
+
+      <Security2FACard />
+
       </> }
 
       {/* API Keys tab (#113) — machine-to-machine access, admin/owner only
@@ -1823,5 +1853,58 @@ function ApiKeysSection() {
         </div>
       )}
     </div>
+  )
+}
+
+function Security2FACard() {
+  const [secret, setSecret] = useState<string | null>(null)
+  const [otpauth, setOtpauth] = useState<string | null>(null)
+  const [code, setCode] = useState("")
+  const [status, setStatus] = useState("")
+  const [enabled, setEnabled] = useState(false)
+
+  const setup = async () => {
+    const r = await apiFetch("/api/auth/totp/setup", { method: "POST" })
+    setSecret(r.secret)
+    setOtpauth(r.otpauth_url)
+    setStatus("Scan the otpauth URL in your authenticator app, then enter a code.")
+  }
+  const enable = async () => {
+    await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code }) })
+    setEnabled(true)
+    setStatus("2FA enabled.")
+  }
+  const disable = async () => {
+    await apiFetch("/api/auth/totp/disable", { method: "POST", body: JSON.stringify({ code }) })
+    setEnabled(false)
+    setSecret(null)
+    setStatus("2FA disabled.")
+  }
+
+  return (
+    <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
+      <h2 className="text-lg font-bold text-[var(--text-primary)]">Security · 2FA</h2>
+      <p className="text-sm text-[var(--text-primary)]/60">
+        Protect your account with an authenticator app (TOTP).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={setup} className="px-3 py-1.5 border rounded-lg text-sm">Set up 2FA</button>
+        <button type="button" onClick={enable} className="px-3 py-1.5 bg-[#b8943f] rounded-lg text-sm">Enable</button>
+        <button type="button" onClick={disable} className="px-3 py-1.5 border rounded-lg text-sm">Disable</button>
+      </div>
+      {secret && (
+        <div className="text-xs break-all space-y-1">
+          <div>Secret: <code>{secret}</code></div>
+          {otpauth && <div>URI: <code>{otpauth}</code></div>}
+        </div>
+      )}
+      <input
+        className="border rounded-lg px-3 py-1.5 text-sm"
+        placeholder="6-digit code"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+      />
+      {status && <p className="text-sm text-[var(--text-muted)]">{status}{enabled ? " ✓" : ""}</p>}
+    </section>
   )
 }

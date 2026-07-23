@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from models import AccountBalance, Account, AccountingPeriod, JournalEntry, Transaction
+from services.events import emit
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
@@ -55,6 +56,11 @@ def toggle_period_lock(
         raise HTTPException(404, "Period not found")
     p.is_locked = is_locked
     session.add(p)
+    if is_locked:
+        emit(session, user.tenant_id, "period.closed", {
+            "period_id": p.id, "name": p.name,
+            "period_start": p.period_start, "period_end": p.period_end,
+        })
     session.commit()
     return p
 

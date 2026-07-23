@@ -1,0 +1,71 @@
+# Production compose (#116) — PostgreSQL + Redis + Caddy TLS + ARQ worker.
+# Usage:  TAG=latest docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+services:
+  backend:
+    image: ghcr.io/bilalpiaic/easy-books-backend:${TAG:-latest}
+    restart: always
+    env_file: .env.prod
+    environment:
+      SCHEMA_BOOTSTRAP: alembic
+      APP_ENV: production
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    image: ghcr.io/bilalpiaic/easy-books-frontend:${TAG:-latest}
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  worker:
+    image: ghcr.io/bilalpiaic/easy-books-backend:${TAG:-latest}
+    command: arq worker.WorkerSettings
+    restart: always
+    env_file: .env.prod
+    depends_on:
+      - postgres
+      - redis
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: always
+    depends_on:
+      - backend
+      - frontend
+
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    env_file: .env.prod
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-easybooks}"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+volumes:
+  pg_data:
+  caddy_data:
+  caddy_config:

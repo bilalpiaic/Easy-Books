@@ -204,6 +204,23 @@ def login(
     user.last_login_at = datetime.utcnow()
     session.add(user)
     session.commit()
+
+    # 2FA gate (#118) — password ok but OTP still required
+    if getattr(user, "totp_enabled", False):
+        partial = create_access_token(
+            data={
+                "sub": user.email,
+                "tenant_id": user.tenant_id,
+                "totp_pending": True,
+            },
+            expires_delta=timedelta(minutes=5),
+        )
+        return {
+            "requires_totp": True,
+            "partial_token": partial,
+            "token_type": "bearer",
+        }
+
     token = create_access_token(
         data={
             "sub": user.email,

@@ -52,6 +52,17 @@ class Tenant(SQLModel, table=True):
     cost_method: str = Field(default="wavg")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # SaaS plan metering (#119)
+    plan: str = Field(default="free", index=True)  # free|starter|pro|enterprise
+    max_users: int = Field(default=2)
+    max_documents: int = Field(default=50)
+    storage_quota_mb: int = Field(default=100)
+    is_suspended: bool = Field(default=False)
+    trial_ends_at: Optional[datetime] = None
+    stripe_customer_id: Optional[str] = None
+    stripe_subscription_id: Optional[str] = None
+    subscription_status: Optional[str] = None  # active|past_due|canceled
+
     users: List["User"] = Relationship(back_populates="tenant")
     accounts: List["Account"] = Relationship(back_populates="tenant")
     transactions: List["Transaction"] = Relationship(back_populates="tenant")
@@ -81,6 +92,13 @@ class User(SQLModel, table=True):
     last_login_at: Optional[datetime] = None
 
     my_data_only: bool = Field(default=False)
+
+    # 2FA / SSO (#118)
+    totp_enabled: bool = Field(default=False)
+    totp_secret: Optional[str] = None  # Fernet-encrypted at rest
+    totp_verified_at: Optional[datetime] = None
+    oauth_provider: Optional[str] = None  # google|microsoft
+    oauth_sub: Optional[str] = None
 
     tenant: Tenant = Relationship(back_populates="users")
 
@@ -129,6 +147,39 @@ class ApiKey(SQLModel, table=True):
     expires_at: Optional[datetime] = None
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class WebhookEndpoint(SQLModel, table=True):
+    """Outgoing webhook registration (#114). `events` holds a JSON array of
+    event-type strings from services/events.EVENT_TYPES; an empty array means
+    the endpoint receives no events (it must opt in explicitly)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    url: str
+    secret: str                      # HMAC-SHA256 signing key; server-generated
+    events: List[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    description: Optional[str] = None
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class WebhookDelivery(SQLModel, table=True):
+    """Durable outbox row for one webhook send (#114). Written in the same
+    transaction as the business document (emit never sends inline), then
+    drained by the lifespan delivery loop. Retry ladder lives in
+    services/events.RETRY_DELAYS; after MAX_ATTEMPTS the row is `failed`."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    endpoint_id: int = Field(foreign_key="webhookendpoint.id", ondelete="CASCADE", index=True)
+    event_type: str = Field(index=True)
+    payload_json: str
+    status: str = Field(default="pending", index=True)   # pending | delivered | failed
+    attempts: int = Field(default=0)
+    next_retry: Optional[datetime] = Field(default=None, index=True)
+    response_code: Optional[int] = None
+    last_error: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    delivered_at: Optional[datetime] = None
 
 
 class UserPermission(SQLModel, table=True):
@@ -338,6 +389,7 @@ class Customer(SQLModel, table=True):
     # PRA e-Invoice buyer identification
     ntn: Optional[str] = None   # 7-digit NTN e.g. "1234567-8" (maps to BuyerPNTN)
     cnic: Optional[str] = None  # 13-digit CNIC (maps to BuyerCNIC)
+    dunning_opt_out: bool = Field(default=False)  # #120 — skip automated reminders
 
 
 class Vendor(SQLModel, table=True):
@@ -392,6 +444,8 @@ class Invoice(SQLModel, table=True):
     pra_response_raw: Optional[str] = None  # raw JSON response for audit trail
     buyer_ntn: Optional[str] = None   # walk-in NTN override (takes priority over customer.ntn)
     buyer_cnic: Optional[str] = None  # walk-in CNIC override (takes priority over customer.cnic)
+    # Approval workflow (#123) — null means no workflow engaged / legacy docs
+    approval_status: Optional[str] = Field(default=None, index=True)
 
 
 class Bill(SQLModel, table=True):
@@ -418,6 +472,7 @@ class Bill(SQLModel, table=True):
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    approval_status: Optional[str] = Field(default=None, index=True)  # #123
 
 
 class PaymentReceived(SQLModel, table=True):
@@ -1960,8 +2015,106 @@ class AttendanceRecord(SQLModel, table=True):
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
-# Re-export telecom-franchise tables so SQLModel.metadata.create_all() picks
-# them up at boot and existing `from models import X` imports keep working.
+# ── Wave B–D cloud / parity / AI models (#118–#125) ──────────────────────────
+
+class PortalToken(SQLModel, table=True):
+    """Magic-link access for customer/vendor portal (#120)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    entity_type: str  # customer | vendor
+    entity_id: int = Field(index=True)
+    token_hash: str = Field(index=True)
+    expires_at: datetime
+    permissions: list = Field(default_factory=lambda: ["view_invoices", "pay"], sa_column=Column(JSON))
+    last_accessed: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DunningRule(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    days_overdue: int = Field(default=3)
+    subject_template: str = "Payment reminder: invoice {{ number }}"
+    body_template: str = "Dear {{ customer_name }}, invoice {{ number }} for {{ amount }} is overdue."
+    is_active: bool = Field(default=True)
+
+
+class ApprovalWorkflow(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    document_type: str  # invoice | bill | purchase_order | journal
+    name: str
+    is_active: bool = Field(default=True)
+
+
+class ApprovalStep(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    workflow_id: int = Field(foreign_key="approvalworkflow.id", index=True)
+    step_order: int = Field(default=0)
+    approver_role: Optional[str] = None
+    approver_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    min_amount: Optional[float] = None
+    timeout_hours: Optional[int] = None
+
+
+class ApprovalRequest(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    workflow_id: int = Field(foreign_key="approvalworkflow.id")
+    document_type: str
+    document_id: int = Field(index=True)
+    current_step: int = Field(default=0)
+    status: str = Field(default="pending", index=True)  # pending|approved|rejected|timed_out
+    requested_by_id: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    resolved_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class PlaidConnection(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    bank_account_id: Optional[int] = Field(default=None, foreign_key="bankaccount.id")
+    access_token: str  # encrypted
+    item_id: str = Field(index=True)
+    institution_name: str = ""
+    last_sync: Optional[datetime] = None
+    is_active: bool = Field(default=True)
+
+
+class CategorizationRule(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    pattern: str  # substring match on statement description
+    account_id: int = Field(foreign_key="account.id")
+    is_active: bool = Field(default=True)
+
+
+class AgentSuggestion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    kind: str = Field(index=True)
+    title: str
+    body: str = ""
+    action_href: Optional[str] = None
+    action_label: Optional[str] = None
+    dismissed: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: Optional[datetime] = None
+
+
+class AgentAutomation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: str
+    trigger: str  # monthly_1st | on_bank_sync | on_month_end | daily
+    agent_prompt: str = ""
+    is_active: bool = Field(default=True)
+    last_run: Optional[datetime] = None
+    dry_run_only: bool = Field(default=True)
+
+
+# Re-exports follow (telecom / healthcare / weaving).
 from models_telecom import (  # noqa: E402,F401
     AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
     DeviceImei, FcaEvent, FranchiseAgreement, KpiTarget, LoadTransfer,

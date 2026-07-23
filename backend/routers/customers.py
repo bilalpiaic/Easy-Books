@@ -9,6 +9,7 @@ from sqlmodel import func, select
 from models import Customer, Invoice, InvoiceLine, PaymentAllocation, PaymentReceived, Product
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit, mark_onboarding_step
+from services.events import emit
 from services.permissions import perm_dep, apply_own_filter
 
 router = APIRouter(prefix="/api/customers", tags=["customers"], dependencies=[perm_dep("customers")])
@@ -72,6 +73,9 @@ def create_customer(session: SessionDep, user: WriteUserDep, body: CustomerCreat
     session.flush()
     log_audit(session, user, "CREATE", "customer", c.id, {"name": c.name})
     mark_onboarding_step(session, user.tenant_id, "first_customer")
+    emit(session, user.tenant_id, "customer.created", {
+        "customer_id": c.id, "name": c.name, "email": c.email,
+    })
     session.commit()
     session.refresh(c)
     return c

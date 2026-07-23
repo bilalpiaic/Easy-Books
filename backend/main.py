@@ -28,11 +28,14 @@ from routers import (
     reconciliations, recurring, report_builder, reports, settings, stock_locations, store_issues, store_reports,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
     permissions, commissions, promo_rules, payroll, attendance, system_update,
-    search, ai_chat,
+    search, ai_chat, webhooks, tasks, health,
+    billing, portal, approvals, bank_feeds, agent_ext,
 )
 from routers.pra import pra_router
 from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
+# Side-effect import: registers TOTP/OAuth routes on auth.router (#118)
+import routers.auth_security  # noqa: F401
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 from services.rate_limit import RateLimitMiddleware
@@ -94,6 +97,41 @@ def _run_revoked_token_prune_once() -> None:
             print(f"[revoked-tokens] pruned {result.rowcount} expired row(s)", flush=True)
 
 
+def _run_webhook_drain_once() -> int:
+    """Sync, blocking — via asyncio.to_thread. Lazy db import for the same
+    reason as _run_overdue_sweep_once."""
+    import db as _db
+    from sqlmodel import Session as _Session
+    from services.events import drain_once
+    with _Session(_db.engine) as session:
+        return drain_once(session)
+
+
+async def _webhook_delivery_loop() -> None:
+    """Drains the WebhookDelivery outbox (#114): woken instantly by emit()
+    via a threadsafe Event, with a POLL_SECONDS fallback tick that picks up
+    retry-due rows and anything queued outside this process. Loops while
+    a batch came back full, so bursts drain without waiting for the next
+    wake."""
+    from services import events as _events
+    wake = asyncio.Event()
+    _events.register_wake(asyncio.get_running_loop(), wake)
+    while True:
+        try:
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(wake.wait(), timeout=_events.POLL_SECONDS)
+            wake.clear()
+            await asyncio.sleep(1)     # let the emitting request commit first
+            while await asyncio.to_thread(_run_webhook_drain_once) >= _events.BATCH_SIZE:
+                pass
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            await asyncio.sleep(5)
+
+
 async def _revoked_token_prune_loop() -> None:
     """Once at startup, then every 6 hours — tokens live 24h, so pruning
     lags expiry by at most a quarter of a token's lifetime, keeping the
@@ -122,6 +160,8 @@ async def lifespan(_app: FastAPI):
         tasks.append(asyncio.create_task(_overdue_scheduler_loop()))
     if os.environ.get("REVOKED_TOKEN_PRUNE_ENABLED", "true").lower() != "false":
         tasks.append(asyncio.create_task(_revoked_token_prune_loop()))
+    if os.environ.get("WEBHOOKS_ENABLED", "true").lower() != "false":
+        tasks.append(asyncio.create_task(_webhook_delivery_loop()))
 
     yield
 
@@ -152,6 +192,49 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-CSRF-Token", "Idempotency-Key"],
 )
 
+
+@app.middleware("http")
+async def check_tenant_suspension(request, call_next):
+    """Suspended tenants get 402 on accounting routes (#119)."""
+    path = request.url.path
+    allow = (
+        path.startswith("/api/auth")
+        or path.startswith("/api/billing")
+        or path.startswith("/api/stripe")
+        or path.startswith("/api/health")
+        or path.startswith("/api/version")
+        or path.startswith("/api/portal")
+        or path == "/docs"
+        or path == "/openapi.json"
+    )
+    if allow or request.method == "OPTIONS":
+        return await call_next(request)
+    # Best-effort: decode JWT without full auth dependency
+    auth = request.headers.get("authorization") or ""
+    token = auth[7:] if auth.lower().startswith("bearer ") else request.cookies.get("eb_access")
+    if token:
+        try:
+            from jose import jwt as _jwt
+            from auth import SECRET_KEY, ALGORITHM
+            from db import engine
+            from sqlmodel import Session
+            from models import Tenant
+            payload = _jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            tid = payload.get("tenant_id")
+            if tid is not None:
+                with Session(engine) as s:
+                    t = s.get(Tenant, tid)
+                    if t and t.is_suspended:
+                        from fastapi.responses import JSONResponse
+                        return JSONResponse(
+                            {"error": "Account suspended", "code": "tenant_suspended"},
+                            status_code=402,
+                        )
+        except Exception:
+            pass
+    return await call_next(request)
+
+
 # Routers are listed roughly in the order the UI exercises them so the
 # /docs page renders predictably. Each router is mounted twice: at its
 # original /api/* path (legacy) and at /api/v1/* (versioned). Future
@@ -162,7 +245,7 @@ _ROUTERS = [
     vendors.router, products.router, product_categories.router, aging.router, invoices.router, bills.router,
     report_builder.router,
     payments.router, payment_terms.router, bank_accounts.router,
-    reconciliations.router, periods.router, audit.router,
+    reconciliations.router, periods.router, audit.router, webhooks.router,
     transactions.router, reports.router, dashboard_layout.router, imports.router,
     tax_codes.router, recurring.router, exchange_rates.router,
     bank_imports.router, stock_locations.router,
@@ -207,7 +290,17 @@ _ROUTERS = [
     search.router,
     ai_chat.router,
     alerts.router,
+    tasks.router,
+    billing.router,
+    billing.stripe_router,
+    portal.router,
+    approvals.router,
+    bank_feeds.router,
+    agent_ext.router,
 ]
+
+# Health is mounted once (no /api/v1 duplicate) — load balancers + Caddy probe it.
+app.include_router(health.router)
 
 # PRA e-Invoice router mounted separately (not in the shared prefix list above)
 app.include_router(pra_router, prefix="/api")

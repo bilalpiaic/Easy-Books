@@ -15,6 +15,7 @@ from services.deferred import (
     plan_deferral, resolve_deferred_account, create_schedules,
     has_any_recognition, reverse_schedules,
 )
+from services.events import emit
 from services.fx import rate_to_base
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
@@ -267,6 +268,8 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
 @router.post("/api/invoices", status_code=201, dependencies=[perm_dep("invoices", "edit")])
 def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
                    background_tasks: BackgroundTasks):
+    from services.saas import check_document_quota
+    check_document_quota(session, user.tenant_id)
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix"
@@ -519,6 +522,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         {"number": invoice.number, "total": str(total)},
     )
     mark_onboarding_step(session, user.tenant_id, "first_invoice")
+    emit(session, user.tenant_id, "invoice.created", {
+        "invoice_id": invoice.id, "number": invoice.number,
+        "customer_name": invoice.customer_name, "total": str(total),
+        "issue_date": invoice.issue_date, "due_date": invoice.due_date,
+        "status": invoice.status,
+    })
 
     # Stamp PRA USIN and queue real-time e-Invoice submission (fire-and-forget)
     if get_pra_config(session, user.tenant_id):
@@ -912,12 +921,23 @@ def update_invoice_status(
     ).first()
     if not inv:
         raise HTTPException(404, "Invoice not found")
+    old_status = inv.status
     inv.status = status
     session.add(inv)
     log_audit(
         session, user, "UPDATE", "invoice", inv.id,
         {"number": inv.number, "status": status},
     )
+    if status in ("cancelled", "voided") and old_status not in ("cancelled", "voided"):
+        emit(session, user.tenant_id, "invoice.voided", {
+            "invoice_id": inv.id, "number": inv.number,
+            "customer_name": inv.customer_name, "total": str(inv.total),
+        })
+    elif status == "paid" and old_status != "paid":
+        emit(session, user.tenant_id, "invoice.paid", {
+            "invoice_id": inv.id, "number": inv.number,
+            "customer_name": inv.customer_name, "total": str(inv.total),
+        })
     session.commit()
     session.refresh(inv)
 
@@ -931,7 +951,7 @@ def update_invoice_status(
 def _send_invoice_notification(session, inv: Invoice) -> None:
     """Email the customer a notification when an invoice is sent."""
     import html
-    from services.email import send_email
+    from services.email import queue_email
     # Check email_notifications setting
     settings_rows = session.exec(
         select(Settings).where(Settings.tenant_id == inv.tenant_id)
@@ -952,7 +972,7 @@ def _send_invoice_notification(session, inv: Invoice) -> None:
     currency_s = html.escape(inv.currency or "")
     due_s = html.escape(inv.due_date or "")
     company_s = html.escape(company)
-    send_email(
+    queue_email(
         to=cust.email,
         subject=f"Invoice {number_s} from {company_s}",
         html_body=(
@@ -1093,3 +1113,39 @@ def download_invoice_pdf(session: SessionDep, user: CurrentUserDep, invoice_id: 
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{inv.number}.pdf"'},
     )
+
+
+@router.post("/{invoice_id}/pdf-async")
+async def enqueue_invoice_pdf(
+    session: SessionDep, user: CurrentUserDep, invoice_id: int
+):
+    """Enqueue PDF generation (#115); poll GET /api/tasks/{job_id} for the URL."""
+    import json as _json
+    from services.queue import enqueue
+
+    inv = session.exec(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    lines = session.exec(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == invoice_id)
+    ).all()
+    settings_rows = session.exec(
+        select(Settings).where(Settings.tenant_id == user.tenant_id)
+    ).all()
+    settings_map = {s.key: s.value for s in settings_rows}
+    output_key = f"{user.tenant_id}/pdfs/{inv.number}.pdf"
+    data_json = _json.dumps({
+        "invoice": inv.model_dump(),
+        "lines": [ln.model_dump() for ln in lines],
+    }, default=str)
+    result = await enqueue(
+        "generate_pdf_task",
+        "invoice",
+        data_json,
+        output_key,
+        settings_map.get("company_name", "") or "Easy-Books",
+        settings_map.get("business_tagline", "") or "",
+    )
+    return result

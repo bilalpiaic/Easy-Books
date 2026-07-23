@@ -1,0 +1,15 @@
+# Caddy reverse proxy (#116) — automatic TLS via Let's Encrypt.
+# Set your real hostnames; Caddy obtains certs on first boot.
+
+{$API_HOST:api.easy-books.app} {
+	reverse_proxy backend:8000
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+}
+
+{$APP_HOST:app.easy-books.app} {
+	reverse_proxy frontend:3000
+	encode gzip
+}
