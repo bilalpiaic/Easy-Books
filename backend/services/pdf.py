@@ -39,3 +39,16 @@ def render_lab_report_pdf(report: dict, company_name: str, tagline: str = "") ->
             "tagline": tagline,
         },
     )
+
+
+def render_bill_pdf(bill: dict, lines: list, company_name: str, tagline: str = "") -> bytes:
+    """Render a vendor bill as PDF bytes."""
+    return render_html_pdf(
+        "bill.html",
+        {
+            "bill": bill,
+            "lines": lines,
+            "company_name": company_name,
+            "tagline": tagline,
+        },
+    )

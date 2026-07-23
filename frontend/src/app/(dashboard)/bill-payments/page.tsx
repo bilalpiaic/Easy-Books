@@ -94,7 +94,7 @@ export default function BillPayments() {
       </div>
 
       <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto print:block">
           <table className="w-full text-sm min-w-[520px]">
             <thead className="bg-[var(--bg-page)] border-b border-[var(--border)]">
               <tr>
@@ -120,7 +120,7 @@ export default function BillPayments() {
                 </tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-[var(--bg-page)]/50">
-                  <td className="ui-td text-[var(--text-muted)]">{fmtDate(p.payment_date)}</td>
+                  <td className="ui-td text-[var(--text-muted)] whitespace-nowrap">{fmtDate(p.payment_date)}</td>
                   <td className="ui-td font-medium">
                     {p.bill_id && p.vendor_name
                       ? <DocLink type="bill" id={p.bill_id} label={p.vendor_name} />
@@ -146,6 +146,40 @@ export default function BillPayments() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="md:hidden print:hidden divide-y divide-[var(--border)]">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">{t('common.loading', 'Loading...')}</div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <p className="text-[var(--text-muted)] mb-3 text-sm">No payments recorded.</p>
+              <button type="button" onClick={openCreate} className="text-sm text-[var(--primary)] hover:underline font-medium">
+                + Record your first payment
+              </button>
+            </div>
+          ) : filtered.map(p => (
+            <div key={p.id} className="px-4 py-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                  {p.vendor_name ?? "—"}
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {fmtDate(p.payment_date)} · {p.method.replace("_", " ")}
+                  {p.reference ? ` · ${p.reference}` : ""}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <span className="text-sm font-mono font-bold text-red-700">{fmt(p.amount)}</span>
+                <Link
+                  href={`/bill-payments/${p.id}/print`}
+                  className="text-xs text-[var(--primary)] underline"
+                >
+                  Print
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
         <div className="border-t border-[var(--border)] px-4">
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />

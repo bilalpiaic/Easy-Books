@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
 
@@ -180,6 +181,37 @@ def get_bill(session: SessionDep, user: CurrentUserDep, bill_id: int):
         hs_map = {p.id: p.hs_code for p in prods}
     enriched_lines = [{**ln.model_dump(), "hs_code": hs_map.get(ln.product_id)} for ln in lines]
     return {**bill.model_dump(), "lines": enriched_lines}
+
+
+@router.get("/api/bills/{bill_id}/pdf")
+def download_bill_pdf(session: SessionDep, user: CurrentUserDep, bill_id: int):
+    """Generate and return a PDF for the given bill."""
+    bill = session.exec(
+        select(Bill).where(Bill.id == bill_id, Bill.tenant_id == user.tenant_id)
+    ).first()
+    if not bill:
+        raise HTTPException(404, "Bill not found")
+
+    lines = session.exec(
+        select(BillLine).where(BillLine.bill_id == bill_id).order_by(BillLine.id)
+    ).all()
+    settings_rows = session.exec(
+        select(Settings).where(Settings.tenant_id == user.tenant_id)
+    ).all()
+    settings_map = {s.key: s.value for s in settings_rows}
+
+    from services.pdf import render_bill_pdf
+    pdf_bytes = render_bill_pdf(
+        bill=bill.model_dump(),
+        lines=[ln.model_dump() for ln in lines],
+        company_name=settings_map.get("company_name", ""),
+        tagline=settings_map.get("business_tagline", ""),
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{bill.number}.pdf"'},
+    )
 
 
 @router.post("/api/bills", status_code=201, dependencies=[perm_dep("bills", "edit")])
