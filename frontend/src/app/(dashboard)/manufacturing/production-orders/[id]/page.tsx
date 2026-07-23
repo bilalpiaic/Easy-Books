@@ -41,7 +41,20 @@ interface Po {
     unit_cost: string
     delivered_qty: string
   }[]
+  scraps?: {
+    id: number
+    reason_id: number
+    product_id: number
+    qty: string
+    unit_cost: string
+    total_cost: string
+    gl_posted: boolean
+    notes: string | null
+    created_at: string
+  }[]
 }
+
+interface ScrapReason { id: number; code: string; name: string; is_active: boolean }
 
 interface BomLine {
   id: number
@@ -126,6 +139,12 @@ export default function ProductionOrderDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [deliverQty, setDeliverQty] = useState('')
+  const [reasons, setReasons] = useState<ScrapReason[]>([])
+  const [scrapReasonId, setScrapReasonId] = useState('')
+  const [scrapProductId, setScrapProductId] = useState('')
+  const [scrapQty, setScrapQty] = useState('')
+  const [scrapNotes, setScrapNotes] = useState('')
+  const [scrapBusy, setScrapBusy] = useState(false)
 
   const load = async () => {
     try {
@@ -136,14 +155,19 @@ export default function ProductionOrderDetailPage() {
       const remaining = Math.max(0, out - delivered)
       setDeliverQty(remaining > 0 ? String(remaining) : '')
 
-      const [bomData, customerData, productsData] = await Promise.all([
+      const [bomData, customerData, productsData, reasonsData] = await Promise.all([
         apiFetch<Bom>(`/api/bom/${poData.bom_id}`),
         apiFetch<Customer>(`/api/customers/${poData.customer_id}`),
         apiFetch<{ items: Product[] }>('/api/products?limit=500'),
+        apiFetch<{ items: ScrapReason[] }>('/api/scrap-reasons?active_only=true').catch(() => ({ items: [] })),
       ])
       setBom(bomData)
       setCustomer(customerData)
       setProducts(new Map(productsData.items.map(p => [p.id, p])))
+      setReasons(reasonsData.items)
+      if (!scrapProductId && bomData.output_product_id) {
+        setScrapProductId(String(bomData.output_product_id))
+      }
 
       if (poData.rate_plan_id) {
         apiFetch<{ items: RatePlan[] }>('/api/rate-plans').then(d => {
@@ -194,6 +218,36 @@ export default function ProductionOrderDetailPage() {
       setActionError(e instanceof Error ? e.message : 'Action failed')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const recordScrap = async () => {
+    if (!po) return
+    const qty = parseFloat(scrapQty)
+    if (!scrapReasonId || !scrapProductId || !Number.isFinite(qty) || qty <= 0) {
+      setActionError('Select a reason, product, and qty > 0')
+      return
+    }
+    setScrapBusy(true)
+    setActionError(null)
+    try {
+      const updated = await apiFetch<Po>(`/api/production-orders/${po.id}/scrap`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reason_id: Number(scrapReasonId),
+          product_id: Number(scrapProductId),
+          qty,
+          notes: scrapNotes || null,
+          post_gl: true,
+        }),
+      })
+      setPo(updated)
+      setScrapQty('')
+      setScrapNotes('')
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Scrap failed')
+    } finally {
+      setScrapBusy(false)
     }
   }
 
@@ -316,6 +370,95 @@ export default function ProductionOrderDetailPage() {
                     <td className="px-4 py-2 text-right tabular-nums">{o.qty}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{fmt(Number(o.unit_cost))}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{o.delivered_qty}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {(po.state === 'started' || po.state === 'completed') && (
+        <div className="bg-white border border-[var(--border)] rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Record scrap</h2>
+            <Link href="/manufacturing/scrap-reasons" className="text-xs text-[var(--primary)] hover:underline">
+              Manage reasons
+            </Link>
+          </div>
+          {reasons.length === 0 ? (
+            <p className="text-sm text-[var(--text-primary)]/55">
+              No active scrap reasons.{" "}
+              <Link href="/manufacturing/scrap-reasons" className="text-[var(--primary)] hover:underline">Add one</Link>
+              {" "}first.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/60 mb-1 uppercase tracking-wide">Reason</label>
+                <select value={scrapReasonId} onChange={e => setScrapReasonId(e.target.value)}
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-2 text-sm">
+                  <option value="">Select…</option>
+                  {reasons.map(r => (
+                    <option key={r.id} value={r.id}>{r.code} — {r.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/60 mb-1 uppercase tracking-wide">Product</label>
+                <select value={scrapProductId} onChange={e => setScrapProductId(e.target.value)}
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-2 text-sm">
+                  <option value="">Select…</option>
+                  {Array.from(products.values()).map(p => (
+                    <option key={p.id} value={p.id}>{p.code ? `${p.code} — ` : ''}{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/60 mb-1 uppercase tracking-wide">Qty</label>
+                <input type="number" min="0" step="any" value={scrapQty} onChange={e => setScrapQty(e.target.value)}
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-2 text-sm tabular-nums" />
+              </div>
+              <button type="button" onClick={recordScrap} disabled={scrapBusy}
+                className="px-4 py-2.5 border border-amber-300 text-amber-900 rounded-xl text-sm font-bold hover:bg-amber-50 disabled:opacity-50">
+                {scrapBusy ? 'Recording…' : 'Record scrap'}
+              </button>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-primary)]/60 mb-1 uppercase tracking-wide">Notes</label>
+            <input value={scrapNotes} onChange={e => setScrapNotes(e.target.value)}
+              className="w-full border border-[var(--border)] rounded-xl px-3 py-2 text-sm" placeholder="Optional" />
+          </div>
+        </div>
+      )}
+
+      {(po.scraps?.length ?? 0) > 0 && (
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)]">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Scrap history</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--bg-page)] text-xs uppercase tracking-wide text-[var(--text-primary)]/60">
+              <tr>
+                <th className="text-left px-4 py-2">Reason</th>
+                <th className="text-left px-4 py-2">Product</th>
+                <th className="text-right px-4 py-2">Qty</th>
+                <th className="text-right px-4 py-2">Cost</th>
+                <th className="text-center px-4 py-2">GL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {po.scraps!.map(s => {
+                const reason = reasons.find(r => r.id === s.reason_id)
+                const p = products.get(s.product_id)
+                return (
+                  <tr key={s.id} className="border-t border-[var(--border)]">
+                    <td className="px-4 py-2 font-mono text-xs">{reason?.code ?? `#${s.reason_id}`}</td>
+                    <td className="px-4 py-2">{p?.name ?? `#${s.product_id}`}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{s.qty}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{fmt(Number(s.total_cost))}</td>
+                    <td className="px-4 py-2 text-center text-xs">{s.gl_posted ? 'Posted' : '—'}</td>
                   </tr>
                 )
               })}

@@ -31,6 +31,15 @@ interface CustodyRow {
   qty_on_hand: string; declared_value_open: string
 }
 
+interface ScrapByReason {
+  items: Array<{
+    reason_id: number; reason_code: string; reason_name: string
+    qty: string; total_cost: string; count: number
+  }>
+  total_qty: string
+  total_cost: string
+}
+
 /* ── Helpers ── */
 
 const AGING_BUCKETS = ["0-7d", "8-14d", "15-30d", "30d+"]
@@ -57,7 +66,7 @@ function fmt0(v: string) {
 
 /* ── Page ── */
 
-type Tab = "wip-aging" | "production-summary" | "customer-custody"
+type Tab = "wip-aging" | "production-summary" | "customer-custody" | "scrap-by-reason"
 
 export default function ManufacturingReportsPage() {
   const { t } = useTranslation()
@@ -69,6 +78,7 @@ export default function ManufacturingReportsPage() {
   const [wip,     setWip]     = useState<WipAging | null>(null)
   const [summary, setSummary] = useState<ProdSummary | null>(null)
   const [custody, setCustody] = useState<CustodyRow[] | null>(null)
+  const [scrap,   setScrap]   = useState<ScrapByReason | null>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
@@ -92,6 +102,12 @@ export default function ManufacturingReportsPage() {
       promises.push(
         apiFetch<CustodyRow[]>("/api/manufacturing/customer-custody")
           .then(setCustody)
+          .catch(e => { throw e })
+      )
+    if (!scrap)
+      promises.push(
+        apiFetch<ScrapByReason>("/api/manufacturing/reports/scrap-by-reason")
+          .then(setScrap)
           .catch(e => { throw e })
       )
 
@@ -127,9 +143,11 @@ export default function ManufacturingReportsPage() {
                 downloadCSV('mfg-production-summary.csv', STATE_ORDER.filter(s => summary[s]).map(s => ({ State: s, Count: summary[s].count, "Output Qty": summary[s].output_qty, Cost: summary[s].cost })))
               } else if (tab === "customer-custody" && custody) {
                 downloadCSV('mfg-customer-custody.csv', custody.map(r => ({ Customer: r.customer_name, "Product Code": r.product.code, Product: r.product.name, Unit: r.product.unit, "Qty On Hand": r.qty_on_hand, "Declared Value": r.declared_value_open })))
+              } else if (tab === "scrap-by-reason" && scrap) {
+                downloadCSV('mfg-scrap-by-reason.csv', scrap.items.map(r => ({ Code: r.reason_code, Reason: r.reason_name, Count: r.count, Qty: r.qty, Cost: r.total_cost })))
               }
             }}
-            disabled={!wip && !summary && !custody}
+            disabled={!wip && !summary && !custody && !scrap}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors disabled:opacity-40"
           >
             <Download className="w-4 h-4" /> CSV
@@ -142,7 +160,7 @@ export default function ManufacturingReportsPage() {
 
       {/* Tab nav */}
       <div className="flex gap-1 border-b border-[var(--border)] print:hidden">
-        {(["wip-aging","production-summary","customer-custody"] as Tab[]).map(t => (
+        {(["wip-aging","production-summary","customer-custody","scrap-by-reason"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === t
@@ -152,6 +170,7 @@ export default function ManufacturingReportsPage() {
             {t === "wip-aging" && "WIP Aging"}
             {t === "production-summary" && "Production Summary"}
             {t === "customer-custody" && "Customer Custody"}
+            {t === "scrap-by-reason" && "Scrap by Reason"}
           </button>
         ))}
       </div>
@@ -366,6 +385,51 @@ export default function ManufacturingReportsPage() {
                     </tfoot>
                   )
                 })()}
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Scrap by Reason ── */}
+      {tab === "scrap-by-reason" && scrap && (
+        <div className="space-y-4">
+          <div className="bg-[#faf8f4] border border-[var(--border)] rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-sm font-medium text-[var(--text-primary)]/70">
+              {scrap.items.length} reason{scrap.items.length !== 1 ? "s" : ""} · {scrap.items.reduce((s, r) => s + r.count, 0)} records
+            </span>
+            <div className="flex gap-6 text-sm">
+              <span>Qty: <b className="tabular-nums">{fmt0(scrap.total_qty)}</b></span>
+              <span>Cost: <b className="tabular-nums">{fmt(Number(scrap.total_cost))}</b></span>
+            </div>
+          </div>
+          {scrap.items.length === 0 ? (
+            <div className="bg-white border border-[var(--border)] rounded-xl px-6 py-10 text-center text-sm text-[var(--text-primary)]/55">
+              No production scrap recorded yet.
+            </div>
+          ) : (
+            <div className="bg-white border border-[var(--border)] rounded-xl table-freeze overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-[#faf8f4] text-[var(--text-primary)]/60 text-xs uppercase tracking-wide">
+                  <tr>
+                    <th className="text-left px-4 py-3">Code</th>
+                    <th className="text-left px-4 py-3">Reason</th>
+                    <th className="text-right px-4 py-3">Records</th>
+                    <th className="text-right px-4 py-3">Qty</th>
+                    <th className="text-right px-4 py-3">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scrap.items.map(r => (
+                    <tr key={r.reason_id} className="border-t border-[var(--border)]">
+                      <td className="px-4 py-2 font-mono text-xs font-semibold">{r.reason_code}</td>
+                      <td className="px-4 py-2">{r.reason_name}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{r.count}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt0(r.qty)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{fmt(Number(r.total_cost))}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           )}

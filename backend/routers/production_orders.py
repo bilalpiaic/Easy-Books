@@ -27,9 +27,12 @@ from sqlmodel import func, select
 from models import (
     BomHeader, BomLine, BomOutput, Customer, CustomerRatePlan, GoodsReceiptNote,
     GRNLine, InventoryLayer, Invoice, InvoiceLine, Product, ProductionOrder,
-    ProductionOrderOutput, RatePlan, StockLocation, StockMovement, Transaction,
+    ProductionOrderOutput, ProductionScrap, RatePlan, ScrapReason, StockLocation,
+    StockMovement, Transaction,
 )
-from services.inventory import consume_stock, record_movement, record_purchase, reverse_purchase
+from services.inventory import (
+    InventoryError, consume_stock, record_movement, record_purchase, reverse_purchase,
+)
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
@@ -107,8 +110,21 @@ def _serialise(po: ProductionOrder, session=None) -> dict:
             .order_by(ProductionOrderOutput.id)
         ).all()
         out["outputs"] = [o.model_dump() for o in outs]
+        scraps = session.exec(
+            select(ProductionScrap)
+            .where(ProductionScrap.po_id == po.id)
+            .order_by(ProductionScrap.id)
+        ).all()
+        scrap_rows = []
+        for s in scraps:
+            d = s.model_dump()
+            if isinstance(d.get("created_at"), datetime):
+                d["created_at"] = d["created_at"].isoformat()
+            scrap_rows.append(d)
+        out["scraps"] = scrap_rows
     else:
         out["outputs"] = []
+        out["scraps"] = []
     return out
 
 
@@ -1187,6 +1203,16 @@ def reverse_po(session: SessionDep, user: WriteUserDep, po_id: int):
     if po.state not in ("started", "completed", "delivered"):
         raise HTTPException(400, f"Cannot reverse PO in state '{po.state}'")
 
+    scrap_count = session.exec(
+        select(func.count(ProductionScrap.id)).where(ProductionScrap.po_id == po.id)
+    ).one()
+    if scrap_count:
+        raise HTTPException(
+            400,
+            f"Cannot reverse PO with {scrap_count} scrap record(s). "
+            "Void scrap entries first (not yet supported) or keep the order.",
+        )
+
     bom = session.get(BomHeader, po.bom_id)
     if not bom:
         raise HTTPException(400, "BoM not found")
@@ -1217,4 +1243,120 @@ def reverse_po(session: SessionDep, user: WriteUserDep, po_id: int):
         "from_state": from_state,
         "reversed_jvs": reversed_jvs,
     }
+
+
+class ScrapBody(BaseModel):
+    reason_id: int
+    product_id: int
+    qty: Decimal
+    notes: Optional[str] = None
+    post_gl: bool = True
+
+
+@router.post("/{po_id}/scrap")
+def record_scrap(session: SessionDep, user: WriteUserDep, po_id: int, body: ScrapBody):
+    """Record scrap/damage against a started or completed PO (#224).
+
+    Relieves own stock via consume_stock. When post_gl and cost > 0, posts
+    Dr Scrap Expense / Cr Inventory.
+    """
+    po = _get_po(session, user.tenant_id, po_id)
+    if po.state not in ("started", "completed"):
+        raise HTTPException(
+            400,
+            f"Scrap only allowed while PO is started or completed (current: '{po.state}')",
+        )
+    qty = D(body.qty)
+    if qty <= 0:
+        raise HTTPException(400, "qty must be > 0")
+
+    reason = session.get(ScrapReason, body.reason_id)
+    if not reason or reason.tenant_id != user.tenant_id or not reason.is_active:
+        raise HTTPException(400, "reason_id not found or inactive")
+
+    prod = session.get(Product, body.product_id)
+    if not prod or prod.tenant_id != user.tenant_id:
+        raise HTTPException(400, "product_id not found for tenant")
+    if prod.product_type != "stock":
+        raise HTTPException(400, "Only stock products can be scrapped")
+
+    try:
+        total_cost = consume_stock(
+            session,
+            tenant_id=user.tenant_id,
+            product_id=prod.id,
+            qty=qty,
+            block_negative=True,
+            source_doc_id=po.id,
+            source_doc_type="production_scrap",
+        )
+    except InventoryError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    unit_cost = money(total_cost / qty) if qty > 0 else ZERO
+    gl_posted = False
+    if body.post_gl and total_cost > 0:
+        scrap_acc = get_default_account(
+            session, user.tenant_id,
+            "default_scrap_expense_account", "5901", "Scrap Disposal Expense", "Expense",
+        )
+        bom = session.get(BomHeader, po.bom_id)
+        is_fg = (
+            bom is not None and bom.output_product_id == prod.id
+        ) or session.exec(
+            select(ProductionOrderOutput).where(
+                ProductionOrderOutput.po_id == po.id,
+                ProductionOrderOutput.product_id == prod.id,
+            )
+        ).first() is not None
+        inv_acc = get_or_create_account(
+            session, user.tenant_id,
+            "1202" if is_fg else "1200",
+            "Finished Goods Inventory" if is_fg else "Raw Material Inventory",
+            "Asset",
+        )
+        post_transaction(
+            session, user,
+            date=datetime.utcnow().date().isoformat(),
+            description=f"{po.number} — scrap {reason.code} ({prod.code or prod.id})",
+            entries=[
+                EntryInput(account_id=scrap_acc.id, debit=total_cost),
+                EntryInput(account_id=inv_acc.id, credit=total_cost),
+            ],
+            audit_entity_type="production_order",
+            audit_detail={
+                "number": po.number,
+                "stage": "scrap",
+                "reason": reason.code,
+                "product_id": prod.id,
+                "qty": str(qty),
+                "cost": str(total_cost),
+            },
+        )
+        gl_posted = True
+
+    row = ProductionScrap(
+        tenant_id=user.tenant_id,
+        po_id=po.id,
+        reason_id=reason.id,
+        product_id=prod.id,
+        qty=qty,
+        unit_cost=unit_cost,
+        total_cost=money(total_cost),
+        gl_posted=gl_posted,
+        notes=body.notes,
+        created_by_id=user.id,
+    )
+    session.add(row)
+    log_audit(session, user, "SCRAP", "production_order", po.id, {
+        "number": po.number,
+        "reason": reason.code,
+        "product_id": prod.id,
+        "qty": str(qty),
+        "total_cost": str(total_cost),
+        "gl_posted": gl_posted,
+    })
+    session.commit()
+    session.refresh(po)
+    return _serialise(po, session)
 
