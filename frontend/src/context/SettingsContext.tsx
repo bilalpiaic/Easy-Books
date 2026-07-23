@@ -33,6 +33,7 @@ export interface AppSettings {
   default_cogs_account: string
   default_mfg_labour_account: string
   default_mfg_overhead_account: string
+  default_scrap_expense_account: string
   // Document number formats
   invoice_number_format: string
   bill_number_format: string
@@ -92,6 +93,7 @@ const defaults: AppSettings = {
   default_cogs_account: "5010",
   default_mfg_labour_account: "5100",
   default_mfg_overhead_account: "5200",
+  default_scrap_expense_account: "5901",
   invoice_number_format: "",
   bill_number_format: "",
   onboarding_steps: "",

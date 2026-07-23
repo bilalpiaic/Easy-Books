@@ -10,6 +10,7 @@ import {
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
+  AlertTriangle,
 } from "lucide-react"
 
 export type NavItem = {
@@ -81,6 +82,7 @@ export const NAV: NavItem[] = [
   { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Manufacturing", forModule: "production" },
   { label: "Goods Receipt",    href: "/manufacturing/grn", icon: PackagePlus,      section: "Manufacturing",    forModule: "production", notForModule: "purchase_store" },
   { label: "Production Orders",href: "/manufacturing/production-orders", icon: Warehouse, section: "Manufacturing", forModule: "production" },
+  { label: "Scrap Reasons",    href: "/manufacturing/scrap-reasons",     icon: AlertTriangle, section: "Manufacturing", forModule: "production" },
   { label: "Mfg Reports",     href: "/manufacturing/reports",           icon: BarChart2, section: "Manufacturing", forModule: "production" },
   { label: "Telecom Overview", href: "/telecom",                icon: Radio,       section: "Telecom",          forModule: "telecom" },
   { label: "Tracker & Load",   href: "/telecom/tracker",        icon: Wallet,      section: "Telecom",          forModule: "telecom" },
@@ -389,6 +391,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Stock Locations",   href: "/manufacturing/stock-locations",   icon: Warehouse,    section: "manufacturing", forModule: "production" },
     { label: "Goods Receipt",     href: "/manufacturing/grn",               icon: PackagePlus,  section: "manufacturing", forModule: "production", notForModule: "purchase_store" },
     { label: "Production Orders", href: "/manufacturing/production-orders", icon: Warehouse,    section: "manufacturing", forModule: "production" },
+    { label: "Scrap Reasons",     href: "/manufacturing/scrap-reasons",     icon: AlertTriangle, section: "manufacturing", forModule: "production" },
     { label: "Mfg Reports",       href: "/manufacturing/reports",           icon: BarChart2,    section: "manufacturing", forModule: "production" },
   ],
   telecom: [

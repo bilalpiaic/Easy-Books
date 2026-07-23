@@ -581,6 +581,7 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
             ("default_cogs_account",    "5010"),
             ("default_mfg_labour_account", "5100"),
             ("default_mfg_overhead_account", "5200"),
+            ("default_scrap_expense_account", "5901"),
         ):
             exists = s.exec(
                 select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)

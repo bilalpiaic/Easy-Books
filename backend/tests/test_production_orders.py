@@ -797,3 +797,86 @@ def test_po_complete_relative_sales_value(client):
     # weights: 10*40=400 and 10*10=100 → 80%/20% of cost 20 → unit 1.6 / 0.4
     assert Decimal(str(by_role["primary"]["unit_cost"])) == Decimal("1.6")
     assert Decimal(str(by_role["co_product"]["unit_cost"])) == Decimal("0.4")
+
+
+# ── PO scrap / reason codes (#224) ──────────────────────────────────────────
+
+
+def test_scrap_reason_catalog_crud(client):
+    c, _ = client
+    auth = _signup(c, "manufacturing", "scrapcat@m.test")
+    r = c.post(
+        "/api/scrap-reasons", headers=auth,
+        json={"code": "dmg", "name": "Damage in process"},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["code"] == "DMG"
+    rid = r.json()["id"]
+
+    listed = c.get("/api/scrap-reasons", headers=auth).json()["items"]
+    assert any(x["id"] == rid for x in listed)
+
+    assert c.put(
+        f"/api/scrap-reasons/{rid}", headers=auth,
+        json={"name": "Process damage", "is_active": True},
+    ).status_code == 200
+    assert c.delete(f"/api/scrap-reasons/{rid}", headers=auth).status_code == 200
+
+
+def test_po_record_scrap_relieves_stock_and_blocks_reverse(client):
+    c, engine = client
+    auth = _signup(c, "manufacturing", "scrap1@m.test")
+    cust = _make_customer(c, auth, "Brand")
+    fg = _make_product(c, auth, "FG-SCRAP")
+    btn = _make_product(c, auth, "BTN-S")
+    vendor = _make_vendor(c, auth, "V")
+    _buy(c, auth, vendor["id"], btn, qty=100, rate=2)
+
+    reason = c.post(
+        "/api/scrap-reasons", headers=auth,
+        json={"code": "SPILL", "name": "Spill"},
+    ).json()
+    bom = c.post(
+        "/api/bom", headers=auth,
+        json={
+            "output_product_id": fg["id"],
+            "output_qty": 1,
+            "lines": [
+                {"component_product_id": btn["id"], "qty_per_output": 1, "source": "own_stock"},
+            ],
+        },
+    ).json()
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/complete", headers=auth).status_code == 200
+
+    # Scrap 2 FG units after complete
+    r = c.post(
+        f"/api/production-orders/{po['id']}/scrap", headers=auth,
+        json={"reason_id": reason["id"], "product_id": fg["id"], "qty": 2, "post_gl": True},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert len(body["scraps"]) == 1
+    assert Decimal(str(body["scraps"][0]["qty"])) == Decimal("2")
+    assert body["scraps"][0]["gl_posted"] is True
+
+    with Session(engine) as s:
+        prod = s.exec(select(Product).where(Product.code == "FG-SCRAP")).first()
+        # completed 10, scrapped 2 → 8 on hand
+        assert Decimal(str(prod.stock_qty)) == Decimal("8")
+
+    # Reverse blocked while scrap exists
+    rev = c.post(f"/api/production-orders/{po['id']}/reverse", headers=auth)
+    assert rev.status_code == 400
+    assert "scrap" in rev.json()["detail"].lower()
+
+    report = c.get("/api/manufacturing/reports/scrap-by-reason", headers=auth)
+    assert report.status_code == 200, report.text
+    items = report.json()["items"]
+    assert len(items) == 1
+    assert items[0]["reason_code"] == "SPILL"
+    assert Decimal(str(items[0]["qty"])) == Decimal("2")

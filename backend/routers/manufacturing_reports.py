@@ -17,7 +17,7 @@ from sqlmodel import func, select
 
 from models import (
     Customer, GoodsReceiptNote, InventoryLayer, Product, ProductionOrder,
-    StockLocation,
+    ProductionScrap, ScrapReason, StockLocation,
 )
 from services.money import D, ZERO
 
@@ -242,3 +242,61 @@ def customer_custody(session: SessionDep, user: CurrentUserDep):
         }
         for cid, pid, qty in rows
     ]
+
+
+@router.get("/reports/scrap-by-reason")
+def scrap_by_reason(
+    session: SessionDep,
+    user: CurrentUserDep,
+    po_id: Optional[int] = None,
+):
+    """Aggregate production scrap qty/value by reason code (#224)."""
+    tid = user.tenant_id
+    q = (
+        select(
+            ProductionScrap.reason_id,
+            func.coalesce(func.sum(ProductionScrap.qty), 0),
+            func.coalesce(func.sum(ProductionScrap.total_cost), 0),
+            func.count(ProductionScrap.id),
+        )
+        .where(ProductionScrap.tenant_id == tid)
+        .group_by(ProductionScrap.reason_id)
+    )
+    if po_id is not None:
+        po = session.get(ProductionOrder, po_id)
+        if not po or po.tenant_id != tid:
+            return {"items": [], "total_qty": "0", "total_cost": "0"}
+        q = q.where(ProductionScrap.po_id == po_id)
+
+    rows = session.exec(q).all()
+    if not rows:
+        return {"items": [], "total_qty": "0", "total_cost": "0"}
+
+    reason_ids = [r[0] for r in rows]
+    reasons = {
+        r.id: r for r in session.exec(
+            select(ScrapReason).where(ScrapReason.id.in_(reason_ids))
+        ).all()
+    }
+    items = []
+    total_qty = ZERO
+    total_cost = ZERO
+    for reason_id, qty, cost, cnt in rows:
+        reason = reasons.get(reason_id)
+        qty_d, cost_d = D(qty), D(cost)
+        total_qty += qty_d
+        total_cost += cost_d
+        items.append({
+            "reason_id": reason_id,
+            "reason_code": reason.code if reason else "",
+            "reason_name": reason.name if reason else "",
+            "qty": str(qty_d),
+            "total_cost": str(cost_d),
+            "count": cnt,
+        })
+    items.sort(key=lambda x: x["reason_code"])
+    return {
+        "items": items,
+        "total_qty": str(total_qty),
+        "total_cost": str(total_cost),
+    }

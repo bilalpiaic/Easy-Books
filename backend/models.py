@@ -933,6 +933,37 @@ class ProductionOrderOutput(SQLModel, table=True):
     delivered_qty: Money = money_col(default=Decimal("0"))
 
 
+class ScrapReason(SQLModel, table=True):
+    """Tenant catalog of scrap/damage reason codes for production (#224)."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="unique_scrap_reason_code"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str
+    name: str
+    is_active: bool = Field(default=True)
+
+
+class ProductionScrap(SQLModel, table=True):
+    """Scrap/damage recorded against a production order (#224)."""
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_production_scrap_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    po_id: int = Field(foreign_key="productionorder.id", index=True)
+    reason_id: int = Field(foreign_key="scrapreason.id", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    qty: Money = money_col()
+    unit_cost: Money = money_col(default=Decimal("0"))
+    total_cost: Money = money_col(default=Decimal("0"))
+    gl_posted: bool = Field(default=False)
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
 class PromoRule(SQLModel, table=True):
     """Promotional pricing rule. Matches on product/category + date range +
     optional qty/value threshold. Applies a % discount or adds giveaway lines."""

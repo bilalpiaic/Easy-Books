@@ -70,6 +70,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/manufacturing/production-orders/":   "Production Order",
   "/manufacturing/production-orders/new": "New Production Order",
   "/manufacturing/reports":              "Manufacturing Reports",
+  "/manufacturing/scrap-reasons":         "Scrap Reasons",
   "/budgets":          "Budget vs Actual",
   "/credit-notes":     "Credit Notes",
   "/credit-notes/":    "Credit Note",
