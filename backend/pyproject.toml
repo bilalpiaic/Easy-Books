@@ -24,6 +24,9 @@ dependencies = [
     "litellm>=1.55.0",
     "arq>=0.28.0",
     "boto3>=1.43.54",
+    "pyotp>=2.10.0",
+    "cryptography>=48.0.0",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]

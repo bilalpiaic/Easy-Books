@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { setAuthToken, setMustChangePwd } from "@/lib/auth"
@@ -13,6 +13,10 @@ function LoginForm() {
   const search = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [otp, setOtp] = useState("")
+  const [partialToken, setPartialToken] = useState("")
+  const [needsTotp, setNeedsTotp] = useState(false)
+  const [providers, setProviders] = useState<{ google?: boolean; microsoft?: boolean }>({})
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
@@ -23,7 +27,31 @@ function LoginForm() {
       setEmail(DEMO_EMAIL)
       setPassword(DEMO_PASSWORD)
     }
-  }, [search])
+    const ssoToken = search.get("token")
+    if (search.get("sso") === "1" && ssoToken) {
+      setAuthToken(ssoToken)
+      router.push("/dashboard")
+    }
+    const partial = search.get("partial")
+    if (search.get("totp") === "1" && partial) {
+      setPartialToken(partial)
+      setNeedsTotp(true)
+    }
+    fetch(`${apiBase}/api/auth/oauth/providers`)
+      .then((r) => r.json())
+      .then(setProviders)
+      .catch(() => {})
+  }, [search, router])
+
+  const finishLogin = (data: { access_token: string; must_change_password?: boolean }) => {
+    setAuthToken(data.access_token)
+    setMustChangePwd(!!data.must_change_password)
+    if (data.must_change_password) {
+      router.push("/profile?changePassword=1")
+    } else {
+      router.push("/dashboard")
+    }
+  }
 
   const doLogin = async (user: string, pass: string) => {
     const formData = new FormData()
@@ -35,12 +63,30 @@ function LoginForm() {
     })
     if (!response.ok) throw new Error("Invalid email or password")
     const data = await response.json()
-    setAuthToken(data.access_token)
-    setMustChangePwd(!!data.must_change_password)
-    if (data.must_change_password) {
-      router.push("/profile?changePassword=1")
-    } else {
-      router.push("/dashboard")
+    if (data.requires_totp) {
+      setPartialToken(data.partial_token)
+      setNeedsTotp(true)
+      return
+    }
+    finishLogin(data)
+  }
+
+  const verifyTotp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    try {
+      const response = await fetch(`${apiBase}/api/auth/totp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partial_token: partialToken, code: otp }),
+      })
+      if (!response.ok) throw new Error("Invalid authenticator code")
+      finishLogin(await response.json())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "OTP failed")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -79,79 +125,94 @@ function LoginForm() {
           <div className="inline-flex items-center justify-center w-12 h-12 bg-[#b8943f] rounded-xl mb-3 font-serif text-2xl font-bold text-black select-none">
             M
           </div>
-          <h1 className="text-3xl font-serif text-[#1a1814] leading-tight">Easy-Books</h1>
-          <p className="text-[#1a1814]/50 text-sm mt-1">SaaS Bookkeeping for Enterprises</p>
+          <h1 className="font-serif text-3xl text-[#1a1814]">Easy-Books</h1>
+          <p className="text-sm text-[#1a1814]/70 mt-1">Sign in to continue</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg shadow-black/5 border border-[#1a1814]/5 p-6">
-          <h2 className="text-lg font-serif text-[#1a1814] mb-4">Sign in to your account</h2>
-
-          <form onSubmit={handleLogin} className="space-y-3.5">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-[#1a1814]/10 rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:border-transparent outline-none text-[#1a1814] text-sm"
-                placeholder="you@company.com"
-                autoComplete="email"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#1a1814]/40 mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-[#1a1814]/10 rounded-lg focus:ring-2 focus:ring-[#b8943f] focus:border-transparent outline-none text-[#1a1814] text-sm"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-
-            {error && (
-              <p className="text-red-600 text-xs bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
-                {error}
-              </p>
-            )}
-
+        {needsTotp ? (
+          <form onSubmit={verifyTotp} className="space-y-4 bg-white/60 border border-[#1a1814]/10 rounded-2xl p-6">
+            <p className="text-sm text-[#1a1814]/80">Enter the 6-digit code from your authenticator app.</p>
+            <input
+              className="w-full border border-[#1a1814]/15 rounded-lg px-3 py-2 tracking-widest text-center text-lg"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="000000"
+              autoFocus
+            />
+            {error && <p className="text-sm text-red-700">{error}</p>}
             <button
               type="submit"
-              disabled={isLoading || demoLoading}
-              className="w-full bg-[#1a1814] text-white font-semibold py-2.5 rounded-lg hover:bg-[#b8943f] hover:text-[#1a1814] transition-all mt-1 disabled:opacity-50 text-sm"
+              disabled={isLoading || otp.length < 6}
+              className="w-full bg-[#b8943f] text-black font-medium rounded-lg py-2.5 disabled:opacity-50"
             >
-              {isLoading ? "Signing in…" : "Sign In"}
+              {isLoading ? "Verifying…" : "Verify"}
             </button>
           </form>
-        </div>
-
-        <div className="mt-5 space-y-3 text-center">
-          <button
-            type="button"
-            onClick={tryDemo}
-            disabled={demoLoading || isLoading}
-            className="flex items-center justify-center gap-2 w-full border border-[#1a1814]/12 bg-white rounded-xl py-2.5 text-sm font-medium text-[#1a1814]/70 hover:text-[#b8943f] hover:border-[#b8943f]/40 transition-all disabled:opacity-50"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            {demoLoading ? "Opening demo…" : "Try the live demo"}
-          </button>
-          <p className="text-[11px] text-[#1a1814]/35">
-            One sample company with Base Accounting. Install industry add-ons inside the app.
-          </p>
-          <p className="text-xs text-[#1a1814]/40">
-            New to Easy-Books?{" "}
-            <Link href="/signup" className="text-[#b8943f] font-semibold hover:underline">
-              Start a free trial
-            </Link>
-          </p>
-        </div>
+        ) : (
+          <form onSubmit={handleLogin} className="space-y-4 bg-white/60 border border-[#1a1814]/10 rounded-2xl p-6">
+            <div>
+              <label className="block text-xs font-medium text-[#1a1814]/70 mb-1">Email</label>
+              <input
+                type="email"
+                className="w-full border border-[#1a1814]/15 rounded-lg px-3 py-2"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#1a1814]/70 mb-1">Password</label>
+              <input
+                type="password"
+                className="w-full border border-[#1a1814]/15 rounded-lg px-3 py-2"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-red-700">{error}</p>}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-[#b8943f] text-black font-medium rounded-lg py-2.5 disabled:opacity-50"
+            >
+              {isLoading ? "Signing in…" : "Sign in"}
+            </button>
+            <button
+              type="button"
+              onClick={tryDemo}
+              disabled={demoLoading}
+              className="w-full border border-[#1a1814]/20 rounded-lg py-2 text-sm"
+            >
+              {demoLoading ? "Opening demo…" : "Try demo"}
+            </button>
+            {(providers.google || providers.microsoft) && (
+              <div className="pt-2 space-y-2 border-t border-[#1a1814]/10">
+                {providers.google && (
+                  <a
+                    href={`${apiBase}/api/auth/oauth/google`}
+                    className="block w-full text-center border border-[#1a1814]/20 rounded-lg py-2 text-sm"
+                  >
+                    Continue with Google
+                  </a>
+                )}
+                {providers.microsoft && (
+                  <a
+                    href={`${apiBase}/api/auth/oauth/microsoft`}
+                    className="block w-full text-center border border-[#1a1814]/20 rounded-lg py-2 text-sm"
+                  >
+                    Continue with Microsoft
+                  </a>
+                )}
+              </div>
+            )}
+            <p className="text-center text-xs text-[#1a1814]/50">
+              No account? <Link href="/signup" className="underline">Sign up</Link>
+            </p>
+          </form>
+        )}
       </div>
     </div>
   )

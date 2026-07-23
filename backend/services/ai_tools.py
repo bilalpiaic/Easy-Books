@@ -878,6 +878,34 @@ def _exec_tracker_statement(session, user, tool_input):
     }
 
 
+def _exec_update_customer_email(session, user, tool_input):
+    from models import Customer
+    cust = session.get(Customer, int(tool_input["customer_id"]))
+    if not cust or cust.tenant_id != user.tenant_id:
+        return {"error": "customer not found"}
+    cust.email = str(tool_input["email"]).strip()
+    session.add(cust)
+    session.commit()
+    return {"ok": True, "customer_id": cust.id, "email": cust.email}
+
+
+def _exec_list_suggestions(session, user, tool_input):
+    from datetime import datetime
+    from models import AgentSuggestion
+    from sqlmodel import select
+    rows = session.exec(
+        select(AgentSuggestion).where(
+            AgentSuggestion.tenant_id == user.tenant_id,
+            AgentSuggestion.dismissed == False,  # noqa: E712
+        ).limit(20)
+    ).all()
+    now = datetime.utcnow()
+    return [
+        r.model_dump() for r in rows
+        if not r.expires_at or r.expires_at > now
+    ]
+
+
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 _TOOLS: tuple[ToolDef, ...] = (
@@ -2027,6 +2055,30 @@ _TOOLS: tuple[ToolDef, ...] = (
         label="Checking tracker statement…",
         executor=_exec_tracker_statement,
         required_module="telecom",
+    ),
+    ToolDef(
+        name="update_customer_email",
+        description=(
+            "Update a customer's email address. Use find_customer first to resolve the id. "
+            "This is a write tool — only call when the user explicitly asks to change the email."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "customer_id": {"type": "integer"},
+                "email": {"type": "string"},
+            },
+            "required": ["customer_id", "email"],
+        },
+        label="Updating customer email…",
+        executor=_exec_update_customer_email,
+    ),
+    ToolDef(
+        name="list_agent_suggestions",
+        description="List current proactive AI insight cards for this company.",
+        input_schema={"type": "object", "properties": {}},
+        label="Checking AI insights…",
+        executor=_exec_list_suggestions,
     ),
 )
 

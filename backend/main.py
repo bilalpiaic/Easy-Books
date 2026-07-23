@@ -29,10 +29,13 @@ from routers import (
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
     permissions, commissions, promo_rules, payroll, attendance, system_update,
     search, ai_chat, webhooks, tasks, health,
+    billing, portal, approvals, bank_feeds, agent_ext,
 )
 from routers.pra import pra_router
 from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
+# Side-effect import: registers TOTP/OAuth routes on auth.router (#118)
+import routers.auth_security  # noqa: F401
 from services.csrf import CsrfMiddleware
 from services.idempotency import IdempotencyMiddleware
 from services.rate_limit import RateLimitMiddleware
@@ -189,6 +192,49 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-CSRF-Token", "Idempotency-Key"],
 )
 
+
+@app.middleware("http")
+async def check_tenant_suspension(request, call_next):
+    """Suspended tenants get 402 on accounting routes (#119)."""
+    path = request.url.path
+    allow = (
+        path.startswith("/api/auth")
+        or path.startswith("/api/billing")
+        or path.startswith("/api/stripe")
+        or path.startswith("/api/health")
+        or path.startswith("/api/version")
+        or path.startswith("/api/portal")
+        or path == "/docs"
+        or path == "/openapi.json"
+    )
+    if allow or request.method == "OPTIONS":
+        return await call_next(request)
+    # Best-effort: decode JWT without full auth dependency
+    auth = request.headers.get("authorization") or ""
+    token = auth[7:] if auth.lower().startswith("bearer ") else request.cookies.get("eb_access")
+    if token:
+        try:
+            from jose import jwt as _jwt
+            from auth import SECRET_KEY, ALGORITHM
+            from db import engine
+            from sqlmodel import Session
+            from models import Tenant
+            payload = _jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            tid = payload.get("tenant_id")
+            if tid is not None:
+                with Session(engine) as s:
+                    t = s.get(Tenant, tid)
+                    if t and t.is_suspended:
+                        from fastapi.responses import JSONResponse
+                        return JSONResponse(
+                            {"error": "Account suspended", "code": "tenant_suspended"},
+                            status_code=402,
+                        )
+        except Exception:
+            pass
+    return await call_next(request)
+
+
 # Routers are listed roughly in the order the UI exercises them so the
 # /docs page renders predictably. Each router is mounted twice: at its
 # original /api/* path (legacy) and at /api/v1/* (versioned). Future
@@ -245,6 +291,12 @@ _ROUTERS = [
     ai_chat.router,
     alerts.router,
     tasks.router,
+    billing.router,
+    billing.stripe_router,
+    portal.router,
+    approvals.router,
+    bank_feeds.router,
+    agent_ext.router,
 ]
 
 # Health is mounted once (no /api/v1 duplicate) — load balancers + Caddy probe it.

@@ -18,6 +18,8 @@ from tasks import (
     generate_pdf_task,
     post_recurring_entries_task,
     process_bulk_import_task,
+    run_dunning_rules_task,
+    scan_insights_task,
     send_email_task,
 )
 
@@ -40,10 +42,14 @@ class WorkerSettings:
         drain_webhook_outbox_task,
         process_bulk_import_task,
         post_recurring_entries_task,
+        scan_insights_task,
+        run_dunning_rules_task,
     ]
     cron_jobs = [
         cron(post_recurring_entries_task, hour=1, minute=0),
-        cron(drain_webhook_outbox_task, second={0, 30}),  # every 30s
+        cron(drain_webhook_outbox_task, second={0, 30}),
+        cron(scan_insights_task, hour=2, minute=0),
+        cron(run_dunning_rules_task, hour=3, minute=0),
     ]
     on_startup = startup
     on_shutdown = shutdown

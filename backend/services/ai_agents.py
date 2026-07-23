@@ -362,6 +362,20 @@ AGENTS: dict[str, AgentDef] = {
             "get_dashboard_summary", "get_income_statement", "get_ar_aging", "get_ap_aging",
             "get_trial_balance", "get_cash_flow", "get_top_customers",
             "list_report_sources", "run_custom_report",
+            "list_agent_suggestions",
+        ),
+    ),
+    "data_entry": AgentDef(
+        key="data_entry",
+        label="Data Entry",
+        trigger_hint="Assisted data entry, correcting customer details, OCR / receipt capture requests.",
+        system_prompt_fragment=(
+            "You help with careful write operations. Prefer find_customer before update_customer_email. "
+            "Never invent IDs. Confirm destructive or financial writes with the user first."
+        ),
+        tools=(
+            "find_customer", "update_customer_email", "list_agent_suggestions",
+            "get_dashboard_summary",
         ),
     ),
 }

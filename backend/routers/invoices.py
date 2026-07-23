@@ -268,6 +268,8 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
 @router.post("/api/invoices", status_code=201, dependencies=[perm_dep("invoices", "edit")])
 def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
                    background_tasks: BackgroundTasks):
+    from services.saas import check_document_quota
+    check_document_quota(session, user.tenant_id)
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix"

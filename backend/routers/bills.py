@@ -181,6 +181,8 @@ def get_bill(session: SessionDep, user: CurrentUserDep, bill_id: int):
 
 @router.post("/api/bills", status_code=201, dependencies=[perm_dep("bills", "edit")])
 def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
+    from services.saas import check_document_quota
+    check_document_quota(session, user.tenant_id)
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "bill_prefix"
