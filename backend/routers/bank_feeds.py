@@ -110,7 +110,11 @@ def sync_connection(connection_id: int, session: SessionDep, user: WriteUserDep)
     conn = session.get(PlaidConnection, connection_id)
     if not conn or conn.tenant_id != user.tenant_id:
         raise HTTPException(404, "Connection not found")
-    # Minimal sync stub — records last_sync; full transaction upsert lands with #115 queue
+    if not conn.bank_account_id:
+        raise HTTPException(
+            400,
+            "Plaid connection has no bank_account_id — re-link with a bank account to import statement lines",
+        )
     access = decrypt_secret(conn.access_token)
     payload = {
         "client_id": os.environ["PLAID_CLIENT_ID"],
@@ -119,25 +123,44 @@ def sync_connection(connection_id: int, session: SessionDep, user: WriteUserDep)
     }
     r = httpx.post(_plaid_url("/transactions/sync"), json=payload, timeout=30.0)
     added = 0
-    if r.status_code < 400:
-        body = r.json()
-        added = len(body.get("added") or [])
-        # Auto-categorize descriptions against rules
-        rules = session.exec(
-            select(CategorizationRule).where(
-                CategorizationRule.tenant_id == user.tenant_id,
-                CategorizationRule.is_active == True,  # noqa: E712
-            )
-        ).all()
-        for txn in body.get("added") or []:
-            desc = (txn.get("name") or txn.get("merchant_name") or "").lower()
-            for rule in rules:
-                if rule.pattern.lower() in desc:
-                    break  # matched — StatementLine write deferred to bank_imports shape
+    imported = 0
+    skipped = 0
+    if r.status_code >= 400:
+        raise HTTPException(502, f"Plaid error: {r.text[:300]}")
+    body = r.json()
+    added_txns = body.get("added") or []
+    added = len(added_txns)
+    from services.plaid_sync import upsert_plaid_transactions
+    counts = upsert_plaid_transactions(
+        session,
+        tenant_id=user.tenant_id,
+        bank_account_id=conn.bank_account_id,
+        transactions=added_txns,
+    )
+    imported = counts["imported"]
+    skipped = counts["skipped"]
+    # Auto-categorize descriptions against rules (best-effort; does not block import)
+    rules = session.exec(
+        select(CategorizationRule).where(
+            CategorizationRule.tenant_id == user.tenant_id,
+            CategorizationRule.is_active == True,  # noqa: E712
+        )
+    ).all()
+    for txn in added_txns:
+        desc = (txn.get("name") or txn.get("merchant_name") or "").lower()
+        for rule in rules:
+            if rule.pattern.lower() in desc:
+                break
     conn.last_sync = datetime.utcnow()
     session.add(conn)
     session.commit()
-    return {"ok": True, "added": added, "last_sync": conn.last_sync}
+    return {
+        "ok": True,
+        "added": added,
+        "imported": imported,
+        "skipped": skipped,
+        "last_sync": conn.last_sync,
+    }
 
 
 @router.delete("/connections/{connection_id}", status_code=204)

@@ -43,6 +43,7 @@ export default function CustomerHubPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [portalMsg, setPortalMsg] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -62,6 +63,21 @@ export default function CustomerHubPage() {
   if (loading) return <div className="p-8 text-sm text-[var(--text-primary)]/50 text-center">Loading…</div>
   if (error)   return <div className="p-8 text-sm text-red-600">{error}</div>
   if (!customer) return null
+
+  const mintPortal = async () => {
+    setPortalMsg(null)
+    try {
+      const r = await apiFetch<{ token: string; path: string }>(
+        `/api/portal/mint?entity_type=customer&entity_id=${id}`,
+        { method: "POST" },
+      )
+      const url = `${window.location.origin}${r.path}`
+      await navigator.clipboard.writeText(url)
+      setPortalMsg("Portal link copied to clipboard")
+    } catch (e) {
+      setPortalMsg(e instanceof Error ? e.message : "Failed to mint portal link")
+    }
+  }
 
   const outstanding = invoices
     .filter(i => !["paid", "void", "reversed"].includes(i.status))
@@ -85,13 +101,25 @@ export default function CustomerHubPage() {
             <span className="inline-block bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-0.5 rounded-full border border-slate-200">{t('status.inactive', 'Inactive')}</span>
           )}
         </div>
-        <Link
-          href={`/customers/${id}/edit`}
-          className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
-        >
-          <Pencil className="w-4 h-4" /> Edit
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={mintPortal}
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
+          >
+            Portal link
+          </button>
+          <Link
+            href={`/customers/${id}/edit`}
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-3 py-2 rounded-lg text-sm text-[var(--text-primary)]/70 hover:bg-[#f0ede6] transition-colors"
+          >
+            <Pencil className="w-4 h-4" /> Edit
+          </Link>
+        </div>
       </div>
+      {portalMsg && (
+        <p className="text-sm text-[var(--text-primary)]/70">{portalMsg}</p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Contact info */}

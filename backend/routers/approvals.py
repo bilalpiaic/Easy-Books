@@ -37,10 +37,15 @@ class DecisionIn(BaseModel):
 
 
 @router.get("/workflows")
-def list_workflows(session: SessionDep, user: CurrentUserDep):
-    rows = session.exec(
-        select(ApprovalWorkflow).where(ApprovalWorkflow.tenant_id == user.tenant_id)
-    ).all()
+def list_workflows(
+    session: SessionDep,
+    user: CurrentUserDep,
+    document_type: Optional[str] = None,
+):
+    q = select(ApprovalWorkflow).where(ApprovalWorkflow.tenant_id == user.tenant_id)
+    if document_type:
+        q = q.where(ApprovalWorkflow.document_type == document_type)
+    rows = session.exec(q).all()
     out = []
     for wf in rows:
         steps = session.exec(
@@ -162,7 +167,10 @@ def _set_doc_status(session, req: ApprovalRequest, status: str) -> None:
 
 
 def submit_document(session, user, document_type: str, document_id: int, amount: float):
-    """Create ApprovalRequest if an active workflow exists; else no-op."""
+    """Create ApprovalRequest if an active workflow exists; else no-op.
+
+    When a request is created, sets the document's approval_status to 'pending'.
+    """
     wf = session.exec(
         select(ApprovalWorkflow).where(
             ApprovalWorkflow.tenant_id == user.tenant_id,
@@ -183,6 +191,17 @@ def submit_document(session, user, document_type: str, document_id: int, amount:
             start = i + 1
     if start >= len(steps):
         return None
+    # Avoid duplicate pending requests for the same document
+    existing = session.exec(
+        select(ApprovalRequest).where(
+            ApprovalRequest.tenant_id == user.tenant_id,
+            ApprovalRequest.document_type == document_type,
+            ApprovalRequest.document_id == document_id,
+            ApprovalRequest.status == "pending",
+        )
+    ).first()
+    if existing:
+        return existing
     req = ApprovalRequest(
         tenant_id=user.tenant_id, workflow_id=wf.id,
         document_type=document_type, document_id=document_id,
@@ -190,4 +209,5 @@ def submit_document(session, user, document_type: str, document_id: int, amount:
     )
     session.add(req)
     session.flush()
+    _set_doc_status(session, req, "pending")
     return req

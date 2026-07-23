@@ -2,11 +2,11 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History, Send, Ban } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History, Send, Ban, CheckCircle2 } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { getAuthHeader } from "@/lib/auth"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
@@ -54,6 +54,7 @@ interface Invoice {
   currency: string
   exchange_rate: number
   status: string
+  approval_status: string | null
   transaction_id: number | null
   lines: InvoiceLine[]
   // PRA e-Invoice fields
@@ -82,6 +83,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const { t } = useTranslation()
 
   const fmt = useFmt()
+  const { settings } = useSettings()
+  const baseCurrency = settings.currency || "USD"
   const { isPortal } = usePRAPortal()
   const { id } = use(params)
   const [inv, setInv]       = useState<Invoice | null>(null)
@@ -90,6 +93,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [praRetrying, setPraRetrying] = useState(false)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
+  const [hasApprovalWorkflow, setHasApprovalWorkflow] = useState(false)
   useBreadcrumb(inv ? inv.number : undefined)
 
   const load = () =>
@@ -104,6 +108,33 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); loadHistory() }, [id])
+
+  useEffect(() => {
+    apiFetch<{ is_active?: boolean }[]>(`/api/approvals/workflows?document_type=invoice`)
+      .then((rows) => setHasApprovalWorkflow(rows.some((w) => w.is_active !== false)))
+      .catch(() => setHasApprovalWorkflow(false))
+  }, [])
+
+  const submitForApproval = async () => {
+    if (!inv) return
+    setBusy(true); setError(null)
+    try {
+      const res = await apiFetch<{
+        ok: boolean; submitted: boolean; message?: string; approval_status?: string
+      }>(`/api/invoices/${inv.id}/submit-for-approval`, { method: "POST" })
+      if (!res.submitted) {
+        toast(res.message || "No approval workflow configured", "info")
+      } else {
+        toast("Submitted for approval", "success")
+        setInv((prev) => prev ? { ...prev, approval_status: res.approval_status || "pending" } : prev)
+      }
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Submit failed")
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const voidInvoice = async () => {
     const ok = await confirm({
@@ -248,6 +279,16 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <LinkIcon className="w-4 h-4" /> Payment Link
             </button>
           )}
+          {hasApprovalWorkflow && !["pending", "approved"].includes(inv.approval_status || "")
+            && !["void", "voided", "reversed", "paid"].includes(inv.status) && (
+            <button
+              onClick={submitForApproval}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Submit for approval
+            </button>
+          )}
           {(inv.status === "draft" || inv.status === "sent") && (
             <button
               onClick={voidInvoice}
@@ -276,12 +317,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Invoice {inv.number}</h1>
             <p className="text-sm text-[var(--text-primary)]/60">
               Issued {inv.issue_date} · Due {inv.due_date}
-              {inv.currency !== "USD" && <> · {inv.currency} @ {inv.exchange_rate}</>}
+              {inv.currency && inv.currency !== baseCurrency && (
+                <> · {inv.currency} @ {inv.exchange_rate} · {baseCurrency} {fmt(Number(inv.total) * Number(inv.exchange_rate || 1))}</>
+              )}
             </p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <StatusBadge status={inv.status} />
+          {inv.approval_status && (
+            <span className="inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold border-[var(--border)] text-[var(--text-primary)]/70">
+              Approval: {inv.approval_status}
+            </span>
+          )}
           {inv.pra_status && inv.pra_status !== "not_required" && (
             <div className="flex items-center gap-1.5">
               <span className={`inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold ${PRA_STATUS_TONE[inv.pra_status] ?? ""}`}>

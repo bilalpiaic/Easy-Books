@@ -176,11 +176,8 @@ def test_unparseable_triage_response_falls_back_to_general(client: TestClient, m
 
     assert events[-1]["type"] == "done"
     tool_names = {t["function"]["name"] for t in calls[0]["tools"]}
-    assert tool_names == {
-        "get_dashboard_summary", "get_income_statement", "get_ar_aging",
-        "get_ap_aging", "get_trial_balance", "get_cash_flow", "get_top_customers",
-        "list_report_sources", "run_custom_report",
-    }
+    from services.ai_agents import AGENTS
+    assert tool_names == set(AGENTS["general"].tools)
 
 
 def test_triage_call_raising_falls_back_to_general(client: TestClient, monkeypatch):

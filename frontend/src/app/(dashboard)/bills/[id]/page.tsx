@@ -2,10 +2,10 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, Receipt, Pencil, History, CheckCircle } from "lucide-react"
+import { Printer, RotateCcw, Receipt, Pencil, History, CheckCircle, CheckCircle2 } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
@@ -52,22 +52,26 @@ interface Bill {
   currency: string
   exchange_rate: number
   status: string
+  approval_status: string | null
   transaction_id: number | null
   lines: BillLine[]
 }
 
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { confirm } = useMessages()
+  const { confirm, toast } = useMessages()
   const { t } = useTranslation()
 
   const fmt = useFmt()
+  const { settings } = useSettings()
+  const baseCurrency = settings.currency || "USD"
   const { id } = use(params)
   const [bill, setBill]   = useState<Bill | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy]   = useState(false)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
+  const [hasApprovalWorkflow, setHasApprovalWorkflow] = useState(false)
   useBreadcrumb(bill ? bill.number : undefined)
 
   const load = () =>
@@ -82,6 +86,33 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); loadHistory() }, [id])
+
+  useEffect(() => {
+    apiFetch<{ is_active?: boolean }[]>(`/api/approvals/workflows?document_type=bill`)
+      .then((rows) => setHasApprovalWorkflow(rows.some((w) => w.is_active !== false)))
+      .catch(() => setHasApprovalWorkflow(false))
+  }, [])
+
+  const submitForApproval = async () => {
+    if (!bill) return
+    setBusy(true); setError(null)
+    try {
+      const res = await apiFetch<{
+        ok: boolean; submitted: boolean; message?: string; approval_status?: string
+      }>(`/api/bills/${bill.id}/submit-for-approval`, { method: "POST" })
+      if (!res.submitted) {
+        toast(res.message || "No approval workflow configured", "info")
+      } else {
+        toast("Submitted for approval", "success")
+        setBill((prev) => prev ? { ...prev, approval_status: res.approval_status || "pending" } : prev)
+      }
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Submit failed")
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const markReceived = async () => {
     const ok = await confirm({
@@ -155,6 +186,16 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
               <CheckCircle className="w-4 h-4" /> Mark as Received
             </button>
           )}
+          {hasApprovalWorkflow && !["pending", "approved"].includes(bill.approval_status || "")
+            && !["void", "voided", "reversed", "paid"].includes(bill.status) && (
+            <button
+              onClick={submitForApproval}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--primary)]/50 text-[var(--primary)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Submit for approval
+            </button>
+          )}
           <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
             <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
           {bill.transaction_id && bill.status !== "reversed" && (
@@ -173,11 +214,20 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Bill {bill.number}</h1>
             <p className="text-sm text-[var(--text-primary)]/60">
               Dated {bill.bill_date} · Due {bill.due_date}
-              {bill.currency !== "USD" && <> · {bill.currency} @ {bill.exchange_rate}</>}
+              {bill.currency && bill.currency !== baseCurrency && (
+                <> · {bill.currency} @ {bill.exchange_rate} · {baseCurrency} {fmt(Number(bill.total) * Number(bill.exchange_rate || 1))}</>
+              )}
             </p>
           </div>
         </div>
-        <StatusBadge status={bill.status} />
+        <div className="flex flex-col items-end gap-1.5">
+          <StatusBadge status={bill.status} />
+          {bill.approval_status && (
+            <span className="inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold border-[var(--border)] text-[var(--text-primary)]/70">
+              Approval: {bill.approval_status}
+            </span>
+          )}
+        </div>
       </header>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm">{error}</div>}

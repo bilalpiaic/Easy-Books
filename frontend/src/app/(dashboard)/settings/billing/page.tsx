@@ -72,6 +72,11 @@ export default function BillingPage() {
           </button>
         ))}
       </div>
+      <p className="text-xs text-[var(--text-muted)]">
+        Live Stripe Checkout needs <code>STRIPE_SECRET_KEY</code> plus{" "}
+        <code>STRIPE_PRICE_STARTER</code> / <code>STRIPE_PRICE_PRO</code> /{" "}
+        <code>STRIPE_PRICE_ENTERPRISE</code>. Without a secret key, upgrades apply offline.
+      </p>
     </div>
   )
 }
