@@ -475,6 +475,54 @@ def test_fx_revaluation_posts_gain():
     assert r.status_code == 200, r.text
     body = r.json()
     assert body.get("entries_count", 0) > 0, f"Expected entries, got: {body}"
+    assert any(p["doc_type"] == "invoice" for p in body.get("positions", []))
+
+    # Second run same date → no new entries (carrying_rate already at close)
+    r2 = client.post(
+        "/api/reports/fx-revaluation",
+        headers=auth,
+        params={"revaluation_date": "2026-01-31"},
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json().get("entries_count", 0) == 0
+
+    app.dependency_overrides.clear()
+
+
+def test_fx_revaluation_includes_open_bills():
+    engine = _mk_engine()
+    app.dependency_overrides[get_session] = _get_session_override(engine)
+    client = TestClient(app)
+    auth = _signup_and_login(client, "g15b@co.test", "G15bCo")
+
+    client.patch("/api/settings", headers=auth, json={"currency": "PKR"})
+    client.post("/api/exchange-rates", headers=auth, json={
+        "from_currency": "USD", "to_currency": "PKR", "rate": 280, "date": "2026-01-01",
+    })
+    client.post("/api/exchange-rates", headers=auth, json={
+        "from_currency": "USD", "to_currency": "PKR", "rate": 300, "date": "2026-01-31",
+    })
+
+    vend = client.post("/api/vendors", headers=auth, json={"name": "Foreign Vendor"}).json()
+    client.post("/api/bills", headers=auth, json={
+        "vendor_id": vend["id"],
+        "bill_date": "2026-01-01",
+        "due_date": "2026-01-31",
+        "gst_rate": 0,
+        "currency": "USD",
+        "exchange_rate": 280,
+        "lines": [{"description": "Parts", "qty": 1, "rate": 200}],
+    })
+
+    r = client.post(
+        "/api/reports/fx-revaluation",
+        headers=auth,
+        params={"revaluation_date": "2026-01-31"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body.get("entries_count", 0) > 0, body
+    assert any(p["doc_type"] == "bill" for p in body.get("positions", []))
 
     app.dependency_overrides.clear()
 

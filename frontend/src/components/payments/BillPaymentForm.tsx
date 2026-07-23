@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { useFmt, useDp } from '@/context/SettingsContext'
+import { useFmt, useDp, useSettings } from '@/context/SettingsContext'
 
 interface OpenBill {
   id: number
@@ -13,6 +13,9 @@ interface OpenBill {
   due_date: string
   total: number
   balance_due: number
+  currency?: string
+  exchange_rate?: number
+  carrying_rate?: number
 }
 
 interface Account { id: number; code: string; name: string; type: string }
@@ -33,11 +36,13 @@ interface PayForm {
   reference: string
   cash_account_id: string
   analytic_account_id: string
+  exchange_rate: string
 }
 
 const emptyForm: PayForm = {
   vendor_id: '', payment_date: new Date().toISOString().split('T')[0],
   amount: '', method: 'bank_transfer', reference: '', cash_account_id: '', analytic_account_id: '',
+  exchange_rate: '',
 }
 
 interface Props {
@@ -48,6 +53,8 @@ interface Props {
 export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const fmt = useFmt()
   const dp = useDp()
+  const { settings } = useSettings()
+  const baseCurrency = (settings.currency || 'USD').toUpperCase()
   const [form, setForm]             = useState<PayForm>(emptyForm)
   const [saving, setSaving]         = useState(false)
   const [formError, setFormError]   = useState('')
@@ -57,7 +64,6 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const [vendors, setVendors]       = useState<{ id: number; name: string }[]>([])
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
 
-  // Static data: vendors, accounts, analytic accounts
   useEffect(() => {
     apiFetch<{ items: { id: number; name: string }[] }>('/api/vendors?limit=500')
       .then(d => setVendors(d.items))
@@ -73,8 +79,6 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
       .catch(() => {})
   }, [])
 
-  // Reload open bills on mount and whenever vendor selection changes.
-  // No vendor selected → all open bills; vendor selected → that vendor's only.
   useEffect(() => {
     const url = form.vendor_id
       ? `/api/bills/open-for-allocation?vendor_id=${form.vendor_id}`
@@ -92,6 +96,22 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const diff           = Math.abs(paymentAmount - totalApplied)
   const hasAllocations = allocations.some(a => a.checked)
 
+  const checkedBills = openBills.filter(b =>
+    allocations.some(a => a.bill_id === b.id && a.checked)
+  )
+  const fxCurrency = checkedBills[0]?.currency
+  const showFx = checkedBills.length > 0
+    && checkedBills.every(b => b.currency === checkedBills[0].currency)
+    && Boolean(fxCurrency)
+    && fxCurrency.toUpperCase() !== baseCurrency
+
+  useEffect(() => {
+    if (!showFx || !checkedBills[0]) return
+    const rate = checkedBills[0].carrying_rate ?? checkedBills[0].exchange_rate
+    if (rate != null) setForm(p => (p.exchange_rate ? p : { ...p, exchange_rate: String(rate) }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFx, checkedBills.map(b => b.id).join(',')])
+
   const handleSave = async () => {
     if (!form.vendor_id) { setFormError('Vendor is required'); return }
     if (!form.amount || paymentAmount <= 0) { setFormError('Amount must be > 0'); return }
@@ -106,6 +126,10 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
         reference: form.reference || null,
         cash_account_id: form.cash_account_id ? parseInt(form.cash_account_id) : null,
         analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
+      }
+      if (showFx && fxCurrency) {
+        body.currency = fxCurrency
+        if (form.exchange_rate) body.exchange_rate = parseFloat(form.exchange_rate)
       }
       const allocationLines = allocations
         .filter(a => a.checked && parseFloat(a.amount) > 0)
@@ -146,7 +170,6 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   return (
     <div className="bg-white rounded-2xl border border-[var(--border)] p-4 sm:p-8 max-w-3xl mx-auto">
       <div className="space-y-4">
-        {/* Header fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Vendor *</label>
@@ -168,7 +191,9 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Amount Paid</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              Amount Paid{showFx && fxCurrency ? ` (${fxCurrency})` : ''}
+            </label>
             <input type="number" step="0.01" value={form.amount}
               onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
               placeholder="0.00" className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
@@ -186,6 +211,25 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
+        {showFx && (
+          <div className="grid grid-cols-2 gap-4 p-3 rounded-xl bg-amber-50/60 border border-amber-200">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Currency</label>
+              <div className="px-3 py-2 text-sm font-mono font-bold">{fxCurrency}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+                Settlement rate → {baseCurrency}
+              </label>
+              <input type="number" step="0.0001" value={form.exchange_rate}
+                onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
+                className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
+            </div>
+            <p className="col-span-2 text-xs text-amber-800">
+              Amount and allocations are in {fxCurrency}. GL posts cash at settlement rate and clears AP at each bill&apos;s carrying rate; difference → Realised FX (4903).
+            </p>
+          </div>
+        )}
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Cash/Bank Account</label>
           <select value={form.cash_account_id} onChange={e => setForm(p => ({ ...p, cash_account_id: e.target.value }))}
@@ -212,7 +256,6 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
           </div>
         )}
 
-        {/* Bill allocation checklist */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">
             Apply to Open Bills <span className="font-normal normal-case">(optional)</span>
@@ -229,6 +272,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
                   <tr>
                     <th className="w-8 px-3 py-2" />
                     <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Bill</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">CCY</th>
                     <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Vendor</th>
                     <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Balance Due</th>
                     <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Apply</th>
@@ -249,6 +293,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
                           />
                         </td>
                         <td className="px-3 py-2 font-mono text-[var(--primary)] font-bold text-xs">{bill.number}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{bill.currency ?? '—'}</td>
                         <td className="px-3 py-2 text-[var(--text-muted)] truncate max-w-[120px] text-xs">{bill.vendor_name ?? '—'}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{fmt(bill.balance_due)}</td>
                         <td className="px-3 py-2 text-right">
@@ -271,7 +316,6 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
             </div>
           )}
 
-          {/* Allocation summary */}
           {hasAllocations && (
             <div className={`mt-2 flex items-center justify-between text-xs px-3 py-2 rounded-lg ${diff > 0.01 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
               <span className="text-[var(--text-muted)]">
@@ -289,7 +333,11 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
         </div>
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
-        <p className="text-xs text-[var(--text-muted)]">GL posting: Dr Accounts Payable / Cr Cash/Bank</p>
+        <p className="text-xs text-[var(--text-muted)]">
+          {showFx
+            ? 'GL posting: Dr AP (carrying) / Cr Cash (settle rate) / Realised FX 4903'
+            : 'GL posting: Dr Accounts Payable / Cr Cash/Bank'}
+        </p>
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>
           <button onClick={handleSave} disabled={!form.vendor_id || saving} className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">

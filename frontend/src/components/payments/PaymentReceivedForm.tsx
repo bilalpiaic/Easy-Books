@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
-import { useFmt, useDp } from '@/context/SettingsContext'
+import { useFmt, useDp, useSettings } from '@/context/SettingsContext'
 
 interface OpenInvoice {
   id: number
@@ -13,6 +13,9 @@ interface OpenInvoice {
   due_date: string
   total: number
   balance_due: number
+  currency?: string
+  exchange_rate?: number
+  carrying_rate?: number
 }
 
 interface Account { id: number; code: string; name: string; type: string }
@@ -33,11 +36,13 @@ interface PayForm {
   reference: string
   cash_account_id: string
   analytic_account_id: string
+  exchange_rate: string
 }
 
 const emptyForm: PayForm = {
   customer_id: '', payment_date: new Date().toISOString().split('T')[0],
   amount: '', method: 'cash', reference: '', cash_account_id: '', analytic_account_id: '',
+  exchange_rate: '',
 }
 
 interface Props {
@@ -48,6 +53,8 @@ interface Props {
 export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
   const fmt = useFmt()
   const dp = useDp()
+  const { settings } = useSettings()
+  const baseCurrency = (settings.currency || 'USD').toUpperCase()
   const [form, setForm] = useState<PayForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
@@ -95,10 +102,30 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
   const diff = Math.abs(paymentAmount - totalApplied)
   const hasAllocations = allocations.some(a => a.checked)
 
+  const checkedInvs = openInvoices.filter(inv =>
+    allocations.some(a => a.invoice_id === inv.id && a.checked)
+  )
+  const fxCurrency = checkedInvs[0]?.currency
+  const showFx = checkedInvs.length > 0
+    && checkedInvs.every(i => i.currency === checkedInvs[0].currency)
+    && Boolean(fxCurrency)
+    && fxCurrency.toUpperCase() !== baseCurrency
+
+  // Prefill settlement rate from carrying rate of first checked invoice when FX fields appear
+  useEffect(() => {
+    if (!showFx || !checkedInvs[0]) return
+    const rate = checkedInvs[0].carrying_rate ?? checkedInvs[0].exchange_rate
+    if (rate != null) setForm(p => (p.exchange_rate ? p : { ...p, exchange_rate: String(rate) }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFx, checkedInvs.map(i => i.id).join(',')])
+
   const handleSave = async () => {
     if (!form.customer_id) { setFormError('Customer is required'); return }
     if (!form.amount || paymentAmount <= 0) { setFormError('Amount must be > 0'); return }
     if (!form.payment_date) { setFormError('Date is required'); return }
+    if (showFx && checkedInvs.some(i => i.currency !== checkedInvs[0].currency)) {
+      setFormError('Cannot allocate across mixed document currencies'); return
+    }
     setSaving(true); setFormError('')
     try {
       const body: Record<string, unknown> = {
@@ -109,6 +136,10 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
         reference: form.reference || null,
         cash_account_id: form.cash_account_id ? parseInt(form.cash_account_id) : null,
         analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
+      }
+      if (showFx && fxCurrency) {
+        body.currency = fxCurrency
+        if (form.exchange_rate) body.exchange_rate = parseFloat(form.exchange_rate)
       }
       const allocationLines = allocations
         .filter(a => a.checked && parseFloat(a.amount) > 0)
@@ -173,7 +204,9 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Amount Received</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              Amount Received{showFx && fxCurrency ? ` (${fxCurrency})` : ''}
+            </label>
             <input type="number" step="0.01" value={form.amount}
               onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
               placeholder="0.00" className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
@@ -191,6 +224,25 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
+        {showFx && (
+          <div className="grid grid-cols-2 gap-4 p-3 rounded-xl bg-amber-50/60 border border-amber-200">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Currency</label>
+              <div className="px-3 py-2 text-sm font-mono font-bold">{fxCurrency}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+                Settlement rate → {baseCurrency}
+              </label>
+              <input type="number" step="0.0001" value={form.exchange_rate}
+                onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
+                className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
+            </div>
+            <p className="col-span-2 text-xs text-amber-800">
+              Amount and allocations are in {fxCurrency}. GL posts cash at settlement rate and clears AR at each invoice&apos;s carrying rate; difference → Realised FX (4903).
+            </p>
+          </div>
+        )}
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Cash/Bank Account</label>
           <select value={form.cash_account_id} onChange={e => setForm(p => ({ ...p, cash_account_id: e.target.value }))}
@@ -234,6 +286,7 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
                   <tr>
                     <th className="w-8 px-3 py-2" />
                     <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Invoice</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">CCY</th>
                     <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Customer</th>
                     <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Balance Due</th>
                     <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Apply</th>
@@ -254,6 +307,7 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
                           />
                         </td>
                         <td className="px-3 py-2 font-mono text-[var(--primary)] font-bold text-xs">{inv.number}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{inv.currency ?? '—'}</td>
                         <td className="px-3 py-2 text-[var(--text-muted)] truncate max-w-[120px] text-xs">{inv.customer_name ?? '—'}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{fmt(inv.balance_due)}</td>
                         <td className="px-3 py-2 text-right">
@@ -294,7 +348,11 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
         </div>
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
-        <p className="text-xs text-[var(--text-muted)]">GL posting: Dr Cash/Bank / Cr Accounts Receivable</p>
+        <p className="text-xs text-[var(--text-muted)]">
+          {showFx
+            ? `GL posting: Dr Cash (settle rate) / Cr AR (carrying rate) / Realised FX 4903`
+            : `GL posting: Dr Cash/Bank / Cr Accounts Receivable`}
+        </p>
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>
           <button onClick={handleSave} disabled={!form.customer_id || saving} className="px-6 py-3 bg-[var(--text-primary)] text-white rounded-xl font-bold hover:bg-[var(--primary)] hover:text-black transition-all disabled:opacity-50">

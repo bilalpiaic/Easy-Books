@@ -20,6 +20,8 @@ interface Payment {
   customer_name: string | null
   payment_date: string
   amount: string | number
+  currency?: string | null
+  exchange_rate?: string | number | null
   method: string
   reference: string | null
   transaction_id: number | null
@@ -62,6 +64,10 @@ export default function PaymentReceivedDetail({ params }: { params: Promise<{ id
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Cash Receipt #{pay.id}</h1>
           <p className="text-sm text-[var(--text-primary)]/60">
             {pay.payment_date} · {pay.method}{pay.reference ? ` · ${pay.reference}` : ""}
+            {pay.currency ? ` · ${pay.currency}` : ""}
+            {pay.exchange_rate != null && Number(pay.exchange_rate) !== 1
+              ? ` @ ${Number(pay.exchange_rate).toFixed(4)}`
+              : ""}
           </p>
         </div>
       </header>
