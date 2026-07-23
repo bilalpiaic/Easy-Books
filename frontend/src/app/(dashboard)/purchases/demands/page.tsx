@@ -43,33 +43,59 @@ export default function DemandsPage() {
       </div>
 
       <div className="table-freeze rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[var(--text-muted)]">
-              <th className="px-3 py-2">PD #</th>
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2">Purpose</th>
-              <th className="px-3 py-2">Items</th>
-              <th className="px-3 py-2">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(rows ?? []).map(d => (
-              <tr key={d.id} className="border-t border-[var(--border)]">
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <Link href={`/purchases/demands/${d.id}`} className="text-[var(--primary)]">{d.number}</Link>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">{fmtDate(d.demand_date)}</td>
-                <td className="px-3 py-2">{d.purpose || "—"}</td>
-                <td className="px-3 py-2">{d.lines.length}</td>
-                <td className="px-3 py-2">{d.status}</td>
+        <div className="hidden md:block">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[var(--text-muted)]">
+                <th className="px-3 py-2">PD #</th>
+                <th className="px-3 py-2">Date</th>
+                <th className="px-3 py-2">Purpose</th>
+                <th className="px-3 py-2">Items</th>
+                <th className="px-3 py-2">Status</th>
               </tr>
-            ))}
-            {rows?.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-[var(--text-muted)]">No demands yet</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(rows ?? []).map(d => (
+                <tr key={d.id} className="border-t border-[var(--border)]">
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <Link href={`/purchases/demands/${d.id}`} className="text-[var(--primary)]">{d.number}</Link>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">{fmtDate(d.demand_date)}</td>
+                  <td className="px-3 py-2">{d.purpose || "—"}</td>
+                  <td className="px-3 py-2">{d.lines.length}</td>
+                  <td className="px-3 py-2">{d.status}</td>
+                </tr>
+              ))}
+              {rows?.length === 0 && (
+                <tr><td colSpan={5} className="px-3 py-8 text-center text-[var(--text-muted)]">No demands yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="md:hidden divide-y divide-[var(--border)]">
+          {rows === null ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">Loading…</div>
+          ) : rows.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">No demands yet</div>
+          ) : rows.map(d => (
+            <Link
+              key={d.id}
+              href={`/purchases/demands/${d.id}`}
+              className="flex items-start justify-between px-4 py-3 hover:bg-[var(--bg-row-hover)]"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                  {d.purpose || d.number}
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {d.number} · {fmtDate(d.demand_date)} · {d.lines.length} item{d.lines.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <span className="ml-3 shrink-0 text-xs capitalize text-[var(--text-secondary)]">{d.status}</span>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   )

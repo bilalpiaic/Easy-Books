@@ -2,12 +2,13 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, Download, Link as LinkIcon, History, Send, Ban, CheckCircle2 } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, Link as LinkIcon, History, Send, Ban, CheckCircle2 } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
-import { getAuthHeader } from "@/lib/auth"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import DocumentActions from "@/components/DocumentActions"
+import { downloadPdf } from "@/lib/downloadPdf"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
 import StatusBadge from "@/components/StatusBadge"
@@ -94,6 +95,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
   const [hasApprovalWorkflow, setHasApprovalWorkflow] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
   useBreadcrumb(inv ? inv.number : undefined)
 
   const load = () =>
@@ -230,11 +232,20 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <Send className="w-4 h-4" /> Mark as Sent
             </button>
           )}
-          <Link
-            href={`/invoices/${inv.id}/print`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden"
-          >
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+          <DocumentActions
+            onPrint={() => { window.location.href = `/invoices/${inv.id}/print` }}
+            onSavePdf={async () => {
+              setPdfBusy(true)
+              try {
+                await downloadPdf(`/api/invoices/${inv.id}/pdf`, `${inv.number}.pdf`)
+              } catch (e) {
+                toast((e as Error).message || "PDF generation failed", "error")
+              } finally {
+                setPdfBusy(false)
+              }
+            }}
+            pdfBusy={pdfBusy}
+          />
           {isPortal && inv.pra_fiscal_number && (
             <Link
               href={`/invoices/${inv.id}/receipt`}
@@ -243,25 +254,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <Printer className="w-4 h-4" /> Print Receipt
             </Link>
           )}
-          <button
-            onClick={async () => {
-              const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
-              const res = await fetch(`${apiUrl}/api/invoices/${inv.id}/pdf`, {
-                headers: getAuthHeader() as HeadersInit,
-              })
-              if (!res.ok) { toast("PDF generation failed", "error"); return }
-              const blob = await res.blob()
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement("a")
-              a.href = url
-              a.download = `${inv.number}.pdf`
-              a.click()
-              URL.revokeObjectURL(url)
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)]"
-          >
-            <Download className="w-4 h-4" /> PDF
-          </button>
           {inv.status !== "paid" && (
             <button
               onClick={async () => {

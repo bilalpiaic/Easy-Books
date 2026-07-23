@@ -221,12 +221,26 @@ export default function PortalPage() {
                     <td className="p-3 whitespace-nowrap">{inv.due_date}</td>
                     <td className="p-3 text-right">{inv.currency} {inv.total.toLocaleString()}</td>
                     <td className="p-3 text-right space-x-2">
-                      <a
-                        className="underline text-xs"
-                        href={`${apiBase}/api/portal/${token}/invoices/${inv.id}/pdf`}
+                      <button
+                        type="button"
+                        className="underline text-xs disabled:opacity-50"
+                        disabled={pdfBusyId === inv.id}
+                        onClick={async () => {
+                          setPdfBusyId(inv.id)
+                          try {
+                            await downloadPublicPdf(
+                              `${apiBase}/api/portal/${token}/invoices/${inv.id}/pdf`,
+                              `${inv.number}.pdf`,
+                            )
+                          } catch {
+                            alert("PDF download failed")
+                          } finally {
+                            setPdfBusyId(null)
+                          }
+                        }}
                       >
-                        PDF
-                      </a>
+                        {pdfBusyId === inv.id ? "…" : "PDF"}
+                      </button>
                       <button type="button" className="text-xs bg-[#b8943f] px-2 py-1 rounded" onClick={() => pay(inv.id)}>
                         Pay
                       </button>
