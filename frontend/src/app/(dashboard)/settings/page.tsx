@@ -1864,7 +1864,10 @@ function Security2FACard() {
   const [enabled, setEnabled] = useState(false)
 
   const setup = async () => {
-    const r = await apiFetch("/api/auth/totp/setup", { method: "POST" })
+    const r = await apiFetch<{ secret: string; otpauth_url: string }>(
+      "/api/auth/totp/setup",
+      { method: "POST" },
+    )
     setSecret(r.secret)
     setOtpauth(r.otpauth_url)
     setStatus("Scan the otpauth URL in your authenticator app, then enter a code.")

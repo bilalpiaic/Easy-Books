@@ -19,14 +19,20 @@ export default function BillingPage() {
   const [msg, setMsg] = useState("")
 
   const load = () => {
-    apiFetch("/api/billing/usage").then(setUsage).catch(() => {})
-    apiFetch("/api/billing/plans").then(setPlans).catch(() => {})
+    apiFetch<Usage>("/api/billing/usage").then(setUsage).catch(() => {})
+    apiFetch<Record<string, { price: number; max_users: number; max_documents: number }>>(
+      "/api/billing/plans",
+    ).then(setPlans).catch(() => {})
   }
   useEffect(load, [])
 
   const upgrade = async (plan: string) => {
     setMsg("")
-    const r = await apiFetch("/api/billing/checkout", {
+    const r = await apiFetch<{
+      checkout_url?: string
+      message?: string
+      plan?: string
+    }>("/api/billing/checkout", {
       method: "POST",
       body: JSON.stringify({ plan }),
     })

@@ -15,7 +15,10 @@ export default function ApprovalsPage() {
   const [items, setItems] = useState<Req[]>([])
   const [notes, setNotes] = useState<Record<number, string>>({})
 
-  const load = () => apiFetch("/api/approvals").then(setItems).catch(() => setItems([]))
+  const load = () =>
+    apiFetch<Req[]>("/api/approvals")
+      .then(setItems)
+      .catch(() => setItems([]))
   useEffect(() => { load() }, [])
 
   const act = async (id: number, action: "approve" | "reject") => {
