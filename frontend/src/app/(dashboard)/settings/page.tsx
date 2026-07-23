@@ -1171,6 +1171,21 @@ export default function SettingsPage() {
         (getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner") &&
         <AiAssistantSection /> }
 
+      {/* Webhooks (#114) — outgoing event notifications */}
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">Webhooks</h2>
+        <p className="text-sm text-[var(--text-primary)]/60">
+          Push signed HTTP notifications (invoices, payments, stock alerts and more) to Zapier, Make,
+          Slack, or your own systems the moment they happen.
+        </p>
+        <Link
+          href="/settings/webhooks"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
+        >
+          Manage webhook endpoints →
+        </Link>
+      </section>
+
       </> }
 
       {/* API Keys tab (#113) — machine-to-machine access, admin/owner only

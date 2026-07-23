@@ -15,6 +15,7 @@ from sqlmodel import func, select
 from models import (
     Account, Bill, BillPayment, Customer, Invoice, PaymentAllocation, PaymentReceived, Vendor,
 )
+from services.events import emit
 from services.money import D, money
 from services.posting import EntryInput, post_transaction
 from services.vouchers import classify_cash_account
@@ -49,6 +50,7 @@ class PaymentReceivedCreate(BaseModel):
 
 def _refresh_invoice_status(session, inv: Invoice) -> None:
     """Re-derive invoice.status from sum(allocations) against invoice.total."""
+    old_status = inv.status
     total_allocated = session.exec(
         select(func.coalesce(func.sum(PaymentAllocation.amount), 0)).where(
             PaymentAllocation.invoice_id == inv.id
@@ -60,9 +62,15 @@ def _refresh_invoice_status(session, inv: Invoice) -> None:
     elif allocated > 0:
         inv.status = "partial"
     session.add(inv)
+    if inv.status == "paid" and old_status != "paid":
+        emit(session, inv.tenant_id, "invoice.paid", {
+            "invoice_id": inv.id, "number": inv.number,
+            "customer_name": inv.customer_name, "total": str(inv.total),
+        })
 
 
 def _refresh_bill_status(session, bill: Bill) -> None:
+    old_status = bill.status
     total_allocated = session.exec(
         select(func.coalesce(func.sum(PaymentAllocation.amount), 0)).where(
             PaymentAllocation.bill_id == bill.id
@@ -74,6 +82,11 @@ def _refresh_bill_status(session, bill: Bill) -> None:
     elif allocated > 0:
         bill.status = "partial"
     session.add(bill)
+    if bill.status == "paid" and old_status != "paid":
+        emit(session, bill.tenant_id, "bill.paid", {
+            "bill_id": bill.id, "number": bill.number,
+            "vendor_name": bill.vendor_name, "total": str(bill.total),
+        })
 
 
 @router.get("/api/payments-received", dependencies=[perm_dep("payments_received")])
@@ -220,6 +233,11 @@ def create_payment_received(
         session.flush()
         _refresh_invoice_status(session, inv)
 
+    emit(session, user.tenant_id, "payment.received", {
+        "payment_id": pmt.id, "customer_name": cname,
+        "amount": str(amount), "payment_date": body.payment_date,
+        "method": body.method,
+    })
     session.commit()
     session.refresh(pmt)
     return pmt
@@ -379,6 +397,11 @@ def create_bill_payment(
         session.flush()
         _refresh_bill_status(session, bill)
 
+    emit(session, user.tenant_id, "payment.made", {
+        "payment_id": bp.id, "vendor_name": vname,
+        "amount": str(amount), "payment_date": body.payment_date,
+        "method": body.method,
+    })
     session.commit()
     session.refresh(bp)
     return bp

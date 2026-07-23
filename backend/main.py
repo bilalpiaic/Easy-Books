@@ -28,7 +28,7 @@ from routers import (
     reconciliations, recurring, report_builder, reports, settings, stock_locations, store_issues, store_reports,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
     permissions, commissions, promo_rules, payroll, attendance, system_update,
-    search, ai_chat,
+    search, ai_chat, webhooks,
 )
 from routers.pra import pra_router
 from routers import healthcare, healthcare_reports, healthcare_dialysis
@@ -94,6 +94,41 @@ def _run_revoked_token_prune_once() -> None:
             print(f"[revoked-tokens] pruned {result.rowcount} expired row(s)", flush=True)
 
 
+def _run_webhook_drain_once() -> int:
+    """Sync, blocking — via asyncio.to_thread. Lazy db import for the same
+    reason as _run_overdue_sweep_once."""
+    import db as _db
+    from sqlmodel import Session as _Session
+    from services.events import drain_once
+    with _Session(_db.engine) as session:
+        return drain_once(session)
+
+
+async def _webhook_delivery_loop() -> None:
+    """Drains the WebhookDelivery outbox (#114): woken instantly by emit()
+    via a threadsafe Event, with a POLL_SECONDS fallback tick that picks up
+    retry-due rows and anything queued outside this process. Loops while
+    a batch came back full, so bursts drain without waiting for the next
+    wake."""
+    from services import events as _events
+    wake = asyncio.Event()
+    _events.register_wake(asyncio.get_running_loop(), wake)
+    while True:
+        try:
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(wake.wait(), timeout=_events.POLL_SECONDS)
+            wake.clear()
+            await asyncio.sleep(1)     # let the emitting request commit first
+            while await asyncio.to_thread(_run_webhook_drain_once) >= _events.BATCH_SIZE:
+                pass
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            await asyncio.sleep(5)
+
+
 async def _revoked_token_prune_loop() -> None:
     """Once at startup, then every 6 hours — tokens live 24h, so pruning
     lags expiry by at most a quarter of a token's lifetime, keeping the
@@ -122,6 +157,8 @@ async def lifespan(_app: FastAPI):
         tasks.append(asyncio.create_task(_overdue_scheduler_loop()))
     if os.environ.get("REVOKED_TOKEN_PRUNE_ENABLED", "true").lower() != "false":
         tasks.append(asyncio.create_task(_revoked_token_prune_loop()))
+    if os.environ.get("WEBHOOKS_ENABLED", "true").lower() != "false":
+        tasks.append(asyncio.create_task(_webhook_delivery_loop()))
 
     yield
 
@@ -162,7 +199,7 @@ _ROUTERS = [
     vendors.router, products.router, product_categories.router, aging.router, invoices.router, bills.router,
     report_builder.router,
     payments.router, payment_terms.router, bank_accounts.router,
-    reconciliations.router, periods.router, audit.router,
+    reconciliations.router, periods.router, audit.router, webhooks.router,
     transactions.router, reports.router, dashboard_layout.router, imports.router,
     tax_codes.router, recurring.router, exchange_rates.router,
     bank_imports.router, stock_locations.router,

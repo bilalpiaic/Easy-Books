@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
 
 from models import Account, Bill, BillLine, JournalEntry, PaymentAllocation, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction, Vendor
+from services.events import emit
 from services.fx import rate_to_base
 from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
@@ -367,6 +368,12 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         {"number": bill.number, "total": str(total)},
     )
     mark_onboarding_step(session, user.tenant_id, "first_bill")
+    emit(session, user.tenant_id, "bill.created", {
+        "bill_id": bill.id, "number": bill.number,
+        "vendor_name": bill.vendor_name, "total": str(total),
+        "bill_date": bill.bill_date, "due_date": bill.due_date,
+        "status": bill.status,
+    })
     session.commit()
     session.refresh(bill)
 

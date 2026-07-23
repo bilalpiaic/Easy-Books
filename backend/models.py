@@ -131,6 +131,39 @@ class ApiKey(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class WebhookEndpoint(SQLModel, table=True):
+    """Outgoing webhook registration (#114). `events` holds a JSON array of
+    event-type strings from services/events.EVENT_TYPES; an empty array means
+    the endpoint receives no events (it must opt in explicitly)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    url: str
+    secret: str                      # HMAC-SHA256 signing key; server-generated
+    events: List[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    description: Optional[str] = None
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class WebhookDelivery(SQLModel, table=True):
+    """Durable outbox row for one webhook send (#114). Written in the same
+    transaction as the business document (emit never sends inline), then
+    drained by the lifespan delivery loop. Retry ladder lives in
+    services/events.RETRY_DELAYS; after MAX_ATTEMPTS the row is `failed`."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    endpoint_id: int = Field(foreign_key="webhookendpoint.id", ondelete="CASCADE", index=True)
+    event_type: str = Field(index=True)
+    payload_json: str
+    status: str = Field(default="pending", index=True)   # pending | delivered | failed
+    attempts: int = Field(default=0)
+    next_retry: Optional[datetime] = Field(default=None, index=True)
+    response_code: Optional[int] = None
+    last_error: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    delivered_at: Optional[datetime] = None
+
+
 class UserPermission(SQLModel, table=True):
     """Sparse per-user permission overrides. When no row exists for a
     (user_id, resource_key) pair, the role default applies:

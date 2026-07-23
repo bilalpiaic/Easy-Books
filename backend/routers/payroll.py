@@ -13,6 +13,7 @@ from models import (
     PayrollLineDetail, PayrollRun, SalaryComponent,
 )
 from routers.common import CurrentUserDep, SessionDep, next_number
+from services.events import emit
 from services.permissions import perm_dep
 from services.posting import EntryInput, post_transaction
 
@@ -316,6 +317,11 @@ def create_employee(body: EmployeeCreate, user: CurrentUserDep, session: Session
         created_by_id=user.id,
     )
     session.add(emp)
+    session.flush()
+    emit(session, user.tenant_id, "employee.created", {
+        "employee_id": emp.id, "employee_code": emp.employee_code,
+        "name": emp.name, "department": emp.department,
+    })
     session.commit()
     session.refresh(emp)
     return {"id": emp.id, "employee_code": emp.employee_code}

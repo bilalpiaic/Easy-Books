@@ -9,6 +9,7 @@ from sqlmodel import func, select
 from models import Bill, BillPayment, PaymentAllocation, Vendor
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
+from services.events import emit
 from services.permissions import perm_dep, apply_own_filter
 
 router = APIRouter(prefix="/api/vendors", tags=["vendors"], dependencies=[perm_dep("vendors")])
@@ -67,6 +68,9 @@ def create_vendor(session: SessionDep, user: WriteUserDep, body: VendorCreate):
     session.add(v)
     session.flush()
     log_audit(session, user, "CREATE", "vendor", v.id, {"name": v.name})
+    emit(session, user.tenant_id, "vendor.created", {
+        "vendor_id": v.id, "name": v.name, "email": v.email,
+    })
     session.commit()
     session.refresh(v)
     return v

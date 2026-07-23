@@ -250,8 +250,19 @@ def consume_stock(
     else:
         cogs = money(qty * avg_cost)
 
-    prod.stock_qty = D(prod.stock_qty) - qty
+    old_qty = D(prod.stock_qty)
+    prod.stock_qty = old_qty - qty
     session.add(prod)
+
+    # stock.low webhook (#114): fires only on the crossing consumption, not
+    # on every sale while already below the reorder level.
+    reorder = D(prod.reorder_level or 0)
+    if reorder > 0 and old_qty > reorder >= D(prod.stock_qty):
+        from services.events import emit
+        emit(session, tenant_id, "stock.low", {
+            "product_id": prod.id, "code": prod.code, "name": prod.name,
+            "stock_qty": str(prod.stock_qty), "reorder_level": str(reorder),
+        })
 
     # Deplete layers FIFO (layers already fetched above for cost calculation).
     remaining = qty

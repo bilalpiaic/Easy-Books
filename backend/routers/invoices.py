@@ -15,6 +15,7 @@ from services.deferred import (
     plan_deferral, resolve_deferred_account, create_schedules,
     has_any_recognition, reverse_schedules,
 )
+from services.events import emit
 from services.fx import rate_to_base
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
@@ -519,6 +520,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         {"number": invoice.number, "total": str(total)},
     )
     mark_onboarding_step(session, user.tenant_id, "first_invoice")
+    emit(session, user.tenant_id, "invoice.created", {
+        "invoice_id": invoice.id, "number": invoice.number,
+        "customer_name": invoice.customer_name, "total": str(total),
+        "issue_date": invoice.issue_date, "due_date": invoice.due_date,
+        "status": invoice.status,
+    })
 
     # Stamp PRA USIN and queue real-time e-Invoice submission (fire-and-forget)
     if get_pra_config(session, user.tenant_id):
@@ -912,12 +919,23 @@ def update_invoice_status(
     ).first()
     if not inv:
         raise HTTPException(404, "Invoice not found")
+    old_status = inv.status
     inv.status = status
     session.add(inv)
     log_audit(
         session, user, "UPDATE", "invoice", inv.id,
         {"number": inv.number, "status": status},
     )
+    if status in ("cancelled", "voided") and old_status not in ("cancelled", "voided"):
+        emit(session, user.tenant_id, "invoice.voided", {
+            "invoice_id": inv.id, "number": inv.number,
+            "customer_name": inv.customer_name, "total": str(inv.total),
+        })
+    elif status == "paid" and old_status != "paid":
+        emit(session, user.tenant_id, "invoice.paid", {
+            "invoice_id": inv.id, "number": inv.number,
+            "customer_name": inv.customer_name, "total": str(inv.total),
+        })
     session.commit()
     session.refresh(inv)
 
