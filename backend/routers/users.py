@@ -5,6 +5,10 @@ temporary password), change roles, activate/deactivate, and manage email
 invitations. All operations are tenant-scoped: a caller can never see or
 touch a user in another tenant.
 
+Membership (#220): team lists/roles use TenantMembership for the active
+tenant. Inviting an email that already has an account attaches a membership
+immediately instead of failing with "email already exists".
+
 Role guard rules:
   - Only an owner may grant or modify the `owner` role.
   - You cannot change your own role or deactivate yourself (prevents lockout).
@@ -19,10 +23,11 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from sqlmodel import func, select
+from sqlmodel import select
 
 from auth import get_password_hash
-from models import Tenant, User, UserInvite
+from models import Tenant, TenantMembership, User, UserInvite
+from services.memberships import active_owner_count, ensure_membership, get_membership
 
 from .common import AdminUserDep, SessionDep
 
@@ -35,14 +40,14 @@ _INVITE_TTL_DAYS = 7
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _serialize(u: User) -> dict:
+def _serialize(u: User, *, role: Optional[str] = None) -> dict:
     return {
         "id": u.id,
         "email": u.email,
         "full_name": u.full_name,
         "phone": u.phone,
         "avatar_url": u.avatar_url,
-        "role": u.role,
+        "role": role if role is not None else u.role,
         "is_active": u.is_active,
         "must_change_password": u.must_change_password,
         "created_at": u.created_at.isoformat() if u.created_at else None,
@@ -61,19 +66,12 @@ def _guard_owner_grant(actor: User, role: str) -> None:
         raise HTTPException(status_code=403, detail="Only an owner can grant the owner role")
 
 
-def _active_owner_count(session, tenant_id: int) -> int:
-    return session.exec(
-        select(func.count(User.id)).where(
-            User.tenant_id == tenant_id, User.role == "owner", User.is_active == True,  # noqa: E712
-        )
-    ).one()
-
-
-def _get_member(session, user_id: int, tenant_id: int) -> User:
+def _get_member(session, user_id: int, tenant_id: int) -> tuple[User, TenantMembership]:
     u = session.get(User, user_id)
-    if u is None or u.tenant_id != tenant_id:
+    m = get_membership(session, user_id, tenant_id) if u else None
+    if u is None or m is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return u
+    return u, m
 
 
 # ── Members ───────────────────────────────────────────────────────────────────
@@ -81,10 +79,16 @@ def _get_member(session, user_id: int, tenant_id: int) -> User:
 
 @router.get("")
 def list_users(session: SessionDep, actor: AdminUserDep):
-    users = session.exec(
-        select(User).where(User.tenant_id == actor.tenant_id).order_by(User.created_at)
+    rows = session.exec(
+        select(TenantMembership).where(TenantMembership.tenant_id == actor.tenant_id)
+        .order_by(TenantMembership.id)
     ).all()
-    return {"items": [_serialize(u) for u in users], "total": len(users)}
+    items = []
+    for m in rows:
+        u = session.get(User, m.user_id)
+        if u:
+            items.append(_serialize(u, role=m.role))
+    return {"items": items, "total": len(items)}
 
 
 class UserCreate(BaseModel):
@@ -100,8 +104,20 @@ def create_user(data: UserCreate, session: SessionDep, actor: AdminUserDep):
     _validate_role(data.role)
     _guard_owner_grant(actor, data.role)
     email = data.email.strip().lower()
-    if session.exec(select(User).where(User.email == email)).first():
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
+    existing = session.exec(select(User).where(User.email == email)).first()
+    if existing:
+        # Attach to this tenant if not already a member (#220)
+        if get_membership(session, existing.id, actor.tenant_id):
+            raise HTTPException(status_code=400, detail="User is already a member of this company")
+        ensure_membership(
+            session,
+            user_id=existing.id,
+            tenant_id=actor.tenant_id,
+            role=data.role,
+            invited_by_id=actor.id,
+        )
+        session.commit()
+        return {**_serialize(existing, role=data.role), "attached": True}
 
     temp_password = data.password or secrets.token_urlsafe(9)
     if len(temp_password) < 8:
@@ -117,9 +133,16 @@ def create_user(data: UserCreate, session: SessionDep, actor: AdminUserDep):
         must_change_password=True,
     )
     session.add(user)
+    session.flush()
+    ensure_membership(
+        session,
+        user_id=user.id,
+        tenant_id=actor.tenant_id,
+        role=data.role,
+        invited_by_id=actor.id,
+    )
     session.commit()
     session.refresh(user)
-    # Surface the temp password exactly once so the admin can relay it.
     return {**_serialize(user), "temporary_password": temp_password}
 
 
@@ -131,41 +154,49 @@ class UserUpdate(BaseModel):
 
 @router.patch("/{user_id}")
 def update_user(user_id: int, data: UserUpdate, session: SessionDep, actor: AdminUserDep):
-    target = _get_member(session, user_id, actor.tenant_id)
+    target, membership = _get_member(session, user_id, actor.tenant_id)
 
     if data.full_name is not None:
         target.full_name = data.full_name.strip() or target.full_name
 
-    if data.role is not None and data.role != target.role:
+    if data.role is not None and data.role != membership.role:
         _validate_role(data.role)
         if target.id == actor.id:
             raise HTTPException(status_code=400, detail="You cannot change your own role")
-        # Granting owner, or changing an existing owner's role, requires owner.
         _guard_owner_grant(actor, data.role)
-        if target.role == "owner" and actor.role != "owner":
+        if membership.role == "owner" and actor.role != "owner":
             raise HTTPException(status_code=403, detail="Only an owner can change an owner's role")
-        if target.role == "owner" and _active_owner_count(session, actor.tenant_id) <= 1:
+        if membership.role == "owner" and active_owner_count(session, actor.tenant_id) <= 1:
             raise HTTPException(status_code=400, detail="Cannot demote the last active owner")
-        target.role = data.role
+        membership.role = data.role
+        session.add(membership)
+        # Keep active User.role in sync when this is their current tenant
+        if target.tenant_id == actor.tenant_id:
+            target.role = data.role
 
     if data.is_active is not None and data.is_active != target.is_active:
         if target.id == actor.id:
             raise HTTPException(status_code=400, detail="You cannot deactivate your own account")
-        if not data.is_active and target.role == "owner" and _active_owner_count(session, actor.tenant_id) <= 1:
+        if (
+            not data.is_active
+            and membership.role == "owner"
+            and active_owner_count(session, actor.tenant_id) <= 1
+        ):
             raise HTTPException(status_code=400, detail="Cannot deactivate the last active owner")
         target.is_active = data.is_active
 
     session.add(target)
     session.commit()
     session.refresh(target)
-    return _serialize(target)
+    session.refresh(membership)
+    return _serialize(target, role=membership.role)
 
 
 @router.post("/{user_id}/reset-password")
 def reset_password(user_id: int, session: SessionDep, actor: AdminUserDep):
     """Issue a new temporary password for a member; forces a change at next login."""
-    target = _get_member(session, user_id, actor.tenant_id)
-    if target.role == "owner" and actor.role != "owner":
+    target, membership = _get_member(session, user_id, actor.tenant_id)
+    if membership.role == "owner" and actor.role != "owner":
         raise HTTPException(status_code=403, detail="Only an owner can reset an owner's password")
     temp_password = secrets.token_urlsafe(9)
     target.hashed_password = get_password_hash(temp_password)
@@ -179,15 +210,15 @@ def reset_password(user_id: int, session: SessionDep, actor: AdminUserDep):
 def deactivate_user(user_id: int, session: SessionDep, actor: AdminUserDep):
     """Soft-delete: deactivate the member. Hard deletion is avoided because
     audit-log and document rows reference the user id."""
-    target = _get_member(session, user_id, actor.tenant_id)
+    target, membership = _get_member(session, user_id, actor.tenant_id)
     if target.id == actor.id:
         raise HTTPException(status_code=400, detail="You cannot deactivate your own account")
-    if target.role == "owner" and _active_owner_count(session, actor.tenant_id) <= 1:
+    if membership.role == "owner" and active_owner_count(session, actor.tenant_id) <= 1:
         raise HTTPException(status_code=400, detail="Cannot deactivate the last active owner")
     target.is_active = False
     session.add(target)
     session.commit()
-    return _serialize(target)
+    return _serialize(target, role=membership.role)
 
 
 # ── Invites ───────────────────────────────────────────────────────────────────
@@ -227,8 +258,25 @@ def create_invite(data: InviteCreate, session: SessionDep, actor: AdminUserDep):
     _validate_role(data.role)
     _guard_owner_grant(actor, data.role)
     email = data.email.strip().lower()
-    if session.exec(select(User).where(User.email == email)).first():
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
+    existing = session.exec(select(User).where(User.email == email)).first()
+    if existing:
+        if get_membership(session, existing.id, actor.tenant_id):
+            raise HTTPException(status_code=400, detail="User is already a member of this company")
+        ensure_membership(
+            session,
+            user_id=existing.id,
+            tenant_id=actor.tenant_id,
+            role=data.role,
+            invited_by_id=actor.id,
+        )
+        session.commit()
+        return {
+            "attached": True,
+            "user_id": existing.id,
+            "email": existing.email,
+            "role": data.role,
+            "message": "Existing account attached to this company — they can switch via the client switcher",
+        }
 
     # Replace any prior pending invite for the same email in this tenant.
     prior = session.exec(
@@ -251,14 +299,12 @@ def create_invite(data: InviteCreate, session: SessionDep, actor: AdminUserDep):
     session.commit()
     session.refresh(invite)
 
-    # Send invite email if SMTP is configured
     import html
     from services.email import send_email
     frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
     invite_url = f"{frontend_origin}/accept-invite?token={token}"
     tenant = session.get(Tenant, actor.tenant_id)
     company = tenant.name if tenant else "Easy-Books"
-    # Escape interpolated values before building the HTML email body.
     company_s = html.escape(company)
     role_s = html.escape(data.role)
     url_s = html.escape(invite_url, quote=True)
@@ -273,11 +319,11 @@ def create_invite(data: InviteCreate, session: SessionDep, actor: AdminUserDep):
         ),
     )
 
-    # Frontend composes the absolute URL; we return the relative accept path.
     return {
         "id": invite.id, "email": invite.email, "role": invite.role,
         "token": token, "accept_path": f"/accept-invite?token={token}",
         "expires_at": invite.expires_at.isoformat(),
+        "attached": False,
     }
 
 

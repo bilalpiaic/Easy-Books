@@ -115,6 +115,7 @@ export const NAV: NavItem[] = [
   { label: "CSV Import",        href: "/imports",           icon: Upload,           section: "System" },
   { label: "Payment Terms",    href: "/payment-terms",     icon: Clock,            section: "System", adminOnly: true },
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
+  { label: "Practice clients", href: "/practice",          icon: Building2,        section: "System" },
   { label: "Permissions",      href: "/settings/permissions", icon: ShieldCheck,   section: "System", adminOnly: true },
   { label: "Audit Log",        href: "/audit",             icon: ScrollText,       section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
@@ -227,7 +228,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
-  system:        ["/settings", "/team", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow", "/agent"],
+  system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow", "/agent"],
 }
 
 /** Routes homed under /manufacturing that move to the Purchases section when purchase_store is installed */
@@ -409,6 +410,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
   system: [
     { label: "Settings",      href: "/settings",             icon: Settings,    section: "system" },
     { label: "Team",          href: "/team",                 icon: UsersRound,  section: "system", adminOnly: true },
+    { label: "Practice clients", href: "/practice",          icon: Building2,   section: "system" },
     { label: "Permissions",   href: "/settings/permissions", icon: ShieldCheck, section: "system", adminOnly: true },
     { label: "My Profile",    href: "/profile",              icon: UserCircle,  section: "system" },
     { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "system" },

@@ -16,6 +16,7 @@ import { useTheme } from "@/context/ThemeContext"
 import { TOP_NAV, SUB_NAV, getActiveSection, navVisible } from "@/lib/nav"
 import type { TopNavSection } from "@/lib/nav"
 import AlertsBell from "@/components/AlertsBell"
+import ClientSwitcher from "@/components/ClientSwitcher"
 
 const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: React.ElementType }> = {
   banking:       { href: "/banking",        label: "Banking Overview",    icon: LayoutGrid      },
@@ -404,10 +405,8 @@ export default function TopNav() {
           <div className="w-7 h-7 bg-[var(--primary)] rounded-md flex items-center justify-center text-white text-[11px] font-black select-none">
             EB
           </div>
-          <span className="text-[var(--nav-text)] text-[13px] font-semibold hidden sm:block truncate max-w-[130px]">
-            {settings.company_name || "Easy-Books"}
-          </span>
         </Link>
+        <ClientSwitcher fallbackName={settings.company_name || "Easy-Books"} className="mr-2" />
 
         {/* Desktop nav — priority strip + More overflow (no horizontal scroll) */}
         <div ref={stripRef} className="hidden md:flex items-center flex-1 min-w-0">

@@ -117,6 +117,10 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been deactivated. Contact an administrator.",
         )
+    # Active-tenant claim must match DB (#220). Stale tokens after a switch
+    # are rejected until the client uses the reminted token.
+    if int(tenant_id) != int(user.tenant_id):
+        raise credentials_exception
     return user
 
 
