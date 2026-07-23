@@ -26,10 +26,10 @@ from sqlmodel import func, select
 
 from models import (
     BomHeader, BomLine, Customer, CustomerRatePlan, GoodsReceiptNote,
-    GRNLine, Invoice, InvoiceLine, InventoryLayer, Product, ProductionOrder,
-    RatePlan, StockLocation,
+    GRNLine, InventoryLayer, Invoice, InvoiceLine, Product, ProductionOrder,
+    RatePlan, StockLocation, StockMovement, Transaction,
 )
-from services.inventory import consume_stock, record_movement, record_purchase
+from services.inventory import consume_stock, record_movement, record_purchase, reverse_purchase
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
@@ -101,6 +101,229 @@ def _serialise(po: ProductionOrder) -> dict:
         if isinstance(v, datetime):
             out[k] = v.isoformat()
     return out
+
+
+def _find_open_txn(session, tenant_id: int, description: str) -> Optional[Transaction]:
+    return session.exec(
+        select(Transaction).where(
+            Transaction.tenant_id == tenant_id,
+            Transaction.description == description,
+            Transaction.is_reversed == False,  # noqa: E712
+        )
+    ).first()
+
+
+def _mirror_txn(session, user, txn: Transaction) -> Transaction:
+    """Post the mirror JV and mark the original reversed (same as journal reverse)."""
+    from models import JournalEntry
+    jes = session.exec(
+        select(JournalEntry).where(JournalEntry.transaction_id == txn.id)
+    ).all()
+    if not jes:
+        raise HTTPException(400, f"Transaction {txn.jv_number} has no journal lines to reverse")
+    rev = post_transaction(
+        session, user,
+        date=datetime.utcnow().date().isoformat(),
+        description=f"Reversal of {txn.jv_number}",
+        entries=[
+            EntryInput(account_id=je.account_id, debit=D(je.credit), credit=D(je.debit))
+            for je in jes
+        ],
+        audit_entity_type="production_order",
+        audit_detail={"original_jv": txn.jv_number, "stage": "reverse"},
+        voucher_type=txn.voucher_type,
+    )
+    txn.is_reversed = True
+    txn.reversed_by_id = rev.id
+    session.add(txn)
+    return rev
+
+
+def _mirror_po_stage(session, user, po: ProductionOrder, stage_suffix: str) -> Optional[str]:
+    """Reverse the stage JE for `{po.number} — {stage_suffix}` if still open."""
+    desc = f"{po.number} — {stage_suffix}"
+    txn = _find_open_txn(session, user.tenant_id, desc)
+    if not txn:
+        return None
+    rev = _mirror_txn(session, user, txn)
+    return rev.jv_number
+
+
+def _recompute_avg_cost(session, tenant_id: int, product_id: int) -> None:
+    prod = session.get(Product, product_id)
+    if not prod or prod.tenant_id != tenant_id:
+        return
+    remaining = session.exec(
+        select(InventoryLayer).where(
+            InventoryLayer.tenant_id == tenant_id,
+            InventoryLayer.product_id == product_id,
+            InventoryLayer.qty_remaining > 0,
+            InventoryLayer.owner_customer_id.is_(None),
+        )
+    ).all()
+    total_qty = sum((D(l.qty_remaining) for l in remaining), start=ZERO)
+    if total_qty > 0:
+        weighted = sum(
+            (D(l.qty_remaining) * D(l.unit_cost) for l in remaining), start=ZERO
+        )
+        prod.avg_cost = money(weighted / total_qty)
+    else:
+        prod.avg_cost = ZERO
+    session.add(prod)
+
+
+def _unwind_deliver(session, user, po: ProductionOrder, bom: BomHeader) -> list[str]:
+    """Undo delivery: reverse COGS (+ memo) GL and restock FG at cost."""
+    reversed_jvs: list[str] = []
+    jv = _mirror_po_stage(session, user, po, "deliver / COGS")
+    if jv:
+        reversed_jvs.append(jv)
+    jv = _mirror_po_stage(session, user, po, "release customer custody")
+    if jv:
+        reversed_jvs.append(jv)
+
+    qty = D(po.output_qty)
+    unit = D(po.output_unit_cost)
+    if qty > 0:
+        main_own = _resolve_main_own(session, user.tenant_id)
+        # Restock FG under the original PO number so complete-unwind can
+        # reverse_purchase(source_doc=po.number) cleanly.
+        record_purchase(
+            session,
+            tenant_id=user.tenant_id,
+            product_id=bom.output_product_id,
+            qty=qty,
+            unit_cost=unit if unit > 0 else ZERO,
+            source_doc=po.number,
+            location_id=main_own.id,
+            lot_no=po.number,
+        )
+        last_mv = session.exec(
+            select(StockMovement)
+            .where(
+                StockMovement.tenant_id == user.tenant_id,
+                StockMovement.product_id == bom.output_product_id,
+                StockMovement.direction == "RECEIPT",
+            )
+            .order_by(StockMovement.id.desc())
+        ).first()
+        if last_mv and last_mv.notes == po.number:
+            last_mv.direction = "ADJUSTMENT"
+            last_mv.source_doc_type = "production_order"
+            last_mv.source_doc_id = po.id
+            last_mv.notes = f"Reversal of delivery for {po.number}"
+            session.add(last_mv)
+
+    po.state = "completed"
+    po.delivered_at = None
+    session.add(po)
+    return reversed_jvs
+
+
+def _unwind_complete(session, user, po: ProductionOrder, bom: BomHeader) -> list[str]:
+    """Undo completion: remove FG receipt + reverse capitalise JE."""
+    reversed_jvs: list[str] = []
+    reverse_purchase(session, tenant_id=user.tenant_id, source_doc=po.number)
+    jv = _mirror_po_stage(session, user, po, "capitalise FG")
+    if jv:
+        reversed_jvs.append(jv)
+    po.state = "started"
+    po.completed_at = None
+    po.output_unit_cost = ZERO
+    session.add(po)
+    return reversed_jvs
+
+
+def _unwind_start(session, user, po: ProductionOrder) -> list[str]:
+    """Undo start: restore component/custodial stock + reverse WIP JE."""
+    reversed_jvs: list[str] = []
+    all_mv = session.exec(
+        select(StockMovement).where(
+            StockMovement.tenant_id == user.tenant_id,
+            StockMovement.source_doc_type == "production_order",
+            StockMovement.source_doc_id == po.id,
+        )
+    ).all()
+    movements = [m for m in all_mv if m.direction in ("ISSUE", "CUSTODIAL_ISSUE")]
+
+    for mv in movements:
+        qty = D(mv.qty)
+        if qty <= 0:
+            continue
+        unit_cost = D(mv.unit_cost)
+        if mv.direction == "ISSUE":
+            prod = session.get(Product, mv.product_id)
+            if not prod:
+                continue
+            prod.stock_qty = D(prod.stock_qty) + qty
+            session.add(prod)
+            session.add(InventoryLayer(
+                tenant_id=user.tenant_id,
+                product_id=prod.id,
+                location_id=mv.from_location_id,
+                owner_customer_id=None,
+                lot_no=mv.lot_no,
+                qty_received=money(qty),
+                qty_remaining=money(qty),
+                unit_cost=money(unit_cost),
+                source_doc=f"REV-{po.number}",
+            ))
+            record_movement(
+                session,
+                tenant_id=user.tenant_id,
+                product_id=prod.id,
+                direction="ADJUSTMENT",
+                qty=qty,
+                to_location_id=mv.from_location_id,
+                from_location_id=mv.to_location_id,
+                lot_no=mv.lot_no,
+                unit_cost=unit_cost,
+                source_doc_type="production_order",
+                source_doc_id=po.id,
+                posted_to_gl=True,
+                notes=f"Reversal of issue for {po.number}",
+            )
+            session.flush()
+            _recompute_avg_cost(session, user.tenant_id, prod.id)
+        elif mv.direction == "CUSTODIAL_ISSUE":
+            session.add(InventoryLayer(
+                tenant_id=user.tenant_id,
+                product_id=mv.product_id,
+                location_id=mv.from_location_id,
+                owner_customer_id=mv.owner_customer_id or po.customer_id,
+                lot_no=mv.lot_no,
+                qty_received=money(qty),
+                qty_remaining=money(qty),
+                unit_cost=money(unit_cost),
+                source_doc=f"REV-{po.number}",
+            ))
+            record_movement(
+                session,
+                tenant_id=user.tenant_id,
+                product_id=mv.product_id,
+                direction="ADJUSTMENT",
+                qty=qty,
+                to_location_id=mv.from_location_id,
+                from_location_id=mv.to_location_id,
+                lot_no=mv.lot_no,
+                owner_customer_id=mv.owner_customer_id or po.customer_id,
+                unit_cost=unit_cost,
+                source_doc_type="production_order",
+                source_doc_id=po.id,
+                posted_to_gl=False,
+                notes=f"Reversal of custodial issue for {po.number}",
+            )
+
+    jv = _mirror_po_stage(session, user, po, "issue to WIP")
+    if jv:
+        reversed_jvs.append(jv)
+
+    po.state = "cancelled"
+    po.cancelled_at = datetime.utcnow()
+    po.started_at = None
+    po.own_material_cost = ZERO
+    session.add(po)
+    return reversed_jvs
 
 
 # ── CRUD ────────────────────────────────────────────────────────────────────
@@ -680,13 +903,13 @@ def bill_po(session: SessionDep, user: WriteUserDep, po_id: int):
 @router.post("/{po_id}/cancel")
 def cancel_po(session: SessionDep, user: WriteUserDep, po_id: int):
     """Soft-cancel a PO. Only legal in draft state (other states have
-    materially committed inventory + JEs which require manual reversal)."""
+    materially committed inventory + JEs — use POST /{id}/reverse)."""
     po = _get_po(session, user.tenant_id, po_id)
     if po.state not in ("draft",):
         raise HTTPException(
             400,
             f"Cancel only allowed from 'draft' (current: '{po.state}'). "
-            "Use the journal-reversal flow to undo a started/completed PO.",
+            "Use POST /api/production-orders/{id}/reverse to undo a started/completed/delivered PO.",
         )
     po.state = "cancelled"
     po.cancelled_at = datetime.utcnow()
@@ -695,3 +918,56 @@ def cancel_po(session: SessionDep, user: WriteUserDep, po_id: int):
     session.commit()
     session.refresh(po)
     return _serialise(po)
+
+
+@router.post("/{po_id}/reverse")
+def reverse_po(session: SessionDep, user: WriteUserDep, po_id: int):
+    """Guided reverse of a started / completed / delivered production order (#221).
+
+    Unwinds stock + stage JEs newest→oldest, then marks the PO cancelled.
+    Billed POs must void their invoice first via the journal reverse flow.
+    """
+    po = _get_po(session, user.tenant_id, po_id)
+    if po.state == "draft":
+        raise HTTPException(400, "Draft POs have no postings — use Cancel instead")
+    if po.state == "cancelled":
+        raise HTTPException(400, "Production order is already cancelled")
+    if po.state == "billed":
+        raise HTTPException(
+            400,
+            "Billed POs cannot be reversed here. Void the linked invoice first "
+            f"(invoice_id={po.invoice_id}), then reverse the PO.",
+        )
+    if po.state not in ("started", "completed", "delivered"):
+        raise HTTPException(400, f"Cannot reverse PO in state '{po.state}'")
+
+    bom = session.get(BomHeader, po.bom_id)
+    if not bom:
+        raise HTTPException(400, "BoM not found")
+
+    from_state = po.state
+    reversed_jvs: list[str] = []
+
+    if po.state == "delivered":
+        reversed_jvs.extend(_unwind_deliver(session, user, po, bom))
+    if po.state == "completed":
+        reversed_jvs.extend(_unwind_complete(session, user, po, bom))
+    if po.state == "started":
+        reversed_jvs.extend(_unwind_start(session, user, po))
+
+    log_audit(
+        session, user, "REVERSE", "production_order", po.id,
+        {
+            "number": po.number,
+            "from_state": from_state,
+            "reversed_jvs": reversed_jvs,
+        },
+    )
+    session.commit()
+    session.refresh(po)
+    return {
+        **_serialise(po),
+        "from_state": from_state,
+        "reversed_jvs": reversed_jvs,
+    }
+
