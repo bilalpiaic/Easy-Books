@@ -19,7 +19,7 @@ from db import get_session
 from main import app
 from models import (
     Account, GoodsReceiptNote, GRNLine, InventoryLayer, JournalEntry,
-    ProductionOrder, StockMovement, Transaction,
+    Product, ProductionOrder, StockMovement, Transaction,
 )
 
 
@@ -474,3 +474,95 @@ def test_list_pos_filters_by_state(client):
     assert all(p["state"] == "draft" for p in r.json()["items"])
     r = c.get("/api/production-orders?state=cancelled", headers=auth)
     assert all(p["state"] == "cancelled" for p in r.json()["items"])
+
+# ── Reverse (#221) ───────────────────────────────────────────────────────────
+
+
+def test_po_reverse_from_started_restores_components(client):
+    c, engine = client
+    auth = _signup(c, "manufacturing", "rev1@m.test")
+    cust, out, button, fabric, bom, plan = _scenario_full_chain(c, auth)
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+
+    with Session(engine) as s:
+        btn = s.exec(select(Product).where(Product.code == "BUTTON")).first()
+        assert Decimal(str(btn.stock_qty)) == Decimal("80")  # 100 − 20
+
+    r = c.post(f"/api/production-orders/{po['id']}/reverse", headers=auth)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["state"] == "cancelled"
+    assert body["from_state"] == "started"
+
+    with Session(engine) as s:
+        btn = s.exec(select(Product).where(Product.code == "BUTTON")).first()
+        assert Decimal(str(btn.stock_qty)) == Decimal("100")
+        start_txn = s.exec(
+            select(Transaction).where(Transaction.description.like("%issue to WIP%"))
+        ).first()
+        assert start_txn is not None
+        assert start_txn.is_reversed is True
+        cust_layers = s.exec(
+            select(InventoryLayer).where(
+                InventoryLayer.owner_customer_id != None,  # noqa: E711
+                InventoryLayer.qty_remaining > 0,
+            )
+        ).all()
+        fabric_remaining = sum(Decimal(str(l.qty_remaining)) for l in cust_layers)
+        assert fabric_remaining == Decimal("30")
+
+
+def test_po_reverse_from_delivered_unwinds_all_stages(client):
+    c, engine = client
+    auth = _signup(c, "manufacturing", "rev2@m.test")
+    cust, out, button, fabric, bom, plan = _scenario_full_chain(c, auth)
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/complete", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/deliver", headers=auth).status_code == 200
+
+    r = c.post(f"/api/production-orders/{po['id']}/reverse", headers=auth)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["state"] == "cancelled"
+    assert body["from_state"] == "delivered"
+    assert len(body["reversed_jvs"]) >= 1
+
+    with Session(engine) as s:
+        btn = s.exec(select(Product).where(Product.code == "BUTTON")).first()
+        widget = s.exec(select(Product).where(Product.code == "WIDGET")).first()
+        assert Decimal(str(btn.stock_qty)) == Decimal("100")
+        assert Decimal(str(widget.stock_qty)) == Decimal("0")
+        for suffix in ("issue to WIP", "capitalise FG", "deliver / COGS"):
+            txn = s.exec(
+                select(Transaction).where(Transaction.description.like(f"%{suffix}%"))
+            ).first()
+            assert txn is not None, suffix
+            assert txn.is_reversed is True, suffix
+
+
+def test_po_reverse_rejects_draft_and_billed(client):
+    c, _ = client
+    auth = _signup(c, "manufacturing", "rev3@m.test")
+    cust, out, button, fabric, bom, plan = _scenario_full_chain(c, auth)
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 5},
+    ).json()
+    r = c.post(f"/api/production-orders/{po['id']}/reverse", headers=auth)
+    assert r.status_code == 400
+
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/complete", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/deliver", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/bill", headers=auth).status_code == 200
+    r = c.post(f"/api/production-orders/{po['id']}/reverse", headers=auth)
+    assert r.status_code == 400
+    assert "invoice" in r.json()["detail"].lower()

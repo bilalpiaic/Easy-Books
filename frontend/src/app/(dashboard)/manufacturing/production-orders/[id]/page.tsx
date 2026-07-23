@@ -144,8 +144,14 @@ export default function ProductionOrderDetailPage() {
 
   useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const advance = async (action: 'start' | 'complete' | 'deliver' | 'bill' | 'cancel') => {
+  const advance = async (action: 'start' | 'complete' | 'deliver' | 'bill' | 'cancel' | 'reverse') => {
     if (!po) return
+    if (action === 'reverse') {
+      const ok = window.confirm(
+        'Reverse this production order? Component stock and related journal entries will be restored/reversed, and the order will be cancelled.',
+      )
+      if (!ok) return
+    }
     setBusy(true)
     setActionError(null)
     try {
@@ -267,7 +273,7 @@ export default function ProductionOrderDetailPage() {
       </div>
 
       {/* Actions */}
-      {(nxt || po.state === 'draft') && (
+      {(nxt || po.state === 'draft' || ['started', 'completed', 'delivered'].includes(po.state)) && (
         <div className="bg-white border border-[var(--border)] rounded-2xl p-6 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-primary)]/60">{t('col.actions', 'Actions')}</h2>
           {actionError && (
@@ -295,7 +301,22 @@ export default function ProductionOrderDetailPage() {
                 Cancel Order
               </button>
             )}
+            {['started', 'completed', 'delivered'].includes(po.state) && (
+              <button
+                onClick={() => advance('reverse')}
+                disabled={busy}
+                className="px-5 py-2.5 border border-amber-300 text-amber-900 rounded-xl text-sm font-bold hover:bg-amber-50 transition-colors disabled:opacity-50"
+              >
+                Reverse Order
+              </button>
+            )}
           </div>
+          {['started', 'completed', 'delivered'].includes(po.state) && (
+            <p className="text-[11px] text-[var(--text-primary)]/45">
+              Reverse restores component stock and reverses the stage journal entries for this order, then marks it cancelled.
+              Billed orders must void their invoice first.
+            </p>
+          )}
         </div>
       )}
 
