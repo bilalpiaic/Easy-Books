@@ -690,8 +690,11 @@ class RatePlan(SQLModel, table=True):
     output_product_id: Optional[int] = Field(default=None, foreign_key="product.id")
     per_unit_rate: Money = money_col()              # e.g. ₨50 per processed unit
     includes_materials_at_cost: bool = Field(default=True)
-    overhead_pct: Money = money_col(default=Decimal("0"))   # % on direct cost
+    overhead_pct: Money = money_col(default=Decimal("0"))   # % on direct cost (billing uplift)
     margin_pct: Money = money_col(default=Decimal("0"))     # % final markup
+    # Absorption costing (#222) — applied into WIP at PO start (not billing)
+    labour_per_unit: Money = money_col(default=Decimal("0"))
+    overhead_per_unit: Money = money_col(default=Decimal("0"))
     version: int = Field(default=1)
     is_active: bool = Field(default=True)
     valid_from: Optional[str] = None
@@ -865,7 +868,10 @@ class ProductionOrder(SQLModel, table=True):
     state: str = Field(default="draft", index=True)
     # Cost basis snapshots (filled as transitions fire)
     own_material_cost: Money = money_col(default=Decimal("0"))   # set on start
+    labour_cost: Money = money_col(default=Decimal("0"))         # absorbed at start (#222)
+    overhead_cost: Money = money_col(default=Decimal("0"))       # absorbed at start (#222)
     output_unit_cost: Money = money_col(default=Decimal("0"))    # set on complete
+    delivered_qty: Money = money_col(default=Decimal("0"))       # cumulative (#222)
     invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
     # Stage timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)

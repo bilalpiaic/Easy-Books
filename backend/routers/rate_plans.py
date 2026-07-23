@@ -33,6 +33,8 @@ class RatePlanCreate(BaseModel):
     includes_materials_at_cost: bool = True
     overhead_pct: Decimal = Decimal("0")
     margin_pct: Decimal = Decimal("0")
+    labour_per_unit: Decimal = Decimal("0")
+    overhead_per_unit: Decimal = Decimal("0")
     valid_from: Optional[str] = None
     valid_to: Optional[str] = None
     notes: Optional[str] = None
@@ -44,6 +46,8 @@ class RatePlanUpdate(BaseModel):
     includes_materials_at_cost: Optional[bool] = None
     overhead_pct: Optional[Decimal] = None
     margin_pct: Optional[Decimal] = None
+    labour_per_unit: Optional[Decimal] = None
+    overhead_per_unit: Optional[Decimal] = None
     is_active: Optional[bool] = None
     valid_from: Optional[str] = None
     valid_to: Optional[str] = None
@@ -70,7 +74,10 @@ def list_rate_plans(
 def create_rate_plan(
     session: SessionDep, user: WriteUserDep, body: RatePlanCreate
 ):
-    if D(body.per_unit_rate) < 0 or D(body.overhead_pct) < 0 or D(body.margin_pct) < 0:
+    if (
+        D(body.per_unit_rate) < 0 or D(body.overhead_pct) < 0 or D(body.margin_pct) < 0
+        or D(body.labour_per_unit) < 0 or D(body.overhead_per_unit) < 0
+    ):
         raise HTTPException(400, "rates must be >= 0")
     if body.output_product_id is not None:
         p = session.get(Product, body.output_product_id)
@@ -107,6 +114,8 @@ def create_rate_plan(
         includes_materials_at_cost=body.includes_materials_at_cost,
         overhead_pct=D(body.overhead_pct),
         margin_pct=D(body.margin_pct),
+        labour_per_unit=D(body.labour_per_unit),
+        overhead_per_unit=D(body.overhead_per_unit),
         version=new_version,
         is_active=True,
         valid_from=body.valid_from,
@@ -139,7 +148,7 @@ def update_rate_plan(
     # editing an in-use plan (we don't lock plans once they're referenced —
     # versioning is the right answer for that).
     for k, v in body.model_dump(exclude_none=True).items():
-        if k in {"per_unit_rate", "overhead_pct", "margin_pct"}:
+        if k in {"per_unit_rate", "overhead_pct", "margin_pct", "labour_per_unit", "overhead_per_unit"}:
             if D(v) < 0:
                 raise HTTPException(400, f"{k} must be >= 0")
             setattr(plan, k, D(v))

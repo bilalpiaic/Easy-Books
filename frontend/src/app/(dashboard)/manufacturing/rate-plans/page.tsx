@@ -13,6 +13,7 @@ interface RatePlan {
   id: number; code: string; name: string; version: number; is_active: boolean
   per_unit_rate: number; includes_materials_at_cost: boolean
   overhead_pct: number; margin_pct: number
+  labour_per_unit: number; overhead_per_unit: number
   valid_from: string | null; valid_to: string | null; notes: string | null
 }
 interface Customer { id: number; name: string }
@@ -21,6 +22,7 @@ interface PlanForm {
   code: string; name: string; per_unit_rate: string
   includes_materials_at_cost: boolean
   overhead_pct: string; margin_pct: string
+  labour_per_unit: string; overhead_per_unit: string
   valid_from: string; valid_to: string; notes: string
 }
 
@@ -28,6 +30,7 @@ const emptyPlanForm = (): PlanForm => ({
   code: "", name: "", per_unit_rate: "",
   includes_materials_at_cost: true,
   overhead_pct: "0", margin_pct: "0",
+  labour_per_unit: "0", overhead_per_unit: "0",
   valid_from: "", valid_to: "", notes: "",
 })
 
@@ -88,6 +91,8 @@ export default function RatePlansPage() {
       includes_materials_at_cost: p.includes_materials_at_cost,
       overhead_pct: String(p.overhead_pct),
       margin_pct: String(p.margin_pct),
+      labour_per_unit: String(p.labour_per_unit ?? 0),
+      overhead_per_unit: String(p.overhead_per_unit ?? 0),
       valid_from: p.valid_from ?? "",
       valid_to: p.valid_to ?? "",
       notes: p.notes ?? "",
@@ -110,6 +115,8 @@ export default function RatePlansPage() {
         includes_materials_at_cost: planForm.includes_materials_at_cost,
         overhead_pct: parseFloat(planForm.overhead_pct) || 0,
         margin_pct:   parseFloat(planForm.margin_pct)   || 0,
+        labour_per_unit: parseFloat(planForm.labour_per_unit) || 0,
+        overhead_per_unit: parseFloat(planForm.overhead_per_unit) || 0,
         valid_from:   planForm.valid_from  || undefined,
         valid_to:     planForm.valid_to    || undefined,
         notes:        planForm.notes.trim() || undefined,
@@ -190,13 +197,18 @@ export default function RatePlansPage() {
         </div>
       </header>
 
-      <HelpCallout title="Billing formula" tone="tip">
+      <HelpCallout title="Billing + absorption" tone="tip">
         <pre className="bg-white/50 rounded px-2 py-1 text-[11px] leading-relaxed">
-{`base     = per_unit_rate × output_qty
-           [+ own-stock material cost at WAvg if includes_materials_at_cost]
-overhead = base × overhead_pct%
-margin   = (base + overhead) × margin_pct%
-total    = base + overhead + margin`}
+{`Billing:
+  base     = per_unit_rate × output_qty
+             [+ own-stock material cost at WAvg if includes_materials_at_cost]
+  overhead = base × overhead_pct%
+  margin   = (base + overhead) × margin_pct%
+  total    = base + overhead + margin
+
+Absorption (into WIP at PO start):
+  labour   = labour_per_unit × output_qty
+  mfg OH   = overhead_per_unit × output_qty`}
         </pre>
         <p className="mt-2 opacity-80 text-xs">
           Assign a plan to a customer so production orders auto-select it. Use the <UserPlus className="inline w-3 h-3" /> button.
@@ -226,6 +238,8 @@ total    = base + overhead + margin`}
                 <th className="text-left px-4 py-2">Name</th>
                 <th className="text-right px-4 py-2">Per unit</th>
                 <th className="text-center px-4 py-2">Mat&apos;l</th>
+                <th className="text-right px-4 py-2">Labour/u</th>
+                <th className="text-right px-4 py-2">OH/u</th>
                 <th className="text-right px-4 py-2">Ovh %</th>
                 <th className="text-right px-4 py-2">Margin %</th>
                 <th className="text-center px-4 py-2">Ver.</th>
@@ -240,6 +254,8 @@ total    = base + overhead + margin`}
                   <td className="px-4 py-2.5">{p.name}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{fmt(Number(p.per_unit_rate))}</td>
                   <td className="px-4 py-2.5 text-center text-xs">{p.includes_materials_at_cost ? "✓" : "—"}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{fmt(Number(p.labour_per_unit ?? 0))}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{fmt(Number(p.overhead_per_unit ?? 0))}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(p.overhead_pct).toFixed(1)}%</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{Number(p.margin_pct).toFixed(1)}%</td>
                   <td className="px-4 py-2.5 text-center text-xs text-[var(--text-primary)]/60">v{p.version}</td>
@@ -304,7 +320,21 @@ total    = base + overhead + margin`}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Overhead %</label>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Labour / unit (absorb)</label>
+                  <input type="number" min="0" step="any" value={planForm.labour_per_unit}
+                    onChange={e => setPlanForm(f => ({ ...f, labour_per_unit: e.target.value }))}
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Overhead / unit (absorb)</label>
+                  <input type="number" min="0" step="any" value={planForm.overhead_per_unit}
+                    onChange={e => setPlanForm(f => ({ ...f, overhead_per_unit: e.target.value }))}
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[var(--primary)]" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">Overhead % (billing)</label>
                   <input type="number" min="0" max="100" step="any" value={planForm.overhead_pct}
                     onChange={e => setPlanForm(f => ({ ...f, overhead_pct: e.target.value }))}
                     className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-[var(--primary)]" />

@@ -668,6 +668,8 @@ export default function SettingsPage() {
             { key: 'default_ap_account',      label: 'Accounts Payable (AP)',    hint: 'Credited on bill post',    types: ['Liability'] },
             { key: 'default_revenue_account', label: 'Revenue Account',          hint: 'Credited on invoice post', types: ['Revenue'] },
             { key: 'default_cogs_account',    label: 'COGS / Expense Account',   hint: 'Debited on bill post',     types: ['Expense'] },
+            { key: 'default_mfg_labour_account',    label: 'Manufacturing Labour',    hint: 'Credited when PO absorbs labour into WIP',    types: ['Expense'] },
+            { key: 'default_mfg_overhead_account',  label: 'Manufacturing Overhead',  hint: 'Credited when PO absorbs overhead into WIP',  types: ['Expense'] },
           ] as { key: keyof AppSettings; label: string; hint: string; types: string[] }[]).map(({ key, label, hint, types }) => (
             <div key={key}>
               <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1">{label}</label>
