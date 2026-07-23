@@ -8,10 +8,11 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from models import Account, Customer
+from models import Account, Customer, Settings
 from models_healthcare import (
     HcAdmission, HcAdmissionCharge, HcBed, HcDoctor, HcLabOrder,
     HcLabOrderItem, HcLabTest, HcOpdToken, HcOpdVisit, HcPatient,
@@ -307,6 +308,7 @@ def _serialize_lab_order(session: Session, order: HcLabOrder) -> dict:
             "dob": patient.dob,
             "age": _patient_age(patient.dob),
             "phone": patient.phone,
+            "email": getattr(patient, "email", None),
             "blood_group": patient.blood_group,
         }
     if doctor:
@@ -360,6 +362,7 @@ class PatientCreate(BaseModel):
     blood_group: Optional[str] = None
     cnic: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[str] = None
     address: Optional[str] = None
     emergency_contact: Optional[str] = None
     allergies: Optional[str] = None
@@ -372,6 +375,7 @@ class PatientUpdate(BaseModel):
     blood_group: Optional[str] = None
     cnic: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[str] = None
     address: Optional[str] = None
     emergency_contact: Optional[str] = None
     allergies: Optional[str] = None
@@ -404,7 +408,7 @@ def create_patient(user: WriteUserDep, session: SessionDep, body: PatientCreate)
         tenant_id=user.tenant_id,
         name=body.name,
         phone=body.phone or "",
-        email="",
+        email=body.email or "",
     )
     session.add(customer)
     session.flush()
@@ -433,11 +437,16 @@ def update_patient(user: WriteUserDep, session: SessionDep, patient_id: int, bod
     p = _patient_or_404(session, user.tenant_id, patient_id)
     for k, v in body.model_dump(exclude_none=True).items():
         setattr(p, k, v)
-    # Sync name to Customer
-    if body.name and p.customer_id:
+    # Sync name / email / phone to linked Customer
+    if p.customer_id and (body.name or body.email is not None or body.phone is not None):
         c = session.get(Customer, p.customer_id)
         if c:
-            c.name = body.name
+            if body.name:
+                c.name = body.name
+            if body.email is not None:
+                c.email = body.email or ""
+            if body.phone is not None:
+                c.phone = body.phone or ""
             session.add(c)
     session.add(p)
     session.commit()
@@ -1492,6 +1501,202 @@ def deliver_results(user: WriteUserDep, session: SessionDep, order_id: int):
     session.add(order)
     session.commit()
     return order
+
+
+_CATEGORY_LABELS = {
+    "hematology": "Hematology",
+    "biochemistry": "Biochemistry",
+    "microbiology": "Microbiology",
+    "radiology": "Radiology",
+    "other": "Other",
+}
+
+
+def _lab_pdf_context(session: Session, order: HcLabOrder) -> dict:
+    """Build template context from a serialized lab order."""
+    payload = _serialize_lab_order(session, order)
+    items = payload.get("items") or []
+    if not items or any(not i.get("resulted_at") for i in items):
+        raise HTTPException(400, "All test results must be entered before generating PDF")
+
+    grouped: dict[str, list] = {}
+    for item in items:
+        cat = item.get("category") or "other"
+        label = _CATEGORY_LABELS.get(cat, cat)
+        row = dict(item)
+        ra = item.get("resulted_at")
+        if isinstance(ra, datetime):
+            row["resulted_at_display"] = ra.date().isoformat()
+        elif isinstance(ra, str) and ra:
+            row["resulted_at_display"] = ra[:10]
+        else:
+            row["resulted_at_display"] = None
+        grouped.setdefault(label, []).append(row)
+
+    sample = payload.get("sample")
+    if sample and sample.get("collected_at"):
+        ca = sample["collected_at"]
+        sample = {**sample, "collected_at": ca[:10] if isinstance(ca, str) else ca}
+
+    return {
+        "order_number": payload.get("order_number"),
+        "order_date": payload.get("order_date"),
+        "status": payload.get("status"),
+        "source": (payload.get("source") or "").replace("_", " "),
+        "patient": payload.get("patient"),
+        "doctor": payload.get("doctor"),
+        "sample": sample,
+        "grouped_items": list(grouped.items()),
+    }
+
+
+def _company_branding(session: Session, tenant_id: int) -> tuple[str, str]:
+    settings = {
+        s.key: s.value
+        for s in session.exec(select(Settings).where(Settings.tenant_id == tenant_id)).all()
+    }
+    return settings.get("company_name", "Easy-Books"), settings.get("business_tagline", "")
+
+
+def _phone_digits(phone: str | None) -> str:
+    if not phone:
+        return ""
+    digits = re.sub(r"\D", "", phone)
+    return digits
+
+
+def _resolve_patient_email(session: Session, patient: HcPatient) -> str | None:
+    if patient.email and patient.email.strip():
+        return patient.email.strip()
+    if patient.customer_id:
+        cust = session.get(Customer, patient.customer_id)
+        if cust and cust.email and cust.email.strip():
+            return cust.email.strip()
+    return None
+
+
+def _mint_or_reuse_patient_portal(session, tenant_id: int, patient_id: int) -> str:
+    """Mint a fresh patient portal token for share links."""
+    from routers.portal import mint_portal_token
+
+    return mint_portal_token(
+        session, tenant_id, "patient", patient_id, days=90,
+        permissions=["view_lab_reports"],
+    )
+
+
+@router.get("/lab/orders/{order_id}/pdf", dependencies=[perm_dep("healthcare.lab")])
+def lab_order_pdf(user: CurrentUserDep, session: SessionDep, order_id: int):
+    order = session.exec(
+        select(HcLabOrder).where(
+            HcLabOrder.id == order_id, HcLabOrder.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not order:
+        raise HTTPException(404, "Lab order not found")
+    report = _lab_pdf_context(session, order)
+    company, tagline = _company_branding(session, user.tenant_id)
+    from services.pdf import render_lab_report_pdf
+    pdf = render_lab_report_pdf(report, company, tagline)
+    filename = f"{order.order_number}.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+class LabPublishBody(BaseModel):
+    channels: list[str] = ["portal"]
+    mark_delivered: bool = True
+
+
+@router.post("/lab/orders/{order_id}/publish", dependencies=[perm_dep("healthcare.lab", "edit")])
+def publish_lab_order(
+    user: WriteUserDep, session: SessionDep, order_id: int, body: LabPublishBody,
+):
+    """Publish resulted lab report via portal link, email, and/or WhatsApp (wa.me)."""
+    import os
+    from urllib.parse import quote
+    from services.email import queue_email
+
+    order = session.exec(
+        select(HcLabOrder).where(
+            HcLabOrder.id == order_id, HcLabOrder.tenant_id == user.tenant_id
+        )
+    ).first()
+    if not order:
+        raise HTTPException(404, "Lab order not found")
+
+    # Validate results complete (same gate as PDF)
+    _lab_pdf_context(session, order)
+
+    channels = {c.lower() for c in (body.channels or ["portal"])}
+    if not channels:
+        channels = {"portal"}
+    allowed = {"portal", "email", "whatsapp"}
+    unknown = channels - allowed
+    if unknown:
+        raise HTTPException(400, f"Unknown channels: {sorted(unknown)}")
+
+    patient = _patient_or_404(session, user.tenant_id, order.patient_id)
+    front = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").rstrip("/")
+    raw_token = _mint_or_reuse_patient_portal(session, user.tenant_id, patient.id)
+    portal_path = f"/portal/{raw_token}"
+    portal_url = f"{front}{portal_path}"
+
+    emailed = False
+    whatsapp_url = None
+
+    if "email" in channels:
+        to = _resolve_patient_email(session, patient)
+        if not to:
+            raise HTTPException(
+                400,
+                "No email on patient or linked customer — add an email before publishing via email",
+            )
+        company, _tag = _company_branding(session, user.tenant_id)
+        queue_email(
+            to,
+            f"Lab report ready — {order.order_number}",
+            (
+                f"<p>Dear {patient.name},</p>"
+                f"<p>Your laboratory report <strong>{order.order_number}</strong> "
+                f"from {company} is ready.</p>"
+                f'<p><a href="{portal_url}">View your report and download PDF</a></p>'
+                f"<p>This link is private — do not share it publicly.</p>"
+            ),
+        )
+        emailed = True
+
+    if "whatsapp" in channels:
+        digits = _phone_digits(patient.phone)
+        if not digits:
+            raise HTTPException(400, "Patient has no phone number for WhatsApp share")
+        text = (
+            f"Your lab report {order.order_number} is ready. "
+            f"View and download: {portal_url}"
+        )
+        whatsapp_url = f"https://wa.me/{digits}?text={quote(text)}"
+
+    if body.mark_delivered and order.status == "resulted":
+        order.status = "delivered"
+        session.add(order)
+        session.commit()
+
+    log_audit(session, user, "PUBLISH", "hc_lab_order", order.id, {
+        "order_number": order.order_number,
+        "channels": sorted(channels),
+        "emailed": emailed,
+    })
+
+    return {
+        "portal_url": portal_url,
+        "portal_path": portal_path,
+        "whatsapp_url": whatsapp_url,
+        "emailed": emailed,
+        "status": order.status,
+    }
 
 
 @router.post("/lab/orders/{order_id}/bill", dependencies=[perm_dep("healthcare.lab", "edit")])

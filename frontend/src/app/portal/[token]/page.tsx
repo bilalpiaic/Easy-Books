@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { apiBase } from "@/lib/api"
+import { downloadPublicPdf } from "@/lib/downloadPdf"
+import { fmtDate } from "@/lib/utils"
 
 type Inv = {
   id: number
@@ -24,6 +26,14 @@ type Bill = {
   currency: string
 }
 
+type LabOrder = {
+  id: number
+  order_number: string
+  order_date: string
+  status: string
+  source: string
+}
+
 type Home = {
   company_name: string
   entity_name: string
@@ -40,8 +50,10 @@ export default function PortalPage() {
   const { token } = useParams<{ token: string }>()
   const [home, setHome] = useState<Home | null>(null)
   const [invoices, setInvoices] = useState<Inv[]>([])
+  const [labOrders, setLabOrders] = useState<LabOrder[]>([])
   const [statement, setStatement] = useState<VendorStatement | null>(null)
   const [err, setErr] = useState("")
+  const [pdfBusyId, setPdfBusyId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -56,6 +68,11 @@ export default function PortalPage() {
           return fetch(`${apiBase}/api/portal/${token}/statement`)
             .then((r) => r.json())
             .then(setStatement)
+        }
+        if (h.entity_type === "patient") {
+          return fetch(`${apiBase}/api/portal/${token}/lab-orders`)
+            .then((r) => r.json())
+            .then(setLabOrders)
         }
         return fetch(`${apiBase}/api/portal/${token}/invoices`)
           .then((r) => r.json())
@@ -75,11 +92,27 @@ export default function PortalPage() {
     else alert(data.message || "Payment not available")
   }
 
+  const downloadLabPdf = async (order: LabOrder) => {
+    setPdfBusyId(order.id)
+    try {
+      await downloadPublicPdf(
+        `${apiBase}/api/portal/${token}/lab-orders/${order.id}/pdf`,
+        `${order.order_number}.pdf`,
+      )
+    } catch {
+      alert("PDF download failed")
+    } finally {
+      setPdfBusyId(null)
+    }
+  }
+
   if (err) {
     return <div className="min-h-screen bg-[#f6f3ee] flex items-center justify-center text-red-700">{err}</div>
   }
 
   const isVendor = home?.entity_type === "vendor"
+  const isPatient = home?.entity_type === "patient"
+  const portalLabel = isPatient ? "Patient portal" : isVendor ? "Vendor portal" : "Customer portal"
 
   return (
     <div className="min-h-screen bg-[#f6f3ee] px-4 py-10">
@@ -87,12 +120,38 @@ export default function PortalPage() {
         <header>
           <h1 className="font-serif text-3xl text-[#1a1814]">{home?.company_name || "…"}</h1>
           <p className="text-sm text-[#1a1814]/70">
-            {isVendor ? "Vendor portal" : "Customer portal"}
+            {portalLabel}
             {home?.entity_name ? ` · ${home.entity_name}` : ""}
           </p>
         </header>
 
-        {isVendor ? (
+        {isPatient ? (
+          <div className="bg-white/70 border border-[#1a1814]/10 rounded-2xl overflow-hidden divide-y divide-[#1a1814]/10">
+            {labOrders.map((lo) => (
+              <div key={lo.id} className="p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#1a1814]">{lo.order_number}</p>
+                  <p className="text-xs text-[#1a1814]/60 mt-0.5">
+                    {fmtDate(lo.order_date)} · {lo.status}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadLabPdf(lo)}
+                  disabled={pdfBusyId === lo.id}
+                  className="shrink-0 text-xs bg-[#b8943f] text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
+                >
+                  {pdfBusyId === lo.id ? "…" : "Download PDF"}
+                </button>
+              </div>
+            ))}
+            {!labOrders.length && (
+              <div className="p-8 text-center text-sm text-[#1a1814]/50">
+                No lab reports available yet
+              </div>
+            )}
+          </div>
+        ) : isVendor ? (
           <>
             <div className="bg-white/70 border border-[#1a1814]/10 rounded-2xl p-4">
               <div className="text-xs uppercase tracking-widest text-[#1a1814]/50">Outstanding</div>
