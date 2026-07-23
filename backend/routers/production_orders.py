@@ -36,7 +36,7 @@ from services.posting import EntryInput, post_transaction
 from services.permissions import perm_dep, apply_own_filter
 from .common import (
     CurrentUserDep, SessionDep, WriteUserDep,
-    get_or_create_account, log_audit, next_number,
+    get_default_account, get_or_create_account, log_audit, next_number,
 )
 
 router = APIRouter(prefix="/api/production-orders", tags=["production-orders"], dependencies=[perm_dep("production_orders")])
@@ -172,9 +172,27 @@ def _recompute_avg_cost(session, tenant_id: int, product_id: int) -> None:
     session.add(prod)
 
 
+def _mirror_po_stages_prefix(session, user, po: ProductionOrder, prefix: str) -> list[str]:
+    """Reverse every open JE whose description starts with prefix (partial delivers)."""
+    txns = session.exec(
+        select(Transaction).where(
+            Transaction.tenant_id == user.tenant_id,
+            Transaction.description.like(f"{prefix}%"),  # type: ignore[attr-defined]
+            Transaction.is_reversed == False,  # noqa: E712
+        )
+    ).all()
+    out: list[str] = []
+    for txn in txns:
+        rev = _mirror_txn(session, user, txn)
+        out.append(rev.jv_number)
+    return out
+
+
 def _unwind_deliver(session, user, po: ProductionOrder, bom: BomHeader) -> list[str]:
-    """Undo delivery: reverse COGS (+ memo) GL and restock FG at cost."""
+    """Undo delivery(ies): reverse COGS (+ memo) GL and restock FG at cost."""
     reversed_jvs: list[str] = []
+    reversed_jvs.extend(_mirror_po_stages_prefix(session, user, po, f"{po.number} — deliver / COGS"))
+    # Legacy full-deliver description (pre-#222) without qty suffix
     jv = _mirror_po_stage(session, user, po, "deliver / COGS")
     if jv:
         reversed_jvs.append(jv)
@@ -182,12 +200,10 @@ def _unwind_deliver(session, user, po: ProductionOrder, bom: BomHeader) -> list[
     if jv:
         reversed_jvs.append(jv)
 
-    qty = D(po.output_qty)
+    qty = D(po.delivered_qty) if D(po.delivered_qty) > 0 else D(po.output_qty)
     unit = D(po.output_unit_cost)
     if qty > 0:
         main_own = _resolve_main_own(session, user.tenant_id)
-        # Restock FG under the original PO number so complete-unwind can
-        # reverse_purchase(source_doc=po.number) cleanly.
         record_purchase(
             session,
             tenant_id=user.tenant_id,
@@ -216,6 +232,7 @@ def _unwind_deliver(session, user, po: ProductionOrder, bom: BomHeader) -> list[
 
     po.state = "completed"
     po.delivered_at = None
+    po.delivered_qty = ZERO
     session.add(po)
     return reversed_jvs
 
@@ -317,11 +334,19 @@ def _unwind_start(session, user, po: ProductionOrder) -> list[str]:
     jv = _mirror_po_stage(session, user, po, "issue to WIP")
     if jv:
         reversed_jvs.append(jv)
+    jv = _mirror_po_stage(session, user, po, "absorb labour")
+    if jv:
+        reversed_jvs.append(jv)
+    jv = _mirror_po_stage(session, user, po, "absorb overhead")
+    if jv:
+        reversed_jvs.append(jv)
 
     po.state = "cancelled"
     po.cancelled_at = datetime.utcnow()
     po.started_at = None
     po.own_material_cost = ZERO
+    po.labour_cost = ZERO
+    po.overhead_cost = ZERO
     session.add(po)
     return reversed_jvs
 
@@ -575,11 +600,63 @@ def start_po(session: SessionDep, user: WriteUserDep, po_id: int):
             audit_detail={"number": po.number, "stage": "start", "own_material_cost": str(own_material_cost)},
         )
 
+    # Absorb labour + manufacturing overhead into WIP from the rate plan (#222)
+    labour_cost = ZERO
+    overhead_cost = ZERO
+    if po.rate_plan_id:
+        rp = session.get(RatePlan, po.rate_plan_id)
+        if rp and rp.tenant_id == user.tenant_id:
+            labour_cost = money(D(rp.labour_per_unit) * output_qty)
+            overhead_cost = money(D(rp.overhead_per_unit) * output_qty)
+
+    wip_acc = get_or_create_account(
+        session, user.tenant_id, "1201", "Work-in-Progress", "Asset"
+    )
+    if labour_cost > 0:
+        labour_acc = get_default_account(
+            session, user.tenant_id,
+            "default_mfg_labour_account", "5100", "Direct Labour", "Expense",
+        )
+        post_transaction(
+            session, user,
+            date=datetime.utcnow().date().isoformat(),
+            description=f"{po.number} — absorb labour",
+            entries=[
+                EntryInput(account_id=wip_acc.id, debit=labour_cost),
+                EntryInput(account_id=labour_acc.id, credit=labour_cost),
+            ],
+            audit_entity_type="production_order",
+            audit_detail={"number": po.number, "stage": "start", "labour_cost": str(labour_cost)},
+        )
+    if overhead_cost > 0:
+        oh_acc = get_default_account(
+            session, user.tenant_id,
+            "default_mfg_overhead_account", "5200", "Manufacturing Overhead", "Expense",
+        )
+        post_transaction(
+            session, user,
+            date=datetime.utcnow().date().isoformat(),
+            description=f"{po.number} — absorb overhead",
+            entries=[
+                EntryInput(account_id=wip_acc.id, debit=overhead_cost),
+                EntryInput(account_id=oh_acc.id, credit=overhead_cost),
+            ],
+            audit_entity_type="production_order",
+            audit_detail={"number": po.number, "stage": "start", "overhead_cost": str(overhead_cost)},
+        )
+
     po.state = "started"
     po.started_at = datetime.utcnow()
     po.own_material_cost = money(own_material_cost)
+    po.labour_cost = money(labour_cost)
+    po.overhead_cost = money(overhead_cost)
     session.add(po)
-    log_audit(session, user, "START", "production_order", po.id, {"number": po.number})
+    log_audit(session, user, "START", "production_order", po.id, {
+        "number": po.number,
+        "own_material_cost": str(own_material_cost),
+        "labour_cost": str(labour_cost),
+        "overhead_cost": str(overhead_cost),
+    })
     session.commit()
     session.refresh(po)
     return _serialise(po)
@@ -596,7 +673,7 @@ def complete_po(session: SessionDep, user: WriteUserDep, po_id: int):
     main_own = _resolve_main_own(session, user.tenant_id)
     wip = _resolve_wip_location(session, user.tenant_id)
     output_qty = D(po.output_qty)
-    total_cost = D(po.own_material_cost)
+    total_cost = D(po.own_material_cost) + D(po.labour_cost) + D(po.overhead_cost)
 
     unit_cost = money(total_cost / output_qty) if output_qty > 0 else ZERO
 
@@ -661,26 +738,51 @@ def complete_po(session: SessionDep, user: WriteUserDep, po_id: int):
     return _serialise(po)
 
 
+class DeliverBody(BaseModel):
+    qty: Optional[Decimal] = None
+
+
 @router.post("/{po_id}/deliver")
-def deliver_po(session: SessionDep, user: WriteUserDep, po_id: int):
-    """Ship finished goods to customer. Relieves FG inventory at cost (Dr COGS)
-    and releases any custodial memo balance traced to this customer's GRNs."""
+def deliver_po(
+    session: SessionDep,
+    user: WriteUserDep,
+    po_id: int,
+    body: Optional[DeliverBody] = None,
+):
+    """Ship finished goods to customer (partial deliveries supported — #222).
+
+    Body `{qty}` defaults to remaining qty. State stays `completed` until
+    cumulative delivered_qty reaches output_qty, then flips to `delivered`.
+    Custodial memo release runs only on the final delivery.
+    """
     po = _get_po(session, user.tenant_id, po_id)
-    _require_state(po, "completed")
+    if po.state not in ("completed",):
+        raise HTTPException(
+            400, f"PO is in state '{po.state}'; delivery requires 'completed'"
+        )
 
     bom = session.get(BomHeader, po.bom_id)
-    main_own = _resolve_main_own(session, user.tenant_id)
     output_qty = D(po.output_qty)
+    already = D(po.delivered_qty)
+    remaining = output_qty - already
+    if remaining <= 0:
+        raise HTTPException(400, "Production order is already fully delivered")
+
+    qty = D(body.qty) if body and body.qty is not None else remaining
+    if qty <= 0:
+        raise HTTPException(400, "qty must be > 0")
+    if qty > remaining:
+        raise HTTPException(
+            400, f"qty {qty} exceeds remaining {remaining} (output {output_qty}, delivered {already})"
+        )
 
     # Relieve FG at cost via consume_stock (handles layers + COGS calc).
     cogs = consume_stock(
         session,
         tenant_id=user.tenant_id,
         product_id=bom.output_product_id,
-        qty=output_qty,
+        qty=qty,
     )
-    # Reclassify the SHIPMENT movement consume_stock just wrote → DELIVERY
-    from models import StockMovement
     last_mv = session.exec(
         select(StockMovement)
         .where(
@@ -694,6 +796,7 @@ def deliver_po(session: SessionDep, user: WriteUserDep, po_id: int):
         last_mv.direction = "DELIVERY"
         last_mv.source_doc_type = "production_order"
         last_mv.source_doc_id = po.id
+        last_mv.notes = f"{po.number} deliver {qty}"
         session.add(last_mv)
 
     if cogs > 0:
@@ -706,46 +809,56 @@ def deliver_po(session: SessionDep, user: WriteUserDep, po_id: int):
         post_transaction(
             session, user,
             date=datetime.utcnow().date().isoformat(),
-            description=f"{po.number} — deliver / COGS",
+            description=f"{po.number} — deliver / COGS ({qty})",
             entries=[
                 EntryInput(account_id=cogs_acc.id, debit=cogs),
                 EntryInput(account_id=fg_acc.id, credit=cogs),
             ],
             audit_entity_type="production_order",
-            audit_detail={"number": po.number, "stage": "deliver", "cogs": str(cogs)},
+            audit_detail={
+                "number": po.number, "stage": "deliver",
+                "qty": str(qty), "cogs": str(cogs),
+            },
         )
 
-    # Release custodial memo balance: find GRNs for this customer whose
-    # custodial stock was consumed (qty_remaining = 0 across their layers).
-    # We release the full declared_value of those GRNs.
-    memo_release = _release_customer_memo(session, user, po.customer_id)
-    if memo_release > 0:
-        memo_asset = get_or_create_account(
-            session, user.tenant_id, "1210", "Customer Goods on Hand", "Asset"
-        )
-        memo_liab = get_or_create_account(
-            session, user.tenant_id, "2150", "Customer Goods Liability", "Liability"
-        )
-        for acc in (memo_asset, memo_liab):
-            if not acc.is_memo:
-                acc.is_memo = True
-                session.add(acc)
-        post_transaction(
-            session, user,
-            date=datetime.utcnow().date().isoformat(),
-            description=f"{po.number} — release customer custody",
-            entries=[
-                EntryInput(account_id=memo_liab.id, debit=memo_release),
-                EntryInput(account_id=memo_asset.id, credit=memo_release),
-            ],
-            audit_entity_type="production_order",
-            audit_detail={"number": po.number, "stage": "deliver", "memo_release": str(memo_release)},
-        )
+    new_delivered = already + qty
+    fully = new_delivered >= output_qty
 
-    po.state = "delivered"
-    po.delivered_at = datetime.utcnow()
+    # Memo release only when the order is fully shipped (avoids double-release)
+    if fully:
+        memo_release = _release_customer_memo(session, user, po.customer_id)
+        if memo_release > 0:
+            memo_asset = get_or_create_account(
+                session, user.tenant_id, "1210", "Customer Goods on Hand", "Asset"
+            )
+            memo_liab = get_or_create_account(
+                session, user.tenant_id, "2150", "Customer Goods Liability", "Liability"
+            )
+            for acc in (memo_asset, memo_liab):
+                if not acc.is_memo:
+                    acc.is_memo = True
+                    session.add(acc)
+            post_transaction(
+                session, user,
+                date=datetime.utcnow().date().isoformat(),
+                description=f"{po.number} — release customer custody",
+                entries=[
+                    EntryInput(account_id=memo_liab.id, debit=memo_release),
+                    EntryInput(account_id=memo_asset.id, credit=memo_release),
+                ],
+                audit_entity_type="production_order",
+                audit_detail={"number": po.number, "stage": "deliver", "memo_release": str(memo_release)},
+            )
+
+    po.delivered_qty = money(new_delivered)
+    if fully:
+        po.state = "delivered"
+        po.delivered_at = datetime.utcnow()
     session.add(po)
-    log_audit(session, user, "DELIVER", "production_order", po.id, {"number": po.number})
+    log_audit(
+        session, user, "DELIVER", "production_order", po.id,
+        {"number": po.number, "qty": str(qty), "delivered_qty": str(new_delivered), "fully": fully},
+    )
     session.commit()
     session.refresh(po)
     return _serialise(po)
@@ -948,7 +1061,8 @@ def reverse_po(session: SessionDep, user: WriteUserDep, po_id: int):
     from_state = po.state
     reversed_jvs: list[str] = []
 
-    if po.state == "delivered":
+    # Unwind deliveries first (fully delivered, or partial while still completed)
+    if po.state == "delivered" or (po.state == "completed" and D(po.delivered_qty) > 0):
         reversed_jvs.extend(_unwind_deliver(session, user, po, bom))
     if po.state == "completed":
         reversed_jvs.extend(_unwind_complete(session, user, po, bom))

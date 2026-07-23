@@ -21,7 +21,10 @@ interface Po {
   rate_plan_id: number | null
   output_qty: string
   own_material_cost: string
+  labour_cost: string
+  overhead_cost: string
   output_unit_cost: string
+  delivered_qty: string
   invoice_id: number | null
   created_at: string
   started_at: string | null
@@ -114,11 +117,16 @@ export default function ProductionOrderDetailPage() {
   const [busy, setBusy]       = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
+  const [deliverQty, setDeliverQty] = useState('')
 
   const load = async () => {
     try {
       const poData = await apiFetch<Po>(`/api/production-orders/${id}`)
       setPo(poData)
+      const out = parseFloat(poData.output_qty)
+      const delivered = parseFloat(poData.delivered_qty || '0')
+      const remaining = Math.max(0, out - delivered)
+      setDeliverQty(remaining > 0 ? String(remaining) : '')
 
       const [bomData, customerData, productsData] = await Promise.all([
         apiFetch<Bom>(`/api/bom/${poData.bom_id}`),
@@ -155,8 +163,22 @@ export default function ProductionOrderDetailPage() {
     setBusy(true)
     setActionError(null)
     try {
-      const updated = await apiFetch<Po>(`/api/production-orders/${po.id}/${action}`, { method: 'POST' })
+      const opts: RequestInit = { method: 'POST' }
+      if (action === 'deliver') {
+        const qty = parseFloat(deliverQty)
+        if (!Number.isFinite(qty) || qty <= 0) {
+          setActionError('Enter a delivery qty greater than 0')
+          setBusy(false)
+          return
+        }
+        opts.body = JSON.stringify({ qty })
+      }
+      const updated = await apiFetch<Po>(`/api/production-orders/${po.id}/${action}`, opts)
       setPo(updated)
+      const out = parseFloat(updated.output_qty)
+      const delivered = parseFloat(updated.delivered_qty || '0')
+      const remaining = Math.max(0, out - delivered)
+      setDeliverQty(remaining > 0 ? String(remaining) : '')
       if (action === 'bill' && updated.invoice_id) {
         router.push(`/invoices/${updated.invoice_id}`)
       }
@@ -178,6 +200,8 @@ export default function ProductionOrderDetailPage() {
   const nxt        = nextAction(po.state)
   const outputProd = bom ? products.get(bom.output_product_id) : undefined
   const batches    = bom ? (parseFloat(po.output_qty) / parseFloat(bom.output_qty)) : 1
+  const deliveredQty = parseFloat(po.delivered_qty || '0')
+  const remainingQty = Math.max(0, parseFloat(po.output_qty) - deliveredQty)
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -208,14 +232,32 @@ export default function ProductionOrderDetailPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mt-6">
           <div>
             <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Output qty</p>
             <p className="text-sm font-semibold tabular-nums">{po.output_qty}</p>
           </div>
           <div>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Delivered</p>
+            <p className="text-sm font-semibold tabular-nums">
+              {deliveredQty > 0 ? `${po.delivered_qty} / ${po.output_qty}` : '—'}
+            </p>
+          </div>
+          <div>
             <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Material cost</p>
             <p className="text-sm font-semibold tabular-nums">{fmt(Number(po.own_material_cost))}</p>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Labour</p>
+            <p className="text-sm font-semibold tabular-nums">
+              {parseFloat(po.labour_cost || '0') > 0 ? fmt(Number(po.labour_cost)) : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Overhead</p>
+            <p className="text-sm font-semibold tabular-nums">
+              {parseFloat(po.overhead_cost || '0') > 0 ? fmt(Number(po.overhead_cost)) : '—'}
+            </p>
           </div>
           <div>
             <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Unit cost</p>
@@ -223,10 +265,10 @@ export default function ProductionOrderDetailPage() {
               {parseFloat(po.output_unit_cost) > 0 ? fmt(Number(po.output_unit_cost)) : '—'}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Rate plan</p>
-            <p className="text-sm font-semibold">{ratePlan ? `${ratePlan.code} · ${fmt(Number(ratePlan.per_unit_rate))}/unit` : '—'}</p>
-          </div>
+        </div>
+        <div className="mt-4">
+          <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-widest font-bold mb-0.5">Rate plan</p>
+          <p className="text-sm font-semibold">{ratePlan ? `${ratePlan.code} · ${fmt(Number(ratePlan.per_unit_rate))}/unit` : '—'}</p>
         </div>
 
         {po.invoice_id && (
@@ -282,7 +324,28 @@ export default function ProductionOrderDetailPage() {
               {actionError}
             </div>
           )}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 items-end">
+            {nxt === 'deliver' && (
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-primary)]/60 mb-1 uppercase tracking-wide">
+                  Deliver qty
+                  {remainingQty > 0 && (
+                    <span className="ml-1 font-normal normal-case tracking-normal">
+                      (remaining {remainingQty})
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={deliverQty}
+                  onChange={e => setDeliverQty(e.target.value)}
+                  disabled={busy}
+                  className="w-36 border border-[var(--border)] rounded-xl px-3 py-2 text-sm tabular-nums focus:outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+            )}
             {nxt && (
               <button
                 onClick={() => advance(nxt)}
@@ -311,6 +374,11 @@ export default function ProductionOrderDetailPage() {
               </button>
             )}
           </div>
+          {nxt === 'deliver' && remainingQty < parseFloat(po.output_qty) && remainingQty > 0 && (
+            <p className="text-[11px] text-[var(--text-primary)]/45">
+              Partial deliveries keep the order in Completed until the full output qty is shipped.
+            </p>
+          )}
           {['started', 'completed', 'delivered'].includes(po.state) && (
             <p className="text-[11px] text-[var(--text-primary)]/45">
               Reverse restores component stock and reverses the stage journal entries for this order, then marks it cancelled.

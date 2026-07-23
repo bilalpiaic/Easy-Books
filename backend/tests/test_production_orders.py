@@ -566,3 +566,132 @@ def test_po_reverse_rejects_draft_and_billed(client):
     r = c.post(f"/api/production-orders/{po['id']}/reverse", headers=auth)
     assert r.status_code == 400
     assert "invoice" in r.json()["detail"].lower()
+
+
+# ── #222 absorption + partial delivery ──────────────────────────────────────
+
+
+def test_po_start_absorbs_labour_and_overhead(client):
+    c, engine = client
+    auth = _signup(c, "manufacturing", "abs1@m.test")
+    cust, out, button, fabric, bom, plan = _scenario_full_chain(c, auth)
+    c.put(
+        f"/api/rate-plans/{plan['id']}", headers=auth,
+        json={"labour_per_unit": "3", "overhead_per_unit": "1.5"},
+    )
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    r = c.post(f"/api/production-orders/{po['id']}/start", headers=auth)
+    assert r.status_code == 200, r.text
+    started = r.json()
+    assert Decimal(str(started["labour_cost"])) == Decimal("30")
+    assert Decimal(str(started["overhead_cost"])) == Decimal("15")
+
+    with Session(engine) as s:
+        labour = s.exec(
+            select(Transaction).where(Transaction.description.like("%absorb labour%"))
+        ).first()
+        oh = s.exec(
+            select(Transaction).where(Transaction.description.like("%absorb overhead%"))
+        ).first()
+        assert labour is not None and labour.is_reversed is False
+        assert oh is not None and oh.is_reversed is False
+        # WIP debits: materials 20 + labour 30 + overhead 15
+        jes = s.exec(select(JournalEntry)).all()
+        wip = s.exec(select(Account).where(Account.code == "1201")).first()
+        assert wip is not None
+        wip_debit = sum(
+            Decimal(str(je.debit)) for je in jes if je.account_id == wip.id
+        )
+        assert wip_debit == Decimal("65")
+
+    r = c.post(f"/api/production-orders/{po['id']}/complete", headers=auth)
+    assert r.status_code == 200
+    completed = r.json()
+    assert Decimal(str(completed["output_unit_cost"])) == Decimal("6.5")  # 65 / 10
+
+
+def test_po_partial_delivery_keeps_completed_until_full(client):
+    c, engine = client
+    auth = _signup(c, "manufacturing", "part1@m.test")
+    cust, out, button, fabric, bom, plan = _scenario_full_chain(c, auth)
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/complete", headers=auth).status_code == 200
+
+    r = c.post(
+        f"/api/production-orders/{po['id']}/deliver", headers=auth,
+        json={"qty": "4"},
+    )
+    assert r.status_code == 200, r.text
+    mid = r.json()
+    assert mid["state"] == "completed"
+    assert Decimal(str(mid["delivered_qty"])) == Decimal("4")
+
+    r = c.post(f"/api/production-orders/{po['id']}/bill", headers=auth)
+    assert r.status_code == 400  # still completed, not fully delivered
+
+    r = c.post(
+        f"/api/production-orders/{po['id']}/deliver", headers=auth,
+        json={"qty": "7"},
+    )
+    assert r.status_code == 400  # exceeds remaining 6
+
+    r = c.post(
+        f"/api/production-orders/{po['id']}/deliver", headers=auth,
+        json={"qty": "6"},
+    )
+    assert r.status_code == 200, r.text
+    done = r.json()
+    assert done["state"] == "delivered"
+    assert Decimal(str(done["delivered_qty"])) == Decimal("10")
+
+    with Session(engine) as s:
+        widget = s.exec(select(Product).where(Product.code == "WIDGET")).first()
+        assert Decimal(str(widget.stock_qty)) == Decimal("0")
+        deliver_txns = s.exec(
+            select(Transaction).where(Transaction.description.like("%deliver / COGS%"))
+        ).all()
+        assert len(deliver_txns) == 2
+
+
+def test_po_reverse_partial_delivery_restores_delivered_qty(client):
+    c, engine = client
+    auth = _signup(c, "manufacturing", "partrev@m.test")
+    cust, out, button, fabric, bom, plan = _scenario_full_chain(c, auth)
+    c.put(
+        f"/api/rate-plans/{plan['id']}", headers=auth,
+        json={"labour_per_unit": "2", "overhead_per_unit": "1"},
+    )
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+    assert c.post(f"/api/production-orders/{po['id']}/complete", headers=auth).status_code == 200
+    assert c.post(
+        f"/api/production-orders/{po['id']}/deliver", headers=auth, json={"qty": "3"},
+    ).status_code == 200
+
+    r = c.post(f"/api/production-orders/{po['id']}/reverse", headers=auth)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["state"] == "cancelled"
+    assert body["from_state"] == "completed"
+
+    with Session(engine) as s:
+        widget = s.exec(select(Product).where(Product.code == "WIDGET")).first()
+        btn = s.exec(select(Product).where(Product.code == "BUTTON")).first()
+        assert Decimal(str(widget.stock_qty)) == Decimal("0")
+        assert Decimal(str(btn.stock_qty)) == Decimal("100")
+        for suffix in ("absorb labour", "absorb overhead", "deliver / COGS", "capitalise FG"):
+            txn = s.exec(
+                select(Transaction).where(Transaction.description.like(f"%{suffix}%"))
+            ).first()
+            assert txn is not None, suffix
+            assert txn.is_reversed is True, suffix

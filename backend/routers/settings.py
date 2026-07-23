@@ -52,6 +52,8 @@ class SettingsUpdate(BaseModel):
     default_ap_account: Optional[str] = None
     default_revenue_account: Optional[str] = None
     default_cogs_account: Optional[str] = None
+    default_mfg_labour_account: Optional[str] = None
+    default_mfg_overhead_account: Optional[str] = None
     # Document number formats (tokens: {prefix} {seq:04d} {YYYY} {MM})
     invoice_number_format: Optional[str] = None
     bill_number_format: Optional[str] = None
