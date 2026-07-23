@@ -17,7 +17,10 @@ interface BomLine {
 }
 interface Bom {
   id: number; output_product_id: number; output_qty: string; version: number
-  is_active: boolean; explode_on_invoice: boolean; description: string | null; lines: BomLine[]
+  is_active: boolean; explode_on_invoice: boolean; description: string | null
+  lines: BomLine[]
+  outputs?: { id: number; role: string }[]
+  cost_alloc_method?: string
 }
 interface Product { id: number; code: string; name: string }
 
@@ -150,6 +153,11 @@ export default function BomsListPage() {
                         <div>
                           <span className="font-medium">{prod.name}</span>
                           <span className="text-[var(--text-primary)]/50 text-xs ml-1.5 font-mono">{prod.code}</span>
+                          {(b.outputs?.length ?? 0) > 1 && (
+                            <span className="ml-1.5 text-[10px] font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded px-1.5">
+                              +{b.outputs!.length - 1} output{(b.outputs!.length - 1) === 1 ? "" : "s"}
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-[var(--text-primary)]/50">#{b.output_product_id}</span>

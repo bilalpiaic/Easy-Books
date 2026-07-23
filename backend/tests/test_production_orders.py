@@ -695,3 +695,105 @@ def test_po_reverse_partial_delivery_restores_delivered_qty(client):
             ).first()
             assert txn is not None, suffix
             assert txn.is_reversed is True, suffix
+
+
+# ── Multi-output complete (#223) ────────────────────────────────────────────
+
+
+def test_po_complete_multi_output_fixed_pct_stocks_all(client):
+    c, engine = client
+    auth = _signup(c, "manufacturing", "mout1@m.test")
+    cust = _make_customer(c, auth, "Brand")
+    primary = _make_product(c, auth, "WIDGET")
+    byprod = _make_product(c, auth, "OFFCUT")
+    button = _make_product(c, auth, "BUTTON")
+    vendor = _make_vendor(c, auth, "V")
+    _buy(c, auth, vendor["id"], button, qty=100, rate=1)
+
+    bom = c.post(
+        "/api/bom", headers=auth,
+        json={
+            "output_product_id": primary["id"],
+            "output_qty": 1,
+            "cost_alloc_method": "fixed_pct",
+            "lines": [
+                {"component_product_id": button["id"], "qty_per_output": 2, "source": "own_stock"},
+            ],
+            "outputs": [
+                {"product_id": primary["id"], "qty_per_batch": 1, "role": "primary", "alloc_pct": 75},
+                {"product_id": byprod["id"], "qty_per_batch": 1, "role": "by_product", "alloc_pct": 25},
+            ],
+        },
+    ).json()
+    plan = c.post(
+        "/api/rate-plans", headers=auth,
+        json={"code": "R", "name": "R", "per_unit_rate": "10"},
+    ).json()
+    c.post(
+        "/api/rate-plans/assign", headers=auth,
+        json={"customer_id": cust["id"], "rate_plan_id": plan["id"]},
+    )
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+    r = c.post(f"/api/production-orders/{po['id']}/complete", headers=auth)
+    assert r.status_code == 200, r.text
+    done = r.json()
+    assert len(done["outputs"]) == 2
+    by_role = {o["role"]: o for o in done["outputs"]}
+    # material cost = 20 (10*2*1); 75% → primary unit 1.5; 25% → by-product unit 0.5
+    assert Decimal(str(by_role["primary"]["unit_cost"])) == Decimal("1.5")
+    assert Decimal(str(by_role["by_product"]["unit_cost"])) == Decimal("0.5")
+    assert Decimal(str(by_role["primary"]["qty"])) == Decimal("10")
+    assert Decimal(str(by_role["by_product"]["qty"])) == Decimal("10")
+
+    with Session(engine) as s:
+        w = s.exec(select(Product).where(Product.code == "WIDGET")).first()
+        o = s.exec(select(Product).where(Product.code == "OFFCUT")).first()
+        assert Decimal(str(w.stock_qty)) == Decimal("10")
+        assert Decimal(str(o.stock_qty)) == Decimal("10")
+
+
+def test_po_complete_relative_sales_value(client):
+    c, _ = client
+    auth = _signup(c, "manufacturing", "mout2@m.test")
+    cust = _make_customer(c, auth, "Brand")
+    primary = c.post(
+        "/api/products", headers=auth,
+        json={"code": "P1", "name": "P1", "unit": "ea", "product_type": "stock", "default_rate": 40},
+    ).json()
+    coprod = c.post(
+        "/api/products", headers=auth,
+        json={"code": "C1", "name": "C1", "unit": "ea", "product_type": "stock", "default_rate": 10},
+    ).json()
+    button = _make_product(c, auth, "BTN")
+    vendor = _make_vendor(c, auth, "V2")
+    _buy(c, auth, vendor["id"], button, qty=100, rate=1)
+    bom = c.post(
+        "/api/bom", headers=auth,
+        json={
+            "output_product_id": primary["id"],
+            "output_qty": 1,
+            "cost_alloc_method": "relative_sales_value",
+            "lines": [
+                {"component_product_id": button["id"], "qty_per_output": 2, "source": "own_stock"},
+            ],
+            "outputs": [
+                {"product_id": primary["id"], "qty_per_batch": 1, "role": "primary"},
+                {"product_id": coprod["id"], "qty_per_batch": 1, "role": "co_product"},
+            ],
+        },
+    ).json()
+    po = c.post(
+        "/api/production-orders", headers=auth,
+        json={"bom_id": bom["id"], "customer_id": cust["id"], "output_qty": 10},
+    ).json()
+    assert c.post(f"/api/production-orders/{po['id']}/start", headers=auth).status_code == 200
+    r = c.post(f"/api/production-orders/{po['id']}/complete", headers=auth)
+    assert r.status_code == 200, r.text
+    by_role = {o["role"]: o for o in r.json()["outputs"]}
+    # weights: 10*40=400 and 10*10=100 → 80%/20% of cost 20 → unit 1.6 / 0.4
+    assert Decimal(str(by_role["primary"]["unit_cost"])) == Decimal("1.6")
+    assert Decimal(str(by_role["co_product"]["unit_cost"])) == Decimal("0.4")

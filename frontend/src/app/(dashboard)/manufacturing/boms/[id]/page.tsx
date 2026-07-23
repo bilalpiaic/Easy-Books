@@ -21,12 +21,21 @@ interface Bom {
   id: number
   output_product_id: number
   output_qty: string
+  cost_alloc_method?: string
   version: number
   is_active: boolean
   explode_on_invoice: boolean
   description: string | null
   notes: string | null
   lines: BomLine[]
+  outputs?: {
+    id: number
+    product_id: number
+    qty_per_batch: string
+    role: string
+    alloc_pct: string | null
+    sales_price_hint: string | null
+  }[]
 }
 
 interface Product { id: number; code: string | null; name: string; unit: string }
@@ -148,6 +157,10 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
           <p className="font-medium text-[var(--text-primary)]">{bom.lines.length} line{bom.lines.length !== 1 ? "s" : ""}</p>
         </div>
         <div>
+          <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">Cost allocation</p>
+          <p className="font-medium text-[var(--text-primary)]">{bom.cost_alloc_method ?? "primary_only"}</p>
+        </div>
+        <div>
           <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mb-0.5">Version</p>
           <p className="font-medium text-[var(--text-primary)]">v{bom.version}</p>
         </div>
@@ -164,6 +177,38 @@ export default function BomDetailPage({ params }: { params: Promise<{ id: string
           </div>
         )}
       </div>
+
+      {/* Outputs */}
+      {(bom.outputs?.length ?? 0) > 0 && (
+        <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Outputs</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--bg-page)] text-xs uppercase tracking-wide text-[var(--text-primary)]/60">
+              <tr>
+                <th className="text-left px-4 py-2">Product</th>
+                <th className="text-left px-4 py-2">Role</th>
+                <th className="text-right px-4 py-2">Qty / batch</th>
+                <th className="text-right px-4 py-2">Alloc %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bom.outputs!.map(o => {
+                const p = products.get(o.product_id)
+                return (
+                  <tr key={o.id} className="border-t border-[var(--border)]">
+                    <td className="px-4 py-2">{p?.name ?? `#${o.product_id}`}</td>
+                    <td className="px-4 py-2 text-xs font-semibold">{o.role}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{o.qty_per_batch}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{o.alloc_pct ?? "—"}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Component lines */}
       {[
