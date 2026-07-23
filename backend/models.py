@@ -618,17 +618,27 @@ class BomHeader(SQLModel, table=True):
     flag the new row `is_active=True` (and the old one False). Production
     orders pin a specific version so cost reconstruction stays accurate even
     after the BoM evolves.
+
+    `output_product_id` / `output_qty` remain the denormalized PRIMARY output
+    (version key, invoice explode, PO batch scale). Extra outputs live in
+    BomOutput (#223).
     """
     __table_args__ = (
         UniqueConstraint(
             "tenant_id", "output_product_id", "version",
             name="unique_bom_per_product_version",
         ),
+        CheckConstraint(
+            "cost_alloc_method IN ('primary_only','fixed_pct','relative_sales_value')",
+            name="ck_bom_cost_alloc_method",
+        ),
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     output_product_id: int = Field(foreign_key="product.id", index=True)
     output_qty: Money = money_col(default=Decimal("1"))  # produces N output units per recipe run
+    # Joint-product cost split at PO complete (#223)
+    cost_alloc_method: str = Field(default="primary_only")
     version: int = Field(default=1)
     is_active: bool = Field(default=True)
     explode_on_invoice: bool = Field(default=False)  # auto-consume components when output product is sold
@@ -663,6 +673,27 @@ class BomLine(SQLModel, table=True):
     default_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
     is_optional: bool = Field(default=False)
     notes: Optional[str] = None
+
+
+class BomOutput(SQLModel, table=True):
+    """One output product of a BoM (primary / co-product / by-product) — #223.
+
+    Primary is also mirrored on BomHeader.output_product_id for back-compat.
+    """
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('primary','co_product','by_product')",
+            name="ck_bom_output_role",
+        ),
+        CheckConstraint("qty_per_batch > 0", name="ck_bom_output_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bom_id: int = Field(foreign_key="bomheader.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    qty_per_batch: Money = money_col()
+    role: str = Field(default="primary")
+    alloc_pct: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
+    sales_price_hint: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
 
 
 class RatePlan(SQLModel, table=True):
@@ -881,6 +912,25 @@ class ProductionOrder(SQLModel, table=True):
     billed_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
     notes: Optional[str] = None
+
+
+class ProductionOrderOutput(SQLModel, table=True):
+    """Per-output qty/cost snapshot written at PO complete (#223)."""
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('primary','co_product','by_product')",
+            name="ck_po_output_role",
+        ),
+        CheckConstraint("qty > 0", name="ck_po_output_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    po_id: int = Field(foreign_key="productionorder.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    role: str = Field(default="primary")
+    qty: Money = money_col()
+    unit_cost: Money = money_col(default=Decimal("0"))
+    delivered_qty: Money = money_col(default=Decimal("0"))
 
 
 class PromoRule(SQLModel, table=True):

@@ -25,9 +25,9 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from models import (
-    BomHeader, BomLine, Customer, CustomerRatePlan, GoodsReceiptNote,
+    BomHeader, BomLine, BomOutput, Customer, CustomerRatePlan, GoodsReceiptNote,
     GRNLine, InventoryLayer, Invoice, InvoiceLine, Product, ProductionOrder,
-    RatePlan, StockLocation, StockMovement, Transaction,
+    ProductionOrderOutput, RatePlan, StockLocation, StockMovement, Transaction,
 )
 from services.inventory import consume_stock, record_movement, record_purchase, reverse_purchase
 from services.money import D, ZERO, money
@@ -93,14 +93,128 @@ def _bom_lines(session, bom_id: int) -> List[BomLine]:
     ).all()
 
 
-def _serialise(po: ProductionOrder) -> dict:
+def _serialise(po: ProductionOrder, session=None) -> dict:
     out = po.model_dump()
     for k in ("created_at", "started_at", "completed_at", "delivered_at",
               "billed_at", "cancelled_at"):
         v = out.get(k)
         if isinstance(v, datetime):
             out[k] = v.isoformat()
+    if session is not None:
+        outs = session.exec(
+            select(ProductionOrderOutput)
+            .where(ProductionOrderOutput.po_id == po.id)
+            .order_by(ProductionOrderOutput.id)
+        ).all()
+        out["outputs"] = [o.model_dump() for o in outs]
+    else:
+        out["outputs"] = []
     return out
+
+
+def _bom_outputs(session, bom: BomHeader) -> list:
+    """Return BomOutput rows, or synthesize primary from header (legacy)."""
+    rows = session.exec(
+        select(BomOutput).where(BomOutput.bom_id == bom.id).order_by(BomOutput.id)
+    ).all()
+    if rows:
+        return list(rows)
+    return [
+        BomOutput(
+            bom_id=bom.id,
+            product_id=bom.output_product_id,
+            qty_per_batch=D(bom.output_qty),
+            role="primary",
+            alloc_pct=None,
+            sales_price_hint=None,
+        )
+    ]
+
+
+def _allocate_output_costs(
+    session, bom: BomHeader, bom_outputs: list, batches: Decimal, total_cost: Decimal,
+) -> list[tuple]:
+    """Return [(product_id, role, qty, unit_cost), ...] for complete."""
+    method = getattr(bom, "cost_alloc_method", None) or "primary_only"
+    planned: list[tuple] = []
+    for o in bom_outputs:
+        qty = money(D(o.qty_per_batch) * batches)
+        planned.append((o, qty))
+
+    if not planned:
+        return []
+
+    costs: dict[int, Decimal] = {}
+    if method == "primary_only" or len(planned) == 1:
+        for o, qty in planned:
+            costs[id(o)] = total_cost if o.role == "primary" else ZERO
+    elif method == "fixed_pct":
+        for o, qty in planned:
+            pct = D(o.alloc_pct or 0)
+            costs[id(o)] = money(total_cost * pct / Decimal("100"))
+        # Fix rounding drift onto primary
+        assigned = sum(costs.values(), start=ZERO)
+        drift = money(total_cost - assigned)
+        if drift != 0:
+            for o, _qty in planned:
+                if o.role == "primary":
+                    costs[id(o)] = money(costs[id(o)] + drift)
+                    break
+    elif method == "relative_sales_value":
+        weights: list[tuple] = []
+        for o, qty in planned:
+            hint = o.sales_price_hint
+            if hint is None:
+                prod = session.get(Product, o.product_id)
+                hint = D(prod.default_rate) if prod else ZERO
+            else:
+                hint = D(hint)
+            w = qty * hint
+            weights.append((o, qty, w))
+        total_w = sum((w for _o, _q, w in weights), start=ZERO)
+        if total_w <= 0:
+            for o, qty in planned:
+                costs[id(o)] = total_cost if o.role == "primary" else ZERO
+        else:
+            assigned = ZERO
+            for o, qty, w in weights:
+                share = money(total_cost * w / total_w)
+                costs[id(o)] = share
+                assigned += share
+            drift = money(total_cost - assigned)
+            if drift != 0:
+                for o, _qty, _w in weights:
+                    if o.role == "primary":
+                        costs[id(o)] = money(costs[id(o)] + drift)
+                        break
+    else:
+        for o, qty in planned:
+            costs[id(o)] = total_cost if o.role == "primary" else ZERO
+
+    result = []
+    for o, qty in planned:
+        cost = costs.get(id(o), ZERO)
+        unit = money(cost / qty) if qty > 0 else ZERO
+        result.append((o.product_id, o.role, qty, unit, cost))
+    return result
+
+
+def _tag_completion_movement(session, user, po, product_id, wip_id):
+    last_mv = session.exec(
+        select(StockMovement)
+        .where(
+            StockMovement.tenant_id == user.tenant_id,
+            StockMovement.product_id == product_id,
+            StockMovement.direction == "RECEIPT",
+        )
+        .order_by(StockMovement.id.desc())
+    ).first()
+    if last_mv and last_mv.notes == po.number:
+        last_mv.direction = "COMPLETION"
+        last_mv.from_location_id = wip_id
+        last_mv.source_doc_type = "production_order"
+        last_mv.source_doc_id = po.id
+        session.add(last_mv)
 
 
 def _find_open_txn(session, tenant_id: int, description: str) -> Optional[Transaction]:
@@ -233,17 +347,26 @@ def _unwind_deliver(session, user, po: ProductionOrder, bom: BomHeader) -> list[
     po.state = "completed"
     po.delivered_at = None
     po.delivered_qty = ZERO
+    for row in session.exec(
+        select(ProductionOrderOutput).where(ProductionOrderOutput.po_id == po.id)
+    ).all():
+        row.delivered_qty = ZERO
+        session.add(row)
     session.add(po)
     return reversed_jvs
 
 
 def _unwind_complete(session, user, po: ProductionOrder, bom: BomHeader) -> list[str]:
-    """Undo completion: remove FG receipt + reverse capitalise JE."""
+    """Undo completion: remove FG receipt(s) + reverse capitalise JE."""
     reversed_jvs: list[str] = []
     reverse_purchase(session, tenant_id=user.tenant_id, source_doc=po.number)
     jv = _mirror_po_stage(session, user, po, "capitalise FG")
     if jv:
         reversed_jvs.append(jv)
+    for row in session.exec(
+        select(ProductionOrderOutput).where(ProductionOrderOutput.po_id == po.id)
+    ).all():
+        session.delete(row)
     po.state = "started"
     po.completed_at = None
     po.output_unit_cost = ZERO
@@ -378,13 +501,13 @@ def list_pos(
     items = session.exec(
         q.order_by(ProductionOrder.id.desc()).offset(skip).limit(limit)
     ).all()
-    return {"total": total, "items": [_serialise(p) for p in items]}
+    return {"total": total, "items": [_serialise(p, session) for p in items]}
 
 
 @router.get("/{po_id}")
 def get_po(session: SessionDep, user: CurrentUserDep, po_id: int):
     po = _get_po(session, user.tenant_id, po_id)
-    return _serialise(po)
+    return _serialise(po, session)
 
 
 @router.post("", status_code=201)
@@ -431,7 +554,7 @@ def create_po(session: SessionDep, user: WriteUserDep, body: PoCreate):
     )
     session.commit()
     session.refresh(po)
-    return _serialise(po)
+    return _serialise(po, session)
 
 
 # ── State transitions ───────────────────────────────────────────────────────
@@ -659,13 +782,16 @@ def start_po(session: SessionDep, user: WriteUserDep, po_id: int):
     })
     session.commit()
     session.refresh(po)
-    return _serialise(po)
+    return _serialise(po, session)
 
 
 @router.post("/{po_id}/complete")
 def complete_po(session: SessionDep, user: WriteUserDep, po_id: int):
-    """Capitalise output: WIP → Finished Goods. Sets unit cost on output product
-    via a fresh InventoryLayer at the absorbed cost basis."""
+    """Capitalise output(s): WIP → Finished Goods.
+
+    Multi-output BoMs (#223): each BomOutput is received into MAIN at its
+    allocated unit cost; one WIP→FG JE posts the full absorbed total_cost.
+    """
     po = _get_po(session, user.tenant_id, po_id)
     _require_state(po, "started")
 
@@ -673,41 +799,36 @@ def complete_po(session: SessionDep, user: WriteUserDep, po_id: int):
     main_own = _resolve_main_own(session, user.tenant_id)
     wip = _resolve_wip_location(session, user.tenant_id)
     output_qty = D(po.output_qty)
+    batches = output_qty / D(bom.output_qty) if D(bom.output_qty) > 0 else ZERO
     total_cost = D(po.own_material_cost) + D(po.labour_cost) + D(po.overhead_cost)
 
-    unit_cost = money(total_cost / output_qty) if output_qty > 0 else ZERO
+    bom_outs = _bom_outputs(session, bom)
+    allocated = _allocate_output_costs(session, bom, bom_outs, batches, total_cost)
 
-    # Stock side: receipt of finished goods into MAIN at unit_cost
-    record_purchase(
-        session,
-        tenant_id=user.tenant_id,
-        product_id=bom.output_product_id,
-        qty=output_qty,
-        unit_cost=unit_cost,
-        source_doc=po.number,
-        location_id=main_own.id,
-        lot_no=po.number,
-    )
-    # record_purchase emits RECEIPT direction; we want COMPLETION semantics
-    # to be visible in the movement log. Overwrite the last movement's
-    # direction so reports distinguish purchases from production output.
-    # (record_purchase already flushed it.)
-    from models import StockMovement
-    last_mv = session.exec(
-        select(StockMovement)
-        .where(
-            StockMovement.tenant_id == user.tenant_id,
-            StockMovement.product_id == bom.output_product_id,
-            StockMovement.direction == "RECEIPT",
+    primary_unit = ZERO
+    for product_id, role, qty, unit_cost, _cost in allocated:
+        record_purchase(
+            session,
+            tenant_id=user.tenant_id,
+            product_id=product_id,
+            qty=qty,
+            unit_cost=unit_cost,
+            source_doc=po.number,
+            location_id=main_own.id,
+            lot_no=po.number,
         )
-        .order_by(StockMovement.id.desc())
-    ).first()
-    if last_mv and last_mv.notes == po.number:
-        last_mv.direction = "COMPLETION"
-        last_mv.from_location_id = wip.id
-        last_mv.source_doc_type = "production_order"
-        last_mv.source_doc_id = po.id
-        session.add(last_mv)
+        _tag_completion_movement(session, user, po, product_id, wip.id)
+        session.add(ProductionOrderOutput(
+            tenant_id=user.tenant_id,
+            po_id=po.id,
+            product_id=product_id,
+            role=role,
+            qty=qty,
+            unit_cost=unit_cost,
+            delivered_qty=ZERO,
+        ))
+        if role == "primary":
+            primary_unit = unit_cost
 
     if total_cost > 0:
         fg_acc = get_or_create_account(
@@ -730,12 +851,15 @@ def complete_po(session: SessionDep, user: WriteUserDep, po_id: int):
 
     po.state = "completed"
     po.completed_at = datetime.utcnow()
-    po.output_unit_cost = unit_cost
+    po.output_unit_cost = primary_unit
     session.add(po)
-    log_audit(session, user, "COMPLETE", "production_order", po.id, {"number": po.number})
+    log_audit(session, user, "COMPLETE", "production_order", po.id, {
+        "number": po.number,
+        "outputs": len(allocated),
+    })
     session.commit()
     session.refresh(po)
-    return _serialise(po)
+    return _serialise(po, session)
 
 
 class DeliverBody(BaseModel):
@@ -851,6 +975,15 @@ def deliver_po(
             )
 
     po.delivered_qty = money(new_delivered)
+    primary_out = session.exec(
+        select(ProductionOrderOutput).where(
+            ProductionOrderOutput.po_id == po.id,
+            ProductionOrderOutput.role == "primary",
+        )
+    ).first()
+    if primary_out:
+        primary_out.delivered_qty = money(new_delivered)
+        session.add(primary_out)
     if fully:
         po.state = "delivered"
         po.delivered_at = datetime.utcnow()
@@ -861,7 +994,7 @@ def deliver_po(
     )
     session.commit()
     session.refresh(po)
-    return _serialise(po)
+    return _serialise(po, session)
 
 
 def _release_customer_memo(session, user, customer_id: int) -> Decimal:
@@ -1010,7 +1143,7 @@ def bill_po(session: SessionDep, user: WriteUserDep, po_id: int):
     session.commit()
     session.refresh(po)
     session.refresh(invoice)
-    return {"production_order": _serialise(po), "invoice": invoice.model_dump()}
+    return {"production_order": _serialise(po, session), "invoice": invoice.model_dump()}
 
 
 @router.post("/{po_id}/cancel")
@@ -1030,7 +1163,7 @@ def cancel_po(session: SessionDep, user: WriteUserDep, po_id: int):
     log_audit(session, user, "CANCEL", "production_order", po.id, {"number": po.number})
     session.commit()
     session.refresh(po)
-    return _serialise(po)
+    return _serialise(po, session)
 
 
 @router.post("/{po_id}/reverse")
@@ -1080,7 +1213,7 @@ def reverse_po(session: SessionDep, user: WriteUserDep, po_id: int):
     session.commit()
     session.refresh(po)
     return {
-        **_serialise(po),
+        **_serialise(po, session),
         "from_state": from_state,
         "reversed_jvs": reversed_jvs,
     }

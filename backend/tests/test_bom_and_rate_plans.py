@@ -454,3 +454,83 @@ def test_assign_rejects_cross_tenant_customer(client):
         json={"customer_id": cust_b["id"], "rate_plan_id": plan_a["id"]},
     )
     assert r.status_code == 404
+
+
+# ── Multi-output BoMs (#223) ────────────────────────────────────────────────
+
+
+def test_create_bom_multi_output_fixed_pct(client):
+    c, _ = client
+    auth = _signup(c, "manufacturing", "multi1@m.test")
+    primary = _make_product(c, auth, "MAIN")
+    byprod = _make_product(c, auth, "SCRAP-METAL")
+    raw = _make_product(c, auth, "RAW-X")
+
+    r = c.post(
+        "/api/bom", headers=auth,
+        json={
+            "output_product_id": primary["id"],
+            "output_qty": 10,
+            "cost_alloc_method": "fixed_pct",
+            "lines": [
+                {"component_product_id": raw["id"], "qty_per_output": 1, "source": "own_stock"},
+            ],
+            "outputs": [
+                {"product_id": primary["id"], "qty_per_batch": 10, "role": "primary", "alloc_pct": 80},
+                {"product_id": byprod["id"], "qty_per_batch": 2, "role": "by_product", "alloc_pct": 20},
+            ],
+        },
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["cost_alloc_method"] == "fixed_pct"
+    assert len(body["outputs"]) == 2
+    roles = {o["role"] for o in body["outputs"]}
+    assert roles == {"primary", "by_product"}
+
+
+def test_bom_fixed_pct_must_sum_100(client):
+    c, _ = client
+    auth = _signup(c, "manufacturing", "multi2@m.test")
+    primary = _make_product(c, auth, "MAIN2")
+    byprod = _make_product(c, auth, "BY2")
+    raw = _make_product(c, auth, "RAW2")
+    r = c.post(
+        "/api/bom", headers=auth,
+        json={
+            "output_product_id": primary["id"],
+            "output_qty": 1,
+            "cost_alloc_method": "fixed_pct",
+            "lines": [
+                {"component_product_id": raw["id"], "qty_per_output": 1, "source": "own_stock"},
+            ],
+            "outputs": [
+                {"product_id": primary["id"], "qty_per_batch": 1, "role": "primary", "alloc_pct": 50},
+                {"product_id": byprod["id"], "qty_per_batch": 1, "role": "by_product", "alloc_pct": 30},
+            ],
+        },
+    )
+    assert r.status_code == 400
+    assert "100" in r.json()["detail"]
+
+
+def test_bom_legacy_create_synthesizes_primary_output(client):
+    c, _ = client
+    auth = _signup(c, "manufacturing", "legacyout@m.test")
+    out = _make_product(c, auth, "LEGACY")
+    raw = _make_product(c, auth, "RAW-L")
+    r = c.post(
+        "/api/bom", headers=auth,
+        json={
+            "output_product_id": out["id"],
+            "output_qty": 5,
+            "lines": [
+                {"component_product_id": raw["id"], "qty_per_output": 1, "source": "own_stock"},
+            ],
+        },
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert len(body["outputs"]) == 1
+    assert body["outputs"][0]["role"] == "primary"
+    assert body["outputs"][0]["product_id"] == out["id"]

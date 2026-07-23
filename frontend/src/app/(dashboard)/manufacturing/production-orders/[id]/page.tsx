@@ -33,6 +33,14 @@ interface Po {
   billed_at: string | null
   cancelled_at: string | null
   notes: string | null
+  outputs?: {
+    id: number
+    product_id: number
+    role: string
+    qty: string
+    unit_cost: string
+    delivered_qty: string
+  }[]
 }
 
 interface BomLine {
@@ -282,6 +290,39 @@ export default function ProductionOrderDetailPage() {
           <p className="mt-4 text-sm text-[var(--text-primary)]/70 italic border-t border-[var(--border)] pt-3">{po.notes}</p>
         )}
       </div>
+
+      {(po.outputs?.length ?? 0) > 0 && (
+        <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)]">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-[var(--text-primary)]/60">Outputs</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--bg-page)] text-xs uppercase tracking-wide text-[var(--text-primary)]/60">
+              <tr>
+                <th className="text-left px-4 py-2">Product</th>
+                <th className="text-left px-4 py-2">Role</th>
+                <th className="text-right px-4 py-2">Qty</th>
+                <th className="text-right px-4 py-2">Unit cost</th>
+                <th className="text-right px-4 py-2">Delivered</th>
+              </tr>
+            </thead>
+            <tbody>
+              {po.outputs!.map(o => {
+                const p = products.get(o.product_id)
+                return (
+                  <tr key={o.id} className="border-t border-[var(--border)]">
+                    <td className="px-4 py-2">{p?.name ?? `#${o.product_id}`}</td>
+                    <td className="px-4 py-2 text-xs font-semibold">{o.role}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{o.qty}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{fmt(Number(o.unit_cost))}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{o.delivered_qty}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Lifecycle timeline */}
       <div className="bg-white border border-[var(--border)] rounded-2xl p-6">
