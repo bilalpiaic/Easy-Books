@@ -108,7 +108,7 @@ export default function PaymentReceivedForm({ onSaved, onCancel }: Props) {
   const fxCurrency = checkedInvs[0]?.currency
   const showFx = checkedInvs.length > 0
     && checkedInvs.every(i => i.currency === checkedInvs[0].currency)
-    && Boolean(fxCurrency)
+    && !!fxCurrency
     && fxCurrency.toUpperCase() !== baseCurrency
 
   // Prefill settlement rate from carrying rate of first checked invoice when FX fields appear

@@ -102,7 +102,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const fxCurrency = checkedBills[0]?.currency
   const showFx = checkedBills.length > 0
     && checkedBills.every(b => b.currency === checkedBills[0].currency)
-    && Boolean(fxCurrency)
+    && !!fxCurrency
     && fxCurrency.toUpperCase() !== baseCurrency
 
   useEffect(() => {
