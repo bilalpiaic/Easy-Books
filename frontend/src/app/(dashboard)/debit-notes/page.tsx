@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Plus, Undo2, Download, Printer } from "lucide-react"
-import { downloadCSV } from "@/lib/utils"
+import { downloadCSV, fmtDate } from "@/lib/utils"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -136,7 +136,7 @@ export default function DebitNotesPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-[var(--text-primary)]/5 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto print:block">
         <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-[var(--bg-page)]">
             <tr>{['Number', 'Vendor', 'Date', 'Total', 'Status'].map(h => (
@@ -156,13 +156,40 @@ export default function DebitNotesPage() {
               <tr key={dn.id} className="border-t border-[var(--text-primary)]/5 hover:bg-[var(--bg-page)]/50">
                 <td className="ui-td font-mono font-bold"><DocLink type="debit_note" id={dn.id} label={dn.number} className="text-[var(--primary)]" /></td>
                 <td className="ui-td text-[var(--text-primary)]/70">{dn.vendor_name ?? '—'}</td>
-                <td className="ui-td text-[var(--text-primary)]/70">{dn.issue_date}</td>
+                <td className="ui-td text-[var(--text-primary)]/70 whitespace-nowrap">{fmtDate(dn.issue_date)}</td>
                 <td className="ui-td font-mono">{fmt(dn.total)}</td>
                 <td className="ui-td"><StatusBadge status={dn.status} /></td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
+
+        <div className="md:hidden print:hidden divide-y divide-[var(--border)]">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">{t('common.loading', 'Loading...')}</div>
+          ) : items.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <Undo2 className="w-8 h-8 mx-auto text-[var(--text-primary)]/20 mb-3" />
+              <p className="text-[var(--text-primary)]/50 text-sm">No debit notes yet</p>
+              <button type="button" onClick={openModal} className="mt-3 text-[var(--primary)] text-sm underline">
+                Record your first purchase return
+              </button>
+            </div>
+          ) : items.map(dn => (
+            <div key={dn.id} className="px-4 py-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <DocLink type="debit_note" id={dn.id} label={dn.number} className="text-sm font-semibold text-[var(--primary)]" />
+                <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
+                  {dn.vendor_name ?? "—"} · {fmtDate(dn.issue_date)}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-sm font-mono font-bold">{fmt(dn.total)}</span>
+                <StatusBadge status={dn.status} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

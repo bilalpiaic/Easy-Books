@@ -2,11 +2,13 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, Receipt, Pencil, History, CheckCircle, CheckCircle2 } from "lucide-react"
+import { RotateCcw, Receipt, Pencil, History, CheckCircle, CheckCircle2 } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import DocumentActions from "@/components/DocumentActions"
+import { downloadPdf } from "@/lib/downloadPdf"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
@@ -72,6 +74,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
   const [hasApprovalWorkflow, setHasApprovalWorkflow] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
   useBreadcrumb(bill ? bill.number : undefined)
 
   const load = () =>
@@ -196,8 +199,20 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
               <CheckCircle2 className="w-4 h-4" /> Submit for approval
             </button>
           )}
-          <Link href={`/bills/${bill.id}/print`} className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] print:hidden">
-            <Printer className="w-4 h-4" />{t('common.print', 'Print')}</Link>
+          <DocumentActions
+            onPrint={() => { window.location.href = `/bills/${bill.id}/print` }}
+            onSavePdf={async () => {
+              setPdfBusy(true)
+              try {
+                await downloadPdf(`/api/bills/${bill.id}/pdf`, `${bill.number}.pdf`)
+              } catch (e) {
+                toast((e as Error).message || "PDF generation failed", "error")
+              } finally {
+                setPdfBusy(false)
+              }
+            }}
+            pdfBusy={pdfBusy}
+          />
           {bill.transaction_id && bill.status !== "reversed" && (
             <button onClick={reverse} disabled={busy}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
