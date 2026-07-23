@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { ScrollText, Search, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import DocLink, { DocKind } from "@/components/DocLink"
@@ -91,14 +92,15 @@ function ActionBadge({ action }: { action: string }) {
   )
 }
 
-export default function AuditLogPage() {
+function AuditLogPageContent() {
   const { t } = useTranslation()
+  const searchParams = useSearchParams()
 
   const [items, setItems] = useState<AuditEntry[]>([])
   const [total, setTotal] = useState(0)
-  const [entityFilter, setEntityFilter] = useState("")
-  const [dateFrom, setDateFrom] = useState("")
-  const [dateTo, setDateTo] = useState("")
+  const [entityFilter, setEntityFilter] = useState(() => searchParams.get("entity_type") || "")
+  const [dateFrom, setDateFrom] = useState(() => searchParams.get("date_from") || "")
+  const [dateTo, setDateTo] = useState(() => searchParams.get("date_to") || "")
   const [view, setView] = useState<View>("timeline")
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
@@ -262,5 +264,13 @@ export default function AuditLogPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function AuditLogPage() {
+  return (
+    <Suspense fallback={<p className="p-4 text-sm text-[var(--text-muted)]">Loading audit log…</p>}>
+      <AuditLogPageContent />
+    </Suspense>
   )
 }

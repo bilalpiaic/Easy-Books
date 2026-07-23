@@ -394,28 +394,43 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
               >
                 {publishing ? "Publishing…" : "Publish"}
               </button>
-              {lastPublish?.portal_url && (
+            </div>
+            {lastPublish?.portal_url && (
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-800/70">
+                  Patient portal link
+                </p>
                 <a
                   href={lastPublish.portal_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-2 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-50"
+                  className="block text-sm text-emerald-800 underline break-all hover:text-emerald-950"
                 >
-                  Open portal link
+                  {lastPublish.portal_url}
                 </a>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {msg && (
-        <div className={`print:hidden text-sm p-3 rounded-lg ${
+        <div className={`print:hidden text-sm p-3 rounded-lg space-y-1.5 ${
           msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("enter") || msg.toLowerCase().includes("select")
             ? "bg-amber-50 text-amber-800"
             : "bg-green-50 text-green-700"
         }`}>
-          {msg}
+          <p>{msg}</p>
+          {lastPublish?.portal_url && !msg.toLowerCase().includes("fail") && (
+            <a
+              href={lastPublish.portal_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block underline break-all font-medium hover:opacity-80"
+            >
+              {lastPublish.portal_url}
+            </a>
+          )}
         </div>
       )}
 

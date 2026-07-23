@@ -101,6 +101,10 @@ function InvoicesContent() {
         .then(c => setCustomerFilter({ id: c.id, name: c.name }))
         .catch(() => {})
     }
+    const from = searchParams.get('date_from')
+    const to = searchParams.get('date_to')
+    if (from) setDateFrom(from)
+    if (to) setDateTo(to)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo, customerFilter])
