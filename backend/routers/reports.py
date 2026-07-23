@@ -1624,93 +1624,13 @@ def get_budget_vs_actual(
 
 
 @router.post("/fx-revaluation")
-def run_fx_revaluation(
+def run_fx_revaluation_endpoint(
     session: SessionDep, user: CurrentUserDep,
     revaluation_date: str,
 ):
-    """Revalue open foreign-currency AR to closing rate. IAS 21.23."""
-    from models import PaymentAllocation, Tenant
-    from routers.common import get_or_create_account
-    from services.fx import rate_to_base
-    from services.posting import EntryInput, post_transaction
-
-    tenant = session.get(Tenant, user.tenant_id)
-    base_currency = tenant.base_currency if tenant else "PKR"
-
-    # Include draft, sent, and partial — all have GL impact.
-    # Exclude paid (settled) and void/cancelled.
-    open_invoices = session.exec(
-        select(Invoice).where(
-            Invoice.tenant_id == user.tenant_id,
-            Invoice.status.in_(["draft", "posted", "partial", "sent"]),
-            Invoice.transaction_id.is_not(None),
-            Invoice.currency != base_currency,
-        )
-    ).all()
-
-    fx_gain_acc = get_or_create_account(
-        session, user.tenant_id, "4901", "Unrealised FX Gain/Loss", "Revenue"
-    )
-
-    all_entries: list[EntryInput] = []
-    for inv in open_invoices:
-        alloc_total = session.exec(
-            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
-            .where(PaymentAllocation.invoice_id == inv.id)
-        ).one()
-        outstanding_doc = D(str(inv.total)) - D(str(alloc_total))
-        if outstanding_doc <= ZERO:
-            continue
-
-        try:
-            closing_rate = rate_to_base(session, user.tenant_id, inv.currency, revaluation_date)
-        except LookupError:
-            continue  # no rate available for this currency on this date
-
-        original_base = money(outstanding_doc * D(str(inv.exchange_rate)))
-        closing_base = money(outstanding_doc * closing_rate)
-        diff = closing_base - original_base
-        if abs(diff) < D("0.01"):
-            continue
-
-        if inv.ar_account_id:
-            ar_acc = session.get(Account, inv.ar_account_id)
-        else:
-            # Fall back to the default AR account (code 1100) for this tenant
-            ar_acc = session.exec(
-                select(Account).where(
-                    Account.tenant_id == user.tenant_id,
-                    Account.code == "1100",
-                )
-            ).first()
-        if not ar_acc:
-            continue
-
-        if diff > ZERO:  # FX gain: Dr AR, Cr FX Gain
-            all_entries += [
-                EntryInput(account_id=ar_acc.id, debit=diff),
-                EntryInput(account_id=fx_gain_acc.id, credit=diff),
-            ]
-        else:  # FX loss: Dr FX Loss, Cr AR
-            all_entries += [
-                EntryInput(account_id=fx_gain_acc.id, debit=-diff),
-                EntryInput(account_id=ar_acc.id, credit=-diff),
-            ]
-
-    if not all_entries:
-        return {"message": "No foreign-currency AR positions to revalue", "entries_count": 0}
-
-    txn = post_transaction(
-        session,
-        user,
-        date=revaluation_date,
-        description=f"FX Revaluation as at {revaluation_date}",
-        entries=all_entries,
-        audit_entity_type="fx_revaluation",
-        audit_detail={"revaluation_date": revaluation_date},
-    )
-    session.commit()
-    return {"jv_number": txn.jv_number, "entries_count": len(all_entries)}
+    """Revalue open foreign-currency AR and AP to closing rate. IAS 21.23."""
+    from services.fx_revaluation import run_fx_revaluation
+    return run_fx_revaluation(session, user, revaluation_date)
 
 
 # ── Product Ledger (by store or consolidated) ────────────────────────────────

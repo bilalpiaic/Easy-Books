@@ -133,16 +133,24 @@ export default function ExchangeRatesPage() {
   const runRevaluation = async () => {
     setRevalBusy(true); setRevalMsg(null)
     try {
-      const res = await apiFetch<{ jv_number?: string; entries_count: number; message?: string }>(
+      const res = await apiFetch<{
+        jv_number?: string
+        entries_count: number
+        message?: string
+        positions?: { doc_type: string; number: string; currency: string; diff: number }[]
+      }>(
         `/api/reports/fx-revaluation?revaluation_date=${revalDate}`,
         { method: "POST" },
       )
-      if (res.message) {
+      if (res.message && !(res.entries_count > 0)) {
         setRevalMsg({ ok: false, text: res.message })
       } else {
+        const pos = res.positions?.length
+          ? ` · ${res.positions.length} position${res.positions.length !== 1 ? "s" : ""} (AR/AP)`
+          : ""
         setRevalMsg({
           ok: true,
-          text: `Posted ${res.entries_count} GL line${res.entries_count !== 1 ? "s" : ""} — ${res.jv_number}`,
+          text: `Posted ${res.entries_count} GL line${res.entries_count !== 1 ? "s" : ""} — ${res.jv_number}${pos}`,
         })
       }
     } catch (e) {
@@ -198,8 +206,9 @@ export default function ExchangeRatesPage() {
           <h2 className="text-sm font-bold text-[var(--text-primary)]">FX Revaluation <span className="text-[var(--text-primary)]/40 font-normal">(IAS 21)</span></h2>
         </div>
         <p className="text-xs text-[var(--text-primary)]/60">
-          Restates open foreign-currency AR balances to the closing rate on the chosen date.
-          Posts an Unrealised FX Gain/Loss entry (account 4901) for the difference.
+          Restates open foreign-currency AR and AP balances to the closing rate on the chosen date.
+          Posts an Unrealised FX Gain/Loss entry (account 4901) for the difference, then updates each
+          document&apos;s carrying rate so a re-run is a no-op until rates move again.
         </p>
         {revalMsg && (
           <div className={`flex items-start gap-2 p-3 rounded-xl text-sm ${

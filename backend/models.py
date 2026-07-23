@@ -421,6 +421,9 @@ class Invoice(SQLModel, table=True):
     total: Money = money_col()                 # in document currency
     currency: str = Field(default="USD")       # document currency; defaults to tenant base
     exchange_rate: Money = money_col(default=Decimal("1"))  # doc → base; snapshot at issue
+    # After FX revaluation: carrying rate used for settlement / subsequent revals (IAS 21).
+    # None → fall back to exchange_rate.
+    carrying_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
     status: str = Field(default="draft")
     ar_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
@@ -465,6 +468,7 @@ class Bill(SQLModel, table=True):
     total: Money = money_col()                 # in document currency
     currency: str = Field(default="USD")
     exchange_rate: Money = money_col(default=Decimal("1"))
+    carrying_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
     status: str = Field(default="draft")
     ap_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
     expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
@@ -482,6 +486,8 @@ class PaymentReceived(SQLModel, table=True):
     customer_name: Optional[str] = None
     payment_date: str
     amount: Money = money_col()
+    currency: Optional[str] = None  # doc currency; None/base → legacy base-only path
+    exchange_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
     method: str = Field(default="cash")
     reference: Optional[str] = None
     cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
@@ -497,6 +503,8 @@ class BillPayment(SQLModel, table=True):
     vendor_name: Optional[str] = None
     payment_date: str
     amount: Money = money_col()
+    currency: Optional[str] = None
+    exchange_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
     method: str = Field(default="cash")
     reference: Optional[str] = None
     cash_account_id: Optional[int] = Field(default=None, foreign_key="account.id")

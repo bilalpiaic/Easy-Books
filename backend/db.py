@@ -225,6 +225,7 @@ _COA_COMMON: list[tuple[str, str, str, bool, str]] = [
     ("4000", "Sales Revenue",           "Revenue",   False, "41"),
     ("4900", "Other Income",            "Revenue",   False, "49"),
     ("4901", "Unrealised FX Gain/Loss", "Revenue",   False, "49"),
+    ("4903", "Realised FX Gain/Loss",   "Revenue",   False, "49"),
     ("5000", "General Expenses",        "Expense",   False, "52"),
     ("5050", "Depreciation Expense",    "Expense",   False, "52"),
     ("5100", "Salary Expense",          "Expense",   False, "52"),

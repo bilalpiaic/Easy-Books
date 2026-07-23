@@ -113,6 +113,9 @@ def open_bills_for_allocation(
             "due_date": bill.due_date,
             "total": float(bill.total),
             "balance_due": balance_due,
+            "currency": bill.currency,
+            "exchange_rate": float(bill.exchange_rate),
+            "carrying_rate": float(bill.carrying_rate) if bill.carrying_rate is not None else float(bill.exchange_rate),
         })
     return result
 

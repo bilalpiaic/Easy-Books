@@ -178,6 +178,9 @@ def open_invoices_for_allocation(
             "due_date": inv.due_date,
             "total": float(inv.total),
             "balance_due": balance_due,
+            "currency": inv.currency,
+            "exchange_rate": float(inv.exchange_rate),
+            "carrying_rate": float(inv.carrying_rate) if inv.carrying_rate is not None else float(inv.exchange_rate),
         })
     return result
 

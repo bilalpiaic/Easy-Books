@@ -111,8 +111,12 @@ export default function Reconciliations() {
   }
 
   const closeRec = async (recId: number) => {
-    await apiFetch(`/api/reconciliations/${recId}/close`, { method: 'POST' }).catch(() => {})
-    setDetail(null); load()
+    try {
+      await apiFetch(`/api/reconciliations/${recId}/close`, { method: 'POST' })
+      setDetail(null); load()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Close failed')
+    }
   }
 
   const matchedBalance = detail ? detail.lines.filter(l => l.is_matched).reduce((s, l) => s + l.debit - l.credit, 0) : 0

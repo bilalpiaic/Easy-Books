@@ -41,6 +41,8 @@ class PaymentReceivedCreate(BaseModel):
     customer_name: Optional[str] = None
     payment_date: str
     amount: Decimal
+    currency: Optional[str] = None
+    exchange_rate: Optional[Decimal] = None
     method: str = "cash"
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
@@ -140,6 +142,8 @@ def get_payment_received(
 def create_payment_received(
     session: SessionDep, user: WriteUserDep, body: PaymentReceivedCreate
 ):
+    from services.payment_fx import build_settlement, resolve_invoice_allocs
+
     amount = money(body.amount)
     cname = body.customer_name
 
@@ -176,8 +180,27 @@ def create_payment_received(
         if body.cash_account_id
         else get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
     )
-    ar_acc = get_or_create_account(
-        session, user.tenant_id, "1100", "Accounts Receivable", "Asset"
+
+    alloc_pairs = [
+        (a.invoice_id, a.amount)
+        for a in allocations
+        if a.invoice_id
+    ]
+    # Validate invoices exist before building settlement (also used for FX currency)
+    resolved = resolve_invoice_allocs(session, user.tenant_id, alloc_pairs) if alloc_pairs else []
+
+    plan = build_settlement(
+        session,
+        tenant_id=user.tenant_id,
+        side="receipt",
+        payment_amount=amount,
+        payment_date=body.payment_date,
+        cash_account_id=cash_acc.id,
+        currency=body.currency,
+        exchange_rate=body.exchange_rate,
+        allocs=resolved,
+        analytic_account_id=body.analytic_account_id,
+        party_customer_id=body.customer_id,
     )
 
     receipt_type = (
@@ -188,14 +211,17 @@ def create_payment_received(
         session, user,
         date=body.payment_date,
         description=f"Payment received — {cname or ''} {body.reference or ''}".strip(),
-        entries=[
-            EntryInput(account_id=cash_acc.id, debit=amount, analytic_account_id=body.analytic_account_id),
-            EntryInput(account_id=ar_acc.id, credit=amount, analytic_account_id=body.analytic_account_id, customer_id=body.customer_id),
-        ],
+        entries=plan.entries,
         reference=body.reference,
         payment_method=body.method,
         audit_entity_type="payment_received",
-        audit_detail={"amount": str(amount), "invoice_id": body.invoice_id},
+        audit_detail={
+            "amount": str(amount),
+            "invoice_id": body.invoice_id,
+            "currency": plan.currency,
+            "exchange_rate": str(plan.settlement_rate),
+            "realised_fx": str(plan.realised),
+        },
         voucher_type=receipt_type,
     )
 
@@ -205,6 +231,8 @@ def create_payment_received(
         customer_name=cname,
         payment_date=body.payment_date,
         amount=amount,
+        currency=plan.currency,
+        exchange_rate=plan.settlement_rate,
         method=body.method,
         reference=body.reference,
         cash_account_id=cash_acc.id,
@@ -252,6 +280,8 @@ class BillPaymentCreate(BaseModel):
     vendor_name: Optional[str] = None
     payment_date: str
     amount: Decimal
+    currency: Optional[str] = None
+    exchange_rate: Optional[Decimal] = None
     method: str = "cash"
     reference: Optional[str] = None
     cash_account_id: Optional[int] = None
@@ -310,6 +340,8 @@ def list_bill_payments(
 def create_bill_payment(
     session: SessionDep, user: WriteUserDep, body: BillPaymentCreate
 ):
+    from services.payment_fx import build_settlement, resolve_bill_allocs
+
     amount = money(body.amount)
     vname = body.vendor_name
 
@@ -341,8 +373,22 @@ def create_bill_payment(
         if body.cash_account_id
         else get_or_create_account(session, user.tenant_id, "1000", "Cash in Hand", "Asset")
     )
-    ap_acc = get_or_create_account(
-        session, user.tenant_id, "2000", "Accounts Payable", "Liability"
+
+    alloc_pairs = [(a.bill_id, a.amount) for a in allocations if a.bill_id]
+    resolved = resolve_bill_allocs(session, user.tenant_id, alloc_pairs) if alloc_pairs else []
+
+    plan = build_settlement(
+        session,
+        tenant_id=user.tenant_id,
+        side="bill_payment",
+        payment_amount=amount,
+        payment_date=body.payment_date,
+        cash_account_id=cash_acc.id,
+        currency=body.currency,
+        exchange_rate=body.exchange_rate,
+        allocs=resolved,
+        analytic_account_id=body.analytic_account_id,
+        party_vendor_id=body.vendor_id,
     )
 
     payment_type = (
@@ -353,14 +399,17 @@ def create_bill_payment(
         session, user,
         date=body.payment_date,
         description=f"Bill payment — {vname or ''} {body.reference or ''}".strip(),
-        entries=[
-            EntryInput(account_id=ap_acc.id, debit=amount, analytic_account_id=body.analytic_account_id, vendor_id=body.vendor_id),
-            EntryInput(account_id=cash_acc.id, credit=amount, analytic_account_id=body.analytic_account_id),
-        ],
+        entries=plan.entries,
         reference=body.reference,
         payment_method=body.method,
         audit_entity_type="bill_payment",
-        audit_detail={"amount": str(amount), "bill_id": body.bill_id},
+        audit_detail={
+            "amount": str(amount),
+            "bill_id": body.bill_id,
+            "currency": plan.currency,
+            "exchange_rate": str(plan.settlement_rate),
+            "realised_fx": str(plan.realised),
+        },
         voucher_type=payment_type,
     )
 
@@ -370,6 +419,8 @@ def create_bill_payment(
         vendor_name=vname,
         payment_date=body.payment_date,
         amount=amount,
+        currency=plan.currency,
+        exchange_rate=plan.settlement_rate,
         method=body.method,
         reference=body.reference,
         cash_account_id=cash_acc.id,
