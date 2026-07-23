@@ -158,11 +158,16 @@ def _patient_lab_history(
     patient_id: int,
     test_ids: set[int],
     current_order_id: int,
+    current_order_date: Optional[str] = None,
     limit: int = _LAB_HISTORY_LIMIT,
     catalogue_ranges: Optional[dict[int, Optional[str]]] = None,
 ) -> dict[int, list[dict]]:
     """Prior + current resulted values per test for this patient (chronological).
-    Aligns with cumulative / serial reporting used in ISO 15189 / CLSI lab reports."""
+    Aligns with cumulative / serial reporting used in ISO 15189 / CLSI lab reports.
+
+    Points after the current order (by date, then id) are excluded so reprinting
+    an older report never pulls in later visits.
+    """
     if not test_ids:
         return {}
     ranges = catalogue_ranges or {}
@@ -176,11 +181,18 @@ def _patient_lab_history(
             HcLabOrderItem.resulted_at.is_not(None),  # type: ignore[attr-defined]
             HcLabOrderItem.result_value.is_not(None),  # type: ignore[attr-defined]
         )
-        .order_by(HcLabOrder.order_date.asc(), HcLabOrderItem.resulted_at.asc())  # type: ignore[attr-defined]
+        .order_by(HcLabOrder.order_date.asc(), HcLabOrder.id.asc(), HcLabOrderItem.resulted_at.asc())  # type: ignore[attr-defined]
     ).all()
 
     by_test: dict[int, list[dict]] = {tid: [] for tid in test_ids}
     for item, order in rows:
+        # Skip visits after the report being rendered
+        if current_order_date:
+            od = order.order_date or ""
+            if od > current_order_date:
+                continue
+            if od == current_order_date and order.id > current_order_id:
+                continue
         ref = item.reference_range or ranges.get(item.test_id)
         flag = _classify_lab_flag(
             item.result_value,
@@ -245,6 +257,7 @@ def _serialize_lab_order(session: Session, order: HcLabOrder) -> dict:
         patient_id=order.patient_id,
         test_ids=test_ids,
         current_order_id=order.id,
+        current_order_date=order.order_date,
         catalogue_ranges={tid: t.normal_range for tid, t in tests_by_id.items()},
     )
 
@@ -1514,6 +1527,8 @@ _CATEGORY_LABELS = {
 
 def _lab_pdf_context(session: Session, order: HcLabOrder) -> dict:
     """Build template context from a serialized lab order."""
+    from services.lab_pdf_charts import serial_trends_for_items
+
     payload = _serialize_lab_order(session, order)
     items = payload.get("items") or []
     if not items or any(not i.get("resulted_at") for i in items):
@@ -1531,12 +1546,19 @@ def _lab_pdf_context(session: Session, order: HcLabOrder) -> dict:
             row["resulted_at_display"] = ra[:10]
         else:
             row["resulted_at_display"] = None
+        # Compact flag display for PDF (symbol, not long label)
+        flag = item.get("flag") or {}
+        row["flag_symbol"] = flag.get("symbol") or ("!" if item.get("is_abnormal") else "N")
+        prev = item.get("previous_result")
+        row["previous_value"] = (prev or {}).get("result_value") if prev else None
         grouped.setdefault(label, []).append(row)
 
     sample = payload.get("sample")
     if sample and sample.get("collected_at"):
         ca = sample["collected_at"]
         sample = {**sample, "collected_at": ca[:10] if isinstance(ca, str) else ca}
+
+    serial = serial_trends_for_items(items)
 
     return {
         "order_number": payload.get("order_number"),
@@ -1547,6 +1569,8 @@ def _lab_pdf_context(session: Session, order: HcLabOrder) -> dict:
         "doctor": payload.get("doctor"),
         "sample": sample,
         "grouped_items": list(grouped.items()),
+        "serial_trends": serial,
+        "has_serial_trends": bool(serial["chartable"] or serial["table_only"]),
     }
 
 

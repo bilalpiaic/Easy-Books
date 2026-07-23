@@ -55,7 +55,7 @@
     }
     tbody td { padding: 7px 8px; border-bottom: 1px solid #f0ece4; font-size: 11px; }
     .abnormal { color: #9f1239; font-weight: bold; }
-    .flag { font-weight: bold; }
+    .flag { font-weight: bold; text-align: center; }
     .footer {
       margin-top: 28px;
       padding-top: 12px;
@@ -65,6 +65,57 @@
       text-align: center;
     }
     .flag-key { margin-top: 16px; font-size: 9px; color: #666; }
+    .serial-section { margin-top: 28px; page-break-inside: avoid; }
+    .serial-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #1a1814;
+      margin-bottom: 4px;
+    }
+    .serial-sub {
+      font-size: 9px;
+      color: #888;
+      margin-bottom: 12px;
+    }
+    .trend-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .trend-card {
+      width: 48%;
+      border: 1px solid #e0dbd2;
+      border-radius: 6px;
+      padding: 10px 12px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .trend-card-title { font-size: 11px; font-weight: bold; }
+    .trend-card-meta { font-size: 9px; color: #888; margin-top: 2px; margin-bottom: 8px; }
+    .trend-svg { display: block; width: 100%; height: auto; }
+    .trend-mini { width: 100%; margin-top: 6px; border-top: 1px solid #f0ece4; }
+    .trend-mini th, .trend-mini td {
+      padding: 3px 4px;
+      font-size: 9px;
+      border-bottom: none;
+    }
+    .trend-mini th { color: #999; text-transform: uppercase; font-size: 8px; }
+    .trend-current { font-weight: bold; color: #9f1239; }
+    .qual-block {
+      margin-top: 12px;
+      border: 1px solid #e0dbd2;
+      border-radius: 6px;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+    .qual-head {
+      background: #f6f3ee;
+      padding: 6px 10px;
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -123,11 +174,12 @@
   <table>
     <thead>
       <tr>
-        <th style="width:28%">Test</th>
-        <th style="width:16%">Result</th>
-        <th style="width:12%">Unit</th>
-        <th style="width:22%">Reference</th>
-        <th style="width:10%">Flag</th>
+        <th style="width:26%">Test</th>
+        <th style="width:14%">Result</th>
+        <th style="width:12%">Prev</th>
+        <th style="width:10%">Unit</th>
+        <th style="width:18%">Reference</th>
+        <th style="width:8%">Flag</th>
         <th style="width:12%">Resulted</th>
       </tr>
     </thead>
@@ -141,9 +193,10 @@
         <td class="{% if item.is_abnormal or (item.flag and item.flag.code in ['high','low','positive','abnormal']) %}abnormal{% endif %}">
           {{ item.result_value or '—' }}
         </td>
+        <td>{{ item.previous_value or '—' }}</td>
         <td>{{ item.result_unit or '—' }}</td>
         <td>{{ item.reference_range or item.catalogue_normal_range or '—' }}</td>
-        <td class="flag">{{ item.flag.label if item.flag else ('Abnormal' if item.is_abnormal else 'N') }}</td>
+        <td class="flag">{{ item.flag_symbol or 'N' }}</td>
         <td>{{ item.resulted_at_display or '—' }}</td>
       </tr>
       {% endfor %}
@@ -151,8 +204,112 @@
   </table>
   {% endfor %}
 
+  {% if report.has_serial_trends %}
+  <div class="serial-section">
+    <div class="serial-title">Serial Results — Patient Trend</div>
+    <div class="serial-sub">
+      Cumulative prior results for this patient (ISO 15189 / CLSI-style serial reporting).
+      Shaded band = reference interval where available.
+    </div>
+
+    {% if report.serial_trends.chartable %}
+    <div class="trend-grid">
+      {% for trend in report.serial_trends.chartable %}
+      <div class="trend-card">
+        <div class="trend-card-title">{{ trend.test_name }}</div>
+        <div class="trend-card-meta">
+          {% if trend.test_code %}{{ trend.test_code }}{% endif %}
+          {% if trend.unit %}{% if trend.test_code %} · {% endif %}{{ trend.unit }}{% endif %}
+          {% if trend.reference_range %} · Ref {{ trend.reference_range }}{% endif %}
+        </div>
+        {% set svg = trend.svg %}
+        <svg class="trend-svg" viewBox="{{ svg.view_box }}" xmlns="http://www.w3.org/2000/svg"
+             width="{{ svg.width }}" height="{{ svg.height }}">
+          {% if svg.band %}
+          <rect x="{{ svg.band.x }}" y="{{ svg.band.y }}"
+                width="{{ svg.band.width }}" height="{{ svg.band.height }}"
+                fill="rgba(16,185,129,0.12)" stroke="none"/>
+          {% endif %}
+          {% for tick in svg.y_ticks %}
+          <text x="{{ tick.x }}" y="{{ tick.y }}" text-anchor="end"
+                font-size="8" fill="#999">{{ tick.text }}</text>
+          {% endfor %}
+          <polyline points="{{ svg.polyline }}" fill="none" stroke="#e11d48"
+                    stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          {% for m in svg.markers %}
+          <circle cx="{{ m.cx }}" cy="{{ m.cy }}" r="{{ m.r }}"
+                  fill="{% if m.is_abnormal %}#be123c{% else %}#e11d48{% endif %}"
+                  stroke="{% if m.is_current %}#1a1814{% else %}#e11d48{% endif %}"
+                  stroke-width="{% if m.is_current %}2{% else %}0{% endif %}"/>
+          {% endfor %}
+          {% for lab in svg.x_labels %}
+          <text x="{{ lab.x }}" y="{{ lab.y }}" text-anchor="middle"
+                font-size="8" fill="#888">{{ lab.text }}</text>
+          {% endfor %}
+        </svg>
+        <table class="trend-mini">
+          <thead>
+            <tr>
+              <th style="text-align:left">Date</th>
+              <th style="text-align:right">Value</th>
+              <th style="text-align:right">Flag</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in trend.numeric_history %}
+            <tr class="{% if p.is_current %}trend-current{% endif %}">
+              <td>
+                {{ p.order_date }}{% if p.is_current %} *{% endif %}
+              </td>
+              <td style="text-align:right" class="{% if p.is_abnormal %}abnormal{% endif %}">
+                {{ p.result_value }}
+              </td>
+              <td style="text-align:right">
+                {{ p.flag.symbol if p.flag else ('!' if p.is_abnormal else 'N') }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if report.serial_trends.table_only %}
+    <div class="qual-block">
+      <div class="qual-head">Qualitative serial history</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Test</th>
+            <th>Date</th>
+            <th>Result</th>
+            <th>Flag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trend in report.serial_trends.table_only %}
+            {% for p in trend.history %}
+            <tr class="{% if p.is_current %}trend-current{% endif %}">
+              <td>{% if loop.first %}{{ trend.test_name }}{% endif %}</td>
+              <td>{{ p.order_date }}</td>
+              <td class="{% if p.is_abnormal %}abnormal{% endif %}">
+                {{ p.result_value }}{% if p.is_current %} <span style="font-size:8px;text-transform:uppercase">current</span>{% endif %}
+              </td>
+              <td>{{ p.flag.symbol if p.flag else ('!' if p.is_abnormal else 'N') }}</td>
+            </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="flag-key">
-    Flag key: ↑ H Excess · ↓ L Reduced · + Positive · − Negative · N Within range
+    Flag key: H Excess · L Reduced · + Positive · − Negative · N Within range · ! Abnormal
   </div>
   <div class="footer">
     *** End of Laboratory Test Report *** · Generated for {{ company_name }}
