@@ -27,7 +27,7 @@ export default function PatientsPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
-  const [form, setForm] = useState({ name: "", gender: "male", phone: "", dob: "", cnic: "", blood_group: "", address: "" })
+  const [form, setForm] = useState({ name: "", gender: "male", phone: "", email: "", dob: "", cnic: "", blood_group: "", address: "" })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
 
@@ -59,7 +59,7 @@ export default function PatientsPage() {
     try {
       await apiFetch("/api/healthcare/patients", { method: "POST", body: JSON.stringify(form) })
       setShowNew(false)
-      setForm({ name: "", gender: "male", phone: "", dob: "", cnic: "", blood_group: "", address: "" })
+      setForm({ name: "", gender: "male", phone: "", email: "", dob: "", cnic: "", blood_group: "", address: "" })
       load()
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Failed to create patient")
@@ -172,6 +172,12 @@ export default function PatientsPage() {
                   <label className="block text-xs font-medium text-neutral-600 mb-1">Phone</label>
                   <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                     className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-600 mb-1">Email</label>
+                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                    placeholder="For lab report delivery" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-neutral-600 mb-1">CNIC</label>

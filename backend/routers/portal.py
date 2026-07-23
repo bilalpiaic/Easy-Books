@@ -24,15 +24,24 @@ def _hash(token: str) -> str:
 
 
 def mint_portal_token(
-    session, tenant_id: int, entity_type: str, entity_id: int, days: int = 90
+    session, tenant_id: int, entity_type: str, entity_id: int, days: int = 90,
+    permissions: list | None = None,
 ) -> str:
     raw = secrets.token_urlsafe(32)
+    if permissions is None:
+        if entity_type == "patient":
+            permissions = ["view_lab_reports"]
+        elif entity_type == "vendor":
+            permissions = ["view_bills"]
+        else:
+            permissions = ["view_invoices", "pay"]
     row = PortalToken(
         tenant_id=tenant_id,
         entity_type=entity_type,
         entity_id=entity_id,
         token_hash=_hash(raw),
         expires_at=datetime.utcnow() + timedelta(days=days),
+        permissions=permissions,
     )
     session.add(row)
     session.commit()
@@ -53,8 +62,13 @@ def _resolve(session, token: str) -> PortalToken:
 
 @router.post("/mint")
 def mint(session: SessionDep, user: WriteUserDep, entity_type: str, entity_id: int):
-    if entity_type not in ("customer", "vendor"):
-        raise HTTPException(400, "entity_type must be customer or vendor")
+    if entity_type not in ("customer", "vendor", "patient"):
+        raise HTTPException(400, "entity_type must be customer, vendor, or patient")
+    if entity_type == "patient":
+        from models_healthcare import HcPatient
+        p = session.get(HcPatient, entity_id)
+        if not p or p.tenant_id != user.tenant_id:
+            raise HTTPException(404, "Patient not found")
     raw = mint_portal_token(session, user.tenant_id, entity_type, entity_id)
     return {"token": raw, "path": f"/portal/{raw}"}
 
@@ -74,6 +88,10 @@ def portal_home(token: str, session: SessionDep):
     elif pt.entity_type == "vendor":
         vend = session.get(Vendor, pt.entity_id)
         entity_name = vend.name if vend else None
+    elif pt.entity_type == "patient":
+        from models_healthcare import HcPatient
+        patient = session.get(HcPatient, pt.entity_id)
+        entity_name = patient.name if patient else None
     return {
         "tenant_name": tenant.name if tenant else "",
         "company_name": settings.get("company_name", tenant.name if tenant else ""),
@@ -133,6 +151,60 @@ def portal_invoice_pdf(token: str, invoice_id: int, session: SessionDep):
     return Response(
         content=pdf, media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{inv.number}.pdf"'},
+    )
+
+
+@router.get("/{token}/lab-orders")
+def portal_lab_orders(token: str, session: SessionDep):
+    """Resulted/delivered lab orders for a patient portal token."""
+    from models_healthcare import HcLabOrder
+
+    pt = _resolve(session, token)
+    if pt.entity_type != "patient":
+        raise HTTPException(400, "Lab orders only available for patient portals")
+    rows = session.exec(
+        select(HcLabOrder).where(
+            HcLabOrder.tenant_id == pt.tenant_id,
+            HcLabOrder.patient_id == pt.entity_id,
+            HcLabOrder.status.in_(["resulted", "delivered"]),  # type: ignore
+        ).order_by(HcLabOrder.order_date.desc(), HcLabOrder.id.desc())  # type: ignore
+    ).all()
+    return [
+        {
+            "id": r.id,
+            "order_number": r.order_number,
+            "order_date": r.order_date,
+            "status": r.status,
+            "source": r.source,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/{token}/lab-orders/{order_id}/pdf")
+def portal_lab_order_pdf(token: str, order_id: int, session: SessionDep):
+    from models_healthcare import HcLabOrder
+    from routers.healthcare import _company_branding, _lab_pdf_context
+    from services.pdf import render_lab_report_pdf
+
+    pt = _resolve(session, token)
+    if pt.entity_type != "patient":
+        raise HTTPException(400, "Lab PDFs only available for patient portals")
+    order = session.get(HcLabOrder, order_id)
+    if (
+        not order
+        or order.tenant_id != pt.tenant_id
+        or order.patient_id != pt.entity_id
+        or order.status not in ("resulted", "delivered")
+    ):
+        raise HTTPException(404, "Lab order not found")
+    report = _lab_pdf_context(session, order)
+    company, tagline = _company_branding(session, pt.tenant_id)
+    pdf = render_lab_report_pdf(report, company, tagline)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{order.order_number}.pdf"'},
     )
 
 

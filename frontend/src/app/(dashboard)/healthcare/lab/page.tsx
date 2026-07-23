@@ -124,60 +124,112 @@ function LabPageInner() {
         ))}
       </div>
 
-      {/* Orders table */}
+      {/* Orders — desktop table + mobile cards */}
       <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-xs text-neutral-500 uppercase">
-            <tr>
-              <th className="text-left px-4 py-3">Order No.</th>
-              <th className="text-left px-4 py-3">Date</th>
-              <th className="text-left px-4 py-3">Source</th>
-              <th className="text-left px-4 py-3">Status</th>
-              <th className="text-left px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {loading ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-neutral-400">Loading…</td></tr>
-            ) : orders.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-neutral-400">
-                <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                No lab orders
-              </td></tr>
-            ) : orders.map(o => (
-              <tr key={o.id} className="hover:bg-neutral-50">
-                <td className="px-4 py-3 font-medium">
-                  <Link href={`/healthcare/lab/${o.id}`} className="text-rose-600 hover:underline">
-                    {o.order_number}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">{fmtDate(o.order_date)}</td>
-                <td className="px-4 py-3 capitalize text-neutral-600">{o.source.replace("_", " ")}</td>
-                <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1.5">
-                    <Link href={`/healthcare/lab/${o.id}`}
-                      className="text-xs bg-neutral-50 text-neutral-700 px-2 py-0.5 rounded hover:bg-neutral-100 border border-neutral-200">
-                      {["resulted", "delivered"].includes(o.status) ? "View / Print" : "Open"}
-                    </Link>
-                    {o.status === "ordered" && (
-                      <button onClick={() => updateStatus(o.id, "collect")}
-                        className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded hover:bg-orange-100">
-                        Collect
-                      </button>
-                    )}
-                    {o.status === "resulted" && (
-                      <button onClick={() => updateStatus(o.id, "deliver")}
-                        className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded hover:bg-green-100">
-                        Deliver
-                      </button>
-                    )}
-                  </div>
-                </td>
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-xs text-neutral-500 uppercase">
+              <tr>
+                <th className="text-left px-4 py-3">Order No.</th>
+                <th className="text-left px-4 py-3">Patient</th>
+                <th className="text-left px-4 py-3">Date</th>
+                <th className="text-left px-4 py-3">Source</th>
+                <th className="text-left px-4 py-3">Status</th>
+                <th className="text-left px-4 py-3">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {loading ? (
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-neutral-400">Loading…</td></tr>
+              ) : orders.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-400">
+                  <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  No lab orders
+                </td></tr>
+              ) : orders.map(o => (
+                <tr key={o.id} className="hover:bg-neutral-50">
+                  <td className="px-4 py-3 font-medium">
+                    <Link href={`/healthcare/lab/${o.id}`} className="text-rose-600 hover:underline">
+                      {o.order_number}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-700">
+                    {patients.find(p => p.id === o.patient_id)?.name ?? `Patient #${o.patient_id}`}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{fmtDate(o.order_date)}</td>
+                  <td className="px-4 py-3 capitalize text-neutral-600">{o.source.replace("_", " ")}</td>
+                  <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1.5">
+                      <Link href={`/healthcare/lab/${o.id}`}
+                        className="text-xs bg-neutral-50 text-neutral-700 px-2 py-0.5 rounded hover:bg-neutral-100 border border-neutral-200">
+                        {["resulted", "delivered"].includes(o.status) ? "View / Print" : "Open"}
+                      </Link>
+                      {o.status === "ordered" && (
+                        <button type="button" onClick={() => updateStatus(o.id, "collect")}
+                          className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded hover:bg-orange-100">
+                          Collect
+                        </button>
+                      )}
+                      {o.status === "resulted" && (
+                        <button type="button" onClick={() => updateStatus(o.id, "deliver")}
+                          className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded hover:bg-green-100">
+                          Deliver
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="md:hidden divide-y divide-neutral-100">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-sm text-neutral-400">Loading…</div>
+          ) : orders.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-neutral-400">
+              <FlaskConical className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              No lab orders
+            </div>
+          ) : orders.map(o => {
+            const patientName = patients.find(p => p.id === o.patient_id)?.name ?? `Patient #${o.patient_id}`
+            return (
+              <div key={o.id} className="px-4 py-3 space-y-2">
+                <Link href={`/healthcare/lab/${o.id}`} className="block">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900 truncate">{patientName}</p>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        {o.order_number} · {fmtDate(o.order_date)} · {o.source.replace("_", " ")}
+                      </p>
+                    </div>
+                    <StatusBadge status={o.status} />
+                  </div>
+                </Link>
+                <div className="flex flex-wrap gap-1.5">
+                  <Link href={`/healthcare/lab/${o.id}`}
+                    className="text-xs bg-neutral-50 text-neutral-700 px-2.5 py-1 rounded border border-neutral-200">
+                    {["resulted", "delivered"].includes(o.status) ? "View / Print" : "Open"}
+                  </Link>
+                  {o.status === "ordered" && (
+                    <button type="button" onClick={() => updateStatus(o.id, "collect")}
+                      className="text-xs bg-orange-50 text-orange-700 px-2.5 py-1 rounded">
+                      Collect
+                    </button>
+                  )}
+                  {o.status === "resulted" && (
+                    <button type="button" onClick={() => updateStatus(o.id, "deliver")}
+                      className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded">
+                      Deliver
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* New order modal */}

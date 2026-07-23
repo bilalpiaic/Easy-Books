@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      color: #1a1814;
+      padding: 36px;
+      background: #fff;
+    }
+    .header { display: flex; justify-content: space-between; margin-bottom: 24px; }
+    .company-name { font-size: 18px; font-weight: bold; color: #b8943f; }
+    .company-tagline { font-size: 10px; color: #666; margin-top: 4px; }
+    .doc-title { font-size: 22px; font-weight: bold; color: #b8943f; text-align: right; }
+    .doc-meta { text-align: right; margin-top: 6px; line-height: 1.7; color: #555; }
+    .patient-box {
+      border: 1px solid #e0dbd2;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px 16px;
+    }
+    .patient-box .label {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+    }
+    .patient-box .value { font-size: 11px; font-weight: 600; margin-top: 2px; }
+    .category {
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #555;
+      background: #f6f3ee;
+      padding: 6px 10px;
+      border-bottom: 2px solid #b8943f;
+      margin-top: 16px;
+    }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    thead th {
+      padding: 7px 8px;
+      text-align: left;
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #666;
+      border-bottom: 1px solid #e0dbd2;
+    }
+    tbody td { padding: 7px 8px; border-bottom: 1px solid #f0ece4; font-size: 11px; }
+    .abnormal { color: #9f1239; font-weight: bold; }
+    .flag { font-weight: bold; }
+    .footer {
+      margin-top: 28px;
+      padding-top: 12px;
+      border-top: 1px solid #e0dbd2;
+      font-size: 9px;
+      color: #888;
+      text-align: center;
+    }
+    .flag-key { margin-top: 16px; font-size: 9px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="company-name">{{ company_name }}</div>
+      {% if tagline %}<div class="company-tagline">{{ tagline }}</div>{% endif %}
+    </div>
+    <div>
+      <div class="doc-title">LABORATORY REPORT</div>
+      <div class="doc-meta">
+        <div><strong>Order:</strong> {{ report.order_number }}</div>
+        <div><strong>Date:</strong> {{ report.order_date }}</div>
+        <div><strong>Status:</strong> {{ report.status }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="patient-box">
+    <div>
+      <div class="label">Patient</div>
+      <div class="value">{{ report.patient.name if report.patient else '—' }}</div>
+    </div>
+    <div>
+      <div class="label">MR Number</div>
+      <div class="value">{{ report.patient.mr_number if report.patient else '—' }}</div>
+    </div>
+    <div>
+      <div class="label">Gender / Age</div>
+      <div class="value">
+        {% if report.patient %}
+          {{ report.patient.gender or '—' }}{% if report.patient.age is not none %} · {{ report.patient.age }} yrs{% endif %}
+        {% else %}—{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="label">Referring Doctor</div>
+      <div class="value">{{ report.doctor.name if report.doctor else '—' }}</div>
+    </div>
+    <div>
+      <div class="label">Specimen</div>
+      <div class="value">
+        {% if report.sample %}
+          {{ report.sample.specimen_type }}{% if report.sample.collected_at %} · {{ report.sample.collected_at }}{% endif %}
+        {% else %}—{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="label">Source</div>
+      <div class="value">{{ report.source }}</div>
+    </div>
+  </div>
+
+  {% for category, items in report.grouped_items %}
+  <div class="category">{{ category }}</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:28%">Test</th>
+        <th style="width:16%">Result</th>
+        <th style="width:12%">Unit</th>
+        <th style="width:22%">Reference</th>
+        <th style="width:10%">Flag</th>
+        <th style="width:12%">Resulted</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>
+          {{ item.test_name }}
+          {% if item.test_code %}<div style="font-size:9px;color:#999">{{ item.test_code }}</div>{% endif %}
+        </td>
+        <td class="{% if item.is_abnormal or (item.flag and item.flag.code in ['high','low','positive','abnormal']) %}abnormal{% endif %}">
+          {{ item.result_value or '—' }}
+        </td>
+        <td>{{ item.result_unit or '—' }}</td>
+        <td>{{ item.reference_range or item.catalogue_normal_range or '—' }}</td>
+        <td class="flag">{{ item.flag.label if item.flag else ('Abnormal' if item.is_abnormal else 'N') }}</td>
+        <td>{{ item.resulted_at_display or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+
+  <div class="flag-key">
+    Flag key: ↑ H Excess · ↓ L Reduced · + Positive · − Negative · N Within range
+  </div>
+  <div class="footer">
+    *** End of Laboratory Test Report *** · Generated for {{ company_name }}
+  </div>
+</body>
+</html>

@@ -2136,10 +2136,10 @@ class AttendanceRecord(SQLModel, table=True):
 # ── Wave B–D cloud / parity / AI models (#118–#125) ──────────────────────────
 
 class PortalToken(SQLModel, table=True):
-    """Magic-link access for customer/vendor portal (#120)."""
+    """Magic-link access for customer/vendor/patient portal (#120 + lab publish)."""
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
-    entity_type: str  # customer | vendor
+    entity_type: str  # customer | vendor | patient
     entity_id: int = Field(index=True)
     token_hash: str = Field(index=True)
     expires_at: datetime

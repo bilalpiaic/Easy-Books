@@ -2,10 +2,12 @@
 
 import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Printer, Save } from "lucide-react"
+import { ArrowLeft, Save, Send } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { downloadPdf } from "@/lib/downloadPdf"
 import { fmtDate } from "@/lib/utils"
 import PrintHeader from "@/components/PrintHeader"
+import DocumentActions from "@/components/DocumentActions"
 import { StatusBadge } from "@/components/healthcare/primitives"
 import LabSerialTrends from "@/components/healthcare/LabSerialTrends"
 import LabResultFlag, {
@@ -22,6 +24,7 @@ type PatientInfo = {
   dob?: string | null
   age?: number | null
   phone?: string | null
+  email?: string | null
   blood_group?: string | null
 }
 
@@ -93,6 +96,14 @@ type DraftResult = {
   is_abnormal: boolean
 }
 
+type PublishResult = {
+  portal_url: string
+  portal_path: string
+  whatsapp_url: string | null
+  emailed: boolean
+  status: string
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   hematology: "Hematology",
   biochemistry: "Biochemistry",
@@ -119,6 +130,12 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
   const [drafts, setDrafts] = useState<Record<number, DraftResult>>({})
   const [savingId, setSavingId] = useState<number | null>(null)
   const [delivering, setDelivering] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [showPublish, setShowPublish] = useState(false)
+  const [channels, setChannels] = useState({ portal: true, email: false, whatsapp: false })
+  const [markDelivered, setMarkDelivered] = useState(true)
+  const [lastPublish, setLastPublish] = useState<PublishResult | null>(null)
 
   async function load() {
     setLoading(true)
@@ -155,6 +172,7 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
   const pendingCount = order?.items.filter(i => !i.resulted_at).length ?? 0
   const canPrint = (order?.items.length ?? 0) > 0 && pendingCount === 0
   const canDeliver = order?.status === "resulted"
+  const canPublish = canPrint && ["resulted", "delivered"].includes(order?.status ?? "")
 
   const trendItems = useMemo(() => {
     if (!order) return []
@@ -214,6 +232,70 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  async function savePdf() {
+    if (!order) return
+    setPdfBusy(true)
+    setMsg("")
+    try {
+      await downloadPdf(
+        `/api/healthcare/lab/orders/${order.id}/pdf`,
+        `${order.order_number}.pdf`,
+      )
+      setMsg("PDF downloaded")
+    } catch (e: unknown) {
+      setMsg(e instanceof Error ? e.message : "PDF download failed")
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+
+  async function publish() {
+    if (!order) return
+    const selected = (Object.keys(channels) as Array<keyof typeof channels>).filter(k => channels[k])
+    if (!selected.length) {
+      setMsg("Select at least one publish channel")
+      return
+    }
+    setPublishing(true)
+    setMsg("")
+    try {
+      const result = await apiFetch<PublishResult>(
+        `/api/healthcare/lab/orders/${order.id}/publish`,
+        {
+          method: "POST",
+          body: JSON.stringify({ channels: selected, mark_delivered: markDelivered }),
+        },
+      )
+      setLastPublish(result)
+      const bits = ["Portal link ready"]
+      if (result.emailed) bits.push("email sent")
+      setMsg(bits.join(" · "))
+      if (result.whatsapp_url) {
+        window.open(result.whatsapp_url, "_blank", "noopener,noreferrer")
+      }
+      await load()
+    } catch (e: unknown) {
+      setMsg(e instanceof Error ? e.message : "Publish failed")
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  function sharePortal() {
+    if (!lastPublish?.portal_url) return
+    if (navigator.share) {
+      navigator.share({
+        title: `Lab report ${order?.order_number ?? ""}`,
+        text: "Your laboratory report is ready",
+        url: lastPublish.portal_url,
+      }).catch(() => {
+        window.open(lastPublish.portal_url, "_blank", "noopener,noreferrer")
+      })
+    } else {
+      window.open(lastPublish.portal_url, "_blank", "noopener,noreferrer")
+    }
+  }
+
   if (loading) return <div className="p-6 text-neutral-400">Loading lab report…</div>
   if (!order) return <div className="p-6 text-red-600">{error || "Lab order not found"}</div>
 
@@ -221,40 +303,115 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
   const subtitle = `${order.order_number} · ${fmtDate(order.order_date)}`
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-4">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4">
       <PrintHeader title="Laboratory Test Report" subtitle={subtitle} />
 
-      <div className="print:hidden flex flex-wrap items-center justify-between gap-3">
-        <Link
-          href="/healthcare/lab"
-          className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-rose-600"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Laboratory
-        </Link>
-        <div className="flex items-center gap-2">
-          {canDeliver && (
-            <button
-              onClick={deliver}
-              disabled={delivering}
-              className="px-3 py-2 text-sm border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50"
-            >
-              {delivering ? "Delivering…" : "Mark Delivered"}
-            </button>
-          )}
-          <button
-            onClick={() => window.print()}
-            disabled={!canPrint}
-            title={canPrint ? "Print report" : "Enter all results before printing"}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50"
+      <div className="print:hidden flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/healthcare/lab"
+            className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-rose-600"
           >
-            <Printer className="w-4 h-4" /> Print
-          </button>
+            <ArrowLeft className="w-4 h-4" /> Back to Laboratory
+          </Link>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {canDeliver && (
+              <button
+                type="button"
+                onClick={deliver}
+                disabled={delivering}
+                className="px-3 py-2 text-sm border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50"
+              >
+                {delivering ? "Delivering…" : "Mark Delivered"}
+              </button>
+            )}
+            {canPublish && (
+              <button
+                type="button"
+                onClick={() => setShowPublish(v => !v)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-rose-200 text-rose-700 bg-rose-50 rounded-lg hover:bg-rose-100"
+              >
+                <Send className="w-4 h-4" /> Publish to patient
+              </button>
+            )}
+            <DocumentActions
+              onPrint={() => window.print()}
+              printDisabled={!canPrint}
+              printTitle={canPrint ? "Print report" : "Enter all results before printing"}
+              onSavePdf={savePdf}
+              pdfDisabled={!canPrint}
+              pdfBusy={pdfBusy}
+              onShare={lastPublish ? sharePortal : undefined}
+              shareLabel="Share link"
+            />
+          </div>
         </div>
+
+        {showPublish && canPublish && (
+          <div className="bg-white border border-rose-100 rounded-xl p-4 space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold text-neutral-900">Publish to patient</h2>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Creates a private portal link. Email sends the link; WhatsApp opens a pre-filled chat.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 text-sm">
+              {([
+                ["portal", "Portal link"] as const,
+                ["email", "Email"] as const,
+                ["whatsapp", "WhatsApp"] as const,
+              ]).map(([key, label]) => (
+                <label key={key} className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={channels[key]}
+                    onChange={e => setChannels(c => ({ ...c, [key]: e.target.checked }))}
+                  />
+                  {label}
+                  {key === "email" && !patient?.email && (
+                    <span className="text-xs text-neutral-400">(patient or billing email)</span>
+                  )}
+                  {key === "whatsapp" && !patient?.phone && (
+                    <span className="text-xs text-amber-700">(needs phone)</span>
+                  )}
+                </label>
+              ))}
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={markDelivered}
+                onChange={e => setMarkDelivered(e.target.checked)}
+              />
+              Mark as delivered after publish
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={publish}
+                disabled={publishing}
+                className="px-3 py-2 text-sm bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50"
+              >
+                {publishing ? "Publishing…" : "Publish"}
+              </button>
+              {lastPublish?.portal_url && (
+                <a
+                  href={lastPublish.portal_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-50"
+                >
+                  Open portal link
+                </a>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {msg && (
         <div className={`print:hidden text-sm p-3 rounded-lg ${
-          msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("enter")
+          msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("enter") || msg.toLowerCase().includes("select")
             ? "bg-amber-50 text-amber-800"
             : "bg-green-50 text-green-700"
         }`}>
@@ -269,7 +426,7 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Patient + order meta */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div className="bg-white rounded-xl border border-neutral-200 p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
         <Meta label="Patient" value={patient?.name ?? "—"} bold />
         <Meta label="MR Number" value={patient?.mr_number ?? "—"} />
         <Meta label="Gender / Age" value={[
@@ -279,6 +436,7 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
         <Meta label="DOB" value={patient?.dob ? fmtDate(patient.dob) : "—"} />
         <Meta label="Blood Group" value={patient?.blood_group || "—"} />
         <Meta label="Phone" value={patient?.phone || "—"} />
+        <Meta label="Email" value={patient?.email || "—"} />
         <Meta label="Order No." value={order.order_number} />
         <Meta label="Order Date" value={fmtDate(order.order_date)} />
         <Meta label="Source" value={order.source.replace(/_/g, " ")} />
@@ -310,167 +468,161 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
           <div className="px-4 py-2.5 bg-neutral-50 border-b border-neutral-200 text-xs font-semibold uppercase tracking-wide text-neutral-600">
             {CATEGORY_LABELS[category] || category}
           </div>
-          <table className="w-full text-sm">
-            <thead className="text-xs text-neutral-500 uppercase border-b border-neutral-100">
-              <tr>
-                <th className="text-left px-4 py-2.5">Test</th>
-                <th className="text-left px-4 py-2.5">Result</th>
-                <th className="text-left px-4 py-2.5">Previous</th>
-                <th className="text-left px-4 py-2.5">Unit</th>
-                <th className="text-left px-4 py-2.5">Reference Range</th>
-                <th className="text-left px-4 py-2.5">Flag</th>
-                <th className="text-left px-4 py-2.5 print:hidden">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {items.map(item => {
-                const pending = !item.resulted_at
-                const draft = drafts[item.id]
-                const draftFlag = draft
-                  ? classifyLabFlag(draft.result_value, {
-                      referenceRange: draft.reference_range,
-                      referenceInterval: item.reference_interval,
-                      isAbnormal: draft.is_abnormal,
-                    })
-                  : null
-                const displayFlag = pending && draftFlag ? draftFlag : item.flag
-                const flagged = isAbnormalFlag(displayFlag) || item.is_abnormal
-
-                function updateDraft(patch: Partial<DraftResult>) {
-                  if (!draft) return
-                  const next = { ...draft, ...patch }
-                  // Auto-toggle abnormal from live range / Pos-Neg classification
-                  if ("result_value" in patch || "reference_range" in patch) {
-                    const live = classifyLabFlag(next.result_value, {
-                      referenceRange: next.reference_range,
-                      referenceInterval: item.reference_interval,
-                      isAbnormal: next.is_abnormal,
-                    })
-                    if (live.code !== "pending" && live.code !== "abnormal") {
-                      next.is_abnormal = isAbnormalFlag(live)
-                    }
-                  }
-                  setDrafts(d => ({ ...d, [item.id]: next }))
-                }
-
-                return (
-                  <tr key={item.id} className={flagged ? "bg-rose-50/40" : undefined}>
-                    <td className="px-4 py-3">
-                      <div className={`font-medium ${flagged ? "text-rose-800" : "text-neutral-900"}`}>
-                        {item.test_name}
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-neutral-500 uppercase border-b border-neutral-100">
+                <tr>
+                  <th className="text-left px-4 py-2.5">Test</th>
+                  <th className="text-left px-4 py-2.5">Result</th>
+                  <th className="text-left px-4 py-2.5">Previous</th>
+                  <th className="text-left px-4 py-2.5">Unit</th>
+                  <th className="text-left px-4 py-2.5">Reference Range</th>
+                  <th className="text-left px-4 py-2.5">Flag</th>
+                  <th className="text-left px-4 py-2.5 print:hidden">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {items.map(item => (
+                  <ResultRow
+                    key={item.id}
+                    item={item}
+                    draft={drafts[item.id]}
+                    savingId={savingId}
+                    onUpdateDraft={(patch) => {
+                      const draft = drafts[item.id]
+                      if (!draft) return
+                      const next = { ...draft, ...patch }
+                      if ("result_value" in patch || "reference_range" in patch) {
+                        const live = classifyLabFlag(next.result_value, {
+                          referenceRange: next.reference_range,
+                          referenceInterval: item.reference_interval,
+                          isAbnormal: next.is_abnormal,
+                        })
+                        if (live.code !== "pending" && live.code !== "abnormal") {
+                          next.is_abnormal = isAbnormalFlag(live)
+                        }
+                      }
+                      setDrafts(d => ({ ...d, [item.id]: next }))
+                    }}
+                    onSave={() => saveResult(item)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Mobile stacked result cards */}
+          <div className="md:hidden print:hidden divide-y divide-neutral-100">
+            {items.map(item => {
+              const pending = !item.resulted_at
+              const draft = drafts[item.id]
+              const draftFlag = draft
+                ? classifyLabFlag(draft.result_value, {
+                    referenceRange: draft.reference_range,
+                    referenceInterval: item.reference_interval,
+                    isAbnormal: draft.is_abnormal,
+                  })
+                : null
+              const displayFlag = pending && draftFlag ? draftFlag : item.flag
+              const flagged = isAbnormalFlag(displayFlag) || item.is_abnormal
+              return (
+                <div key={item.id} className={`p-4 space-y-3 ${flagged ? "bg-rose-50/40" : ""}`}>
+                  <div>
+                    <div className={`font-medium ${flagged ? "text-rose-800" : "text-neutral-900"}`}>
+                      {item.test_name}
+                    </div>
+                    {item.test_code && <div className="text-xs text-neutral-400">{item.test_code}</div>}
+                  </div>
+                  {pending && draft ? (
+                    <div className="space-y-2">
+                      <input
+                        value={draft.result_value}
+                        onChange={e => {
+                          const next = { ...draft, result_value: e.target.value }
+                          const live = classifyLabFlag(next.result_value, {
+                            referenceRange: next.reference_range,
+                            referenceInterval: item.reference_interval,
+                            isAbnormal: next.is_abnormal,
+                          })
+                          if (live.code !== "pending" && live.code !== "abnormal") {
+                            next.is_abnormal = isAbnormalFlag(live)
+                          }
+                          setDrafts(d => ({ ...d, [item.id]: next }))
+                        }}
+                        className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Result value"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          value={draft.result_unit}
+                          onChange={e => setDrafts(d => ({ ...d, [item.id]: { ...draft, result_unit: e.target.value } }))}
+                          className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm"
+                          placeholder="Unit"
+                        />
+                        <input
+                          value={draft.reference_range}
+                          onChange={e => setDrafts(d => ({ ...d, [item.id]: { ...draft, reference_range: e.target.value } }))}
+                          className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm"
+                          placeholder="Reference"
+                        />
                       </div>
-                      {item.test_code && (
-                        <div className="text-xs text-neutral-400">{item.test_code}</div>
-                      )}
-                    </td>
-                    {pending && draft ? (
-                      <>
-                        <td className="px-4 py-2">
-                          <input
-                            value={draft.result_value}
-                            onChange={e => updateDraft({ result_value: e.target.value })}
-                            className="w-full border border-neutral-200 rounded-lg px-2 py-1.5 text-sm"
-                            placeholder="Value"
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-xs text-neutral-500 whitespace-nowrap">
-                          {item.previous_result ? (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="inline-flex items-center gap-1">
-                                <span className={item.previous_result.is_abnormal ? "text-rose-700 font-medium" : ""}>
-                                  {item.previous_result.result_value}
-                                </span>
-                                {item.previous_result.flag && (
-                                  <LabResultFlag flag={item.previous_result.flag} compact />
-                                )}
-                              </span>
-                              <div className="text-[10px] text-neutral-400">
-                                {fmtDate(item.previous_result.order_date)}
-                              </div>
-                            </div>
-                          ) : "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          <input
-                            value={draft.result_unit}
-                            onChange={e => updateDraft({ result_unit: e.target.value })}
-                            className="w-full border border-neutral-200 rounded-lg px-2 py-1.5 text-sm"
-                            placeholder="Unit"
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <input
-                            value={draft.reference_range}
-                            onChange={e => updateDraft({ reference_range: e.target.value })}
-                            className="w-full border border-neutral-200 rounded-lg px-2 py-1.5 text-sm"
-                            placeholder="Range"
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <div className="flex flex-col gap-1.5">
-                            <LabResultFlag flag={draftFlag} />
-                            <label className="inline-flex items-center gap-1.5 text-xs text-neutral-600 cursor-pointer print:hidden">
-                              <input
-                                type="checkbox"
-                                checked={draft.is_abnormal}
-                                onChange={e => updateDraft({ is_abnormal: e.target.checked })}
-                              />
-                              Mark abnormal
-                            </label>
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 print:hidden">
-                          <button
-                            onClick={() => saveResult(item)}
-                            disabled={savingId === item.id}
-                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50"
-                          >
-                            <Save className="w-3.5 h-3.5" />
-                            {savingId === item.id ? "Saving…" : "Save"}
-                          </button>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className={`px-4 py-3 whitespace-nowrap ${flagged ? "font-bold text-rose-800" : ""}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <LabResultFlag flag={draftFlag} />
+                        <button
+                          type="button"
+                          onClick={() => saveResult(item)}
+                          disabled={savingId === item.id}
+                          className="inline-flex items-center gap-1 text-xs px-3 py-2 bg-rose-500 text-white rounded-lg disabled:opacity-50"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          {savingId === item.id ? "Saving…" : "Save"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className={`text-lg ${flagged ? "font-bold text-rose-800" : "font-semibold"}`}>
                           {item.result_value || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-neutral-500 whitespace-nowrap">
-                          {item.previous_result ? (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="inline-flex items-center gap-1">
-                                <span className={item.previous_result.is_abnormal ? "text-rose-700 font-medium" : ""}>
-                                  {item.previous_result.result_value}
-                                </span>
-                                {item.previous_result.flag && (
-                                  <LabResultFlag flag={item.previous_result.flag} compact />
-                                )}
-                              </span>
-                              <div className="text-[10px] text-neutral-400">
-                                {fmtDate(item.previous_result.order_date)}
-                              </div>
-                            </div>
-                          ) : "—"}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-600">
-                          {item.result_unit || "—"}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-neutral-600">
-                          {item.reference_range || "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <LabResultFlag flag={item.flag} />
-                        </td>
-                        <td className="px-4 py-3 print:hidden text-xs text-neutral-400">
-                          {item.resulted_at ? fmtDate(item.resulted_at) : "—"}
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                          {item.result_unit ? <span className="text-sm font-normal text-neutral-500 ml-1">{item.result_unit}</span> : null}
+                        </div>
+                        <div className="text-xs text-neutral-500 mt-1">Ref: {item.reference_range || "—"}</div>
+                      </div>
+                      <LabResultFlag flag={item.flag} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {/* Print-only compact table (visible when printing from mobile too) */}
+          <div className="hidden print:block">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-neutral-500 uppercase border-b border-neutral-100">
+                <tr>
+                  <th className="text-left px-4 py-2.5">Test</th>
+                  <th className="text-left px-4 py-2.5">Result</th>
+                  <th className="text-left px-4 py-2.5">Unit</th>
+                  <th className="text-left px-4 py-2.5">Reference Range</th>
+                  <th className="text-left px-4 py-2.5">Flag</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {items.map(item => {
+                  const flagged = isAbnormalFlag(item.flag) || item.is_abnormal
+                  return (
+                    <tr key={item.id}>
+                      <td className="px-4 py-2">{item.test_name}</td>
+                      <td className={`px-4 py-2 ${flagged ? "font-bold" : ""}`}>{item.result_value || "—"}</td>
+                      <td className="px-4 py-2">{item.result_unit || "—"}</td>
+                      <td className="px-4 py-2">{item.reference_range || "—"}</td>
+                      <td className="px-4 py-2"><LabResultFlag flag={item.flag} /></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ))}
 
@@ -503,6 +655,148 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
         )}
       </div>
     </div>
+  )
+}
+
+function ResultRow({
+  item,
+  draft,
+  savingId,
+  onUpdateDraft,
+  onSave,
+}: {
+  item: LabItem
+  draft?: DraftResult
+  savingId: number | null
+  onUpdateDraft: (patch: Partial<DraftResult>) => void
+  onSave: () => void
+}) {
+  const pending = !item.resulted_at
+  const draftFlag = draft
+    ? classifyLabFlag(draft.result_value, {
+        referenceRange: draft.reference_range,
+        referenceInterval: item.reference_interval,
+        isAbnormal: draft.is_abnormal,
+      })
+    : null
+  const displayFlag = pending && draftFlag ? draftFlag : item.flag
+  const flagged = isAbnormalFlag(displayFlag) || item.is_abnormal
+
+  return (
+    <tr className={flagged ? "bg-rose-50/40" : undefined}>
+      <td className="px-4 py-3">
+        <div className={`font-medium ${flagged ? "text-rose-800" : "text-neutral-900"}`}>
+          {item.test_name}
+        </div>
+        {item.test_code && (
+          <div className="text-xs text-neutral-400">{item.test_code}</div>
+        )}
+      </td>
+      {pending && draft ? (
+        <>
+          <td className="px-4 py-2">
+            <input
+              value={draft.result_value}
+              onChange={e => onUpdateDraft({ result_value: e.target.value })}
+              className="w-full border border-neutral-200 rounded-lg px-2 py-1.5 text-sm"
+              placeholder="Value"
+            />
+          </td>
+          <td className="px-4 py-2 text-xs text-neutral-500 whitespace-nowrap">
+            {item.previous_result ? (
+              <div className="flex flex-col gap-0.5">
+                <span className="inline-flex items-center gap-1">
+                  <span className={item.previous_result.is_abnormal ? "text-rose-700 font-medium" : ""}>
+                    {item.previous_result.result_value}
+                  </span>
+                  {item.previous_result.flag && (
+                    <LabResultFlag flag={item.previous_result.flag} compact />
+                  )}
+                </span>
+                <div className="text-[10px] text-neutral-400">
+                  {fmtDate(item.previous_result.order_date)}
+                </div>
+              </div>
+            ) : "—"}
+          </td>
+          <td className="px-4 py-2">
+            <input
+              value={draft.result_unit}
+              onChange={e => onUpdateDraft({ result_unit: e.target.value })}
+              className="w-full border border-neutral-200 rounded-lg px-2 py-1.5 text-sm"
+              placeholder="Unit"
+            />
+          </td>
+          <td className="px-4 py-2">
+            <input
+              value={draft.reference_range}
+              onChange={e => onUpdateDraft({ reference_range: e.target.value })}
+              className="w-full border border-neutral-200 rounded-lg px-2 py-1.5 text-sm"
+              placeholder="Range"
+            />
+          </td>
+          <td className="px-4 py-2">
+            <div className="flex flex-col gap-1.5">
+              <LabResultFlag flag={draftFlag} />
+              <label className="inline-flex items-center gap-1.5 text-xs text-neutral-600 cursor-pointer print:hidden">
+                <input
+                  type="checkbox"
+                  checked={draft.is_abnormal}
+                  onChange={e => onUpdateDraft({ is_abnormal: e.target.checked })}
+                />
+                Mark abnormal
+              </label>
+            </div>
+          </td>
+          <td className="px-4 py-2 print:hidden">
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={savingId === item.id}
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50"
+            >
+              <Save className="w-3.5 h-3.5" />
+              {savingId === item.id ? "Saving…" : "Save"}
+            </button>
+          </td>
+        </>
+      ) : (
+        <>
+          <td className={`px-4 py-3 whitespace-nowrap ${flagged ? "font-bold text-rose-800" : ""}`}>
+            {item.result_value || "—"}
+          </td>
+          <td className="px-4 py-3 text-xs text-neutral-500 whitespace-nowrap">
+            {item.previous_result ? (
+              <div className="flex flex-col gap-0.5">
+                <span className="inline-flex items-center gap-1">
+                  <span className={item.previous_result.is_abnormal ? "text-rose-700 font-medium" : ""}>
+                    {item.previous_result.result_value}
+                  </span>
+                  {item.previous_result.flag && (
+                    <LabResultFlag flag={item.previous_result.flag} compact />
+                  )}
+                </span>
+                <div className="text-[10px] text-neutral-400">
+                  {fmtDate(item.previous_result.order_date)}
+                </div>
+              </div>
+            ) : "—"}
+          </td>
+          <td className="px-4 py-3 whitespace-nowrap text-neutral-600">
+            {item.result_unit || "—"}
+          </td>
+          <td className="px-4 py-3 whitespace-nowrap text-neutral-600">
+            {item.reference_range || "—"}
+          </td>
+          <td className="px-4 py-3">
+            <LabResultFlag flag={item.flag} />
+          </td>
+          <td className="px-4 py-3 print:hidden text-xs text-neutral-400">
+            {item.resulted_at ? fmtDate(item.resulted_at) : "—"}
+          </td>
+        </>
+      )}
+    </tr>
   )
 }
 

@@ -9,7 +9,7 @@ import { fmtDate } from "@/lib/utils"
 
 type Patient = {
   id: number; mr_number: string; name: string; gender: string; dob?: string
-  blood_group?: string; cnic?: string; phone?: string; address?: string
+  blood_group?: string; cnic?: string; phone?: string; email?: string; address?: string
   allergies?: string; emergency_contact?: string; is_active: boolean; customer_id: number
 }
 type Visit = { id: number; visit_date: string; visit_type: string; doctor_id: number; diagnosis?: string }
@@ -92,6 +92,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             ["Date of Birth", patient.dob ? fmtDate(patient.dob) : "—"],
             ["CNIC", patient.cnic || "—"],
             ["Phone", patient.phone || "—"],
+            ["Email", patient.email || "—"],
             ["Emergency Contact", patient.emergency_contact || "—"],
             ["Allergies", patient.allergies || "None recorded"],
           ].map(([label, val]) => (

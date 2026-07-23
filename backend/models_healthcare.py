@@ -51,6 +51,7 @@ class HcPatient(SQLModel, table=True):
     blood_group: Optional[str] = None
     cnic: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[str] = None
     address: Optional[str] = None
     emergency_contact: Optional[str] = None
     allergies: Optional[str] = None
