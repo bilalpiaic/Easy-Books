@@ -105,7 +105,29 @@ def emit(session: Session, tenant_id: int, event_type: str, data: dict) -> int:
             payload_json=payload_json, status="pending", next_retry=now,
         ))
     request_wake()
+    # When Redis/ARQ is available, also nudge the worker outbox drain so
+    # delivery doesn't wait for the API-process lifespan loop (#115).
+    _enqueue_drain_if_queued()
     return len(targets)
+
+
+def _enqueue_drain_if_queued() -> None:
+    """Best-effort fire-and-forget enqueue; never raises into emit()."""
+    try:
+        from services.queue import redis_configured
+        if not redis_configured():
+            return
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        async def _go():
+            from services.queue import enqueue
+            await enqueue("drain_webhook_outbox_task")
+        loop.create_task(_go())
+    except Exception:
+        pass
 
 
 def _default_post(url: str, body: str, headers: dict) -> tuple[int, str]:

@@ -44,3 +44,19 @@ def send_email(to: str, subject: str, html_body: str) -> None:
         # Log but don't crash the request if email fails
         import traceback
         traceback.print_exc()
+
+
+def queue_email(to: str, subject: str, html_body: str) -> None:
+    """Prefer ARQ (`send_email_task`); fall back to sync send_email (#115)."""
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        send_email(to, subject, html_body)
+        return
+
+    async def _go():
+        from services.queue import enqueue
+        await enqueue("send_email_task", to, subject, html_body)
+
+    loop.create_task(_go())

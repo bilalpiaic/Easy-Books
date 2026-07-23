@@ -949,7 +949,7 @@ def update_invoice_status(
 def _send_invoice_notification(session, inv: Invoice) -> None:
     """Email the customer a notification when an invoice is sent."""
     import html
-    from services.email import send_email
+    from services.email import queue_email
     # Check email_notifications setting
     settings_rows = session.exec(
         select(Settings).where(Settings.tenant_id == inv.tenant_id)
@@ -970,7 +970,7 @@ def _send_invoice_notification(session, inv: Invoice) -> None:
     currency_s = html.escape(inv.currency or "")
     due_s = html.escape(inv.due_date or "")
     company_s = html.escape(company)
-    send_email(
+    queue_email(
         to=cust.email,
         subject=f"Invoice {number_s} from {company_s}",
         html_body=(
@@ -1111,3 +1111,39 @@ def download_invoice_pdf(session: SessionDep, user: CurrentUserDep, invoice_id: 
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{inv.number}.pdf"'},
     )
+
+
+@router.post("/{invoice_id}/pdf-async")
+async def enqueue_invoice_pdf(
+    session: SessionDep, user: CurrentUserDep, invoice_id: int
+):
+    """Enqueue PDF generation (#115); poll GET /api/tasks/{job_id} for the URL."""
+    import json as _json
+    from services.queue import enqueue
+
+    inv = session.exec(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    lines = session.exec(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == invoice_id)
+    ).all()
+    settings_rows = session.exec(
+        select(Settings).where(Settings.tenant_id == user.tenant_id)
+    ).all()
+    settings_map = {s.key: s.value for s in settings_rows}
+    output_key = f"{user.tenant_id}/pdfs/{inv.number}.pdf"
+    data_json = _json.dumps({
+        "invoice": inv.model_dump(),
+        "lines": [ln.model_dump() for ln in lines],
+    }, default=str)
+    result = await enqueue(
+        "generate_pdf_task",
+        "invoice",
+        data_json,
+        output_key,
+        settings_map.get("company_name", "") or "Easy-Books",
+        settings_map.get("business_tagline", "") or "",
+    )
+    return result

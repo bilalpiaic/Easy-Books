@@ -18,23 +18,50 @@ services:
       # Optional: switch to PostgreSQL.
       # DATABASE_URL: postgresql://user:password@host:5432/easybooks
       DATABASE_URL: ${DATABASE_URL:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       APP_ENV: production
       # Tell the app to trust Alembic for schema bootstrap (not create_all)
       SCHEMA_BOOTSTRAP: alembic
     volumes:
       # Persistent data: SQLite database + uploaded files
       - eb_data:/data
+    depends_on:
+      - redis
     healthcheck:
       test:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/version')"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
       interval: 15s
       timeout: 5s
       # Give migrations + first-run demo seed time to complete before health checks count
       start_period: 90s
       retries: 5
+
+  # ── ARQ worker (#115) ────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: ./backend
+    command: arq worker.WorkerSettings
+    restart: unless-stopped
+    environment:
+      EB_DATA_DIR: /data
+      DATABASE_URL: ${DATABASE_URL:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      SCHEMA_BOOTSTRAP: alembic
+      APP_ENV: production
+    volumes:
+      - eb_data:/data
+    depends_on:
+      - redis
+      - backend
+
+  # ── Redis (ARQ broker) ───────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
 
   # ── Next.js frontend ─────────────────────────────────────────────────────────
   frontend:

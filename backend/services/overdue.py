@@ -22,7 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from models import Customer, Invoice, PaymentAllocation, Settings
-from services.email import send_email
+from services.email import queue_email as send_email
 from services.money import D
 
 DEFAULT_REMINDER_INTERVAL_DAYS = 7

@@ -28,7 +28,7 @@ from routers import (
     reconciliations, recurring, report_builder, reports, settings, stock_locations, store_issues, store_reports,
     subledger, tax_codes, telecom, telecom_reports, transactions, users, vendors,
     permissions, commissions, promo_rules, payroll, attendance, system_update,
-    search, ai_chat, webhooks,
+    search, ai_chat, webhooks, tasks, health,
 )
 from routers.pra import pra_router
 from routers import healthcare, healthcare_reports, healthcare_dialysis
@@ -244,7 +244,11 @@ _ROUTERS = [
     search.router,
     ai_chat.router,
     alerts.router,
+    tasks.router,
 ]
+
+# Health is mounted once (no /api/v1 duplicate) — load balancers + Caddy probe it.
+app.include_router(health.router)
 
 # PRA e-Invoice router mounted separately (not in the shared prefix list above)
 app.include_router(pra_router, prefix="/api")
