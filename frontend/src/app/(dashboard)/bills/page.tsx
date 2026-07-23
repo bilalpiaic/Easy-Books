@@ -71,6 +71,10 @@ function BillsContent() {
         .then(v => setVendorFilter({ id: v.id, name: v.name }))
         .catch(() => {})
     }
+    const from = searchParams.get('date_from')
+    const to = searchParams.get('date_to')
+    if (from) setDateFrom(from)
+    if (to) setDateTo(to)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { RotateCcw, Download, Printer } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
@@ -42,15 +43,22 @@ function defaultRange() {
 
 const PAGE_SIZE = 50
 
-export default function JournalPage() {
+function JournalPageContent() {
   const { confirm, toast } = useMessages()
   const { t } = useTranslation()
+  const searchParams = useSearchParams()
 
   const fmt = useFmt()
   const range = defaultRange()
-  const [start, setStart] = useState(range.start)
-  const [end, setEnd] = useState(range.end)
-  const [voucherTypeFilter, setVoucherTypeFilter] = useState("")
+  const [start, setStart] = useState(
+    () => searchParams.get("start") || searchParams.get("date_from") || range.start,
+  )
+  const [end, setEnd] = useState(
+    () => searchParams.get("end") || searchParams.get("date_to") || range.end,
+  )
+  const [voucherTypeFilter, setVoucherTypeFilter] = useState(
+    () => searchParams.get("voucher_type") || "",
+  )
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -252,5 +260,13 @@ export default function JournalPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function JournalPage() {
+  return (
+    <Suspense fallback={<p className="p-4 text-sm text-[var(--text-muted)]">Loading journal…</p>}>
+      <JournalPageContent />
+    </Suspense>
   )
 }

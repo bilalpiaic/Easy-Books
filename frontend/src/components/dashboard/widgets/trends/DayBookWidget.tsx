@@ -12,6 +12,24 @@ const VOUCHER_LABELS: Record<string, string> = {
   CN: "Credit Note", DN: "Debit Note", PR: "Payroll",
 }
 
+function dayRange(date: string) {
+  return `date_from=${date}&date_to=${date}`
+}
+
+function voucherHref(date: string, type: string) {
+  return `/journal?start=${date}&end=${date}&voucher_type=${encodeURIComponent(type)}`
+}
+
+function docHref(date: string, key: string): string | null {
+  switch (key) {
+    case "invoices": return `/invoices?${dayRange(date)}`
+    case "bills": return `/bills?${dayRange(date)}`
+    case "payments_received": return `/payments-received`
+    case "payments_made": return `/bill-payments`
+    default: return null
+  }
+}
+
 function Heading({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/45 mt-3 mb-1.5 first:mt-0">
@@ -20,14 +38,38 @@ function Heading({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Row({ label, count, amount }: { label: string; count: number; amount?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2 py-1 border-b border-[var(--border)]/60 last:border-0">
-      <span className="text-xs text-[var(--text-primary)]/75 truncate">{label}</span>
+function Row({
+  label, count, amount, href,
+}: {
+  label: string
+  count: number
+  amount?: string
+  href?: string | null
+}) {
+  const body = (
+    <>
+      <span className={`text-xs truncate ${href ? "text-[#b8943f] group-hover:underline" : "text-[var(--text-primary)]/75"}`}>
+        {label}
+      </span>
       <span className="flex items-center gap-2 flex-shrink-0">
         <span className="text-[10px] font-semibold bg-[var(--bg-page)] text-[var(--text-muted)] rounded-full px-1.5 py-0.5">{count}</span>
         {amount !== undefined && <span className="text-xs font-semibold text-[var(--text-primary)] tabular-nums">{amount}</span>}
       </span>
+    </>
+  )
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="group flex items-center justify-between gap-2 py-1 border-b border-[var(--border)]/60 last:border-0 hover:bg-[var(--bg-page)]/60 rounded-sm -mx-0.5 px-0.5"
+      >
+        {body}
+      </Link>
+    )
+  }
+  return (
+    <div className="flex items-center justify-between gap-2 py-1 border-b border-[var(--border)]/60 last:border-0">
+      {body}
     </div>
   )
 }
@@ -52,10 +94,10 @@ export default function DayBookWidget() {
   }, [date])
 
   const docs = book ? [
-    { label: "Invoices issued", ...book.documents.invoices },
-    { label: "Bills recorded", ...book.documents.bills },
-    { label: "Payments received", ...book.documents.payments_received },
-    { label: "Payments made", ...book.documents.payments_made },
+    { key: "invoices", label: "Invoices issued", ...book.documents.invoices },
+    { key: "bills", label: "Bills recorded", ...book.documents.bills },
+    { key: "payments_received", label: "Payments received", ...book.documents.payments_received },
+    { key: "payments_made", label: "Payments made", ...book.documents.payments_made },
   ].filter(d => d.count > 0) : []
 
   const isEmpty = !!book && book.vouchers.length === 0 && docs.length === 0 && book.activity.length === 0
@@ -87,15 +129,24 @@ export default function DayBookWidget() {
             <>
               <Heading>Vouchers</Heading>
               {book.vouchers.map(v => (
-                <Row key={v.type} label={VOUCHER_LABELS[v.type] ?? v.type} count={v.count} amount={fmt(Number(v.total))} />
+                <Row
+                  key={v.type}
+                  label={VOUCHER_LABELS[v.type] ?? v.type}
+                  count={v.count}
+                  amount={fmt(Number(v.total))}
+                  href={voucherHref(date, v.type)}
+                />
               ))}
-              <div className="flex items-center justify-between gap-2 py-1 mt-0.5">
-                <span className="text-xs font-bold text-[var(--text-primary)]/80">Total</span>
+              <Link
+                href={`/journal?start=${date}&end=${date}`}
+                className="group flex items-center justify-between gap-2 py-1 mt-0.5 hover:bg-[var(--bg-page)]/60 rounded-sm -mx-0.5 px-0.5"
+              >
+                <span className="text-xs font-bold text-[#b8943f] group-hover:underline">Total</span>
                 <span className="flex items-center gap-2">
                   <span className="text-[10px] font-semibold bg-[var(--bg-page)] text-[var(--text-muted)] rounded-full px-1.5 py-0.5">{book.voucher_totals.count}</span>
                   <span className="text-xs font-bold text-[var(--text-primary)] tabular-nums">{fmt(Number(book.voucher_totals.total))}</span>
                 </span>
-              </div>
+              </Link>
             </>
           )}
 
@@ -103,7 +154,13 @@ export default function DayBookWidget() {
             <>
               <Heading>Documents</Heading>
               {docs.map(d => (
-                <Row key={d.label} label={d.label} count={d.count} amount={fmt(Number(d.total))} />
+                <Row
+                  key={d.key}
+                  label={d.label}
+                  count={d.count}
+                  amount={fmt(Number(d.total))}
+                  href={docHref(date, d.key)}
+                />
               ))}
             </>
           )}
@@ -113,12 +170,16 @@ export default function DayBookWidget() {
               <Heading>Activity by Category</Heading>
               <div className="flex flex-wrap gap-1.5">
                 {book.activity.map(a => (
-                  <span key={a.category} className="text-[10px] font-medium bg-[var(--bg-page)] text-[var(--text-primary)]/70 rounded-full px-2 py-0.5">
+                  <Link
+                    key={a.category}
+                    href={`/audit?entity_type=${encodeURIComponent(a.category)}&date_from=${date}&date_to=${date}`}
+                    className="text-[10px] font-medium bg-[var(--bg-page)] text-[#b8943f] rounded-full px-2 py-0.5 hover:underline"
+                  >
                     {a.category.replace(/_/g, " ")} · {a.count}
-                  </span>
+                  </Link>
                 ))}
               </div>
-              <Link href="/audit" className="inline-block text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e] mt-2">
+              <Link href={`/audit?date_from=${date}&date_to=${date}`} className="inline-block text-[11px] text-[#b8943f] font-semibold hover:text-[#8a6d2e] mt-2">
                 Audit Log →
               </Link>
             </>
