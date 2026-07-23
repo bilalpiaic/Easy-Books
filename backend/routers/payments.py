@@ -17,7 +17,7 @@ from models import (
 )
 from services.events import emit
 from services.money import D, money
-from services.posting import EntryInput, post_transaction
+from services.posting import post_transaction
 from services.vouchers import classify_cash_account
 
 from services.permissions import perm_dep, apply_own_filter
