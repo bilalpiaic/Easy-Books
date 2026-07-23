@@ -6,13 +6,17 @@ from jinja2 import Environment, FileSystemLoader
 _TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
 
+def render_template_html(template_name: str, context: dict) -> str:
+    """Render a Jinja2 template under templates/ to an HTML string."""
+    env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
+    return env.get_template(template_name).render(**context)
+
+
 def render_html_pdf(template_name: str, context: dict) -> bytes:
     """Render any Jinja2 template under templates/ to PDF bytes."""
     from weasyprint import HTML  # lazy import — WeasyPrint is slow to import
 
-    env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=True)
-    template = env.get_template(template_name)
-    html_str = template.render(**context)
+    html_str = render_template_html(template_name, context)
     return HTML(string=html_str).write_pdf()
 
 

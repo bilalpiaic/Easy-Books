@@ -205,7 +205,8 @@ function TrendCard({ item }: { item: TrendItem }) {
           n={points.length}
         </div>
       </div>
-      <div className="h-40">
+      {/* Chart.js canvas prints blank — hide on print; under-chart table is the print surface */}
+      <div className="h-40 print:hidden">
         <Line
           data={{ labels, datasets: datasets as never }}
           options={{
@@ -242,8 +243,8 @@ function TrendCard({ item }: { item: TrendItem }) {
           }}
         />
       </div>
-      {/* Compact prior table under chart — print-friendly */}
-      <table className="w-full text-[11px] mt-2 border-t border-neutral-100">
+      {/* Compact prior table under chart — print-friendly (always shown; sole print surface for trends) */}
+      <table className="w-full text-[11px] mt-2 border-t border-neutral-100 print:block">
         <thead>
           <tr className="text-neutral-400 uppercase">
             <th className="text-left py-1 font-medium">Date</th>
