@@ -119,6 +119,9 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   $env:NEXT_PUBLIC_APP_VERSION = $appVersion
   $env:NEXT_PUBLIC_GIT_COMMIT  = if ($headCommit) { $headCommit } else { 'dev' }
   $env:NEXT_PUBLIC_BUILD_DATE  = $buildDate
+  # Match uvicorn bind (127.0.0.1) and the browser URL we open. Baking
+  # "localhost" breaks demo login on Windows when localhost resolves to ::1.
+  if (-not $env:NEXT_PUBLIC_API_URL) { $env:NEXT_PUBLIC_API_URL = 'http://127.0.0.1:8000' }
   # Pre-clean the previous build's standalone folder ourselves, with retries.
   # `next build` also tries to clear this folder internally, but on Windows a
   # just-killed node.exe (see step 4) can hold the directory locked for a
@@ -254,12 +257,32 @@ $env:PORT = '3000'; $env:HOSTNAME = '127.0.0.1'
 $front = Start-Process -PassThru -WindowStyle Hidden -WorkingDirectory (Join-Path $Root 'frontend') `
   -FilePath $NodeExe -ArgumentList '.next\standalone\server.js'
 
-Start-Sleep -Seconds 6
+# Wait until the API answers — opening the login page too early is the usual
+# cause of demo "Failed to fetch" right after update.bat / install-and-run.
+Log 'Waiting for the API to become ready...'
+$ready = $false
+for ($i = 0; $i -lt 60; $i++) {
+  try {
+    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:8000/api/version' -UseBasicParsing -TimeoutSec 2
+    if ($resp.StatusCode -eq 200) { $ready = $true; break }
+  } catch {
+    if ($back.HasExited) { break }
+  }
+  Start-Sleep -Seconds 1
+}
 foreach ($f in $backLog, $backErr) {
   if (Test-Path $f) {
     Get-Content $f | Select-String -SimpleMatch '[seed]' | Select-Object -Last 1 |
       ForEach-Object { Write-Host $_.Line -ForegroundColor Cyan }
   }
+}
+if (-not $ready) {
+  Write-Host "`nBackend did not become ready on http://127.0.0.1:8000." -ForegroundColor Red
+  if (Test-Path $backErr) {
+    Write-Host "Last lines of $backErr :" -ForegroundColor Yellow
+    Get-Content $backErr -Tail 40
+  }
+  throw "Backend failed to start — fix the error above, then re-run install-and-run.bat (or update.bat)."
 }
 Start-Process 'http://127.0.0.1:3000/login'
 Write-Host "`nEasy-Books is running at  http://127.0.0.1:3000   (close this window to stop)" -ForegroundColor Green

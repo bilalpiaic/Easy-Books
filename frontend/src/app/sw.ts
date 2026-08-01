@@ -14,7 +14,19 @@ declare const self: ServiceWorkerGlobalScope
 
 const runtimeCaching: RuntimeCaching[] = [
   {
-    matcher: ({ sameOrigin, url }) => sameOrigin && url.pathname.startsWith("/api/"),
+    // Never cache API traffic. Same-origin /api/* (proxied) AND the local
+    // FastAPI host the installer opens (127.0.0.1:8000 / localhost:8000) —
+    // otherwise Serwist's default cross-origin NetworkFirst can turn a brief
+    // backend blip into a confusing "Failed to fetch" on login.
+    matcher: ({ sameOrigin, url }) => {
+      if (sameOrigin && url.pathname.startsWith("/api/")) return true
+      if (!url.pathname.startsWith("/api/")) return false
+      const host = url.hostname
+      return (
+        (host === "127.0.0.1" || host === "localhost" || host === "[::1]") &&
+        (url.port === "8000" || url.port === "")
+      )
+    },
     handler: new NetworkOnly(),
   },
   ...defaultCache,

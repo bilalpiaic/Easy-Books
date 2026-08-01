@@ -25,7 +25,7 @@ Copy `.env.example` to `.env.local`:
 
 | Variable | Required | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | ✅ | FastAPI base URL (e.g. `http://localhost:8000` in dev) |
+| `NEXT_PUBLIC_API_URL` | ✅ | FastAPI base URL (prefer `http://127.0.0.1:8000` locally; avoid bare `localhost` on Windows) |
 
 ## Layout
 

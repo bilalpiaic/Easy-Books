@@ -1,6 +1,6 @@
 /** Download a PDF from an authenticated API path as a file. */
 export async function downloadPdf(path: string, filename: string): Promise<void> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
   const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
   const res = await fetch(`${apiUrl}${path.startsWith("/") ? path : `/${path}`}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

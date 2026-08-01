@@ -175,7 +175,7 @@ export default function SettingsPage() {
       const fd = new FormData()
       fd.append("file", file)
       const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/settings/logo`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}/api/settings/logo`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
@@ -416,7 +416,7 @@ export default function SettingsPage() {
             {form.logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}${form.logo_url}`}
+                src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}${form.logo_url}`}
                 alt="Company logo"
                 className="h-16 w-auto object-contain border border-[var(--border)] rounded-lg p-1 bg-white"
               />
@@ -933,7 +933,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={async () => {
-              const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+              const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
               const res = await fetch(`${base}/api/backup/download`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
               })
@@ -963,7 +963,7 @@ export default function SettingsPage() {
                   danger: true,
                 })
                 if (!ok) return
-                const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+                const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
                 const fd = new FormData(); fd.append("file", f)
                 const res = await fetch(`${base}/api/backup/restore`, {
                   method: "POST",
@@ -1218,7 +1218,7 @@ export default function SettingsPage() {
             onClick={async (e) => {
               const btn = e.currentTarget; btn.disabled = true
               try {
-                const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+                const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
                 const res = await fetch(`${base}/api/admin/demo/seed`, {
                   method: "POST",
                   headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
@@ -1240,7 +1240,7 @@ export default function SettingsPage() {
                 danger: true,
               })
               if (!ok) return
-              const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+              const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
               const res = await fetch(`${base}/api/admin/demo/seed`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
