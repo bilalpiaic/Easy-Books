@@ -144,7 +144,7 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
     }
   }
   # Drop local-only FloatingStack if present (phone experiment; never upstream).
-  # Also in update.ps1 — duplicated here so the first pull that brings this
+  # Also in update.ps1 - duplicated here so the first pull that brings this
   # script still cleans up before next build.
   $mobileDir = Join-Path $PSScriptRoot 'frontend\src\components\mobile'
   if (Test-Path (Join-Path $mobileDir 'FloatingStack.tsx')) {
@@ -182,7 +182,7 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   )) {
     if (Test-Path $script) {
       node $script
-      # best-effort — build can proceed without these
+      # best-effort - build can proceed without these
     }
   }
   npx next build
@@ -257,7 +257,7 @@ $env:PORT = '3000'; $env:HOSTNAME = '127.0.0.1'
 $front = Start-Process -PassThru -WindowStyle Hidden -WorkingDirectory (Join-Path $Root 'frontend') `
   -FilePath $NodeExe -ArgumentList '.next\standalone\server.js'
 
-# Wait until the API answers — opening the login page too early is the usual
+# Wait until the API answers - opening the login page too early is the usual
 # cause of demo "Failed to fetch" right after update.bat / install-and-run.
 Log 'Waiting for the API to become ready...'
 $ready = $false
@@ -282,7 +282,7 @@ if (-not $ready) {
     Write-Host "Last lines of $backErr :" -ForegroundColor Yellow
     Get-Content $backErr -Tail 40
   }
-  throw "Backend failed to start — fix the error above, then re-run install-and-run.bat (or update.bat)."
+  throw "Backend failed to start - fix the error above, then re-run install-and-run.bat (or update.bat)."
 }
 Start-Process 'http://127.0.0.1:3000/login'
 Write-Host "`nEasy-Books is running at  http://127.0.0.1:3000   (close this window to stop)" -ForegroundColor Green
