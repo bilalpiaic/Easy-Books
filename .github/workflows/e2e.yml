@@ -1,0 +1,119 @@
+# Playwright E2E — auth + purchase chain (#228)
+#
+# Runs on pull_request (and manual dispatch). Starts API + Next, seeds the
+# manufacturing demo tenant, then drives Chromium.
+name: E2E
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        working-directory: backend
+        run: uv sync
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start backend
+        working-directory: backend
+        env:
+          OVERDUE_SWEEP_ENABLED: "false"
+          WEBHOOKS_ENABLED: "false"
+          FRONTEND_ORIGIN: http://localhost:3000
+          JWT_SECRET_KEY: e2e-test-secret-not-for-production
+        run: |
+          # Fresh SQLite DB for this runner
+          rm -f database.db
+          nohup uv run python main.py > /tmp/eb-backend.log 2>&1 &
+          echo $! > /tmp/eb-backend.pid
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/docs >/dev/null; then
+              echo "backend ready"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:8000/docs >/dev/null
+
+      - name: Seed demo tenants
+        working-directory: backend
+        env:
+          OVERDUE_SWEEP_ENABLED: "false"
+        run: |
+          PYTHONPATH=. uv run python -m scripts.seed_demo
+
+      # Production build avoids next-dev/Turbopack cold-compile hangs that
+      # flake the multi-page purchase-chain walk on CI runners.
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build
+
+      - name: Start frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: |
+          nohup npm start > /tmp/eb-frontend.log 2>&1 &
+          echo $! > /tmp/eb-frontend.pid
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:3000/login >/dev/null; then
+              echo "frontend ready"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:3000/login >/dev/null
+
+      - name: Run Playwright
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          CI: "true"
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+
+      - name: Dump server logs on failure
+        if: failure()
+        run: |
+          echo "===== backend ====="
+          tail -n 200 /tmp/eb-backend.log || true
+          echo "===== frontend ====="
+          tail -n 200 /tmp/eb-frontend.log || true
