@@ -425,6 +425,5 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
     { label: "AI Assistant",  href: "/agent",                icon: Sparkles,    section: "system", forModule: "ai_assistant" },
     { label: "UAE e-Invoice Logs", href: "/uae-logs",        icon: Landmark,    section: "system", forModule: "uae_vat" },
-    { label: "Add-ons",       href: "/apps",                 icon: AppWindow,   section: "system", adminOnly: true },
   ],
 }
