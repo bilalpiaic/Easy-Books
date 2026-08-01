@@ -21,7 +21,9 @@ jobs:
 
       - uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          # Cache post-step has been failing the job after a green Playwright
+          # run (uv cache prune exit 2). E2E is I/O-bound on seed+build anyway.
+          enable-cache: false
 
       - uses: actions/setup-node@v4
         with:
