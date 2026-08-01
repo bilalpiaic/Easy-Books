@@ -26,12 +26,15 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@serwist/turbopack": "^9.5.12",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.5",
+    "serwist": "^9.5.12",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

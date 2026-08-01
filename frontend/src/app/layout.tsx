@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Noto_Nastaliq_Urdu } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LocaleProvider } from "@/context/LocaleContext";
+import { SerwistProvider } from "@/components/SerwistProvider";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -17,8 +18,24 @@ const nastaliqUrdu = Noto_Nastaliq_Urdu({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Easy-Books",
   title: "Easy-Books — Financial Management System",
   description: "State-of-the-art multi-tenant financial management system",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Easy-Books",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#b8943f",
 };
 
 // SECURITY NOTE: dangerouslySetInnerHTML is safe here because this script is a
@@ -50,11 +67,13 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: antiFlashScript }} />
       </head>
       <body className="min-h-screen font-sans bg-[#f6f3ee] text-[#1a1814]" suppressHydrationWarning>
-        <ThemeProvider>
-          <LocaleProvider>
-            {children}
-          </LocaleProvider>
-        </ThemeProvider>
+        <SerwistProvider swUrl="/serwist/sw.js">
+          <ThemeProvider>
+            <LocaleProvider>
+              {children}
+            </LocaleProvider>
+          </ThemeProvider>
+        </SerwistProvider>
       </body>
     </html>
   );

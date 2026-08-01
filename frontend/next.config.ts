@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { createRequire } from "module";
+import { withSerwist } from "@serwist/turbopack";
 
 const _require = createRequire(import.meta.url);
 const { version } = _require("./package.json") as { version: string };
@@ -33,4 +34,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);
