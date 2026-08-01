@@ -248,8 +248,11 @@ Pop-Location
 Log "Starting Easy-Books - data folder: $env:EB_DATA_DIR"
 $backLog = Join-Path $env:EB_DATA_DIR 'backend.log'
 $backErr = Join-Path $env:EB_DATA_DIR 'backend.err.log'
+# Prefer `python -m uvicorn` over the `uvicorn.exe` console-script shim.
+# Windows Smart App Control (SAC) blocks unsigned venv entry-point EXEs
+# (os error 4551) but allows the signed python.exe + module import path.
 $back = Start-Process -PassThru -WindowStyle Hidden -WorkingDirectory (Join-Path $Root 'backend') `
-  -FilePath 'cmd.exe' -ArgumentList '/c','set "PYTHONPATH=." && uv run uvicorn main:app --host 127.0.0.1 --port 8000' `
+  -FilePath 'cmd.exe' -ArgumentList '/c','set "PYTHONPATH=." && uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000' `
   -RedirectStandardOutput $backLog -RedirectStandardError $backErr
 
 # Child inherits these (PowerShell 5.1 has no Start-Process -Environment).
@@ -281,6 +284,12 @@ if (-not $ready) {
   if (Test-Path $backErr) {
     Write-Host "Last lines of $backErr :" -ForegroundColor Yellow
     Get-Content $backErr -Tail 40
+    $errText = Get-Content $backErr -Raw -ErrorAction SilentlyContinue
+    if ($errText -match '4551|Application Control') {
+      Write-Host "`nWindows Smart App Control blocked a backend executable." -ForegroundColor Yellow
+      Write-Host "This install already launches via 'python -m uvicorn' to avoid that." -ForegroundColor Yellow
+      Write-Host "If it still fails, allow Python/uv under Windows Security, or set Smart App Control to Off." -ForegroundColor Yellow
+    }
   }
   throw "Backend failed to start - fix the error above, then re-run install-and-run.bat (or update.bat)."
 }

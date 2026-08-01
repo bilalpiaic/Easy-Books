@@ -11,4 +11,4 @@ echo "[startup] Seeding demo data (skips if any user already exists)..."
 uv run python -m scripts.autoseed_demo || echo "[startup] Demo seed skipped or non-fatal error"
 
 echo "[startup] Starting API server..."
-exec uv run uvicorn main:app --host 0.0.0.0 --port 8000
+exec uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000

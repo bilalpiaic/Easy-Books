@@ -169,7 +169,7 @@ log "Loading demo data (first run only; set SEED_DEMO=false to skip)…"
   || echo "  (demo seeding skipped/failed — non-fatal; the app still starts)"
 
 log "Starting Easy-Books — data folder: $EB_DATA_DIR"
-( cd backend && PYTHONPATH=. uv run uvicorn main:app --host 127.0.0.1 --port 8000 ) &
+( cd backend && PYTHONPATH=. uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000 ) &
 BACK=$!
 ( cd frontend && PORT=3000 HOSTNAME=127.0.0.1 "$NODE_BIN" .next/standalone/server.js ) &
 FRONT=$!
