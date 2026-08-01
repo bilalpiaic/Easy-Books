@@ -33,6 +33,10 @@ function FilterBarDemo() {
 }
 
 export const Interactive: Story = {
+  args: {
+    search: "",
+    onSearch: () => {},
+  },
   render: () => <FilterBarDemo />,
 }
 
