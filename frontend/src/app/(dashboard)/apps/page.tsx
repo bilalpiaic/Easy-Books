@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import {
   BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock,
   AlertTriangle, Stethoscope, Sparkles, Scissors, ShoppingCart, LayoutGrid,
-  List, Layers,
+  List, Layers, Landmark,
 } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
 import { useMessages } from "@/context/MessageContext"
@@ -13,7 +13,7 @@ import { ADDON_PACKS, HOME_PREF_KEY, type AddonPack } from "@/lib/addonPacks"
 import { getCurrentUser } from "@/lib/auth"
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles, Scissors, ShoppingCart,
+  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles, Scissors, ShoppingCart, Landmark,
 }
 
 type ViewMode = "tabs" | "list"

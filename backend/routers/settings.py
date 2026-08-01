@@ -18,7 +18,7 @@ from services.whatsapp import WA_SECRET_SETTINGS_KEYS, status_payload as wa_stat
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
 
 # Secrets that must never leave GET /api/settings unredacted.
-SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS
+SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {"uae_api_key"}
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -87,6 +87,12 @@ class SettingsUpdate(BaseModel):
     pra_pos_id: Optional[str] = None         # 6-digit POS ID from PRA portal
     pra_api_token: Optional[str] = None      # Production Bearer token (kept secret)
     pra_sandbox_mode: Optional[str] = None   # "true" = use sandbox endpoint
+    # UAE VAT e-Invoice — FTA localization pack
+    uae_vat_enabled: Optional[str] = None
+    uae_trn: Optional[str] = None            # 15-digit Tax Registration Number
+    uae_legal_name: Optional[str] = None
+    uae_api_key: Optional[str] = None        # future live connector (write-only)
+    uae_sandbox_mode: Optional[str] = None
     # AI assistant (#117) — key values are write-only; GET redacts them
     ai_api_key_anthropic: Optional[str] = None
     ai_api_key_openai: Optional[str] = None

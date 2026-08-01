@@ -44,6 +44,13 @@ export const ADDON_PACKS: AddonPack[] = [
     features: ["Fiscal invoice numbers", "PRA Sales home dashboard", "Submission logs"],
   },
   {
+    id: "uae_vat",
+    label: "UAE VAT e-Invoice",
+    tagline: "UAE localization",
+    modules: ["uae_vat"],
+    features: ["5% VAT tax codes", "VAT Payable/Receivable CoA", "Sandbox FTA stub"],
+  },
+  {
     id: "ai",
     label: "AI Assistant",
     tagline: "Ask your books",

@@ -65,6 +65,12 @@ export interface AppSettings {
   pra_pos_id: string
   pra_api_token: string
   pra_sandbox_mode: string
+  // UAE VAT e-Invoice
+  uae_vat_enabled: string
+  uae_trn: string
+  uae_legal_name: string
+  uae_api_key: string
+  uae_sandbox_mode: string
 }
 
 const defaults: AppSettings = {
@@ -114,6 +120,11 @@ const defaults: AppSettings = {
   pra_pos_id: "",
   pra_api_token: "",
   pra_sandbox_mode: "true",
+  uae_vat_enabled: "false",
+  uae_trn: "",
+  uae_legal_name: "",
+  uae_api_key: "",
+  uae_sandbox_mode: "true",
 }
 
 interface SettingsContextValue {

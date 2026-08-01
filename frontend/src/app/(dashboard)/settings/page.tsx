@@ -64,6 +64,9 @@ export default function SettingsPage() {
   const [praTesting, setPraTesting] = useState(false)
   const [praTestResult, setPraTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
   const [praShowToken, setPraShowToken] = useState(false)
+  const [uaeTesting, setUaeTesting] = useState(false)
+  const [uaeTestResult, setUaeTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [uaeShowKey, setUaeShowKey] = useState(false)
 
   useEffect(() => {
     setForm(ctxSettings)
@@ -1072,6 +1075,85 @@ export default function SettingsPage() {
           {praTestResult && (
             <span className={`text-sm ${praTestResult.ok ? "text-green-700" : "text-red-600"}`}>
               {praTestResult.ok ? "✓" : "✗"} {praTestResult.msg}
+            </span>
+          )}
+        </div>
+      </section>
+      )}
+
+      {/* ── UAE VAT e-Invoice — compliance switch once the UAE add-on is installed ── */}
+      {installedModules.has("uae_vat") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">UAE VAT e-Invoice <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(Federal Tax Authority)</span></h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm text-[var(--text-primary)]/70">{form.uae_vat_enabled === "true" ? "Enabled" : "Disabled"}</span>
+            <div
+              onClick={() => handleChange("uae_vat_enabled", form.uae_vat_enabled === "true" ? "false" : "true")}
+              className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.uae_vat_enabled === "true" ? "bg-[var(--primary)]" : "bg-[var(--text-primary)]/20"}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-0.5 shadow transition-transform ${form.uae_vat_enabled === "true" ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-primary)]/50">
+          Installs UAE 5% VAT tax codes and VAT Payable/Receivable CoA leaves. Sandbox mode mints a synthetic FTA UUID without a live call; production Peppol wiring is reserved for a follow-up.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Tax Registration Number (TRN)</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              placeholder="15-digit TRN"
+              autoComplete="off"
+              value={form.uae_trn} onChange={e => handleChange("uae_trn", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Legal name</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              placeholder="Registered company name"
+              autoComplete="off"
+              value={form.uae_legal_name} onChange={e => handleChange("uae_legal_name", e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">API key (future live connector)</label>
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+                type={uaeShowKey ? "text" : "password"}
+                placeholder="Write-only — leave blank for sandbox stub"
+                autoComplete="new-password"
+                value={form.uae_api_key} onChange={e => handleChange("uae_api_key", e.target.value)} />
+              <button type="button" onClick={() => setUaeShowKey(v => !v)}
+                className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)]/60 hover:border-[var(--primary)]/40">
+                {uaeShowKey ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="rounded border-[var(--border)]"
+            checked={form.uae_sandbox_mode === "true"}
+            onChange={e => handleChange("uae_sandbox_mode", e.target.checked ? "true" : "false")} />
+          <span className="text-[var(--text-primary)]/70">Use Sandbox stub</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setUaeTesting(true); setUaeTestResult(null)
+              try {
+                const r = await apiFetch<{ ok: boolean; message: string; sandbox: boolean }>("/api/uae/test", { method: "POST" })
+                setUaeTestResult({ ok: !!r.ok, msg: `${r.message}${r.sandbox ? " (sandbox)" : ""}` })
+              } catch (e: unknown) {
+                setUaeTestResult({ ok: false, msg: String((e as Error).message ?? e) })
+              } finally { setUaeTesting(false) }
+            }}
+            disabled={uaeTesting || !form.uae_trn}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50 transition-colors"
+          >
+            {uaeTesting ? "Testing…" : "Test Connection"}
+          </button>
+          {uaeTestResult && (
+            <span className={`text-sm ${uaeTestResult.ok ? "text-green-700" : "text-red-600"}`}>
+              {uaeTestResult.ok ? "✓" : "✗"} {uaeTestResult.msg}
             </span>
           )}
         </div>

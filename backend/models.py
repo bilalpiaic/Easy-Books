@@ -1715,6 +1715,22 @@ class PRASubmissionLog(SQLModel, table=True):
     error_message: Optional[str] = None
 
 
+class UaeEinvoiceLog(SQLModel, table=True):
+    """Audit trail for UAE FTA e-invoice adapter attempts (sandbox stub or live)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True)
+    invoice_id: int = Field(index=True)
+    attempt_at: datetime = Field(default_factory=datetime.utcnow)
+    endpoint: str
+    request_json: str
+    response_uuid: Optional[str] = None
+    response_json: Optional[str] = None
+    http_status: Optional[int] = None
+    success: bool = Field(default=False)
+    error_message: Optional[str] = None
+    sandbox: bool = Field(default=True)
+
+
 class Attachment(SQLModel, table=True):
     """Polymorphic document attachment for vouchers and source documents.
 

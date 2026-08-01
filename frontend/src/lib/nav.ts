@@ -19,7 +19,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -126,6 +126,7 @@ export const NAV: NavItem[] = [
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
   { label: "Add-ons",          href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
   { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System",    forModule: "pra" },
+  { label: "UAE e-Invoice Logs", href: "/uae-logs",        icon: Landmark,         section: "System",    forModule: "uae_vat" },
   // Payroll
   { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll",   forModule: "hrm" },
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll",   forModule: "hrm" },
@@ -191,7 +192,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -230,7 +231,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
-  system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow", "/agent"],
+  system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow", "/agent", "/uae-logs"],
 }
 
 /** Routes homed under /manufacturing that move to the Purchases section when purchase_store is installed */
@@ -423,5 +424,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "system" },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
     { label: "AI Assistant",  href: "/agent",                icon: Sparkles,    section: "system", forModule: "ai_assistant" },
+    { label: "UAE e-Invoice Logs", href: "/uae-logs",        icon: Landmark,    section: "system", forModule: "uae_vat" },
+    { label: "Add-ons",       href: "/apps",                 icon: AppWindow,   section: "system", adminOnly: true },
   ],
 }

@@ -124,6 +124,7 @@ export const TITLE_MAP: Record<string, string> = {
   // PRA e-Invoice
   "/pra-logs":                     "PRA Submission Logs",
   "/pra-dashboard":                "PRA Sales Dashboard",
+  "/uae-logs":                     "UAE e-Invoice Logs",
   // Healthcare
   "/healthcare":                   "Healthcare Overview",
   "/healthcare/patients":          "Patient Registry",
