@@ -140,8 +140,48 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
       }
     }
   }
+  # Drop local-only FloatingStack if present (phone experiment; never upstream).
+  # Also in update.ps1 — duplicated here so the first pull that brings this
+  # script still cleans up before next build.
+  $mobileDir = Join-Path $PSScriptRoot 'frontend\src\components\mobile'
+  if (Test-Path (Join-Path $mobileDir 'FloatingStack.tsx')) {
+    Write-Host "Removing local-only frontend/src/components/mobile (breaks next build)." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force $mobileDir
+  }
+  $layout = Join-Path $PSScriptRoot 'frontend\src\app\(dashboard)\layout.tsx'
+  if ((Test-Path $layout) -and (Select-String -Path $layout -Pattern 'FloatingStack' -Quiet)) {
+    Write-Host "Restoring layout.tsx (local FloatingStack import)." -ForegroundColor Yellow
+    git checkout -- 'frontend/src/app/(dashboard)/layout.tsx' 2>$null
+  }
   Push-Location frontend
-  npm install
+  # Skip lifecycle scripts during install: @serwist/turbopack pulls @swc/core
+  # whose native postinstall Bus-errors on some ARM hosts and aborts the whole
+  # update. Serwist bundles the SW with esbuild (useNativeEsbuild: true in
+  # serwist/route.ts), so @swc/core is unused - we only re-run the installers
+  # we actually need.
+  npm install --ignore-scripts
+  if ($LASTEXITCODE -ne 0) {
+    Pop-Location
+    throw 'npm install failed'
+  }
+  if (-not (Test-Path 'node_modules\esbuild\install.js')) {
+    Pop-Location
+    throw 'esbuild missing after npm install'
+  }
+  node node_modules\esbuild\install.js
+  if ($LASTEXITCODE -ne 0) {
+    Pop-Location
+    throw 'esbuild native binary install failed'
+  }
+  foreach ($script in @(
+    'node_modules\unrs-resolver\postinstall.js',
+    'node_modules\sharp\install\check.js'
+  )) {
+    if (Test-Path $script) {
+      node $script
+      # best-effort — build can proceed without these
+    }
+  }
   npx next build
   $buildExitCode = $LASTEXITCODE
   Pop-Location

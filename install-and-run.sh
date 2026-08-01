@@ -72,12 +72,48 @@ APP_VERSION="$(uv run python3 -c "import json; print(json.load(open('frontend/pa
 if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ] \
    || { [ -n "$HEAD_COMMIT" ] && [ "$HEAD_COMMIT" != "$BUILT_COMMIT" ]; }; then
   log "Building the app (first run or update can take a few minutes)…"
+  # Drop local-only FloatingStack if present (phone experiment; never upstream).
+  # Lives here as well as update.sh so the *first* pull that brings this script
+  # still cleans up before `next build` — old update.sh has already passed its
+  # own pre-pull guard by the time it execs us.
+  if [ -f frontend/src/components/mobile/FloatingStack.tsx ]; then
+    echo "⚠ Removing local-only frontend/src/components/mobile (breaks next build)."
+    rm -rf frontend/src/components/mobile
+  fi
+  layout="frontend/src/app/(dashboard)/layout.tsx"
+  if [ -f "$layout" ] && grep -q FloatingStack "$layout" 2>/dev/null; then
+    echo "⚠ Restoring layout.tsx (local FloatingStack import)."
+    git checkout -- "$layout" 2>/dev/null || true
+  fi
   BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  ( cd frontend && npm install && \
+  (
+    cd frontend
+    # Skip lifecycle scripts during install: @serwist/turbopack pulls @swc/core
+    # whose native postinstall Bus-errors on some ARM/Android hosts and aborts
+    # the whole update. Serwist bundles the SW with esbuild (useNativeEsbuild:
+    # true in serwist/route.ts), so @swc/core is unused — we only re-run the
+    # installers we actually need.
+    npm install --ignore-scripts \
+      || die "npm install failed"
+    # esbuild is required (Serwist SW bundler); fail the update if it can't install.
+    [ -f node_modules/esbuild/install.js ] \
+      || die "esbuild missing after npm install"
+    node node_modules/esbuild/install.js \
+      || die "esbuild native binary install failed"
+    # Optional / best-effort — build can proceed without these.
+    for script in \
+      node_modules/unrs-resolver/postinstall.js \
+      node_modules/sharp/install/check.js
+    do
+      if [ -f "$script" ]; then
+        node "$script" || true
+      fi
+    done
     NEXT_PUBLIC_APP_VERSION="$APP_VERSION" \
     NEXT_PUBLIC_GIT_COMMIT="${HEAD_COMMIT:-dev}" \
     NEXT_PUBLIC_BUILD_DATE="$BUILD_DATE" \
-    npx next build )
+    npx next build
+  )
   # Write version.json so the running server can self-report its build identity.
   # UpdateModal fetches /version.json to detect when update.sh has already
   # rebuilt the server (commit differs from the page's baked-in GIT_COMMIT).
