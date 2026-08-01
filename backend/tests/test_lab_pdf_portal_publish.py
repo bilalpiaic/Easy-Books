@@ -175,6 +175,8 @@ def test_publish_portal_email_whatsapp(client: TestClient, monkeypatch):
     assert body["emailed"] is True
     assert body["status"] == "delivered"
     assert body["whatsapp_url"]
+    assert body.get("whatsapp_sent") is False
+    assert body.get("whatsapp_error") is None
     assert "wa.me/923005557788" in body["whatsapp_url"] or "wa.me/9203005557788" in body["whatsapp_url"]
     # Digits-only: strip non-digits from +92 (300) 555-7788 → 923005557788
     assert "923005557788" in body["whatsapp_url"]

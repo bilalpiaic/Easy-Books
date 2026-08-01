@@ -1671,6 +1671,8 @@ def publish_lab_order(
 
     emailed = False
     whatsapp_url = None
+    whatsapp_sent = False
+    whatsapp_error = None
 
     if "email" in channels:
         to = _resolve_patient_email(session, patient)
@@ -1703,6 +1705,21 @@ def publish_lab_order(
         )
         whatsapp_url = f"https://wa.me/{digits}?text={quote(text)}"
 
+        from services.whatsapp import is_configured, send_lab_report_ready
+        if is_configured(session, user.tenant_id):
+            result = send_lab_report_ready(
+                session,
+                user.tenant_id,
+                to_digits=digits,
+                order_number=order.order_number,
+                portal_url=portal_url,
+            )
+            whatsapp_sent = result.ok
+            if result.ok:
+                whatsapp_error = None
+            else:
+                whatsapp_error = (result.error or "WhatsApp send failed")[:300]
+
     if body.mark_delivered and order.status == "resulted":
         order.status = "delivered"
         session.add(order)
@@ -1712,12 +1729,16 @@ def publish_lab_order(
         "order_number": order.order_number,
         "channels": sorted(channels),
         "emailed": emailed,
+        "whatsapp_sent": whatsapp_sent,
+        "whatsapp_error": whatsapp_error,
     })
 
     return {
         "portal_url": portal_url,
         "portal_path": portal_path,
         "whatsapp_url": whatsapp_url,
+        "whatsapp_sent": whatsapp_sent,
+        "whatsapp_error": whatsapp_error,
         "emailed": emailed,
         "status": order.status,
     }
