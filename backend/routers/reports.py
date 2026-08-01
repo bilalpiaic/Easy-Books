@@ -13,9 +13,9 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
 from models import (
-    Account, Bill, Budget, Customer, Invoice, InvoiceLine, JournalEntry,
-    PaymentAllocation, PaymentReceived, Product, ProductCategory, Transaction,
-    Vendor,
+    Account, Bill, BillLine, Budget, Customer, Invoice, InvoiceLine, JournalEntry,
+    PaymentAllocation, PaymentReceived, Product, ProductCategory, TaxCode,
+    Transaction, Vendor,
 )
 from services.account_tree import build_account_tree
 from services.export_utils import stream_csv, stream_xlsx
@@ -1507,6 +1507,125 @@ def tax_summary(
             "taxable_income": taxable_income,
             "estimated_tax": estimated_income_tax,
             "tax_basis": "ITO 2001 — Non-salaried individual slabs (FY 2024-25)",
+        },
+    }
+
+
+# ── Tax return by code (#263) ────────────────────────────────────────────────
+
+
+@router.get("/tax-return", dependencies=[perm_dep("report.tax")])
+def tax_return_by_code(
+    session: SessionDep, user: CurrentUserDep,
+    start: str = Query(default=""), end: str = Query(default=""),
+):
+    """Period tax return from line snapshots (output − input by tax code).
+
+    Reverse-charge tax is reported but excluded from net payable (no GL leg).
+    """
+    if not start:
+        start = f"{DateType.today().year}-07-01"
+    if not end:
+        end = str(DateType.today())
+
+    tid = user.tenant_id
+    # Accumulate per tax_code_id
+    buckets: dict[int, dict] = {}
+
+    def _bucket(tc: TaxCode) -> dict:
+        b = buckets.get(tc.id)
+        if b is None:
+            b = {
+                "tax_code_id": tc.id,
+                "code": tc.code,
+                "name": tc.name,
+                "type": tc.type,
+                "rate": float(tc.rate),
+                "is_reverse_charge": bool(tc.is_reverse_charge),
+                "is_exempt": bool(tc.is_exempt),
+                "is_zero_rated": bool(tc.is_zero_rated),
+                "taxable_base": ZERO,
+                "output_tax": ZERO,
+                "input_tax": ZERO,
+                "reverse_charge_tax": ZERO,
+            }
+            buckets[tc.id] = b
+        return b
+
+    inv_rows = session.exec(
+        select(InvoiceLine, TaxCode)
+        .join(Invoice, Invoice.id == InvoiceLine.invoice_id)
+        .join(TaxCode, TaxCode.id == InvoiceLine.tax_code_id)
+        .where(
+            Invoice.tenant_id == tid,
+            Invoice.issue_date >= start,
+            Invoice.issue_date <= end,
+            InvoiceLine.tax_code_id.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    for ln, tc in inv_rows:
+        b = _bucket(tc)
+        b["taxable_base"] = money(b["taxable_base"] + D(ln.amount))
+        tax_amt = D(ln.tax_amount or 0)
+        if ln.tax_rate is not None:
+            b["rate"] = float(ln.tax_rate)
+        if tc.is_reverse_charge:
+            b["reverse_charge_tax"] = money(b["reverse_charge_tax"] + tax_amt)
+        elif tc.type == "output":
+            b["output_tax"] = money(b["output_tax"] + tax_amt)
+        elif tc.type == "input":
+            b["input_tax"] = money(b["input_tax"] + tax_amt)
+
+    bill_rows = session.exec(
+        select(BillLine, TaxCode)
+        .join(Bill, Bill.id == BillLine.bill_id)
+        .join(TaxCode, TaxCode.id == BillLine.tax_code_id)
+        .where(
+            Bill.tenant_id == tid,
+            Bill.bill_date >= start,
+            Bill.bill_date <= end,
+            BillLine.tax_code_id.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    for ln, tc in bill_rows:
+        b = _bucket(tc)
+        b["taxable_base"] = money(b["taxable_base"] + D(ln.amount))
+        tax_amt = D(ln.tax_amount or 0)
+        if ln.tax_rate is not None:
+            b["rate"] = float(ln.tax_rate)
+        if tc.is_reverse_charge:
+            b["reverse_charge_tax"] = money(b["reverse_charge_tax"] + tax_amt)
+        elif tc.type == "input":
+            b["input_tax"] = money(b["input_tax"] + tax_amt)
+        elif tc.type == "output":
+            b["output_tax"] = money(b["output_tax"] + tax_amt)
+
+    rows = []
+    tot_base = tot_out = tot_in = tot_rc = ZERO
+    for b in sorted(buckets.values(), key=lambda x: x["code"]):
+        net = money(b["output_tax"] - b["input_tax"])
+        rows.append({
+            **b,
+            "taxable_base": b["taxable_base"],
+            "output_tax": b["output_tax"],
+            "input_tax": b["input_tax"],
+            "reverse_charge_tax": b["reverse_charge_tax"],
+            "net": net,
+        })
+        tot_base = money(tot_base + b["taxable_base"])
+        tot_out = money(tot_out + b["output_tax"])
+        tot_in = money(tot_in + b["input_tax"])
+        tot_rc = money(tot_rc + b["reverse_charge_tax"])
+
+    return {
+        "period": {"start": start, "end": end},
+        "rows": rows,
+        "totals": {
+            "taxable_base": tot_base,
+            "output_tax": tot_out,
+            "input_tax": tot_in,
+            "reverse_charge_tax": tot_rc,
+            "net": money(tot_out - tot_in),
         },
     }
 
