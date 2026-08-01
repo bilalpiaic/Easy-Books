@@ -13,8 +13,12 @@ from sqlmodel import select
 from db import MODULES_BY_MODEL, _coa_for
 from models import Account, Settings, Tenant
 from services.ai_providers import AI_SECRET_SETTINGS_KEYS
+from services.whatsapp import WA_SECRET_SETTINGS_KEYS, status_payload as wa_status_payload
 
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
+
+# Secrets that must never leave GET /api/settings unredacted.
+SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -92,6 +96,11 @@ class SettingsUpdate(BaseModel):
     # Ollama (self-hosted, #163 follow-up) -- not a secret, no redaction needed
     ai_ollama_base_url: Optional[str] = None
     ai_ollama_models: Optional[str] = None  # comma-separated tags
+    # WhatsApp Business API — Meta Cloud (#237); token is write-only
+    wa_meta_access_token: Optional[str] = None
+    wa_meta_phone_number_id: Optional[str] = None
+    wa_meta_template_name: Optional[str] = None
+    wa_meta_template_lang: Optional[str] = None
 
 
 @router.get("")
@@ -102,20 +111,26 @@ def get_settings(session: SessionDep, user: CurrentUserDep):
     if tenant:
         out["business_model"] = tenant.business_model
         out["cost_method"] = tenant.cost_method or "wavg"
-    # Redact secret AI keys
-    for k in AI_SECRET_SETTINGS_KEYS:
+    # Redact secret AI / WhatsApp keys
+    for k in SECRET_SETTINGS_KEYS:
         out.pop(k, None)
     return out
+
+
+@router.get("/whatsapp-status")
+def get_whatsapp_status(session: SessionDep, user: AdminUserDep):
+    """Masked Meta WhatsApp config for Settings UI (admin/owner). Never returns the raw token."""
+    return wa_status_payload(session, user.tenant_id)
 
 
 @router.patch("")
 def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdate):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
 
-    # AI provider keys are credentials, not general company settings — restrict
-    # writes to admin/owner even though the rest of this endpoint is accountant+.
-    if any(k in AI_SECRET_SETTINGS_KEYS for k in updates) and user.role not in ("admin", "owner"):
-        raise HTTPException(403, "Only admin or owner can set AI provider API keys")
+    # AI / WhatsApp credentials — restrict writes to admin/owner even though the
+    # rest of this endpoint is accountant+.
+    if any(k in SECRET_SETTINGS_KEYS for k in updates) and user.role not in ("admin", "owner"):
+        raise HTTPException(403, "Only admin or owner can set integration API credentials")
 
     # Some settings also live on the Tenant model (not just the KV table)
     tenant = session.get(Tenant, user.tenant_id)

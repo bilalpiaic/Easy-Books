@@ -100,6 +100,8 @@ type PublishResult = {
   portal_url: string
   portal_path: string
   whatsapp_url: string | null
+  whatsapp_sent: boolean
+  whatsapp_error: string | null
   emailed: boolean
   status: string
 }
@@ -269,8 +271,11 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
       setLastPublish(result)
       const bits = ["Portal link ready"]
       if (result.emailed) bits.push("email sent")
+      if (result.whatsapp_sent) bits.push("WhatsApp sent")
+      else if (result.whatsapp_error) bits.push("WhatsApp API failed — use manual link")
       setMsg(bits.join(" · "))
-      if (result.whatsapp_url) {
+      // Only open wa.me when the Meta API did not send (manual share fallback)
+      if (!result.whatsapp_sent && result.whatsapp_url) {
         window.open(result.whatsapp_url, "_blank", "noopener,noreferrer")
       }
       await load()
@@ -352,7 +357,8 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
             <div>
               <h2 className="text-sm font-semibold text-neutral-900">Publish to patient</h2>
               <p className="text-xs text-neutral-500 mt-0.5">
-                Creates a private portal link. Email sends the link; WhatsApp opens a pre-filled chat.
+                Creates a private portal link. Email sends the link; WhatsApp sends via Meta when
+                configured in Settings, otherwise opens a pre-filled chat.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 text-sm">
@@ -408,6 +414,27 @@ export default function LabOrderReportPage({ params }: { params: Promise<{ id: s
                 >
                   {lastPublish.portal_url}
                 </a>
+                {lastPublish.whatsapp_sent && (
+                  <p className="text-xs text-emerald-800/80 pt-1">WhatsApp notification sent via Meta API.</p>
+                )}
+                {lastPublish.whatsapp_error && (
+                  <p className="text-xs text-amber-800 pt-1">
+                    WhatsApp API: {lastPublish.whatsapp_error}
+                    {lastPublish.whatsapp_url && (
+                      <>
+                        {" "}
+                        <a
+                          href={lastPublish.whatsapp_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline font-medium"
+                        >
+                          Open manual WhatsApp link
+                        </a>
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
             )}
           </div>

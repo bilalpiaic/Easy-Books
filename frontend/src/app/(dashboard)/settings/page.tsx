@@ -1,6 +1,6 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check, MessageCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
@@ -1174,6 +1174,10 @@ export default function SettingsPage() {
         (getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner") &&
         <AiAssistantSection /> }
 
+      {/* WhatsApp Meta Cloud API (#237) — lab publish auto-send */}
+      {(getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner") &&
+        <WhatsAppMetaSection /> }
+
       {/* Webhooks (#114) — outgoing event notifications */}
       <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
         <h2 className="text-lg font-bold text-[var(--text-primary)]">Webhooks</h2>
@@ -1633,6 +1637,187 @@ function AiAssistantSection() {
           />
         </div>
       </div>
+
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+        {saved && <span className="text-sm text-green-700">Saved</span>}
+      </div>
+    </section>
+  )
+}
+
+/* ── WhatsApp Meta Cloud API (#237) — lab report auto-send ── */
+type WaStatus = {
+  configured: boolean
+  token_tail: string | null
+  phone_number_id_set: boolean
+  phone_number_id: string
+  template_name: string
+  template_lang: string
+}
+
+function WhatsAppMetaSection() {
+  const { confirm } = useMessages()
+  const [status, setStatus] = useState<WaStatus | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [token, setToken] = useState("")
+  const [phoneId, setPhoneId] = useState("")
+  const [templateName, setTemplateName] = useState("")
+  const [templateLang, setTemplateLang] = useState("en")
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState("")
+
+  const loadStatus = () => {
+    setStatusLoading(true)
+    apiFetch<WaStatus>("/api/settings/whatsapp-status")
+      .then(s => {
+        setStatus(s)
+        setPhoneId(s.phone_number_id || "")
+        setTemplateName(s.template_name || "")
+        setTemplateLang(s.template_lang || "en")
+      })
+      .catch(() => setStatus(null))
+      .finally(() => setStatusLoading(false))
+  }
+
+  useEffect(() => { loadStatus() }, [])
+
+  const handleClearToken = async () => {
+    const ok = await confirm({
+      title: "Clear the Meta WhatsApp access token?",
+      confirmLabel: "Clear token",
+      danger: true,
+    })
+    if (!ok) return
+    setError("")
+    try {
+      await apiFetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wa_meta_access_token: "" }),
+      })
+      setToken("")
+      loadStatus()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError("")
+    try {
+      const payload: Record<string, string> = {
+        wa_meta_phone_number_id: phoneId.trim(),
+        wa_meta_template_name: templateName.trim(),
+        wa_meta_template_lang: (templateLang.trim() || "en"),
+      }
+      if (token.trim()) payload.wa_meta_access_token = token.trim()
+      await apiFetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      setToken("")
+      loadStatus()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+      <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+        <MessageCircle className="w-4 h-4 text-[var(--primary)]" /> WhatsApp (Meta)
+      </h2>
+      <p className="text-xs text-[var(--text-primary)]/50">
+        Optional Meta Cloud API for lab “report ready” notifications. Create an approved template in
+        Meta Business Manager with body params {"{{1}}"} = order number and {"{{2}}"} = portal URL.
+        Without credentials, publish still offers the manual wa.me share link.
+      </p>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">{error}</div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr_auto] gap-3 items-end">
+        <div>
+          <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Access token</label>
+          <span className="text-xs font-mono text-[var(--text-primary)]/70">
+            {statusLoading ? "…" : (status?.token_tail || "Not set")}
+          </span>
+        </div>
+        <input
+          type="password"
+          autoComplete="off"
+          placeholder="Paste new Meta access token…"
+          value={token}
+          onChange={e => setToken(e.target.value)}
+          className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+        />
+        <button
+          type="button"
+          onClick={handleClearToken}
+          disabled={!status?.token_tail}
+          className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 whitespace-nowrap"
+        >
+          Clear
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Phone number ID</label>
+          <input
+            type="text"
+            value={phoneId}
+            onChange={e => setPhoneId(e.target.value)}
+            placeholder="Meta Phone Number ID"
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Template name</label>
+          <input
+            type="text"
+            value={templateName}
+            onChange={e => setTemplateName(e.target.value)}
+            placeholder="lab_report_ready"
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Template language</label>
+          <input
+            type="text"
+            value={templateLang}
+            onChange={e => setTemplateLang(e.target.value)}
+            placeholder="en"
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <p className="text-xs text-[var(--text-primary)]/50">
+        Status:{" "}
+        {statusLoading
+          ? "…"
+          : status?.configured
+            ? "Ready to send on lab publish"
+            : "Not fully configured — wa.me fallback remains active"}
+      </p>
 
       <div className="flex items-center gap-3 pt-2">
         <button
