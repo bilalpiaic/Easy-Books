@@ -11,6 +11,7 @@ import DocumentActions from "@/components/DocumentActions"
 import { downloadPdf } from "@/lib/downloadPdf"
 import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
+import { useModules } from "@/context/ModuleContext"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
 
@@ -92,6 +93,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [error, setError]   = useState<string | null>(null)
   const [busy, setBusy]     = useState(false)
   const [praRetrying, setPraRetrying] = useState(false)
+  const [uaeSubmitting, setUaeSubmitting] = useState(false)
+  const [uaeUuid, setUaeUuid] = useState<string | null>(null)
+  const [uaeMsg, setUaeMsg] = useState<string | null>(null)
+  const { installedModules } = useModules()
+  const uaeInstalled = installedModules.has("uae_vat")
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
   const [hasApprovalWorkflow, setHasApprovalWorkflow] = useState(false)
@@ -349,6 +355,41 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           )}
           {inv.pra_fiscal_number && (
             <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">FIN: {inv.pra_fiscal_number}</div>
+          )}
+          {uaeInstalled && (
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={async () => {
+                  setUaeSubmitting(true)
+                  setUaeMsg(null)
+                  try {
+                    const r = await apiFetch<{ success: boolean; uuid?: string; error_message?: string }>(
+                      `/api/uae/invoices/${inv.id}/submit`,
+                      { method: "POST" },
+                    )
+                    if (r.success && r.uuid) {
+                      setUaeUuid(r.uuid)
+                      setUaeMsg(null)
+                    } else {
+                      setUaeMsg(r.error_message || "Submit failed")
+                    }
+                  } catch (e: unknown) {
+                    setUaeMsg(String((e as Error).message ?? e))
+                  } finally {
+                    setUaeSubmitting(false)
+                  }
+                }}
+                disabled={uaeSubmitting}
+                className="text-[10px] font-semibold text-[var(--text-link)] hover:underline disabled:opacity-50 text-left"
+              >
+                {uaeSubmitting ? "Submitting…" : uaeUuid ? "Re-submit to FTA" : "Submit to FTA (UAE)"}
+              </button>
+              {uaeUuid && (
+                <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">FTA: {uaeUuid}</div>
+              )}
+              {uaeMsg && <div className="text-[10px] text-red-600">{uaeMsg}</div>}
+            </div>
           )}
         </div>
       </header>

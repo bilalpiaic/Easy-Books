@@ -23,6 +23,13 @@ def _set_setting(session: Session, tenant_id: int, key: str, value: str) -> None
         session.add(Settings(key=key, value=value, tenant_id=tenant_id))
 
 
+def _get_setting_value(session: Session, tenant_id: int, key: str) -> str:
+    row = session.exec(
+        select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)
+    ).first()
+    return row.value if row else ""
+
+
 def _ensure_party(session: Session, tenant_id: int) -> tuple[list[Customer], list[Vendor]]:
     """Weaving seed needs at least one customer; create stubs if the company is empty."""
     customers = list(session.exec(select(Customer).where(Customer.tenant_id == tenant_id)).all())
@@ -61,6 +68,15 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
             sd._seed_pra_customers(session, tid)
             sd._seed_pra_products(session, tid)
             sd._seed_pra_submission_logs(session, tid)
+        elif module_id == "uae_vat":
+            from services.uae_einvoice import ensure_uae_tax_and_coa
+            ensure_uae_tax_and_coa(session, tid)
+            _set_setting(session, tid, "uae_vat_enabled", "true")
+            _set_setting(session, tid, "uae_sandbox_mode", "true")
+            if not _get_setting_value(session, tid, "uae_trn"):
+                _set_setting(session, tid, "uae_trn", "100000000000003")
+            if not _get_setting_value(session, tid, "uae_legal_name"):
+                _set_setting(session, tid, "uae_legal_name", "Demo UAE Trading LLC")
         elif module_id == "weaving":
             customers, vendors = _ensure_party(session, tid)
             sd._seed_weaving(session, user, customers, vendors)
@@ -96,4 +112,14 @@ def enable_pra_settings(session: Session, tenant_id: int) -> None:
     """Turn on sandbox PRA flags when the pra module is installed."""
     _set_setting(session, tenant_id, "pra_enabled", "true")
     _set_setting(session, tenant_id, "pra_sandbox_mode", "true")
+    session.commit()
+
+
+def enable_uae_vat_settings(session: Session, tenant_id: int) -> None:
+    """Turn on sandbox UAE VAT + seed tax codes / CoA leaves on install."""
+    from services.uae_einvoice import ensure_uae_tax_and_coa
+
+    ensure_uae_tax_and_coa(session, tenant_id)
+    _set_setting(session, tenant_id, "uae_vat_enabled", "true")
+    _set_setting(session, tenant_id, "uae_sandbox_mode", "true")
     session.commit()

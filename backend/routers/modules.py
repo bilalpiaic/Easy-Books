@@ -206,6 +206,10 @@ def install_module(
         from services.module_sample_data import enable_pra_settings
         enable_pra_settings(session, current_user.tenant_id)
 
+    if "uae_vat" in to_install:
+        from services.module_sample_data import enable_uae_vat_settings
+        enable_uae_vat_settings(session, current_user.tenant_id)
+
     if seed_sample:
         from services.module_sample_data import seed_module_sample
         for mid in to_install:

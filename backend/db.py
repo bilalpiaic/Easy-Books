@@ -469,6 +469,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["PRA"],
     },
+    "uae_vat": {
+        "label":       "UAE VAT e-Invoice",
+        "description": "United Arab Emirates VAT localization — 5% tax codes, VAT Payable/Receivable CoA leaves, TRN settings, and a sandbox FTA e-invoice adapter stub.",
+        "category":    "Industry",
+        "icon":        "Landmark",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["UAE"],
+    },
     "healthcare": {
         "label":       "Healthcare",
         "description": "OPD/IPD management, lab orders & results, pharmacy store, procedure billing, ward management, and patient records for hospitals and clinics.",
