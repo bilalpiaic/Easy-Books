@@ -191,7 +191,6 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   Remove-Item Env:NEXT_PUBLIC_APP_VERSION -ErrorAction SilentlyContinue
   Remove-Item Env:NEXT_PUBLIC_GIT_COMMIT  -ErrorAction SilentlyContinue
   Remove-Item Env:NEXT_PUBLIC_BUILD_DATE  -ErrorAction SilentlyContinue
-  # Keep NEXT_PUBLIC_API_URL for the running session; only clear our default if we set it for build.
   if ($buildExitCode -ne 0) {
     throw "next build failed (exit code $buildExitCode) - see the error above. The frontend was not updated; re-run this script once the issue is fixed."
   }
