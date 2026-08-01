@@ -21,7 +21,7 @@ mkdir -p "$EB_DATA_DIR"
 PATH="$HOME/.local/bin:$PATH"
 
 # Backend (FastAPI) on 127.0.0.1:8000
-( cd "$ROOT/backend" && PYTHONPATH=. uv run uvicorn main:app --host 127.0.0.1 --port 8000 ) &
+( cd "$ROOT/backend" && PYTHONPATH=. uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000 ) &
 BACK=$!
 
 # Frontend (Next.js standalone) on 127.0.0.1:3000
