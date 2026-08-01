@@ -18,6 +18,7 @@ export const Overdue: Story = { args: { status: "overdue" } }
 export const Cancelled: Story = { args: { status: "cancelled" } }
 
 export const Gallery: Story = {
+  args: { status: "draft" },
   render: () => (
     <div className="flex flex-wrap gap-2">
       {[

@@ -17,6 +17,12 @@ function PaginationDemo({ total = 127 }: { total?: number }) {
 }
 
 export const MultiPage: Story = {
+  args: {
+    page: 1,
+    pageSize: 50,
+    total: 127,
+    onPage: () => {},
+  },
   render: () => <PaginationDemo />,
 }
 
