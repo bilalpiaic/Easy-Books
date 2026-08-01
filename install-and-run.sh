@@ -109,9 +109,12 @@ if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ] \
         node "$script" || true
       fi
     done
+    # Match uvicorn bind (127.0.0.1) and the browser URL we open. Baking
+    # "localhost" breaks demo login when localhost resolves to IPv6 ::1.
     NEXT_PUBLIC_APP_VERSION="$APP_VERSION" \
     NEXT_PUBLIC_GIT_COMMIT="${HEAD_COMMIT:-dev}" \
     NEXT_PUBLIC_BUILD_DATE="$BUILD_DATE" \
+    NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000}" \
     npx next build
   )
   # Write version.json so the running server can self-report its build identity.
@@ -172,7 +175,23 @@ BACK=$!
 FRONT=$!
 
 trap 'kill $BACK $FRONT 2>/dev/null || true' EXIT INT TERM
-sleep 3
+# Wait until the API answers — opening login too early → demo "Failed to fetch".
+log "Waiting for the API to become ready…"
+ready=0
+for i in $(seq 1 60); do
+  if curl -sf --max-time 2 http://127.0.0.1:8000/api/version >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  if ! kill -0 "$BACK" 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+if [ "$ready" != "1" ]; then
+  echo "Backend did not become ready on http://127.0.0.1:8000." >&2
+  die "Backend failed to start — see output above, then re-run ./install-and-run.sh (or ./update.sh)."
+fi
 log "Easy-Books is running at  http://127.0.0.1:3000   (press Ctrl+C to stop)"
 ( command -v xdg-open >/dev/null && xdg-open http://127.0.0.1:3000/login >/dev/null 2>&1 ) \
   || ( command -v open >/dev/null && open http://127.0.0.1:3000/login ) \

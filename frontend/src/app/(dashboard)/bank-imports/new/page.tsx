@@ -48,7 +48,7 @@ export default function NewBankImportPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/bank-imports`,
+        `${process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}/api/bank-imports`,
         {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { setAuthToken, setMustChangePwd } from "@/lib/auth"
-import { apiBase } from "@/lib/api"
+import { apiBase, networkErrorMessage } from "@/lib/api"
 
 const DEMO_EMAIL = "demo.simple@easy-books.app"
 const DEMO_PASSWORD = "demo1234"
@@ -57,10 +57,15 @@ function LoginForm() {
     const formData = new FormData()
     formData.append("username", user)
     formData.append("password", pass)
-    const response = await fetch(`${apiBase}/api/auth/login`, {
-      method: "POST",
-      body: formData,
-    })
+    let response: Response
+    try {
+      response = await fetch(`${apiBase}/api/auth/login`, {
+        method: "POST",
+        body: formData,
+      })
+    } catch (err) {
+      throw new Error(networkErrorMessage(err, "Login failed"))
+    }
     if (!response.ok) throw new Error("Invalid email or password")
     const data = await response.json()
     if (data.requires_totp) {
