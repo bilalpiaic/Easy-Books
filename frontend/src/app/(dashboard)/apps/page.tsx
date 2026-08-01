@@ -5,26 +5,55 @@ import { useRouter, useSearchParams } from "next/navigation"
 import {
   BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock,
   AlertTriangle, Stethoscope, Sparkles, Scissors, ShoppingCart, LayoutGrid,
-  List, Layers, Landmark,
+  List, Layers, Landmark, Store, Shield, ExternalLink, FileText,
 } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
 import { useMessages } from "@/context/MessageContext"
 import { ADDON_PACKS, HOME_PREF_KEY, type AddonPack } from "@/lib/addonPacks"
 import { getCurrentUser } from "@/lib/auth"
+import { apiFetch } from "@/lib/api"
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles, Scissors, ShoppingCart, Landmark,
+  BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles,
+  Scissors, ShoppingCart, Landmark, Store, FileText,
 }
 
 type ViewMode = "tabs" | "list"
-type Bucket = "default" | "recommended" | "optional"
+type Bucket = "default" | "recommended" | "optional" | "marketplace"
 
 const VIEW_KEY = "eb.addons.view"
 const BUCKET_TABS: { id: Bucket; label: string; hint: string }[] = [
   { id: "default", label: "Default", hint: "Always on — core accounting" },
   { id: "recommended", label: "Recommended", hint: "Industry packs for a quick start" },
   { id: "optional", label: "Optional", hint: "Install modules one at a time" },
+  { id: "marketplace", label: "Marketplace", hint: "Curated third-party extensions (declarative manifests only)" },
 ]
+
+type CatalogEntry = {
+  id: string
+  name: string
+  version: string
+  description: string
+  publisher: string
+  category: string
+  icon: string
+  homepage: string | null
+  docs_url: string | null
+  summary: string
+  tags: string[]
+  requires_modules: string[]
+  requested_permissions: string[]
+  first_party_module: string | null
+  curated: boolean
+  installed: boolean
+}
+
+type BoundaryDoc = {
+  title: string
+  summary: string
+  rules: string[]
+  docs_path: string
+}
 
 function readView(): ViewMode {
   if (typeof window === "undefined") return "tabs"
@@ -221,7 +250,7 @@ function BucketSection({
 }
 
 function AppsPageInner() {
-  const { modules, installedModules, install, uninstall } = useModules()
+  const { modules, installedModules, install, uninstall, refresh } = useModules()
   const { confirm } = useMessages()
   const router = useRouter()
   const search = useSearchParams()
@@ -237,11 +266,32 @@ function AppsPageInner() {
     const email = getCurrentUser()?.email ?? ""
     return email.startsWith("demo.")
   })
+  const [catalog, setCatalog] = useState<CatalogEntry[]>([])
+  const [boundary, setBoundary] = useState<BoundaryDoc | null>(null)
+  const [catalogLoading, setCatalogLoading] = useState(false)
+
+  const loadCatalog = useCallback(async () => {
+    setCatalogLoading(true)
+    try {
+      const data = await apiFetch<{ entries: CatalogEntry[]; boundary: BoundaryDoc }>(
+        "/api/marketplace/catalog",
+      )
+      setCatalog(data.entries)
+      setBoundary(data.boundary)
+    } catch {
+      setCatalog([])
+    } finally {
+      setCatalogLoading(false)
+    }
+  }, [])
 
   useEffect(() => { setView(readView()) }, [])
   useEffect(() => {
     if (welcome) setBucket("recommended")
   }, [welcome])
+  useEffect(() => {
+    if (bucket === "marketplace" || view === "list") void loadCatalog()
+  }, [bucket, view, loadCatalog])
 
   const setViewPersist = (mode: ViewMode) => {
     setView(mode)
@@ -314,6 +364,49 @@ function AppsPageInner() {
     }
   }
 
+  const handleMarketplaceInstall = async (id: string) => {
+    setBusyId(id); setError(null); setSuccess(null)
+    try {
+      const r = await apiFetch<{ message?: string }>(
+        `/api/marketplace/extensions/${encodeURIComponent(id)}/install`,
+        { method: "POST" },
+      )
+      setSuccess(r.message || "Extension installed.")
+      await loadCatalog()
+      // First-party bridges may have flipped MODULE_REGISTRY installs
+      await refresh()
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg || "Marketplace install failed.")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleMarketplaceUninstall = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: `Uninstall "${name}"?`,
+      message: "Removes the marketplace registration. First-party bridges also uninstall the linked module when safe.",
+      confirmLabel: "Uninstall",
+      danger: true,
+    })
+    if (!ok) return
+    setBusyId(id); setError(null); setSuccess(null)
+    try {
+      await apiFetch(`/api/marketplace/extensions/${encodeURIComponent(id)}/uninstall`, {
+        method: "POST",
+      })
+      setSuccess(`${name} uninstalled.`)
+      await loadCatalog()
+      await refresh()
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg || "Marketplace uninstall failed.")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const choosePraHome = (usePra: boolean) => {
     localStorage.setItem(HOME_PREF_KEY, usePra ? "pra" : "accounting")
     localStorage.setItem("eb.pra_portal_mode", usePra ? "1" : "0")
@@ -365,6 +458,111 @@ function AppsPageInner() {
           detail={detail}
         />
       ))}
+    </div>
+  )
+
+  const renderMarketplace = () => (
+    <div className="space-y-4">
+      {boundary && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-page)] px-4 py-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <Shield className="w-4 h-4 text-[var(--primary)] mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-[var(--text-primary)]">{boundary.title}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">{boundary.summary}</p>
+            </div>
+          </div>
+          <ul className="text-[11px] text-[var(--text-muted)] space-y-1 pl-6 list-disc">
+            {boundary.rules.slice(0, 4).map(rule => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-[var(--text-muted)] pl-6">
+            Full boundary: <code className="text-[var(--text-primary)]">{boundary.docs_path}</code>
+          </p>
+        </div>
+      )}
+      {catalogLoading ? (
+        <div className="text-center py-10 text-sm text-[var(--text-muted)]">Loading catalog…</div>
+      ) : catalog.length === 0 ? (
+        <div className="text-center py-10 text-sm text-[var(--text-muted)]">No marketplace listings.</div>
+      ) : (
+        <div className={view === "tabs" ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
+          {catalog.map(entry => {
+            const Icon = ICON_MAP[entry.icon] ?? Store
+            return (
+              <div
+                key={entry.id}
+                className={`flex gap-3 rounded-xl border bg-[var(--bg-card)] p-3.5 ${
+                  entry.installed ? "border-[var(--primary)]/35" : "border-[var(--border)]"
+                }`}
+              >
+                <div className={`rounded-lg p-2 flex-shrink-0 ${
+                  entry.installed
+                    ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                    : "bg-[var(--border)]/40 text-[var(--text-muted)]"
+                }`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-sm text-[var(--text-primary)]">{entry.name}</h3>
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono">v{entry.version}</span>
+                    {entry.first_party_module && (
+                      <span className="text-[10px] uppercase tracking-wide text-[var(--primary)] font-semibold">
+                        First-party
+                      </span>
+                    )}
+                    {entry.installed && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-[var(--primary)] font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Installed
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)]">{entry.summary}</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">
+                    {entry.publisher}
+                    {entry.requested_permissions.length > 0 && (
+                      <> · asks {entry.requested_permissions.join(", ")}</>
+                    )}
+                  </p>
+                  {entry.docs_url && (
+                    <a
+                      href={entry.docs_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-[var(--text-link)] hover:underline"
+                    >
+                      Docs <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+                <div className="flex-shrink-0 self-center">
+                  {entry.installed ? (
+                    <button
+                      type="button"
+                      onClick={() => handleMarketplaceUninstall(entry.id, entry.name)}
+                      disabled={busyId === entry.id}
+                      className="text-[11px] border border-red-200 text-red-600 rounded-md px-2.5 py-1 hover:bg-red-50 transition-colors disabled:opacity-50 font-medium"
+                    >
+                      {busyId === entry.id ? "…" : "Uninstall"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleMarketplaceInstall(entry.id)}
+                      disabled={busyId === entry.id}
+                      className="text-[11px] bg-[var(--primary)] text-white rounded-md px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
+                    >
+                      {busyId === entry.id ? "Installing…" : "Install"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 
@@ -471,6 +669,7 @@ function AppsPageInner() {
               const count =
                 tab.id === "default" ? defaultMods.length
                 : tab.id === "recommended" ? packsWithStatus.length
+                : tab.id === "marketplace" ? catalog.length
                 : optionalMods.length
               return (
                 <button
@@ -500,6 +699,7 @@ function AppsPageInner() {
           {bucket === "default" && renderDefault()}
           {bucket === "recommended" && renderRecommended()}
           {bucket === "optional" && renderOptional()}
+          {bucket === "marketplace" && renderMarketplace()}
         </>
       ) : (
         <div className="space-y-8">
@@ -511,6 +711,9 @@ function AppsPageInner() {
           </BucketSection>
           <BucketSection title="Optional" hint="Install modules one at a time" count={optionalMods.length}>
             {renderOptional()}
+          </BucketSection>
+          <BucketSection title="Marketplace" hint="Curated third-party extensions" count={catalog.length}>
+            {renderMarketplace()}
           </BucketSection>
         </div>
       )}
