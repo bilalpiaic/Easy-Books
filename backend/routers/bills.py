@@ -14,6 +14,7 @@ from services.fx import rate_to_base
 from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
+from services.tax_engine import prepare_line_taxes
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
@@ -28,6 +29,7 @@ class BillLineCreate(BaseModel):
     unit: Optional[str] = None
     rate: Decimal = Decimal("0")
     tax_code_id: Optional[int] = None
+    tax_inclusive: bool = False
 
 
 class BillCreate(BaseModel):
@@ -231,8 +233,26 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     ).first()
     bill_fmt = fmt_row.value if fmt_row else None
 
-    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
-    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    raw_amounts = [money(D(l.qty) * D(l.rate)) for l in body.lines]
+    tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
+        session,
+        user.tenant_id,
+        body.bill_date,
+        [
+            (amt, l.tax_code_id, bool(l.tax_inclusive))
+            for amt, l in zip(raw_amounts, body.lines)
+        ],
+    )
+    stored_amounts = [
+        (tr.net if tr is not None else amt)
+        for amt, tr in zip(raw_amounts, tax_results)
+    ]
+    subtotal = money(sum_money(stored_amounts))
+    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
+    if use_per_line_tax:
+        gst_amount = tax_agg.total_tax_in_total
+    else:
+        gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
     tenant = session.get(Tenant, user.tenant_id)
@@ -300,22 +320,11 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     session.flush()
 
     total_stock_value = ZERO
-    per_gl_tax: dict[int, Decimal] = {}  # gl_account_id → total_tax for per-line mode
-    for line_data in body.lines:
+    for idx, line_data in enumerate(body.lines):
         line_qty = D(line_data.qty)
         line_rate = D(line_data.rate)
-        amount = money(line_qty * line_rate)
-        line_tax_code_id = line_data.tax_code_id
-        if line_tax_code_id:
-            tc = session.exec(
-                select(TaxCode).where(
-                    TaxCode.id == line_tax_code_id,
-                    TaxCode.tenant_id == user.tenant_id,
-                )
-            ).first()
-            if tc:
-                line_tax = money(amount * tc.rate / D("100"))
-                per_gl_tax[tc.gl_account_id] = per_gl_tax.get(tc.gl_account_id, ZERO) + line_tax
+        amount = stored_amounts[idx]
+        tr = tax_results[idx]
         session.add(
             BillLine(
                 bill_id=bill.id,
@@ -325,7 +334,10 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
                 unit=line_data.unit,
                 rate=line_rate,
                 amount=amount,
-                tax_code_id=line_tax_code_id,
+                tax_code_id=line_data.tax_code_id,
+                tax_rate=tr.rate if tr is not None else None,
+                tax_amount=tr.tax if tr is not None else ZERO,
+                tax_inclusive=bool(line_data.tax_inclusive),
             )
         )
         if line_data.product_id:
@@ -346,10 +358,7 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
                 )
                 total_stock_value += amount
 
-    use_per_line_tax = bool(per_gl_tax)
     if use_per_line_tax:
-        gst_amount = sum_money(per_gl_tax.values())
-        total = money(subtotal + gst_amount)
         bill.gst_amount = gst_amount
         bill.total = total
         session.add(bill)
@@ -475,8 +484,26 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     if not due_date:
         due_date = body.bill_date
 
-    subtotal = money(sum_money(D(l.qty) * D(l.rate) for l in body.lines))
-    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    raw_amounts = [money(D(l.qty) * D(l.rate)) for l in body.lines]
+    tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
+        session,
+        user.tenant_id,
+        body.bill_date,
+        [
+            (amt, l.tax_code_id, bool(l.tax_inclusive))
+            for amt, l in zip(raw_amounts, body.lines)
+        ],
+    )
+    stored_amounts = [
+        (tr.net if tr is not None else amt)
+        for amt, tr in zip(raw_amounts, tax_results)
+    ]
+    subtotal = money(sum_money(stored_amounts))
+    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
+    if use_per_line_tax:
+        gst_amount = tax_agg.total_tax_in_total
+    else:
+        gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
     tenant = session.get(Tenant, user.tenant_id)
@@ -550,10 +577,11 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
 
     # Insert new lines
     total_stock_value = ZERO
-    for line_data in body.lines:
+    for idx, line_data in enumerate(body.lines):
         line_qty = D(line_data.qty)
         line_rate = D(line_data.rate)
-        amount = money(line_qty * line_rate)
+        amount = stored_amounts[idx]
+        tr = tax_results[idx]
         session.add(BillLine(
             bill_id=bill.id,
             product_id=line_data.product_id,
@@ -562,6 +590,10 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
             unit=line_data.unit,
             rate=line_rate,
             amount=amount,
+            tax_code_id=line_data.tax_code_id,
+            tax_rate=tr.rate if tr is not None else None,
+            tax_amount=tr.tax if tr is not None else ZERO,
+            tax_inclusive=bool(line_data.tax_inclusive),
         ))
         if line_data.product_id:
             prod = session.exec(
@@ -600,7 +632,10 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
             else get_or_create_account(session, user.tenant_id, "5000", "General Expenses", "Expense")
         )
         entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base, analytic_account_id=ana))
-    if gst_amount > 0:
+    if use_per_line_tax and per_gl_tax:
+        for gl_id, tax_amt in per_gl_tax.items():
+            entries.append(EntryInput(account_id=gl_id, debit=money(tax_amt * fx_rate), analytic_account_id=ana))
+    elif gst_amount > 0:
         gst_input_acc = get_or_create_account(session, user.tenant_id, "1250", "GST Receivable (Input)", "Asset")
         entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_base, analytic_account_id=ana))
 

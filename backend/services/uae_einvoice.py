@@ -196,15 +196,19 @@ def ensure_uae_tax_and_coa(session: Session, tenant_id: int) -> dict:
         "1260", "VAT Receivable (UAE Input)", "Asset", "11"
     )
 
-    for code, name, rate, ttype, gl in (
-        ("VAT5_OUT", "UAE Standard VAT 5% (Output)", 5, "output", vat_payable),
-        ("VAT5_IN", "UAE Standard VAT 5% (Input)", 5, "input", vat_receivable),
-        ("VAT0_OUT", "UAE Zero-rated (Output)", 0, "output", vat_payable),
+    for code, name, rate, ttype, gl, flags in (
+        ("VAT5_OUT", "UAE Standard VAT 5% (Output)", 5, "output", vat_payable, {}),
+        ("VAT5_IN", "UAE Standard VAT 5% (Input)", 5, "input", vat_receivable, {}),
+        ("VAT0_OUT", "UAE Zero-rated (Output)", 0, "output", vat_payable, {"is_zero_rated": True}),
     ):
         existing = session.exec(
             select(TaxCode).where(TaxCode.tenant_id == tenant_id, TaxCode.code == code)
         ).first()
         if existing:
+            # Keep idempotent re-runs aligned with engine flags.
+            if flags.get("is_zero_rated") and not existing.is_zero_rated:
+                existing.is_zero_rated = True
+                session.add(existing)
             continue
         session.add(
             TaxCode(
@@ -214,9 +218,14 @@ def ensure_uae_tax_and_coa(session: Session, tenant_id: int) -> dict:
                 rate=Decimal(rate),
                 type=ttype,
                 gl_account_id=gl.id,
+                **flags,
             )
         )
         created_taxes.append(code)
 
     session.flush()
+    # Seed rate history for any codes that lack it (new installs + upgrades).
+    from services.tax_engine import ensure_initial_rate_history
+    for tc in session.exec(select(TaxCode).where(TaxCode.tenant_id == tenant_id)).all():
+        ensure_initial_rate_history(session, tc)
     return {"accounts": created_accounts, "tax_codes": created_taxes}

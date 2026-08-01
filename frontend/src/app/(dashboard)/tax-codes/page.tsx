@@ -15,6 +15,9 @@ interface TaxCode {
   type: "output" | "input"
   gl_account_id: number
   is_active: boolean
+  is_reverse_charge: boolean
+  is_exempt: boolean
+  is_zero_rated: boolean
 }
 
 interface Account { id: number; code: string; name: string; type: string }
@@ -35,9 +38,23 @@ interface FormState {
   rate: string
   type: string
   gl_account_id: string
+  is_reverse_charge: boolean
+  is_exempt: boolean
+  is_zero_rated: boolean
+  effective_from: string
 }
 
-const emptyForm: FormState = { code: "", name: "", rate: "", type: "output", gl_account_id: "" }
+const emptyForm: FormState = {
+  code: "",
+  name: "",
+  rate: "",
+  type: "output",
+  gl_account_id: "",
+  is_reverse_charge: false,
+  is_exempt: false,
+  is_zero_rated: false,
+  effective_from: new Date().toISOString().slice(0, 10),
+}
 
 export default function TaxCodesPage() {
   const { t } = useTranslation()
@@ -86,6 +103,10 @@ export default function TaxCodesPage() {
       rate: String(tc.rate),
       type: tc.type,
       gl_account_id: String(tc.gl_account_id),
+      is_reverse_charge: !!tc.is_reverse_charge,
+      is_exempt: !!tc.is_exempt,
+      is_zero_rated: !!tc.is_zero_rated,
+      effective_from: new Date().toISOString().slice(0, 10),
     })
     setFormErr(null); setModalOpen(true)
   }
@@ -96,14 +117,27 @@ export default function TaxCodesPage() {
     if (!form.name.trim())        { setFormErr("Name is required"); return }
     const rate = parseFloat(form.rate)
     if (isNaN(rate) || rate < 0) { setFormErr("Rate must be a non-negative number"); return }
-    if (!form.gl_account_id)      { setFormErr("GL account is required"); return }
+    if (!form.gl_account_id && !editing) { setFormErr("GL account is required"); return }
+    if (form.is_exempt && form.is_reverse_charge) {
+      setFormErr("A code cannot be both exempt and reverse-charge"); return
+    }
 
     setSaving(true); setFormErr(null)
     try {
       if (editing) {
+        const payload: Record<string, unknown> = {
+          name: form.name,
+          is_reverse_charge: form.is_reverse_charge,
+          is_exempt: form.is_exempt,
+          is_zero_rated: form.is_zero_rated,
+        }
+        if (Number(form.rate) !== Number(editing.rate)) {
+          payload.rate = rate
+          payload.effective_from = form.effective_from
+        }
         await apiFetch(`/api/tax-codes/${editing.id}`, {
           method: "PUT",
-          body: JSON.stringify({ name: form.name, rate }),
+          body: JSON.stringify(payload),
         })
       } else {
         await apiFetch("/api/tax-codes", {
@@ -114,6 +148,9 @@ export default function TaxCodesPage() {
             rate,
             type: form.type,
             gl_account_id: parseInt(form.gl_account_id),
+            is_reverse_charge: form.is_reverse_charge,
+            is_exempt: form.is_exempt,
+            is_zero_rated: form.is_zero_rated,
           }),
         })
       }
@@ -283,10 +320,63 @@ export default function TaxCodesPage() {
                     value={form.rate}
                     onChange={e => setForm(f => ({ ...f, rate: e.target.value }))}
                     placeholder="17"
-                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 pr-8 text-sm focus:outline-none focus:border-[var(--primary)] tabular-nums"
+                    disabled={form.is_exempt}
+                    className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 pr-8 text-sm focus:outline-none focus:border-[var(--primary)] tabular-nums disabled:bg-[#f5f2ed]"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-primary)]/40">%</span>
                 </div>
+                {editing && Number(form.rate) !== Number(editing.rate) && (
+                  <div className="mt-2">
+                    <label className="block text-xs font-semibold text-[var(--text-primary)]/70 mb-1.5 uppercase tracking-wide">
+                      Effective from
+                    </label>
+                    <input
+                      type="date"
+                      value={form.effective_from}
+                      onChange={e => setForm(f => ({ ...f, effective_from: e.target.value }))}
+                      className="w-full border border-[#d4cfc7] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary)]"
+                    />
+                    <p className="text-[11px] text-[var(--text-primary)]/50 mt-1">
+                      Prior documents keep their snapshotted rate; new documents on/after this date use the new rate.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 rounded-lg border border-[var(--border)] bg-[#faf8f4] px-3 py-3">
+                <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+                  <input
+                    type="checkbox"
+                    checked={form.is_zero_rated}
+                    onChange={e => setForm(f => ({ ...f, is_zero_rated: e.target.checked }))}
+                  />
+                  Zero-rated
+                </label>
+                <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+                  <input
+                    type="checkbox"
+                    checked={form.is_exempt}
+                    onChange={e => setForm(f => ({
+                      ...f,
+                      is_exempt: e.target.checked,
+                      rate: e.target.checked ? "0" : f.rate,
+                      is_reverse_charge: e.target.checked ? false : f.is_reverse_charge,
+                    }))}
+                  />
+                  Exempt
+                </label>
+                <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+                  <input
+                    type="checkbox"
+                    checked={form.is_reverse_charge}
+                    onChange={e => setForm(f => ({
+                      ...f,
+                      is_reverse_charge: e.target.checked,
+                      is_exempt: e.target.checked ? false : f.is_exempt,
+                    }))}
+                  />
+                  Reverse charge
+                </label>
               </div>
 
               {!editing && (
@@ -371,6 +461,7 @@ function CodeTable({
               <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">Name</th>
               <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-20">Rate</th>
               <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-32">Type</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">Flags</th>
               <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">GL Account</th>
               <th className="px-4 py-3 w-20" />
             </tr>
@@ -378,6 +469,11 @@ function CodeTable({
           <tbody>
             {items.map(tc => {
               const acc = accountMap[tc.gl_account_id]
+              const flags = [
+                tc.is_zero_rated ? "Zero" : null,
+                tc.is_exempt ? "Exempt" : null,
+                tc.is_reverse_charge ? "RC" : null,
+              ].filter(Boolean)
               return (
                 <tr key={tc.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[#faf8f4]">
                   <td className="px-4 py-3 font-mono text-xs text-[var(--text-primary)]/80">{tc.code}</td>
@@ -389,6 +485,9 @@ function CodeTable({
                     <span className={`inline-block border rounded-full px-2.5 py-0.5 text-xs font-medium ${TYPE_TONE[tc.type] ?? "bg-slate-50 text-slate-700 border-slate-200"}`}>
                       {TYPE_LABELS[tc.type] ?? tc.type}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-[var(--text-primary)]/60">
+                    {flags.length ? flags.join(" · ") : "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-[var(--text-primary)]/70">
                     {acc ? `${acc.code} — ${acc.name}` : `#${tc.gl_account_id}`}

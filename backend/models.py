@@ -998,8 +998,12 @@ class InvoiceLine(SQLModel, table=True):
     unit: Optional[str] = None
     rate: Money = money_col()
     discount_pct: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(5, 2), nullable=False, server_default="0"))
-    amount: Money = money_col()  # stored = qty × rate × (1 − discount_pct/100)
+    amount: Money = money_col()  # stored = qty × rate × (1 − discount_pct/100); net when exclusive
     tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
+    # Snapshots at post time — never re-derived from the live catalog (#263).
+    tax_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 4), nullable=True))
+    tax_amount: Money = money_col()
+    tax_inclusive: bool = Field(default=False)
     promo_rule_id: Optional[int] = Field(default=None, foreign_key="promo_rule.id")
 
 
@@ -1011,13 +1015,19 @@ class BillLine(SQLModel, table=True):
     qty: Money = money_col(default=Decimal("1"))
     unit: Optional[str] = None
     rate: Money = money_col()
-    amount: Money = money_col()  # stored = qty × rate
+    amount: Money = money_col()  # stored = qty × rate; net when exclusive
     tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
+    tax_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 4), nullable=True))
+    tax_amount: Money = money_col()
+    tax_inclusive: bool = Field(default=False)
 
 
 class TaxCode(SQLModel, table=True):
     """Per-tenant tax catalog. Output = sales tax (liability), Input = purchase
     tax (receivable). gl_account_id is the GL account the tax leg posts to.
+
+    Live `rate` mirrors the open TaxRateHistory row; historical documents use
+    line snapshots + history as-of the document date (#263).
     """
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="unique_tax_code_per_tenant"),
@@ -1028,10 +1038,28 @@ class TaxCode(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     code: str = Field(index=True)        # e.g. "GST17", "ZERO"
     name: str                            # e.g. "Standard GST 17%"
-    rate: Money = money_col()            # percent, e.g. 17
+    rate: Money = money_col()            # percent, e.g. 17 — current/open rate
     type: str                            # output | input
     gl_account_id: int = Field(foreign_key="account.id")
     is_active: bool = Field(default=True)
+    is_reverse_charge: bool = Field(default=False)
+    is_exempt: bool = Field(default=False)
+    is_zero_rated: bool = Field(default=False)
+
+
+class TaxRateHistory(SQLModel, table=True):
+    """Effective-dated rate versions for a TaxCode. Open-ended rows have
+    effective_to IS NULL. resolve_rate(on_date) picks the matching row.
+    """
+    __table_args__ = (
+        Index("ix_taxratehistory_code_from", "tax_code_id", "effective_from"),
+        CheckConstraint("rate >= 0", name="ck_tax_rate_history_rate_nonneg"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tax_code_id: int = Field(foreign_key="taxcode.id", index=True)
+    rate: Money = money_col()
+    effective_from: str = Field(index=True)  # YYYY-MM-DD
+    effective_to: Optional[str] = Field(default=None)  # inclusive end; None = open
 
 
 class PaymentAllocation(SQLModel, table=True):

@@ -20,6 +20,7 @@ from services.fx import rate_to_base
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
+from services.tax_engine import prepare_line_taxes
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
@@ -85,6 +86,7 @@ class InvoiceLineCreate(BaseModel):
     discount_pct: Decimal = Decimal("0")   # 0–100 percent discount
     promo_rule_id: Optional[int] = None
     tax_code_id: Optional[int] = None
+    tax_inclusive: bool = False
 
 
 class InvoiceCreate(BaseModel):
@@ -261,7 +263,11 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
             **ln.model_dump(),
             "hs_code": hs_map.get(ln.product_id),
             "pct_code": pct_map.get(ln.product_id),
-            "tax_rate": tax_rate_map.get(ln.tax_code_id),
+            # Prefer post-time snapshot; fall back to live catalog for legacy rows.
+            "tax_rate": (
+                float(ln.tax_rate) if ln.tax_rate is not None
+                else tax_rate_map.get(ln.tax_code_id)
+            ),
         }
         for ln in lines
     ]
@@ -290,10 +296,28 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         base = D(l.qty) * D(l.rate)
         if l.discount_pct:
             base = base * (D("100") - D(l.discount_pct)) / D("100")
-        return base
+        return money(base)
 
-    subtotal = money(sum_money(_line_amount(l) for l in body.lines))
-    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    raw_amounts = [_line_amount(l) for l in body.lines]
+    tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
+        session,
+        user.tenant_id,
+        body.issue_date,
+        [
+            (amt, l.tax_code_id, bool(l.tax_inclusive))
+            for amt, l in zip(raw_amounts, body.lines)
+        ],
+    )
+    stored_amounts = [
+        (tr.net if tr is not None else amt)
+        for amt, tr in zip(raw_amounts, tax_results)
+    ]
+    subtotal = money(sum_money(stored_amounts))
+    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
+    if use_per_line_tax:
+        gst_amount = tax_agg.total_tax_in_total
+    else:
+        gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
     # FX resolution: doc currency defaults to tenant base. Rate defaults to
@@ -381,23 +405,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
 
     # Persist line items; for stock lines, relieve inventory at WAvg cost and
     # accumulate total COGS so we can post one Dr COGS / Cr Inventory JV.
-    # For lines with tax_code_id, accumulate per-GL tax amounts.
+    # Tax snapshots come from prepare_line_taxes (above).
     total_cogs = ZERO
-    per_gl_tax: dict[int, Decimal] = {}  # gl_account_id → total_tax for per-line mode
     try:
-        for line_data in body.lines:
-            amount = money(_line_amount(line_data))
-            line_tax_code_id = line_data.tax_code_id
-            if line_tax_code_id:
-                tc = session.exec(
-                    select(TaxCode).where(
-                        TaxCode.id == line_tax_code_id,
-                        TaxCode.tenant_id == user.tenant_id,
-                    )
-                ).first()
-                if tc:
-                    line_tax = money(amount * tc.rate / D("100"))
-                    per_gl_tax[tc.gl_account_id] = per_gl_tax.get(tc.gl_account_id, ZERO) + line_tax
+        for idx, line_data in enumerate(body.lines):
+            amount = stored_amounts[idx]
+            tr = tax_results[idx]
             session.add(
                 InvoiceLine(
                     invoice_id=invoice.id,
@@ -409,7 +422,10 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
                     discount_pct=D(line_data.discount_pct),
                     promo_rule_id=line_data.promo_rule_id,
                     amount=amount,
-                    tax_code_id=line_tax_code_id,
+                    tax_code_id=line_data.tax_code_id,
+                    tax_rate=tr.rate if tr is not None else None,
+                    tax_amount=tr.tax if tr is not None else ZERO,
+                    tax_inclusive=bool(line_data.tax_inclusive),
                 )
             )
             if line_data.product_id:
@@ -428,11 +444,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
-    # If per-line taxes were collected, override the header gst_amount.
-    use_per_line_tax = bool(per_gl_tax)
+    # Header gst already set from engine when use_per_line_tax; keep invoice in sync.
     if use_per_line_tax:
-        gst_amount = sum_money(per_gl_tax.values())
-        total = money(subtotal + gst_amount)
         invoice.gst_amount = gst_amount
         invoice.total = total
         session.add(invoice)
@@ -623,15 +636,33 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     if not due_date:
         due_date = body.issue_date
 
-    # Recalculate totals (respecting per-line discounts)
+    # Recalculate totals via tax engine (respecting per-line discounts + codes)
     def _line_amount_edit(l: InvoiceLineCreate) -> Decimal:
         base = D(l.qty) * D(l.rate)
         if getattr(l, "discount_pct", Decimal("0")):
             base = base * (D("100") - D(l.discount_pct)) / D("100")
-        return base
+        return money(base)
 
-    subtotal = money(sum_money(_line_amount_edit(l) for l in body.lines))
-    gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    raw_amounts = [_line_amount_edit(l) for l in body.lines]
+    tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
+        session,
+        user.tenant_id,
+        body.issue_date,
+        [
+            (amt, l.tax_code_id, bool(l.tax_inclusive))
+            for amt, l in zip(raw_amounts, body.lines)
+        ],
+    )
+    stored_amounts = [
+        (tr.net if tr is not None else amt)
+        for amt, tr in zip(raw_amounts, tax_results)
+    ]
+    subtotal = money(sum_money(stored_amounts))
+    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
+    if use_per_line_tax:
+        gst_amount = tax_agg.total_tax_in_total
+    else:
+        gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
     tenant = session.get(Tenant, user.tenant_id)
@@ -776,8 +807,9 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
 
     total_cogs = ZERO
     try:
-        for line_data in body.lines:
-            amount = money(_line_amount_edit(line_data))
+        for idx, line_data in enumerate(body.lines):
+            amount = stored_amounts[idx]
+            tr = tax_results[idx]
             session.add(InvoiceLine(
                 invoice_id=inv.id,
                 product_id=line_data.product_id,
@@ -788,6 +820,10 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 discount_pct=D(getattr(line_data, "discount_pct", Decimal("0"))),
                 promo_rule_id=getattr(line_data, "promo_rule_id", None),
                 amount=amount,
+                tax_code_id=line_data.tax_code_id,
+                tax_rate=tr.rate if tr is not None else None,
+                tax_amount=tr.tax if tr is not None else ZERO,
+                tax_inclusive=bool(line_data.tax_inclusive),
             ))
             if line_data.product_id:
                 prod = session.exec(
@@ -834,7 +870,10 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
         entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=ana))
-    if gst_amount > ZERO:
+    if use_per_line_tax and per_gl_tax:
+        for gl_id, tax_amt in per_gl_tax.items():
+            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate), analytic_account_id=ana))
+    elif gst_amount > ZERO:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
