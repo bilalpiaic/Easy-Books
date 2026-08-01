@@ -33,6 +33,7 @@ from routers import (
 )
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
+from routers import marketplace
 from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
 # Side-effect import: registers TOTP/OAuth routes on auth.router (#118)
@@ -307,6 +308,7 @@ app.include_router(health.router)
 # PRA e-Invoice router mounted separately (not in the shared prefix list above)
 app.include_router(pra_router, prefix="/api")
 app.include_router(uae_router, prefix="/api")
+app.include_router(marketplace.router)
 
 for r in _ROUTERS:
     app.include_router(r)

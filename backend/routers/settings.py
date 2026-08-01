@@ -93,6 +93,8 @@ class SettingsUpdate(BaseModel):
     uae_legal_name: Optional[str] = None
     uae_api_key: Optional[str] = None        # future live connector (write-only)
     uae_sandbox_mode: Optional[str] = None
+    # Marketplace (#227) — optional curated remote catalog URL (https only)
+    marketplace_catalog_url: Optional[str] = None
     # AI assistant (#117) — key values are write-only; GET redacts them
     ai_api_key_anthropic: Optional[str] = None
     ai_api_key_openai: Optional[str] = None
