@@ -62,6 +62,8 @@ export interface AppSettings {
   approvals_block_self_approval: string
   // Period close (#262)
   period_close_require_checklist: string
+  // IFRS 16 leases (#256)
+  leases_enabled: string
   // Portal custom domain (#270)
   portal_custom_domain: string
   // Appearance
@@ -126,6 +128,7 @@ const defaults: AppSettings = {
   user_rights_enabled: "false",
   approvals_block_self_approval: "true",
   period_close_require_checklist: "true",
+  leases_enabled: "true",
   portal_custom_domain: "",
   app_theme: "light",
   color_theme: "gold",

@@ -10,7 +10,7 @@ import {
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
-  AlertTriangle,
+  AlertTriangle, KeyRound,
 } from "lucide-react"
 
 export type NavItem = {
@@ -113,6 +113,7 @@ export const NAV: NavItem[] = [
   { label: "Tax Codes",        href: "/tax-codes",         icon: Percent,          section: "Reports" },
   { label: "Budget vs Actual", href: "/budgets",           icon: TrendingUp,       section: "Reports" },
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
+  { label: "Leases",           href: "/leases",            icon: KeyRound,         section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
   { label: "Deferred Revenue", href: "/deferred-revenue",  icon: Play,             section: "Reports" },
   { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp, section: "Reports" },
@@ -228,7 +229,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
-  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets"],
+  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets", "/leases"],
   reports:       ["/trial-balance", "/pl", "/balance", "/consolidation", "/cashflow", "/tax", "/tax-return", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
@@ -338,6 +339,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Period Close",      href: "/period-close",      icon: CalendarCheck,   section: "accounting" },
     { label: "Deferred Revenue",  href: "/deferred-revenue",  icon: Play,            section: "accounting" },
     { label: "Fixed Assets",      href: "/assets",            icon: Building2,       section: "accounting" },
+    { label: "Leases",            href: "/leases",            icon: KeyRound,        section: "accounting" },
   ],
   reports: [
     // Financial Statements

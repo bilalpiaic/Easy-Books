@@ -80,20 +80,22 @@ export default function PortalPage() {
         if (!r.ok) throw new Error("Invalid portal link")
         return r.json()
       })
-      .then((h: Home) => {
+      .then(async (h: Home) => {
         setHome(h)
         if (h.entity_type === "vendor") {
-          return Promise.all([
+          await Promise.all([
             fetch(`${apiBase}/api/portal/${token}/statement`).then((r) => r.json()).then(setStatement),
             fetch(`${apiBase}/api/portal/${token}/purchase-orders`).then((r) => r.json()).then(setPos).catch(() => setPos([])),
           ])
+          return
         }
         if (h.entity_type === "patient") {
-          return fetch(`${apiBase}/api/portal/${token}/lab-orders`)
+          await fetch(`${apiBase}/api/portal/${token}/lab-orders`)
             .then((r) => r.json())
             .then(setLabOrders)
+          return
         }
-        return reloadInvoices()
+        await reloadInvoices()
       })
       .catch((e) => setErr(e.message))
   }, [token, search])

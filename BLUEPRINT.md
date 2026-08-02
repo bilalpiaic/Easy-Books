@@ -957,6 +957,7 @@ Trial Balance ── click account code ──▶ /ledger?account={name}
 | Inventory carrying amount + movement | IAS 2.36(d), 2.36(g) | Stock card with running qty + value driven by StockMovement event log |
 | Change history | ISA 240, SOC 2 CC7.3 | `AuditLog` row per mutation — viewable at `/api/audit-log` |
 | **Group consolidation** | **IFRS 10 / IAS 27** | Entity graph (`ConsolidationMember`) on the holding tenant; worksheet run aggregates member TBs by account code, proposes IC AR/AP + NCI eliminations (`services/consolidation.py`), and posts an immutable package (consolidated BS/P&L). Eliminations never hit member GLs. Associates = equity-method one-liner. Locked-period post requires owner/admin override. UI: `/consolidation`. |
+| **Leases (lessee)** | **IFRS 16** | Contract master + amortisation schedule (`LeaseContract` / `LeaseScheduleLine`); activate posts Dr RoU / Cr liability (+ IDC); period run posts interest, payment, RoU depreciation via `posting.py`; simplified early termination; maturity disclosure buckets. Settings gate: `leases_enabled`. CoA: 1510/1511/2510/5125. UI: `/leases`. |
 
 ---
 

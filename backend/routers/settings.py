@@ -85,6 +85,8 @@ class SettingsUpdate(BaseModel):
     approvals_block_self_approval: Optional[str] = None  # "true" | "false"
     # Period close (#262) — block lock/close until required checklist tasks done
     period_close_require_checklist: Optional[str] = None  # "true" | "false"
+    # IFRS 16 leases (#256)
+    leases_enabled: Optional[str] = None  # "true" | "false"
     # Customer/vendor portal custom domain (#270) — e.g. portal.acme.com or full https URL
     portal_custom_domain: Optional[str] = None
     # Appearance
