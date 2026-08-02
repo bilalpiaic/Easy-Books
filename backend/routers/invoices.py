@@ -1233,3 +1233,22 @@ async def enqueue_invoice_pdf(
         settings_map.get("business_tagline", "") or "",
     )
     return result
+
+
+@router.get("/api/invoices/{invoice_id}/disputes")
+def list_invoice_disputes(session: SessionDep, user: CurrentUserDep, invoice_id: int):
+    """Portal dispute thread visible to AR staff (#270)."""
+    from models import PortalDispute
+
+    inv = session.exec(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    rows = session.exec(
+        select(PortalDispute).where(
+            PortalDispute.tenant_id == user.tenant_id,
+            PortalDispute.invoice_id == inv.id,
+        ).order_by(PortalDispute.id.desc())  # type: ignore
+    ).all()
+    return [r.model_dump() for r in rows]

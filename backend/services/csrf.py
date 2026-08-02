@@ -26,12 +26,22 @@ _EXEMPT_PATHS = {
     "/api/auth/logout", "/api/v1/auth/logout",
 }
 
+# Magic-link portal is authenticated by the URL token, not cookies. Staff
+# who mint a link while logged in would otherwise fail CSRF on pay/dispute.
+_EXEMPT_PREFIXES = (
+    "/api/portal/",
+    "/api/v1/portal/",
+    "/api/stripe/webhook",
+    "/api/v1/stripe/webhook",
+)
+
 
 class CsrfMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method not in _MUTATING:
             return await call_next(request)
-        if request.url.path in _EXEMPT_PATHS:
+        path = request.url.path
+        if path in _EXEMPT_PATHS or any(path.startswith(p) for p in _EXEMPT_PREFIXES):
             return await call_next(request)
         # If the caller sent an Authorization header we skip CSRF — they
         # can't be a browser-cookie-style victim.

@@ -20,7 +20,13 @@ def render_html_pdf(template_name: str, context: dict) -> bytes:
     return HTML(string=html_str).write_pdf()
 
 
-def render_invoice_pdf(invoice: dict, lines: list, company_name: str, tagline: str = "") -> bytes:
+def render_invoice_pdf(
+    invoice: dict,
+    lines: list,
+    company_name: str,
+    tagline: str = "",
+    logo_url: str = "",
+) -> bytes:
     """Render an invoice as PDF bytes (back-compat wrapper)."""
     return render_html_pdf(
         "invoice.html",
@@ -29,6 +35,7 @@ def render_invoice_pdf(invoice: dict, lines: list, company_name: str, tagline: s
             "lines": lines,
             "company_name": company_name,
             "tagline": tagline,
+            "logo_url": logo_url,
         },
     )
 

@@ -274,7 +274,7 @@ class UserAlert(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("user_id", "dedupe_key", name="uq_user_alert_dedupe"),
         CheckConstraint(
-            "kind IN ('overdue_invoice','low_stock','approval_needed','system')",
+            "kind IN ('overdue_invoice','low_stock','approval_needed','system','invoice_dispute')",
             name="ck_user_alert_kind",
         ),
         CheckConstraint(
@@ -2199,6 +2199,19 @@ class PortalToken(SQLModel, table=True):
     permissions: list = Field(default_factory=lambda: ["view_invoices", "pay"], sa_column=Column(JSON))
     last_accessed: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PortalDispute(SQLModel, table=True):
+    """Customer dispute / note thread on an invoice via portal (#270)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    invoice_id: int = Field(foreign_key="invoice.id", index=True)
+    customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
+    body: str
+    status: str = Field(default="open", index=True)  # open | resolved
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    resolved_at: Optional[datetime] = None
+    resolved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
 class DunningRule(SQLModel, table=True):

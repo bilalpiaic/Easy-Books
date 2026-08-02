@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  Bell, CheckCheck, AlertTriangle, Package, ClipboardCheck, Info, X,
+  Bell, CheckCheck, AlertTriangle, Package, ClipboardCheck, Info, X, MessageSquareWarning,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
@@ -43,6 +43,7 @@ function KindIcon({ kind, severity }: { kind: string; severity: string }) {
   if (kind === "low_stock") return <Package className={cn("w-3.5 h-3.5", cls)} />
   if (kind === "approval_needed") return <ClipboardCheck className={cn("w-3.5 h-3.5", cls)} />
   if (kind === "overdue_invoice") return <AlertTriangle className={cn("w-3.5 h-3.5", cls)} />
+  if (kind === "invoice_dispute") return <MessageSquareWarning className={cn("w-3.5 h-3.5", cls)} />
   return <Info className={cn("w-3.5 h-3.5", cls)} />
 }
 
