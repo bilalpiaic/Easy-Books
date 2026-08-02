@@ -98,6 +98,7 @@ export const NAV: NavItem[] = [
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
   { label: "Exchange Rates",   href: "/exchange-rates",    icon: TrendingUp,       section: "Banking" },
   { label: "Bank Imports",     href: "/bank-imports",      icon: Upload,           section: "Banking" },
+  { label: "Bank Rules",       href: "/bank-imports/rules", icon: Tags,            section: "Banking" },
   { label: "Cash Book",        href: "/cash-book",         icon: Wallet,           section: "Banking" },
   { label: "Bank Book",        href: "/bank-book",         icon: BookOpen,         section: "Banking" },
   { label: "Reconciliations",  href: "/reconciliations",   icon: CheckCheck,       section: "Banking" },
@@ -289,6 +290,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Cash Book",       href: "/cash-book",       icon: Wallet,     section: "banking" },
     { label: "Reconciliations", href: "/reconciliations", icon: CheckCheck, section: "banking" },
     { label: "Bank Imports",    href: "/bank-imports",    icon: Upload,     section: "banking" },
+    { label: "Bank Rules",      href: "/bank-imports/rules", icon: Tags,  section: "banking" },
     { label: "Exchange Rates",  href: "/exchange-rates",  icon: TrendingUp, section: "banking" },
   ],
   sales: [

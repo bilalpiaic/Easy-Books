@@ -1686,6 +1686,15 @@ class StatementLine(SQLModel, table=True):
     is_matched: bool = Field(default=False)
     # Plaid (or other feed) transaction id for de-dupe on sync (#214)
     external_id: Optional[str] = Field(default=None, index=True)
+    # Bank-feed harden (#268)
+    suggested_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    match_confidence: Optional[float] = None  # 0–100
+    categorized_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    # null | suggested | accepted | rejected
+    match_status: Optional[str] = Field(default=None, index=True)
+    match_decided_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    match_decided_at: Optional[datetime] = None
+    expense_draft_suggested: bool = Field(default=False)
 
 
 class ExchangeRate(SQLModel, table=True):
@@ -2270,11 +2279,20 @@ class PlaidConnection(SQLModel, table=True):
 
 
 class CategorizationRule(SQLModel, table=True):
+    """Bank-feed categorization rule (#121 / #268).
+
+    First matching rule by ascending `priority` wins. `pattern` is a
+    case-insensitive substring of the statement description; optional
+    `match_amount` further requires an exact debit-or-credit amount.
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     pattern: str  # substring match on statement description
     account_id: int = Field(foreign_key="account.id")
     is_active: bool = Field(default=True)
+    priority: int = Field(default=100, index=True)  # lower = higher priority
+    match_amount: Optional[float] = None  # exact |debit| or |credit| when set
+    create_expense_draft: bool = Field(default=False)
 
 
 class AgentSuggestion(SQLModel, table=True):

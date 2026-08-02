@@ -746,6 +746,11 @@ const REPORTS: NavResult[] = [
     keywords: ["approvals", "approve", "sod", "segregation of duties"],
   },
   {
+    id: "bank:rules", type: "nav", label: "Bank Rules",
+    sub: "Categorization rules for bank feeds", href: "/bank-imports/rules",
+    keywords: ["bank rules", "categorization", "ofx", "statement matching"],
+  },
+  {
     id: "sys:approval-workflows", type: "nav", label: "Approval Workflows",
     sub: "Configure multi-step approval chains", href: "/approvals/workflows",
     keywords: ["approval workflows", "thresholds", "approver roles"],
