@@ -958,6 +958,9 @@ Trial Balance ── click account code ──▶ /ledger?account={name}
 | Change history | ISA 240, SOC 2 CC7.3 | `AuditLog` row per mutation — viewable at `/api/audit-log` |
 | **Group consolidation** | **IFRS 10 / IAS 27** | Entity graph (`ConsolidationMember`) on the holding tenant; worksheet run aggregates member TBs by account code, proposes IC AR/AP + NCI eliminations (`services/consolidation.py`), and posts an immutable package (consolidated BS/P&L). Eliminations never hit member GLs. Associates = equity-method one-liner. Locked-period post requires owner/admin override. UI: `/consolidation`. |
 | **Leases (lessee)** | **IFRS 16** | Contract master + amortisation schedule (`LeaseContract` / `LeaseScheduleLine`); activate posts Dr RoU / Cr liability (+ IDC); period run posts interest, payment, RoU depreciation via `posting.py`; simplified early termination; maturity disclosure buckets. Settings gate: `leases_enabled`. CoA: 1510/1511/2510/5125. UI: `/leases`. |
+| **Inventory depth** | **IAS 2** | Landed cost onto layers (`LandedCost`); lot/serial (`track_lot` / `track_serial`); NRV write-down runs (`NrVRun`). UI: `/inventory/valuation`. |
+| **Month-end close pack** | **ISA / close controls** | `CloseChecklistItem` per period; optional lock gate via `period_close_require_checklist`; auditor ZIP export (`services/close_pack.py`). |
+| **Tax rate history** | **Multi-jurisdiction** | `TaxRateHistory` effective-dated rates; documents snapshot rates at post time (#263). |
 
 ---
 

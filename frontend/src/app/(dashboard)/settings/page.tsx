@@ -250,18 +250,20 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--text-muted)] mt-1">Configure business and accounting settings</p>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-[var(--border)]">
-        {TABS.map(t => (
-          <button key={t.id} type="button" onClick={() => setTab(t.id)}
-            className={`px-5 py-2 text-[13px] font-medium rounded-t-lg transition-colors ${
-              tab === t.id
-                ? "bg-white border border-b-white border-[var(--border)] text-[var(--primary)] -mb-px"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}>
-            {t.label}
-          </button>
-        ))}
+      {/* Tab bar — scroll on narrow screens so tabs never clip */}
+      <div className="overflow-x-auto scrollbar-hide -mx-1 px-1 border-b border-[var(--border)]">
+        <div className="flex gap-1 min-w-max">
+          {TABS.map(t => (
+            <button key={t.id} type="button" onClick={() => setTab(t.id)}
+              className={`shrink-0 whitespace-nowrap px-3 sm:px-5 py-2 text-[13px] font-medium rounded-t-lg transition-colors ${
+                tab === t.id
+                  ? "bg-white border border-b-white border-[var(--border)] text-[var(--primary)] -mb-px"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {saved && (
@@ -277,7 +279,7 @@ export default function SettingsPage() {
 
       { tab === "company" && <>
 
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-black">
           <Globe className="w-5 h-5 text-[var(--primary)]" />
           Company Information
@@ -398,7 +400,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-black">
           <Building2 className="w-5 h-5 text-[var(--primary)]" />
           Company Profile
@@ -518,7 +520,7 @@ export default function SettingsPage() {
       </> }
       { tab === "accounting" && <>
 
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 text-black">Document Numbering</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -576,7 +578,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
             <CalendarDays className="w-5 h-5 text-[var(--primary)]" />
@@ -659,7 +661,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-2 flex items-center gap-3 text-black">
           <BookOpen className="w-5 h-5 text-[var(--primary)]" />
           Default GL Accounts
@@ -697,7 +699,7 @@ export default function SettingsPage() {
       </> }
       { tab === "preferences" && <>
 
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-black">
           <Bell className="w-5 h-5 text-[var(--primary)]" />
           Alerts &amp; email
@@ -923,7 +925,7 @@ export default function SettingsPage() {
       </> }
       { tab === "accounting" && <>
 
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
             <Lock className="w-5 h-5 text-[var(--primary)]" />
@@ -1073,7 +1075,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Capabilities — Add-ons (replaces pre-login business-model picker) */}
-      <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm">
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-2 flex items-center gap-3 text-black">
           <Layers className="w-5 h-5 text-[var(--primary)]" />
           Industry capabilities
@@ -1397,7 +1399,7 @@ export default function SettingsPage() {
       {/* Updates tab */}
       { tab === "updates" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-[var(--border)] p-8 shadow-sm space-y-6">
+          <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm space-y-6">
             <h2 className="text-xl font-semibold flex items-center gap-3 text-black">
               <RefreshCw className="w-5 h-5 text-[var(--primary)]" />
               Software Updates

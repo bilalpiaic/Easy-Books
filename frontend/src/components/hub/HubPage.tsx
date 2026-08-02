@@ -87,7 +87,7 @@ export default function HubPage({ config }: { config: HubConfig }) {
       )}
 
       {/* KPI tiles */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         {config.kpis.map((kpi, i) => {
           const val = raw ? kpi.value(raw) : null
           const tone = raw && kpi.tone ? kpi.tone(raw) : "normal"
@@ -130,7 +130,7 @@ export default function HubPage({ config }: { config: HubConfig }) {
       </div>
 
       {/* Action grid */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {config.actions.map((action, i) => (
           <button
             key={i}

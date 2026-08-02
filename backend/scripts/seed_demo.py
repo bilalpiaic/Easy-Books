@@ -11,7 +11,7 @@ Date window (computed at trigger time via date.today()):
   • Transactional / ops dates stay inside that window (never future-dated
     except still-active contract/promo end dates)
 
-Data coverage (v4 — Sprint 7–12 improvement roadmap):
+Data coverage (v4 — Sprint 7–12 improvement roadmap + v5 IFRS/SaaS gap-fill):
   • 100 invoices + 100 bills per tenant, evenly spread across the 2-year window
   • Every model-specific COA account exercised (4010/4020/5100/5200/5030 etc.)
   • 2–3 bank accounts seeded per tenant, each on its own CoA leaf
@@ -33,6 +33,16 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap):
   • Accounting periods (locked FY predating the data window + open FYs/quarters)
   • Bank reconciliations (one closed, one open ~70% matched) and an imported
     bank statement (~60% auto-matched) on the main bank account
+  • IFRS 16 leases (#256) — active office lease + schedule on services/mfg
+  • Month-end close checklist (#262) on every open period (partially completed)
+  • Tax rate history (#263) — prior-year rate row per tax code
+  • Inventory depth (#257) — lot-tracked product, draft landed cost, NRV draft
+    on trader/manufacturing
+  • Consolidation (#255) — manufacturing holding → trader subsidiary + draft run
+    (cross-tenant membership for the manufacturing owner)
+
+Still deliberately unseeded: UserPermission overrides, AiChatSession,
+UserDashboardLayout, ApiKey / auth-infra tables.
 
 Usage:
     PYTHONPATH=. uv run python -m scripts.seed_demo
@@ -62,18 +72,19 @@ import json as _json
 from models import (
     Account, AccountingPeriod, AnalyticAccount, AttendanceRecord, AuditLog, BankAccount,
     BankStatementImport, BomHeader,
-    BomLine, Bill, BillLine, BillPayment, Budget, CommissionLedger, CommissionPlan,
-    ComparativeStatement, CreditNote,
+    BomLine, Bill, BillLine, BillPayment, Budget, CloseChecklistItem, CommissionLedger,
+    CommissionPlan, ComparativeStatement, ConsolidationMember, ConsolidationRun, CreditNote,
     CreditNoteLine, Customer, CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
     DeferredRevenueSchedule, DepreciationEntry, Employee, EmployeeSalaryStructure,
     ExchangeRate, FixedAsset, GateInward, GateInwardLine, GateOutward, GateOutwardLine,
     GRNLine, GoodsReceiptNote, InventoryLayer, Invoice,
-    InvoiceLine, JournalEntry, PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
+    InvoiceLine, JournalEntry, LandedCost, LeaseContract, NrVLine, NrVRun,
+    PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
     PayrollLineDetail, PayrollRun, PRASubmissionLog, Product, ProductCategory, ProductionOrder,
     PromoRule, PurchaseDemand, PurchaseDemandLine, PurchaseOrder, PurchaseOrderLine,
     RatePlan, Reconciliation, ReconciliationLine, RecurringTemplate, ReportDefinition,
     SalaryComponent, SequenceCounter, Settings, StatementLine, StockLocation, StoreIssue,
-    StoreIssueLine, TaxCode, Tenant, Transaction, User, Vendor,
+    StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, Vendor,
     VendorAdvance, VendorQuotation, VendorQuotationLine,
 )
 from models_telecom import (
@@ -113,6 +124,9 @@ from services.deferred import (
     _add_months,
 )
 from services.money import D, ZERO, money
+from services.close_pack import ensure_checklist
+from services.leases import activate_lease, allocate_number as allocate_lease_number
+from services.memberships import ensure_membership
 from services.posting import EntryInput, post_transaction
 from services.tracker_posting import (
     post_fca_target_commission, post_load_order, post_msr_to_rso_transfer,
@@ -5061,6 +5075,225 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
     s.flush()
 
 
+# ── v5 IFRS / SaaS gap-fill (#255–#263) ───────────────────────────────────────
+
+def _seed_tax_rate_history(s: Session, tenant_id: int) -> None:
+    """Prior-year rate row per tax code so #263 history UI is non-empty."""
+    today = date.today()
+    prior_from = f"{today.year - 2}-01-01"
+    prior_to = f"{today.year - 1}-12-31"
+    current_from = f"{today.year}-01-01"
+    codes = s.exec(select(TaxCode).where(TaxCode.tenant_id == tenant_id)).all()
+    for tc in codes:
+        existing = s.exec(
+            select(TaxRateHistory).where(TaxRateHistory.tax_code_id == tc.id)
+        ).first()
+        if existing:
+            continue
+        old_rate = money(max(ZERO, D(tc.rate) - D("1")))
+        s.add(TaxRateHistory(
+            tax_code_id=tc.id, rate=old_rate,
+            effective_from=prior_from, effective_to=prior_to,
+        ))
+        s.add(TaxRateHistory(
+            tax_code_id=tc.id, rate=D(tc.rate),
+            effective_from=current_from, effective_to=None,
+        ))
+
+
+def _seed_close_checklists(s: Session, tenant_id: int, user: User) -> None:
+    """Ensure month-end checklist rows on every unlocked period (#262)."""
+    periods = s.exec(
+        select(AccountingPeriod).where(
+            AccountingPeriod.tenant_id == tenant_id,
+            AccountingPeriod.is_locked == False,  # noqa: E712
+        )
+    ).all()
+    for period in periods:
+        items = ensure_checklist(s, period)
+        # Mark a couple of required tasks done so the UI shows mixed state.
+        for item in items:
+            if item.task_key in ("tb_reviewed", "bank_recon") and not item.is_done:
+                item.is_done = True
+                item.completed_at = datetime.utcnow()
+                item.completed_by_id = user.id
+                s.add(item)
+
+
+def _seed_leases(s: Session, user: User) -> None:
+    """One active IFRS 16 office lease (#256) — idempotent by name."""
+    tid = user.tenant_id
+    if s.exec(
+        select(LeaseContract).where(
+            LeaseContract.tenant_id == tid,
+            LeaseContract.name == "Head-office rent",
+        )
+    ).first():
+        return
+    bank = s.exec(
+        select(Account).where(Account.tenant_id == tid, Account.code == "1010")
+    ).first()
+    commencement = f"{date.today().year}-01-01"
+    lease = LeaseContract(
+        tenant_id=tid,
+        number=allocate_lease_number(s, tid),
+        name="Head-office rent",
+        lessor="Demo Landlord Ltd",
+        commencement_date=commencement,
+        term_months=12,
+        payment_amount=money("2500"),
+        annual_discount_rate=money("8"),
+        payment_timing="arrears",
+        initial_direct_costs=ZERO,
+        payment_account_id=bank.id if bank else None,
+        status="draft",
+        created_by_id=user.id,
+    )
+    s.add(lease)
+    s.commit()
+    s.refresh(lease)
+    try:
+        activate_lease(s, user, lease, payment_account_id=bank.id if bank else None)
+    except Exception:
+        # Keep draft row if activation fails (e.g. locked period) — still discoverable.
+        s.rollback()
+
+
+def _seed_inventory_depth(s: Session, user: User, stock: list[Product]) -> None:
+    """Lot flag + draft landed cost + draft NRV run (#257)."""
+    tid = user.tenant_id
+    if not stock:
+        return
+    prod = stock[0]
+    if not prod.track_lot:
+        prod.track_lot = True
+        if D(prod.avg_cost or 0) > ZERO and prod.nrv_unit is None:
+            prod.nrv_unit = money(D(prod.avg_cost) * D("0.85"))
+        s.add(prod)
+
+    # Tag an open layer with a lot number when present
+    layer = s.exec(
+        select(InventoryLayer).where(
+            InventoryLayer.tenant_id == tid,
+            InventoryLayer.product_id == prod.id,
+            InventoryLayer.qty_remaining > 0,
+        )
+    ).first()
+    if layer and not layer.lot_no:
+        layer.lot_no = f"LOT-{prod.id}-DEMO"
+        s.add(layer)
+
+    if not s.exec(select(LandedCost).where(LandedCost.tenant_id == tid)).first():
+        bill = s.exec(
+            select(Bill).where(Bill.tenant_id == tid).order_by(Bill.id.desc())  # type: ignore
+        ).first()
+        s.add(LandedCost(
+            tenant_id=tid,
+            number=next_number(s, tid, "landed_cost", "LC"),
+            cost_date=date.today().isoformat(),
+            goods_bill_id=bill.id if bill else None,
+            goods_source_doc=bill.number if bill else None,
+            description="Demo freight / duty allocation",
+            amount=money("350"),
+            allocation_method="value",
+            status="draft",
+            created_by_id=user.id,
+        ))
+
+    if not s.exec(select(NrVRun).where(NrVRun.tenant_id == tid)).first():
+        if prod.nrv_unit is None and D(prod.avg_cost or 0) > ZERO:
+            prod.nrv_unit = money(D(prod.avg_cost) * D("0.85"))
+            s.add(prod)
+        if D(prod.stock_qty or 0) > ZERO and prod.nrv_unit is not None:
+            run = NrVRun(
+                tenant_id=tid,
+                number=next_number(s, tid, "nrv_run", "NRV"),
+                run_date=date.today().isoformat(),
+                status="draft",
+                use_allowance=True,
+                notes="Demo NRV review",
+                created_by_id=user.id,
+            )
+            s.add(run)
+            s.flush()
+            qty = D(prod.stock_qty)
+            cost = D(prod.avg_cost)
+            nrv = D(prod.nrv_unit)
+            wd = money(max(ZERO, (cost - nrv) * qty))
+            if wd > ZERO:
+                s.add(NrVLine(
+                    tenant_id=tid, run_id=run.id, product_id=prod.id,
+                    qty=qty, unit_cost=cost, nrv_unit=nrv, write_down=wd,
+                ))
+
+
+def _seed_consolidation_graph(s: Session) -> None:
+    """Manufacturing holding consolidates Trading subsidiary (#255)."""
+    hold = s.exec(
+        select(Tenant).where(Tenant.name == "Demo Manufacturing Co.")
+    ).first()
+    sub = s.exec(
+        select(Tenant).where(Tenant.name == "Demo Trading Co.")
+    ).first()
+    if not hold or not sub:
+        return
+    owner = s.exec(
+        select(User).where(User.email == "demo.manufacturing@easy-books.app")
+    ).first()
+    if not owner:
+        return
+
+    # Membership so holding UI can attach the trader tenant
+    ensure_membership(s, user_id=owner.id, tenant_id=hold.id, role="owner")
+    ensure_membership(s, user_id=owner.id, tenant_id=sub.id, role="viewer")
+
+    if not s.exec(
+        select(ConsolidationMember).where(
+            ConsolidationMember.holding_tenant_id == hold.id,
+            ConsolidationMember.member_tenant_id == hold.id,
+        )
+    ).first():
+        s.add(ConsolidationMember(
+            holding_tenant_id=hold.id,
+            member_tenant_id=hold.id,
+            relationship="parent",
+            ownership_pct=money("100"),
+            label="Holding",
+            is_active=True,
+        ))
+    if not s.exec(
+        select(ConsolidationMember).where(
+            ConsolidationMember.holding_tenant_id == hold.id,
+            ConsolidationMember.member_tenant_id == sub.id,
+        )
+    ).first():
+        s.add(ConsolidationMember(
+            holding_tenant_id=hold.id,
+            member_tenant_id=sub.id,
+            relationship="subsidiary",
+            ownership_pct=money("80"),
+            label="Trading sub",
+            ic_ar_code="1100",
+            ic_ap_code="2000",
+            is_active=True,
+        ))
+
+    if not s.exec(
+        select(ConsolidationRun).where(ConsolidationRun.holding_tenant_id == hold.id)
+    ).first():
+        today = date.today()
+        s.add(ConsolidationRun(
+            holding_tenant_id=hold.id,
+            name="Demo group pack",
+            period_start=f"{today.year}-01-01",
+            period_end=today.isoformat(),
+            status="draft",
+            notes="Seeded draft consolidation run",
+            created_by_id=owner.id,
+        ))
+    s.commit()
+
+
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
@@ -5184,9 +5417,21 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
         _seed_accounting_periods(s, tenant_id)
         s.commit()
+        _seed_close_checklists(s, tenant_id, user)
+        s.commit()
+        _seed_tax_rate_history(s, tenant_id)
+        s.commit()
         _seed_reconciliations(s, tenant_id)
         _seed_bank_imports(s, tenant_id)
         s.commit()
+
+        if business_model in ("services", "manufacturing"):
+            _seed_leases(s, user)
+            s.commit()
+
+        if business_model in ("trader", "manufacturing"):
+            _seed_inventory_depth(s, user, stock)
+            s.commit()
 
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
@@ -5299,6 +5544,13 @@ def seed_all_demos() -> list[dict]:
             reports.append(seed_one_tenant(email, company, model))
         except Exception as e:
             reports.append({"email": email, "error": str(e)})
+    # Cross-tenant consolidation graph needs both manufacturing + trader present.
+    try:
+        with Session(engine) as s:
+            _seed_consolidation_graph(s)
+            reports.append({"consolidation": "ok"})
+    except Exception as e:
+        reports.append({"consolidation": "error", "error": str(e)})
     return reports
 
 

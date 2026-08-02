@@ -190,7 +190,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 {/* Post-update congratulations toast */}
                 {showToast && justUpdated && (
-                  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[800] flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl rounded-2xl px-5 py-3.5 animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[800] flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl rounded-2xl px-5 py-3.5 animate-in slide-in-from-bottom-4 duration-500">
                     <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                       <CheckCircle className="w-4 h-4 text-green-600" />
                     </div>

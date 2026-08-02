@@ -6,7 +6,7 @@
 >
 > **Ground truth for current implementation:** prefer [`CLAUDE.md`](../CLAUDE.md) over older BLUEPRINT header notes (e.g. migrations — Alembic is source of truth) and over stale “still open” lines in early improvement audits.
 >
-> **Last assembled:** 2026-07-19
+> **Last assembled:** 2026-08-03
 
 ---
 
@@ -16,13 +16,14 @@
 
 It combines:
 
-- Seven **business models** (CoA seed at signup — structural and irreversible) × nine **installable modules** (Odoo-style `MODULE_REGISTRY`, orthogonal to the CoA)
+- Seven **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, orthogonal to the CoA)
 - **One GL writer** — [`backend/services/posting.py`](../backend/services/posting.py) — so every financial number on screen is derived live from the journal (no shadow-balance drift)
-- Vertical depth rarely bundled in one SME product: contract manufacturing custody, telecom franchise, PRA e-invoice (Pakistan), hospital OPD/IPD/Lab, purchase→gate→store chain, and a multi-provider agentic AI assistant
+- Vertical depth rarely bundled in one SME product: contract manufacturing custody, telecom franchise, PRA e-invoice (Pakistan), hospital OPD/IPD/Lab, purchase→gate→store chain, weaving unit control, and a multi-provider agentic AI assistant
+- **IFRS Track A (shipping):** group consolidation (IFRS 10), leases (IFRS 16), inventory depth (IAS 2 landed/lot/NRV), month-end close checklist + auditor pack, tax rate history
 
 **Positioning one-liner**
 
-> Odoo depth for vertical workflows, QuickBooks familiarity for SME UX, Manager.io-style local ownership — with a modern FastAPI / Next.js stack and an agentic AI layer incumbents do not yet match in this segment.
+> Odoo depth for vertical workflows, QuickBooks familiarity for SME UX, Manager.io-style local ownership — with a modern FastAPI / Next.js stack, IFRS worksheet depth, and an agentic AI layer incumbents do not yet match in this segment.
 
 ---
 

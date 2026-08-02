@@ -16,7 +16,7 @@ export default function AIChatButton() {
       <button
         onClick={() => setOpen(prev => !prev)}
         aria-label="Open AI Assistant"
-        className={`fixed bottom-20 right-4 md:bottom-6 md:right-20 z-[850] w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200
+        className={`fixed bottom-36 right-4 md:bottom-6 md:right-20 z-[850] w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200
           ${open
             ? "bg-[var(--text-primary)] text-white scale-90"
             : "bg-[var(--primary)] text-white hover:scale-110 hover:shadow-xl"
