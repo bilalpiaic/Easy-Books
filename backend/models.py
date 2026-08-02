@@ -623,6 +623,112 @@ class Product(SQLModel, table=True):
     pct_code: Optional[str] = Field(default=None)  # 8-digit PRA product classification (PCTCode)
     # IAS 2.25: per-product cost-flow override. None → inherit from Tenant.cost_method.
     cost_method: Optional[str] = Field(default=None)  # 'wavg' | 'fifo' | None
+    # IAS 2 tracking (#257)
+    track_lot: bool = Field(default=False)
+    track_serial: bool = Field(default=False)
+    # Latest estimated net realisable value per unit (optional; NRV runs can override).
+    nrv_unit: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4), nullable=True))
+
+
+class StockSerial(SQLModel, table=True):
+    """Per-unit serial number for track_serial products (#257)."""
+    __tablename__ = "stockserial"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "product_id", "serial", name="uq_stock_serial"),
+        CheckConstraint(
+            "status IN ('available','sold','scrapped')",
+            name="ck_stock_serial_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    serial: str = Field(index=True)
+    status: str = Field(default="available", index=True)
+    layer_id: Optional[int] = Field(default=None, foreign_key="inventorylayer.id")
+    source_doc: Optional[str] = None
+    sold_doc_type: Optional[str] = None
+    sold_doc_id: Optional[int] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class LandedCost(SQLModel, table=True):
+    """Allocate freight/duty/insurance onto inventory receipt layers (#257)."""
+    __tablename__ = "landedcost"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="uq_landed_cost_number"),
+        CheckConstraint(
+            "status IN ('draft','posted','void')",
+            name="ck_landed_cost_status",
+        ),
+        CheckConstraint(
+            "allocation_method IN ('value','qty')",
+            name="ck_landed_cost_alloc",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    cost_date: str
+    # Bill that carries the landed charges (freight/duty) — optional.
+    charge_bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    # Goods bill whose open layers receive the allocation.
+    goods_bill_id: Optional[int] = Field(default=None, foreign_key="bill.id", index=True)
+    goods_source_doc: Optional[str] = Field(default=None, index=True)  # bill.number fallback
+    description: Optional[str] = None
+    amount: Money = money_col()
+    allocation_method: str = Field(default="value")
+    status: str = Field(default="draft", index=True)
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class LandedCostAllocation(SQLModel, table=True):
+    __tablename__ = "landedcostallocation"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    landed_cost_id: int = Field(foreign_key="landedcost.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    layer_id: int = Field(foreign_key="inventorylayer.id", index=True)
+    amount: Money = money_col()
+    qty_basis: Money = money_col()
+    value_basis: Money = money_col()
+
+
+class NrVRun(SQLModel, table=True):
+    """IAS 2 NRV valuation run — write inventory down to NRV (#257)."""
+    __tablename__ = "nrvrun"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="uq_nrv_run_number"),
+        CheckConstraint(
+            "status IN ('draft','posted','reversed')",
+            name="ck_nrv_run_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    run_date: str
+    status: str = Field(default="draft", index=True)
+    use_allowance: bool = Field(default=True)  # Cr allowance vs direct Cr inventory
+    notes: Optional[str] = None
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    reverse_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class NrVLine(SQLModel, table=True):
+    __tablename__ = "nrvline"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    run_id: int = Field(foreign_key="nrvrun.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    qty: Money = money_col()
+    unit_cost: Money = money_col()
+    nrv_unit: Money = money_col()
+    write_down: Money = money_col()  # max(0, (cost - nrv) * qty)
 
 
 class BomHeader(SQLModel, table=True):

@@ -68,6 +68,10 @@ class SettingsUpdate(BaseModel):
     cost_method: Optional[str] = None
     # Inventory: block sales that would drive stock negative ("true"/"false")
     block_negative_stock: Optional[str] = None
+    # Inventory depth (#257)
+    inventory_landed_cost_enabled: Optional[str] = None  # "true" | "false"
+    inventory_lot_tracking_enabled: Optional[str] = None
+    inventory_nrv_enabled: Optional[str] = None
     # Purchases: require Demand → Comparative chain before a PO ("true"/"false")
     require_purchase_chain: Optional[str] = None
     # Purchases: require Gate Inward coverage before billing a PO ("true"/"false")

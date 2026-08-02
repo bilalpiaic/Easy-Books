@@ -767,6 +767,33 @@ export default function SettingsPage() {
           </label>
         </div>
 
+        {[
+          ["inventory_landed_cost_enabled", "Landed cost allocation", "Allocate freight/duty onto receipt layers (IAS 2)."],
+          ["inventory_lot_tracking_enabled", "Lot / serial tracking", "Allow products to require lot or serial numbers on receipt and sale."],
+          ["inventory_nrv_enabled", "NRV write-downs", "Run net realisable value valuations and post write-down journals."],
+        ].map(([key, title, hint]) => (
+          <div key={key} className="flex items-center justify-between pt-4 mt-4 border-t border-[var(--border)]">
+            <div>
+              <h3 className="font-semibold text-black">{title}</h3>
+              <p className="text-sm text-[var(--text-muted)] mt-1">{hint}</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={(form as Record<string, string>)[key] !== "false"}
+                onChange={e => handleChange(key, e.target.checked ? "true" : "false")}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary)]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+            </label>
+          </div>
+        ))}
+
+        <p className="text-xs text-[var(--text-muted)] pt-2">
+          Landed cost &amp; NRV tools:{" "}
+          <a href="/inventory/valuation" className="underline text-[var(--primary)]">Inventory → Valuation</a>
+        </p>
+
         { installedModules.has("purchase_store") && <div className="flex items-center justify-between pt-4 mt-4 border-t border-[var(--border)]">
           <div>
             <h3 className="font-semibold text-black">Require purchase chain (Demand → Comparative → PO)</h3>

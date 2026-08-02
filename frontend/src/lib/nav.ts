@@ -75,6 +75,7 @@ export const NAV: NavItem[] = [
   { label: "Product Categories",href: "/products/categories", icon: Tags,             section: "Inventory",      forModule: "inventory" },
   { label: "Product Ledger",    href: "/products/ledger",    icon: BookOpen,         section: "Inventory",      forModule: "inventory" },
   { label: "Inventory Report",  href: "/inventory/performance", icon: PieChart,      section: "Inventory",      forModule: "inventory" },
+  { label: "Valuation",         href: "/inventory/valuation",   icon: Scale,         section: "Inventory",      forModule: "inventory" },
   { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing",    forModule: "production" },
   { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing",    forModule: "production" },
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing",    forModule: "production" },
@@ -354,6 +355,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Product Categories", href: "/products/categories",   icon: Tags,     section: "inventory", forModule: "inventory" },
     { label: "Product Ledger",     href: "/products/ledger",       icon: BookOpen, section: "inventory", forModule: "inventory" },
     { label: "Inventory Report",   href: "/inventory/performance", icon: PieChart, section: "inventory", forModule: "inventory" },
+    { label: "Valuation",          href: "/inventory/valuation",   icon: Scale,    section: "inventory", forModule: "inventory" },
   ],
   payroll: [
     { label: "Overview",          href: "/hrm",                icon: LayoutGrid,   section: "payroll", forModule: "hrm" },
