@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-07-06 · **Version:** 3.5.0
+**Last updated:** 2026-08-03 · **Version:** 5.0.0
 
 ---
 
@@ -47,6 +47,10 @@
 34. [Purchases & Store — Procure-to-Pay & Dispatch Control](#34-purchases--store--procure-to-pay--dispatch-control)
 35. [AI Financial Assistant](#35-ai-financial-assistant)
 36. [Calculator](#36-calculator)
+37. [IFRS 16 Leases](#37-ifrs-16-leases)
+38. [Group Consolidation (IFRS 10)](#38-group-consolidation-ifrs-10)
+39. [Inventory Valuation Depth](#39-inventory-valuation-depth)
+40. [Save PDF troubleshooting](#40-save-pdf-troubleshooting)
 
 ---
 
@@ -2192,3 +2196,84 @@ The display has two lines: a small line above showing your running calculation (
 ### 36.4 Moving & Minimizing It
 
 Drag the header bar to move the calculator anywhere on screen — it remembers where you left it (per browser) the next time you open it. Click the minus button to collapse it to just its header without losing whatever you were calculating; click again (or the restore icon) to bring it back.
+
+---
+
+## 37. IFRS 16 LEASES
+
+Lessee accounting for office / equipment leases — Right-of-use (RoU) asset + lease liability with a full amortisation schedule.
+
+### 37.1 Enable & navigate
+
+- Settings → Accounting (or Advanced): leave **IFRS 16 leases** on (`leases_enabled`, default on).
+- Open **Leases** (`/leases`) from Accounting / Fixed Assets area.
+
+### 37.2 Create & activate
+
+1. **+ New lease** — name, lessor, commencement date, term (months), payment amount, annual discount rate (%), payment timing (arrears / advance), optional initial direct costs, payment (bank/cash) account.
+2. Preview shows the computed PV and schedule before save.
+3. Save as draft, then **Activate** — posts `Dr RoU (1510) / Cr Lease liability (2510)` (+ IDC if any). Schedule lines are generated automatically.
+
+Demo tenants (Services / Manufacturing) include an active **Head-office rent** lease after Sample Data seed.
+
+### 37.3 Period post & terminate
+
+- On the lease detail page, **Post period** runs interest expense, payment (credit bank), and RoU depreciation for the next open schedule line via the normal GL writer.
+- **Terminate** posts a simplified early-exit settlement (remaining liability vs RoU NBV).
+- **Maturity disclosure** buckets remaining undiscounted payments for notes to the accounts.
+
+CoA leaves used: **1510** RoU, **1511** Accum. depr. RoU, **2510** Lease liability, **5125** Lease interest (plus depreciation expense).
+
+---
+
+## 38. GROUP CONSOLIDATION (IFRS 10)
+
+Build a holding-company entity graph and produce a consolidated worksheet package — eliminations never post to member GLs.
+
+### 38.1 Entity graph
+
+1. Sign in on the **holding** tenant (demo: Manufacturing owner also has viewer membership on Trading).
+2. Open **Consolidation** (`/consolidation`).
+3. Add members: parent (100%), subsidiaries (ownership %), optional associates (equity-method line). Set IC AR/AP account codes for proposed eliminations.
+
+### 38.2 Worksheet run
+
+1. **New run** — name + period start/end.
+2. **Propose** — aggregates member trial balances by account code; proposes IC AR/AP and NCI eliminations.
+3. Review eliminations; adjust if needed. **Post** freezes an immutable consolidated BS/P&L package on the holding tenant only.
+
+Locked-period post may require an owner/admin override. Associates appear as a single equity-method line, not line-by-line consolidation.
+
+---
+
+## 39. INVENTORY VALUATION DEPTH
+
+IAS 2 depth beyond average cost — landed cost, lot/serial, and NRV write-downs (trader / manufacturing).
+
+### 39.1 Landed cost
+
+- From **Inventory → Valuation** (or landed-cost entry), allocate freight/duty onto receipt layers (`value` or `qty` method).
+- Draft → allocate → posts into inventory layers; demo seed leaves a draft **LC** row to walk through.
+
+### 39.2 Lot / serial
+
+- On a product, enable **Track lot** / **Track serial**. Receipts and layers can carry `lot_no`; product ledger and valuation respect tracking flags.
+
+### 39.3 NRV write-down
+
+- Set **NRV per unit** on products where recoverable amount is below cost.
+- Create an **NRV run** — draft lines show write-down amounts; post uses the allowance (or direct write-down) path. Demo traders/manufacturers get a draft NRV review after seed.
+
+---
+
+## 40. SAVE PDF TROUBLESHOOTING
+
+**Save PDF** on invoices, bills, lab reports, and the customer/vendor portal downloads a server-rendered PDF (WeasyPrint).
+
+| Symptom | Likely cause | What to do |
+|---------|--------------|------------|
+| Message about **PDF engine unavailable** / 503 | WeasyPrint or system libs (Pango/Cairo) missing or crashing | Install WeasyPrint system dependencies for your OS/WSL; check the backend log; retry |
+| **Cannot reach the API** / connection refused | Backend not running or wrong `NEXT_PUBLIC_API_URL` | Start the API (`python main.py` / installer); confirm the frontend points at the same host:port |
+| Generic **PDF download failed** with HTTP detail | Auth expired, document missing, or permission | Re-login; confirm the document exists and you have view rights |
+
+The UI surfaces the server `detail` when available instead of a bare browser “Failed to fetch”.

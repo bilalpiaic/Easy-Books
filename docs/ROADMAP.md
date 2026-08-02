@@ -1,178 +1,63 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-07-19 (against `main` @ merge of PR #190)._
+_Last reviewed: 2026-08-03 (against `main` @ merge of PR #280 / epic #254 Track A progress)._
 
 ## Status summary
 
-Everything up to and including the **Strategic Roadmap v4.0 groundwork** is on `main`:
-report period presets (#141, PR #148), the Purchase/Store chain incl. registers +
-pagination (#137, PRs #145–#155), permissions dead-resource enforcement audit
-(PRs #160–#161), the Calculator + 4-stage agentic AI pipeline
-(Triage → Specialist → Reviewer → Drafting, PRs #167–#179 and #185–#188 — 11
-specialist agents, ~50 registry tools), public API keys with rate-limiting +
-JTI revocation (#113, PRs #180–#183), and the demo-seed gap-fill batch
-(commissions, promo rules, periods, reconciliations, bank imports, PRA logs).
+**v5 Competitive Track** is tracked under umbrella issue [#254](https://github.com/bilalpiaic/Easy-Books/issues/254):
+IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 
-**Open issues (the v4.0 Cloud Launch + Agentic AI backlog):**
+### A — IFRS accounting ([#254](https://github.com/bilalpiaic/Easy-Books/issues/254))
 
-| Issue | Title |
-|-------|-------|
-| **#112** | 🗺️ Strategic Roadmap v4.0 — Cloud Launch + Agentic AI (umbrella) |
-| **#114** | Webhook / Event Bus — outgoing events (next up) |
-| **#115** | Background Task Queue — async PDF, email, bulk imports |
-| **#116** | Cloud Deployment Stack — S3, docker-compose.prod, Caddy TLS, CI/CD |
-| **#118** | 2FA (TOTP) + SSO (Google / Microsoft OAuth2) |
-| **#119** | Multi-Tenant SaaS Management — plans, billing, quotas, Stripe |
-| **#120** | Customer & Vendor Portal + Dunning Automation |
-| **#121** | Bank Feeds — Plaid Open Banking + auto-categorization |
-| **#122** | AI Agent Level 2 — assisted data entry, receipt/invoice OCR |
-| **#123** | Approval Workflows — multi-level approval for invoices/bills/POs |
-| **#124** | AI Agent Level 3–4 — proactive insights, month-end automation |
-| **#125** | AI Agent Level 5 — forecasting, cash-flow prediction, budget-variance AI |
-| **#140** | Addon: New Module Weaving |
+| Issue | Title | Status |
+|-------|-------|--------|
+| **#255** | Multi-entity consolidation (IFRS 10 / IAS 27) | Shipped (PR #279) |
+| **#256** | IFRS 16 leases (RoU + liability) | Shipped (PR #280) |
+| **#257** | Inventory depth — landed cost, lot/serial, NRV | Shipped |
+| **#258** | Fixed assets depth — IAS 16/36 | Open |
+| **#259** | IFRS 15 remaining — multi-element + contract assets | Open |
+| **#260** | Analytic dimensions on all JE lines + dimensional P&L | Open |
+| **#261** | Intercompany + IC reconciliation | Open |
+| **#262** | Month-end close checklist + auditor export pack | Shipped |
 
----
+### B — Country tax packs
 
-## Shipped history (condensed)
+| Issue | Title | Status |
+|-------|-------|--------|
+| **#263** | Core multi-jurisdiction tax engine | Shipped |
+| **#264** | Country pack: Saudi ZATCA e-invoice | Open |
+| **#265** | Country pack: India GST | Open |
+| **#266** | Country pack: Peppol / EU VAT e-invoice | Open |
+| **#267** | Withholding tax + corporate tax summary reports | Open |
 
-### v3.0.0 — Universal Search, Auto-Update System & TopNav Overhaul (2026-06-28)
+### C — SaaS hardening
 
-| Feature | Detail |
-|---------|--------|
-| **Universal Search Engine (Ctrl+K)** | Command palette at `GlobalSearch.tsx`; 3-tier architecture: open tabs (0 ms, `useTabs()`), static nav index (0 ms, `lib/navIndex.ts`), API data (150 ms debounce); `GET /api/search?q=&limit=&types=` queries 8 entity types with expanded columns (invoice: description/notes/status/issue_date; employee: designation/cnic/bank_name; transaction: reference/notes/date/voucher_type; product: unit/product_type; customer: address/ntn/cnic); returns rich result data (date, amount, status); `types` param for prefix-filtered calls |
-| **Prefix filter syntax** | `inv:`, `cust:`, `bill:`, `acc:`, `prod:`, `emp:`, `jv:`, `tab:`, `rpt:`, `new:`, `vendor:` — routes search to the matching entity only; `tab:` searches open browser tabs; `rpt:` searches only report pages; `new:` shows quick-action forms |
-| **Expanded static nav index** (`lib/navIndex.ts`) | 3 layers: all sidebar pages, 14 quick-action forms (New Invoice, Bill, Customer, Employee, GRN, BOM, Production Order, etc.), 22 report/utility pages with keyword aliases (type "tb" → Trial Balance, "p&l" → Income Statement, "gst" → Tax Reports, "bs" → Balance Sheet) |
-| **Rich search result rows** | Status badges (color-coded: draft=amber, posted=blue, paid=green, voided=red), amount pills (formatted without decimals), date display; recent searches stored in `localStorage` (`eb.recent-searches`, max 5), shown as chips in empty state |
-| **In-app Auto-Update System** | `UpdateAvailablePopup` (bottom sheet with "Update Now" / "Later" / "Skip version"); `UpdateProgressScreen` (fullscreen portal with animated SVG ring, 4-phase progress: Pull→Compile→Bundle→Start, progress bar, polling `/version.json` every 5s after trigger); post-update congratulations toast reads `eb.just-updated` and shows from→to commit hash; `GET /api/system/update/changelog?since=<sha>` returns recent git commits for "What's New" list |
-| **Auto-check on login** | `DashboardLayout` checks `/api/system/update/status` (GitHub Commits API, not Releases API) on every mount for admin/owner; shows popup unless dismissed (`eb.update-skip` per-SHA persist, `eb.update-later-session` session dismiss) |
-| **TopNav portal dropdowns** | All dropdown panels use `ReactDOM.createPortal` + `getBoundingClientRect()` for `position: fixed` placement — avoids `overflow-x: auto` scroll container clipping; scroll arrows (left/right chevrons) with ResizeObserver for visibility |
-| **Dark nav inversion** | CSS vars `--nav-bg`, `--nav-text`, `--nav-sub`, `--nav-dim`, etc. flip to cream/charcoal in `[data-theme="dark"]` — inverted from the light theme, giving a distinct visual separation between nav and page content |
-| **BottomNav / FAB / MoreDrawer** | Mobile navigation: `BottomNav` bar, `FAB` floating action button, `MoreDrawer` slide-up panel filtered by installed modules |
-| **Settings 5-tab layout** | `/settings` tabs: Company / Accounting / Preferences / Advanced / Updates; Updates tab shows version, manual update trigger, and changelog |
-| **QB UI token system** | All 155+ pages/components migrated from hex colors to CSS custom properties (`--bg-page`, `--bg-card`, `--border`, `--text-primary`, `--text-secondary`, `--text-muted`, `--primary`, `--primary-light`, `--primary-dark`) — enables clean dark-mode and theme-switching without per-component overrides |
-| **Login "Failed to fetch" fix** | `backend/routers/search.py` had wrong imports (`or_` from `sqlmodel`, `SessionDep` from `db`) causing backend startup crash → login unreachable; fixed to `from sqlalchemy import or_` and `from .common import SessionDep` |
+| Issue | Title | Status |
+|-------|-------|--------|
+| **#268** | Bank feeds hardening | Shipped |
+| **#269** | Approvals SoD + thresholds + substitutes | Shipped |
+| **#270** | Portal hardening (pay, disputes, branded domain) | Shipped |
+| **#271** | Integration ops — webhooks, queue DLQ, plan quotas | Shipped |
 
-### v2.9.0 — PRA e-Invoice Integration (Pakistan, 2026-06-22)
+### Earlier v4 backlog (mostly superseded / partially shipped)
 
-| Feature | Detail |
-|---------|--------|
-| **PRA eIMS submission** | Real-time invoice filing with Punjab Revenue Authority via `POST /api/Live/PostData`; sandbox + production endpoints; non-blocking `BackgroundTasks` so invoice save is never delayed by PRA API latency |
-| **Fiscal Invoice Number (FIN)** | PRA returns a FIN on success (`Code: "100"`); stored in `invoice.pra_fiscal_number`; displayed on the invoice detail badge and printed below the invoice number on every printed invoice |
-| **PRA status lifecycle** | `pra_status`: `not_required → pending → submitted / failed`; colour-coded badge (amber/green/red) on invoice detail; manual retry button for failed submissions |
-| **Payment Mode** | New field on Invoice (`1=Cash`, `2=Card/Bank Transfer`, `3=Gift Voucher`, `4=Loyalty`, `5=Mixed`, `6=Cheque`); sent as `PaymentMode` in the PRA payload; dropdown on the invoice form |
-| **Customer PRA fields** | `ntn` (7-digit Business NTN e.g. `1234567-8`, mapped to `BuyerPNTN`) and `cnic` (13-digit consumer CNIC, mapped to `BuyerCNIC`); editable on the customer form |
-| **Product PCT codes** | `pct_code` (8-digit PRA product classification code, mapped to `PCTCode` per line); editable on the product form alongside the existing HS Code field |
-| **Settings section** | PRA e-Invoice card in Settings: enable toggle, PNTN/NTN, POS ID, API token (password field with show/hide), sandbox mode, **Test Connection** button that pings the live sandbox and shows the PRA response code |
-| **Submission audit log** | `PRASubmissionLog` table records every API call: endpoint, request JSON, HTTP status, PRA code, response JSON, success flag; viewable via `GET /api/pra/logs` |
-| **Permission gates** | `perm_dep("invoices")` at router level; `perm_dep("invoices", "edit")` on mutating endpoints; `apply_own_filter` row-level scoping on `/logs` via Invoice join |
-| **Migration** | `0026_pra_integration` — 6 new columns on `invoice`, 2 on `customer`, 1 on `product`; new `prasubmissionlog` table; SQLite-safe (no FK ALTER, `has_table` guard) |
-| **PRA demo tenant** | Sixth demo company: `demo.pra@easy-books.app` / `demo1234` — *Lahore Retail Traders*, PKR currency; 25 customers with NTN/CNIC; 8 retail products with PCT codes; 90 invoices pre-stamped with FINs and varied payment modes |
-
-### v2.8.0 — HRM: Payroll & Attendance Register (2026-06-21)
-
-| Feature | Detail |
-|---------|--------|
-| **Payroll module** | Employee master + salary component catalog + per-employee salary structures; `PayrollRun` lifecycle (draft→approved→posted→void); auto-compute gross/deductions/net from structures; GL posting Dr Salary Expense / Cr Salaries Payable; PR-YYYY-seq voucher; printable payslips; 20 API endpoints in `routers/payroll.py` |
-| **Attendance register** | `AttendanceRecord` with time_in/time_out/hours_worked/status/source; monthly grid (employees × days); bulk entry; attendance report + CSV export; biometric import endpoint (matches by employee_code, stores raw device payload in `raw_data`); CSV upload fallback; ZKTeco/FingerTec integration planned |
-| **Migrations** | `0023_employees` + `0024_payroll` + `0025_attendance` — 7 new tables; no breaking changes |
-| **Frontend** | 13 new pages across `/payroll/*`, `/employees/*`, `/attendance/*`; Payroll sidebar section |
-| **Demo data** | Realistic HRM seed data: 8–12 employees per tenant, salary structures, 3 payroll runs (posted+approved), 2 months attendance |
-
-### v2.7.0 — UI/UX release (2026-06-21)
-
-| Feature | Detail |
-|---------|--------|
-| **Dark Mode + Themes** | 3 display modes (Light / Dark / System) × 5 color themes (Gold / Emerald / Sapphire / Rose / Slate); `ThemeContext`; `[data-theme]`/`[data-color]` CSS; anti-flash script in `layout.tsx`; `localStorage` persistence (`eb.theme`, `eb.color`); theme icon in header; color swatches in Settings → Appearance |
-| **Multi-language support** | English, Urdu (RTL Nastaliq), Chinese; `LocaleContext` + `react-i18next`; 314 keys across 10 namespaces; 134 pages/components translated; globe icon in header; `eb.lang` localStorage + `/api/settings` `app_language` sync; RTL layout auto-applied; Noto Nastaliq Urdu font via `next/font/google` |
-| **Mobile responsiveness** | Sidebar 220 → 196 px; `text-xl sm:text-3xl` titles on all 54 pages; `grid-cols-2 sm:grid-cols-3/4` stats grids; `flex-wrap` button toolbars; `overflow-x-auto` line-item tables; responsive form grids; 61 files updated, 0 TS errors |
-
-v2.1.0 → v2.6.0 + post-v2.6.0:
-- **Reporting & GL:** #43 (financial/inventory/sales reports), #45 (consolidated/sub-ledger GL), #44 (voucher series P1+P2), hierarchical TB/BS/P&L (#53 P2), report-builder, audit log.
-- **Accounting correctness:** #50 (selling/cost price), #51 (posted-doc editing), #48 (`block_negative_stock` on edit), #47 (deferred-revenue origination + edit rebuild).
-- **Chart of Accounts:** #53 multi-level CoA (P1 structure + P2 hierarchical reporting); default CoA is hierarchical for every tenant (group skeleton + parented leaves in `db.py`).
-- **UX:** #40 full-page forms; #41 Recent Transactions widget; #52 §4 voucher selector; #52 §6 nav controls (breadcrumbs + Home); **#52 §3 customizable dashboard** (per-user reorder/show-hide → resizable `react-grid-layout` grid + form/report shortcut tiles).
-- **Telecom:** #42 Stock & Issuance per-RSO report + dashboard table.
-- **Infra:** Alembic migrations source-of-truth; per-tenant demo seeding; desktop/script installers with in-app update check; standalone evaluation build auto-loads demo data.
-
-Full per-merge detail lives in `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+Many items from the old v4 Cloud Launch list (#114–#125, #140) have landed under Track C or as modules (webhooks, queue, portal, approvals, bank feeds, weaving). Prefer epic **#254** as the live tracker; close or retarget leftover v4 issues when overlapping work ships.
 
 ---
 
-## Forward backlog (no open issue — future scope, build outlines)
+## Shipped history (recent)
 
-These are the genuinely-remaining ideas, all previously deferred under YAGNI. None is blocking;
-each would follow the standard brainstorm → spec → plan → subagent-execution flow. Listed in
-rough priority order.
+### v5.x — IFRS Track A + SaaS harden (2026-08)
 
-### B1. Dashboard "smart tiles" — live metrics on shortcuts · ✅ **SHIPPED** (merge `9aced3a`)
-- Automatic, summary-only: `lib/dashboardTileMetrics.ts` maps 7 routes (invoices→AR, bills→AP,
-  products→low-stock, bank/cash→cash, aging→AR/AP) to a `{value, badge?, tone?}` read from the
-  already-loaded `DashboardSummary`; `ShortcutTile` renders it; `DashboardGrid.renderItem` resolves
-  it. Zero backend / schema change. Spec `2026-06-13-dashboard-smart-tiles-design.md`.
+| Feature | Detail |
+|---------|--------|
+| **Consolidation (#255)** | Holding entity graph, worksheet propose/post, IC/NCI elims, `/consolidation` |
+| **IFRS 16 leases (#256)** | RoU + liability schedule, period post, maturity disclosure, `/leases` |
+| **Inventory depth (#257)** | Landed cost, lot/serial, NRV valuation UI |
+| **Close / audit pack (#262)** | Period checklist + auditor ZIP |
+| **Tax engine (#263)** | Effective-dated `TaxRateHistory` |
+| **SaaS harden (#268–#271)** | Bank feeds, approvals, portal, webhooks/DLQ/quotas |
 
-### B2. Dashboard data widgets — Bank Balances / Top Products / Inventory summary · ✅ **SHIPPED** (merge `963cce2`)
-- Three opt-in self-fetching widgets reusing existing endpoints (zero backend): Bank Balances ←
-  `/api/bank-accounts`; Top Products (best sellers, top 5) + Inventory Summary (stock value / items /
-  low-stock) ← `/api/reports/inventory-performance`. New `WidgetDef.defaultOnGrid:false` keeps them
-  off the default dashboard; the Add-widget panel surfaces them automatically. Pure helpers in
-  `lib/inventorySummary.ts`. Spec `2026-06-13-dashboard-data-widgets-design.md`.
+### Older releases
 
-### B3. Cash Flow statement — reconciliation tie-out · ✅ **SHIPPED** (merge `581be22`)
-- Discovery: comparison mode was **already** implemented (backend + frontend); the real gap was that
-  the classifier could silently fail to tie out. Added `unclassified = (ending − beginning) −
-  net_cash_change` to `/cash-flow`'s `_compute` (so both single + comparison get it); frontend shows a
-  reconciling row (when non-zero) + a ✓-Reconciled/amber indicator and the reconciled net change.
-  Classifier untouched. 3 tests (372 suite). Spec `2026-06-13-cashflow-reconciliation-tieout-design.md`.
-
-### B4. Per-breakpoint dashboard layouts · ✅ **SHIPPED** (merge `57b9b3e`)
-- **Why:** Phase 2 stores one desktop layout; tablet/mobile derive by stacking. Power users on
-  multiple screen sizes may want distinct arrangements.
-- **Build outline:** extend layout schema to v3 (`{version:3, layouts:{lg,sm,xs}}`) with a v2→v3
-  migration in `resolveLayout`; capture per-breakpoint from react-grid-layout's `onLayoutChange`
-  `allLayouts`. Backend store unchanged. **Shipped:** v3 schema migrations, multi-breakpoint state
-  management in `useDashboardState`, per-breakpoint capture in `DashboardGrid`, v2→v3 auto-migration.
-
-### #70 User Rights / Granular Permissions · ✅ **SHIPPED** (commits `ff1d233`–`10b63ff`)
-- `UserPermission` table (migration `0020_user_rights`) — sparse override rows keyed by `(tenant_id, user_id, resource_key)` with `access_level` (`none/view/edit`) and optional `my_data_only` flag.
-- `services/permissions.py` — `perm_dep()` factory injected into 35 routers; `apply_own_filter` on list endpoints; 60-resource registry; module-level toggle via Settings key `user_rights_enabled`.
-- `GET/PUT /api/permissions/users/{id}` admin matrix; `GET /api/permissions/me` for current user; `GET /api/permissions/resources` for resource list.
-- Frontend: `PermissionContext`, permissions matrix page (`/settings/permissions`), `NoAccessBanner` + page guards on top 6 pages.
-- 12 backend tests.
-
-### #71 Sales Commissions · ✅ **SHIPPED** (commit `4495e9a`)
-- `CommissionPlan` + `CommissionLedger` tables (migration `0021_commissions`).
-- `GET/POST/PUT/DELETE /api/commissions/plans` — rate, sales target, recovery target, target bonus, effective date range.
-- `POST /api/commissions/compute` — computes commission for a period across selected staff.
-- `GET /api/commissions/ledger` — all computed entries; `POST /ledger/{id}/approve` + `/post` — approve and post GL entry (Dr Commission Expense / Cr Commissions Payable).
-- Frontend: `/commissions` management page.
-
-### #72 Promotional Price Discounts · ✅ **SHIPPED** (commit `04ca00c`)
-- `PromoRule` table (migration `0022_promo_rules`) + `InvoiceLine.discount_pct` + `InvoiceLine.promo_rule_id`.
-- `GET/POST/PUT/DELETE /api/promo-rules` — name, product_id, min_qty, discount_pct, active flag, date range.
-- `POST /api/promo-rules/check` — given a list of invoice lines, returns applicable suggestions.
-- `_line_amount()` helper in `routers/invoices.py` applies `amount = qty × rate × (1 − discount_pct/100)`.
-- Frontend: `/promo-discounts` management page; **Apply Promos** button on `InvoiceForm`.
-
-### Sprint 18 — Navigation Hubs, Sidebar, 3-mode Form, Print System · ✅ **SHIPPED** (commits `b99fe66`–`63fe569`)
-
-| Feature | What shipped |
-|---------|-------------|
-| **Section Hub Pages** | `/receivable`, `/payable`, `/inventory`, `/banking` command-centre views; `AgingBand`, `LowStockBand`, `AccountListBand` components; generic `HubPage` renderer; sidebar section headers navigate to hub |
-| **Collapsible sidebar** | 3-state (collapsed / open / pinned) via localStorage; hover tooltip nav panel; auto-pin on wide screens |
-| **3-mode voucher form** | Journal / Payment (CP/BP) / Receipt (CR/BR) modes; mode-specific Cash/Bank GL pickers; PV/RV print templates |
-| **Print system** | Dot-matrix B&W; `dd-mm-yy` dates (`fmtDate`/`fmtDateJs`); dynamic `@page` landscape injection; `print:hidden` hygiene across all pages; currency headers; `(amount)` negatives; `whitespace-nowrap` column alignment; voucher type badges removed |
-
-### #77 Part 2 Customer/Vendor Statements + Allocation · ✅ **SHIPPED** (commits `6955267`, `9e3bb3d`)
-- `GET /api/customers/{id}/statement?from_date=&to_date=` — opening balance, period invoices (with outstanding per line), period payments, closing balance.
-- `GET /api/vendors/{id}/statement?from_date=&to_date=` — AP mirror (bills + bill-payments).
-- Opening balance uses `payment_date < from_date` (not invoice date) to correctly exclude in-period payments from pre-period obligations.
-- 4 backend tests for the customer statement endpoint.
-- Frontend pages at `/customers/[id]/statement` and `/vendors/[id]/statement` already existed; backend endpoints now populated.
-
----
-
-## Issue closure
-
-Historical note: #40, #41, #42, #47, #52, #53 (the 2026-06-28 review's open set) were
-all closed as delivered. The current open set is the v4.0 backlog listed in the
-status summary above — see each issue on GitHub for its phase breakdown.
+See git history and prior sections in `BLUEPRINT.md` / `README.md` for v3.x–v4.x feature catalogs (search, auto-update, PRA, HRM, purchase/store, AI assistant, etc.).

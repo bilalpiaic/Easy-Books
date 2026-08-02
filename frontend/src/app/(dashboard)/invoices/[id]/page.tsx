@@ -322,7 +322,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Header */}
-      <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex items-start justify-between gap-4">
+      <header className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <FileSignature className="w-7 h-7 text-[var(--primary)] shrink-0 mt-1" />
           <div className="min-w-0">
@@ -438,6 +438,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Lines */}
       <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[var(--bg-page)]">
             <tr>
@@ -464,6 +465,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {/* Notes */}

@@ -1620,8 +1620,11 @@ def lab_order_pdf(user: CurrentUserDep, session: SessionDep, order_id: int):
         raise HTTPException(404, "Lab order not found")
     report = _lab_pdf_context(session, order)
     company, tagline = _company_branding(session, user.tenant_id)
-    from services.pdf import render_lab_report_pdf
-    pdf = render_lab_report_pdf(report, company, tagline)
+    from services.pdf import PdfEngineError, pdf_http, render_lab_report_pdf
+    try:
+        pdf = render_lab_report_pdf(report, company, tagline)
+    except PdfEngineError as e:
+        raise pdf_http(e) from e
     filename = f"{order.order_number}.pdf"
     return Response(
         content=pdf,

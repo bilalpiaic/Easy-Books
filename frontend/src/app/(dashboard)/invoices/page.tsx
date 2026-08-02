@@ -398,9 +398,9 @@ function InvoicesContent() {
           <div className="px-6 py-4 border-b border-[var(--border)]">
             <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">AR Aging Analysis</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-[var(--border)]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-px bg-[var(--border)]">
             {([['Current', aging.current], ['1–30 days', aging['1_30']], ['31–60 days', aging['31_60']], ['61–90 days', aging['61_90']], ['90+ days', aging.over_90]] as [string, number][]).map(([label, val]) => (
-              <div key={label} className="p-4 text-center">
+              <div key={label} className="bg-white p-4 text-center">
                 <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest mb-1">{label}</p>
                 <p className={`text-lg font-bold font-mono ${Number(val) > 0 ? 'text-red-600' : 'text-[var(--text-muted)]'}`}>{fmt(Number(val))}</p>
               </div>

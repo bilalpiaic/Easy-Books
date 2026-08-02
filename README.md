@@ -106,7 +106,13 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - Fixed Assets register + straight-line/reducing-balance depreciation (IAS 16)
 - Purchase Orders (raise → approve → convert-to-bill, 3-way match)
 - Deferred revenue recognition (IFRS 15) — flag a product `is_deferred` and its invoice lines post to Deferred Revenue (2300) and originate a recognition schedule; the recognition run releases revenue over the term, and editing a posted deferred invoice rebuilds the schedule (or is blocked once recognition has begun)
-- Server-side PDF invoices (WeasyPrint); Stripe payment links; SMTP email notifications
+- **Group consolidation (IFRS 10)** — holding-tenant entity graph, worksheet runs with IC/NCI eliminations (never posted to member GLs), consolidated BS/P&L package at `/consolidation`
+- **IFRS 16 leases** — RoU asset + lease liability schedules, period posting (interest / payment / depreciation), maturity disclosure, early termination; Settings gate `leases_enabled`; UI `/leases`
+- **Inventory depth (IAS 2)** — landed-cost allocation onto receipt layers, lot/serial tracking, NRV write-down runs (`/inventory/valuation`)
+- **Month-end close pack** — per-period checklist (required tasks can block Soft Close / Lock) + auditor ZIP export from Period Close
+- **Tax rate history** — effective-dated rates per tax code for multi-jurisdiction / rate-change reporting
+- Server-side PDF invoices/bills (WeasyPrint; needs Pango/Cairo system libs — Save PDF returns a clear 503 if the engine is unavailable); Stripe payment links; SMTP email notifications
+- SaaS harden: webhooks + DLQ, background task queue, approvals SoD, customer/vendor/patient portal, bank feeds / statement import, plan quotas
 
 **Settings & customisation**
 - Company profile: name, tagline, address, logo — all printed via `PrintHeader`

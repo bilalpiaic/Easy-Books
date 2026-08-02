@@ -368,7 +368,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           </div>
         </div>
         {(isPRAEnabled || form.buyer_ntn || form.buyer_cnic) && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
                 Buyer NTN <span className="font-normal normal-case text-[var(--text-primary)]/40">(7-digit business)</span>
@@ -393,7 +393,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             </div>
           </div>
         )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Issue Date</label>
             <input type="date" value={form.issue_date} onChange={e => setForm(p => ({ ...p, issue_date: e.target.value }))}

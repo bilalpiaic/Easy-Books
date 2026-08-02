@@ -1880,6 +1880,35 @@ from the all-time GL, so the next period opens at the prior closing balance
 (no opening-balance JV). GET /api/periods/{id}/close-preview shows net income first.
 ```
 
+### Month-end close checklist (#262)
+`CloseChecklistItem` rows are ensured per open `AccountingPeriod` (`services/close_pack.ensure_checklist`).
+Required tasks can block Soft Close / Lock when Settings `period_close_require_checklist` is on.
+Auditor ZIP export packs TB, GL extracts, and checklist evidence from Period Close UI.
+
+### IFRS 16 leases — period post (`/api/leases`)
+```
+Activate:  Dr 1510 RoU (+ IDC) / Cr 2510 Lease liability   (schedule originated)
+Period:    Dr Interest exp (5125) / Cr 2510
+           Dr 2510 / Cr Bank (payment)
+           Dr Depr exp / Cr 1511 Accum. depr. RoU
+Terminate: settles remaining liability vs RoU NBV (simplified).
+Maturity:  undiscounted payment buckets for disclosure (no GL).
+Gate: leases_enabled. All posts via posting.py.
+```
+
+### Group consolidation worksheet (#255) — `/api/consolidation`
+Holding tenant owns `ConsolidationMember` graph + `ConsolidationRun`.
+Propose aggregates member TBs by account code; IC AR/AP + NCI eliminations are
+worksheet-only — **never posted to member GLs**. Post freezes consolidated BS/P&L
+on the holding tenant. Associates → equity-method one-liner.
+
+### Inventory depth (#257) — landed / lot / NRV
+```
+LandedCost: allocate freight/duty onto InventoryLayer (value|qty); draft→post.
+Lot/serial: Product.track_lot / track_serial; layer.lot_no on receipts.
+NrVRun:     compare avg_cost vs nrv_unit × qty → write-down lines; post allowance/direct.
+```
+
 ### Tenant-aware guidance
 `/guide` and `/workflow` read `tenant.business_model` from `/api/auth/me` and show only the cycles
 relevant to that model (inventory & purchase orders for stock-keeping models, deferred revenue for

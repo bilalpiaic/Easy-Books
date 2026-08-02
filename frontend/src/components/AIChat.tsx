@@ -87,7 +87,7 @@ export default function AIChat({ open, onClose }: AIChatProps) {
     <div
       ref={panelRef}
       className={`fixed z-[900] w-[calc(100vw-2rem)] max-w-sm flex flex-col bg-white rounded-3xl shadow-2xl border border-[var(--text-primary)]/10 overflow-hidden ${
-        pos ? "" : "bottom-20 right-4 md:bottom-6 md:right-6"
+        pos ? "" : "bottom-36 right-4 md:bottom-6 md:right-6"
       } ${dragging ? "select-none" : ""}`}
       style={{
         ...(pos ? { left: pos.x, top: pos.y } : {}),

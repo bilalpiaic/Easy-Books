@@ -167,7 +167,7 @@ export default function LeasesPage() {
             IFRS 16 right-of-use assets and lease liabilities — schedule, period post, maturity disclosure.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-[var(--text-primary)]/20">
             <Printer className="w-4 h-4" /> Print disclosure
           </button>
@@ -245,7 +245,7 @@ export default function LeasesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 print:hidden">
           <div className="bg-[var(--bg-page)] border border-[var(--text-primary)]/10 w-full max-w-lg p-5 space-y-3 max-h-[90vh] overflow-y-auto">
             <h3 className="font-serif text-lg">New lease</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <label className="col-span-2 space-y-1">
                 <span className="text-xs text-[var(--text-muted)]">Name</span>
                 <input className="w-full border border-[var(--text-primary)]/15 bg-transparent px-2 py-1.5" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -299,7 +299,7 @@ export default function LeasesPage() {
                 PV {fmt(preview.present_value)} · RoU cost {fmt(preview.rou_cost)}
               </p>
             )}
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
               <button type="button" onClick={() => setModal(false)} className="px-3 py-1.5 text-sm border border-[var(--text-primary)]/20">Cancel</button>
               <button type="button" onClick={runPreview} className="px-3 py-1.5 text-sm border border-[var(--text-primary)]/20">Preview PV</button>
               <button type="button" disabled={busy || !form.name || !form.payment_amount} onClick={save} className="px-3 py-1.5 text-sm bg-[var(--accent)] text-white disabled:opacity-40">Save</button>

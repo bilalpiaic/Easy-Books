@@ -146,7 +146,7 @@ export default function ConsolidationPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4 print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 print:hidden">
         <div>
           <h1 className="font-serif text-2xl text-[var(--text-primary)] flex items-center gap-2">
             <Network className="w-6 h-6 text-[var(--accent)]" />
@@ -215,7 +215,7 @@ export default function ConsolidationPage() {
               <label className="text-xs space-y-1">
                 <span className="text-[var(--text-muted)]">Add entity</span>
                 <select
-                  className="block border border-[var(--text-primary)]/15 bg-transparent px-2 py-1.5 text-sm min-w-[12rem]"
+                  className="block w-full sm:w-auto border border-[var(--text-primary)]/15 bg-transparent px-2 py-1.5 text-sm sm:min-w-[12rem]"
                   value={addTenantId}
                   onChange={(e) => setAddTenantId(e.target.value)}
                 >

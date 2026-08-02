@@ -1185,13 +1185,16 @@ def download_invoice_pdf(session: SessionDep, user: CurrentUserDep, invoice_id: 
     ).all()
     settings_map = {s.key: s.value for s in settings_rows}
 
-    from services.pdf import render_invoice_pdf
-    pdf_bytes = render_invoice_pdf(
-        invoice=inv.model_dump(),
-        lines=[ln.model_dump() for ln in lines],
-        company_name=settings_map.get("company_name", ""),
-        tagline=settings_map.get("business_tagline", ""),
-    )
+    from services.pdf import PdfEngineError, pdf_http, render_invoice_pdf
+    try:
+        pdf_bytes = render_invoice_pdf(
+            invoice=inv.model_dump(),
+            lines=[ln.model_dump() for ln in lines],
+            company_name=settings_map.get("company_name", ""),
+            tagline=settings_map.get("business_tagline", ""),
+        )
+    except PdfEngineError as e:
+        raise pdf_http(e) from e
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

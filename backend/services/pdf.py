@@ -1,9 +1,30 @@
 """Server-side PDF generation using WeasyPrint + Jinja2."""
 from pathlib import Path
 
+from fastapi import HTTPException
 from jinja2 import Environment, FileSystemLoader
 
 _TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
+
+_PDF_UNAVAILABLE = (
+    "PDF engine unavailable. Install WeasyPrint system libraries "
+    "(Pango/Cairo) or check the backend log, then try again."
+)
+
+
+class PdfEngineError(Exception):
+    """WeasyPrint / system library failure — map to HTTP 503 at the edge."""
+
+    def __init__(self, message: str = _PDF_UNAVAILABLE):
+        super().__init__(message)
+        self.message = message
+
+
+def pdf_http(exc: Exception) -> HTTPException:
+    """Convert PdfEngineError (or wrap unknown engine errors) to HTTP 503."""
+    if isinstance(exc, PdfEngineError):
+        return HTTPException(503, exc.message)
+    return HTTPException(503, _PDF_UNAVAILABLE)
 
 
 def render_template_html(template_name: str, context: dict) -> str:
@@ -14,10 +35,22 @@ def render_template_html(template_name: str, context: dict) -> str:
 
 def render_html_pdf(template_name: str, context: dict) -> bytes:
     """Render any Jinja2 template under templates/ to PDF bytes."""
-    from weasyprint import HTML  # lazy import — WeasyPrint is slow to import
+    try:
+        from weasyprint import HTML  # lazy import — WeasyPrint is slow to import
+    except Exception as e:
+        raise PdfEngineError(
+            f"{_PDF_UNAVAILABLE} (import failed: {type(e).__name__})"
+        ) from e
 
-    html_str = render_template_html(template_name, context)
-    return HTML(string=html_str).write_pdf()
+    try:
+        html_str = render_template_html(template_name, context)
+        return HTML(string=html_str).write_pdf()
+    except PdfEngineError:
+        raise
+    except Exception as e:
+        raise PdfEngineError(
+            f"{_PDF_UNAVAILABLE} ({type(e).__name__}: {e})"
+        ) from e
 
 
 def render_invoice_pdf(

@@ -150,6 +150,11 @@ div.overflow-x-auto:has(> table) > table > thead {
   max-height: var(--table-freeze-h, calc(100dvh - 240px));
   -webkit-overflow-scrolling: touch;
 }
+@media (max-width: 767px) {
+  .table-freeze {
+    max-height: var(--table-freeze-h, calc(100dvh - 320px));
+  }
+}
 .table-freeze > table > thead {
   position: sticky;
   top: 0;
