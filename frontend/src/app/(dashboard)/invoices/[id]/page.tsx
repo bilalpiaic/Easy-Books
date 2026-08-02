@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { Printer, RotateCcw, FileSignature, Pencil, Link as LinkIcon, History, Send, Ban, CheckCircle2 } from "lucide-react"
+import { Printer, RotateCcw, FileSignature, Pencil, Link as LinkIcon, History, Send, Ban, CheckCircle2, MessageSquareWarning } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
@@ -14,6 +14,7 @@ import { usePRAPortal } from "@/hooks/usePRAPortal"
 import { useModules } from "@/context/ModuleContext"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
+import { fmtDate } from "@/lib/utils"
 
 interface AuditEntry {
   id: number
@@ -38,6 +39,13 @@ interface InvoiceLine {
   unit: string | null
   rate: number
   amount: number
+}
+
+interface PortalDispute {
+  id: number
+  body: string
+  status: string
+  created_at: string
 }
 interface Invoice {
   id: number
@@ -100,6 +108,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const uaeInstalled = installedModules.has("uae_vat")
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
+  const [disputes, setDisputes] = useState<PortalDispute[]>([])
   const [hasApprovalWorkflow, setHasApprovalWorkflow] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   useBreadcrumb(inv ? inv.number : undefined)
@@ -114,8 +123,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       .then(data => setHistory(data.items.filter(r => r.action === "UPDATE")))
       .catch(() => {/* non-critical; silently ignore */})
 
+  const loadDisputes = () =>
+    apiFetch<PortalDispute[]>(`/api/invoices/${id}/disputes`)
+      .then(setDisputes)
+      .catch(() => setDisputes([]))
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); loadHistory() }, [id])
+  useEffect(() => { load(); loadHistory(); loadDisputes() }, [id])
 
   useEffect(() => {
     apiFetch<{ is_active?: boolean }[]>(`/api/approvals/workflows?document_type=invoice`)
@@ -480,6 +494,30 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </section>
+
+      {/* Portal disputes */}
+      {disputes.length > 0 && (
+        <section className="bg-white border border-amber-200 rounded-xl overflow-hidden print:hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border-b border-amber-200">
+            <MessageSquareWarning className="w-4 h-4 text-amber-700" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800/70">
+              Portal disputes ({disputes.length})
+            </span>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {disputes.map(d => (
+              <div key={d.id} className="px-4 py-3 text-sm">
+                <div className="flex items-center gap-2 text-xs text-[var(--text-primary)]/55 mb-1">
+                  <span className="uppercase tracking-wide font-semibold text-amber-800">{d.status}</span>
+                  <span>·</span>
+                  <span>{fmtDate(d.created_at)}</span>
+                </div>
+                <p className="whitespace-pre-wrap text-[var(--text-primary)]/85">{d.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Attachments */}
       <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 print:hidden">

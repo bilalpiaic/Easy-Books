@@ -816,6 +816,20 @@ export default function SettingsPage() {
         </div>
 
         <div className="pt-4 mt-4 border-t border-[var(--border)]">
+          <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">Customer portal custom domain</label>
+          <input
+            type="text"
+            value={form.portal_custom_domain ?? ""}
+            onChange={e => handleChange('portal_custom_domain', e.target.value)}
+            placeholder="portal.yourcompany.com or https://portal.yourcompany.com"
+            className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-black"
+          />
+          <p className="text-xs text-[var(--text-primary)]/50 mt-1">
+            Optional. Used when minting portal magic links so customers land on your branded host (DNS/Caddy must point here).
+          </p>
+        </div>
+
+        <div className="pt-4 mt-4 border-t border-[var(--border)]">
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Display Density</label>
           <select
             value={form.ui_density}

@@ -343,7 +343,7 @@ def get_version():
 # ── Stripe webhook ────────────────────────────────────────────────────────────
 
 from fastapi import Request as _Request
-from models import Invoice as _Invoice
+from models import Invoice as _Invoice  # noqa: F401 — kept for type clarity in webhook docs
 from db import get_session as _get_session
 
 @app.post("/api/stripe/webhook")
@@ -363,20 +363,31 @@ async def stripe_webhook(request: _Request):
 
     if event["type"] == "checkout.session.completed":
         data = event["data"]["object"]
-        invoice_id = int(data.get("metadata", {}).get("invoice_id", 0))
-        tenant_id = int(data.get("metadata", {}).get("tenant_id", 0))
-        if invoice_id and tenant_id:
+        meta = data.get("metadata") or {}
+        invoice_id = int(meta.get("invoice_id") or 0)
+        tenant_id = int(meta.get("tenant_id") or 0)
+        session_id = data.get("id") or ""
+        amount_total = data.get("amount_total")  # cents
+        if invoice_id and tenant_id and session_id:
             with next(_get_session()) as session:
-                from sqlmodel import select as _select
-                inv = session.exec(
-                    _select(_Invoice).where(
-                        _Invoice.id == invoice_id, _Invoice.tenant_id == tenant_id
+                from decimal import Decimal as _Dec
+                from services.portal_pay import apply_checkout_payment
+                amount = None
+                if amount_total is not None:
+                    amount = _Dec(amount_total) / _Dec(100)
+                try:
+                    apply_checkout_payment(
+                        session,
+                        tenant_id=tenant_id,
+                        invoice_id=invoice_id,
+                        checkout_session_id=str(session_id),
+                        amount=amount,
+                        currency=(data.get("currency") or "").upper() or None,
                     )
-                ).first()
-                if inv:
-                    inv.payment_link_status = "paid"
-                    session.add(inv)
                     session.commit()
+                except Exception as exc:
+                    print(f"[stripe_webhook] portal pay failed: {type(exc).__name__}: {exc}")
+                    session.rollback()
     return {"received": True}
 
 

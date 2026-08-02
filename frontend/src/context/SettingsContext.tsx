@@ -57,6 +57,8 @@ export interface AppSettings {
   user_rights_enabled: string
   // Approvals SoD (#269)
   approvals_block_self_approval: string
+  // Portal custom domain (#270)
+  portal_custom_domain: string
   // Appearance
   app_theme: string
   color_theme: string
@@ -115,6 +117,7 @@ const defaults: AppSettings = {
   cost_method: "wavg",
   user_rights_enabled: "false",
   approvals_block_self_approval: "true",
+  portal_custom_domain: "",
   app_theme: "light",
   color_theme: "gold",
   app_language: "en",

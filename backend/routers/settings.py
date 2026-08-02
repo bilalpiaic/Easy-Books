@@ -79,6 +79,8 @@ class SettingsUpdate(BaseModel):
     user_rights_enabled: Optional[str] = None  # "true" | "false"
     # Approvals SoD (#269) — default on when unset; creator cannot approve own submit
     approvals_block_self_approval: Optional[str] = None  # "true" | "false"
+    # Customer/vendor portal custom domain (#270) — e.g. portal.acme.com or full https URL
+    portal_custom_domain: Optional[str] = None
     # Appearance
     app_theme: Optional[str] = None   # "light" | "dark" | "system"
     color_theme: Optional[str] = None  # "gold" | "blue" | "green" | "rose" | "slate"

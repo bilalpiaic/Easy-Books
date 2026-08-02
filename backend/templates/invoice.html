@@ -52,6 +52,9 @@
 <body>
   <div class="header">
     <div>
+      {% if logo_url %}
+      <img src="{{ logo_url }}" alt="{{ company_name }}" style="max-height:48px;max-width:180px;margin-bottom:8px;object-fit:contain;" />
+      {% endif %}
       <div class="company-name">{{ company_name }}</div>
       {% if tagline %}<div class="company-tagline">{{ tagline }}</div>{% endif %}
     </div>
