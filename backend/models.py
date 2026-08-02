@@ -1568,6 +1568,81 @@ class DepreciationEntry(SQLModel, table=True):
     transaction_id: int = Field(foreign_key="transaction.id")
 
 
+class LeaseContract(SQLModel, table=True):
+    """IFRS 16 lease — right-of-use asset + lease liability (#256)."""
+    __tablename__ = "leasecontract"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="uq_lease_number_per_tenant"),
+        CheckConstraint(
+            "status IN ('draft','active','terminated')",
+            name="ck_lease_status",
+        ),
+        CheckConstraint(
+            "payment_timing IN ('arrears','advance')",
+            name="ck_lease_payment_timing",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    name: str
+    lessor: Optional[str] = None
+    commencement_date: str
+    term_months: int
+    payment_amount: Money = money_col()
+    annual_discount_rate: Money = money_col()  # percent, e.g. 8.00 = 8%
+    payment_timing: str = Field(default="arrears")
+    initial_direct_costs: Money = money_col()
+    # Computed at activation
+    present_value: Money = money_col()
+    rou_cost: Money = money_col()
+    liability_opening: Money = money_col()
+    accumulated_depreciation: Money = money_col()
+    liability_carrying: Money = money_col()
+    status: str = Field(default="draft", index=True)
+    # GL accounts (resolved/created on activate)
+    rou_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    accum_depr_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    depr_expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    liability_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    interest_expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    payment_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    initial_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    terminated_at: Optional[str] = None
+    termination_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class LeaseScheduleLine(SQLModel, table=True):
+    """One period of the IFRS 16 amortisation / depreciation schedule."""
+    __tablename__ = "leasescheduleline"
+    __table_args__ = (
+        UniqueConstraint("lease_id", "period_index", name="uq_lease_schedule_period"),
+        CheckConstraint(
+            "status IN ('pending','posted')",
+            name="ck_lease_schedule_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    lease_id: int = Field(foreign_key="leasecontract.id", index=True)
+    period_index: int
+    period_date: str
+    opening_liability: Money = money_col()
+    interest: Money = money_col()
+    payment: Money = money_col()
+    principal: Money = money_col()
+    closing_liability: Money = money_col()
+    depreciation: Money = money_col()
+    status: str = Field(default="pending", index=True)
+    interest_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    payment_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    depr_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    posted_at: Optional[datetime] = None
+
+
 class CreditNote(SQLModel, table=True):
     """Document reducing a customer's AR balance. Posted as Dr Revenue / Cr AR.
     ISA 240 — issued instead of editing a posted invoice.

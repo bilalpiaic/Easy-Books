@@ -54,6 +54,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "reconciliations":        {"label": "Reconciliations",         "category": "Banking"},
     # Reports & System
     "assets":                 {"label": "Fixed Assets",            "category": "Reports"},
+    "leases":                 {"label": "Leases (IFRS 16)",         "category": "Reports"},
     "budgets":                {"label": "Budgets",                 "category": "Reports"},
     "deferred_revenue":       {"label": "Deferred Revenue",        "category": "Reports"},
     "tax_codes":              {"label": "Tax Codes",               "category": "Reports"},

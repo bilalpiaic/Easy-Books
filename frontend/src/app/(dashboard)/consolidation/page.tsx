@@ -58,9 +58,9 @@ export default function ConsolidationPage() {
     setLoading(true)
     try {
       const [m, e, r] = await Promise.all([
-        apiFetch("/api/consolidation/members"),
-        apiFetch("/api/consolidation/eligible-tenants"),
-        apiFetch("/api/consolidation/runs"),
+        apiFetch<Member[]>("/api/consolidation/members"),
+        apiFetch<Eligible[]>("/api/consolidation/eligible-tenants"),
+        apiFetch<Run[]>("/api/consolidation/runs"),
       ])
       setMembers(m)
       setEligible(e)
@@ -126,7 +126,7 @@ export default function ConsolidationPage() {
     }
     setBusy(true)
     try {
-      const r = await apiFetch("/api/consolidation/runs", {
+      const r = await apiFetch<Run>("/api/consolidation/runs", {
         method: "POST",
         body: JSON.stringify({
           period_start: runStart,

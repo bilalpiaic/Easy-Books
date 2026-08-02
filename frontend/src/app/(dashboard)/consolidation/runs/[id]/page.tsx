@@ -99,9 +99,9 @@ export default function ConsolidationRunPage() {
 
   async function load() {
     const [r, e, s] = await Promise.all([
-      apiFetch(`/api/consolidation/runs/${runId}`),
-      apiFetch(`/api/consolidation/runs/${runId}/eliminations`),
-      apiFetch(`/api/consolidation/runs/${runId}/statements`),
+      apiFetch<Run>(`/api/consolidation/runs/${runId}`),
+      apiFetch<Elim[]>(`/api/consolidation/runs/${runId}/eliminations`),
+      apiFetch<Statements>(`/api/consolidation/runs/${runId}/statements`),
     ])
     setRun(r)
     setElims(e)
@@ -118,9 +118,9 @@ export default function ConsolidationRunPage() {
   async function propose() {
     setBusy(true)
     try {
-      const lines = await apiFetch(`/api/consolidation/runs/${runId}/propose`, { method: "POST" })
+      const lines = await apiFetch<Elim[]>(`/api/consolidation/runs/${runId}/propose`, { method: "POST" })
       setElims(lines)
-      const s = await apiFetch(`/api/consolidation/runs/${runId}/statements`)
+      const s = await apiFetch<Statements>(`/api/consolidation/runs/${runId}/statements`)
       setStmts(s)
       toast(`Proposed ${lines.length} elimination lines`, "success")
     } catch (err: unknown) {
@@ -138,7 +138,7 @@ export default function ConsolidationRunPage() {
     }))) return
     setBusy(true)
     try {
-      const r = await apiFetch(`/api/consolidation/runs/${runId}/post`, { method: "POST" })
+      const r = await apiFetch<Run>(`/api/consolidation/runs/${runId}/post`, { method: "POST" })
       setRun(r)
       if (r.package) setStmts(r.package)
       toast("Package posted", "success")
@@ -158,7 +158,7 @@ export default function ConsolidationRunPage() {
     }))) return
     setBusy(true)
     try {
-      const r = await apiFetch(`/api/consolidation/runs/${runId}/void`, { method: "POST" })
+      const r = await apiFetch<Run>(`/api/consolidation/runs/${runId}/void`, { method: "POST" })
       setRun(r)
       toast("Package voided", "success")
     } catch (err: unknown) {

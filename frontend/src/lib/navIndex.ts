@@ -89,6 +89,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/pl":                     ["p&l", "pnl", "profit loss", "income statement"],
   "/balance":                ["balance sheet", "financial position", "bs"],
   "/consolidation":          ["consolidation", "ifrs 10", "group", "subsidiary", "nci", "eliminations"],
+  "/leases":                 ["leases", "ifrs 16", "right of use", "rou", "lease liability", "maturity"],
   "/cashflow":               ["cash flow", "funds flow"],
   "/tax":                    ["gst", "vat", "tax summary", "sales tax"],
   "/tax-codes":              ["tax code", "tax rate"],
@@ -555,6 +556,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:assets", type: "report", label: "Fixed Assets",
     sub: "Asset register & depreciation", href: "/assets",
     keywords: ["fixed assets", "depreciation", "asset register", "capex", "output"],
+  },
+  {
+    id: "rpt:leases", type: "report", label: "Leases",
+    sub: "IFRS 16 RoU assets & lease liability schedule", href: "/leases",
+    keywords: ["leases", "ifrs 16", "right of use", "rou", "lease liability", "maturity", "output"],
   },
   {
     id: "rpt:cashbook", type: "report", label: "Cash Book",
