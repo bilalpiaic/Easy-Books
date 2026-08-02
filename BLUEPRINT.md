@@ -956,6 +956,7 @@ Trial Balance ── click account code ──▶ /ledger?account={name}
 | Receivable / payable disclosure | IFRS 7.7, IAS 1.78(b) | AR / AP sub-ledgers with opening, period activity, closing |
 | Inventory carrying amount + movement | IAS 2.36(d), 2.36(g) | Stock card with running qty + value driven by StockMovement event log |
 | Change history | ISA 240, SOC 2 CC7.3 | `AuditLog` row per mutation — viewable at `/api/audit-log` |
+| **Group consolidation** | **IFRS 10 / IAS 27** | Entity graph (`ConsolidationMember`) on the holding tenant; worksheet run aggregates member TBs by account code, proposes IC AR/AP + NCI eliminations (`services/consolidation.py`), and posts an immutable package (consolidated BS/P&L). Eliminations never hit member GLs. Associates = equity-method one-liner. Locked-period post requires owner/admin override. UI: `/consolidation`. |
 
 ---
 

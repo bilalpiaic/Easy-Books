@@ -88,6 +88,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/trial-balance":          ["tb", "trial balance"],
   "/pl":                     ["p&l", "pnl", "profit loss", "income statement"],
   "/balance":                ["balance sheet", "financial position", "bs"],
+  "/consolidation":          ["consolidation", "ifrs 10", "group", "subsidiary", "nci", "eliminations"],
   "/cashflow":               ["cash flow", "funds flow"],
   "/tax":                    ["gst", "vat", "tax summary", "sales tax"],
   "/tax-codes":              ["tax code", "tax rate"],
@@ -489,6 +490,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:balance-sheet", type: "report", label: "Balance Sheet",
     sub: "Assets, liabilities & equity", href: "/balance",
     keywords: ["bs", "balance sheet", "assets liabilities", "financial position", "output"],
+  },
+  {
+    id: "rpt:consolidation", type: "report", label: "Consolidation",
+    sub: "Group statements with eliminations (IFRS 10)", href: "/consolidation",
+    keywords: ["consolidation", "ifrs 10", "group", "subsidiary", "nci", "eliminations", "holding"],
   },
   {
     id: "rpt:cash-flow", type: "report", label: "Cash Flow Statement",

@@ -372,6 +372,88 @@ class CloseChecklistItem(SQLModel, table=True):
     notes: Optional[str] = None
 
 
+class ConsolidationMember(SQLModel, table=True):
+    """Entity graph edge for group consolidation (IFRS 10) — #255.
+
+    Stored on the *holding* tenant. `member_tenant_id` is another tenant the
+    holding user can access (via TenantMembership). Parent is typically the
+    holding itself; subsidiaries are line-by-line consolidated; associates
+    are equity-method one-liners (ownership % of equity only).
+    """
+    __tablename__ = "consolidationmember"
+    __table_args__ = (
+        UniqueConstraint(
+            "holding_tenant_id", "member_tenant_id",
+            name="uq_consol_member",
+        ),
+        CheckConstraint(
+            "relationship IN ('parent','subsidiary','associate')",
+            name="ck_consol_member_relationship",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    holding_tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    member_tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    relationship: str = Field(default="subsidiary", index=True)
+    ownership_pct: Money = money_col(default=Decimal("100"))  # 0–100
+    label: Optional[str] = None
+    is_active: bool = Field(default=True)
+    # Optional IC control-account codes on this member (for propose)
+    ic_ar_code: Optional[str] = None
+    ic_ap_code: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ConsolidationRun(SQLModel, table=True):
+    """One consolidation worksheet for a period — draft → posted (immutable) / void."""
+    __tablename__ = "consolidationrun"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft','posted','void')",
+            name="ck_consol_run_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    holding_tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    name: Optional[str] = None
+    period_start: str
+    period_end: str
+    status: str = Field(default="draft", index=True)
+    notes: Optional[str] = None
+    # Snapshot of consolidated statements JSON once posted (immutable package)
+    package_json: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    posted_at: Optional[datetime] = None
+    posted_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    voided_at: Optional[datetime] = None
+    voided_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class ConsolidationElimination(SQLModel, table=True):
+    """Worksheet elimination journal line (not posted to member GLs)."""
+    __tablename__ = "consolidationelimination"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('ic_balance','ic_sales','unrealised_stock','nci','manual')",
+            name="ck_consol_elim_kind",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    holding_tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    run_id: int = Field(foreign_key="consolidationrun.id", index=True)
+    kind: str = Field(default="manual", index=True)
+    description: str = Field(default="")
+    account_code: str
+    account_name: str = Field(default="")
+    account_type: str = Field(default="Equity")  # Asset|Liability|Equity|Revenue|Expense
+    debit: Money = money_col()
+    credit: Money = money_col()
+    member_tenant_id: Optional[int] = Field(default=None, foreign_key="tenant.id")
+    sort_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class TransactionBase(SQLModel):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     date: str
