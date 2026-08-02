@@ -102,6 +102,7 @@ def record_purchase(
     source_doc: Optional[str] = None,
     location_id: Optional[int] = None,
     lot_no: Optional[str] = None,
+    serials: Optional[list[str]] = None,
     source_doc_type: str = "bill",
     posted_to_gl: bool = True,
 ) -> None:
@@ -131,6 +132,17 @@ def record_purchase(
     if not prod or prod.product_type != "stock":
         return
 
+    if getattr(prod, "track_lot", False) and not (lot_no or "").strip():
+        raise InventoryError(f"Lot number required for {prod.name}")
+    serials = [s.strip() for s in (serials or []) if s and str(s).strip()]
+    if getattr(prod, "track_serial", False):
+        if D(len(serials)) != qty:
+            raise InventoryError(
+                f"Serial tracking for {prod.name} requires exactly {qty} serial(s); got {len(serials)}"
+            )
+        if len(set(serials)) != len(serials):
+            raise InventoryError("Duplicate serial numbers in receipt")
+
     existing_qty = D(prod.stock_qty)
     existing_avg = D(prod.avg_cost)
     new_qty = existing_qty + qty
@@ -143,18 +155,31 @@ def record_purchase(
 
     # Resolve location: explicit > tenant's default 'own' location > none
     loc_id = location_id or _default_own_location(session, tenant_id)
-    session.add(
-        InventoryLayer(
-            tenant_id=tenant_id,
-            product_id=product_id,
-            location_id=loc_id,
-            lot_no=lot_no,
-            qty_received=qty,
-            qty_remaining=qty,
-            unit_cost=unit_cost,
-            source_doc=source_doc,
-        )
+    layer = InventoryLayer(
+        tenant_id=tenant_id,
+        product_id=product_id,
+        location_id=loc_id,
+        lot_no=lot_no,
+        qty_received=qty,
+        qty_remaining=qty,
+        unit_cost=unit_cost,
+        source_doc=source_doc,
     )
+    session.add(layer)
+    session.flush()
+
+    if serials:
+        from models import StockSerial
+        for s in serials:
+            session.add(StockSerial(
+                tenant_id=tenant_id,
+                product_id=product_id,
+                serial=s,
+                status="available",
+                layer_id=layer.id,
+                source_doc=source_doc,
+            ))
+
     # Event log
     record_movement(
         session,
@@ -180,6 +205,8 @@ def consume_stock(
     block_negative: bool = False,
     source_doc_id: Optional[int] = None,
     source_doc_type: str = "invoice",
+    lot_no: Optional[str] = None,
+    serials: Optional[list[str]] = None,
 ) -> Decimal:
     """
     Relieve stock for a sale. Returns total COGS.
@@ -217,6 +244,15 @@ def consume_stock(
             f"sale {money(qty)}"
         )
 
+    if getattr(prod, "track_lot", False) and not (lot_no or "").strip():
+        raise InventoryError(f"Lot number required when selling {prod.name}")
+    serials = [s.strip() for s in (serials or []) if s and str(s).strip()]
+    if getattr(prod, "track_serial", False):
+        if D(len(serials)) != qty:
+            raise InventoryError(
+                f"Serial tracking for {prod.name} requires exactly {qty} serial(s)"
+            )
+
     # Effective cost method: product override → tenant setting → wavg default
     from models import Tenant as _Tenant
     _tenant = session.get(_Tenant, tenant_id)
@@ -226,7 +262,7 @@ def consume_stock(
     avg_cost = D(prod.avg_cost)
 
     # Fetch layers first (needed for both FIFO and WAvg layer depletion)
-    layers = session.exec(
+    layer_q = (
         select(InventoryLayer)
         .where(
             InventoryLayer.tenant_id == tenant_id,
@@ -234,7 +270,13 @@ def consume_stock(
             InventoryLayer.qty_remaining > 0,
         )
         .order_by(InventoryLayer.id.asc())
-    ).all()
+    )
+    if lot_no:
+        layer_q = layer_q.where(InventoryLayer.lot_no == lot_no)
+    layers = session.exec(layer_q).all()
+
+    if lot_no and not layers:
+        raise InventoryError(f"No stock in lot {lot_no} for {prod.name}")
 
     if _cost_method == "fifo":
         # Accumulate COGS layer by layer at each layer's unit_cost
@@ -247,6 +289,10 @@ def consume_stock(
             fifo_cogs += money(_take * D(_lyr.unit_cost))
             fifo_remaining -= _take
         cogs = fifo_cogs
+        if fifo_remaining > ZERO and lot_no:
+            raise InventoryError(
+                f"Insufficient qty in lot {lot_no} for {prod.name}"
+            )
     else:
         cogs = money(qty * avg_cost)
 
@@ -267,7 +313,7 @@ def consume_stock(
     # Deplete layers FIFO (layers already fetched above for cost calculation).
     remaining = qty
     consumed_from_location_id: Optional[int] = None
-    consumed_lot_no: Optional[str] = None
+    consumed_lot_no: Optional[str] = lot_no
     for layer in layers:
         if remaining <= 0:
             break
@@ -279,7 +325,26 @@ def consume_stock(
         # provenance (which lot/location got drained).
         if consumed_from_location_id is None:
             consumed_from_location_id = layer.location_id
-            consumed_lot_no = layer.lot_no
+            if not consumed_lot_no:
+                consumed_lot_no = layer.lot_no
+
+    if serials:
+        from models import StockSerial
+        for s in serials:
+            row = session.exec(
+                select(StockSerial).where(
+                    StockSerial.tenant_id == tenant_id,
+                    StockSerial.product_id == product_id,
+                    StockSerial.serial == s,
+                    StockSerial.status == "available",
+                )
+            ).first()
+            if not row:
+                raise InventoryError(f"Serial {s} not available for {prod.name}")
+            row.status = "sold"
+            row.sold_doc_type = source_doc_type
+            row.sold_doc_id = source_doc_id
+            session.add(row)
 
     if qty > 0:
         record_movement(

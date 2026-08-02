@@ -33,6 +33,9 @@ class ProductCreate(BaseModel):
     hs_code: Optional[str] = None
     pct_code: Optional[str] = None     # PRA 8-digit product classification (PCTCode)
     cost_method: Optional[str] = None  # 'wavg' | 'fifo' | None (inherit from tenant)
+    track_lot: bool = False
+    track_serial: bool = False
+    nrv_unit: Optional[Decimal] = None
     opening_qty: Decimal = Decimal("0")
     opening_cost: Decimal = Decimal("0")
 

@@ -42,6 +42,9 @@ export interface AppSettings {
   onboarding_dismissed: string
   // Inventory
   block_negative_stock: string
+  inventory_landed_cost_enabled: string
+  inventory_lot_tracking_enabled: string
+  inventory_nrv_enabled: string
   // Purchases & Store
   require_purchase_chain: string
   require_gate_inward: string
@@ -109,6 +112,9 @@ const defaults: AppSettings = {
   onboarding_steps: "",
   onboarding_dismissed: "",
   block_negative_stock: "false",
+  inventory_landed_cost_enabled: "true",
+  inventory_lot_tracking_enabled: "true",
+  inventory_nrv_enabled: "true",
   require_purchase_chain: "true",
   require_gate_inward: "true",
   ui_density: "comfortable",
