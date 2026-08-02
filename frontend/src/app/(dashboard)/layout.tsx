@@ -26,6 +26,7 @@ import UpdateProgressScreen from "@/components/UpdateProgressScreen"
 import AIChatButton from "@/components/AIChatButton"
 import CalculatorButton from "@/components/CalculatorButton"
 import OfflineBanner from "@/components/OfflineBanner"
+import QuotaBanner from "@/components/QuotaBanner"
 
 const SKIP_KEY = "eb.update-skip"     // persisted per remote SHA
 const SESSION_LATER_KEY = "eb.update-later-session" // session-only dismiss
@@ -149,6 +150,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <TabProvider>
                 <div className="flex flex-col h-screen overflow-hidden bg-[var(--bg-page)]">
                   <OfflineBanner />
+                  <QuotaBanner />
                   <TopNav />
 
                   <div className="flex flex-1 overflow-hidden">

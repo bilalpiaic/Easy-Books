@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Plus, Send, Trash2, Webhook } from "lucide-react"
+import { ArrowLeft, Plus, Send, Trash2, Webhook, RotateCcw } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 
@@ -136,6 +136,16 @@ export default function WebhooksSettingsPage() {
     const rows = await apiFetch<DeliveryLog[]>(`/api/webhooks/${ep.id}/logs`)
     setLogs(rows)
     setOpenLogs(ep.id)
+  }
+
+  const replay = async (ep: Endpoint, logId: number) => {
+    try {
+      await apiFetch(`/api/webhooks/${ep.id}/logs/${logId}/replay`, { method: "POST" })
+      const rows = await apiFetch<DeliveryLog[]>(`/api/webhooks/${ep.id}/logs`)
+      setLogs(rows)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Replay failed")
+    }
   }
 
   return (
@@ -284,7 +294,8 @@ export default function WebhooksSettingsPage() {
                           <th className="py-1.5 pr-3 font-semibold text-right">Attempts</th>
                           <th className="py-1.5 pr-3 font-semibold text-right">Response</th>
                           <th className="py-1.5 pr-3 font-semibold">Error</th>
-                          <th className="py-1.5 font-semibold whitespace-nowrap">Created</th>
+                          <th className="py-1.5 pr-3 font-semibold whitespace-nowrap">Created</th>
+                          <th className="py-1.5 font-semibold" />
                         </tr>
                       </thead>
                       <tbody>
@@ -295,7 +306,17 @@ export default function WebhooksSettingsPage() {
                             <td className="py-1.5 pr-3 text-right tabular-nums">{l.attempts}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{l.response_code ?? "—"}</td>
                             <td className="py-1.5 pr-3 text-[var(--text-primary)]/60 max-w-[220px] truncate" title={l.last_error ?? undefined}>{l.last_error ?? "—"}</td>
-                            <td className="py-1.5 whitespace-nowrap">{fmtDate(l.created_at)}</td>
+                            <td className="py-1.5 pr-3 whitespace-nowrap">{fmtDate(l.created_at)}</td>
+                            <td className="py-1.5 text-right">
+                              <button
+                                type="button"
+                                title="Replay as new attempt"
+                                onClick={() => replay(ep, l.id)}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--primary)] hover:underline"
+                              >
+                                <RotateCcw className="w-3 h-3" /> Replay
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>

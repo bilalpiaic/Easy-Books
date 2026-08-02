@@ -150,6 +150,9 @@ async def upload_attachment(
     if len(contents) == 0:
         raise HTTPException(status_code=400, detail="Empty file")
 
+    from services.saas import check_storage_quota
+    check_storage_quota(session, user.tenant_id, extra_bytes=len(contents))
+
     ext = _safe_extension(file.filename or "")
     stored_name = f"{uuid.uuid4().hex}.{ext}"
     path = _storage_path(user.tenant_id, parent_type, parent_id, stored_name)

@@ -16,6 +16,51 @@ export function networkErrorMessage(err: unknown, fallback = "Request failed"): 
   return raw || fallback
 }
 
+export class ApiError extends Error {
+  status: number
+  detail: unknown
+  constructor(message: string, status: number, detail: unknown) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+    this.detail = detail
+  }
+}
+
+function detailMessage(detail: unknown, status: number): string {
+  if (Array.isArray(detail)) {
+    return (detail as { msg?: string }[]).map(d => d.msg ?? String(d)).join(", ")
+  }
+  if (typeof detail === "string") return detail
+  if (detail && typeof detail === "object") {
+    const d = detail as {
+      message?: string
+      error?: string
+      warnings?: string[]
+      used?: number
+      limit?: number
+      plan?: string
+    }
+    if (d.message) {
+      const quota =
+        d.limit != null && d.used != null
+          ? ` (${d.used}/${d.limit}${d.plan ? ` · ${d.plan}` : ""})`
+          : ""
+      return `${d.message}${quota}`
+    }
+    if (d.error) {
+      const quota =
+        d.limit != null && d.used != null
+          ? ` — ${d.used}/${d.limit}`
+          : ""
+      return `${String(d.error).replace(/_/g, " ")}${quota}`
+    }
+    const parts = [...(d.warnings ?? [])].filter(Boolean)
+    if (parts.length) return parts.join(" — ")
+  }
+  return `HTTP ${status}`
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {}
@@ -39,19 +84,21 @@ export async function apiFetch<T = unknown>(
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     const detail = (data as { detail?: unknown }).detail
-    let msg: string
-    if (Array.isArray(detail)) {
-      msg = (detail as { msg?: string }[]).map(d => d.msg ?? String(d)).join(", ")
-    } else if (typeof detail === "string") {
-      msg = detail
-    } else if (detail && typeof detail === "object") {
-      const d = detail as { message?: string; warnings?: string[] }
-      const parts = [d.message, ...(d.warnings ?? [])].filter(Boolean)
-      msg = parts.length ? parts.join(" — ") : `HTTP ${res.status}`
-    } else {
-      msg = `HTTP ${res.status}`
+    const msg = detailMessage(detail, res.status)
+    if (
+      typeof window !== "undefined" &&
+      (res.status === 402 || res.status === 429) &&
+      detail &&
+      typeof detail === "object" &&
+      "error" in (detail as object)
+    ) {
+      window.dispatchEvent(
+        new CustomEvent("eb:quota", {
+          detail: { status: res.status, ...(detail as object), message: msg },
+        }),
+      )
     }
-    throw new Error(msg)
+    throw new ApiError(msg, res.status, detail)
   }
   return res.json() as Promise<T>
 }

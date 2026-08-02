@@ -1,13 +1,17 @@
-"""ARQ task-queue helpers (#115).
+"""ARQ task-queue helpers (#115) + dead-letter recording (#271).
 
 When REDIS_URL is set, jobs go to Redis via ARQ. When unset (Electron /
 script install / local pytest), `enqueue` awaits the task in-process so
 callers keep a uniform API and offline installs never depend on Redis.
+
+Failed runs (inline or reported) land in `TaskDeadLetter` for admin retry.
 """
 from __future__ import annotations
 
 import inspect
+import json
 import os
+from datetime import datetime
 from typing import Any, Optional
 
 _REDIS_URL = os.environ.get("REDIS_URL", "").strip()
@@ -41,6 +45,55 @@ async def close_pool() -> None:
         _pool = None
 
 
+def _json_safe(value: Any) -> Any:
+    try:
+        json.dumps(value, default=str)
+        return value
+    except Exception:
+        return str(value)
+
+
+def record_dead_letter(
+    *,
+    task_name: str,
+    error: str,
+    args: tuple = (),
+    kwargs: Optional[dict] = None,
+    tenant_id: Optional[int] = None,
+) -> Optional[int]:
+    """Persist a failed job for the DLQ UI. Best-effort — never raises."""
+    try:
+        from db import engine
+        from models import TaskDeadLetter
+        from sqlmodel import Session
+
+        kwargs = kwargs or {}
+        # Prefer explicit tenant_id kwarg; fall back to first int arg named patterns
+        tid = tenant_id
+        if tid is None and "tenant_id" in kwargs:
+            try:
+                tid = int(kwargs["tenant_id"])
+            except (TypeError, ValueError):
+                tid = None
+        row = TaskDeadLetter(
+            tenant_id=tid,
+            task_name=task_name,
+            args_json=json.dumps([_json_safe(a) for a in args], default=str),
+            kwargs_json=json.dumps({k: _json_safe(v) for k, v in kwargs.items()}, default=str),
+            error=(error or "unknown error")[:2000],
+            status="open",
+            created_at=datetime.utcnow(),
+        )
+        with Session(engine) as session:
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            return row.id
+    except Exception as exc:
+        print(f"[queue] DLQ record failed: {type(exc).__name__}: {exc}")
+        return None
+
+
 async def enqueue(
     function_name: str,
     *args: Any,
@@ -65,10 +118,12 @@ async def _run_inline(function_name: str, *args: Any, **kwargs: Any) -> dict:
     from tasks import REGISTRY
     fn = REGISTRY.get(function_name)
     if fn is None:
+        err = f"unknown task {function_name}"
+        record_dead_letter(task_name=function_name, error=err, args=args, kwargs=kwargs)
         return {
             "job_id": None,
             "status": "failed",
-            "error": f"unknown task {function_name}",
+            "error": err,
         }
     try:
         ctx: dict = {"redis": None}
@@ -81,10 +136,15 @@ async def _run_inline(function_name: str, *args: Any, **kwargs: Any) -> dict:
             "result": result,
         }
     except Exception as exc:
+        err = f"{type(exc).__name__}: {exc}"
+        dlq_id = record_dead_letter(
+            task_name=function_name, error=err, args=args, kwargs=kwargs,
+        )
         return {
             "job_id": None,
             "status": "failed",
-            "error": f"{type(exc).__name__}: {exc}",
+            "error": err,
+            "dead_letter_id": dlq_id,
         }
 
 
@@ -112,3 +172,20 @@ async def job_status(job_id: str) -> dict:
         "result": info.result if status == "complete" else None,
         "error": str(info.result) if status == "failed" else None,
     }
+
+
+async def queue_depth() -> dict:
+    """Best-effort ARQ queue depth; zeros when Redis is unset."""
+    pool = await get_pool()
+    if pool is None:
+        return {"redis": False, "queued": 0}
+    try:
+        # ARQ default queue key
+        n = await pool.queued_jobs()
+        return {"redis": True, "queued": len(n) if n is not None else 0}
+    except Exception:
+        try:
+            raw = await pool.redis.llen("arq:queue")
+            return {"redis": True, "queued": int(raw or 0)}
+        except Exception as exc:
+            return {"redis": True, "queued": 0, "error": str(exc)[:200]}

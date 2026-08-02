@@ -103,6 +103,8 @@ class UserCreate(BaseModel):
 def create_user(data: UserCreate, session: SessionDep, actor: AdminUserDep):
     _validate_role(data.role)
     _guard_owner_grant(actor, data.role)
+    from services.saas import check_user_quota
+    check_user_quota(session, actor.tenant_id)
     email = data.email.strip().lower()
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
@@ -255,6 +257,8 @@ def list_invites(session: SessionDep, actor: AdminUserDep):
 
 @router.post("/invites", status_code=201)
 def create_invite(data: InviteCreate, session: SessionDep, actor: AdminUserDep):
+    from services.saas import check_user_quota
+    check_user_quota(session, actor.tenant_id)
     _validate_role(data.role)
     _guard_owner_grant(actor, data.role)
     email = data.email.strip().lower()

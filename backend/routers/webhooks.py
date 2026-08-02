@@ -74,6 +74,51 @@ def list_event_types():
     return EVENT_TYPES
 
 
+@router.get("/ops/summary")
+def webhook_ops_summary(session: SessionDep, user: CurrentUserDep):
+    """Tenant webhook health: pending / failed / delivered counts (#271)."""
+    from datetime import datetime, timedelta
+    from sqlmodel import func
+
+    since = datetime.utcnow() - timedelta(hours=24)
+    total = session.exec(
+        select(func.count()).select_from(WebhookDelivery).where(
+            WebhookDelivery.tenant_id == user.tenant_id,
+            WebhookDelivery.created_at >= since,
+        )
+    ).one()
+    failed = session.exec(
+        select(func.count()).select_from(WebhookDelivery).where(
+            WebhookDelivery.tenant_id == user.tenant_id,
+            WebhookDelivery.status == "failed",
+            WebhookDelivery.created_at >= since,
+        )
+    ).one()
+    pending = session.exec(
+        select(func.count()).select_from(WebhookDelivery).where(
+            WebhookDelivery.tenant_id == user.tenant_id,
+            WebhookDelivery.status == "pending",
+        )
+    ).one()
+    delivered = session.exec(
+        select(func.count()).select_from(WebhookDelivery).where(
+            WebhookDelivery.tenant_id == user.tenant_id,
+            WebhookDelivery.status == "delivered",
+            WebhookDelivery.created_at >= since,
+        )
+    ).one()
+    total_n = int(total or 0)
+    failed_n = int(failed or 0)
+    return {
+        "window_hours": 24,
+        "total": total_n,
+        "delivered": int(delivered or 0),
+        "failed": failed_n,
+        "pending": int(pending or 0),
+        "failure_rate": round(failed_n / total_n, 4) if total_n else 0.0,
+    }
+
+
 @router.get("")
 def list_endpoints(session: SessionDep, user: CurrentUserDep):
     eps = session.exec(
@@ -157,3 +202,37 @@ def delivery_logs(
         }
         for d in rows
     ]
+
+
+@router.post(
+    "/{endpoint_id}/logs/{delivery_id}/replay",
+    dependencies=[perm_dep("webhooks", "edit")],
+)
+def replay_log(
+    endpoint_id: int, delivery_id: int, session: SessionDep, user: CurrentUserDep,
+):
+    """Re-queue a delivery as a new pending row (#271)."""
+    from services.events import replay_delivery
+
+    ep = _get_endpoint(session, user, endpoint_id)
+    src = session.get(WebhookDelivery, delivery_id)
+    if not src or src.endpoint_id != ep.id:
+        raise HTTPException(404, "Delivery not found")
+    try:
+        clone = replay_delivery(
+            session, tenant_id=user.tenant_id, delivery_id=delivery_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    session.commit()
+    session.refresh(clone)
+    log_audit(
+        session, user, "REPLAY", "webhook_delivery", clone.id,
+        {"source_id": delivery_id, "event_type": clone.event_type},
+    )
+    session.commit()
+    return {
+        "id": clone.id, "event_type": clone.event_type, "status": clone.status,
+        "attempts": clone.attempts, "source_id": delivery_id,
+        "created_at": clone.created_at,
+    }

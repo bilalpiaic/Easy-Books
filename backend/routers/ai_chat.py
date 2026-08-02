@@ -192,16 +192,26 @@ DEFAULT_RATE_LIMIT = 20
 
 
 def _check_rate_limit(session, user) -> None:
+    from models import Tenant
+    from services.saas import plan_ai_limit
+
     row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id,
             Settings.key == "ai_rate_limit_per_hour",
         )
     ).first()
+    tenant = session.get(Tenant, user.tenant_id)
+    plan_cap = plan_ai_limit(tenant.plan if tenant else "free")
     try:
-        limit = int(row.value) if row and row.value else DEFAULT_RATE_LIMIT
+        setting_limit = int(row.value) if row and row.value else None
     except ValueError:
-        limit = DEFAULT_RATE_LIMIT
+        setting_limit = None
+    # Effective cap = min(tenant setting, plan ceiling); unset setting → plan default.
+    if setting_limit is None:
+        limit = plan_cap
+    else:
+        limit = min(setting_limit, plan_cap)
     bucket = _RATE[(user.tenant_id, user.id)]
     now = time.monotonic()
     while bucket and now - bucket[0] > 3600:
@@ -209,7 +219,13 @@ def _check_rate_limit(session, user) -> None:
     if len(bucket) >= limit:
         raise HTTPException(
             status_code=429,
-            detail=f"AI request limit reached ({limit}/hour). Try again in a few minutes.",
+            detail={
+                "error": "ai_quota_exceeded",
+                "message": f"AI request limit reached ({limit}/hour). Try again in a few minutes.",
+                "used": len(bucket),
+                "limit": limit,
+                "plan": tenant.plan if tenant else "free",
+            },
         )
     bucket.append(now)
 
