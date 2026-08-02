@@ -60,6 +60,8 @@ export interface AppSettings {
   user_rights_enabled: string
   // Approvals SoD (#269)
   approvals_block_self_approval: string
+  // Period close (#262)
+  period_close_require_checklist: string
   // Portal custom domain (#270)
   portal_custom_domain: string
   // Appearance
@@ -123,6 +125,7 @@ const defaults: AppSettings = {
   cost_method: "wavg",
   user_rights_enabled: "false",
   approvals_block_self_approval: "true",
+  period_close_require_checklist: "true",
   portal_custom_domain: "",
   app_theme: "light",
   color_theme: "gold",

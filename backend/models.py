@@ -350,6 +350,28 @@ class AccountingPeriod(SQLModel, table=True):
     name: Optional[str] = None
 
 
+class CloseChecklistItem(SQLModel, table=True):
+    """Per-period month-end close task (#262)."""
+    __tablename__ = "closechecklistitem"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "period_id", "task_key",
+            name="uq_close_checklist_period_task",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    period_id: int = Field(foreign_key="accountingperiod.id", index=True)
+    task_key: str = Field(index=True)
+    label: str
+    required: bool = Field(default=True)
+    sort_order: int = Field(default=0)
+    is_done: bool = Field(default=False)
+    completed_at: Optional[datetime] = None
+    completed_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    notes: Optional[str] = None
+
+
 class TransactionBase(SQLModel):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     date: str
