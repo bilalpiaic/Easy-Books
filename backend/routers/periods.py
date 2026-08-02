@@ -1,19 +1,26 @@
 """Accounting periods: create, list, lock/unlock, delete, period-end close."""
-from datetime import date as DateType
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import AccountBalance, Account, AccountingPeriod, JournalEntry, Transaction
+from models import (
+    AccountBalance, Account, AccountingPeriod, CloseChecklistItem,
+    JournalEntry, Transaction,
+)
+from services.close_pack import (
+    assert_can_lock, build_audit_pack_zip, ensure_checklist, serialize_item,
+)
 from services.events import emit
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
-from services.permissions import perm_dep, apply_own_filter
+from services.permissions import perm_dep
 
 router = APIRouter(prefix="/api/periods", tags=["periods"], dependencies=[perm_dep("period_close")])
 
@@ -22,6 +29,23 @@ class PeriodCreate(BaseModel):
     name: Optional[str] = None
     period_start: str
     period_end: str
+
+
+class ChecklistPatch(BaseModel):
+    is_done: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+def _get_period(session, user, period_id: int) -> AccountingPeriod:
+    p = session.exec(
+        select(AccountingPeriod).where(
+            AccountingPeriod.id == period_id,
+            AccountingPeriod.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not p:
+        raise HTTPException(404, "Period not found")
+    return p
 
 
 @router.get("")
@@ -37,23 +61,83 @@ def list_periods(session: SessionDep, user: CurrentUserDep):
 def create_period(session: SessionDep, user: WriteUserDep, body: PeriodCreate):
     p = AccountingPeriod(tenant_id=user.tenant_id, **body.model_dump())
     session.add(p)
+    session.flush()
+    ensure_checklist(session, p)
     session.commit()
     session.refresh(p)
     return p
+
+
+@router.get("/{period_id}/checklist")
+def get_checklist(session: SessionDep, user: CurrentUserDep, period_id: int):
+    p = _get_period(session, user, period_id)
+    items = ensure_checklist(session, p)
+    session.commit()
+    return [serialize_item(i) for i in items]
+
+
+@router.patch("/{period_id}/checklist/{item_id}")
+def patch_checklist_item(
+    session: SessionDep, user: WriteUserDep, period_id: int, item_id: int, body: ChecklistPatch,
+):
+    p = _get_period(session, user, period_id)
+    item = session.exec(
+        select(CloseChecklistItem).where(
+            CloseChecklistItem.id == item_id,
+            CloseChecklistItem.period_id == p.id,
+            CloseChecklistItem.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not item:
+        raise HTTPException(404, "Checklist item not found")
+    if body.is_done is not None:
+        item.is_done = body.is_done
+        if body.is_done:
+            item.completed_at = datetime.utcnow()
+            item.completed_by_id = user.id
+        else:
+            item.completed_at = None
+            item.completed_by_id = None
+    if body.notes is not None:
+        item.notes = body.notes
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return serialize_item(item)
+
+
+@router.get("/{period_id}/audit-pack")
+def download_audit_pack(session: SessionDep, user: CurrentUserDep, period_id: int):
+    """ZIP of TB / GL / aging / inventory / FA / cash flow for the period (#262)."""
+    p = _get_period(session, user, period_id)
+    try:
+        data = build_audit_pack_zip(session, user, p)
+    except Exception as exc:
+        raise HTTPException(500, f"Audit pack failed: {exc}") from exc
+    log_audit(session, user, "EXPORT", "period_audit_pack", p.id, {
+        "period_start": p.period_start, "period_end": p.period_end, "bytes": len(data),
+    })
+    session.commit()
+    name = (p.name or f"period-{p.id}").replace(" ", "_")
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="audit-pack-{name}.zip"',
+        },
+    )
 
 
 @router.patch("/{period_id}/lock")
 def toggle_period_lock(
     session: SessionDep, user: WriteUserDep, period_id: int, is_locked: bool
 ):
-    p = session.exec(
-        select(AccountingPeriod).where(
-            AccountingPeriod.id == period_id,
-            AccountingPeriod.tenant_id == user.tenant_id,
-        )
-    ).first()
-    if not p:
-        raise HTTPException(404, "Period not found")
+    p = _get_period(session, user, period_id)
+    if is_locked:
+        try:
+            assert_can_lock(session, p)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
     p.is_locked = is_locked
     session.add(p)
     if is_locked:
@@ -67,14 +151,14 @@ def toggle_period_lock(
 
 @router.delete("/{period_id}", status_code=204)
 def delete_period(session: SessionDep, user: WriteUserDep, period_id: int):
-    p = session.exec(
-        select(AccountingPeriod).where(
-            AccountingPeriod.id == period_id,
-            AccountingPeriod.tenant_id == user.tenant_id,
+    p = _get_period(session, user, period_id)
+    for item in session.exec(
+        select(CloseChecklistItem).where(
+            CloseChecklistItem.period_id == p.id,
+            CloseChecklistItem.tenant_id == user.tenant_id,
         )
-    ).first()
-    if not p:
-        raise HTTPException(404, "Period not found")
+    ).all():
+        session.delete(item)
     session.delete(p)
     session.commit()
 
@@ -187,16 +271,13 @@ def close_period(
     if mode not in ("year_end", "soft"):
         raise HTTPException(400, "mode must be 'year_end' or 'soft'")
 
-    p = session.exec(
-        select(AccountingPeriod).where(
-            AccountingPeriod.id == period_id,
-            AccountingPeriod.tenant_id == user.tenant_id,
-        )
-    ).first()
-    if not p:
-        raise HTTPException(404, "Period not found")
+    p = _get_period(session, user, period_id)
     if p.is_locked:
         raise HTTPException(400, "Period already closed/locked")
+    try:
+        assert_can_lock(session, p)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     net = ZERO
     entries_posted = 0
