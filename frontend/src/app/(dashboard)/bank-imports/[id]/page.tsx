@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { CheckCircle2, Clock, Zap, AlertCircle } from "lucide-react"
+import { CheckCircle2, Clock, Zap, AlertCircle, X } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useFmt } from "@/context/SettingsContext"
 import { fmtDate } from "@/lib/utils"
@@ -19,6 +19,14 @@ interface BankImport {
   created_at: string
 }
 
+interface Suggestion {
+  transaction_id: number
+  jv_number?: string
+  date?: string
+  description?: string
+  confidence: number
+}
+
 interface StatementLine {
   id: number
   date: string
@@ -28,6 +36,12 @@ interface StatementLine {
   balance: number
   is_matched: boolean
   matched_transaction_id: number | null
+  suggested_transaction_id?: number | null
+  match_confidence?: number | null
+  match_status?: string | null
+  categorized_account_id?: number | null
+  expense_draft_suggested?: boolean
+  suggestions?: Suggestion[]
 }
 
 interface JournalLine {
@@ -39,22 +53,25 @@ interface JournalLine {
   credit: number
 }
 
+function confTone(c: number | null | undefined): string {
+  if (c == null) return "text-[var(--text-muted)]"
+  if (c >= 90) return "text-emerald-700"
+  if (c >= 70) return "text-amber-700"
+  return "text-[var(--text-muted)]"
+}
+
 export default function BankImportDetailPage() {
   const { t } = useTranslation()
+  const { id } = useParams<{ id: string }>()
+  const fmt = useFmt()
 
-  const { id }    = useParams<{ id: string }>()
-  const fmt       = useFmt()
-
-  const [imp, setImp]           = useState<BankImport | null>(null)
-  const [lines, setLines]       = useState<StatementLine[]>([])
-  const [txnMap, setTxnMap]     = useState<Record<number, JournalLine>>({})  // transaction_id → first JL
+  const [imp, setImp] = useState<BankImport | null>(null)
+  const [lines, setLines] = useState<StatementLine[]>([])
+  const [txnMap, setTxnMap] = useState<Record<number, JournalLine>>({})
   const [matching, setMatching] = useState(false)
   const [matchMsg, setMatchMsg] = useState<string | null>(null)
-  const [error, setError]       = useState<string | null>(null)
-  const [loading, setLoading]   = useState(true)
-
-  // Inline match selectors: line_id → selected transaction_id string
-  const [selectors, setSelectors] = useState<Record<number, string>>({})
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(() => {
     Promise.all([
@@ -63,10 +80,8 @@ export default function BankImportDetailPage() {
       apiFetch<JournalLine[]>("/api/reports/journal?limit=500"),
     ])
       .then(([imps, ls, jls]) => {
-        const imp = imps.find(i => i.id === parseInt(id)) ?? null
-        setImp(imp)
+        setImp(imps.find(i => i.id === parseInt(id)) ?? null)
         setLines(ls)
-        // Build transaction_id → representative journal line map
         const map: Record<number, JournalLine> = {}
         jls.forEach(jl => {
           if (!(jl.transaction_id in map)) map[jl.transaction_id] = jl
@@ -83,12 +98,16 @@ export default function BankImportDetailPage() {
     setMatching(true)
     setMatchMsg(null)
     try {
-      const res = await apiFetch<{ newly_matched: number; total_matched: number; import: BankImport }>(
-        `/api/bank-imports/${id}/auto-match`, { method: "POST" }
+      const res = await apiFetch<{
+        newly_matched: number
+        suggested: number
+        total_matched: number
+        import: BankImport
+      }>(`/api/bank-imports/${id}/auto-match`, { method: "POST" })
+      setMatchMsg(
+        `Auto-matched ${res.newly_matched}; ${res.suggested} suggestion(s) ready (${res.total_matched} total matched).`,
       )
-      setMatchMsg(`Auto-matched ${res.newly_matched} new line${res.newly_matched !== 1 ? "s" : ""} (${res.total_matched} total).`)
       setImp(res.import)
-      // Reload lines to reflect new match state
       const ls = await apiFetch<StatementLine[]>(`/api/bank-imports/${id}/lines`)
       setLines(ls)
     } catch (e) {
@@ -98,49 +117,25 @@ export default function BankImportDetailPage() {
     }
   }
 
-  const saveSingleMatch = async (lineId: number, txnId: string) => {
-    if (!txnId) return
+  const accept = async (lineId: number, txnId?: number) => {
     try {
-      await apiFetch(`/api/statement-lines/${lineId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ matched_transaction_id: parseInt(txnId) }),
+      await apiFetch(`/api/statement-lines/${lineId}/accept`, {
+        method: "POST",
+        body: JSON.stringify(txnId ? { transaction_id: txnId } : {}),
       })
-      setLines(prev => prev.map(l =>
-        l.id === lineId
-          ? { ...l, is_matched: true, matched_transaction_id: parseInt(txnId) }
-          : l
-      ))
-      setImp(prev => prev ? { ...prev, matched_count: prev.matched_count + 1 } : prev)
-      setSelectors(prev => { const n = { ...prev }; delete n[lineId]; return n })
+      load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed")
+      setError(e instanceof Error ? e.message : "Accept failed")
     }
   }
 
-  const clearMatch = async (lineId: number) => {
+  const reject = async (lineId: number) => {
     try {
-      await apiFetch(`/api/statement-lines/${lineId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ matched_transaction_id: null }),
-      })
-      setLines(prev => prev.map(l =>
-        l.id === lineId
-          ? { ...l, is_matched: false, matched_transaction_id: null }
-          : l
-      ))
-      setImp(prev => prev ? { ...prev, matched_count: Math.max(0, prev.matched_count - 1) } : prev)
+      await apiFetch(`/api/statement-lines/${lineId}/reject`, { method: "POST" })
+      load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Clear failed")
+      setError(e instanceof Error ? e.message : "Reject failed")
     }
-  }
-
-  // Transactions whose total roughly equals the line's amount (debit or credit)
-  const candidatesFor = (line: StatementLine): JournalLine[] => {
-    const amount = line.debit > 0 ? line.debit : line.credit
-    return Object.values(txnMap).filter(jl => {
-      const jlAmt = jl.debit > 0 ? jl.debit : jl.credit
-      return Math.abs(jlAmt - amount) < 0.005
-    })
   }
 
   if (loading) return <div className="text-sm text-[var(--text-primary)]/50 py-8 text-center">Loading…</div>
@@ -155,7 +150,6 @@ export default function BankImportDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <Link href="/bank-imports" className="text-sm text-[var(--primary)] hover:underline">
@@ -170,14 +164,19 @@ export default function BankImportDetailPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={runAutoMatch}
-          disabled={matching || unmatched === 0}
-          className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors self-start"
-        >
-          <Zap className="w-4 h-4" />
-          {matching ? "Matching…" : "Run Auto-Match"}
-        </button>
+        <div className="flex gap-2 self-start">
+          <Link href="/bank-imports/rules" className="text-sm border px-3 py-2 rounded-lg hover:bg-[#f0ede6]">
+            Rules
+          </Link>
+          <button
+            onClick={runAutoMatch}
+            disabled={matching || unmatched === 0}
+            className="inline-flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-colors"
+          >
+            <Zap className="w-4 h-4" />
+            {matching ? "Matching…" : "Run Auto-Match"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -186,14 +185,12 @@ export default function BankImportDetailPage() {
           <span>{error}</span>
         </div>
       )}
-
       {matchMsg && (
         <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5">
           {matchMsg}
         </div>
       )}
 
-      {/* Progress bar */}
       {imp && imp.line_count > 0 && (
         <div>
           <div className="flex justify-between text-xs text-[var(--text-primary)]/60 mb-1">
@@ -201,48 +198,54 @@ export default function BankImportDetailPage() {
             <span>{pct}% done</span>
           </div>
           <div className="h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[var(--primary)] rounded-full transition-all"
-              style={{ width: `${pct}%` }}
-            />
+            <div className="h-full bg-[var(--primary)] rounded-full transition-all" style={{ width: `${pct}%` }} />
           </div>
         </div>
       )}
 
-      {/* Lines table */}
       <div className="bg-white border border-[var(--border)] rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
+        <table className="w-full text-sm min-w-[780px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[#faf8f4]">
               <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">Date</th>
               <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.description', 'Description')}</th>
               <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.debit', 'Debit')}</th>
               <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.credit', 'Credit')}</th>
-              <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">{t('col.balance', 'Balance')}</th>
-              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-56">Match</th>
+              <th className="text-right px-4 py-3 font-semibold text-[var(--text-primary)]/70">Conf.</th>
+              <th className="text-left px-4 py-3 font-semibold text-[var(--text-primary)]/70 w-64">Match</th>
             </tr>
           </thead>
           <tbody>
             {lines.map(line => {
-              const candidates = candidatesFor(line)
-              const matchedJl  = line.matched_transaction_id ? txnMap[line.matched_transaction_id] : null
+              const matchedJl = line.matched_transaction_id ? txnMap[line.matched_transaction_id] : null
+              const suggestions = line.suggestions?.length
+                ? line.suggestions
+                : line.suggested_transaction_id
+                  ? [{
+                      transaction_id: line.suggested_transaction_id,
+                      confidence: line.match_confidence ?? 0,
+                      jv_number: txnMap[line.suggested_transaction_id]?.jv_number,
+                    }]
+                  : []
               return (
                 <tr
                   key={line.id}
                   className={`border-b border-[var(--border)] last:border-0 ${line.is_matched ? "" : "bg-amber-50/30"}`}
                 >
-                  <td className="px-4 py-2.5 text-[var(--text-primary)]/80 whitespace-nowrap">{fmtDate(line.date)}</td>
-                  <td className="px-4 py-2.5 text-[var(--text-primary)] max-w-[220px]">
+                  <td className="px-4 py-2.5 whitespace-nowrap">{fmtDate(line.date)}</td>
+                  <td className="px-4 py-2.5 max-w-[220px]">
                     <span className="line-clamp-2">{line.description}</span>
+                    {line.categorized_account_id && (
+                      <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                        Rule → account #{line.categorized_account_id}
+                        {line.expense_draft_suggested ? " · expense draft" : ""}
+                      </div>
+                    )}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">
-                    {line.debit > 0 ? fmt(line.debit) : ""}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">
-                    {line.credit > 0 ? fmt(line.credit) : ""}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-[var(--text-primary)]/60">
-                    {fmt(line.balance)}
+                  <td className="px-4 py-2.5 text-right tabular-nums">{line.debit > 0 ? fmt(line.debit) : ""}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{line.credit > 0 ? fmt(line.credit) : ""}</td>
+                  <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${confTone(line.match_confidence)}`}>
+                    {line.match_confidence != null ? `${Math.round(line.match_confidence)}%` : "—"}
                   </td>
                   <td className="px-4 py-2.5">
                     {line.is_matched ? (
@@ -252,32 +255,33 @@ export default function BankImportDetailPage() {
                           {matchedJl ? matchedJl.jv_number : `#${line.matched_transaction_id}`}
                         </span>
                         <button
-                          onClick={() => clearMatch(line.id)}
+                          onClick={() => reject(line.id)}
                           className="text-[var(--text-primary)]/30 hover:text-red-500 text-xs ml-1"
-                          title="Clear match"
+                          title="Reject / clear"
                         >
-                          ×
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    ) : candidates.length > 0 ? (
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <select
-                          value={selectors[line.id] ?? ""}
-                          onChange={e => {
-                            const v = e.target.value
-                            setSelectors(prev => ({ ...prev, [line.id]: v }))
-                            saveSingleMatch(line.id, v)
-                          }}
-                          className="text-xs border border-[#d4cfc7] rounded px-1.5 py-1 focus:outline-none focus:border-[var(--primary)] max-w-[160px]"
-                        >
-                          <option value="">Select JV…</option>
-                          {candidates.map(c => (
-                            <option key={c.transaction_id} value={c.transaction_id}>
-                              {c.jv_number} · {fmtDate(c.date)}
-                            </option>
-                          ))}
-                        </select>
+                    ) : suggestions.length > 0 ? (
+                      <div className="space-y-1">
+                        {suggestions.slice(0, 2).map(s => (
+                          <div key={s.transaction_id} className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span className="text-xs truncate max-w-[100px]">
+                              {s.jv_number || `#${s.transaction_id}`} · {Math.round(s.confidence)}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => accept(line.id, s.transaction_id)}
+                              className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded"
+                            >
+                              Accept
+                            </button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => reject(line.id)} className="text-[10px] text-[var(--text-muted)] hover:text-red-600">
+                          Reject suggestions
+                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5">

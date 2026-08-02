@@ -16,16 +16,22 @@ interface BankAccount {
 
 export default function NewBankImportPage() {
   const { t } = useTranslation()
-
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [accounts, setAccounts]       = useState<BankAccount[]>([])
-  const [accountId, setAccountId]     = useState("")
-  const [file, setFile]               = useState<File | null>(null)
-  const [uploading, setUploading]     = useState(false)
-  const [error, setError]             = useState<string | null>(null)
-  const [loadErr, setLoadErr]         = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<BankAccount[]>([])
+  const [accountId, setAccountId] = useState("")
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loadErr, setLoadErr] = useState<string | null>(null)
+  const [showMapping, setShowMapping] = useState(false)
+  const [dateCol, setDateCol] = useState("date")
+  const [descCol, setDescCol] = useState("description")
+  const [debitCol, setDebitCol] = useState("debit")
+  const [creditCol, setCreditCol] = useState("credit")
+  const [amountCol, setAmountCol] = useState("")
+  const [balanceCol, setBalanceCol] = useState("balance")
 
   useEffect(() => {
     apiFetch<BankAccount[]>("/api/bank-accounts")
@@ -36,15 +42,21 @@ export default function NewBankImportPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accountId) { setError("Please select a bank account"); return }
-    if (!file)      { setError("Please choose a CSV file"); return }
+    if (!file) { setError("Please choose a CSV or OFX/QFX file"); return }
 
     setError(null)
     setUploading(true)
 
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
-    const form  = new FormData()
+    const form = new FormData()
     form.append("bank_account_id", accountId)
     form.append("file", file)
+    form.append("date_col", dateCol)
+    form.append("description_col", descCol)
+    form.append("debit_col", debitCol)
+    form.append("credit_col", creditCol)
+    form.append("balance_col", balanceCol)
+    if (amountCol.trim()) form.append("amount_col", amountCol.trim())
 
     try {
       const res = await fetch(
@@ -82,7 +94,7 @@ export default function NewBankImportPage() {
         </Link>
         <h1 className="text-2xl font-bold text-[var(--text-primary)] mt-2">Upload Statement</h1>
         <p className="text-sm text-[var(--text-primary)]/60 mt-0.5">
-          CSV must have columns: <code className="text-xs bg-[#f0ede6] px-1 rounded">date, description, debit, credit, balance</code>
+          CSV (with optional column mapping) or OFX/QFX. Same inbox as Plaid sync.
         </p>
       </div>
 
@@ -108,7 +120,7 @@ export default function NewBankImportPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">CSV File</label>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">Statement file</label>
           <div
             className="border-2 border-dashed border-[#d4cfc7] rounded-xl p-6 text-center cursor-pointer hover:border-[var(--primary)]/60 transition-colors"
             onClick={() => fileRef.current?.click()}
@@ -122,7 +134,7 @@ export default function NewBankImportPage() {
             ) : (
               <>
                 <Upload className="w-8 h-8 text-[var(--primary)]/40 mx-auto mb-2" />
-                <p className="text-sm text-[var(--text-primary)]/70">Click to choose a CSV file</p>
+                <p className="text-sm text-[var(--text-primary)]/70">Click to choose CSV or OFX/QFX</p>
                 <p className="text-xs text-[var(--text-primary)]/40 mt-1">UTF-8 encoded</p>
               </>
             )}
@@ -130,11 +142,41 @@ export default function NewBankImportPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.ofx,.qfx,text/csv,application/x-ofx,application/vnd.intu.qfx"
             className="hidden"
             onChange={e => setFile(e.target.files?.[0] ?? null)}
           />
         </div>
+
+        <button
+          type="button"
+          className="text-sm text-[var(--primary)] hover:underline"
+          onClick={() => setShowMapping(v => !v)}
+        >
+          {showMapping ? "Hide CSV column mapping" : "CSV column mapping…"}
+        </button>
+
+        {showMapping && (
+          <div className="grid grid-cols-2 gap-3 border border-[var(--border)] rounded-lg p-3">
+            {([
+              ["Date", dateCol, setDateCol],
+              ["Description", descCol, setDescCol],
+              ["Debit", debitCol, setDebitCol],
+              ["Credit", creditCol, setCreditCol],
+              ["Signed amount (optional)", amountCol, setAmountCol],
+              ["Balance", balanceCol, setBalanceCol],
+            ] as const).map(([label, val, set]) => (
+              <label key={label} className="text-xs space-y-1">
+                <span className="text-[var(--text-muted)]">{label}</span>
+                <input
+                  className="w-full border rounded px-2 py-1.5 text-sm"
+                  value={val}
+                  onChange={e => set(e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">

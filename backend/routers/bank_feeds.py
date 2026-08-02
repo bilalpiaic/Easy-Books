@@ -1,4 +1,8 @@
-"""Plaid bank feeds (#121) — graceful 503 when PLAID_* unset."""
+"""Plaid bank feeds (#121) + categorization rules CRUD (#268).
+
+Graceful 503 when PLAID_* unset. Rules live under /api/banking/rules so they
+work without Plaid credentials (CSV/OFX imports share the same rule table).
+"""
 from __future__ import annotations
 
 import os
@@ -7,14 +11,16 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from models import CategorizationRule, PlaidConnection
+from models import Account, CategorizationRule, PlaidConnection, StatementLine
+from services.bank_rules import apply_rules_to_lines
 from services.crypto_secrets import decrypt_secret, encrypt_secret
-from .common import CurrentUserDep, SessionDep, WriteUserDep
+from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
-router = APIRouter(prefix="/api/banking/plaid", tags=["bank-feeds"])
+plaid_router = APIRouter(prefix="/api/banking/plaid", tags=["bank-feeds"])
+rules_router = APIRouter(prefix="/api/banking/rules", tags=["bank-feeds"])
 
 PLAID_BASE = {
     "sandbox": "https://sandbox.plaid.com",
@@ -37,7 +43,7 @@ def _require_plaid():
         raise HTTPException(503, "Plaid is not configured (set PLAID_CLIENT_ID / PLAID_SECRET)")
 
 
-@router.get("/connections")
+@plaid_router.get("/connections")
 def list_connections(session: SessionDep, user: CurrentUserDep):
     rows = session.exec(
         select(PlaidConnection).where(
@@ -55,7 +61,7 @@ def list_connections(session: SessionDep, user: CurrentUserDep):
     ]
 
 
-@router.post("/link-token")
+@plaid_router.post("/link-token")
 def create_link_token(session: SessionDep, user: WriteUserDep):
     _require_plaid()
     payload = {
@@ -79,7 +85,7 @@ class ExchangeBody(BaseModel):
     bank_account_id: Optional[int] = None
 
 
-@router.post("/exchange")
+@plaid_router.post("/exchange")
 def exchange_token(body: ExchangeBody, session: SessionDep, user: WriteUserDep):
     _require_plaid()
     payload = {
@@ -104,7 +110,7 @@ def exchange_token(body: ExchangeBody, session: SessionDep, user: WriteUserDep):
     return {"id": conn.id, "item_id": conn.item_id}
 
 
-@router.post("/sync/{connection_id}")
+@plaid_router.post("/sync/{connection_id}")
 def sync_connection(connection_id: int, session: SessionDep, user: WriteUserDep):
     _require_plaid()
     conn = session.get(PlaidConnection, connection_id)
@@ -122,14 +128,10 @@ def sync_connection(connection_id: int, session: SessionDep, user: WriteUserDep)
         "access_token": access,
     }
     r = httpx.post(_plaid_url("/transactions/sync"), json=payload, timeout=30.0)
-    added = 0
-    imported = 0
-    skipped = 0
     if r.status_code >= 400:
         raise HTTPException(502, f"Plaid error: {r.text[:300]}")
     body = r.json()
     added_txns = body.get("added") or []
-    added = len(added_txns)
     from services.plaid_sync import upsert_plaid_transactions
     counts = upsert_plaid_transactions(
         session,
@@ -137,33 +139,29 @@ def sync_connection(connection_id: int, session: SessionDep, user: WriteUserDep)
         bank_account_id=conn.bank_account_id,
         transactions=added_txns,
     )
-    imported = counts["imported"]
-    skipped = counts["skipped"]
-    # Auto-categorize descriptions against rules (best-effort; does not block import)
-    rules = session.exec(
-        select(CategorizationRule).where(
-            CategorizationRule.tenant_id == user.tenant_id,
-            CategorizationRule.is_active == True,  # noqa: E712
+    # Categorize newly imported lines for this account's open imports
+    lines = list(session.exec(
+        select(StatementLine).where(
+            StatementLine.tenant_id == user.tenant_id,
+            StatementLine.is_matched == False,  # noqa: E712
+            StatementLine.categorized_account_id == None,  # noqa: E711
         )
-    ).all()
-    for txn in added_txns:
-        desc = (txn.get("name") or txn.get("merchant_name") or "").lower()
-        for rule in rules:
-            if rule.pattern.lower() in desc:
-                break
+    ).all())
+    categorized = apply_rules_to_lines(session, tenant_id=user.tenant_id, lines=lines)
     conn.last_sync = datetime.utcnow()
     session.add(conn)
     session.commit()
     return {
         "ok": True,
-        "added": added,
-        "imported": imported,
-        "skipped": skipped,
+        "added": len(added_txns),
+        "imported": counts["imported"],
+        "skipped": counts["skipped"],
+        "categorized": categorized,
         "last_sync": conn.last_sync,
     }
 
 
-@router.delete("/connections/{connection_id}", status_code=204)
+@plaid_router.delete("/connections/{connection_id}", status_code=204)
 def disconnect(connection_id: int, session: SessionDep, user: WriteUserDep):
     conn = session.get(PlaidConnection, connection_id)
     if not conn or conn.tenant_id != user.tenant_id:
@@ -173,31 +171,106 @@ def disconnect(connection_id: int, session: SessionDep, user: WriteUserDep):
     session.commit()
 
 
-@router.post("/webhook")
+@plaid_router.post("/webhook")
 async def plaid_webhook():
     return {"received": True}
 
+
+# ── Categorization rules (shared by Plaid + CSV/OFX) ─────────────────────────
 
 class RuleIn(BaseModel):
     pattern: str
     account_id: int
     is_active: bool = True
+    priority: int = Field(default=100, ge=0, le=10_000)
+    match_amount: Optional[float] = None
+    create_expense_draft: bool = False
 
 
-@router.get("/rules")
+class RuleUpdate(BaseModel):
+    pattern: Optional[str] = None
+    account_id: Optional[int] = None
+    is_active: Optional[bool] = None
+    priority: Optional[int] = Field(default=None, ge=0, le=10_000)
+    match_amount: Optional[float] = None
+    create_expense_draft: Optional[bool] = None
+
+
+def _validate_account(session, tenant_id: int, account_id: int) -> None:
+    acct = session.get(Account, account_id)
+    if not acct or acct.tenant_id != tenant_id:
+        raise HTTPException(400, "Invalid GL account for this tenant")
+
+
+@rules_router.get("")
 def list_rules(session: SessionDep, user: CurrentUserDep):
-    return [
-        r.model_dump()
-        for r in session.exec(
-            select(CategorizationRule).where(CategorizationRule.tenant_id == user.tenant_id)
-        ).all()
-    ]
+    rows = session.exec(
+        select(CategorizationRule).where(CategorizationRule.tenant_id == user.tenant_id)
+        .order_by(CategorizationRule.priority, CategorizationRule.id)  # type: ignore
+    ).all()
+    return [r.model_dump() for r in rows]
 
 
-@router.post("/rules", status_code=201)
+@rules_router.post("", status_code=201)
 def create_rule(body: RuleIn, session: SessionDep, user: WriteUserDep):
+    if not body.pattern.strip():
+        raise HTTPException(400, "pattern is required")
+    _validate_account(session, user.tenant_id, body.account_id)
     row = CategorizationRule(tenant_id=user.tenant_id, **body.model_dump())
     session.add(row)
     session.commit()
     session.refresh(row)
-    return row.model_dump()
+    data = row.model_dump()
+    log_audit(session, user, "CREATE", "categorization_rule", row.id, {"pattern": row.pattern})
+    session.commit()
+    return data
+
+
+@rules_router.put("/{rule_id}")
+def update_rule(rule_id: int, body: RuleUpdate, session: SessionDep, user: WriteUserDep):
+    row = session.get(CategorizationRule, rule_id)
+    if not row or row.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Rule not found")
+    data = body.model_dump(exclude_unset=True)
+    if "account_id" in data:
+        _validate_account(session, user.tenant_id, data["account_id"])
+    if "pattern" in data and not (data["pattern"] or "").strip():
+        raise HTTPException(400, "pattern is required")
+    for k, v in data.items():
+        setattr(row, k, v)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    out = row.model_dump()
+    log_audit(session, user, "UPDATE", "categorization_rule", row.id, data)
+    session.commit()
+    return out
+
+
+@rules_router.delete("/{rule_id}", status_code=204)
+def delete_rule(rule_id: int, session: SessionDep, user: WriteUserDep):
+    row = session.get(CategorizationRule, rule_id)
+    if not row or row.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Rule not found")
+    session.delete(row)
+    log_audit(session, user, "DELETE", "categorization_rule", rule_id, {})
+    session.commit()
+
+
+# Back-compat aliases under /api/banking/plaid/rules
+@plaid_router.get("/rules")
+def list_rules_legacy(session: SessionDep, user: CurrentUserDep):
+    return list_rules(session, user)
+
+
+@plaid_router.post("/rules", status_code=201)
+def create_rule_legacy(body: RuleIn, session: SessionDep, user: WriteUserDep):
+    return create_rule(body, session, user)
+
+
+# main.py expects `router` — export a combined mount helper
+from fastapi import APIRouter as _APIRouter
+
+router = _APIRouter()
+router.include_router(plaid_router)
+router.include_router(rules_router)
