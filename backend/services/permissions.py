@@ -59,6 +59,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "tax_codes":              {"label": "Tax Codes",               "category": "Reports"},
     "payment_terms":          {"label": "Payment Terms",           "category": "System"},
     "period_close":           {"label": "Period Close",            "category": "System"},
+    "consolidation":          {"label": "Consolidation",           "category": "Reports"},
     "approvals":              {"label": "Approvals Inbox",         "category": "System"},
     "approvals.workflows":    {"label": "Approval Workflows",      "category": "System"},
     "webhooks":               {"label": "Webhooks",                "category": "System"},
