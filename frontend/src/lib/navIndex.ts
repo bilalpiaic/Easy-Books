@@ -741,9 +741,19 @@ const REPORTS: NavResult[] = [
     keywords: ["help", "docs", "manual", "how to"],
   },
   {
+    id: "sys:approvals", type: "nav", label: "Approvals",
+    sub: "Pending approval inbox", href: "/approvals",
+    keywords: ["approvals", "approve", "sod", "segregation of duties"],
+  },
+  {
+    id: "sys:approval-workflows", type: "nav", label: "Approval Workflows",
+    sub: "Configure multi-step approval chains", href: "/approvals/workflows",
+    keywords: ["approval workflows", "thresholds", "approver roles"],
+  },
+  {
     id: "sys:workflow", type: "nav", label: "Workflow",
-    sub: "Approval workflows", href: "/workflow",
-    keywords: ["approvals", "workflow setup"],
+    sub: "GL posting guide", href: "/workflow",
+    keywords: ["gl workflow", "posting guide"],
   },
 ]
 

@@ -2228,9 +2228,34 @@ class ApprovalRequest(SQLModel, table=True):
     current_step: int = Field(default=0)
     status: str = Field(default="pending", index=True)  # pending|approved|rejected|timed_out
     requested_by_id: int = Field(foreign_key="user.id")
+    # Snapshotted at submit so later doc edits can't retarget the threshold chain (#269)
+    amount: float = Field(default=0.0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     resolved_at: Optional[datetime] = None
     notes: Optional[str] = None
+
+
+class ApprovalSubstitute(SQLModel, table=True):
+    """Out-of-office / delegate approver for a date range (#269)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)  # principal being covered
+    substitute_user_id: int = Field(foreign_key="user.id", index=True)
+    starts_on: str  # YYYY-MM-DD
+    ends_on: str    # YYYY-MM-DD
+    is_active: bool = Field(default=True)
+
+
+class ApprovalDecision(SQLModel, table=True):
+    """Append-only audit trail for approve/reject actions (#269)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    request_id: int = Field(foreign_key="approvalrequest.id", index=True)
+    actor_id: int = Field(foreign_key="user.id")
+    action: str  # approve | reject
+    step_index: int = Field(default=0)
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class PlaidConnection(SQLModel, table=True):

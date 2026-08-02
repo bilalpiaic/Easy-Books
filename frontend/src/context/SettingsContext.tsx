@@ -55,6 +55,8 @@ export interface AppSettings {
   cost_method: string
   // User Rights Module
   user_rights_enabled: string
+  // Approvals SoD (#269)
+  approvals_block_self_approval: string
   // Appearance
   app_theme: string
   color_theme: string
@@ -112,6 +114,7 @@ const defaults: AppSettings = {
   business_model: "simple",
   cost_method: "wavg",
   user_rights_enabled: "false",
+  approvals_block_self_approval: "true",
   app_theme: "light",
   color_theme: "gold",
   app_language: "en",
