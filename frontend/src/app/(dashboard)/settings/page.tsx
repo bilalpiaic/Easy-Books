@@ -799,6 +799,22 @@ export default function SettingsPage() {
           </label>
         </div> }
 
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-[var(--border)]">
+          <div>
+            <h3 className="font-semibold text-black">Block self-approval (segregation of duties)</h3>
+            <p className="text-sm text-[var(--text-muted)] mt-1">When on, the person who submitted a document for approval cannot approve or reject it. Default on.</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+            <input
+              type="checkbox"
+              checked={(form.approvals_block_self_approval ?? "true") !== "false"}
+              onChange={e => handleChange('approvals_block_self_approval', e.target.checked ? "true" : "false")}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary)]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+          </label>
+        </div>
+
         <div className="pt-4 mt-4 border-t border-[var(--border)]">
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Display Density</label>
           <select

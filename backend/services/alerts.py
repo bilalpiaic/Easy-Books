@@ -11,8 +11,9 @@ from decimal import Decimal
 from sqlmodel import Session, select
 
 from models import (
-    ComparativeStatement, GateOutward, Invoice, PayrollRun, Product,
-    PurchaseDemand, Settings, Tenant, User, UserAlert,
+    ApprovalRequest, ApprovalStep, ComparativeStatement, GateOutward,
+    Invoice, PayrollRun, Product, PurchaseDemand, Settings, Tenant, User,
+    UserAlert,
 )
 from services.money import D
 
@@ -290,6 +291,46 @@ def refresh_ops_alerts(
                     entity_id=pr.id,
                     dedupe_key=f"approval:pr:{pr.id}",
                 )
+
+        # ── Generic approval-workflow inbox (#269) ────────────────────────
+        for req in session.exec(
+            select(ApprovalRequest).where(
+                ApprovalRequest.tenant_id == tid,
+                ApprovalRequest.status == "pending",
+            )
+        ).all():
+            href = "/approvals"
+            if req.document_type == "invoice":
+                href = f"/invoices/{req.document_id}"
+            elif req.document_type == "bill":
+                href = f"/bills/{req.document_id}"
+            # Notify staff who can act on the current step; exclude submitter.
+            steps = session.exec(
+                select(ApprovalStep).where(ApprovalStep.workflow_id == req.workflow_id)
+                .order_by(ApprovalStep.step_order)  # type: ignore
+            ).all()
+            if req.current_step >= len(steps):
+                continue
+            step = steps[req.current_step]
+            recipients = list(approvers)
+            if step.approver_user_id:
+                assigned = session.get(User, step.approver_user_id)
+                if assigned and assigned.tenant_id == tid and assigned.is_active:
+                    recipients = [assigned]
+            elif step.approver_role:
+                recipients = _staff_users(session, tid, (step.approver_role, "owner", "admin"))
+            created += _emit_to_users(
+                session, recipients,
+                exclude_user_id=req.requested_by_id,
+                kind="approval_needed",
+                severity="warning",
+                title=f"Approve {req.document_type} #{req.document_id}",
+                body=f"Amount {req.amount} · awaiting approval",
+                href=href,
+                entity_type="approval_request",
+                entity_id=req.id,
+                dedupe_key=f"approval:req:{req.id}:step:{req.current_step}",
+            )
 
         _set_tenant_setting(session, tid, LAST_REFRESH_KEY, now.isoformat())
 

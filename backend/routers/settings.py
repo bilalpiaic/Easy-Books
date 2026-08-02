@@ -77,6 +77,8 @@ class SettingsUpdate(BaseModel):
     # Amount display precision ("2" or "4")
     decimal_places: Optional[str] = None
     user_rights_enabled: Optional[str] = None  # "true" | "false"
+    # Approvals SoD (#269) — default on when unset; creator cannot approve own submit
+    approvals_block_self_approval: Optional[str] = None  # "true" | "false"
     # Appearance
     app_theme: Optional[str] = None   # "light" | "dark" | "system"
     color_theme: Optional[str] = None  # "gold" | "blue" | "green" | "rose" | "slate"

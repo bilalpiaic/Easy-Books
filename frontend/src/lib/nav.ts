@@ -121,6 +121,8 @@ export const NAV: NavItem[] = [
   { label: "Practice clients", href: "/practice",          icon: Building2,        section: "System" },
   { label: "Permissions",      href: "/settings/permissions", icon: ShieldCheck,   section: "System", adminOnly: true },
   { label: "Audit Log",        href: "/audit",             icon: ScrollText,       section: "System", adminOnly: true },
+  { label: "Approvals",        href: "/approvals",         icon: CheckCheck,       section: "System" },
+  { label: "Approval Workflows", href: "/approvals/workflows", icon: GitBranch,   section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "AI Assistant",     href: "/agent",             icon: Sparkles,         section: "System",    forModule: "ai_assistant" },
@@ -232,7 +234,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
-  system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/workflow", "/agent", "/uae-logs"],
+  system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/approvals", "/workflow", "/agent", "/uae-logs"],
 }
 
 /** Routes homed under /manufacturing that move to the Purchases section when purchase_store is installed */
@@ -422,6 +424,8 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "system" },
     { label: "Payment Terms", href: "/payment-terms",        icon: Clock,       section: "system", adminOnly: true },
     { label: "Tax Codes",     href: "/tax-codes",            icon: Percent,     section: "system", adminOnly: true },
+    { label: "Approvals",     href: "/approvals",            icon: CheckCheck,  section: "system" },
+    { label: "Approval Workflows", href: "/approvals/workflows", icon: GitBranch, section: "system", adminOnly: true },
     { label: "Audit Log",     href: "/audit",                icon: ScrollText,  section: "system", adminOnly: true },
     { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "system" },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },

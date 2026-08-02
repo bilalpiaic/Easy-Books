@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2, ShieldCheck } from "lucide-react"
+import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
 import { getAuthHeader, setMustChangePwd } from "@/lib/auth"
 import { useTranslation } from "react-i18next"
@@ -81,6 +81,7 @@ function ProfilePageInner() {
         <>
           <AvatarCard me={me} onChange={reload} />
           <ProfileCard me={me} onSaved={reload} />
+          <OooSubstituteCard me={me} />
           <PasswordCard highlight={forcePwd && me.must_change_password} />
           <AccountInfoCard me={me} />
         </>
@@ -212,6 +213,132 @@ function ProfileCard({ me, onSaved }: { me: Me; onSaved: () => void }) {
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save changes
         </button>
       </form>
+    </Card>
+  )
+}
+
+function OooSubstituteCard({ me }: { me: Me }) {
+  type Sub = {
+    id: number
+    substitute_user_id: number
+    starts_on: string
+    ends_on: string
+    is_active: boolean
+  }
+  type TeamUser = { id: number; full_name: string; email: string; role: string }
+
+  const [rows, setRows] = useState<Sub[]>([])
+  const [team, setTeam] = useState<TeamUser[]>([])
+  const [substituteId, setSubstituteId] = useState("")
+  const [startsOn, setStartsOn] = useState("")
+  const [endsOn, setEndsOn] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [ok, setOk] = useState(false)
+
+  const load = useCallback(() => {
+    apiFetch<Sub[]>("/api/approvals/substitutes/me").then(setRows).catch(() => setRows([]))
+    apiFetch<{ items: TeamUser[] } | TeamUser[]>("/api/users")
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data.items ?? [])
+        setTeam(list.filter((u) => u.id !== me.id))
+      })
+      .catch(() => setTeam([]))
+  }, [me.id])
+
+  useEffect(() => { load() }, [load])
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setErr(null); setOk(false); setBusy(true)
+    try {
+      await apiFetch("/api/approvals/substitutes", {
+        method: "POST",
+        body: JSON.stringify({
+          substitute_user_id: Number(substituteId),
+          starts_on: startsOn,
+          ends_on: endsOn,
+          is_active: true,
+        }),
+      })
+      setOk(true)
+      setSubstituteId(""); setStartsOn(""); setEndsOn("")
+      load()
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : "Failed to save")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(id: number) {
+    setErr(null)
+    try {
+      await apiFetch(`/api/approvals/substitutes/${id}`, { method: "DELETE" })
+      load()
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : "Failed to delete")
+    }
+  }
+
+  const nameFor = (id: number) => {
+    const u = team.find((t) => t.id === id)
+    return u ? `${u.full_name} (${u.email})` : `User #${id}`
+  }
+
+  return (
+    <Card title="Out-of-office approver" icon={UserCheck}>
+      <p className="text-sm text-[var(--text-muted)]">
+        Designate a colleague who can approve documents assigned to you while you are away.
+      </p>
+      <form onSubmit={save} className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="Substitute">
+            {team.length > 0 ? (
+              <select className={inputCls} value={substituteId} onChange={(e) => setSubstituteId(e.target.value)} required>
+                <option value="">Select teammate…</option>
+                {team.map((u) => (
+                  <option key={u.id} value={u.id}>{u.full_name} · {u.role}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="number"
+                className={inputCls}
+                value={substituteId}
+                onChange={(e) => setSubstituteId(e.target.value)}
+                placeholder="Teammate user ID"
+                required
+              />
+            )}
+          </Field>
+          <Field label="From">
+            <input type="date" className={inputCls} value={startsOn} onChange={(e) => setStartsOn(e.target.value)} required />
+          </Field>
+          <Field label="To">
+            <input type="date" className={inputCls} value={endsOn} onChange={(e) => setEndsOn(e.target.value)} required />
+          </Field>
+        </div>
+        {err && <p className="text-sm text-red-700">{err}</p>}
+        {ok && <p className="flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 className="w-4 h-4" /> Saved.</p>}
+        <button type="submit" disabled={busy || !substituteId}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Set substitute
+        </button>
+      </form>
+      {rows.length > 0 && (
+        <ul className="divide-y divide-[#f0ece4] border-t border-[var(--border)] pt-3 space-y-0">
+          {rows.map((r) => (
+            <li key={r.id} className="flex items-center justify-between py-2 text-sm">
+              <span>
+                {nameFor(r.substitute_user_id)} · {r.starts_on} → {r.ends_on}
+                {!r.is_active && <span className="text-[var(--text-muted)]"> (inactive)</span>}
+              </span>
+              <button type="button" className="text-red-700 text-xs" onClick={() => remove(r.id)}>Remove</button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   )
 }
