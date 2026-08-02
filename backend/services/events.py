@@ -204,3 +204,36 @@ def send_test_ping(endpoint: WebhookEndpoint) -> tuple[int, str]:
         "X-EasyBooks-Signature": sign(endpoint.secret, body),
     }
     return _default_post(endpoint.url, body, headers)
+
+
+def replay_delivery(
+    session: Session, *, tenant_id: int, delivery_id: int,
+) -> WebhookDelivery:
+    """Clone a delivery into a fresh pending outbox row (#271).
+
+    Keeps the original row as an audit trail; the new row re-enters the
+    normal retry ladder from attempts=0.
+    """
+    src = session.get(WebhookDelivery, delivery_id)
+    if not src or src.tenant_id != tenant_id:
+        raise ValueError("Delivery not found")
+    ep = session.get(WebhookEndpoint, src.endpoint_id)
+    if not ep or ep.tenant_id != tenant_id:
+        raise ValueError("Endpoint not found")
+    now = _utcnow()
+    clone = WebhookDelivery(
+        tenant_id=tenant_id,
+        endpoint_id=src.endpoint_id,
+        event_type=src.event_type,
+        payload_json=src.payload_json,
+        status="pending",
+        attempts=0,
+        next_retry=now,
+        response_code=None,
+        last_error=None,
+    )
+    session.add(clone)
+    session.flush()
+    request_wake()
+    _enqueue_drain_if_queued()
+    return clone

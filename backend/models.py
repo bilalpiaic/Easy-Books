@@ -203,6 +203,20 @@ class WebhookDelivery(SQLModel, table=True):
     delivered_at: Optional[datetime] = None
 
 
+class TaskDeadLetter(SQLModel, table=True):
+    """Failed background job (PDF/email/import/…) for admin retry (#271)."""
+    __tablename__ = "taskdeadletter"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: Optional[int] = Field(default=None, foreign_key="tenant.id", index=True)
+    task_name: str = Field(index=True)
+    args_json: str = Field(default="[]")
+    kwargs_json: str = Field(default="{}")
+    error: str
+    status: str = Field(default="open", index=True)  # open | retried | discarded
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    retried_at: Optional[datetime] = None
+
+
 class UserPermission(SQLModel, table=True):
     """Sparse per-user permission overrides. When no row exists for a
     (user_id, resource_key) pair, the role default applies:

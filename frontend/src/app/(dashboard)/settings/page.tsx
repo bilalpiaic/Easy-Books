@@ -1303,6 +1303,12 @@ export default function SettingsPage() {
         >
           Manage webhook endpoints →
         </Link>
+        <Link
+          href="/settings/ops"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4] ml-2"
+        >
+          Queue DLQ & metrics →
+        </Link>
       </section>
 
       <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
