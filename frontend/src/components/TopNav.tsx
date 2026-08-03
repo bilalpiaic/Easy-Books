@@ -39,8 +39,10 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: Reac
   store:         { href: "/store/gate-outward", label: "Store Overview",  icon: LayoutGrid      },
 }
 
-const LEFT_KEYS  = new Set(["dashboard", "banking", "sales", "purchases"])
-const RIGHT_KEYS = new Set(["accounting", "reports", "system"])
+/** Left strip — always-visible core tabs (md+), matches NAV_SECTION_ORDER prefix. */
+const LEFT_KEYS  = new Set(["dashboard", "accounting", "reports", "banking", "sales", "purchases"])
+/** Right strip — System always last. Module tabs sit in the centre add-on cluster. */
+const RIGHT_KEYS = new Set(["system"])
 
 /** Pixel budget for the two vertical separators around the add-on cluster. */
 const ADDON_SEP_BUDGET = 18

@@ -182,7 +182,12 @@ export const NAV: NavItem[] = [
   { label: "Weaving Dashboard", href: "/weaving/dashboard",       icon: LayoutDashboard, section: "Weaving", forModule: "weaving" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Store","Inventory","Manufacturing","Telecom","Healthcare","Weaving","Banking","Reports","Payroll","PRA","UAE","ZATCA","Peppol","India GST","System"]
+export const ALL_SECTIONS = [
+  "Overview", "Ledger", "Reports", "Banking", "Receivable", "Payable", "Purchases",
+  "Store", "Manufacturing", "Inventory", "Payroll",
+  "Healthcare", "Telecom", "Weaving", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
+  "System",
+]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.
@@ -219,32 +224,31 @@ export type TopNavSection = {
 /** Core sections always shown + module-gated sections shown inline */
 export const TOP_NAV: TopNavSection[] = [
   { key: "dashboard",     label: "Dashboard"     },
+  { key: "accounting",    label: "Accounting"    },
+  { key: "reports",       label: "Reports"       },
   { key: "banking",       label: "Banking"       },
   { key: "sales",         label: "Sales"         },
   { key: "purchases",     label: "Purchases"     },
-  { key: "accounting",    label: "Accounting"    },
-  { key: "reports",       label: "Reports"       },
-  { key: "system",        label: "System"        },
-  // module-gated — appear inline when installed
   { key: "store",         label: "Store",         forModule: "purchase_store" },
+  { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
   { key: "inventory",     label: "Inventory",     forModule: "inventory"   },
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
-  { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
-  { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
+  { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
   { key: "pra",           label: "PRA e-Invoice", shortLabel: "PRA", forModule: "pra" },
   { key: "uae",           label: "UAE VAT",       shortLabel: "UAE", forModule: "uae_vat" },
   { key: "zatca",         label: "ZATCA",         shortLabel: "ZATCA", forModule: "sa_zatca" },
   { key: "peppol",        label: "Peppol",        shortLabel: "Peppol", forModule: "eu_peppol" },
   { key: "india_gst",     label: "India GST",     shortLabel: "GST", forModule: "in_gst" },
+  { key: "system",        label: "System"        },
 ]
 
 /**
- * Mobile More-drawer section order (user preference):
- * Dashboard → core books → ops → optional industry/localization → System last.
+ * Canonical section order for TopNav (md+) and More drawer (sm).
+ * Dashboard → core → ops → optional packs → System last.
  */
-export const MOBILE_MORE_SECTION_ORDER: string[] = [
+export const NAV_SECTION_ORDER: string[] = [
   "dashboard",
   "accounting",
   "reports",
@@ -255,7 +259,6 @@ export const MOBILE_MORE_SECTION_ORDER: string[] = [
   "manufacturing",
   "inventory",
   "payroll",
-  // optional / module-gated packs
   "healthcare",
   "telecom",
   "weaving",
@@ -267,9 +270,12 @@ export const MOBILE_MORE_SECTION_ORDER: string[] = [
   "system",
 ]
 
-/** TOP_NAV sorted for the sm/md More drawer (unknown keys append at end). */
+/** Alias used by More drawer — same as NAV_SECTION_ORDER. */
+export const MOBILE_MORE_SECTION_ORDER = NAV_SECTION_ORDER
+
+/** TOP_NAV sorted for the sm More drawer (unknown keys append at end). */
 export function mobileMoreSections(): TopNavSection[] {
-  const rank = new Map(MOBILE_MORE_SECTION_ORDER.map((k, i) => [k, i]))
+  const rank = new Map(NAV_SECTION_ORDER.map((k, i) => [k, i]))
   return [...TOP_NAV].sort((a, b) => {
     const ra = rank.get(a.key) ?? 999
     const rb = rank.get(b.key) ?? 999
