@@ -67,6 +67,9 @@ export default function SettingsPage() {
   const [uaeTesting, setUaeTesting] = useState(false)
   const [uaeTestResult, setUaeTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
   const [uaeShowKey, setUaeShowKey] = useState(false)
+  const [zatcaTesting, setZatcaTesting] = useState(false)
+  const [zatcaTestResult, setZatcaTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [zatcaShowToken, setZatcaShowToken] = useState(false)
 
   useEffect(() => {
     setForm(ctxSettings)
@@ -1248,6 +1251,93 @@ export default function SettingsPage() {
           {uaeTestResult && (
             <span className={`text-sm ${uaeTestResult.ok ? "text-green-700" : "text-red-600"}`}>
               {uaeTestResult.ok ? "✓" : "✗"} {uaeTestResult.msg}
+            </span>
+          )}
+        </div>
+      </section>
+      )}
+
+      {/* ── Saudi ZATCA e-Invoice — once the sa_zatca add-on is installed ── */}
+      {installedModules.has("sa_zatca") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Saudi ZATCA e-Invoice <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(Fatoora Phase 2)</span></h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm text-[var(--text-primary)]/70">{form.zatca_enabled === "true" ? "Enabled" : "Disabled"}</span>
+            <div
+              onClick={() => handleChange("zatca_enabled", form.zatca_enabled === "true" ? "false" : "true")}
+              className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.zatca_enabled === "true" ? "bg-[var(--primary)]" : "bg-[var(--text-primary)]/20"}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-0.5 shadow transition-transform ${form.zatca_enabled === "true" ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-primary)]/50">
+          Sandbox clear/report against the ZATCA developer portal. Configure your VAT number and (optionally) CSID token.
+          Submission logs are under <Link href="/zatca/logs" className="underline text-[var(--text-link)]">ZATCA Logs</Link>.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">VAT Registration Number</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              placeholder="15-digit VAT"
+              autoComplete="off"
+              value={form.zatca_vat_number} onChange={e => handleChange("zatca_vat_number", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Commercial Registration (CR)</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              placeholder="CR number"
+              autoComplete="off"
+              value={form.zatca_cr_number} onChange={e => handleChange("zatca_cr_number", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Device / EGS ID</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              placeholder="EGS1-…"
+              autoComplete="off"
+              value={form.zatca_device_id} onChange={e => handleChange("zatca_device_id", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">CSID token (write-only)</label>
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+                type={zatcaShowToken ? "text" : "password"}
+                placeholder="Basic auth token from Fatoora"
+                autoComplete="new-password"
+                value={form.zatca_csid_token} onChange={e => handleChange("zatca_csid_token", e.target.value)} />
+              <button type="button" onClick={() => setZatcaShowToken(v => !v)}
+                className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)]/60 hover:border-[var(--primary)]/40">
+                {zatcaShowToken ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="rounded border-[var(--border)]"
+            checked={form.zatca_sandbox_mode !== "false"}
+            onChange={e => handleChange("zatca_sandbox_mode", e.target.checked ? "true" : "false")} />
+          <span className="text-[var(--text-primary)]/70">Use Sandbox (developer portal)</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setZatcaTesting(true); setZatcaTestResult(null)
+              try {
+                const r = await apiFetch<{ ok: boolean; message: string; sandbox: boolean }>("/api/zatca/test", { method: "POST" })
+                setZatcaTestResult({ ok: !!r.ok, msg: `${r.message}${r.sandbox ? " (sandbox)" : ""}` })
+              } catch (e: unknown) {
+                setZatcaTestResult({ ok: false, msg: String((e as Error).message ?? e) })
+              } finally { setZatcaTesting(false) }
+            }}
+            disabled={zatcaTesting || !form.zatca_vat_number}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50 transition-colors"
+          >
+            {zatcaTesting ? "Testing…" : "Test Connection"}
+          </button>
+          {zatcaTestResult && (
+            <span className={`text-sm ${zatcaTestResult.ok ? "text-green-700" : "text-red-600"}`}>
+              {zatcaTestResult.ok ? "✓" : "✗"} {zatcaTestResult.msg}
             </span>
           )}
         </div>

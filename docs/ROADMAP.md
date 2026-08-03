@@ -25,8 +25,8 @@ IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 | Issue | Title | Status |
 |-------|-------|--------|
 | **#263** | Core multi-jurisdiction tax engine | Shipped |
-| **#264** | Country pack: Saudi ZATCA e-invoice | Open |
-| **#265** | Country pack: India GST | Open |
+| **#264** | Country pack: Saudi ZATCA e-invoice | Shipped |
+| **#265** | Country pack: India GST | In progress (`feat/india-gst-265`) |
 | **#266** | Country pack: Peppol / EU VAT e-invoice | Open |
 | **#267** | Withholding tax + corporate tax summary reports | Open |
 
@@ -57,6 +57,7 @@ Many items from the old v4 Cloud Launch list (#114–#125, #140) have landed und
 | **Inventory depth (#257)** | Landed cost, lot/serial, NRV valuation UI |
 | **Close / audit pack (#262)** | Period checklist + auditor ZIP |
 | **Tax engine (#263)** | Effective-dated `TaxRateHistory` |
+| **Saudi ZATCA (#264)** | `sa_zatca` module — sandbox clear/report, TLV QR, submission logs |
 | **SaaS harden (#268–#271)** | Bank feeds, approvals, portal, webhooks/DLQ/quotas |
 
 ### Older releases

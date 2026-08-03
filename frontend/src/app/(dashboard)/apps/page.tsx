@@ -18,6 +18,16 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Scissors, ShoppingCart, Landmark, Store, FileText,
 }
 
+/** Allowlist of MODULE_REGISTRY categories shown on this page (sort + filter). */
+const CATEGORY_ORDER = [
+  "Core",
+  "Operations",
+  "HR",
+  "Industry",
+  "Intelligence",
+  "Localization",
+] as const
+
 type ViewMode = "tabs" | "list"
 type Bucket = "default" | "recommended" | "optional" | "marketplace"
 
@@ -299,7 +309,13 @@ function AppsPageInner() {
   }
 
   const defaultMods = useMemo(() => modules.filter(m => m.always), [modules])
-  const optionalMods = useMemo(() => modules.filter(m => !m.always), [modules])
+  const optionalMods = useMemo(() => {
+    const allowed = new Set<string>(CATEGORY_ORDER)
+    const catRank = Object.fromEntries(CATEGORY_ORDER.map((c, i) => [c, i]))
+    return modules
+      .filter(m => !m.always && allowed.has(m.category))
+      .sort((a, b) => (catRank[a.category] ?? 99) - (catRank[b.category] ?? 99) || a.label.localeCompare(b.label))
+  }, [modules])
 
   const packsWithStatus = useMemo(() => ADDON_PACKS.map(p => ({
     ...p,

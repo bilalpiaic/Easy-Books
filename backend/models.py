@@ -591,6 +591,12 @@ class Invoice(SQLModel, table=True):
     pra_response_raw: Optional[str] = None  # raw JSON response for audit trail
     buyer_ntn: Optional[str] = None   # walk-in NTN override (takes priority over customer.ntn)
     buyer_cnic: Optional[str] = None  # walk-in CNIC override (takes priority over customer.cnic)
+    # Saudi ZATCA e-Invoice (#264)
+    zatca_status: Optional[str] = Field(default=None, index=True)  # pending|submitted|cleared|reported|rejected|error
+    zatca_uuid: Optional[str] = None
+    zatca_hash: Optional[str] = None
+    zatca_qr: Optional[str] = None
+    zatca_submitted_at: Optional[datetime] = None
     # Approval workflow (#123) — null means no workflow engaged / legacy docs
     approval_status: Optional[str] = Field(default=None, index=True)
     # Intercompany (#261) — flag + sister-entity link; mirror bill id on counterparty
@@ -2184,6 +2190,21 @@ class UaeEinvoiceLog(SQLModel, table=True):
     response_json: Optional[str] = None
     http_status: Optional[int] = None
     success: bool = Field(default=False)
+    error_message: Optional[str] = None
+    sandbox: bool = Field(default=True)
+
+
+class ZatcaSubmissionLog(SQLModel, table=True):
+    """Audit trail of every outbound call to the ZATCA Fatoora API (#264)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True)
+    invoice_id: int = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    request_payload: str
+    response_payload: Optional[str] = None
+    status: str = Field(default="error")  # cleared|reported|rejected|error|submitted
+    http_status: Optional[int] = None
+    endpoint: Optional[str] = None
     error_message: Optional[str] = None
     sandbox: bool = Field(default=True)
 

@@ -962,6 +962,7 @@ Trial Balance ── click account code ──▶ /ledger?account={name}
 | **Inventory depth** | **IAS 2** | Landed cost onto layers (`LandedCost`); lot/serial (`track_lot` / `track_serial`); NRV write-down runs (`NrVRun`). UI: `/inventory/valuation`. |
 | **Month-end close pack** | **ISA / close controls** | `CloseChecklistItem` per period; optional lock gate via `period_close_require_checklist`; auditor ZIP export (`services/close_pack.py`). |
 | **Tax rate history** | **Multi-jurisdiction** | `TaxRateHistory` effective-dated rates; documents snapshot rates at post time (#263). |
+| **Saudi ZATCA e-invoice** | **KSA Phase 2** | `sa_zatca` module — sandbox clear/report via Fatoora, TLV QR, `ZatcaSubmissionLog` (#264). |
 
 ---
 

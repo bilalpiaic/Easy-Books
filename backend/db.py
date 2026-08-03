@@ -491,6 +491,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["UAE"],
     },
+    "sa_zatca": {
+        "label":       "Saudi ZATCA e-Invoice",
+        "description": "KSA Phase 2 e-invoicing (sandbox clear/report)",
+        "category":    "Localization",
+        "icon":        "Landmark",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "addon",
+        "nav_sections": ["ZATCA"],
+    },
     "healthcare": {
         "label":       "Healthcare",
         "description": "OPD/IPD management, lab orders & results, pharmacy store, procedure billing, ward management, and patient records for hospitals and clinics.",

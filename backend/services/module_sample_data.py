@@ -77,6 +77,15 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
                 _set_setting(session, tid, "uae_trn", "100000000000003")
             if not _get_setting_value(session, tid, "uae_legal_name"):
                 _set_setting(session, tid, "uae_legal_name", "Demo UAE Trading LLC")
+        elif module_id == "sa_zatca":
+            _set_setting(session, tid, "zatca_enabled", "true")
+            _set_setting(session, tid, "zatca_sandbox_mode", "true")
+            if not _get_setting_value(session, tid, "zatca_vat_number"):
+                _set_setting(session, tid, "zatca_vat_number", "300000000000003")
+            if not _get_setting_value(session, tid, "zatca_cr_number"):
+                _set_setting(session, tid, "zatca_cr_number", "1010000000")
+            if not _get_setting_value(session, tid, "zatca_device_id"):
+                _set_setting(session, tid, "zatca_device_id", "EGS1-8888")
         elif module_id == "weaving":
             customers, vendors = _ensure_party(session, tid)
             sd._seed_weaving(session, user, customers, vendors)
@@ -122,4 +131,11 @@ def enable_uae_vat_settings(session: Session, tenant_id: int) -> None:
     ensure_uae_tax_and_coa(session, tenant_id)
     _set_setting(session, tenant_id, "uae_vat_enabled", "true")
     _set_setting(session, tenant_id, "uae_sandbox_mode", "true")
+    session.commit()
+
+
+def enable_zatca_settings(session: Session, tenant_id: int) -> None:
+    """Turn on sandbox ZATCA flags when the sa_zatca module is installed."""
+    _set_setting(session, tenant_id, "zatca_enabled", "true")
+    _set_setting(session, tenant_id, "zatca_sandbox_mode", "true")
     session.commit()

@@ -52,6 +52,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/leases/":          "Lease",
   "/cashflow":         "Cash Flow",
   "/tax":              "Tax Reports",
+  "/india-gst/gstr":   "GSTR Report",
   "/profile":          "My Profile",
   "/team":             "Team",
   "/practice":         "Practice clients",
@@ -132,6 +133,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/pra-logs":                     "PRA Submission Logs",
   "/pra-dashboard":                "PRA Sales Dashboard",
   "/uae-logs":                     "UAE e-Invoice Logs",
+  "/zatca/logs":                   "ZATCA Submission Logs",
   // Healthcare
   "/healthcare":                   "Healthcare Overview",
   "/healthcare/patients":          "Patient Registry",

@@ -151,7 +151,7 @@ def list_modules(current_user: CurrentUserDep, session: SessionDep):
         })
 
     # Stable order: Core first, then alphabetical within category
-    cat_order = {"Core": 0, "Accounting": 1, "Operations": 2, "HR": 3, "Industry": 4}
+    cat_order = {"Core": 0, "Accounting": 1, "Operations": 2, "HR": 3, "Industry": 4, "Localization": 5, "Intelligence": 6}
     result.sort(key=lambda m: (cat_order.get(m["category"], 99), m["label"]))
     return result
 
@@ -209,6 +209,10 @@ def install_module(
     if "uae_vat" in to_install:
         from services.module_sample_data import enable_uae_vat_settings
         enable_uae_vat_settings(session, current_user.tenant_id)
+
+    if "sa_zatca" in to_install:
+        from services.module_sample_data import enable_zatca_settings
+        enable_zatca_settings(session, current_user.tenant_id)
 
     if seed_sample:
         from services.module_sample_data import seed_module_sample

@@ -82,6 +82,13 @@ export interface AppSettings {
   uae_legal_name: string
   uae_api_key: string
   uae_sandbox_mode: string
+  // Saudi ZATCA e-Invoice (#264)
+  zatca_enabled: string
+  zatca_vat_number: string
+  zatca_cr_number: string
+  zatca_device_id: string
+  zatca_csid_token: string
+  zatca_sandbox_mode: string
 }
 
 const defaults: AppSettings = {
@@ -143,6 +150,12 @@ const defaults: AppSettings = {
   uae_legal_name: "",
   uae_api_key: "",
   uae_sandbox_mode: "true",
+  zatca_enabled: "false",
+  zatca_vat_number: "",
+  zatca_cr_number: "",
+  zatca_device_id: "",
+  zatca_csid_token: "",
+  zatca_sandbox_mode: "true",
 }
 
 interface SettingsContextValue {

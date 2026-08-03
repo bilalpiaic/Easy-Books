@@ -39,6 +39,7 @@
 26. [Payroll](#26-payroll)
 27. [Attendance Register](#27-attendance-register)
 28. [PRA e-Invoice (Pakistan)](#28-pra-e-invoice-pakistan)
+28a. [Saudi ZATCA e-Invoice](#28a-saudi-zatca-e-invoice)
 29. [Modules & the Apps Page](#29-modules--the-apps-page)
 30. [Healthcare Module](#30-healthcare-module)
 31. [Universal Search (Ctrl+K)](#31-universal-search-ctrlk)
@@ -1599,6 +1600,26 @@ Drill into any invoice from the table to retry a failed submission or view the F
 
 ---
 
+## 28a. Saudi ZATCA e-Invoice
+
+> Requires: **Saudi ZATCA e-Invoice** module from **System → Apps** (category Localization).
+
+### Setup
+
+1. Install **Saudi ZATCA e-Invoice** from Add-ons (optionally seed sample settings).
+2. Open **Settings → Saudi ZATCA e-Invoice** and confirm:
+   - **Enable** is ON
+   - **VAT Registration Number** is set
+   - **Sandbox** is ON for testing (default)
+   - Optional: CR number, Device/EGS ID, CSID token (write-only)
+3. Click **Test Connection** to verify the sandbox endpoint is reachable (`ZATCA_SANDBOX_URL` env overrides the default Fatoora developer URL).
+
+### Submit an invoice
+
+Open any sales invoice → **Submit to ZATCA**. The badge shows `cleared` (B2B with buyer VAT) or `reported` (simplified / B2C). UUID, hash, and Phase-1 TLV QR are stored on the invoice. Every attempt is logged under **System → ZATCA Logs** (`/zatca/logs`).
+
+---
+
 ## 29. MODULES & THE APPS PAGE
 
 Easy-Books uses an installable module system — similar to Odoo — so every tenant only sees the features they actually need.
@@ -1615,6 +1636,8 @@ A module is a bundle of related features and sidebar sections. The six modules a
 | **HRM & Payroll** | Employees, salary structures, payroll runs, attendance register | No |
 | **Telecom Franchise** | Full telecom module: trackers, RSOs, MSR, MFS, FCA workflow | No — requires Inventory |
 | **PRA e-Invoice** | PRA e-invoice submission, fiscal invoice numbers, submission logs | No |
+| **Saudi ZATCA e-Invoice** | KSA Phase 2 sandbox clear/report, TLV QR, submission logs | No |
+| **UAE VAT e-Invoice** | UAE 5% VAT codes, CoA leaves, FTA sandbox stub | No |
 
 ### 29.2 The Apps page
 

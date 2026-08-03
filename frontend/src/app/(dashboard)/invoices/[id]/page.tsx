@@ -73,6 +73,12 @@ interface Invoice {
   pra_fiscal_number: string | null
   pra_usin: string | null
   pra_submitted_at: string | null
+  // ZATCA e-Invoice (#264)
+  zatca_status: string | null
+  zatca_uuid: string | null
+  zatca_hash: string | null
+  zatca_qr: string | null
+  zatca_submitted_at: string | null
   allocation_audit?: {
     method: string
     transaction_price: number
@@ -94,6 +100,24 @@ const PRA_STATUS_LABEL: Record<string, string> = {
   failed:    "PRA Failed",
 }
 
+const ZATCA_STATUS_TONE: Record<string, string> = {
+  pending:   "bg-amber-50 text-amber-800 border-amber-300",
+  submitted: "bg-blue-50 text-blue-800 border-blue-300",
+  cleared:   "bg-emerald-50 text-emerald-800 border-emerald-300",
+  reported:  "bg-emerald-50 text-emerald-800 border-emerald-300",
+  rejected:  "bg-red-50 text-red-800 border-red-300",
+  error:     "bg-red-50 text-red-800 border-red-300",
+}
+
+const ZATCA_STATUS_LABEL: Record<string, string> = {
+  pending:   "ZATCA Pending",
+  submitted: "ZATCA Submitted",
+  cleared:   "ZATCA Cleared",
+  reported:  "ZATCA Reported",
+  rejected:  "ZATCA Rejected",
+  error:     "ZATCA Error",
+}
+
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { confirm, toast } = useMessages()
   const { t } = useTranslation()
@@ -110,8 +134,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [uaeSubmitting, setUaeSubmitting] = useState(false)
   const [uaeUuid, setUaeUuid] = useState<string | null>(null)
   const [uaeMsg, setUaeMsg] = useState<string | null>(null)
+  const [zatcaSubmitting, setZatcaSubmitting] = useState(false)
   const { installedModules } = useModules()
   const uaeInstalled = installedModules.has("uae_vat")
+  const zatcaInstalled = installedModules.has("sa_zatca")
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
   const [disputes, setDisputes] = useState<PortalDispute[]>([])
@@ -409,6 +435,57 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">FTA: {uaeUuid}</div>
               )}
               {uaeMsg && <div className="text-[10px] text-red-600">{uaeMsg}</div>}
+            </div>
+          )}
+          {zatcaInstalled && (
+            <div className="flex flex-col items-end gap-1">
+              {inv.zatca_status && (
+                <span className={`inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold ${ZATCA_STATUS_TONE[inv.zatca_status] ?? ""}`}>
+                  {ZATCA_STATUS_LABEL[inv.zatca_status] ?? inv.zatca_status}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  setZatcaSubmitting(true)
+                  setError(null)
+                  try {
+                    const r = await apiFetch<{
+                      success: boolean
+                      zatca_status?: string
+                      zatca_uuid?: string
+                      zatca_hash?: string
+                      zatca_qr?: string
+                      error_message?: string
+                    }>(`/api/zatca/invoices/${inv.id}/submit`, { method: "POST" })
+                    setInv(prev => prev ? {
+                      ...prev,
+                      zatca_status: r.zatca_status ?? prev.zatca_status,
+                      zatca_uuid: r.zatca_uuid ?? prev.zatca_uuid,
+                      zatca_hash: r.zatca_hash ?? prev.zatca_hash,
+                      zatca_qr: r.zatca_qr ?? prev.zatca_qr,
+                    } : prev)
+                    if (!r.success && r.error_message) {
+                      setError(r.error_message)
+                    }
+                  } catch (e: unknown) {
+                    setError(String((e as Error).message ?? e))
+                  } finally {
+                    setZatcaSubmitting(false)
+                  }
+                }}
+                disabled={zatcaSubmitting}
+                className="text-[10px] font-semibold text-[var(--text-link)] hover:underline disabled:opacity-50 text-left"
+              >
+                {zatcaSubmitting
+                  ? "Submitting…"
+                  : inv.zatca_status && ["cleared", "reported"].includes(inv.zatca_status)
+                    ? "Re-submit to ZATCA"
+                    : "Submit to ZATCA"}
+              </button>
+              {inv.zatca_uuid && (
+                <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">UUID: {inv.zatca_uuid}</div>
+              )}
             </div>
           )}
         </div>

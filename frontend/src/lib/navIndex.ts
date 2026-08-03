@@ -116,6 +116,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/settings":               ["preferences", "configuration", "company settings"],
   "/apps":                   ["add-ons", "modules", "install module", "extensions"],
   "/pra-logs":               ["pra logs", "fiscal submission", "einvoice log"],
+  "/zatca/logs":             ["zatca logs", "fatoora", "saudi einvoice", "ksa"],
   "/hrm":                    ["payroll hub", "hr overview"],
   "/payroll":                ["payroll runs", "salary run", "payslip"],
   "/employees":              ["staff", "hr master", "employee list"],
@@ -724,6 +725,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:pra-logs", type: "report", label: "PRA Submission Logs",
     sub: "Fiscal submission attempts", href: "/pra-logs",
     keywords: ["pra logs", "submission log", "fiscal log", "output"],
+  },
+  {
+    id: "rpt:zatca-logs", type: "report", label: "ZATCA Submission Logs",
+    sub: "Saudi Fatoora clear/report attempts", href: "/zatca/logs",
+    keywords: ["zatca", "fatoora", "saudi", "einvoice log", "ksa", "output"],
   },
   {
     id: "sys:settings", type: "nav", label: "Settings",
