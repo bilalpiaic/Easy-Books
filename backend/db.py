@@ -95,6 +95,7 @@ def create_db_and_tables():
                 ("demo.telecom@easy-books.app", "telecom_franchise", "Demo - Telecom Franchise", "Demo User"),
                 ("demo.pra@easy-books.app", "trader", "Lahore Retail Traders (PRA Demo)", "Demo User"),
                 ("demo.hospital@easy-books.app", "hospital", "City General Hospital (Demo)", "Demo User"),
+                ("demo.spinning@easy-books.app", "yarn_spinning", "Demo - Yarn Spinning Mill", "Demo User"),
             ]
             demo_password_hash = get_password_hash("demo1234")
             created = 0
@@ -355,6 +356,23 @@ _COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool, str]] = [
 ]
 
 
+# Yarn Spinning CoA — stage WIP sub-accounts + waste + FG yarn
+_COA_YARN_SPINNING_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    ("1200", "Raw Cotton / Fiber Inventory", "Asset",     False, "11"),
+    ("1201", "WIP — Opening & Carding",      "Asset",     False, "11"),
+    ("1202", "WIP — Drawing & Roving",       "Asset",     False, "11"),
+    ("1203", "WIP — Ring Spinning",          "Asset",     False, "11"),
+    ("1204", "Finished Yarn Inventory",      "Asset",     False, "11"),
+    ("1250", "GST Receivable (Input)",       "Asset",     False, "11"),
+    ("5010", "Cost of Goods Sold",           "Expense",   False, "51"),
+    ("5100", "Direct Labour",                "Expense",   False, "51"),
+    ("5200", "Manufacturing Overhead",       "Expense",   False, "51"),
+    ("5901", "Hard Waste / Flat Strips",     "Expense",   False, "59"),
+    ("5902", "Soft Waste / Noil",            "Expense",   False, "59"),
+    ("5903", "Pneumafil / Dust Waste",       "Expense",   False, "59"),
+    ("5904", "Moisture / Conditioning Loss", "Expense",   False, "59"),
+]
+
 # Healthcare CoA — patient AR, deposit liability, multi-stream revenue, supply expenses
 _COA_HEALTHCARE_EXTRA: list[tuple[str, str, str, bool, str]] = [
     # Assets
@@ -396,6 +414,7 @@ def _coa_for(business_model: str):
         "manufacturing":     _COA_MANUFACTURING_EXTRA,
         "telecom_franchise": _COA_TELECOM_FRANCHISE_EXTRA,
         "hospital":          _COA_HEALTHCARE_EXTRA,
+        "yarn_spinning":     _COA_YARN_SPINNING_EXTRA,
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
@@ -570,6 +589,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Weaving"],
     },
+    "spinning": {
+        "label":       "Yarn Spinning",
+        "description": "Spinning mill production: cotton receipt, multi-stage lot tracking, cone output, waste, and full GL costing.",
+        "category":    "Industry",
+        "icon":        "CircleDot",
+        "deps":        ["base", "inventory", "purchase_store"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Spinning"],
+    },
 }
 
 # Maps legacy business_model → sensible default module set.
@@ -583,6 +613,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "telecom_franchise": ["base", "inventory", "telecom"],
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],
+    "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning"],
 }
 
 
@@ -720,6 +751,24 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                     s.add(StockLocation(
                         tenant_id=tenant_id, code=code, name=name, type=ltype,
                     ))
+        if model == "yarn_spinning":
+            for code, name, ltype in (
+                ("RAW",      "Raw Cotton Store", "own"),
+                ("WIP-CARD", "WIP Carding",      "wip"),
+                ("WIP-DRAW", "WIP Drawing",      "wip"),
+                ("WIP-SPIN", "WIP Spinning",       "wip"),
+                ("FG-YARN",  "Finished Yarn",      "own"),
+            ):
+                exists = s.exec(
+                    select(StockLocation).where(
+                        StockLocation.tenant_id == tenant_id,
+                        StockLocation.code == code,
+                    )
+                ).first()
+                if not exists:
+                    s.add(StockLocation(
+                        tenant_id=tenant_id, code=code, name=name, type=ltype,
+                    ))
         # Seed default payment terms for every tenant
         for code, name, days in (
             ("DOR",   "Due on Receipt",  0),
@@ -748,6 +797,8 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                                   "Devices": ["Handsets", "Accessories"]},
             "hospital":          {"Pharmacy": ["Medicines", "Consumables"],
                                   "Services": ["OPD", "Lab", "IPD"]},
+            "yarn_spinning":     {"Raw Fiber": ["Cotton Bales", "Synthetic"],
+                                  "Finished Yarn": ["Carded", "Combed", "Blended"]},
         }
         if not s.exec(select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)).first():
             for parent_name, subs in STARTER_CATEGORIES.get(model, {}).items():

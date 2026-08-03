@@ -112,6 +112,16 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "weaving.dispatch":       {"label": "Weaving Dispatch",      "category": "Weaving"},
     "weaving.calculators":    {"label": "Weaving Calculators",   "category": "Weaving"},
     "weaving.reports":        {"label": "Weaving Reports",       "category": "Weaving"},
+    "spinning.setup":         {"label": "Spinning Setup",        "category": "Spinning"},
+    "spinning.plans":         {"label": "Production Plans",      "category": "Spinning"},
+    "spinning.lots":          {"label": "Spin Lots",             "category": "Spinning"},
+    "spinning.bale_receipt":  {"label": "Bale Receipt",          "category": "Spinning"},
+    "spinning.stages":        {"label": "Stage Entries",         "category": "Spinning"},
+    "spinning.cone_output":   {"label": "Cone Output",           "category": "Spinning"},
+    "spinning.waste":         {"label": "Waste Log",             "category": "Spinning"},
+    "spinning.dispatch":      {"label": "Yarn Dispatch",         "category": "Spinning"},
+    "spinning.calculators":   {"label": "Spinning Calculators",  "category": "Spinning"},
+    "spinning.reports":       {"label": "Spinning Reports",      "category": "Spinning"},
 }
 
 # Role defaults: owner/admin/accountant → edit, viewer → view

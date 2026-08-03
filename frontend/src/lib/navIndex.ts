@@ -150,6 +150,20 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/weaving/reports/contract-control": ["contract control", "yarn balance", "progress"],
   "/weaving/reports/customer-kpi": ["weaving kpi", "customer weaving"],
   "/weaving/dashboard":      ["weaving dashboard", "weaving kpis"],
+  "/spinning":               ["spinning hub", "yarn spinning", "spin mill"],
+  "/spinning/setup":         ["yarn spec", "fiber grade", "spinning machine", "waste type"],
+  "/spinning/plans":         ["production plan", "spinning plan"],
+  "/spinning/lots":          ["spin lot", "spinning lot"],
+  "/spinning/bale-receipts": ["bale receipt", "cotton bale", "fiber receipt"],
+  "/spinning/stages":        ["stage entry", "carding", "drawing", "roving", "winding"],
+  "/spinning/cone-output":   ["cone output", "yarn cones"],
+  "/spinning/waste":         ["waste log", "spinning waste"],
+  "/spinning/dispatch":      ["yarn dispatch", "cone dispatch"],
+  "/spinning/calculators/yield": ["yield calculator", "spinning yield"],
+  "/spinning/reports/daily": ["spinning daily", "daily register"],
+  "/spinning/reports/lot-control": ["lot control", "spin lot progress"],
+  "/spinning/reports/waste": ["waste analysis", "spinning waste report"],
+  "/spinning/dashboard":     ["spinning dashboard", "spinning kpis"],
 }
 
 // ── 1. Sidebar pages ──────────────────────────────────────────────────────────
@@ -419,6 +433,41 @@ const ACTIONS: NavResult[] = [
     id: "qa:wv-calc-sizing", type: "action", label: "Sizing Calculator",
     sub: "Pickup / stretch / waste → assign", href: "/weaving/calculators/sizing",
     keywords: ["sizing calc", "pickup calculator"],
+  },
+  {
+    id: "qa:sp-setup", type: "action", label: "Spinning Setup",
+    sub: "Yarn specs, machines, shifts, waste types", href: "/spinning/setup",
+    keywords: ["spinning setup", "yarn spec", "fiber grade", "machine"],
+  },
+  {
+    id: "qa:sp-bale", type: "action", label: "Bale Receipt",
+    sub: "Record cotton/fiber bale inward", href: "/spinning/bale-receipts",
+    keywords: ["bale receipt form", "cotton bale", "fiber inward"],
+  },
+  {
+    id: "qa:sp-stage", type: "action", label: "Stage Entry",
+    sub: "Record spinning stage output", href: "/spinning/stages",
+    keywords: ["stage entry form", "carding", "drawing", "roving"],
+  },
+  {
+    id: "qa:sp-cone", type: "action", label: "Cone Output",
+    sub: "Record finished cone output", href: "/spinning/cone-output",
+    keywords: ["cone output form", "yarn cones"],
+  },
+  {
+    id: "qa:sp-waste", type: "action", label: "Waste Log",
+    sub: "Record stage waste", href: "/spinning/waste",
+    keywords: ["waste log form", "spinning waste"],
+  },
+  {
+    id: "qa:sp-dispatch", type: "action", label: "Yarn Dispatch",
+    sub: "Dispatch cones to customer", href: "/spinning/dispatch",
+    keywords: ["yarn dispatch form", "cone dispatch"],
+  },
+  {
+    id: "qa:sp-calc-yield", type: "action", label: "Yield Calculator",
+    sub: "Input/output kg yield calc", href: "/spinning/calculators/yield",
+    keywords: ["yield calc", "spinning yield", "what if"],
   },
   {
     id: "qa:hc-patients", type: "action", label: "Patients",
@@ -734,6 +783,26 @@ const REPORTS: NavResult[] = [
     id: "rpt:wv-dash", type: "report", label: "Weaving Dashboard",
     sub: "Unit KPIs and monthly trend", href: "/weaving/dashboard",
     keywords: ["weaving dashboard", "weaving kpis", "analysis", "output"],
+  },
+  {
+    id: "rpt:sp-daily", type: "report", label: "Spinning Daily Register",
+    sub: "Stage entries by date", href: "/spinning/reports/daily",
+    keywords: ["spinning daily", "daily register", "stage register", "analysis", "output"],
+  },
+  {
+    id: "rpt:sp-lot-control", type: "report", label: "Lot Control Panel",
+    sub: "Per-lot bale/cone/yield progress", href: "/spinning/reports/lot-control",
+    keywords: ["lot control", "spin lot progress", "analysis", "output"],
+  },
+  {
+    id: "rpt:sp-waste", type: "report", label: "Waste Analysis",
+    sub: "Waste by type and stage", href: "/spinning/reports/waste",
+    keywords: ["waste analysis", "spinning waste report", "analysis", "output"],
+  },
+  {
+    id: "rpt:sp-dash", type: "report", label: "Spinning Dashboard",
+    sub: "Unit KPIs and WIP by stage", href: "/spinning/dashboard",
+    keywords: ["spinning dashboard", "spinning kpis", "analysis", "output"],
   },
   {
     id: "rpt:pra-dash", type: "report", label: "PRA Sales Dashboard",

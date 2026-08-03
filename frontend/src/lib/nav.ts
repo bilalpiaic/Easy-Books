@@ -10,7 +10,7 @@ import {
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
-  AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe,
+  AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
 } from "lucide-react"
 
 export type NavItem = {
@@ -19,7 +19,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning"
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -180,12 +180,27 @@ export const NAV: NavItem[] = [
   { label: "Contract Control",  href: "/weaving/reports/contract-control", icon: ClipboardList, section: "Weaving", forModule: "weaving" },
   { label: "Customer KPI",      href: "/weaving/reports/customer-kpi", icon: PieChart, section: "Weaving", forModule: "weaving" },
   { label: "Weaving Dashboard", href: "/weaving/dashboard",       icon: LayoutDashboard, section: "Weaving", forModule: "weaving" },
+  // Spinning
+  { label: "Spinning Overview", href: "/spinning",                     icon: CircleDot,       section: "Spinning", forModule: "spinning" },
+  { label: "Spinning Setup",    href: "/spinning/setup",               icon: Settings2,       section: "Spinning", forModule: "spinning" },
+  { label: "Production Plans",  href: "/spinning/plans",               icon: ClipboardList,   section: "Spinning", forModule: "spinning" },
+  { label: "Spin Lots",         href: "/spinning/lots",                icon: Factory,         section: "Spinning", forModule: "spinning" },
+  { label: "Bale Receipts",     href: "/spinning/bale-receipts",       icon: PackagePlus,     section: "Spinning", forModule: "spinning" },
+  { label: "Stage Entries",     href: "/spinning/stages",              icon: Activity,        section: "Spinning", forModule: "spinning" },
+  { label: "Cone Output",       href: "/spinning/cone-output",         icon: Package,         section: "Spinning", forModule: "spinning" },
+  { label: "Waste Logs",        href: "/spinning/waste",               icon: AlertTriangle,   section: "Spinning", forModule: "spinning" },
+  { label: "Yarn Dispatch",     href: "/spinning/dispatch",            icon: Truck,           section: "Spinning", forModule: "spinning" },
+  { label: "Yield Calculator",  href: "/spinning/calculators/yield",   icon: Calculator,      section: "Spinning", forModule: "spinning" },
+  { label: "Daily Register",    href: "/spinning/reports/daily",       icon: Activity,        section: "Spinning", forModule: "spinning" },
+  { label: "Lot Control",       href: "/spinning/reports/lot-control", icon: ClipboardList,   section: "Spinning", forModule: "spinning" },
+  { label: "Waste Analysis",    href: "/spinning/reports/waste",       icon: PieChart,        section: "Spinning", forModule: "spinning" },
+  { label: "Spinning Dashboard", href: "/spinning/dashboard",          icon: LayoutDashboard, section: "Spinning", forModule: "spinning" },
 ]
 
 export const ALL_SECTIONS = [
   "Overview", "Ledger", "Reports", "Banking", "Receivable", "Payable", "Purchases",
   "Store", "Manufacturing", "Inventory", "Payroll",
-  "Healthcare", "Telecom", "Weaving", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
+  "Healthcare", "Telecom", "Weaving", "Spinning", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
   "System",
 ]
 
@@ -218,7 +233,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "spinning"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -236,6 +251,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
   { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
+  { key: "spinning",      label: "Spinning",      forModule: "spinning"    },
   { key: "pra",           label: "PRA e-Invoice", shortLabel: "PRA", forModule: "pra" },
   { key: "uae",           label: "UAE VAT",       shortLabel: "UAE", forModule: "uae_vat" },
   { key: "zatca",         label: "ZATCA",         shortLabel: "ZATCA", forModule: "sa_zatca" },
@@ -262,6 +278,7 @@ export const NAV_SECTION_ORDER: string[] = [
   "healthcare",
   "telecom",
   "weaving",
+  "spinning",
   "pra",
   "uae",
   "zatca",
@@ -296,6 +313,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
   weaving:       ["/weaving"],
+  spinning:      ["/spinning"],
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
@@ -339,6 +357,7 @@ export function getSectionHref(key: string): string {
     payroll:       "/hrm",
     healthcare:    "/healthcare",
     weaving:       "/weaving",
+    spinning:      "/spinning",
     manufacturing: "/manufacturing",
     telecom:       "/telecom",
     pra:           "/pra-dashboard",
@@ -472,6 +491,22 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Contract Control", href: "/weaving/reports/contract-control", icon: ClipboardList, section: "weaving", forModule: "weaving" },
     { label: "Customer KPI",     href: "/weaving/reports/customer-kpi", icon: PieChart, section: "weaving", forModule: "weaving" },
     { label: "Dashboard",        href: "/weaving/dashboard",    icon: LayoutDashboard, section: "weaving", forModule: "weaving" },
+  ],
+  spinning: [
+    { label: "Overview",         href: "/spinning",                     icon: CircleDot,       section: "spinning", forModule: "spinning" },
+    { label: "Setup",            href: "/spinning/setup",               icon: Settings2,       section: "spinning", forModule: "spinning" },
+    { label: "Production Plans", href: "/spinning/plans",               icon: ClipboardList,   section: "spinning", forModule: "spinning" },
+    { label: "Spin Lots",        href: "/spinning/lots",                icon: Factory,         section: "spinning", forModule: "spinning" },
+    { label: "Bale Receipts",    href: "/spinning/bale-receipts",       icon: PackagePlus,     section: "spinning", forModule: "spinning" },
+    { label: "Stage Entries",    href: "/spinning/stages",              icon: Activity,        section: "spinning", forModule: "spinning" },
+    { label: "Cone Output",      href: "/spinning/cone-output",         icon: Package,         section: "spinning", forModule: "spinning" },
+    { label: "Waste Logs",       href: "/spinning/waste",               icon: AlertTriangle,   section: "spinning", forModule: "spinning" },
+    { label: "Yarn Dispatch",    href: "/spinning/dispatch",            icon: Truck,           section: "spinning", forModule: "spinning" },
+    { label: "Yield Calculator", href: "/spinning/calculators/yield",   icon: Calculator,      section: "spinning", forModule: "spinning" },
+    { label: "Daily Register",   href: "/spinning/reports/daily",       icon: Activity,        section: "spinning", forModule: "spinning" },
+    { label: "Lot Control",      href: "/spinning/reports/lot-control", icon: ClipboardList,   section: "spinning", forModule: "spinning" },
+    { label: "Waste Analysis",   href: "/spinning/reports/waste",       icon: PieChart,        section: "spinning", forModule: "spinning" },
+    { label: "Dashboard",        href: "/spinning/dashboard",           icon: LayoutDashboard, section: "spinning", forModule: "spinning" },
   ],
   manufacturing: [
     { label: "Production Floor",  href: "/manufacturing",                   icon: Factory,      section: "manufacturing", forModule: "production" },

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import {
   ChevronDown, LogOut, UserCircle, LayoutGrid, Table2, Blocks, Sun, Moon, Search,
-  PlusCircle, Scale, Stethoscope, Factory, Radio, LayoutDashboard, Settings, Scissors,
+  PlusCircle, Scale, Stethoscope, Factory, Radio, LayoutDashboard, Settings, Scissors, CircleDot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCurrentUser, removeAuthToken } from "@/lib/auth"
@@ -28,6 +28,7 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: Reac
   payroll:       { href: "/hrm",            label: "Payroll Overview",    icon: LayoutGrid      },
   healthcare:    { href: "/healthcare",     label: "HC Overview",         icon: Stethoscope     },
   weaving:       { href: "/weaving",         label: "Weaving Overview",     icon: Scissors        },
+  spinning:      { href: "/spinning",        label: "Spinning Overview",    icon: CircleDot       },
   manufacturing: { href: "/manufacturing",  label: "Production Overview", icon: Factory         },
   telecom:       { href: "/telecom",        label: "Telecom Overview",    icon: Radio           },
   pra:           { href: "/pra-dashboard",  label: "PRA Dashboard",       icon: LayoutDashboard },
