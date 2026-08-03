@@ -43,7 +43,7 @@ function yearStartISO() {
 }
 
 export default function DimensionalPlPage() {
-  const { fmt } = useFmt()
+  const fmt = useFmt()
   const [start, setStart] = useState(yearStartISO())
   const [end, setEnd] = useState(todayISO())
   const [dimensions, setDimensions] = useState<AnalyticDimension[]>([])
