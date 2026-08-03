@@ -31,6 +31,8 @@ export interface BillFull {
   analytic_account_id: number | null
   currency: string
   exchange_rate: number
+  is_intercompany?: boolean
+  ic_counterparty_tenant_id?: number | null
   lines: (LineItem & { tax_code_id?: number | null })[]
 }
 
@@ -39,6 +41,7 @@ interface Account { id: number; code: string; name: string; type: string }
 interface AnalyticAccount { id: number; code: string; name: string; type: string }
 interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number }
 interface PaymentTerm { id: number; code: string; name: string; days: number }
+interface IcCounterparty { tenant_id: number; name: string; relationship: string }
 
 interface FormState {
   vendor_id: string
@@ -55,6 +58,8 @@ interface FormState {
   analytic_account_id: string
   currency: string
   exchange_rate: string
+  is_intercompany: boolean
+  ic_counterparty_tenant_id: string
 }
 
 const emptyForm: FormState = {
@@ -62,6 +67,7 @@ const emptyForm: FormState = {
   due_date: '', payment_term_id: '', description: '', notes: '', internal_memo: '', gst_rate: '17',
   ap_account_id: '', expense_account_id: '', analytic_account_id: '',
   currency: 'PKR', exchange_rate: '1',
+  is_intercompany: false, ic_counterparty_tenant_id: '',
 }
 
 interface Props {
@@ -90,6 +96,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const [fetchingRate, setFetchingRate] = useState(false)
   const [rateError, setRateError] = useState('')
   const [rateSource, setRateSource] = useState('')
+  const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
   const currencyTouched = useRef(false)
 
   // Sync default currency to tenant base once settings load (create mode only)
@@ -107,11 +114,13 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
       apiFetch<PaymentTerm[]>('/api/payment-terms'),
       apiFetch<{ total: number; items: TaxCodeOption[] }>('/api/tax-codes?limit=100'),
       apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>('/api/analytic-accounts'),
-    ]).then(([v, a, p, terms, tc, an]) => {
+      apiFetch<IcCounterparty[]>('/api/intercompany/counterparties').catch(() => [] as IcCounterparty[]),
+    ]).then(([v, a, p, terms, tc, an, cps]) => {
       setVendors(v.items); setAccounts(a.items); setProducts(p.items)
       setPaymentTerms(terms); setTaxCodes(tc.items)
       const anItems = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
       setAnalyticAccounts(anItems)
+      setIcCounterparties(Array.isArray(cps) ? cps : [])
       if (mode === 'create' && initialVendorId) {
         const vend = v.items.find((x: Vendor) => x.id === initialVendorId)
         if (vend) setForm(f => ({ ...f, vendor_id: String(vend.id), vendor_name: vend.name }))
@@ -136,6 +145,9 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
         analytic_account_id: bill.analytic_account_id ? String(bill.analytic_account_id) : '',
         currency: bill.currency ?? 'PKR',
         exchange_rate: String(bill.exchange_rate ?? 1),
+        is_intercompany: Boolean(bill.is_intercompany),
+        ic_counterparty_tenant_id: bill.ic_counterparty_tenant_id
+          ? String(bill.ic_counterparty_tenant_id) : '',
       })
       setAnalyticSlots({
         0: bill.analytic_account_id ? String(bill.analytic_account_id) : "",
@@ -228,6 +240,9 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
       ...slotsToPayload(analyticSlots),
       currency: form.currency || settings.currency,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
+      is_intercompany: form.is_intercompany,
+      ic_counterparty_tenant_id: form.is_intercompany && form.ic_counterparty_tenant_id
+        ? parseInt(form.ic_counterparty_tenant_id) : null,
     }
     try {
       if (mode === 'edit' && bill) {
@@ -268,6 +283,40 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
+        {icCounterparties.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-page)] border border-[var(--border)]">
+            <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+              <input
+                type="checkbox"
+                checked={form.is_intercompany}
+                onChange={e => setForm(p => ({
+                  ...p,
+                  is_intercompany: e.target.checked,
+                  ic_counterparty_tenant_id: e.target.checked ? p.ic_counterparty_tenant_id : '',
+                }))}
+                className="rounded border-[var(--border)]"
+              />
+              Intercompany bill
+            </label>
+            {form.is_intercompany && (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+                  IC Counterparty
+                </label>
+                <select
+                  value={form.ic_counterparty_tenant_id}
+                  onChange={e => setForm(p => ({ ...p, ic_counterparty_tenant_id: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
+                >
+                  <option value="">— Select entity —</option>
+                  {icCounterparties.map(c => (
+                    <option key={c.tenant_id} value={c.tenant_id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Bill Date</label>

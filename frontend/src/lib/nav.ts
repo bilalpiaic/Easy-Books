@@ -10,7 +10,7 @@ import {
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
-  AlertTriangle, KeyRound, FileSpreadsheet,
+  AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows,
 } from "lucide-react"
 
 export type NavItem = {
@@ -108,6 +108,7 @@ export const NAV: NavItem[] = [
   { label: "Dimensional P&L",  href: "/reports/dimensional-pl", icon: Layers,      section: "Reports" },
   { label: "Balance Sheet",    href: "/balance",           icon: PieChart,         section: "Reports" },
   { label: "Consolidation",    href: "/consolidation",     icon: Network,          section: "Reports" },
+  { label: "IC Reconciliation", href: "/intercompany/recon", icon: GitCompareArrows, section: "Reports" },
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
   { label: "Tax Return",       href: "/tax-return",        icon: Percent,          section: "Reports" },
@@ -232,8 +233,8 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
-  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/contract-balances", "/assets", "/leases"],
-  reports:       ["/trial-balance", "/pl", "/reports/dimensional-pl", "/balance", "/consolidation", "/cashflow", "/tax", "/tax-return", "/budgets", "/customer-performance"],
+  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/contract-balances", "/assets", "/leases", "/intercompany"],
+  reports:       ["/trial-balance", "/pl", "/reports/dimensional-pl", "/balance", "/consolidation", "/intercompany", "/cashflow", "/tax", "/tax-return", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
@@ -345,6 +346,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Fixed Assets",      href: "/assets",            icon: Building2,       section: "accounting" },
     { label: "Asset Rollforward", href: "/assets/rollforward", icon: Table2,         section: "accounting" },
     { label: "Leases",            href: "/leases",            icon: KeyRound,        section: "accounting" },
+    { label: "IC Reconciliation", href: "/intercompany/recon", icon: GitCompareArrows, section: "accounting" },
   ],
   reports: [
     // Financial Statements
@@ -353,6 +355,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Dimensional P&L",  href: "/reports/dimensional-pl", icon: Layers,   section: "reports" },
     { label: "Balance Sheet",    href: "/balance",              icon: PieChart,   section: "reports" },
     { label: "Consolidation",    href: "/consolidation",        icon: Network,    section: "reports" },
+    { label: "IC Reconciliation", href: "/intercompany/recon",  icon: GitCompareArrows, section: "reports" },
     { label: "Cash Flow",        href: "/cashflow",             icon: FileText,   section: "reports" },
     // Management Reports
     { label: "Tax Reports",      href: "/tax",                  icon: Percent,    section: "reports" },

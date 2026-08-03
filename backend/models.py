@@ -593,6 +593,11 @@ class Invoice(SQLModel, table=True):
     buyer_cnic: Optional[str] = None  # walk-in CNIC override (takes priority over customer.cnic)
     # Approval workflow (#123) — null means no workflow engaged / legacy docs
     approval_status: Optional[str] = Field(default=None, index=True)
+    # Intercompany (#261) — flag + sister-entity link; mirror bill id on counterparty
+    # Mirror ids are plain ints (no DB FK) to avoid Invoice↔Bill circular FKs.
+    is_intercompany: bool = Field(default=False, index=True)
+    ic_counterparty_tenant_id: Optional[int] = Field(default=None, index=True)
+    ic_mirror_bill_id: Optional[int] = Field(default=None)
 
 
 class Bill(SQLModel, table=True):
@@ -623,6 +628,10 @@ class Bill(SQLModel, table=True):
     analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     approval_status: Optional[str] = Field(default=None, index=True)  # #123
+    # Intercompany (#261) — mirror invoice id is a plain int (no circular FK)
+    is_intercompany: bool = Field(default=False, index=True)
+    ic_counterparty_tenant_id: Optional[int] = Field(default=None, index=True)
+    ic_mirror_invoice_id: Optional[int] = Field(default=None)
 
 
 class PaymentReceived(SQLModel, table=True):

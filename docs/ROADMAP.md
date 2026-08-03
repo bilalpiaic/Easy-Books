@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-08-04 (against `main` + #260 analytic dimensions)._
+_Last reviewed: 2026-08-04 (against `main` + #261 intercompany)._
 
 ## Status summary
 
@@ -17,7 +17,7 @@ IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 | **#258** | Fixed assets depth — IAS 16/36 | Shipped |
 | **#259** | IFRS 15 remaining — multi-element + contract assets | Shipped |
 | **#260** | Analytic dimensions on all JE lines + dimensional P&L | Shipped |
-| **#261** | Intercompany + IC reconciliation | Open |
+| **#261** | Intercompany + IC reconciliation | Shipped |
 | **#262** | Month-end close checklist + auditor export pack | Shipped |
 
 ### B — Country tax packs
@@ -52,6 +52,7 @@ Many items from the old v4 Cloud Launch list (#114–#125, #140) have landed und
 | Feature | Detail |
 |---------|--------|
 | **Consolidation (#255)** | Holding entity graph, worksheet propose/post, IC/NCI elims, `/consolidation` |
+| **Intercompany (#261)** | IC flag on invoice/bill, auto mirror draft, recon report `/intercompany/recon` |
 | **IFRS 16 leases (#256)** | RoU + liability schedule, period post, maturity disclosure, `/leases` |
 | **Inventory depth (#257)** | Landed cost, lot/serial, NRV valuation UI |
 | **Close / audit pack (#262)** | Period checklist + auditor ZIP |

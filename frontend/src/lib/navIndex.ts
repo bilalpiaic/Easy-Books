@@ -511,6 +511,11 @@ const REPORTS: NavResult[] = [
     keywords: ["consolidation", "ifrs 10", "group", "subsidiary", "nci", "eliminations", "holding"],
   },
   {
+    id: "rpt:ic-recon", type: "report", label: "IC Reconciliation",
+    sub: "Intercompany AR vs AP by group pair", href: "/intercompany/recon",
+    keywords: ["intercompany", "ic", "reconciliation", "affiliates", "due from", "due to"],
+  },
+  {
     id: "rpt:cash-flow", type: "report", label: "Cash Flow Statement",
     sub: "Cash in & out by activity", href: "/cashflow",
     keywords: ["cash flow", "funds flow", "liquidity", "cash statement", "output"],
