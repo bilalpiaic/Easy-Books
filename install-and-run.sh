@@ -64,7 +64,13 @@ log "Installing backend dependencies…"
 # install them once; Docker images bake them into backend/Dockerfile.
 if [ "$(uname -s)" = "Linux" ]; then
   if ! ( cd backend && uv run python -c "from weasyprint import HTML" >/dev/null 2>&1 ); then
-    WEASY_PKGS="libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi8 shared-mime-info fonts-dejavu-core"
+    # libffi8 = bookworm/trixie+; bullseye still ships libffi7
+    WEASY_PKGS="libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 shared-mime-info fonts-dejavu-core"
+    if apt-cache show libffi8 >/dev/null 2>&1; then
+      WEASY_PKGS="$WEASY_PKGS libffi8"
+    else
+      WEASY_PKGS="$WEASY_PKGS libffi7"
+    fi
     if command -v apt-get >/dev/null 2>&1; then
       log "Installing WeasyPrint system libraries (Pango/Cairo)…"
       if [ "$(id -u)" -eq 0 ]; then
@@ -139,15 +145,15 @@ if [ "${1:-}" = "--rebuild" ] || [ ! -f frontend/.next/standalone/server.js ] \
     NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000}" \
     npx next build
   )
-  # Write version.json so the running server can self-report its build identity.
-  # UpdateModal fetches /version.json to detect when update.sh has already
-  # rebuilt the server (commit differs from the page's baked-in GIT_COMMIT).
-  printf '{"version":"%s","commit":"%s","built":"%s"}\n' \
-    "$APP_VERSION" "${HEAD_COMMIT:-dev}" "$BUILD_DATE" \
-    > frontend/public/version.json
   # Next 'standalone' does not copy these — required for the server to serve them.
   cp -r frontend/.next/static  frontend/.next/standalone/.next/static
   cp -r frontend/public        frontend/.next/standalone/public
+  # Write version.json ONLY into the standalone tree. Writing into
+  # frontend/public/ dirties a tracked file and blocks the next
+  # `git pull --ff-only` in update.sh (common Debian/script-install failure).
+  printf '{"version":"%s","commit":"%s","built":"%s"}\n' \
+    "$APP_VERSION" "${HEAD_COMMIT:-dev}" "$BUILD_DATE" \
+    > frontend/.next/standalone/public/version.json
   [ -n "$HEAD_COMMIT" ] && echo "$HEAD_COMMIT" > frontend/.next/.built-commit
 fi
 
@@ -160,9 +166,24 @@ mkdir -p "$EB_DATA_DIR"
 
 # Free ports from any previous run so the fresh backend binds — and so no stale
 # process holds the SQLite file lock when we migrate next.
+# Debian minimal often lacks `lsof`; fall back to `fuser` / `ss` (iproute2).
+free_port() {
+  local port="$1"
+  local pids=""
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -ti "tcp:${port}" 2>/dev/null || true)"
+  elif command -v fuser >/dev/null 2>&1; then
+    fuser -k "${port}/tcp" >/dev/null 2>&1 || true
+    return 0
+  elif command -v ss >/dev/null 2>&1; then
+    pids="$(ss -lptn "sport = :${port}" 2>/dev/null \
+      | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u | tr '\n' ' ')"
+  fi
+  # shellcheck disable=SC2086
+  [ -n "${pids:-}" ] && kill $pids 2>/dev/null || true
+}
 for port in 8000 3000; do
-  pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
-  [ -n "$pids" ] && kill $pids 2>/dev/null || true
+  free_port "$port"
 done
 
 # Migrate the user's DB forward so updates apply new columns (not just tables).
