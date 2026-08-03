@@ -19,7 +19,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -111,6 +111,7 @@ export const NAV: NavItem[] = [
   { label: "IC Reconciliation", href: "/intercompany/recon", icon: GitCompareArrows, section: "Reports" },
   { label: "Cash Flow",        href: "/cashflow",          icon: FileText,         section: "Reports" },
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
+  { label: "GSTR Report",      href: "/india-gst/gstr",    icon: FileSpreadsheet,  section: "Reports",  forModule: "in_gst" },
   { label: "Tax Return",       href: "/tax-return",        icon: Percent,          section: "Reports" },
   { label: "Tax Codes",        href: "/tax-codes",         icon: Percent,          section: "Reports" },
   { label: "Budget vs Actual", href: "/budgets",           icon: TrendingUp,       section: "Reports" },
@@ -204,7 +205,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -235,7 +236,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/contract-balances", "/assets", "/leases", "/intercompany"],
-  reports:       ["/trial-balance", "/pl", "/reports/dimensional-pl", "/balance", "/consolidation", "/intercompany", "/cashflow", "/tax", "/tax-return", "/budgets", "/customer-performance"],
+  reports:       ["/trial-balance", "/pl", "/reports/dimensional-pl", "/balance", "/consolidation", "/intercompany", "/cashflow", "/tax", "/india-gst", "/tax-return", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
@@ -360,6 +361,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Cash Flow",        href: "/cashflow",             icon: FileText,   section: "reports" },
     // Management Reports
     { label: "Tax Reports",      href: "/tax",                  icon: Percent,    section: "reports" },
+    { label: "GSTR Report",      href: "/india-gst/gstr",       icon: FileSpreadsheet, section: "reports", forModule: "in_gst" },
     { label: "Tax Return",       href: "/tax-return",           icon: Percent,    section: "reports" },
     { label: "Budget vs Actual", href: "/budgets",              icon: TrendingUp, section: "reports" },
     { label: "Customer Perf.",   href: "/customer-performance", icon: TrendingUp, section: "reports" },

@@ -22,6 +22,8 @@ class VendorCreate(BaseModel):
     address: Optional[str] = None
     opening_balance: Decimal = Decimal("0")
     payment_term_id: Optional[int] = None
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
 
 
 class VendorUpdate(BaseModel):
@@ -32,6 +34,8 @@ class VendorUpdate(BaseModel):
     opening_balance: Optional[Decimal] = None
     is_active: Optional[bool] = None
     payment_term_id: Optional[int] = None
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
 
 
 @router.get("")

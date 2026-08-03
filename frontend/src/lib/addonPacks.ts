@@ -58,6 +58,13 @@ export const ADDON_PACKS: AddonPack[] = [
     features: ["Phase 2 sandbox clear/report", "TLV QR payload", "Submission logs"],
   },
   {
+    id: "in_gst",
+    label: "India GST",
+    tagline: "India localization",
+    modules: ["in_gst"],
+    features: ["CGST/SGST/IGST split", "GSTIN & HSN fields", "GSTR-1 summary export"],
+  },
+  {
     id: "ai",
     label: "AI Assistant",
     tagline: "Ask your books",

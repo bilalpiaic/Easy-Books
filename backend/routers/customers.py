@@ -24,6 +24,8 @@ class CustomerCreate(BaseModel):
     payment_term_id: Optional[int] = None
     ntn: Optional[str] = None   # PRA BuyerPNTN (7-digit NTN e.g. "1234567-8")
     cnic: Optional[str] = None  # PRA BuyerCNIC (13 digits)
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
 
 
 class CustomerUpdate(BaseModel):
@@ -36,6 +38,8 @@ class CustomerUpdate(BaseModel):
     payment_term_id: Optional[int] = None
     ntn: Optional[str] = None
     cnic: Optional[str] = None
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
 
 
 @router.get("")

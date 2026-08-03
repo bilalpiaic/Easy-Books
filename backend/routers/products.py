@@ -32,6 +32,7 @@ class ProductCreate(BaseModel):
     recognition_months: int = 12
     hs_code: Optional[str] = None
     pct_code: Optional[str] = None     # PRA 8-digit product classification (PCTCode)
+    hsn_sac: Optional[str] = None      # India GST HSN/SAC (#265)
     cost_method: Optional[str] = None  # 'wavg' | 'fifo' | None (inherit from tenant)
     track_lot: bool = False
     track_serial: bool = False

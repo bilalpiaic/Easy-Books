@@ -28,6 +28,10 @@ from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
 from services.analytics import pack_analytics
 from services.tax_engine import prepare_line_taxes
+from services.india_gst import (
+    finalize_india_gst_sgst_mirror,
+    maybe_auto_apply_india_gst,
+)
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
@@ -421,6 +425,9 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         session, user.tenant_id, invoice.id, body.lines,
     )
     raw_amounts = allocated
+    india_meta = maybe_auto_apply_india_gst(
+        session, user.tenant_id, body.customer_id, body.lines
+    )
     tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
         session,
         user.tenant_id,
@@ -430,15 +437,18 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
             for amt, l in zip(raw_amounts, body.lines)
         ],
     )
+    tax_results, tax_agg, use_per_line_tax, per_gl_tax = finalize_india_gst_sgst_mirror(
+        session, user.tenant_id, india_meta, tax_results, tax_agg, use_per_line_tax
+    )
     stored_amounts = [
         (tr.net if tr is not None else amt)
         for amt, tr in zip(raw_amounts, tax_results)
     ]
     subtotal = money(sum_money(stored_amounts))
-    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
     if use_per_line_tax:
         gst_amount = tax_agg.total_tax_in_total
     else:
+        per_gl_tax = {}
         gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 
@@ -730,6 +740,9 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         session, user.tenant_id, inv.id, body.lines,
     )
     raw_amounts = allocated
+    india_meta = maybe_auto_apply_india_gst(
+        session, user.tenant_id, body.customer_id, body.lines
+    )
     tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
         session,
         user.tenant_id,
@@ -739,15 +752,18 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             for amt, l in zip(raw_amounts, body.lines)
         ],
     )
+    tax_results, tax_agg, use_per_line_tax, per_gl_tax = finalize_india_gst_sgst_mirror(
+        session, user.tenant_id, india_meta, tax_results, tax_agg, use_per_line_tax
+    )
     stored_amounts = [
         (tr.net if tr is not None else amt)
         for amt, tr in zip(raw_amounts, tax_results)
     ]
     subtotal = money(sum_money(stored_amounts))
-    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
     if use_per_line_tax:
         gst_amount = tax_agg.total_tax_in_total
     else:
+        per_gl_tax = {}
         gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
     total = money(subtotal + gst_amount)
 

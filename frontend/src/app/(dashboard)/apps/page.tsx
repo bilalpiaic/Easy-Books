@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import {
   BookOpen, Package, Factory, Users, Radio, FileCheck, CheckCircle2, Lock,
   AlertTriangle, Stethoscope, Sparkles, Scissors, ShoppingCart, LayoutGrid,
-  List, Layers, Landmark, Store, Shield, ExternalLink, FileText,
+  List, Layers, Landmark, Store, Shield, ExternalLink, FileText, MapPin,
 } from "lucide-react"
 import { useModules, type ModuleInfo } from "@/context/ModuleContext"
 import { useMessages } from "@/context/MessageContext"
@@ -15,7 +15,7 @@ import { apiFetch } from "@/lib/api"
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles,
-  Scissors, ShoppingCart, Landmark, Store, FileText,
+  Scissors, ShoppingCart, Landmark, Store, FileText, MapPin,
 }
 
 /** Allowlist of MODULE_REGISTRY categories shown on this page (sort + filter). */

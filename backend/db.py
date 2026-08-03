@@ -502,6 +502,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "addon",
         "nav_sections": ["ZATCA"],
     },
+    "in_gst": {
+        "label":       "India GST",
+        "description": "India GST country pack — CGST/SGST/IGST tax codes, place-of-supply branching, GSTIN/HSN fields, and GSTR-1 / GSTR-3B summary exports.",
+        "category":    "Localization",
+        "icon":        "MapPin",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Reports"],
+    },
     "healthcare": {
         "label":       "Healthcare",
         "description": "OPD/IPD management, lab orders & results, pharmacy store, procedure billing, ward management, and patient records for hospitals and clinics.",

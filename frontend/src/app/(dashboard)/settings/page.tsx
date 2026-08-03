@@ -1344,6 +1344,45 @@ export default function SettingsPage() {
       </section>
       )}
 
+      {/* ── India GST — once the in_gst add-on is installed ── */}
+      {installedModules.has("in_gst") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">India GST <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(CGST / SGST / IGST)</span></h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm text-[var(--text-primary)]/70">{form.in_gst_enabled !== "false" ? "Enabled" : "Disabled"}</span>
+            <div
+              onClick={() => handleChange("in_gst_enabled", form.in_gst_enabled === "false" ? "true" : "false")}
+              className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.in_gst_enabled !== "false" ? "bg-[var(--primary)]" : "bg-[var(--text-primary)]/20"}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-0.5 shadow transition-transform ${form.in_gst_enabled !== "false" ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-primary)]/50">
+          Seeds CGST 9% / SGST 9% / IGST 18% tax codes. Place of supply compares your state code with the customer&apos;s.
+          GSTR summaries are under <Link href="/india-gst/gstr" className="underline text-[var(--text-link)]">GSTR Report</Link>.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">GSTIN</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="15-character GSTIN"
+              autoComplete="off"
+              value={form.in_gstin} onChange={e => handleChange("in_gstin", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">State code (seller)</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="e.g. 27"
+              maxLength={2}
+              autoComplete="off"
+              value={form.in_state_code} onChange={e => handleChange("in_state_code", e.target.value)} />
+          </div>
+        </div>
+      </section>
+      )}
+
       {/* ── Appearance ── */}
       <AppearanceSection />
 

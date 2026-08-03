@@ -89,6 +89,10 @@ export interface AppSettings {
   zatca_device_id: string
   zatca_csid_token: string
   zatca_sandbox_mode: string
+  // India GST (#265)
+  in_gst_enabled: string
+  in_gstin: string
+  in_state_code: string
 }
 
 const defaults: AppSettings = {
@@ -156,6 +160,9 @@ const defaults: AppSettings = {
   zatca_device_id: "",
   zatca_csid_token: "",
   zatca_sandbox_mode: "true",
+  in_gst_enabled: "true",
+  in_gstin: "",
+  in_state_code: "",
 }
 
 interface SettingsContextValue {
