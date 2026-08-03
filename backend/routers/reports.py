@@ -822,6 +822,7 @@ def get_income_statement(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,
     compare_start: Optional[str] = None, compare_end: Optional[str] = None,
+    analytic_id: Optional[int] = None,
 ):
     def _leaf_rows(s, e):
         q = (
@@ -835,6 +836,12 @@ def get_income_statement(
             .where(Account.type.in_(["Revenue", "Expense"]))
             .where(Transaction.tenant_id == user.tenant_id)
         )
+        if analytic_id is not None:
+            q = q.where(
+                (JournalEntry.analytic_account_id == analytic_id)
+                | (JournalEntry.analytic_2_id == analytic_id)
+                | (JournalEntry.analytic_3_id == analytic_id)
+            )
         if s and e:
             q = q.where(Transaction.date >= s, Transaction.date <= e)
         return session.exec(q.group_by(Account.id)).all()
@@ -1640,7 +1647,7 @@ def get_analytic_pl(
     start: Optional[str] = None,
     end: Optional[str] = None,
 ):
-    """P&L filtered to a single analytic dimension (cost center / project)."""
+    """P&L filtered to a single analytic value (any dimension slot)."""
     q = (
         session.query(
             Account.name,
@@ -1653,7 +1660,11 @@ def get_analytic_pl(
         .join(Transaction, Transaction.id == JournalEntry.transaction_id)
         .filter(
             Transaction.tenant_id == user.tenant_id,
-            JournalEntry.analytic_account_id == analytic_account_id,
+            (
+                (JournalEntry.analytic_account_id == analytic_account_id)
+                | (JournalEntry.analytic_2_id == analytic_account_id)
+                | (JournalEntry.analytic_3_id == analytic_account_id)
+            ),
             Account.type.in_(["Revenue", "Expense"]),
         )
     )
@@ -1665,6 +1676,112 @@ def get_analytic_pl(
          "total_debit": r.dr, "total_credit": r.cr}
         for r in rows
     ]
+
+
+@router.get("/dimensional-pl", dependencies=[perm_dep("report.income_statement")])
+def get_dimensional_pl(
+    session: SessionDep,
+    user: CurrentUserDep,
+    dimension_id: Optional[int] = None,
+    analytic_id: Optional[int] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+):
+    """Dimensional P&L (#260).
+
+    - With `analytic_id`: P&L lines tagged with that analytic on any slot.
+    - With `dimension_id` only: breakdown by each analytic value of that dimension.
+    - With neither: one row-group per active analytic value (legacy flat).
+    """
+    from models import AnalyticAccount, AnalyticDimension
+
+    def _pl_for_analytic(aid: int) -> list[dict]:
+        q = (
+            select(
+                Account.name, Account.type, Account.code,
+                func.sum(JournalEntry.debit).label("dr"),
+                func.sum(JournalEntry.credit).label("cr"),
+            )
+            .join(JournalEntry, JournalEntry.account_id == Account.id)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .where(
+                Transaction.tenant_id == user.tenant_id,
+                (
+                    (JournalEntry.analytic_account_id == aid)
+                    | (JournalEntry.analytic_2_id == aid)
+                    | (JournalEntry.analytic_3_id == aid)
+                ),
+                Account.type.in_(["Revenue", "Expense"]),
+            )
+        )
+        if start and end:
+            q = q.where(Transaction.date >= start, Transaction.date <= end)
+        rows = session.exec(q.group_by(Account.id).order_by(Account.type.desc(), Account.code)).all()
+        out = []
+        for r in rows:
+            debit, credit = D(r.dr or 0), D(r.cr or 0)
+            amount = (credit - debit) if r.type == "Revenue" else (debit - credit)
+            out.append({
+                "name": r.name, "code": r.code, "type": r.type,
+                "total_debit": debit, "total_credit": credit, "amount": amount,
+            })
+        return out
+
+    if analytic_id is not None:
+        aa = session.exec(
+            select(AnalyticAccount).where(
+                AnalyticAccount.id == analytic_id,
+                AnalyticAccount.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not aa:
+            raise HTTPException(404, "Analytic account not found")
+        lines = _pl_for_analytic(analytic_id)
+        rev = sum((D(r["amount"]) for r in lines if r["type"] == "Revenue"), ZERO)
+        exp = sum((D(r["amount"]) for r in lines if r["type"] == "Expense"), ZERO)
+        return {
+            "mode": "analytic",
+            "analytic": {"id": aa.id, "code": aa.code, "name": aa.name},
+            "lines": lines,
+            "totals": {"revenue": rev, "expenses": exp, "net_profit": rev - exp},
+        }
+
+    aa_q = select(AnalyticAccount).where(
+        AnalyticAccount.tenant_id == user.tenant_id,
+        AnalyticAccount.is_active == True,  # noqa: E712
+    )
+    dim = None
+    if dimension_id is not None:
+        dim = session.exec(
+            select(AnalyticDimension).where(
+                AnalyticDimension.id == dimension_id,
+                AnalyticDimension.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not dim:
+            raise HTTPException(404, "Dimension not found")
+        aa_q = aa_q.where(AnalyticAccount.dimension_id == dimension_id)
+
+    accounts = session.exec(aa_q.order_by(AnalyticAccount.code)).all()
+    segments = []
+    for aa in accounts:
+        lines = _pl_for_analytic(aa.id)
+        if not lines:
+            continue
+        rev = sum((D(r["amount"]) for r in lines if r["type"] == "Revenue"), ZERO)
+        exp = sum((D(r["amount"]) for r in lines if r["type"] == "Expense"), ZERO)
+        segments.append({
+            "analytic": {"id": aa.id, "code": aa.code, "name": aa.name},
+            "lines": lines,
+            "totals": {"revenue": rev, "expenses": exp, "net_profit": rev - exp},
+        })
+    return {
+        "mode": "breakdown",
+        "dimension": (
+            {"id": dim.id, "code": dim.code, "name": dim.name} if dim else None
+        ),
+        "segments": segments,
+    }
 
 
 # ── Budget vs Actual ──────────────────────────────────────────────────────────

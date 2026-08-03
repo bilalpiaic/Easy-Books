@@ -26,6 +26,7 @@ from services.ifrs15 import (
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
+from services.analytics import pack_analytics
 from services.tax_engine import prepare_line_taxes
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
@@ -114,6 +115,9 @@ class InvoiceCreate(BaseModel):
     exchange_rate: Optional[Decimal] = None  # override; else resolved from ExchangeRate
     assigned_to_id: Optional[int] = None  # sales person (for commission tracking)
     analytic_account_id: Optional[int] = None
+    analytic_2_id: Optional[int] = None
+    analytic_3_id: Optional[int] = None
+    analytic_ids: Optional[List[int]] = None
     payment_mode: Optional[int] = None   # PRA: 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
     buyer_ntn: Optional[str] = None      # walk-in NTN override for PRA payload
     buyer_cnic: Optional[str] = None     # walk-in CNIC override for PRA payload
@@ -360,6 +364,12 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
     if not due_date:
         due_date = body.issue_date  # fallback: same day
 
+    inv_a1, inv_a2, inv_a3 = pack_analytics(
+        analytic_account_id=body.analytic_account_id,
+        analytic_2_id=body.analytic_2_id,
+        analytic_3_id=body.analytic_3_id,
+        analytic_ids=body.analytic_ids,
+    )
     invoice = Invoice(
         tenant_id=user.tenant_id,
         number=_next_invoice_number(session, user.tenant_id, prefix, inv_fmt),
@@ -382,7 +392,9 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         revenue_account_id=body.revenue_account_id,
         created_by_id=user.id,
         assigned_to_id=body.assigned_to_id,
-        analytic_account_id=body.analytic_account_id,
+        analytic_account_id=inv_a1,
+        analytic_2_id=inv_a2,
+        analytic_3_id=inv_a3,
         payment_mode=body.payment_mode,
         buyer_ntn=body.buyer_ntn,
         buyer_cnic=body.buyer_cnic,
@@ -521,25 +533,30 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         )
         revenue_net_base = money(revenue_net_base - ca_credit_base)
 
-    ana = body.analytic_account_id
-    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana, customer_id=body.customer_id)]
+    a1, a2, a3 = pack_analytics(
+        analytic_account_id=body.analytic_account_id,
+        analytic_2_id=body.analytic_2_id,
+        analytic_3_id=body.analytic_3_id,
+        analytic_ids=body.analytic_ids,
+    )
+    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3, customer_id=body.customer_id)]
     if revenue_net_base > ZERO:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     if ca_credit_base > ZERO:
         ca_acc = resolve_contract_asset_account(session, user.tenant_id)
-        entries.append(EntryInput(account_id=ca_acc.id, credit=ca_credit_base, analytic_account_id=ana, customer_id=body.customer_id))
+        entries.append(EntryInput(account_id=ca_acc.id, credit=ca_credit_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3, customer_id=body.customer_id))
     if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
-        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
 
     if use_per_line_tax and per_gl_tax:
         for gl_id, tax_amt in per_gl_tax.items():
-            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate), analytic_account_id=ana))
+            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate), analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     elif gst_amount > 0:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
 
     txn = post_transaction(
         session, user,
@@ -570,8 +587,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
             date=invoice.issue_date,
             description=f"COGS for {invoice.number}",
             entries=[
-                EntryInput(account_id=cogs_acc.id, debit=total_cogs, analytic_account_id=ana),
-                EntryInput(account_id=inv_acc.id, credit=total_cogs, analytic_account_id=ana),
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3),
             ],
             audit_entity_type="invoice",
             audit_detail={"invoice_number": invoice.number, "cogs": str(total_cogs)},
@@ -834,7 +851,15 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.ar_account_id = body.ar_account_id
     inv.revenue_account_id = body.revenue_account_id
     inv.assigned_to_id = body.assigned_to_id
-    inv.analytic_account_id = body.analytic_account_id
+    a1u, a2u, a3u = pack_analytics(
+        analytic_account_id=body.analytic_account_id,
+        analytic_2_id=body.analytic_2_id,
+        analytic_3_id=body.analytic_3_id,
+        analytic_ids=body.analytic_ids,
+    )
+    inv.analytic_account_id = a1u
+    inv.analytic_2_id = a2u
+    inv.analytic_3_id = a3u
     inv.payment_mode = body.payment_mode
     inv.buyer_ntn = body.buyer_ntn
     inv.buyer_cnic = body.buyer_cnic
@@ -927,24 +952,29 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         )
         revenue_net_base = money(revenue_net_base - ca_credit_base)
 
-    ana = body.analytic_account_id
-    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana, customer_id=inv.customer_id)]
+    a1, a2, a3 = pack_analytics(
+        analytic_account_id=body.analytic_account_id,
+        analytic_2_id=body.analytic_2_id,
+        analytic_3_id=body.analytic_3_id,
+        analytic_ids=body.analytic_ids,
+    )
+    entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3, customer_id=inv.customer_id)]
     if revenue_net_base > ZERO:
-        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     if ca_credit_base > ZERO:
         ca_acc = resolve_contract_asset_account(session, user.tenant_id)
-        entries.append(EntryInput(account_id=ca_acc.id, credit=ca_credit_base, analytic_account_id=ana, customer_id=inv.customer_id))
+        entries.append(EntryInput(account_id=ca_acc.id, credit=ca_credit_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3, customer_id=inv.customer_id))
     if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
-        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     if use_per_line_tax and per_gl_tax:
         for gl_id, tax_amt in per_gl_tax.items():
-            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate), analytic_account_id=ana))
+            entries.append(EntryInput(account_id=gl_id, credit=money(tax_amt * fx_rate), analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     elif gst_amount > ZERO:
         gst_acc = get_or_create_account(
             session, user.tenant_id, "2200", "GST Payable (Output)", "Liability"
         )
-        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=gst_acc.id, credit=gst_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
 
     txn = post_transaction(
         session, user,
@@ -978,8 +1008,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
             date=inv.issue_date,
             description=f"COGS for {inv.number} (edited)",
             entries=[
-                EntryInput(account_id=cogs_acc.id, debit=total_cogs, analytic_account_id=ana),
-                EntryInput(account_id=inv_acc.id, credit=total_cogs, analytic_account_id=ana),
+                EntryInput(account_id=cogs_acc.id, debit=total_cogs, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3),
+                EntryInput(account_id=inv_acc.id, credit=total_cogs, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3),
             ],
             audit_entity_type="invoice",
             audit_detail={"invoice_number": inv.number, "cogs": str(total_cogs)},

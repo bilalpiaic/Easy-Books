@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import { DimensionPickers, slotsToPayload, type AnalyticSlots } from '@/components/DimensionPickers'
 import { useFmt, useSettings } from '@/context/SettingsContext'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 
@@ -84,6 +85,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
+  const [analyticSlots, setAnalyticSlots] = useState<AnalyticSlots>({})
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
   const [fetchingRate, setFetchingRate] = useState(false)
   const [rateError, setRateError] = useState('')
@@ -134,6 +136,15 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
         analytic_account_id: bill.analytic_account_id ? String(bill.analytic_account_id) : '',
         currency: bill.currency ?? 'PKR',
         exchange_rate: String(bill.exchange_rate ?? 1),
+      })
+      setAnalyticSlots({
+        0: bill.analytic_account_id ? String(bill.analytic_account_id) : "",
+        1: (bill as { analytic_2_id?: number | null }).analytic_2_id
+          ? String((bill as { analytic_2_id?: number | null }).analytic_2_id)
+          : "",
+        2: (bill as { analytic_3_id?: number | null }).analytic_3_id
+          ? String((bill as { analytic_3_id?: number | null }).analytic_3_id)
+          : "",
       })
       setLines((bill.lines ?? []).map(l => ({
         product_id: l.product_id ?? undefined,
@@ -214,7 +225,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
       gst_rate: parseFloat(form.gst_rate) || 0,
       ap_account_id: form.ap_account_id ? parseInt(form.ap_account_id) : null,
       expense_account_id: form.expense_account_id ? parseInt(form.expense_account_id) : null,
-      analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
+      ...slotsToPayload(analyticSlots),
       currency: form.currency || settings.currency,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
     }
@@ -391,23 +402,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           </div>
         </div>
 
-        {analyticAccounts.length > 0 && (
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
-              Analytic Account <span className="font-normal normal-case">(optional)</span>
-            </label>
-            <select
-              value={form.analytic_account_id}
-              onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
-            >
-              <option value="">— none —</option>
-              {analyticAccounts.map(a => (
-                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         {confirmPostedEdit && (

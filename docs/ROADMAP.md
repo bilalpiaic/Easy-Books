@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-08-03 (against `main` @ merge of PR #280 / epic #254 Track A progress)._
+_Last reviewed: 2026-08-04 (against `main` + #260 analytic dimensions)._
 
 ## Status summary
 
@@ -16,7 +16,7 @@ IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 | **#257** | Inventory depth — landed cost, lot/serial, NRV | Shipped |
 | **#258** | Fixed assets depth — IAS 16/36 | Shipped |
 | **#259** | IFRS 15 remaining — multi-element + contract assets | Shipped |
-| **#260** | Analytic dimensions on all JE lines + dimensional P&L | Open |
+| **#260** | Analytic dimensions on all JE lines + dimensional P&L | Shipped |
 | **#261** | Intercompany + IC reconciliation | Open |
 | **#262** | Month-end close checklist + auditor export pack | Shipped |
 

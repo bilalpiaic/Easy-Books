@@ -87,6 +87,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/reconciliations":        ["bank recon", "reconcile", "match statement"],
   "/trial-balance":          ["tb", "trial balance"],
   "/pl":                     ["p&l", "pnl", "profit loss", "income statement"],
+  "/reports/dimensional-pl": ["dimensional", "analytic p&l", "segment p&l", "cost center p&l"],
   "/balance":                ["balance sheet", "financial position", "bs"],
   "/consolidation":          ["consolidation", "ifrs 10", "group", "subsidiary", "nci", "eliminations"],
   "/leases":                 ["leases", "ifrs 16", "right of use", "rou", "lease liability", "maturity"],
@@ -493,6 +494,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:pl", type: "report", label: "Income Statement",
     sub: "Profit & Loss report", href: "/pl",
     keywords: ["p&l", "profit loss", "income statement", "pnl", "revenue expenses", "output", "analysis"],
+  },
+  {
+    id: "rpt:dimensional-pl", type: "report", label: "Dimensional P&L",
+    sub: "P&L by cost center / project / location", href: "/reports/dimensional-pl",
+    keywords: ["dimensional", "analytic p&l", "segment", "cost center", "project"],
   },
   {
     id: "rpt:balance-sheet", type: "report", label: "Balance Sheet",

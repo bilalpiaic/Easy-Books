@@ -14,6 +14,7 @@ from services.inventory import InventoryError, consume_stock
 from services.money import D, money
 from services.permissions import apply_own_filter, perm_dep
 from services.posting import EntryInput, post_transaction
+from services.analytics import pack_analytics
 
 router = APIRouter(
     prefix="/api/store-issues", tags=["store-issues"],
@@ -30,6 +31,9 @@ class SIIn(BaseModel):
     issue_date: str
     from_location_id: int
     analytic_account_id: Optional[int] = None
+    analytic_2_id: Optional[int] = None
+    analytic_3_id: Optional[int] = None
+    analytic_ids: Optional[List[int]] = None
     debit_account_id: int
     notes: Optional[str] = None
     lines: List[SILineIn] = []
@@ -147,7 +151,10 @@ def create_store_issue(session: SessionDep, user: WriteUserDep, body: SIIn):
     )
     si = StoreIssue(
         tenant_id=user.tenant_id, number=number, issue_date=body.issue_date,
-        from_location_id=body.from_location_id, analytic_account_id=body.analytic_account_id,
+        from_location_id=body.from_location_id,
+        analytic_account_id=body.analytic_account_id,
+        analytic_2_id=body.analytic_2_id,
+        analytic_3_id=body.analytic_3_id,
         debit_account_id=body.debit_account_id, notes=body.notes, created_by_id=user.id,
     )
     session.add(si)
@@ -183,6 +190,9 @@ def create_store_issue(session: SessionDep, user: WriteUserDep, body: SIIn):
                 EntryInput(
                     account_id=debit_acct.id, debit=money(total_cost),
                     analytic_account_id=body.analytic_account_id,
+                    analytic_2_id=body.analytic_2_id,
+                    analytic_3_id=body.analytic_3_id,
+                    analytic_ids=body.analytic_ids,
                 ),
                 EntryInput(account_id=inv_acct.id, credit=money(total_cost)),
             ],

@@ -14,6 +14,7 @@ from services.fx import rate_to_base
 from services.inventory import record_purchase
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
+from services.analytics import pack_analytics
 from services.tax_engine import prepare_line_taxes
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
@@ -48,6 +49,9 @@ class BillCreate(BaseModel):
     currency: Optional[str] = None
     exchange_rate: Optional[Decimal] = None
     analytic_account_id: Optional[int] = None
+    analytic_2_id: Optional[int] = None
+    analytic_3_id: Optional[int] = None
+    analytic_ids: Optional[List[int]] = None
 
 
 def _next_bill_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -318,6 +322,8 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         expense_account_id=body.expense_account_id,
         created_by_id=user.id,
         analytic_account_id=body.analytic_account_id,
+        analytic_2_id=getattr(body, 'analytic_2_id', None),
+        analytic_3_id=getattr(body, 'analytic_3_id', None),
     )
     session.add(bill)
     session.flush()
@@ -377,29 +383,34 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
     gst_base = money(gst_amount * fx_rate)
     non_stock_base = money((subtotal - total_stock_value) * fx_rate)
 
-    ana = body.analytic_account_id
-    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=ana, vendor_id=body.vendor_id)]
+    a1, a2, a3 = pack_analytics(
+        analytic_account_id=body.analytic_account_id,
+        analytic_2_id=getattr(body, 'analytic_2_id', None),
+        analytic_3_id=getattr(body, 'analytic_3_id', None),
+        analytic_ids=getattr(body, 'analytic_ids', None),
+    )
+    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3, vendor_id=body.vendor_id)]
     if total_stock_value > 0:
         inv_acc = get_or_create_account(
             session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset"
         )
-        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     if non_stock_base > 0:
         exp_acc = (
             session.get(Account, body.expense_account_id)
             if body.expense_account_id
             else get_default_account(session, user.tenant_id, "default_cogs_account", "5000", "General Expenses", "Expense")
         )
-        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     if use_per_line_tax and per_gl_tax:
         # Post per-line input tax to each distinct GL account.
         for gl_id, tax_amt in per_gl_tax.items():
-            entries.append(EntryInput(account_id=gl_id, debit=money(tax_amt * fx_rate), analytic_account_id=ana))
+            entries.append(EntryInput(account_id=gl_id, debit=money(tax_amt * fx_rate), analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     elif gst_amount > 0:
         gst_input_acc = get_or_create_account(
             session, user.tenant_id, "1250", "GST Receivable (Input)", "Asset"
         )
-        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
 
     txn = post_transaction(
         session, user,
@@ -575,6 +586,8 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     bill.ap_account_id = body.ap_account_id
     bill.expense_account_id = body.expense_account_id
     bill.analytic_account_id = body.analytic_account_id
+    bill.analytic_2_id = getattr(body, "analytic_2_id", None)
+    bill.analytic_3_id = getattr(body, "analytic_3_id", None)
     session.add(bill)
     session.flush()
 
@@ -623,24 +636,29 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     gst_base = money(gst_amount * fx_rate)
     non_stock_base = money((subtotal - total_stock_value) * fx_rate)
 
-    ana = body.analytic_account_id
-    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=ana, vendor_id=bill.vendor_id)]
+    a1, a2, a3 = pack_analytics(
+        analytic_account_id=body.analytic_account_id,
+        analytic_2_id=getattr(body, 'analytic_2_id', None),
+        analytic_3_id=getattr(body, 'analytic_3_id', None),
+        analytic_ids=getattr(body, 'analytic_ids', None),
+    )
+    entries: list[EntryInput] = [EntryInput(account_id=ap_acc.id, credit=total_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3, vendor_id=bill.vendor_id)]
     if total_stock_value > 0:
         inv_acc = get_or_create_account(session, user.tenant_id, "1200", "Inventory (Raw Material)", "Asset")
-        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=inv_acc.id, debit=total_stock_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     if non_stock_base > 0:
         exp_acc = (
             session.get(Account, body.expense_account_id)
             if body.expense_account_id
             else get_or_create_account(session, user.tenant_id, "5000", "General Expenses", "Expense")
         )
-        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=exp_acc.id, debit=non_stock_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     if use_per_line_tax and per_gl_tax:
         for gl_id, tax_amt in per_gl_tax.items():
-            entries.append(EntryInput(account_id=gl_id, debit=money(tax_amt * fx_rate), analytic_account_id=ana))
+            entries.append(EntryInput(account_id=gl_id, debit=money(tax_amt * fx_rate), analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
     elif gst_amount > 0:
         gst_input_acc = get_or_create_account(session, user.tenant_id, "1250", "GST Receivable (Input)", "Asset")
-        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_base, analytic_account_id=ana))
+        entries.append(EntryInput(account_id=gst_input_acc.id, debit=gst_base, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3))
 
     txn = post_transaction(
         session, user,

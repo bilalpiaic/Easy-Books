@@ -484,8 +484,11 @@ class JournalEntryBase(SQLModel):
     account_id: int = Field(foreign_key="account.id")
     debit: Money = money_col()
     credit: Money = money_col()
-    # Optional cost-center / project tag for segment P&L (IAS 1 management commentary)
+    # Optional cost-center / project tag for segment P&L (IAS 1 management commentary).
+    # Slot 0 of up to 3 analytic dimensions (#260); analytic_2_id / analytic_3_id are slots 1–2.
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     # AR/AP party tracking (§2): links the JE line to the debtor/creditor
     customer_id: Optional[int] = Field(default=None, foreign_key="customer.id")
     vendor_id: Optional[int] = Field(default=None, foreign_key="vendor.id")
@@ -577,6 +580,8 @@ class Invoice(SQLModel, table=True):
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     assigned_to_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     # PRA e-Invoice fields
     payment_mode: Optional[int] = None  # 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
     pra_usin: Optional[str] = None          # User Serial Invoice Number sent to PRA (= invoice.number)
@@ -615,6 +620,8 @@ class Bill(SQLModel, table=True):
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     approval_status: Optional[str] = Field(default=None, index=True)  # #123
 
 
@@ -633,6 +640,8 @@ class PaymentReceived(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
 
 
 class BillPayment(SQLModel, table=True):
@@ -650,6 +659,8 @@ class BillPayment(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
 
 
 class BankAccount(SQLModel, table=True):
@@ -1378,8 +1389,27 @@ class ContractAsset(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class AnalyticDimension(SQLModel, table=True):
+    """Up to 3 tenant-defined analytic dimension types (#260), e.g. Cost Center / Project / Location."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="unique_dimension_code_per_tenant"),
+        UniqueConstraint("tenant_id", "sort_order", name="unique_dimension_sort_per_tenant"),
+        CheckConstraint(
+            "sort_order >= 0 AND sort_order <= 2",
+            name="ck_dimension_sort_order",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str                          # e.g. CC / PROJ / LOC
+    name: str
+    required: bool = Field(default=False)
+    sort_order: int = Field(default=0)  # 0–2 → JE analytic_account_id / analytic_2_id / analytic_3_id
+    is_active: bool = Field(default=True)
+
+
 class AnalyticAccount(SQLModel, table=True):
-    """Cost center / project / department dimension for segment P&L. IAS 1."""
+    """Analytic value (cost center / project / …) belonging to a dimension. IAS 1."""
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="unique_analytic_code_per_tenant"),
         CheckConstraint(
@@ -1391,7 +1421,8 @@ class AnalyticAccount(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     code: str
     name: str
-    type: str = Field(default="cost_center")
+    type: str = Field(default="cost_center")  # legacy label; prefer dimension_id
+    dimension_id: Optional[int] = Field(default=None, foreign_key="analyticdimension.id", index=True)
     is_active: bool = Field(default=True)
 
 
@@ -1863,6 +1894,8 @@ class StoreIssue(SQLModel, table=True):
     issue_date: str
     from_location_id: int = Field(foreign_key="stocklocation.id")
     analytic_account_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_2_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
+    analytic_3_id: Optional[int] = Field(default=None, foreign_key="analyticaccount.id")
     debit_account_id: int = Field(foreign_key="account.id")
     notes: Optional[str] = None
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
@@ -2450,6 +2483,9 @@ class TransactionCreate(TransactionBase):
     entries: List[JournalEntryCreate]
     allocations: Optional[List["AllocationInput"]] = None
     analytic_account_id: Optional[int] = None
+    analytic_2_id: Optional[int] = None
+    analytic_3_id: Optional[int] = None
+    analytic_ids: Optional[List[int]] = None  # maps to slots 0–2 (#260)
     customer_id: Optional[int] = None
     vendor_id: Optional[int] = None
 

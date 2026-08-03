@@ -230,6 +230,9 @@ def create_transaction(
                 debit=D(e.debit),
                 credit=D(e.credit),
                 analytic_account_id=tx_data.analytic_account_id,
+                analytic_2_id=tx_data.analytic_2_id,
+                analytic_3_id=tx_data.analytic_3_id,
+                analytic_ids=tx_data.analytic_ids,
                 customer_id=tx_data.customer_id,
                 vendor_id=tx_data.vendor_id,
             )
@@ -353,6 +356,9 @@ def get_transaction(transaction_id: int, session: SessionDep, user: CurrentUserD
             "account_type": je.account.type,
             "debit": je.debit,
             "credit": je.credit,
+            "analytic_account_id": je.analytic_account_id,
+            "analytic_2_id": je.analytic_2_id,
+            "analytic_3_id": je.analytic_3_id,
             "customer_id": je.customer_id,
             "vendor_id": je.vendor_id,
         }
