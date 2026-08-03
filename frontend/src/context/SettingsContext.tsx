@@ -93,6 +93,12 @@ export interface AppSettings {
   in_gst_enabled: string
   in_gstin: string
   in_state_code: string
+  // Peppol / EU VAT e-Invoice (#266)
+  peppol_enabled: string
+  peppol_participant_id: string
+  peppol_ap_url: string
+  peppol_api_key: string
+  peppol_sandbox_mode: string
 }
 
 const defaults: AppSettings = {
@@ -163,6 +169,11 @@ const defaults: AppSettings = {
   in_gst_enabled: "true",
   in_gstin: "",
   in_state_code: "",
+  peppol_enabled: "false",
+  peppol_participant_id: "",
+  peppol_ap_url: "",
+  peppol_api_key: "",
+  peppol_sandbox_mode: "true",
 }
 
 interface SettingsContextValue {

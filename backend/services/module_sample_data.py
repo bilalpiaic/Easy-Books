@@ -94,6 +94,20 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
                 _set_setting(session, tid, "in_state_code", "27")
             if not _get_setting_value(session, tid, "in_gstin"):
                 _set_setting(session, tid, "in_gstin", "27AAAAA0000A1Z5")
+        elif module_id == "eu_peppol":
+            _set_setting(session, tid, "peppol_enabled", "true")
+            _set_setting(session, tid, "peppol_sandbox_mode", "true")
+            if not _get_setting_value(session, tid, "peppol_participant_id"):
+                _set_setting(session, tid, "peppol_participant_id", "0088:1234567890123")
+            if not _get_setting_value(session, tid, "peppol_ap_url"):
+                _set_setting(
+                    session, tid, "peppol_ap_url",
+                    "https://api.peppol-sandbox.example/v1/send",
+                )
+            if not _get_setting_value(session, tid, "currency"):
+                _set_setting(session, tid, "currency", "EUR")
+            if not _get_setting_value(session, tid, "country"):
+                _set_setting(session, tid, "country", "NL")
         elif module_id == "weaving":
             customers, vendors = _ensure_party(session, tid)
             sd._seed_weaving(session, user, customers, vendors)

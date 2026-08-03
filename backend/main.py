@@ -35,6 +35,7 @@ from routers import (
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
 from routers.zatca import zatca_router
+from routers.peppol import peppol_router
 from routers import marketplace
 from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
@@ -318,6 +319,7 @@ app.include_router(health.router)
 app.include_router(pra_router, prefix="/api")
 app.include_router(uae_router, prefix="/api")
 app.include_router(zatca_router, prefix="/api")
+app.include_router(peppol_router, prefix="/api")
 app.include_router(marketplace.router)
 
 for r in _ROUTERS:

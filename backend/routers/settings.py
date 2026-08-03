@@ -18,7 +18,11 @@ from services.whatsapp import WA_SECRET_SETTINGS_KEYS, status_payload as wa_stat
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
 
 # Secrets that must never leave GET /api/settings unredacted.
-SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {"uae_api_key", "zatca_csid_token"}
+SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {
+    "uae_api_key",
+    "zatca_csid_token",
+    "peppol_api_key",
+}
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -116,6 +120,12 @@ class SettingsUpdate(BaseModel):
     in_gst_enabled: Optional[str] = None
     in_gstin: Optional[str] = None
     in_state_code: Optional[str] = None  # 2-digit seller state code
+    # Peppol / EU VAT e-Invoice (#266)
+    peppol_enabled: Optional[str] = None
+    peppol_participant_id: Optional[str] = None  # e.g. 0088:GLN or 9930:DE123456789
+    peppol_ap_url: Optional[str] = None          # Access Point send endpoint
+    peppol_api_key: Optional[str] = None         # write-only secret
+    peppol_sandbox_mode: Optional[str] = None    # "true" default
     # Marketplace (#227) — optional curated remote catalog URL (https only)
     marketplace_catalog_url: Optional[str] = None
     # AI assistant (#117) — key values are write-only; GET redacts them

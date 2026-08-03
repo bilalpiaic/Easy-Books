@@ -65,6 +65,13 @@ export const ADDON_PACKS: AddonPack[] = [
     features: ["CGST/SGST/IGST split", "GSTIN & HSN fields", "GSTR-1 summary export"],
   },
   {
+    id: "eu_peppol",
+    label: "Peppol / EU VAT e-Invoice",
+    tagline: "EU localization",
+    modules: ["eu_peppol"],
+    features: ["BIS Billing 3.0 UBL export", "Access Point submit", "Submission logs"],
+  },
+  {
     id: "ai",
     label: "AI Assistant",
     tagline: "Ask your books",
