@@ -18,10 +18,10 @@ const STORAGE_KEY = "eb.more.collapsed"
 
 /** Sections left expanded on first visit (before any user toggle). */
 const DEFAULT_EXPANDED = new Set([
-  "sales",
-  "purchases",
-  "banking",
+  "dashboard",
   "accounting",
+  "reports",
+  "banking",
 ])
 
 const MOBILE_MORE_KEYS_EXCEPT_DEFAULT = MOBILE_MORE_SECTION_ORDER.filter(
