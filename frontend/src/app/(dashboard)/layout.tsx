@@ -158,7 +158,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <SubNav />
                     <main className="flex-1 flex flex-col overflow-hidden">
                       <TabBar />
-                      <div className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
+                      <div className="flex-1 overflow-y-auto p-2 pb-20 md:p-4 md:pb-4">
                         <NavBar />
                         {children}
                       </div>

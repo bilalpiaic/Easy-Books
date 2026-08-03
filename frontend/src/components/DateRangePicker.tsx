@@ -44,36 +44,56 @@ export default function DateRangePicker({
   }
 
   const inputCls =
-    "px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none " +
-    "focus:ring-2 focus:ring-[var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed"
+    "px-2.5 py-1.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none " +
+    "focus:ring-2 focus:ring-[var(--primary)] disabled:opacity-60 disabled:cursor-not-allowed " +
+    "min-w-0 max-w-full"
   const hint =
     selected === "all" ? "All dates"
     : start && end ? `${fmtDate(start)} – ${fmtDate(end)}`
     : ""
+  const showCustomDates = selected === "custom"
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Calendar className="w-4 h-4 text-[var(--text-muted)]" />
-      <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{label}</span>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 w-full">
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Calendar className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{label}</span>
+      </div>
       <select
         value={selected}
         onChange={(e) => pick(e.target.value as PresetId)}
-        className={inputCls}
+        className={inputCls + " flex-1 min-w-[8rem] sm:flex-none sm:min-w-[10rem]"}
+        aria-label={label}
       >
         {presets.map((p) => (
           <option key={p.id} value={p.id}>{p.label}</option>
         ))}
       </select>
-      <input
-        type="date" value={start} disabled={selected !== "custom"}
-        onChange={(e) => onStartChange(e.target.value)} className={inputCls}
-      />
-      <span className="text-[var(--text-muted)] text-sm">to</span>
-      <input
-        type="date" value={end} disabled={selected !== "custom"}
-        onChange={(e) => onEndChange(e.target.value)} className={inputCls}
-      />
-      {hint && <span className="text-xs text-[var(--text-muted)]">{hint}</span>}
+      {/* Custom From/To — hide on sm when a preset is selected (hint shows range) */}
+      <div
+        className={
+          showCustomDates
+            ? "flex flex-wrap items-center gap-1.5 w-full sm:w-auto"
+            : "hidden sm:flex items-center gap-1.5"
+        }
+      >
+        <input
+          type="date" value={start} disabled={!showCustomDates}
+          onChange={(e) => onStartChange(e.target.value)} className={inputCls}
+          aria-label="From date"
+        />
+        <span className="text-[var(--text-muted)] text-xs">to</span>
+        <input
+          type="date" value={end} disabled={!showCustomDates}
+          onChange={(e) => onEndChange(e.target.value)} className={inputCls}
+          aria-label="To date"
+        />
+      </div>
+      {hint && (
+        <span className="text-[11px] text-[var(--text-muted)] tabular-nums sm:ml-0 w-full sm:w-auto">
+          {hint}
+        </span>
+      )}
     </div>
   )
 }
