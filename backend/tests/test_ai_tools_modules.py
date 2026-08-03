@@ -47,7 +47,7 @@ def test_module_tools_smoke(client: TestClient):
     auth = _signup(client, "mt1@t.com")
     # deps are installed recursively by the modules router
     _install(client, auth, "inventory", "production", "hrm", "telecom",
-             "healthcare", "purchase_store", "weaving", "pra")
+             "healthcare", "purchase_store", "weaving", "spinning", "pra")
 
     r = client.post("/api/products", headers=auth,
                     json={"name": "Widget", "product_type": "stock"})
@@ -74,6 +74,16 @@ def test_module_tools_smoke(client: TestClient):
     })
     assert r.status_code in (200, 201), r.text
     wv_contract_id = r.json()["id"]
+
+    yarn = client.post("/api/products", headers=auth,
+                       json={"name": "Yarn 20Ne", "product_type": "stock", "code": "Y20"}).json()
+    spec = client.post("/api/spinning/yarn-specs", headers=auth, json={
+        "code": "YS20", "name": "20Ne", "count_ne": 20, "output_product_id": yarn["id"],
+    }).json()
+    lot = client.post("/api/spinning/lots", headers=auth, json={
+        "yarn_spec_id": spec["id"], "start_date": "2026-07-01", "target_output_kg": 500,
+    }).json()
+    spin_lot_id = lot["id"]
 
     r = client.post("/api/invoices", headers=auth, json={
         "customer_id": customer_id,
@@ -137,6 +147,10 @@ def test_module_tools_smoke(client: TestClient):
             "get_contract_control": {"contract_id": wv_contract_id},
             "get_weaving_customer_kpi": {},
             "find_wv_contract": {"query": "WC"},
+            # spinning
+            "get_spinning_dashboard": {},
+            "get_spinning_daily": {},
+            "get_lot_control": {"lot_id": spin_lot_id},
             # pra
             "get_pra_logs": {},
             "get_invoice_pra_status": {"invoice_id": invoice_id},

@@ -332,6 +332,23 @@ AGENTS: dict[str, AgentDef] = {
         ),
         required_module="weaving",
     ),
+    "spinning": AgentDef(
+        key="spinning",
+        label="Spinning Ops Agent",
+        trigger_hint=(
+            "Yarn spinning mill: bale receipt, spin lots, stage entries, cone output, "
+            "waste, yarn dispatch, WIP/yield KPIs (Kg/Lbs/Bags)."
+        ),
+        system_prompt_fragment=(
+            "You specialize in yarn spinning mill operations. Use get_spinning_dashboard for "
+            "headline KPIs, get_spinning_daily for daily production register, get_lot_control "
+            "for one spin lot's bale-in → stage → cone-out progress."
+        ),
+        tools=(
+            "get_spinning_dashboard", "get_spinning_daily", "get_lot_control",
+        ),
+        required_module="spinning",
+    ),
     "pra_status": AgentDef(
         key="pra_status",
         label="PRA Compliance Agent",

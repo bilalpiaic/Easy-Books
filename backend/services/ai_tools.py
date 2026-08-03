@@ -109,6 +109,11 @@ from routers.weaving_reports import (
     daily_operations,
     weaving_dashboard,
 )
+from routers.spinning_reports import (
+    lot_control as spinning_lot_control,
+    spinning_dashboard,
+    daily_register as spinning_daily_register,
+)
 
 # Oversized tool results are truncated before they re-enter the LLM loop —
 # unpaginated reports (per-product/per-customer lists) can otherwise blow the
@@ -676,6 +681,24 @@ def _exec_find_wv_contract(session, user, tool_input):
         {"id": c.id, "number": c.number, "status": c.status, "customer_id": c.customer_id}
         for c in rows
     ]
+
+
+# spinning — (session, user) same as most tools ───────────────────────────────
+
+def _exec_spinning_dashboard(session, user, tool_input):
+    return spinning_dashboard(user, session)
+
+
+def _exec_spinning_daily(session, user, tool_input):
+    start, end = _dates(tool_input)
+    return spinning_daily_register(user, session, start=start, end=end)
+
+
+def _exec_lot_control(session, user, tool_input):
+    return spinning_lot_control(
+        _require_id(tool_input, "lot_id", "list spin lots via /api/spinning/lots"),
+        user, session,
+    )
 
 
 # pra ────────────────────────────────────────────────────────────────────────
@@ -1840,6 +1863,46 @@ _TOOLS: tuple[ToolDef, ...] = (
         label="Looking up the weaving contract…",
         executor=_exec_find_wv_contract,
         required_module="weaving",
+    ),
+    # ── spinning ─────────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_spinning_dashboard",
+        description=(
+            "Get yarn spinning mill KPIs: open lots, bale received, cone output, dispatch, "
+            "overall yield %, WIP by stage (Kg/Lbs/Bags)."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking spinning KPIs…",
+        executor=_exec_spinning_dashboard,
+        required_module="spinning",
+    ),
+    ToolDef(
+        name="get_spinning_daily",
+        description=(
+            "Get spinning daily production register for a period: input/output/waste kg "
+            "by date and stage entries."
+        ),
+        input_schema=_DATE_RANGE_SCHEMA,
+        label="Checking spinning daily ops…",
+        executor=_exec_spinning_daily,
+        required_module="spinning",
+    ),
+    ToolDef(
+        name="get_lot_control",
+        description=(
+            "Get one spin lot control panel: bale in, stage progress, cone out, yield %, "
+            "cost rollup. Requires lot_id from /api/spinning/lots."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "lot_id": {"type": "integer", "description": "Spin lot id (required)"},
+            },
+            "required": ["lot_id"],
+        },
+        label="Checking lot control…",
+        executor=_exec_lot_control,
+        required_module="spinning",
     ),
     # ── pra ──────────────────────────────────────────────────────────────────
     ToolDef(

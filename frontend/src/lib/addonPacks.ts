@@ -72,6 +72,13 @@ export const ADDON_PACKS: AddonPack[] = [
     features: ["BIS Billing 3.0 UBL", "Peppol Sales dashboard", "Access Point logs"],
   },
   {
+    id: "yarn_spinning",
+    label: "Yarn Spinning",
+    tagline: "Spinning mill",
+    modules: ["inventory", "purchase_store", "spinning"],
+    features: ["Bale receipt & lots", "Multi-stage tracking", "Cone output & GL costing"],
+  },
+  {
     id: "ai",
     label: "AI Assistant",
     tagline: "Ask your books",
