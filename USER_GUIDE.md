@@ -870,12 +870,16 @@ Reduce a customer's balance without editing a posted invoice.
 - Posts **Dr 4000 Sales Revenue / Cr 1100 Accounts Receivable** — the reverse of an invoice
 - Uses a separate `CN-` number sequence; status `draft → posted → applied`
 
-### 17.2 Fixed Assets & Depreciation (IAS 16)
+### 17.2 Fixed Assets & Depreciation (IAS 16 / IAS 36)
 
-- **Fixed Assets** (Reports section) → **New Asset**
+- **Fixed Assets** (Accounting) → **New Asset**
 - Enter acquisition cost, salvage value, useful life (months), and method (straight-line or reducing-balance)
+- Optional **parent** asset: register components with their own lives under a roll-up parent (parents are not depreciated)
 - Click **Run Depreciation** each period → posts **Dr 5050 Depreciation Expense / Cr 1090 Accumulated Depreciation**
-- Book value updates automatically and depreciation stops at salvage value
+- **Impair / Reverse** (asset detail): recoverable amount vs carrying → posts impairment loss (**5061**) against accum. depreciation; reversals capped at cumulative impairment (IAS 36 simplified)
+- **Dispose** (sale or scrap): full GL derecognition with gain (**4904**) / loss (**5062**) and proceeds to a bank/cash account
+- Book value = cost − accum. depreciation − accum. impairment; depreciation stops at salvage
+- **Asset Rollforward** (`/assets/rollforward`) — opening / additions / disposals / dep / impairment / closing for a date range (landscape print)
 
 ### 17.3 Purchase Orders (IAS 2.11)
 

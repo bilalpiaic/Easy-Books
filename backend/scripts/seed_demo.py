@@ -2522,7 +2522,7 @@ def _seed_fixed_assets(s: Session, user: User) -> None:
     tid = user.tenant_id
     if s.exec(select(FixedAsset).where(FixedAsset.tenant_id == tid)).first():
         return
-    asset_acc = _account(s, tid, "1010")   # bank stands in for the asset cost account
+    asset_acc = _account(s, tid, "1500") or _account(s, tid, "1010")
     accum = _account(s, tid, "1090")
     depr_exp = _account(s, tid, "5050")
     if not asset_acc or not accum or not depr_exp:
@@ -2569,6 +2569,117 @@ def _seed_fixed_assets(s: Session, user: User) -> None:
         asset.book_value = money(cost - charge)
         asset.last_depreciation_date = date.today().isoformat()
         s.add(asset)
+
+    # #258: parent shell + two components (fresh tenants only — this fn early-returns otherwise)
+    parent = FixedAsset(
+        tenant_id=tid, name="Production Line", code="FA-PL",
+        asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
+        depr_expense_account_id=depr_exp.id, acquisition_date=acq,
+        acquisition_cost=ZERO, salvage_value=ZERO,
+        useful_life_months=1, method="straight_line",
+        accumulated_depreciation=ZERO, book_value=ZERO,
+    )
+    s.add(parent); s.flush()
+    for name, code, cost, life in (
+        ("PL — Frame & Structure", "FA-PL-01", D(800000), 120),
+        ("PL — Drive Unit",        "FA-PL-02", D(450000), 60),
+    ):
+        child = FixedAsset(
+            tenant_id=tid, parent_id=parent.id, name=name, code=code,
+            asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
+            depr_expense_account_id=depr_exp.id, acquisition_date=acq,
+            acquisition_cost=cost, salvage_value=ZERO,
+            useful_life_months=life, method="straight_line",
+            accumulated_depreciation=ZERO, book_value=cost,
+        )
+        s.add(child); s.flush()
+        charge = compute_depreciation(cost, ZERO, life, ZERO, "straight_line")
+        if charge <= ZERO:
+            continue
+        txn = post_transaction(
+            s, user, date=date.today().isoformat(),
+            description=f"Depreciation — {name}",
+            entries=[
+                EntryInput(account_id=depr_exp.id, debit=charge),
+                EntryInput(account_id=accum.id, credit=charge),
+            ],
+            audit_entity_type="fixed_asset",
+            audit_detail={"asset": code},
+        )
+        s.add(DepreciationEntry(
+            tenant_id=tid, asset_id=child.id,
+            depreciation_date=date.today().isoformat(),
+            depreciation_amount=charge, transaction_id=txn.id,
+        ))
+        child.accumulated_depreciation = charge
+        child.book_value = money(cost - charge)
+        child.last_depreciation_date = date.today().isoformat()
+        s.add(child)
+
+
+def _seed_asset_components_258(s: Session, user: User) -> None:
+    """Idempotent #258 backfill: parent + 2 components + one impairment.
+
+    Runs when the tenant already has fixed assets (so `_seed_fixed_assets`
+    early-returned) but no parent_id rows yet.
+    """
+    tid = user.tenant_id
+    has_parent = s.exec(
+        select(FixedAsset).where(
+            FixedAsset.tenant_id == tid,
+            FixedAsset.parent_id.is_not(None),
+        )
+    ).first()
+    if has_parent:
+        return
+    # Need at least the base FA set, or any FA, so accounts exist
+    if not s.exec(select(FixedAsset).where(FixedAsset.tenant_id == tid)).first():
+        return
+
+    asset_acc = _account(s, tid, "1500") or _account(s, tid, "1010")
+    accum = _account(s, tid, "1090")
+    depr_exp = _account(s, tid, "5050")
+    if not asset_acc or not accum or not depr_exp:
+        return
+
+    acq = _past_days(min(400, _seed_span_days() - 30))
+    parent = FixedAsset(
+        tenant_id=tid, name="Production Line", code="FA-PL",
+        asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
+        depr_expense_account_id=depr_exp.id, acquisition_date=acq,
+        acquisition_cost=ZERO, salvage_value=ZERO,
+        useful_life_months=1, method="straight_line",
+        accumulated_depreciation=ZERO, book_value=ZERO,
+    )
+    s.add(parent); s.flush()
+
+    components = []
+    for name, code, cost, life in (
+        ("PL — Frame & Structure", "FA-PL-01", D(800000), 120),
+        ("PL — Drive Unit",        "FA-PL-02", D(450000), 60),
+    ):
+        child = FixedAsset(
+            tenant_id=tid, parent_id=parent.id, name=name, code=code,
+            asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
+            depr_expense_account_id=depr_exp.id, acquisition_date=acq,
+            acquisition_cost=cost, salvage_value=ZERO,
+            useful_life_months=life, method="straight_line",
+            accumulated_depreciation=ZERO, book_value=cost,
+        )
+        s.add(child); s.flush()
+        components.append(child)
+
+    # Posted impairment on the drive unit (recoverable below cost)
+    from services.assets import post_impairment
+    try:
+        post_impairment(
+            s, user, components[1],
+            recoverable_amount=D(300000),
+            impairment_date=date.today().isoformat(),
+            notes="Demo impairment (#258)",
+        )
+    except Exception:
+        pass  # CoA / posting edge — skip rather than fail the whole seed
 
 
 def _seed_budgets(s: Session, tenant_id: int) -> None:
@@ -5392,6 +5503,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _seed_budgets(s, tenant_id)
         s.commit()
         _seed_fixed_assets(s, user)
+        s.commit()
+        _seed_asset_components_258(s, user)
         s.commit()
         _seed_credit_notes(s, clerk, invoices)
         s.commit()

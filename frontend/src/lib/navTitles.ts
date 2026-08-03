@@ -82,6 +82,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/debit-notes/":     "Debit Note",
   "/advances":         "Advances",
   "/assets":           "Fixed Assets",
+  "/assets/rollforward": "Asset Rollforward",
   "/audit":            "Audit Log",
   "/bank-book":        "Bank Book",
   "/cash-book":        "Cash Book",

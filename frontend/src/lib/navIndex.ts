@@ -95,6 +95,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/tax-codes":              ["tax code", "tax rate"],
   "/budgets":                ["budget vs actual", "variance"],
   "/assets":                 ["fixed assets", "depreciation", "capex", "asset register"],
+  "/assets/rollforward":     ["asset rollforward", "fixed asset movement", "nbv rollforward", "impairment"],
   "/period-close":           ["close period", "lock period", "month end"],
   "/deferred-revenue":       ["ifrs 15", "revenue recognition", "unearned"],
   "/customer-performance":   ["customer analysis", "top customers", "sales by customer"],
@@ -556,6 +557,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:assets", type: "report", label: "Fixed Assets",
     sub: "Asset register & depreciation", href: "/assets",
     keywords: ["fixed assets", "depreciation", "asset register", "capex", "output"],
+  },
+  {
+    id: "rpt:asset-rollforward", type: "report", label: "Asset Rollforward",
+    sub: "Opening / additions / disposals / dep / impairment / closing", href: "/assets/rollforward",
+    keywords: ["asset rollforward", "fixed asset movement", "nbv", "impairment", "disposal", "capex", "output"],
   },
   {
     id: "rpt:leases", type: "report", label: "Leases",

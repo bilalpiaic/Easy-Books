@@ -113,6 +113,7 @@ export const NAV: NavItem[] = [
   { label: "Tax Codes",        href: "/tax-codes",         icon: Percent,          section: "Reports" },
   { label: "Budget vs Actual", href: "/budgets",           icon: TrendingUp,       section: "Reports" },
   { label: "Fixed Assets",     href: "/assets",            icon: Building2,        section: "Reports" },
+  { label: "Asset Rollforward", href: "/assets/rollforward", icon: Table2,         section: "Reports" },
   { label: "Leases",           href: "/leases",            icon: KeyRound,         section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
   { label: "Deferred Revenue", href: "/deferred-revenue",  icon: Play,             section: "Reports" },
@@ -339,6 +340,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Period Close",      href: "/period-close",      icon: CalendarCheck,   section: "accounting" },
     { label: "Deferred Revenue",  href: "/deferred-revenue",  icon: Play,            section: "accounting" },
     { label: "Fixed Assets",      href: "/assets",            icon: Building2,       section: "accounting" },
+    { label: "Asset Rollforward", href: "/assets/rollforward", icon: Table2,         section: "accounting" },
     { label: "Leases",            href: "/leases",            icon: KeyRound,        section: "accounting" },
   ],
   reports: [
