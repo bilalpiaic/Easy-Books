@@ -241,29 +241,29 @@ export const TOP_NAV: TopNavSection[] = [
 ]
 
 /**
- * Mobile More-drawer section order by daily-use importance.
- * Sales/Purchases/Reports stay near the top (sub-nav depth) even though they
- * also have BottomNav shortcuts; Dashboard + System sit last.
+ * Mobile More-drawer section order (user preference):
+ * Dashboard → core books → ops → optional industry/localization → System last.
  */
 export const MOBILE_MORE_SECTION_ORDER: string[] = [
+  "dashboard",
+  "accounting",
+  "reports",
+  "banking",
   "sales",
   "purchases",
-  "banking",
-  "accounting",
   "store",
+  "manufacturing",
   "inventory",
-  "reports",
   "payroll",
+  // optional / module-gated packs
+  "healthcare",
+  "telecom",
+  "weaving",
   "pra",
   "uae",
   "zatca",
   "peppol",
   "india_gst",
-  "manufacturing",
-  "healthcare",
-  "telecom",
-  "weaving",
-  "dashboard",
   "system",
 ]
 
