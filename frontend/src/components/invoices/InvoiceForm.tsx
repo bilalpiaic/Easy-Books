@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import { DimensionPickers, slotsToPayload, type AnalyticSlots } from '@/components/DimensionPickers'
 import { useFmt, useSettings } from '@/context/SettingsContext'
 import { usePRAPortal } from '@/hooks/usePRAPortal'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
@@ -99,6 +100,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([])
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
+  const [analyticSlots, setAnalyticSlots] = useState<AnalyticSlots>({})
   const [customerBalance, setCustomerBalance] = useState<number | null>(null)
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
   const [applyingPromos, setApplyingPromos] = useState(false)
@@ -159,6 +161,15 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         payment_mode: invoice.payment_mode ? String(invoice.payment_mode) : '1',
         buyer_ntn: invoice.buyer_ntn ?? '',
         buyer_cnic: invoice.buyer_cnic ?? '',
+      })
+      setAnalyticSlots({
+        0: invoice.analytic_account_id ? String(invoice.analytic_account_id) : "",
+        1: (invoice as { analytic_2_id?: number | null }).analytic_2_id
+          ? String((invoice as { analytic_2_id?: number | null }).analytic_2_id)
+          : "",
+        2: (invoice as { analytic_3_id?: number | null }).analytic_3_id
+          ? String((invoice as { analytic_3_id?: number | null }).analytic_3_id)
+          : "",
       })
       setLines((invoice.lines ?? []).map(l => ({
         product_id: l.product_id ?? undefined,
@@ -305,7 +316,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       gst_rate: parseFloat(form.gst_rate) || 0,
       ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,
       revenue_account_id: form.revenue_account_id ? parseInt(form.revenue_account_id) : null,
-      analytic_account_id: form.analytic_account_id ? parseInt(form.analytic_account_id) : null,
+      ...slotsToPayload(analyticSlots),
       currency: form.currency || settings.currency,
       exchange_rate: parseFloat(form.exchange_rate) || 1,
       assigned_to_id: form.assigned_to_id ? parseInt(form.assigned_to_id) : null,
@@ -585,23 +596,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           </div>
         </div>
 
-        {analyticAccounts.length > 0 && (
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
-              Analytic Account <span className="font-normal normal-case">(optional)</span>
-            </label>
-            <select
-              value={form.analytic_account_id}
-              onChange={e => setForm(p => ({ ...p, analytic_account_id: e.target.value }))}
-              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm"
-            >
-              <option value="">— none —</option>
-              {analyticAccounts.map(a => (
-                <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         {confirmPostedEdit && (

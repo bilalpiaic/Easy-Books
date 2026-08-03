@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Plus, Trash2, Save, AlertCircle, ScrollText, ArrowUpFromLine, ArrowDownToLine, BookOpen, Info } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { DimensionPickers, slotsToPayload, type AnalyticSlots } from "@/components/DimensionPickers"
 import { filterAccountsForSide, VOUCHER_SIDE_FILTERS } from "@/lib/voucherTypes"
 import { useDp } from "@/context/SettingsContext"
 import { useRouter } from "next/navigation"
@@ -21,8 +22,6 @@ interface Account {
 }
 
 interface PartyItem { id: number; name: string }
-
-interface AnalyticAccount { id: number; code: string; name: string; type: string }
 
 // Multi-row table entry (Journal mode)
 interface EntryRow { account_id: string; debit: string; credit: string }
@@ -74,14 +73,13 @@ export default function NewEntryPage() {
 
   // ── Shared reference data ─────────────────────────────────────────────────
   const [accounts,       setAccounts]       = useState<Account[]>([])
-  const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
   const [customers,      setCustomers]      = useState<PartyItem[]>([])
   const [vendors,        setVendors]        = useState<PartyItem[]>([])
 
   // ── Shared header fields ──────────────────────────────────────────────────
   const [date,              setDate]              = useState(new Date().toISOString().split("T")[0])
   const [description,       setDescription]       = useState("")
-  const [analyticAccountId, setAnalyticAccountId] = useState("")
+  const [analyticSlots, setAnalyticSlots] = useState<AnalyticSlots>({})
   const [customerId,        setCustomerId]        = useState("")
   const [vendorId,          setVendorId]          = useState("")
 
@@ -117,14 +115,11 @@ export default function NewEntryPage() {
   useEffect(() => {
     Promise.all([
       apiFetch<{ total: number; items: Account[] }>("/api/accounts?limit=500"),
-      apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>("/api/analytic-accounts"),
       apiFetch<{ total: number; items: PartyItem[] }>("/api/customers?limit=500"),
       apiFetch<{ total: number; items: PartyItem[] }>("/api/vendors?limit=500"),
     ])
-      .then(([d, an, custs, vends]) => {
+      .then(([d, custs, vends]) => {
         setAccounts(d.items.filter(a => a.postable !== false))
-        const anItems = Array.isArray(an) ? an : ((an as { items: AnalyticAccount[] }).items ?? [])
-        setAnalyticAccounts(anItems)
         setCustomers(custs.items ?? [])
         setVendors(vends.items ?? [])
       })
@@ -298,7 +293,7 @@ export default function NewEntryPage() {
     const payload = {
       date, description,
       voucher_type: voucherType,
-      analytic_account_id: analyticAccountId ? parseInt(analyticAccountId) : null,
+      ...slotsToPayload(analyticSlots),
       customer_id: customerId ? parseInt(customerId) : null,
       vendor_id:   vendorId   ? parseInt(vendorId)   : null,
       entries,
@@ -340,18 +335,7 @@ export default function NewEntryPage() {
   // ── Analytic + Party pickers (shared) ─────────────────────────────────────
   const SharedParty = (showAr: boolean, showAp: boolean) => (
     <>
-      {analyticAccounts.length > 0 && (
-        <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">
-            Analytic Account <span className="font-normal normal-case">(optional)</span>
-          </label>
-          <select value={analyticAccountId} onChange={e => setAnalyticAccountId(e.target.value)}
-            className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
-            <option value="">— none —</option>
-            {analyticAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-          </select>
-        </div>
-      )}
+      <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
       {showAr && customers.length > 0 && (
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">{t('col.customer', 'Customer')}<span className="font-normal normal-case">(optional)</span>
@@ -514,18 +498,7 @@ export default function NewEntryPage() {
               </div>
             </div>
 
-            {analyticAccounts.length > 0 && (
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55 mb-1">
-                  Analytic Account <span className="font-normal normal-case">(optional)</span>
-                </label>
-                <select value={analyticAccountId} onChange={e => setAnalyticAccountId(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
-                  <option value="">— none —</option>
-                  {analyticAccounts.map(a => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-                </select>
-              </div>
-            )}
+            <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
             {hasArAccount && SharedParty(true, false)}
             {hasApAccount && SharedParty(false, true)}
             {AllocationPanel}

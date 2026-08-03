@@ -17,6 +17,7 @@ from models import Account, Bill, Invoice, Tenant
 from services.fx import rate_to_base
 from services.money import D, ONE, ZERO, money
 from services.posting import EntryInput
+from services.analytics import pack_analytics
 
 
 Side = Literal["receipt", "bill_payment"]
@@ -163,6 +164,9 @@ def build_settlement(
     exchange_rate: Optional[Decimal],
     allocs: list[AllocDoc],
     analytic_account_id: Optional[int] = None,
+    analytic_2_id: Optional[int] = None,
+    analytic_3_id: Optional[int] = None,
+    analytic_ids: Optional[list] = None,
     party_customer_id: Optional[int] = None,
     party_vendor_id: Optional[int] = None,
 ) -> SettlementPlan:
@@ -173,6 +177,13 @@ def build_settlement(
     plug realised FX on 4903.
     """
     from routers.common import get_or_create_account
+
+    a1, a2, a3 = pack_analytics(
+        analytic_account_id=analytic_account_id,
+        analytic_2_id=analytic_2_id,
+        analytic_3_id=analytic_3_id,
+        analytic_ids=analytic_ids,
+    )
 
     tenant = session.get(Tenant, tenant_id)
     base = tenant.base_currency if tenant else "USD"
@@ -225,7 +236,7 @@ def build_settlement(
                 EntryInput(
                     account_id=cash_account_id,
                     debit=cash_base,
-                    analytic_account_id=analytic_account_id,
+                    analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
                 )
             )
             for acc_id, base_amt in by_acc.items():
@@ -233,18 +244,18 @@ def build_settlement(
                     EntryInput(
                         account_id=acc_id,
                         credit=base_amt,
-                        analytic_account_id=analytic_account_id,
+                        analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
                         customer_id=party_customer_id,
                     )
                 )
             if realised > ZERO:
                 # Gain: cash > carrying AR → Cr Realised FX
                 entries.append(
-                    EntryInput(account_id=fx_acc.id, credit=realised, analytic_account_id=analytic_account_id)
+                    EntryInput(account_id=fx_acc.id, credit=realised, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3)
                 )
             elif realised < ZERO:
                 entries.append(
-                    EntryInput(account_id=fx_acc.id, debit=-realised, analytic_account_id=analytic_account_id)
+                    EntryInput(account_id=fx_acc.id, debit=-realised, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3)
                 )
         else:
             for acc_id, base_amt in by_acc.items():
@@ -252,7 +263,7 @@ def build_settlement(
                     EntryInput(
                         account_id=acc_id,
                         debit=base_amt,
-                        analytic_account_id=analytic_account_id,
+                        analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
                         vendor_id=party_vendor_id,
                     )
                 )
@@ -260,17 +271,17 @@ def build_settlement(
                 EntryInput(
                     account_id=cash_account_id,
                     credit=cash_base,
-                    analytic_account_id=analytic_account_id,
+                    analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
                 )
             )
             # AP: cash_base > cleared → loss (Dr FX); cash < cleared → gain (Cr FX)
             if realised > ZERO:
                 entries.append(
-                    EntryInput(account_id=fx_acc.id, debit=realised, analytic_account_id=analytic_account_id)
+                    EntryInput(account_id=fx_acc.id, debit=realised, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3)
                 )
             elif realised < ZERO:
                 entries.append(
-                    EntryInput(account_id=fx_acc.id, credit=-realised, analytic_account_id=analytic_account_id)
+                    EntryInput(account_id=fx_acc.id, credit=-realised, analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3)
                 )
 
         return SettlementPlan(
@@ -296,12 +307,12 @@ def build_settlement(
             EntryInput(
                 account_id=cash_account_id,
                 debit=amount,
-                analytic_account_id=analytic_account_id,
+                analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
             ),
             EntryInput(
                 account_id=ar_or_ap.id,
                 credit=amount,
-                analytic_account_id=analytic_account_id,
+                analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
                 customer_id=party_customer_id,
             ),
         ]
@@ -310,13 +321,13 @@ def build_settlement(
             EntryInput(
                 account_id=ar_or_ap.id,
                 debit=amount,
-                analytic_account_id=analytic_account_id,
+                analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
                 vendor_id=party_vendor_id,
             ),
             EntryInput(
                 account_id=cash_account_id,
                 credit=amount,
-                analytic_account_id=analytic_account_id,
+                analytic_account_id=a1, analytic_2_id=a2, analytic_3_id=a3,
             ),
         ]
     return SettlementPlan(

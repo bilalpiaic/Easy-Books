@@ -48,6 +48,9 @@ class PaymentReceivedCreate(BaseModel):
     cash_account_id: Optional[int] = None
     allocations: List[AllocationLine] = []
     analytic_account_id: Optional[int] = None
+    analytic_2_id: Optional[int] = None
+    analytic_3_id: Optional[int] = None
+    analytic_ids: Optional[List[int]] = None
 
 
 def _refresh_invoice_status(session, inv: Invoice) -> None:
@@ -199,7 +202,7 @@ def create_payment_received(
         currency=body.currency,
         exchange_rate=body.exchange_rate,
         allocs=resolved,
-        analytic_account_id=body.analytic_account_id,
+        analytic_account_id=body.analytic_account_id, analytic_2_id=body.analytic_2_id, analytic_3_id=body.analytic_3_id, analytic_ids=body.analytic_ids,
         party_customer_id=body.customer_id,
     )
 
@@ -238,7 +241,7 @@ def create_payment_received(
         cash_account_id=cash_acc.id,
         transaction_id=txn.id,
         created_by_id=user.id,
-        analytic_account_id=body.analytic_account_id,
+        analytic_account_id=body.analytic_account_id, analytic_2_id=body.analytic_2_id, analytic_3_id=body.analytic_3_id,
     )
     session.add(pmt)
     session.flush()
@@ -287,6 +290,9 @@ class BillPaymentCreate(BaseModel):
     cash_account_id: Optional[int] = None
     allocations: List[AllocationLine] = []
     analytic_account_id: Optional[int] = None
+    analytic_2_id: Optional[int] = None
+    analytic_3_id: Optional[int] = None
+    analytic_ids: Optional[List[int]] = None
 
 
 @router.get("/api/bill-payments/{payment_id}", dependencies=[perm_dep("bill_payments")])
@@ -387,7 +393,7 @@ def create_bill_payment(
         currency=body.currency,
         exchange_rate=body.exchange_rate,
         allocs=resolved,
-        analytic_account_id=body.analytic_account_id,
+        analytic_account_id=body.analytic_account_id, analytic_2_id=body.analytic_2_id, analytic_3_id=body.analytic_3_id, analytic_ids=body.analytic_ids,
         party_vendor_id=body.vendor_id,
     )
 
@@ -426,7 +432,7 @@ def create_bill_payment(
         cash_account_id=cash_acc.id,
         transaction_id=txn.id,
         created_by_id=user.id,
-        analytic_account_id=body.analytic_account_id,
+        analytic_account_id=body.analytic_account_id, analytic_2_id=body.analytic_2_id, analytic_3_id=body.analytic_3_id,
     )
     session.add(bp)
     session.flush()

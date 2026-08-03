@@ -31,6 +31,7 @@ from sqlmodel import Session, select
 
 from models import AccountingPeriod, Account, AuditLog, JournalEntry, Transaction, User
 from services.accounts import assert_account_postable
+from services.analytics import pack_analytics, required_dimensions, slot_for_sort_order
 from services.money import D, ZERO
 from services.vouchers import voucher_number
 
@@ -42,15 +43,28 @@ class EntryInput:
     debit: Decimal = ZERO
     credit: Decimal = ZERO
     analytic_account_id: Optional[int] = None
+    analytic_2_id: Optional[int] = None
+    analytic_3_id: Optional[int] = None
+    # Maps to slots 0–2; merged with the explicit fields in normalised().
+    analytic_ids: Optional[Sequence[Optional[int]]] = None
     customer_id: Optional[int] = None
     vendor_id: Optional[int] = None
 
     def normalised(self) -> "EntryInput":
+        a1, a2, a3 = pack_analytics(
+            analytic_account_id=self.analytic_account_id,
+            analytic_2_id=self.analytic_2_id,
+            analytic_3_id=self.analytic_3_id,
+            analytic_ids=self.analytic_ids,
+        )
         return EntryInput(
             account_id=self.account_id,
             debit=D(self.debit),
             credit=D(self.credit),
-            analytic_account_id=self.analytic_account_id,
+            analytic_account_id=a1,
+            analytic_2_id=a2,
+            analytic_3_id=a3,
+            analytic_ids=None,
             customer_id=self.customer_id,
             vendor_id=self.vendor_id,
         )
@@ -118,6 +132,24 @@ def _check_accounts_belong_to_tenant(
         assert_account_postable(session, tenant_id, account)
 
 
+def _check_required_dimensions(
+    session: Session, tenant_id: int, entries: Sequence[EntryInput]
+) -> None:
+    """Block posts missing a value for any active required dimension (#260)."""
+    dims = required_dimensions(session, tenant_id)
+    if not dims:
+        return
+    for e in entries:
+        for d in dims:
+            val = slot_for_sort_order(
+                d.sort_order, e.analytic_account_id, e.analytic_2_id, e.analytic_3_id
+            )
+            if val is None:
+                raise PostingError(
+                    f"Dimension '{d.name}' ({d.code}) is required but missing on an entry."
+                )
+
+
 def post_transaction(
     session: Session,
     user: User,
@@ -142,6 +174,7 @@ def post_transaction(
     _validate_entries(norm)
     _check_period_locked(session, user.tenant_id, date)
     _check_accounts_belong_to_tenant(session, user.tenant_id, (e.account_id for e in norm))
+    _check_required_dimensions(session, user.tenant_id, norm)
 
     txn = Transaction(
         tenant_id=user.tenant_id,
@@ -169,6 +202,8 @@ def post_transaction(
                 debit=e.debit,
                 credit=e.credit,
                 analytic_account_id=e.analytic_account_id,
+                analytic_2_id=e.analytic_2_id,
+                analytic_3_id=e.analytic_3_id,
                 customer_id=e.customer_id,
                 vendor_id=e.vendor_id,
             )
