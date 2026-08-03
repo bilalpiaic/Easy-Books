@@ -550,6 +550,9 @@ class Vendor(SQLModel, table=True):
     # India GST (#265)
     gstin: Optional[str] = None
     state_code: Optional[str] = None
+    # Withholding tax (#267)
+    wht_tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
+    wht_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 4)))
 
 
 class Invoice(SQLModel, table=True):
@@ -673,9 +676,11 @@ class BillPayment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    vendor_id: Optional[int] = Field(default=None, foreign_key="vendor.id", index=True)
     vendor_name: Optional[str] = None
     payment_date: str
     amount: Money = money_col()
+    wht_amount: Money = money_col()  # withholding deducted; Cr 2265 (#267)
     currency: Optional[str] = None
     exchange_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4)))
     method: str = Field(default="cash")
@@ -1315,6 +1320,23 @@ class TaxCode(SQLModel, table=True):
     is_reverse_charge: bool = Field(default=False)
     is_exempt: bool = Field(default=False)
     is_zero_rated: bool = Field(default=False)
+    is_withholding: bool = Field(default=False)  # WHT on vendor payments (#267)
+
+
+class CitAdjustment(SQLModel, table=True):
+    """Manual corporate-tax worksheet addback/deduction lines (#267)."""
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('addback','deduction')",
+            name="ck_cit_adj_kind",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    fiscal_year: str = Field(index=True)  # e.g. "2026" or "2025-26"
+    kind: str  # addback | deduction
+    description: str
+    amount: Money = money_col()
 
 
 class TaxRateHistory(SQLModel, table=True):

@@ -15,9 +15,13 @@ export interface VendorFull {
   payment_term_id: number | null
   gstin?: string | null
   state_code?: string | null
+  wht_tax_code_id?: number | null
+  wht_rate?: number | null
 }
 
 interface PaymentTerm { id: number; code: string; name: string; days: number }
+
+interface TaxCodeOpt { id: number; code: string; name: string; rate: number; is_withholding?: boolean }
 
 interface FormState {
   name: string
@@ -28,11 +32,13 @@ interface FormState {
   payment_term_id: string
   gstin: string
   state_code: string
+  wht_tax_code_id: string
+  wht_rate: string
 }
 
 const emptyForm: FormState = {
   name: '', email: '', phone: '', address: '', opening_balance: '0', payment_term_id: '',
-  gstin: '', state_code: '',
+  gstin: '', state_code: '', wht_tax_code_id: '', wht_rate: '',
 }
 
 interface Props {
@@ -47,11 +53,19 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
   const showGst = installedModules.has('in_gst')
   const [form, setForm]           = useState<FormState>(emptyForm)
   const [terms, setTerms]         = useState<PaymentTerm[]>([])
+  const [taxCodes, setTaxCodes]   = useState<TaxCodeOpt[]>([])
   const [saving, setSaving]       = useState(false)
   const [formError, setFormError] = useState('')
 
   useEffect(() => {
     apiFetch<PaymentTerm[]>('/api/payment-terms').then(setTerms).catch(() => {})
+    apiFetch<{ items: TaxCodeOpt[] }>('/api/tax-codes?limit=200')
+      .then(d => {
+        const items = d.items
+        const wht = items.filter(t => t.is_withholding)
+        setTaxCodes(wht.length > 0 ? wht : items)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -65,6 +79,8 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
         payment_term_id: vendor.payment_term_id ? String(vendor.payment_term_id) : '',
         gstin: vendor.gstin ?? '',
         state_code: vendor.state_code ?? '',
+        wht_tax_code_id: vendor.wht_tax_code_id ? String(vendor.wht_tax_code_id) : '',
+        wht_rate: vendor.wht_rate != null ? String(vendor.wht_rate) : '',
       })
     }
   }, [mode, vendor])
@@ -82,6 +98,8 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
         payment_term_id: form.payment_term_id ? parseInt(form.payment_term_id) : null,
         gstin: form.gstin || null,
         state_code: form.state_code || null,
+        wht_tax_code_id: form.wht_tax_code_id ? parseInt(form.wht_tax_code_id) : null,
+        wht_rate: form.wht_rate !== '' ? parseFloat(form.wht_rate) : null,
       }
       if (mode === 'edit' && vendor) {
         await apiFetch(`/api/vendors/${vendor.id}`, {
@@ -180,6 +198,50 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
             </div>
           </div>
         )}
+
+        <div className="border-t border-[var(--border)] pt-4 space-y-3">
+          <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/40">Withholding tax</p>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              WHT tax code
+            </label>
+            <select
+              value={form.wht_tax_code_id}
+              onChange={e => {
+                const id = e.target.value
+                const tc = taxCodes.find(t => String(t.id) === id)
+                setForm(p => ({
+                  ...p,
+                  wht_tax_code_id: id,
+                  wht_rate: p.wht_rate || (tc ? String(tc.rate) : p.wht_rate),
+                }))
+              }}
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            >
+              <option value="">None</option>
+              {taxCodes.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.code} — {t.name} ({t.rate}%)
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              WHT rate % <span className="font-normal normal-case">(override)</span>
+            </label>
+            <input
+              type="number" step="0.01" min="0"
+              value={form.wht_rate}
+              onChange={e => setForm(p => ({ ...p, wht_rate: e.target.value }))}
+              placeholder="e.g. 10"
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            />
+            <p className="text-xs text-[var(--text-primary)]/50 mt-1">
+              Applied on bill payments: Dr AP full / Cr Bank net / Cr WHT payable.
+            </p>
+          </div>
+        </div>
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>

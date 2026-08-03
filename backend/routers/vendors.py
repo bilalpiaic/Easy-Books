@@ -24,6 +24,8 @@ class VendorCreate(BaseModel):
     payment_term_id: Optional[int] = None
     gstin: Optional[str] = None
     state_code: Optional[str] = None
+    wht_tax_code_id: Optional[int] = None
+    wht_rate: Optional[Decimal] = None
 
 
 class VendorUpdate(BaseModel):
@@ -36,6 +38,8 @@ class VendorUpdate(BaseModel):
     payment_term_id: Optional[int] = None
     gstin: Optional[str] = None
     state_code: Optional[str] = None
+    wht_tax_code_id: Optional[int] = None
+    wht_rate: Optional[Decimal] = None
 
 
 @router.get("")
@@ -66,8 +70,20 @@ def get_vendor(session: SessionDep, user: CurrentUserDep, vendor_id: int):
     return v
 
 
+def _validate_wht_tax_code(session, tenant_id: int, tax_code_id: Optional[int]) -> None:
+    if tax_code_id is None:
+        return
+    from models import TaxCode
+    tc = session.exec(
+        select(TaxCode).where(TaxCode.id == tax_code_id, TaxCode.tenant_id == tenant_id)
+    ).first()
+    if not tc:
+        raise HTTPException(400, "wht_tax_code_id not found for tenant")
+
+
 @router.post("", status_code=201)
 def create_vendor(session: SessionDep, user: WriteUserDep, body: VendorCreate):
+    _validate_wht_tax_code(session, user.tenant_id, body.wht_tax_code_id)
     v = Vendor(**body.model_dump(), tenant_id=user.tenant_id)
     session.add(v)
     session.flush()
@@ -89,7 +105,10 @@ def update_vendor(
     ).first()
     if not v:
         raise HTTPException(404, "Vendor not found")
-    for k, val in body.model_dump(exclude_none=True).items():
+    payload = body.model_dump(exclude_unset=True)
+    if "wht_tax_code_id" in payload:
+        _validate_wht_tax_code(session, user.tenant_id, payload["wht_tax_code_id"])
+    for k, val in payload.items():
         setattr(v, k, val)
     session.add(v)
     log_audit(session, user, "UPDATE", "vendor", v.id, {"name": v.name})

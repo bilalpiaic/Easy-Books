@@ -93,6 +93,8 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/leases":                 ["leases", "ifrs 16", "right of use", "rou", "lease liability", "maturity"],
   "/cashflow":               ["cash flow", "funds flow"],
   "/tax":                    ["gst", "vat", "tax summary", "sales tax"],
+  "/reports/wht":            ["wht", "withholding", "withholding tax"],
+  "/reports/cit-worksheet":  ["cit", "corporate tax", "tax worksheet"],
   "/india-gst/gstr":         ["gstr", "india gst", "cgst", "sgst", "igst", "gstr-1"],
   "/tax-codes":              ["tax code", "tax rate"],
   "/budgets":                ["budget vs actual", "variance"],
@@ -532,6 +534,16 @@ const REPORTS: NavResult[] = [
     id: "rpt:tax", type: "report", label: "Tax Reports",
     sub: "GST / VAT summary", href: "/tax",
     keywords: ["tax", "gst", "vat", "tax report", "tax summary", "sales tax", "output"],
+  },
+  {
+    id: "rpt:wht", type: "report", label: "Withholding Tax",
+    sub: "WHT deducted on vendor payments by period", href: "/reports/wht",
+    keywords: ["wht", "withholding", "withholding tax", "tax deducted", "vendor tax"],
+  },
+  {
+    id: "rpt:cit", type: "report", label: "CIT Worksheet",
+    sub: "Corporate tax addbacks and estimated tax", href: "/reports/cit-worksheet",
+    keywords: ["cit", "corporate tax", "income tax", "addback", "tax worksheet"],
   },
   {
     id: "rpt:gstr", type: "report", label: "GSTR Report",

@@ -12,17 +12,19 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
+from pydantic import BaseModel
+
 from models import (
-    Account, Bill, BillLine, Budget, Customer, Invoice, InvoiceLine, JournalEntry,
-    PaymentAllocation, PaymentReceived, Product, ProductCategory, TaxCode,
-    Transaction, Vendor,
+    Account, Bill, BillLine, BillPayment, Budget, CitAdjustment, Customer,
+    Invoice, InvoiceLine, JournalEntry, PaymentAllocation, PaymentReceived,
+    Product, ProductCategory, TaxCode, Transaction, Vendor,
 )
 from services.account_tree import build_account_tree
 from services.export_utils import stream_csv, stream_xlsx
 from services.money import D, ZERO, money
 
 from services.permissions import perm_dep, apply_own_filter
-from .common import CurrentUserDep, SessionDep
+from .common import CurrentUserDep, SessionDep, WriteUserDep
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -2423,3 +2425,234 @@ def product_performance_export(
     if format == "csv":
         return stream_csv(export_rows, _PP_EXPORT_HEADERS, f"{fname_base}.csv")
     return stream_xlsx(export_rows, _PP_EXPORT_HEADERS, f"{fname_base}.xlsx")
+
+
+# ── Withholding tax period report (#267) ─────────────────────────────────────
+
+
+@router.get("/wht", dependencies=[perm_dep("report.tax")])
+def wht_report(
+    session: SessionDep, user: CurrentUserDep,
+    start: str = Query(default=""), end: str = Query(default=""),
+):
+    """WHT deducted on bill payments, grouped by vendor."""
+    if not start:
+        start = f"{DateType.today().year}-01-01"
+    if not end:
+        end = str(DateType.today())
+
+    pays = session.exec(
+        select(BillPayment).where(
+            BillPayment.tenant_id == user.tenant_id,
+            BillPayment.payment_date >= start,
+            BillPayment.payment_date <= end,
+            BillPayment.wht_amount > 0,
+        )
+    ).all()
+
+    buckets: dict[tuple, dict] = {}
+    for p in pays:
+        key = (p.vendor_id, p.vendor_name or "—")
+        b = buckets.get(key)
+        if b is None:
+            b = {
+                "vendor_id": p.vendor_id,
+                "vendor": p.vendor_name or "—",
+                "base": ZERO,
+                "wht": ZERO,
+                "payments": 0,
+            }
+            buckets[key] = b
+        b["base"] = money(b["base"] + D(p.amount))
+        b["wht"] = money(b["wht"] + D(p.wht_amount))
+        b["payments"] += 1
+
+    items = sorted(buckets.values(), key=lambda r: r["vendor"].lower())
+    tot_base = money(sum((D(i["base"]) for i in items), ZERO))
+    tot_wht = money(sum((D(i["wht"]) for i in items), ZERO))
+    tot_pays = sum(i["payments"] for i in items)
+
+    return {
+        "period": {"start": start, "end": end},
+        "items": items,
+        "totals": {"base": tot_base, "wht": tot_wht, "payments": tot_pays},
+    }
+
+
+# ── Corporate tax worksheet (#267) ───────────────────────────────────────────
+
+
+class CitAdjustmentCreate(BaseModel):
+    fiscal_year: str
+    kind: str  # addback | deduction
+    description: str
+    amount: Decimal
+
+
+class CitAdjustmentUpdate(BaseModel):
+    fiscal_year: Optional[str] = None
+    kind: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[Decimal] = None
+
+
+def _cit_adj_serialize(row: CitAdjustment) -> dict:
+    return {
+        "id": row.id,
+        "fiscal_year": row.fiscal_year,
+        "kind": row.kind,
+        "description": row.description,
+        "amount": row.amount,
+    }
+
+
+@router.get("/cit-adjustments", dependencies=[perm_dep("report.tax")])
+def list_cit_adjustments(
+    session: SessionDep, user: CurrentUserDep,
+    fiscal_year: Optional[str] = None,
+):
+    q = select(CitAdjustment).where(CitAdjustment.tenant_id == user.tenant_id)
+    if fiscal_year:
+        q = q.where(CitAdjustment.fiscal_year == fiscal_year)
+    rows = session.exec(q.order_by(CitAdjustment.id)).all()
+    return {"items": [_cit_adj_serialize(r) for r in rows]}
+
+
+@router.post("/cit-adjustments", status_code=201, dependencies=[perm_dep("report.tax", "edit")])
+def create_cit_adjustment(
+    session: SessionDep, user: WriteUserDep, body: CitAdjustmentCreate
+):
+    if body.kind not in ("addback", "deduction"):
+        raise HTTPException(400, "kind must be 'addback' or 'deduction'")
+    if not body.fiscal_year.strip():
+        raise HTTPException(400, "fiscal_year is required")
+    row = CitAdjustment(
+        tenant_id=user.tenant_id,
+        fiscal_year=body.fiscal_year.strip(),
+        kind=body.kind,
+        description=body.description.strip(),
+        amount=money(body.amount),
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return _cit_adj_serialize(row)
+
+
+@router.put("/cit-adjustments/{adj_id}", dependencies=[perm_dep("report.tax", "edit")])
+def update_cit_adjustment(
+    session: SessionDep, user: WriteUserDep, adj_id: int, body: CitAdjustmentUpdate
+):
+    row = session.exec(
+        select(CitAdjustment).where(
+            CitAdjustment.id == adj_id,
+            CitAdjustment.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not row:
+        raise HTTPException(404, "Adjustment not found")
+    payload = body.model_dump(exclude_unset=True)
+    if "kind" in payload and payload["kind"] not in ("addback", "deduction"):
+        raise HTTPException(400, "kind must be 'addback' or 'deduction'")
+    if "amount" in payload:
+        payload["amount"] = money(payload["amount"])
+    for k, v in payload.items():
+        setattr(row, k, v)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return _cit_adj_serialize(row)
+
+
+@router.delete("/cit-adjustments/{adj_id}", status_code=204, dependencies=[perm_dep("report.tax", "edit")])
+def delete_cit_adjustment(
+    session: SessionDep, user: WriteUserDep, adj_id: int
+):
+    row = session.exec(
+        select(CitAdjustment).where(
+            CitAdjustment.id == adj_id,
+            CitAdjustment.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not row:
+        raise HTTPException(404, "Adjustment not found")
+    session.delete(row)
+    session.commit()
+    return None
+
+
+@router.get("/cit-worksheet", dependencies=[perm_dep("report.tax")])
+def cit_worksheet(
+    session: SessionDep, user: CurrentUserDep,
+    start: str = Query(default=""),
+    end: str = Query(default=""),
+    fiscal_year: Optional[str] = None,
+    tax_rate: Decimal = Query(default=Decimal("29")),
+):
+    """Management CIT worksheet: accounting profit + manual adjustments.
+
+    Not a filing return — estimated tax uses a flat ``tax_rate`` (default 29%).
+    """
+    if not start:
+        start = f"{DateType.today().year}-01-01"
+    if not end:
+        end = str(DateType.today())
+    fy = (fiscal_year or str(DateType.fromisoformat(start).year)).strip()
+
+    # Accounting profit from P&L (same basis as income-statement totals)
+    accounts = session.exec(
+        select(Account).where(Account.tenant_id == user.tenant_id)
+    ).all()
+
+    def period_net(acct: Account) -> Decimal:
+        entries = session.exec(
+            select(JournalEntry)
+            .join(Transaction, Transaction.id == JournalEntry.transaction_id)
+            .where(
+                JournalEntry.account_id == acct.id,
+                JournalEntry.tenant_id == user.tenant_id,
+                Transaction.date >= start,
+                Transaction.date <= end,
+            )
+        ).all()
+        debit = sum((D(e.debit) for e in entries), ZERO)
+        credit = sum((D(e.credit) for e in entries), ZERO)
+        if acct.type == "Revenue":
+            return credit - debit
+        if acct.type == "Expense":
+            return debit - credit
+        return ZERO
+
+    revenue = money(sum((period_net(a) for a in accounts if a.type == "Revenue"), ZERO))
+    expenses = money(sum((period_net(a) for a in accounts if a.type == "Expense"), ZERO))
+    accounting_profit = money(revenue - expenses)
+
+    adjs = session.exec(
+        select(CitAdjustment).where(
+            CitAdjustment.tenant_id == user.tenant_id,
+            CitAdjustment.fiscal_year == fy,
+        )
+    ).all()
+    addbacks = [_cit_adj_serialize(a) for a in adjs if a.kind == "addback"]
+    deductions = [_cit_adj_serialize(a) for a in adjs if a.kind == "deduction"]
+    total_addbacks = money(sum((D(a.amount) for a in adjs if a.kind == "addback"), ZERO))
+    total_deductions = money(sum((D(a.amount) for a in adjs if a.kind == "deduction"), ZERO))
+    taxable_income = money(accounting_profit + total_addbacks - total_deductions)
+    rate = D(tax_rate)
+    estimated_tax = money(max(ZERO, taxable_income) * rate / D("100"))
+
+    return {
+        "period": {"start": start, "end": end},
+        "fiscal_year": fy,
+        "tax_rate": rate,
+        "accounting_profit": accounting_profit,
+        "revenue": revenue,
+        "expenses": expenses,
+        "addbacks": addbacks,
+        "deductions": deductions,
+        "total_addbacks": total_addbacks,
+        "total_deductions": total_deductions,
+        "taxable_income": taxable_income,
+        "estimated_tax": estimated_tax,
+        "note": "Management worksheet — not a statutory tax return.",
+    }
