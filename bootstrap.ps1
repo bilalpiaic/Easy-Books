@@ -1,4 +1,4 @@
-# Easy-Books bootstrap (Windows) — clone (or update) the repo, then install
+# Easy-Books bootstrap (Windows) - clone (or update) the repo, then install
 # everything and run. The only manual step a new user takes.
 #
 # One-liner (nothing pre-downloaded), in PowerShell:

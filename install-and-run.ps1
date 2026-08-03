@@ -67,7 +67,7 @@ Push-Location backend; uv sync --frozen; Pop-Location
 
 # WeasyPrint (Save PDF) needs the GTK3 runtime DLLs on Windows. Python 3.8+
 # also requires the bin folder via os.add_dll_directory (services/pdf.py).
-# Use the WeasyPrint-documented tschoonj installer — older winget GtkD builds
+# Use the WeasyPrint-documented tschoonj installer - older winget GtkD builds
 # ship a Pango too old for WeasyPrint 68+ (missing pango_context_set_round_glyph_positions).
 $gtkBinPreferred = 'C:\Program Files\GTK3-Runtime Win64\bin'
 $gtkDllPreferred = Join-Path $gtkBinPreferred 'libgobject-2.0-0.dll'
