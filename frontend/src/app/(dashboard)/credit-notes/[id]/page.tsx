@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Receipt, Printer } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useSettings } from "@/context/SettingsContext"
 import DocLink from "@/components/DocLink"
+import { isForeignCurrency, toBase } from "@/lib/fx"
 import { useTranslation } from "react-i18next"
 
 interface Line { id: number; description: string; qty: number; rate: number; amount: number; unit: string | null }
@@ -21,6 +22,8 @@ interface CreditNoteDetail {
   subtotal: number
   gst_amount: number
   total: number
+  currency?: string
+  exchange_rate?: number
   status: string
   transaction_id: number | null
   lines: Line[]
@@ -31,6 +34,8 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
 
   const { id } = use(params)
   const fmt = useFmt()
+  const { settings } = useSettings()
+  const baseCurrency = settings.currency || "USD"
   const [cn, setCn] = useState<CreditNoteDetail | null>(null)
   const [loading, setLoading] = useState(true)
   useBreadcrumb(cn ? cn.number : undefined)
@@ -54,7 +59,12 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
           </div>
           <div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">{cn.number}</h1>
-            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mt-0.5">Credit Note / Sales Return · {cn.status}</p>
+            <p className="text-xs text-[var(--text-primary)]/50 uppercase tracking-wide mt-0.5">
+              Credit Note / Sales Return · {cn.status}
+              {cn.currency && isForeignCurrency(cn.currency, baseCurrency) && (
+                <> · {cn.currency} @ {cn.exchange_rate} · {baseCurrency} {fmt(toBase(cn.total, { exchange_rate: cn.exchange_rate }))}</>
+              )}
+            </p>
           </div>
         </div>
         <Link href={`/credit-notes/${id}/print`} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] text-[var(--text-primary)]/60 print:hidden" title="Print">
@@ -108,7 +118,16 @@ export default function CreditNoteDetailPage({ params }: { params: Promise<{ id:
         <div className="px-4 py-3 border-t border-[var(--border)] text-sm space-y-1">
           <div className="flex justify-between"><span className="text-[var(--text-primary)]/60">Subtotal</span><span className="font-mono">{fmt(cn.subtotal)}</span></div>
           {cn.gst_amount > 0 && <div className="flex justify-between"><span className="text-[var(--text-primary)]/60">GST reversed</span><span className="font-mono">{fmt(cn.gst_amount)}</span></div>}
-          <div className="flex justify-between font-bold border-t border-[var(--border)] pt-1"><span>Total Credit</span><span className="font-mono text-red-600">({fmt(cn.total)})</span></div>
+          <div className="flex justify-between font-bold border-t border-[var(--border)] pt-1">
+            <span>Total Credit ({cn.currency || baseCurrency})</span>
+            <span className="font-mono text-red-600">({fmt(cn.total)})</span>
+          </div>
+          {cn.currency && isForeignCurrency(cn.currency, baseCurrency) && (
+            <div className="flex justify-between text-xs text-[var(--text-muted)]">
+              <span>≈ {baseCurrency}</span>
+              <span className="font-mono">{fmt(toBase(cn.total, { exchange_rate: cn.exchange_rate }))}</span>
+            </div>
+          )}
         </div>
       </div>
       <p className="text-xs text-[var(--text-primary)]/40 italic">GL: Dr Sales Revenue (+ Dr GST Payable) / Cr Accounts Receivable. Stock lines also Dr Inventory / Cr COGS.</p>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { useFmt, useDp, useSettings } from '@/context/SettingsContext'
+import { fxGainLossLabel, previewRealisedFx } from '@/lib/fx'
 
 interface OpenBill {
   id: number
@@ -253,9 +254,46 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
                 onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
                 className="w-full px-3 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
             </div>
-            <p className="col-span-2 text-xs text-amber-800">
-              Amount and allocations are in {fxCurrency}. GL posts cash at settlement rate and clears AP at each bill&apos;s carrying rate; difference → Realised FX (4903).
-            </p>
+            {(() => {
+              const settle = parseFloat(form.exchange_rate) || 0
+              const allocPreview = allocations
+                .filter(a => a.checked && parseFloat(a.amount) > 0)
+                .map(a => {
+                  const bill = openBills.find(b => b.id === a.bill_id)
+                  return {
+                    amount: parseFloat(a.amount) || 0,
+                    carryingRate: Number(bill?.carrying_rate ?? bill?.exchange_rate ?? 1),
+                  }
+                })
+              const preview = settle > 0 && paymentAmount > 0
+                ? previewRealisedFx({ paymentAmount, settlementRate: settle, allocations: allocPreview })
+                : null
+              return (
+                <>
+                  {preview && (
+                    <div className="col-span-2 grid grid-cols-3 gap-2 text-xs font-mono">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-amber-800/70 mb-0.5">Cash (base)</p>
+                        <p className="font-semibold">{preview.cashBase.toFixed(2)} {baseCurrency}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-amber-800/70 mb-0.5">AP cleared</p>
+                        <p className="font-semibold">{preview.clearedBase.toFixed(2)} {baseCurrency}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-amber-800/70 mb-0.5">Residual</p>
+                        <p className={`font-semibold ${Math.abs(preview.realised) < 0.005 ? '' : preview.realised < 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {fxGainLossLabel(preview.realised, 'bill_payment')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <p className="col-span-2 text-xs text-amber-800">
+                    Amount and allocations are in {fxCurrency}. GL posts cash at settlement rate and clears AP at each bill&apos;s carrying rate; difference → Realised FX (4903).
+                  </p>
+                </>
+              )
+            })()}
           </div>
         )}
         {whtPreview > 0 && (

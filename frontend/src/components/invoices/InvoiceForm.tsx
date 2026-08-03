@@ -1,18 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { DimensionPickers, slotsToPayload, type AnalyticSlots } from '@/components/DimensionPickers'
+import CurrencyRatePicker from '@/components/fx/CurrencyRatePicker'
 import { useFmt, useSettings } from '@/context/SettingsContext'
 import { usePRAPortal } from '@/hooks/usePRAPortal'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
-
-const CURRENCIES = [
-  'AED','AUD','BDT','BHD','CAD','CHF','CNY','EUR','GBP',
-  'HKD','IDR','INR','JPY','KWD','MYR','OMR','PKR','QAR',
-  'SAR','SGD','THB','TRY','USD','ZAR',
-]
 
 export interface InvoiceFull {
   id: number
@@ -111,9 +106,6 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
   const [applyingPromos, setApplyingPromos] = useState(false)
   const [promoMsg, setPromoMsg] = useState("")
-  const [fetchingRate, setFetchingRate] = useState(false)
-  const [rateError, setRateError] = useState('')
-  const [rateSource, setRateSource] = useState('')
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
   const currencyTouched = useRef(false)
 
@@ -213,25 +205,6 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
 
   const arAccounts = accounts.filter(a => a.type === 'Asset')
   const revenueAccounts = accounts.filter(a => a.type === 'Revenue')
-
-  const fetchLiveRate = async (fromCurrency: string, issueDate?: string) => {
-    const toCurrency = settings.currency
-    if (fromCurrency === toCurrency) return
-    setFetchingRate(true); setRateError(''); setRateSource('')
-    const date = issueDate ?? form.issue_date
-    const qs = `from_currency=${fromCurrency}&to_currency=${toCurrency}${date ? `&on_date=${date}` : ''}`
-    try {
-      const data = await apiFetch<{ rate: number; date: string; source: string }>(
-        `/api/exchange-rates/live?${qs}`
-      )
-      setForm(f => ({ ...f, exchange_rate: String(data.rate) }))
-      setRateSource(`${data.date} · ${data.source}`)
-    } catch (e) {
-      setRateError(e instanceof Error ? e.message : 'Failed to fetch rate')
-    } finally {
-      setFetchingRate(false)
-    }
-  }
 
   const handleApplyPromos = async () => {
     if (lines.length === 0) return
@@ -543,45 +516,17 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Currency</label>
-            <select
-              value={form.currency}
-              onChange={e => {
-                const cur = e.target.value
-                currencyTouched.current = true
-                setRateError(''); setRateSource('')
-                setForm(p => ({ ...p, currency: cur, exchange_rate: cur === settings.currency ? '1' : p.exchange_rate }))
-                if (cur !== settings.currency) fetchLiveRate(cur, form.issue_date)
-              }}
-              className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
-              {Array.from(new Set([settings.currency, ...CURRENCIES])).sort().map(c =>
-                <option key={c} value={c}>{c}</option>
-              )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
-              Exchange Rate (1 {form.currency} = ? {settings.currency})
-            </label>
-            <div className="flex gap-2">
-              <input type="number" step="0.0001" min="0" value={form.exchange_rate}
-                onChange={e => setForm(p => ({ ...p, exchange_rate: e.target.value }))}
-                disabled={form.currency === settings.currency}
-                className="flex-1 px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm disabled:opacity-50" />
-              <button type="button"
-                onClick={() => fetchLiveRate(form.currency)}
-                disabled={form.currency === settings.currency || fetchingRate}
-                title="Fetch live rate from ECB via Frankfurter"
-                className="px-3 py-2 bg-[var(--bg-page)] border border-[var(--border)] rounded-xl text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-40 transition-colors">
-                {fetchingRate ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              </button>
-            </div>
-            {rateError && <p className="text-xs text-red-500 mt-1">{rateError}</p>}
-            {rateSource && !rateError && <p className="text-xs text-[var(--text-muted)] mt-1">{rateSource}</p>}
-          </div>
-        </div>
+        <CurrencyRatePicker
+          currency={form.currency}
+          exchangeRate={form.exchange_rate}
+          baseCurrency={settings.currency}
+          onDate={form.issue_date}
+          onCurrencyChange={cur => {
+            currencyTouched.current = true
+            setForm(p => ({ ...p, currency: cur, exchange_rate: cur === settings.currency ? '1' : p.exchange_rate }))
+          }}
+          onRateChange={rate => setForm(p => ({ ...p, exchange_rate: rate }))}
+        />
 
         <div>
           <div className="flex items-center justify-between mb-2">
