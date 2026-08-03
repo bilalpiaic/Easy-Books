@@ -144,7 +144,11 @@ div.overflow-x-auto:has(> table) > table > thead {
    engages vertically — the wrapper itself is the scroll container but it has
    no fixed height. .table-freeze caps the wrapper height so it becomes the
    vertical scroller and the sticky header actually pins (Excel-style).
-   Override the offset per page with --table-freeze-h if needed. */
+   Override the offset per page with --table-freeze-h if needed.
+
+   Sm/mobile: reserve LESS chrome than before (was 320px — left almost no
+   rows). Filters/titles sit above the freeze box; bottom nav is ~3.5rem.
+   Keep the table tall so data, not chrome, dominates the first viewport. */
 .table-freeze {
   overflow: auto;
   max-height: var(--table-freeze-h, calc(100dvh - 240px));
@@ -152,7 +156,27 @@ div.overflow-x-auto:has(> table) > table > thead {
 }
 @media (max-width: 767px) {
   .table-freeze {
-    max-height: var(--table-freeze-h, calc(100dvh - 320px));
+    /* top nav ~3.25rem + bottom nav ~3.5rem + main pad ~1rem ≈ 8rem */
+    max-height: var(--table-freeze-h, calc(100dvh - 8.5rem));
+  }
+  /* Compact sticky header / body cells — more rows fit */
+  .table-freeze > table > thead th,
+  div.overflow-x-auto:has(> table) > table > thead th {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+  .table-freeze > table > tbody td,
+  .table-freeze > table > tfoot td,
+  div.overflow-x-auto:has(> table) > table > tbody td {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    font-size: 0.8125rem;
   }
 }
 .table-freeze > table > thead {
@@ -217,6 +241,50 @@ div.freeze-col > table tbody tr:hover td:first-child {
 /* ── Bottom nav safe area ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SM REPORT / LIST DENSITY — maximize data above the fold
+   Applies to every dashboard page (reports, registers, forms lists).
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* Tighter page titles (common flex header + mb-8 pattern) */
+  main .flex.flex-col.md\:flex-row.md\:items-center.justify-between.mb-8 {
+    margin-bottom: 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+  main h1.text-xl {
+    font-size: 1.125rem !important;
+    line-height: 1.3 !important;
+  }
+  main h1.text-3xl {
+    font-size: 1.25rem !important;
+    line-height: 1.3 !important;
+  }
+  /* Filter / period cards */
+  main .mb-6.p-4 {
+    margin-bottom: 0.5rem !important;
+    padding: 0.5rem 0.625rem !important;
+  }
+  main .mb-4.p-4 {
+    margin-bottom: 0.5rem !important;
+    padding: 0.5rem 0.625rem !important;
+  }
+  /* KPI bands above tables */
+  main .grid.grid-cols-2 {
+    gap: 0.375rem !important;
+  }
+  main .grid.grid-cols-2 > .p-4,
+  main .grid.grid-cols-2 > div > .p-4 {
+    padding: 0.5rem 0.625rem !important;
+  }
+  main .grid.grid-cols-2 .text-2xl {
+    font-size: 1.125rem !important;
+  }
+  /* Action icon buttons next to titles — slightly smaller hit chrome */
+  main .print\:hidden button.p-3 {
+    padding: 0.5rem !important;
+  }
 }
 
 /* ── Skeleton shimmer ── */

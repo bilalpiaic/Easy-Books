@@ -24,16 +24,16 @@ export default function FilterBar({
   const hasFilters = !!status || !!dateFrom || !!dateTo
 
   return (
-    <div className="flex flex-wrap items-center gap-2 print:hidden">
+    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 print:hidden">
       {/* Search */}
       <div className="relative flex-1 min-w-0 sm:min-w-48">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--border)] pointer-events-none" />
+        <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--border)] pointer-events-none" />
         <input
           type="text"
           value={search}
           onChange={e => onSearch(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-9 pr-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+          className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
         />
         {search && (
           <button onClick={() => onSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--border)] hover:text-[var(--text-muted)]">
@@ -47,7 +47,7 @@ export default function FilterBar({
         <select
           value={status ?? ''}
           onChange={e => onStatus(e.target.value)}
-          className="px-3 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white"
+          className="px-2 sm:px-3 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white max-w-[40%] sm:max-w-none"
         >
           <option value="">All statuses</option>
           {statuses.map(s => (
@@ -56,21 +56,21 @@ export default function FilterBar({
         </select>
       )}
 
-      {/* Date range */}
+      {/* Date range — stack tighter on sm */}
       {onDateFrom && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 w-full sm:w-auto">
           <input
             type="date"
             value={dateFrom ?? ''}
             onChange={e => onDateFrom(e.target.value)}
-            className="px-2 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            className="flex-1 sm:flex-none px-2 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] min-w-0"
           />
-          <span className="text-[var(--text-muted)] text-xs">–</span>
+          <span className="text-[var(--text-muted)] text-xs shrink-0">–</span>
           <input
             type="date"
             value={dateTo ?? ''}
             onChange={e => onDateTo?.(e.target.value)}
-            className="px-2 py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            className="flex-1 sm:flex-none px-2 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] min-w-0"
           />
         </div>
       )}
