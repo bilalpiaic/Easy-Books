@@ -1530,7 +1530,13 @@ class Budget(SQLModel, table=True):
 
 
 class FixedAsset(SQLModel, table=True):
-    """Long-lived asset with systematic depreciation. IAS 16 / IAS 38."""
+    """Long-lived asset with systematic depreciation. IAS 16 / IAS 36 (#258).
+
+    Components: `parent_id` links leaf components under a parent shell.
+    Parents are roll-up only (no direct dep/impair/dispose). NBV =
+    cost − accum_depr − accum_impairment.
+    """
+    __tablename__ = "fixedasset"
     __table_args__ = (
         CheckConstraint(
             "method IN ('straight_line','reducing_balance')",
@@ -1539,6 +1545,7 @@ class FixedAsset(SQLModel, table=True):
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    parent_id: Optional[int] = Field(default=None, foreign_key="fixedasset.id", index=True)
     name: str
     code: Optional[str] = None
     asset_account_id: int = Field(foreign_key="account.id")
@@ -1550,11 +1557,15 @@ class FixedAsset(SQLModel, table=True):
     useful_life_months: int
     method: str = Field(default="straight_line")
     accumulated_depreciation: Money = money_col()
+    accum_impairment: Money = money_col()
     book_value: Money = money_col()
     is_disposed: bool = Field(default=False)
     last_depreciation_date: Optional[str] = None
     # §3: links asset to the JV that recorded its acquisition (Dr Asset / Cr AP or Bank)
     acquisition_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    disposal_date: Optional[str] = None
+    disposal_proceeds: Money = money_col()
+    disposal_transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -1566,6 +1577,26 @@ class DepreciationEntry(SQLModel, table=True):
     depreciation_date: str
     depreciation_amount: Money = money_col()
     transaction_id: int = Field(foreign_key="transaction.id")
+
+
+class AssetImpairment(SQLModel, table=True):
+    """IAS 36 impairment (or reversal) posted against a leaf fixed asset (#258).
+
+    amount > 0 = loss; amount < 0 = reversal. Posted as Dr/Cr Impairment P&L
+    vs Accum. Depreciation (gross cost unchanged).
+    """
+    __tablename__ = "assetimpairment"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    asset_id: int = Field(foreign_key="fixedasset.id", index=True)
+    impairment_date: str
+    recoverable_amount: Money = money_col()
+    carrying_before: Money = money_col()
+    amount: Money = money_col()  # >0 loss, <0 reversal
+    notes: Optional[str] = None
+    transaction_id: int = Field(foreign_key="transaction.id")
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class LeaseContract(SQLModel, table=True):

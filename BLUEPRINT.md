@@ -1775,7 +1775,7 @@ Stage 3 (publish):
 | G-02 | **Credit Notes** (`CN-` sequence; Dr Revenue / Cr AR) | ISA 240 | `routers/credit_notes.py` | `/credit-notes` |
 | G-03 | **Comparative period** columns on P&L + Balance Sheet | IAS 1.38 | `routers/reports.py` | `/pl`, `/balance` |
 | G-04 | **Multi-currency** wired to invoice/bill forms + `useFmt()` | IAS 21.21 | (already present) | invoices, bills, all pages |
-| G-05 | **Fixed Assets** register + straight-line / reducing-balance depreciation | IAS 16 | `routers/assets.py`, `services/depreciation.py` | `/assets` |
+| G-05 | **Fixed Assets** register + straight-line / reducing-balance depreciation; **#258** components (`parent_id`), IAS 36 impairment/reversal, disposal gain/loss via `posting.py`, rollforward report | IAS 16 / 36 | `routers/assets.py`, `services/assets.py`, `services/depreciation.py` | `/assets`, `/assets/rollforward` |
 | G-06 | **Purchase Orders** with approve + convert-to-bill | IAS 2.11 | `routers/purchase_orders.py` | (guide/workflow) |
 | G-07 | **Analytic accounts** (cost-center/project P&L) | IAS 1 | `routers/analytic_accounts.py` | (guide/workflow) |
 | G-08 | **Deferred revenue** recognition schedule | IFRS 15.31 | `routers/deferred_revenue.py` | (services model) |
