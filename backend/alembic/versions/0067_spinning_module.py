@@ -27,14 +27,16 @@ _OLD_CHECK = (
 
 _COLS = (
     "id, name, base_currency, business_model, enabled_modules, created_at, "
-    "cost_method, module_meta, is_suspended"
+    "cost_method, module_meta, plan, max_users, max_documents, storage_quota_mb, "
+    "is_suspended, trial_ends_at, stripe_customer_id, stripe_subscription_id, "
+    "subscription_status"
 )
 
 
 def _sqlite_rebuild(bind, check_expr: str) -> None:
     insp = sa.inspect(bind)
     tenant_cols = {c["name"] for c in insp.get_columns("tenant")}
-    suspended = ", is_suspended BOOLEAN NOT NULL DEFAULT 0" if "is_suspended" in tenant_cols else ""
+
     bind.execute(sa.text(f"""
         CREATE TABLE tenant_new (
             id INTEGER NOT NULL,
@@ -44,17 +46,31 @@ def _sqlite_rebuild(bind, check_expr: str) -> None:
             enabled_modules VARCHAR NOT NULL,
             created_at DATETIME NOT NULL,
             cost_method VARCHAR NOT NULL,
-            module_meta VARCHAR DEFAULT '{{}}' NOT NULL
-            {suspended},
+            module_meta VARCHAR DEFAULT '{{}}' NOT NULL,
+            plan VARCHAR NOT NULL DEFAULT 'free',
+            max_users INTEGER NOT NULL DEFAULT 2,
+            max_documents INTEGER NOT NULL DEFAULT 50,
+            storage_quota_mb INTEGER NOT NULL DEFAULT 100,
+            is_suspended BOOLEAN NOT NULL DEFAULT 0,
+            trial_ends_at DATETIME,
+            stripe_customer_id VARCHAR,
+            stripe_subscription_id VARCHAR,
+            subscription_status VARCHAR,
             PRIMARY KEY (id),
             CONSTRAINT ck_tenant_business_model CHECK ({check_expr}),
             CONSTRAINT ck_tenant_cost_method CHECK (cost_method IN ('wavg','fifo'))
         )
     """))
-    sel_cols = _COLS if "is_suspended" in tenant_cols else _COLS.replace(", is_suspended", "")
-    bind.execute(sa.text(f"INSERT INTO tenant_new ({sel_cols}) SELECT {sel_cols} FROM tenant"))
+    # Copy only columns present in the source; destination defaults fill the rest.
+    copy_cols = [
+        c for c in _COLS.replace("\n", "").replace(" ", "").split(",")
+        if c in tenant_cols
+    ]
+    col_list = ", ".join(copy_cols)
+    bind.execute(sa.text(f"INSERT INTO tenant_new ({col_list}) SELECT {col_list} FROM tenant"))
     bind.execute(sa.text("DROP TABLE tenant"))
     bind.execute(sa.text("ALTER TABLE tenant_new RENAME TO tenant"))
+    bind.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_tenant_plan ON tenant (plan)"))
 
 
 def _money():
