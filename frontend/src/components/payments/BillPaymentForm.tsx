@@ -28,6 +28,15 @@ interface AllocationRow {
   amount: string
 }
 
+interface VendorOpt {
+  id: number
+  name: string
+  wht_rate?: number | null
+  wht_tax_code_id?: number | null
+}
+
+interface TaxCodeOpt { id: number; rate: number }
+
 interface PayForm {
   vendor_id: string
   payment_date: string
@@ -61,12 +70,16 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
   const [openBills, setOpenBills]   = useState<OpenBill[]>([])
   const [allocations, setAllocations] = useState<AllocationRow[]>([])
   const [accounts, setAccounts]     = useState<Account[]>([])
-  const [vendors, setVendors]       = useState<{ id: number; name: string }[]>([])
+  const [vendors, setVendors]       = useState<VendorOpt[]>([])
+  const [taxCodes, setTaxCodes]     = useState<TaxCodeOpt[]>([])
   const [analyticAccounts, setAnalyticAccounts] = useState<AnalyticAccount[]>([])
 
   useEffect(() => {
-    apiFetch<{ items: { id: number; name: string }[] }>('/api/vendors?limit=500')
+    apiFetch<{ items: VendorOpt[] }>('/api/vendors?limit=500')
       .then(d => setVendors(d.items))
+      .catch(() => {})
+    apiFetch<{ items: TaxCodeOpt[] }>('/api/tax-codes?limit=200')
+      .then(d => setTaxCodes(d.items))
       .catch(() => {})
     apiFetch<AnalyticAccount[] | { items: AnalyticAccount[] }>('/api/analytic-accounts')
       .then(an => {
@@ -91,8 +104,23 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
       .catch(() => { setOpenBills([]); setAllocations([]) })
   }, [form.vendor_id])
 
-  const totalApplied   = allocations.filter(a => a.checked && parseFloat(a.amount) > 0).reduce((s, a) => s + parseFloat(a.amount), 0)
+  const selectedVendor = vendors.find(v => String(v.id) === form.vendor_id)
+  const whtRate = (() => {
+    if (!selectedVendor) return 0
+    if (selectedVendor.wht_rate != null && selectedVendor.wht_rate > 0) return Number(selectedVendor.wht_rate)
+    if (selectedVendor.wht_tax_code_id) {
+      const tc = taxCodes.find(t => t.id === selectedVendor.wht_tax_code_id)
+      return tc ? Number(tc.rate) : 0
+    }
+    return 0
+  })()
   const paymentAmount  = parseFloat(form.amount) || 0
+  const whtPreview     = whtRate > 0 && paymentAmount > 0
+    ? Math.round(paymentAmount * whtRate) / 100
+    : 0
+  const bankNet        = paymentAmount - whtPreview
+
+  const totalApplied   = allocations.filter(a => a.checked && parseFloat(a.amount) > 0).reduce((s, a) => s + parseFloat(a.amount), 0)
   const diff           = Math.abs(paymentAmount - totalApplied)
   const hasAllocations = allocations.some(a => a.checked)
 
@@ -230,6 +258,19 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
             </p>
           </div>
         )}
+        {whtPreview > 0 && (
+          <div className="p-3 rounded-xl bg-sky-50/70 border border-sky-200 text-sm space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-sky-800">Withholding tax preview</p>
+            <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-sky-900">
+              <span>Rate: {whtRate}%</span>
+              <span>WHT: {fmt(whtPreview)}</span>
+              <span>Bank pays: {fmt(bankNet)}</span>
+            </div>
+            <p className="text-xs text-sky-700">
+              GL: Dr AP {fmt(paymentAmount)} / Cr Bank {fmt(bankNet)} / Cr WHT payable {fmt(whtPreview)}
+            </p>
+          </div>
+        )}
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Cash/Bank Account</label>
           <select value={form.cash_account_id} onChange={e => setForm(p => ({ ...p, cash_account_id: e.target.value }))}
@@ -336,7 +377,9 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
         <p className="text-xs text-[var(--text-muted)]">
           {showFx
             ? 'GL posting: Dr AP (carrying) / Cr Cash (settle rate) / Realised FX 4903'
-            : 'GL posting: Dr Accounts Payable / Cr Cash/Bank'}
+            : whtPreview > 0
+              ? 'GL posting: Dr Accounts Payable / Cr Cash (net) / Cr WHT Payable'
+              : 'GL posting: Dr Accounts Payable / Cr Cash/Bank'}
         </p>
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>

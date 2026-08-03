@@ -18,6 +18,7 @@ interface TaxCode {
   is_reverse_charge: boolean
   is_exempt: boolean
   is_zero_rated: boolean
+  is_withholding: boolean
 }
 
 interface Account { id: number; code: string; name: string; type: string }
@@ -41,6 +42,7 @@ interface FormState {
   is_reverse_charge: boolean
   is_exempt: boolean
   is_zero_rated: boolean
+  is_withholding: boolean
   effective_from: string
 }
 
@@ -53,6 +55,7 @@ const emptyForm: FormState = {
   is_reverse_charge: false,
   is_exempt: false,
   is_zero_rated: false,
+  is_withholding: false,
   effective_from: new Date().toISOString().slice(0, 10),
 }
 
@@ -106,6 +109,7 @@ export default function TaxCodesPage() {
       is_reverse_charge: !!tc.is_reverse_charge,
       is_exempt: !!tc.is_exempt,
       is_zero_rated: !!tc.is_zero_rated,
+      is_withholding: !!tc.is_withholding,
       effective_from: new Date().toISOString().slice(0, 10),
     })
     setFormErr(null); setModalOpen(true)
@@ -130,6 +134,7 @@ export default function TaxCodesPage() {
           is_reverse_charge: form.is_reverse_charge,
           is_exempt: form.is_exempt,
           is_zero_rated: form.is_zero_rated,
+          is_withholding: form.is_withholding,
         }
         if (Number(form.rate) !== Number(editing.rate)) {
           payload.rate = rate
@@ -151,6 +156,7 @@ export default function TaxCodesPage() {
             is_reverse_charge: form.is_reverse_charge,
             is_exempt: form.is_exempt,
             is_zero_rated: form.is_zero_rated,
+            is_withholding: form.is_withholding,
           }),
         })
       }
@@ -377,6 +383,14 @@ export default function TaxCodesPage() {
                   />
                   Reverse charge
                 </label>
+                <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+                  <input
+                    type="checkbox"
+                    checked={form.is_withholding}
+                    onChange={e => setForm(f => ({ ...f, is_withholding: e.target.checked }))}
+                  />
+                  Withholding (WHT)
+                </label>
               </div>
 
               {!editing && (
@@ -473,6 +487,7 @@ function CodeTable({
                 tc.is_zero_rated ? "Zero" : null,
                 tc.is_exempt ? "Exempt" : null,
                 tc.is_reverse_charge ? "RC" : null,
+                tc.is_withholding ? "WHT" : null,
               ].filter(Boolean)
               return (
                 <tr key={tc.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[#faf8f4]">

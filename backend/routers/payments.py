@@ -13,17 +13,119 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from models import (
-    Account, Bill, BillPayment, Customer, Invoice, PaymentAllocation, PaymentReceived, Vendor,
+    Account, Bill, BillPayment, Customer, Invoice, PaymentAllocation, PaymentReceived, TaxCode, Vendor,
 )
 from services.events import emit
-from services.money import D, money
-from services.posting import post_transaction
+from services.money import D, ZERO, money
+from services.posting import EntryInput, post_transaction
 from services.vouchers import classify_cash_account
 
 from services.permissions import perm_dep, apply_own_filter
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account
 
 router = APIRouter(tags=["payments"])
+
+
+def resolve_wht_amount(
+    session,
+    *,
+    tenant_id: int,
+    vendor_id: Optional[int],
+    payment_amount: Decimal,
+    explicit_wht: Optional[Decimal] = None,
+    explicit_rate: Optional[Decimal] = None,
+) -> Decimal:
+    """Compute WHT to withhold from a bill payment (gross AP amount)."""
+    if explicit_wht is not None:
+        wht = money(explicit_wht)
+        if wht < ZERO:
+            raise HTTPException(400, "wht_amount cannot be negative")
+        if wht > money(payment_amount):
+            raise HTTPException(400, "wht_amount cannot exceed payment amount")
+        return wht
+
+    rate: Optional[Decimal] = None
+    if explicit_rate is not None:
+        rate = D(explicit_rate)
+    elif vendor_id is not None:
+        vend = session.exec(
+            select(Vendor).where(Vendor.id == vendor_id, Vendor.tenant_id == tenant_id)
+        ).first()
+        if vend:
+            if vend.wht_rate is not None:
+                rate = D(vend.wht_rate)
+            elif vend.wht_tax_code_id:
+                tc = session.exec(
+                    select(TaxCode).where(
+                        TaxCode.id == vend.wht_tax_code_id,
+                        TaxCode.tenant_id == tenant_id,
+                    )
+                ).first()
+                if tc:
+                    rate = D(tc.rate)
+
+    if rate is None or rate <= ZERO:
+        return ZERO
+    wht = money(D(payment_amount) * rate / D("100"))
+    if wht > money(payment_amount):
+        raise HTTPException(400, "Computed WHT exceeds payment amount")
+    return wht
+
+
+def apply_wht_split(
+    session,
+    *,
+    tenant_id: int,
+    entries: list,
+    wht_amount: Decimal,
+    cash_account_id: int,
+    vendor_id: Optional[int] = None,
+) -> list:
+    """Rewrite settlement entries: Cr Bank net, Cr 2265 WHT payable."""
+    wht = money(wht_amount)
+    if wht <= ZERO:
+        return list(entries)
+
+    wht_acc = get_or_create_account(
+        session, tenant_id, "2265", "Withholding Tax Payable", "Liability"
+    )
+    new_entries: list = []
+    cash_reduced = False
+    for e in entries:
+        if (
+            not cash_reduced
+            and e.account_id == cash_account_id
+            and D(e.credit) > ZERO
+        ):
+            new_credit = money(D(e.credit) - wht)
+            if new_credit < ZERO:
+                raise HTTPException(400, "WHT exceeds cash credit leg")
+            if new_credit > ZERO:
+                new_entries.append(
+                    EntryInput(
+                        account_id=e.account_id,
+                        debit=e.debit,
+                        credit=new_credit,
+                        analytic_account_id=e.analytic_account_id,
+                        analytic_2_id=e.analytic_2_id,
+                        analytic_3_id=e.analytic_3_id,
+                        customer_id=e.customer_id,
+                        vendor_id=e.vendor_id,
+                    )
+                )
+            cash_reduced = True
+        else:
+            new_entries.append(e)
+    if not cash_reduced:
+        raise HTTPException(400, "Could not apply WHT: cash credit leg missing")
+    new_entries.append(
+        EntryInput(
+            account_id=wht_acc.id,
+            credit=wht,
+            vendor_id=vendor_id,
+        )
+    )
+    return new_entries
 
 
 # ── Customer payments ────────────────────────────────────────────────────────
@@ -293,6 +395,8 @@ class BillPaymentCreate(BaseModel):
     analytic_2_id: Optional[int] = None
     analytic_3_id: Optional[int] = None
     analytic_ids: Optional[List[int]] = None
+    wht_amount: Optional[Decimal] = None  # explicit override; else from vendor rate
+    wht_rate: Optional[Decimal] = None    # explicit rate % override
 
 
 @router.get("/api/bill-payments/{payment_id}", dependencies=[perm_dep("bill_payments")])
@@ -350,6 +454,7 @@ def create_bill_payment(
 
     amount = money(body.amount)
     vname = body.vendor_name
+    vendor_id = body.vendor_id
 
     if body.vendor_id is not None:
         vend = session.exec(
@@ -373,6 +478,8 @@ def create_bill_payment(
         b0 = session.get(Bill, allocations[0].bill_id) if allocations[0].bill_id else None
         if b0 and b0.tenant_id == user.tenant_id:
             vname = b0.vendor_name
+            if vendor_id is None and b0.vendor_id:
+                vendor_id = b0.vendor_id
 
     cash_acc = (
         session.get(Account, body.cash_account_id)
@@ -394,8 +501,32 @@ def create_bill_payment(
         exchange_rate=body.exchange_rate,
         allocs=resolved,
         analytic_account_id=body.analytic_account_id, analytic_2_id=body.analytic_2_id, analytic_3_id=body.analytic_3_id, analytic_ids=body.analytic_ids,
-        party_vendor_id=body.vendor_id,
+        party_vendor_id=vendor_id,
     )
+
+    wht = resolve_wht_amount(
+        session,
+        tenant_id=user.tenant_id,
+        vendor_id=vendor_id,
+        payment_amount=amount,
+        explicit_wht=body.wht_amount,
+        explicit_rate=body.wht_rate,
+    )
+    entries = list(plan.entries)
+    if wht > ZERO:
+        if plan.is_fx:
+            raise HTTPException(
+                400,
+                "Withholding tax is not supported on foreign-currency payments yet",
+            )
+        entries = apply_wht_split(
+            session,
+            tenant_id=user.tenant_id,
+            entries=entries,
+            wht_amount=wht,
+            cash_account_id=cash_acc.id,
+            vendor_id=vendor_id,
+        )
 
     payment_type = (
         "BP" if classify_cash_account(session, user.tenant_id, cash_acc.id) == "bank"
@@ -405,12 +536,13 @@ def create_bill_payment(
         session, user,
         date=body.payment_date,
         description=f"Bill payment — {vname or ''} {body.reference or ''}".strip(),
-        entries=plan.entries,
+        entries=entries,
         reference=body.reference,
         payment_method=body.method,
         audit_entity_type="bill_payment",
         audit_detail={
             "amount": str(amount),
+            "wht_amount": str(wht),
             "bill_id": body.bill_id,
             "currency": plan.currency,
             "exchange_rate": str(plan.settlement_rate),
@@ -422,9 +554,11 @@ def create_bill_payment(
     bp = BillPayment(
         tenant_id=user.tenant_id,
         bill_id=body.bill_id,
+        vendor_id=vendor_id,
         vendor_name=vname,
         payment_date=body.payment_date,
         amount=amount,
+        wht_amount=wht,
         currency=plan.currency,
         exchange_rate=plan.settlement_rate,
         method=body.method,
@@ -456,7 +590,8 @@ def create_bill_payment(
 
     emit(session, user.tenant_id, "payment.made", {
         "payment_id": bp.id, "vendor_name": vname,
-        "amount": str(amount), "payment_date": body.payment_date,
+        "amount": str(amount), "wht_amount": str(wht),
+        "payment_date": body.payment_date,
         "method": body.method,
     })
     session.commit()

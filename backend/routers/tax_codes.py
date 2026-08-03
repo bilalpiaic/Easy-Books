@@ -31,6 +31,7 @@ class TaxCodeCreate(BaseModel):
     is_reverse_charge: bool = False
     is_exempt: bool = False
     is_zero_rated: bool = False
+    is_withholding: bool = False
     effective_from: Optional[str] = None  # seed history start; default 1900-01-01
 
 
@@ -41,6 +42,7 @@ class TaxCodeUpdate(BaseModel):
     is_reverse_charge: Optional[bool] = None
     is_exempt: Optional[bool] = None
     is_zero_rated: Optional[bool] = None
+    is_withholding: Optional[bool] = None
     effective_from: Optional[str] = None  # required semantics when rate changes: default today
     gl_account_id: Optional[int] = None
 
@@ -57,6 +59,7 @@ def _serialize(tc: TaxCode) -> dict:
         "is_reverse_charge": bool(tc.is_reverse_charge),
         "is_exempt": bool(tc.is_exempt),
         "is_zero_rated": bool(tc.is_zero_rated),
+        "is_withholding": bool(tc.is_withholding),
         "tenant_id": tc.tenant_id,
     }
 
