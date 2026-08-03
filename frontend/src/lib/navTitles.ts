@@ -142,7 +142,6 @@ export const TITLE_MAP: Record<string, string> = {
   "/peppol":                       "Peppol Dashboard",
   "/peppol/logs":                  "Peppol Submission Logs",
   "/india-gst":                    "India GST Dashboard",
-  "/india-gst/gstr":               "GSTR Report",
   // Healthcare
   "/healthcare":                   "Healthcare Overview",
   "/healthcare/patients":          "Patient Registry",
