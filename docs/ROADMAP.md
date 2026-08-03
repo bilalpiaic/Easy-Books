@@ -1,47 +1,45 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-08-04 (against `main` through #267 WHT/CIT + #266 Peppol)._
+_Last reviewed: 2026-08-04 (v6 epic opened; v5 #254 closed complete)._
 
 ## Status summary
 
-**v5 Competitive Track** is tracked under umbrella issue [#254](https://github.com/bilalpiaic/Easy-Books/issues/254):
-IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
+**Active:** **v6 Growth Track** — umbrella [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):
+practice/money UX (A) + vertical ops (B) + platforms/GTM (C).
 
-### A — IFRS accounting ([#254](https://github.com/bilalpiaic/Easy-Books/issues/254))
+**Complete:** **v5 Competitive Track** — [#254](https://github.com/bilalpiaic/Easy-Books/issues/254) (IFRS + tax packs + SaaS harden). All children #255–#271 shipped.
 
-| Issue | Title | Status |
-|-------|-------|--------|
-| **#255** | Multi-entity consolidation (IFRS 10 / IAS 27) | Shipped (PR #279) |
-| **#256** | IFRS 16 leases (RoU + liability) | Shipped (PR #280) |
-| **#257** | Inventory depth — landed cost, lot/serial, NRV | Shipped |
-| **#258** | Fixed assets depth — IAS 16/36 | Shipped (PR #284) |
-| **#259** | IFRS 15 remaining — multi-element + contract assets | Shipped (PR #286) |
-| **#260** | Analytic dimensions on all JE lines + dimensional P&L | Shipped (PR #287) |
-| **#261** | Intercompany + IC reconciliation | Shipped (PR #288) |
-| **#262** | Month-end close checklist + auditor export pack | Shipped |
+---
 
-### B — Country tax packs
+### A — Practice & money UX ([#298](https://github.com/bilalpiaic/Easy-Books/issues/298))
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| **#263** | Core multi-jurisdiction tax engine | Shipped |
-| **#264** | Country pack: Saudi ZATCA e-invoice | Shipped (PR #289) |
-| **#265** | Country pack: India GST | Shipped (PR #290) |
-| **#266** | Country pack: Peppol / EU VAT e-invoice | Shipped (PR #291) |
-| **#267** | Withholding tax + corporate tax summary reports | Shipped (PR #292) |
+| **#299** | Accountant practice depth — firm dashboard, onboarding, cross-client permissions | Open |
+| **#300** | Multi-currency document/payment UX polish | Open |
+| **#301** | Bank feeds — Open Banking / statement sync depth | Open |
 
-### C — SaaS hardening
+### B — Vertical operations
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| **#268** | Bank feeds hardening | Shipped |
-| **#269** | Approvals SoD + thresholds + substitutes | Shipped |
-| **#270** | Portal hardening (pay, disputes, branded domain) | Shipped |
-| **#271** | Integration ops — webhooks, queue DLQ, plan quotas | Shipped |
+| **#302** | Multi-warehouse WMS — transfers, pick/pack, reservation | Open |
+| **#303** | Payroll depth — leave, expenses, statutory packs | Open |
+| **#304** | POS module — counter sales → invoice/stock/cash | Open |
+| **#305** | eCommerce connectors — Shopify / WooCommerce / Daraz | Open |
 
-### Earlier v4 backlog (mostly superseded / partially shipped)
+### C — Platforms & GTM
 
-Many items from the old v4 Cloud Launch list (#114–#125, #140) have landed under Track C or as modules (webhooks, queue, portal, approvals, bank feeds, weaving). Prefer epic **#254** as the live tracker; close or retarget leftover v4 issues when overlapping work ships.
+| Issue | Title | Status |
+|-------|-------|--------|
+| **#306** | Additional country localization packs | Open |
+| **#307** | Native mobile shell (iOS/Android) on the PWA | Open |
+| **#308** | Marketplace partner code execution / signed extensions | Open |
+| **#309** | SOC 2–oriented evidence pack | Open |
+
+### Shipped foundations (not v6 — do not reopen)
+
+Practice switcher v1 (#220), MRP depth (#221–#224), PWA (#226), marketplace manifests (#227), Playwright (#228), Storybook (#229), country packs (#264–#266) + WHT/CIT (#267), IFRS suite (#255–#262), SaaS harden (#268–#271).
 
 ---
 
@@ -65,6 +63,7 @@ Many items from the old v4 Cloud Launch list (#114–#125, #140) have landed und
 | **Peppol / EU VAT (#266)** | `eu_peppol` module — BIS Billing 3.0 UBL, AP submit, submission logs |
 | **WHT + CIT (#267)** | Vendor withholding on bill payments (Cr 2265), CIT worksheet + adjustments |
 | **SaaS harden (#268–#271)** | Bank feeds, approvals, portal, webhooks/DLQ/quotas |
+| **Party closing + settings (#297)** | Customer/vendor list closing balances; decimal 0/2/4; more currencies |
 
 ### Older releases
 
