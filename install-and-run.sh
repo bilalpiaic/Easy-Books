@@ -60,6 +60,28 @@ fi
 log "Installing backend dependencies…"
 ( cd backend && uv sync --frozen )
 
+# WeasyPrint (Save PDF) needs Pango/Cairo shared libs. On Debian/Ubuntu/WSL2
+# install them once; Docker images bake them into backend/Dockerfile.
+if [ "$(uname -s)" = "Linux" ]; then
+  if ! ( cd backend && uv run python -c "from weasyprint import HTML" >/dev/null 2>&1 ); then
+    WEASY_PKGS="libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi8 shared-mime-info fonts-dejavu-core"
+    if command -v apt-get >/dev/null 2>&1; then
+      log "Installing WeasyPrint system libraries (Pango/Cairo)…"
+      if [ "$(id -u)" -eq 0 ]; then
+        apt-get update -qq && apt-get install -y --no-install-recommends $WEASY_PKGS \
+          || echo "⚠ apt install of WeasyPrint libs failed — Save PDF will return 503 until fixed."
+      elif command -v sudo >/dev/null 2>&1; then
+        sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends $WEASY_PKGS \
+          || echo "⚠ Could not install WeasyPrint libs (sudo). Run: sudo apt-get install -y $WEASY_PKGS"
+      else
+        echo "⚠ WeasyPrint import failed. Install: apt-get install -y $WEASY_PKGS"
+      fi
+    else
+      echo "⚠ WeasyPrint import failed (Pango/Cairo missing). Install the equivalent packages for your distro."
+    fi
+  fi
+fi
+
 # ── 4. Frontend build (skipped if already built; --rebuild forces it) ─────────
 # Rebuild when forced, when there's no build yet, OR when the code has moved on
 # since the last build (so a git pull / update always recompiles the UI — a
