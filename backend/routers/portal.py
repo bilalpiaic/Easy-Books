@@ -163,14 +163,14 @@ def portal_invoice_pdf(token: str, invoice_id: int, session: SessionDep):
         s.key: s.value
         for s in session.exec(select(Settings).where(Settings.tenant_id == pt.tenant_id)).all()
     }
-    from services.pdf import PdfEngineError, pdf_http, render_invoice_pdf
+    from services.pdf import PdfEngineError, PdfRenderError, pdf_http, render_invoice_pdf
     try:
         pdf = render_invoice_pdf(
             inv.model_dump(), [ln.model_dump() for ln in lines],
             settings.get("company_name", ""), settings.get("business_tagline", ""),
             logo_url=settings.get("logo_url") or "",
         )
-    except PdfEngineError as e:
+    except (PdfEngineError, PdfRenderError) as e:
         raise pdf_http(e) from e
     return Response(
         content=pdf, media_type="application/pdf",
@@ -209,7 +209,7 @@ def portal_lab_orders(token: str, session: SessionDep):
 def portal_lab_order_pdf(token: str, order_id: int, session: SessionDep):
     from models_healthcare import HcLabOrder
     from routers.healthcare import _company_branding, _lab_pdf_context
-    from services.pdf import PdfEngineError, pdf_http, render_lab_report_pdf
+    from services.pdf import PdfEngineError, PdfRenderError, pdf_http, render_lab_report_pdf
 
     pt = _resolve(session, token)
     if pt.entity_type != "patient":
@@ -226,7 +226,7 @@ def portal_lab_order_pdf(token: str, order_id: int, session: SessionDep):
     company, tagline = _company_branding(session, pt.tenant_id)
     try:
         pdf = render_lab_report_pdf(report, company, tagline)
-    except PdfEngineError as e:
+    except (PdfEngineError, PdfRenderError) as e:
         raise pdf_http(e) from e
     return Response(
         content=pdf,

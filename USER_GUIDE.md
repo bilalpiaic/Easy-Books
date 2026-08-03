@@ -2272,7 +2272,7 @@ IAS 2 depth beyond average cost — landed cost, lot/serial, and NRV write-downs
 
 | Symptom | Likely cause | What to do |
 |---------|--------------|------------|
-| Message about **PDF engine unavailable** / 503 | WeasyPrint or system libs (Pango/Cairo) missing or crashing | Install WeasyPrint system dependencies for your OS/WSL; check the backend log; retry |
+| Message about **PDF engine unavailable** / 503 | WeasyPrint or system libs (Pango/Cairo) missing or crashing | **Debian/Ubuntu/WSL2:** `sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi8 shared-mime-info fonts-dejavu-core` then restart the backend. Docker images include these in `backend/Dockerfile`. Check the backend log; retry |
 | **Cannot reach the API** / connection refused | Backend not running or wrong `NEXT_PUBLIC_API_URL` | Start the API (`python main.py` / installer); confirm the frontend points at the same host:port |
 | Generic **PDF download failed** with HTTP detail | Auth expired, document missing, or permission | Re-login; confirm the document exists and you have view rights |
 

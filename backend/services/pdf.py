@@ -2,13 +2,24 @@
 from pathlib import Path
 
 from fastapi import HTTPException
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, TemplateError
 
 _TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
 _PDF_UNAVAILABLE = (
     "PDF engine unavailable. Install WeasyPrint system libraries "
     "(Pango/Cairo) or check the backend log, then try again."
+)
+
+# Debian/Ubuntu (incl. WSL2) packages required for `from weasyprint import HTML`.
+WEASYPRINT_APT_PACKAGES = (
+    "libcairo2",
+    "libpango-1.0-0",
+    "libpangocairo-1.0-0",
+    "libgdk-pixbuf-2.0-0",
+    "libffi8",
+    "shared-mime-info",
+    "fonts-dejavu-core",
 )
 
 
@@ -20,11 +31,37 @@ class PdfEngineError(Exception):
         self.message = message
 
 
+class PdfRenderError(Exception):
+    """Template/data failure while building a PDF — map to HTTP 500."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
 def pdf_http(exc: Exception) -> HTTPException:
-    """Convert PdfEngineError (or wrap unknown engine errors) to HTTP 503."""
+    """Convert PDF failures to an HTTP error (503 engine / 500 render)."""
     if isinstance(exc, PdfEngineError):
         return HTTPException(503, exc.message)
+    if isinstance(exc, PdfRenderError):
+        return HTTPException(500, exc.message)
     return HTTPException(503, _PDF_UNAVAILABLE)
+
+
+def _import_weasyprint_html():
+    """Lazy-import WeasyPrint HTML; raise PdfEngineError with actionable detail."""
+    try:
+        from weasyprint import HTML  # slow + needs native Pango/Cairo
+        return HTML
+    except Exception as e:
+        detail = f"{type(e).__name__}: {e}".strip()
+        if len(detail) > 280:
+            detail = detail[:277] + "…"
+        apt = " ".join(WEASYPRINT_APT_PACKAGES)
+        raise PdfEngineError(
+            f"{_PDF_UNAVAILABLE} (import failed: {detail}). "
+            f"On Debian/Ubuntu/WSL: sudo apt-get install -y {apt}"
+        ) from e
 
 
 def render_template_html(template_name: str, context: dict) -> str:
@@ -35,22 +72,22 @@ def render_template_html(template_name: str, context: dict) -> str:
 
 def render_html_pdf(template_name: str, context: dict) -> bytes:
     """Render any Jinja2 template under templates/ to PDF bytes."""
-    try:
-        from weasyprint import HTML  # lazy import — WeasyPrint is slow to import
-    except Exception as e:
-        raise PdfEngineError(
-            f"{_PDF_UNAVAILABLE} (import failed: {type(e).__name__})"
-        ) from e
+    HTML = _import_weasyprint_html()
 
     try:
         html_str = render_template_html(template_name, context)
-        return HTML(string=html_str).write_pdf()
-    except PdfEngineError:
-        raise
-    except Exception as e:
-        raise PdfEngineError(
-            f"{_PDF_UNAVAILABLE} ({type(e).__name__}: {e})"
+    except TemplateError as e:
+        raise PdfRenderError(
+            f"PDF template error ({template_name}): {type(e).__name__}: {e}"
         ) from e
+
+    try:
+        return HTML(string=html_str).write_pdf()
+    except Exception as e:
+        detail = f"{type(e).__name__}: {e}".strip()
+        if len(detail) > 280:
+            detail = detail[:277] + "…"
+        raise PdfEngineError(f"{_PDF_UNAVAILABLE} ({detail})") from e
 
 
 def render_invoice_pdf(

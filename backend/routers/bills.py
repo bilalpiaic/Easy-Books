@@ -202,7 +202,7 @@ def download_bill_pdf(session: SessionDep, user: CurrentUserDep, bill_id: int):
     ).all()
     settings_map = {s.key: s.value for s in settings_rows}
 
-    from services.pdf import PdfEngineError, pdf_http, render_bill_pdf
+    from services.pdf import PdfEngineError, PdfRenderError, pdf_http, render_bill_pdf
     try:
         pdf_bytes = render_bill_pdf(
             bill=bill.model_dump(),
@@ -210,7 +210,7 @@ def download_bill_pdf(session: SessionDep, user: CurrentUserDep, bill_id: int):
             company_name=settings_map.get("company_name", ""),
             tagline=settings_map.get("business_tagline", ""),
         )
-    except PdfEngineError as e:
+    except (PdfEngineError, PdfRenderError) as e:
         raise pdf_http(e) from e
     return Response(
         content=pdf_bytes,
