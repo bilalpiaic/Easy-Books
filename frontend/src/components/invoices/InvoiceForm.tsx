@@ -42,7 +42,7 @@ interface Customer { id: number; name: string; ntn?: string | null; cnic?: strin
 interface StaffUser { id: number; name: string; email: string }
 interface Account { id: number; code: string; name: string; type: string }
 interface AnalyticAccount { id: number; code: string; name: string; type: string }
-interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number }
+interface Product { id: number; name: string; code: string | null; unit: string; default_rate: number; product_type: string; stock_qty?: number; standalone_selling_price?: number | null }
 interface PaymentTerm { id: number; code: string; name: string; days: number }
 
 interface FormState {
@@ -166,8 +166,10 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         qty: Number(l.qty),
         unit: l.unit ?? 'pcs',
         rate: Number(l.rate),
+        discount_pct: Number((l as LineItem).discount_pct ?? 0),
         amount: Number(l.amount),
         tax_code_id: l.tax_code_id ?? null,
+        ssp: (l as LineItem).ssp ?? null,
       })))
     }
   }, [mode, invoice])
@@ -298,6 +300,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         discount_pct: l.discount_pct ?? 0,
         promo_rule_id: l.promo_rule_id ?? null,
         tax_code_id: l.tax_code_id ?? null,
+        ssp: l.ssp ?? null,
       })),
       gst_rate: parseFloat(form.gst_rate) || 0,
       ar_account_id: form.ar_account_id ? parseInt(form.ar_account_id) : null,

@@ -21,6 +21,7 @@ export interface ProductFull {
   hs_code: string | null
   pct_code: string | null
   cost_method: string | null
+  standalone_selling_price: number | null
 }
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
@@ -44,6 +45,7 @@ interface FormState {
   hs_code: string
   pct_code: string    // PRA 8-digit product classification
   cost_method: string  // '' = inherit from tenant, 'wavg', 'fifo'
+  standalone_selling_price: string
 }
 
 const UNITS = ['pcs', 'kg', 'mtr', 'hrs', 'ltr', 'box', 'doz']
@@ -57,6 +59,7 @@ const emptyForm: FormState = {
   opening_qty: '0', opening_cost: '0',
   hs_code: '', pct_code: '',
   cost_method: '',
+  standalone_selling_price: '',
 }
 
 interface Props {
@@ -124,6 +127,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       hs_code: product.hs_code ?? '',
       pct_code: product.pct_code ?? '',
       cost_method: product.cost_method ?? '',
+      standalone_selling_price: product.standalone_selling_price != null
+        ? String(product.standalone_selling_price) : '',
     })
   }, [mode, product, categories])
 
@@ -147,6 +152,8 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         hs_code: form.hs_code.trim() || null,
         pct_code: form.pct_code.trim() || null,
         cost_method: form.cost_method || null,
+        standalone_selling_price: form.standalone_selling_price.trim()
+          ? parseFloat(form.standalone_selling_price) : null,
       }
       if (mode === 'edit' && product) {
         await apiFetch(`/api/products/${product.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -258,6 +265,15 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Selling Price</label>
             <input type="number" min="0" step="0.01" value={form.default_rate}
               onChange={e => setForm(p => ({ ...p, default_rate: e.target.value }))}
+              className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">
+              Standalone Selling Price <span className="normal-case font-normal">(IFRS 15 SSP)</span>
+            </label>
+            <input type="number" min="0" step="0.01" value={form.standalone_selling_price}
+              onChange={e => setForm(p => ({ ...p, standalone_selling_price: e.target.value }))}
+              placeholder="Optional — for multi-element allocation"
               className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
           </div>
           {isStock && (

@@ -15,7 +15,7 @@ IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 | **#256** | IFRS 16 leases (RoU + liability) | Shipped (PR #280) |
 | **#257** | Inventory depth — landed cost, lot/serial, NRV | Shipped |
 | **#258** | Fixed assets depth — IAS 16/36 | Shipped |
-| **#259** | IFRS 15 remaining — multi-element + contract assets | Open |
+| **#259** | IFRS 15 remaining — multi-element + contract assets | Shipped |
 | **#260** | Analytic dimensions on all JE lines + dimensional P&L | Open |
 | **#261** | Intercompany + IC reconciliation | Open |
 | **#262** | Month-end close checklist + auditor export pack | Shipped |

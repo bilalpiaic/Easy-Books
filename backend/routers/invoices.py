@@ -10,13 +10,19 @@ from sqlmodel import Session, asc, desc, func, select
 
 from datetime import timedelta
 
-from models import Account, BomHeader, BomLine, Customer, Invoice, InvoiceLine, JournalEntry, PaymentAllocation, PaymentTerm, Product, Settings, TaxCode, Tenant, Transaction
+from models import Account, BomHeader, BomLine, Customer, Invoice, InvoiceLine, JournalEntry, PaymentAllocation, PaymentTerm, Product, RevenueAllocationAudit, Settings, TaxCode, Tenant, Transaction
 from services.deferred import (
     plan_deferral, resolve_deferred_account, create_schedules,
     has_any_recognition, reverse_schedules,
 )
 from services.events import emit
 from services.fx import rate_to_base
+from services.ifrs15 import (
+    apply_allocation_to_invoice_lines,
+    resolve_contract_asset_account,
+    settle_contract_assets_on_invoice,
+    unsettle_contract_assets_for_invoice,
+)
 from services.inventory import InventoryError, consume_stock
 from services.money import D, ONE, ZERO, money, sum_money
 from services.posting import EntryInput, post_transaction
@@ -28,6 +34,7 @@ from services.permissions import perm_dep, apply_own_filter
 from services.pra import get_pra_config, submit_to_pra
 from db import engine as _db_engine
 from sqlmodel import Session as _Session
+from types import SimpleNamespace
 router = APIRouter(tags=["invoices"], dependencies=[perm_dep("invoices")])
 
 
@@ -87,6 +94,7 @@ class InvoiceLineCreate(BaseModel):
     promo_rule_id: Optional[int] = None
     tax_code_id: Optional[int] = None
     tax_inclusive: bool = False
+    ssp: Optional[Decimal] = None  # IFRS 15 line SSP override (#259)
 
 
 class InvoiceCreate(BaseModel):
@@ -109,6 +117,8 @@ class InvoiceCreate(BaseModel):
     payment_mode: Optional[int] = None   # PRA: 1=Cash 2=Card 3=GiftVoucher 4=Loyalty 5=Mixed 6=Cheque
     buyer_ntn: Optional[str] = None      # walk-in NTN override for PRA payload
     buyer_cnic: Optional[str] = None     # walk-in CNIC override for PRA payload
+    # IFRS 15: settle open contract assets (Cr 1140 instead of Revenue) (#259)
+    contract_asset_ids: Optional[List[int]] = None
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -271,7 +281,21 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
         }
         for ln in lines
     ]
-    return {**inv.model_dump(), "lines": enriched_lines}
+    audit = session.exec(
+        select(RevenueAllocationAudit).where(
+            RevenueAllocationAudit.tenant_id == user.tenant_id,
+            RevenueAllocationAudit.invoice_id == inv.id,
+        )
+    ).first()
+    out = {**inv.model_dump(), "lines": enriched_lines}
+    if audit:
+        out["allocation_audit"] = {
+            "method": audit.method,
+            "transaction_price": float(audit.transaction_price or 0),
+            "detail": audit.detail_json,
+            "created_at": audit.created_at,
+        }
+    return out
 
 
 @router.post("/api/invoices", status_code=201, dependencies=[perm_dep("invoices", "edit")])
@@ -291,34 +315,6 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         )
     ).first()
     inv_fmt = fmt_row.value if fmt_row else None
-
-    def _line_amount(l: InvoiceLineCreate) -> Decimal:
-        base = D(l.qty) * D(l.rate)
-        if l.discount_pct:
-            base = base * (D("100") - D(l.discount_pct)) / D("100")
-        return money(base)
-
-    raw_amounts = [_line_amount(l) for l in body.lines]
-    tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
-        session,
-        user.tenant_id,
-        body.issue_date,
-        [
-            (amt, l.tax_code_id, bool(l.tax_inclusive))
-            for amt, l in zip(raw_amounts, body.lines)
-        ],
-    )
-    stored_amounts = [
-        (tr.net if tr is not None else amt)
-        for amt, tr in zip(raw_amounts, tax_results)
-    ]
-    subtotal = money(sum_money(stored_amounts))
-    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
-    if use_per_line_tax:
-        gst_amount = tax_agg.total_tax_in_total
-    else:
-        gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
-    total = money(subtotal + gst_amount)
 
     # FX resolution: doc currency defaults to tenant base. Rate defaults to
     # 1.0 when doc==base, otherwise to the latest known rate on/before
@@ -375,10 +371,10 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         description=body.description,
         notes=body.notes,
         internal_memo=body.internal_memo,
-        subtotal=subtotal,
+        subtotal=ZERO,
         gst_rate=D(body.gst_rate),
-        gst_amount=gst_amount,
-        total=total,
+        gst_amount=ZERO,
+        total=ZERO,
         currency=doc_currency,
         exchange_rate=fx_rate,
         status="draft",
@@ -393,6 +389,37 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
     )
     session.add(invoice)
     session.flush()
+
+    # IFRS 15 relative-SSP allocation BEFORE tax / GL (#259)
+    allocated, resolved_ssps, pre_allocs, _alloc_audit = apply_allocation_to_invoice_lines(
+        session, user.tenant_id, invoice.id, body.lines,
+    )
+    raw_amounts = allocated
+    tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
+        session,
+        user.tenant_id,
+        body.issue_date,
+        [
+            (amt, l.tax_code_id, bool(l.tax_inclusive))
+            for amt, l in zip(raw_amounts, body.lines)
+        ],
+    )
+    stored_amounts = [
+        (tr.net if tr is not None else amt)
+        for amt, tr in zip(raw_amounts, tax_results)
+    ]
+    subtotal = money(sum_money(stored_amounts))
+    per_gl_tax: dict[int, Decimal] = dict(tax_agg.per_gl_tax) if use_per_line_tax else {}
+    if use_per_line_tax:
+        gst_amount = tax_agg.total_tax_in_total
+    else:
+        gst_amount = money(subtotal * D(body.gst_rate) / D("100"))
+    total = money(subtotal + gst_amount)
+
+    invoice.subtotal = subtotal
+    invoice.gst_amount = gst_amount
+    invoice.total = total
+    session.add(invoice)
 
     # Read block_negative_stock setting for this tenant once before the line loop.
     _blk_row = session.exec(
@@ -411,6 +438,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         for idx, line_data in enumerate(body.lines):
             amount = stored_amounts[idx]
             tr = tax_results[idx]
+            pre = pre_allocs[idx]
+            ssp_val = resolved_ssps[idx]
             session.add(
                 InvoiceLine(
                     invoice_id=invoice.id,
@@ -426,6 +455,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
                     tax_rate=tr.rate if tr is not None else None,
                     tax_amount=tr.tax if tr is not None else ZERO,
                     tax_inclusive=bool(line_data.tax_inclusive),
+                    ssp=ssp_val,
+                    pre_allocation_amount=pre if _alloc_audit.get("method") == "relative_ssp" else None,
                 )
             )
             if line_data.product_id:
@@ -467,20 +498,36 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
     gst_base = money(gst_amount * fx_rate)
 
     # Split the net revenue credit between Sales Revenue and Deferred Revenue
-    # (2300) for any is_deferred product lines. The deferred GL credit is clamped
-    # to subtotal_base so revenue + deferred always equals subtotal_base exactly:
-    # under a non-unity FX rate the summed per-line deferred net can drift a cent
-    # past the once-rounded subtotal, which would otherwise unbalance the JV.
-    # (The schedule rows keep the per-line net — any sub-cent gap is immaterial.)
-    # GST is never deferred.
-    deferral = plan_deferral(session, user.tenant_id, body.lines, fx_rate)
+    # (2300) for any is_deferred product lines. Use allocated line.amount so
+    # SSP reallocation and discounts flow into schedules (#259).
+    defer_lines = [
+        SimpleNamespace(product_id=l.product_id, amount=stored_amounts[i],
+                        qty=l.qty, rate=l.rate, discount_pct=l.discount_pct)
+        for i, l in enumerate(body.lines)
+    ]
+    deferral = plan_deferral(session, user.tenant_id, defer_lines, fx_rate)
     deferred_credit_base = min(deferral.deferred_net_base, subtotal_base)
     revenue_net_base = money(subtotal_base - deferred_credit_base)
+
+    # Settle open contract assets: Cr 1140 instead of Revenue for remaining (#259)
+    ca_credit_base = ZERO
+    if body.contract_asset_ids:
+        ca_credit_base = settle_contract_assets_on_invoice(
+            session, user,
+            invoice_id=invoice.id,
+            customer_id=body.customer_id,
+            contract_asset_ids=body.contract_asset_ids,
+            available_revenue_base=revenue_net_base,
+        )
+        revenue_net_base = money(revenue_net_base - ca_credit_base)
 
     ana = body.analytic_account_id
     entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana, customer_id=body.customer_id)]
     if revenue_net_base > ZERO:
         entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
+    if ca_credit_base > ZERO:
+        ca_acc = resolve_contract_asset_account(session, user.tenant_id)
+        entries.append(EntryInput(account_id=ca_acc.id, credit=ca_credit_base, analytic_account_id=ana, customer_id=body.customer_id))
     if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
         entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=ana))
@@ -636,14 +683,13 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     if not due_date:
         due_date = body.issue_date
 
-    # Recalculate totals via tax engine (respecting per-line discounts + codes)
-    def _line_amount_edit(l: InvoiceLineCreate) -> Decimal:
-        base = D(l.qty) * D(l.rate)
-        if getattr(l, "discount_pct", Decimal("0")):
-            base = base * (D("100") - D(l.discount_pct)) / D("100")
-        return money(base)
+    # Recalculate totals via tax engine after IFRS 15 SSP allocation (#259)
+    unsettle_contract_assets_for_invoice(session, user.tenant_id, inv.id)
 
-    raw_amounts = [_line_amount_edit(l) for l in body.lines]
+    allocated, resolved_ssps, pre_allocs, _alloc_audit = apply_allocation_to_invoice_lines(
+        session, user.tenant_id, inv.id, body.lines,
+    )
+    raw_amounts = allocated
     tax_results, tax_agg, use_per_line_tax = prepare_line_taxes(
         session,
         user.tenant_id,
@@ -810,6 +856,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         for idx, line_data in enumerate(body.lines):
             amount = stored_amounts[idx]
             tr = tax_results[idx]
+            pre = pre_allocs[idx]
+            ssp_val = resolved_ssps[idx]
             session.add(InvoiceLine(
                 invoice_id=inv.id,
                 product_id=line_data.product_id,
@@ -824,6 +872,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
                 tax_rate=tr.rate if tr is not None else None,
                 tax_amount=tr.tax if tr is not None else ZERO,
                 tax_inclusive=bool(line_data.tax_inclusive),
+                ssp=ssp_val,
+                pre_allocation_amount=pre if _alloc_audit.get("method") == "relative_ssp" else None,
             ))
             if line_data.product_id:
                 prod = session.exec(
@@ -856,17 +906,34 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     subtotal_base = money(subtotal * fx_rate)
     gst_base = money(gst_amount * fx_rate)
 
-    # Mirror create_invoice: split the net revenue credit between Sales Revenue
-    # and Deferred Revenue (2300). Clamp the deferred credit to subtotal_base so
-    # revenue + deferred == subtotal_base exactly (per-line FX rounding guard).
-    deferral = plan_deferral(session, user.tenant_id, body.lines, fx_rate)
+    # Mirror create_invoice: split revenue / deferred / contract-asset credits.
+    defer_lines = [
+        SimpleNamespace(product_id=l.product_id, amount=stored_amounts[i],
+                        qty=l.qty, rate=l.rate, discount_pct=getattr(l, "discount_pct", 0))
+        for i, l in enumerate(body.lines)
+    ]
+    deferral = plan_deferral(session, user.tenant_id, defer_lines, fx_rate)
     deferred_credit_base = min(deferral.deferred_net_base, subtotal_base)
     revenue_net_base = money(subtotal_base - deferred_credit_base)
+
+    ca_credit_base = ZERO
+    if body.contract_asset_ids:
+        ca_credit_base = settle_contract_assets_on_invoice(
+            session, user,
+            invoice_id=inv.id,
+            customer_id=body.customer_id,
+            contract_asset_ids=body.contract_asset_ids,
+            available_revenue_base=revenue_net_base,
+        )
+        revenue_net_base = money(revenue_net_base - ca_credit_base)
 
     ana = body.analytic_account_id
     entries = [EntryInput(account_id=ar_acc.id, debit=total_base, analytic_account_id=ana, customer_id=inv.customer_id)]
     if revenue_net_base > ZERO:
         entries.append(EntryInput(account_id=rev_acc.id, credit=revenue_net_base, analytic_account_id=ana))
+    if ca_credit_base > ZERO:
+        ca_acc = resolve_contract_asset_account(session, user.tenant_id)
+        entries.append(EntryInput(account_id=ca_acc.id, credit=ca_credit_base, analytic_account_id=ana, customer_id=inv.customer_id))
     if deferred_credit_base > ZERO:
         deferred_acc = resolve_deferred_account(session, user.tenant_id)
         entries.append(EntryInput(account_id=deferred_acc.id, credit=deferred_credit_base, analytic_account_id=ana))

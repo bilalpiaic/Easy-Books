@@ -30,7 +30,7 @@ from routers import (
     permissions, commissions, promo_rules, payroll, attendance, system_update,
     search, ai_chat, webhooks, tasks, health,
     billing, portal, approvals, bank_feeds, agent_ext, inventory_depth,
-    consolidation, leases,
+    consolidation, leases, contract_assets,
 )
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
@@ -304,6 +304,7 @@ _ROUTERS = [
     inventory_depth.router,
     consolidation.router,
     leases.router,
+    contract_assets.router,
 ]
 
 # Health is mounted once (no /api/v1 duplicate) — load balancers + Caddy probe it.

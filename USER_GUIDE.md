@@ -898,6 +898,8 @@ Pre-approval workflow for purchases (shown for Trader / Manufacturing / Telecom 
 - Flag a product as deferred with a recognition period
 - Invoicing posts to **2300 Deferred Revenue** instead of Revenue
 - **Run Recognition** each period moves a slice **Dr 2300 Deferred Revenue / Cr Revenue**
+- **Standalone Selling Price (SSP)** on a product (or per invoice line) drives relative allocation when an invoice has two or more SSP-tagged lines — line amounts are reallocated so they sum to the transaction price; an audit trail is stored on the invoice
+- **Contract Balances** (Accounting → Contract Balances) shows unearned liability (remaining deferred schedules) and unbilled **contract assets** by customer. Use **Certify unbilled** to post **Dr 1140 Contract Asset / Cr Revenue** when a performance obligation is satisfied before billing; settle those assets on a later invoice via `contract_asset_ids` so the invoice credits 1140 instead of Revenue again
 
 ### 17.6 Budgets & Variance (IAS 1)
 

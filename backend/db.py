@@ -235,6 +235,7 @@ _COA_COMMON: list[tuple[str, str, str, bool, str]] = [
     ("1510", "Right-of-use Asset",      "Asset",     False, "12"),
     ("1511", "Accum. Dep. — RoU",       "Asset",     False, "12"),
     ("1100", "Accounts Receivable",     "Asset",     False, "11"),
+    ("1140", "Contract Asset (Unbilled)", "Asset",    False, "11"),
     ("1260", "Advances to Vendors",     "Asset",     False, "11"),
     ("2000", "Accounts Payable",        "Liability", False, "21"),
     ("2200", "GST Payable (Output)",    "Liability", False, "21"),
