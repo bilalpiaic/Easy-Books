@@ -31,6 +31,10 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: Reac
   manufacturing: { href: "/manufacturing",  label: "Production Overview", icon: Factory         },
   telecom:       { href: "/telecom",        label: "Telecom Overview",    icon: Radio           },
   pra:           { href: "/pra-dashboard",  label: "PRA Dashboard",       icon: LayoutDashboard },
+  uae:           { href: "/uae",            label: "UAE Dashboard",       icon: LayoutDashboard },
+  zatca:         { href: "/zatca",          label: "ZATCA Dashboard",     icon: LayoutDashboard },
+  peppol:        { href: "/peppol",         label: "Peppol Dashboard",    icon: LayoutDashboard },
+  india_gst:     { href: "/india-gst",      label: "GST Dashboard",       icon: LayoutDashboard },
   system:        { href: "/settings",       label: "Settings",            icon: Settings        },
   store:         { href: "/store/gate-outward", label: "Store Overview",  icon: LayoutGrid      },
 }

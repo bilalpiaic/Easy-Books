@@ -131,11 +131,18 @@ export const TITLE_MAP: Record<string, string> = {
   "/attendance/bulk":              "Bulk Attendance Entry",
   "/attendance/report":            "Attendance Report",
   "/attendance/import":            "Biometric Import",
-  // PRA e-Invoice
+  // Localization pack dashboards
   "/pra-logs":                     "PRA Submission Logs",
   "/pra-dashboard":                "PRA Sales Dashboard",
+  "/uae":                          "UAE VAT Dashboard",
+  "/uae/logs":                     "UAE e-Invoice Logs",
   "/uae-logs":                     "UAE e-Invoice Logs",
+  "/zatca":                        "ZATCA Dashboard",
   "/zatca/logs":                   "ZATCA Submission Logs",
+  "/peppol":                       "Peppol Dashboard",
+  "/peppol/logs":                  "Peppol Submission Logs",
+  "/india-gst":                    "India GST Dashboard",
+  "/india-gst/gstr":               "GSTR Report",
   // Healthcare
   "/healthcare":                   "Healthcare Overview",
   "/healthcare/patients":          "Patient Registry",

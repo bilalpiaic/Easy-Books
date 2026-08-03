@@ -25,6 +25,14 @@ const SECTION_COLORS: Record<string, string> = {
   System:        "text-white/40",
   Payroll:       "text-indigo-400",
   Healthcare:    "text-rose-400",
+  Purchases:     "text-orange-300",
+  Store:         "text-amber-300",
+  Weaving:       "text-violet-400",
+  PRA:           "text-[#ffd966]",
+  UAE:           "text-emerald-400",
+  ZATCA:         "text-green-400",
+  Peppol:        "text-sky-400",
+  "India GST":   "text-orange-400",
 }
 
 const HUB_ROUTES: Record<string, string> = {

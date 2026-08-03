@@ -45,8 +45,9 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap + v5 IFRS/SaaS gap-fill)
     asset (services)
   • Analytic dimensions (#260) — 3 dimensions, values linked, multi-slot JE tags
   • Intercompany (#261) — IC invoice manufacturing→trader with draft mirror bill
-  • Localization demos — sa_zatca on manufacturing, in_gst on trader, eu_peppol
-    on services (module enable + sample settings + submission-log rows)
+  • Localization demos — uae_vat on simple, sa_zatca on manufacturing, in_gst on
+    trader, eu_peppol on services (module enable + today-dated invoices + logs
+    so pack dashboards show KPIs on first login)
   • WHT + CIT (#267) — withholding tax code, vendor rate, sample CIT adjustments
 
 Still deliberately unseeded: UserPermission overrides, AiChatSession,
@@ -98,7 +99,7 @@ from models import (
     RevenueAllocationAudit, SalaryComponent, SequenceCounter, Settings, StatementLine,
     StockLocation, StoreIssue,
     StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, Vendor,
-    VendorAdvance, VendorQuotation, VendorQuotationLine, ZatcaSubmissionLog,
+    VendorAdvance, VendorQuotation, VendorQuotationLine, UaeEinvoiceLog, ZatcaSubmissionLog,
 )
 from models_telecom import (
     AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
@@ -2989,7 +2990,17 @@ def _seed_wht_cit_267(s: Session, user: User, vendors: list) -> None:
 
 
 def _seed_localization_demo(s: Session, user: User, email: str, business_model: str) -> None:
-    """Enable one localization pack per selected demo + sample logs."""
+    """Enable localization packs on selected demos + dashboard-ready sample data.
+
+    Pack map (one primary pack per demo, PRA stays on demo.pra):
+      demo.simple         → uae_vat
+      demo.services       → eu_peppol
+      demo.trader         → in_gst
+      demo.manufacturing  → sa_zatca
+
+    Also seeds a handful of **today-dated** invoices so pack dashboards
+    (which filter to today) show live KPIs on first login.
+    """
     tid = user.tenant_id
     tenant = s.get(Tenant, tid)
     if not tenant:
@@ -3000,9 +3011,10 @@ def _seed_localization_demo(s: Session, user: User, email: str, business_model: 
         modules = set()
 
     pack = None
-    if email == "demo.services@easy-books.app" or (
-        business_model == "services" and "eu_peppol" not in modules
-        and email.startswith("demo.services")
+    if email == "demo.simple@easy-books.app":
+        pack = "uae_vat"
+    elif email == "demo.services@easy-books.app" or (
+        business_model == "services" and email.startswith("demo.services")
     ):
         pack = "eu_peppol"
     elif email == "demo.trader@easy-books.app":
@@ -3024,56 +3036,165 @@ def _seed_localization_demo(s: Session, user: User, email: str, business_model: 
     except Exception:
         pass
 
-    inv = s.exec(
-        select(Invoice).where(Invoice.tenant_id == tid).order_by(Invoice.id.desc())  # type: ignore
-    ).first()
-    if not inv:
+    customers = list(s.exec(select(Customer).where(Customer.tenant_id == tid)).all())
+    products = list(s.exec(select(Product).where(Product.tenant_id == tid)).all())
+    if not customers or not products:
         return
 
-    if pack == "sa_zatca" and not s.exec(
-        select(ZatcaSubmissionLog).where(ZatcaSubmissionLog.tenant_id == tid)
-    ).first():
-        inv.zatca_status = "cleared"
-        inv.zatca_uuid = "demo-zatca-uuid-001"
-        inv.zatca_hash = "demo-hash"
-        inv.zatca_qr = "AQlERU1P"  # stub TLV
-        inv.zatca_submitted_at = datetime.utcnow()
+    today = date.today().isoformat()
+    # Idempotent marker: already seeded today's pack demo invoices?
+    today_invs = s.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == tid,
+            Invoice.issue_date == today,
+        )
+    ).all()
+    today_tagged = [i for i in today_invs if i.description and f"[{pack}]" in i.description]
+    if len(today_tagged) >= 3:
+        _enrich_pack_logs(s, tid, pack, today_tagged)
+        return
+
+    sellable = [p for p in products if p.product_type in ("stock", "service")] or products
+    created: list[Invoice] = []
+    status_cycle = ("posted", "posted", "posted", "paid", "draft")
+    for i in range(5):
+        cust = customers[i % len(customers)]
+        p = sellable[i % len(sellable)]
+        qty = D(1 + (i % 3))
+        rate = D(p.default_rate) if p.default_rate and p.default_rate > 0 else D(100 + i * 25)
+        subtotal = money(qty * rate)
+        gst_rate = D("5") if pack == "uae_vat" else (D("18") if pack == "in_gst" else D("15") if pack == "sa_zatca" else D("20"))
+        gst_amount = money(subtotal * gst_rate / D(100))
+        total = money(subtotal + gst_amount)
+        number = next_number(s, tid, "invoice", "INV", width=4)
+        inv = Invoice(
+            tenant_id=tid, number=number, customer_id=cust.id,
+            customer_name=cust.name,
+            issue_date=today, due_date=today,
+            description=f"[{pack}] Demo sale to {cust.name}",
+            subtotal=subtotal, gst_rate=gst_rate, gst_amount=gst_amount,
+            total=total, currency=tenant.base_currency or "USD", exchange_rate=D(1),
+            status=status_cycle[i % len(status_cycle)],
+        )
         s.add(inv)
-        s.add(ZatcaSubmissionLog(
-            tenant_id=tid, invoice_id=inv.id,
-            request_payload='{"demo":true}',
-            response_payload='{"status":"CLEARED"}',
-            status="cleared", http_status=200,
-            endpoint="https://gw-fatoora.zatca.gov.sa/demo",
-            sandbox=True,
+        s.flush()
+        s.add(InvoiceLine(
+            invoice_id=inv.id, product_id=p.id,
+            description=p.name, qty=qty, unit=p.unit or "ea",
+            rate=rate, amount=subtotal,
         ))
-    elif pack == "eu_peppol" and not s.exec(
-        select(PeppolSubmissionLog).where(PeppolSubmissionLog.tenant_id == tid)
-    ).first():
-        inv.peppol_status = "accepted"
-        inv.peppol_document_id = "DEMO-PEPPOL-DOC-1"
-        inv.peppol_submitted_at = datetime.utcnow()
-        s.add(inv)
-        s.add(PeppolSubmissionLog(
-            tenant_id=tid, invoice_id=inv.id,
-            request_payload="<Invoice xmlns='urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'/>",
-            response_payload='{"documentId":"DEMO-PEPPOL-DOC-1"}',
-            status="accepted", http_status=202,
-            endpoint="https://api.peppol-sandbox.example/v1/send",
-            sandbox=True, document_id="DEMO-PEPPOL-DOC-1",
-        ))
-    elif pack == "in_gst":
-        # GSTIN on a couple of parties for place-of-supply UI
-        for c in s.exec(select(Customer).where(Customer.tenant_id == tid)).all()[:5]:
-            if not c.gstin:
+        created.append(inv)
+
+    s.flush()
+    _enrich_pack_logs(s, tid, pack, created)
+
+    if pack == "in_gst":
+        for c in customers[:5]:
+            if not getattr(c, "gstin", None):
                 c.gstin = "27AAAAA0000A1Z5"
                 c.state_code = "27"
                 s.add(c)
         for v in s.exec(select(Vendor).where(Vendor.tenant_id == tid)).all()[:5]:
-            if not v.gstin:
+            if not getattr(v, "gstin", None):
                 v.gstin = "29BBBBB0000B1Z5"
                 v.state_code = "29"
                 s.add(v)
+
+
+def _enrich_pack_logs(s: Session, tid: int, pack: str, invoices: list[Invoice]) -> None:
+    """Stamp e-invoice statuses + submission logs for pack dashboards."""
+    if not invoices:
+        return
+    now = datetime.utcnow()
+
+    if pack == "sa_zatca":
+        for i, inv in enumerate(invoices):
+            if inv.status == "draft":
+                inv.zatca_status = "pending"
+            elif i == len(invoices) - 1:
+                inv.zatca_status = "rejected"
+            else:
+                inv.zatca_status = "cleared"
+                inv.zatca_uuid = f"demo-zatca-{inv.id}"
+                inv.zatca_hash = "demo-hash"
+                inv.zatca_qr = "AQlERU1P"
+                inv.zatca_submitted_at = now
+            s.add(inv)
+            if inv.zatca_status in ("cleared", "rejected") and not s.exec(
+                select(ZatcaSubmissionLog).where(
+                    ZatcaSubmissionLog.tenant_id == tid,
+                    ZatcaSubmissionLog.invoice_id == inv.id,
+                )
+            ).first():
+                ok = inv.zatca_status == "cleared"
+                s.add(ZatcaSubmissionLog(
+                    tenant_id=tid, invoice_id=inv.id,
+                    request_payload='{"demo":true}',
+                    response_payload='{"status":"CLEARED"}' if ok else '{"status":"REJECTED"}',
+                    status="cleared" if ok else "rejected",
+                    http_status=200 if ok else 400,
+                    endpoint="https://gw-fatoora.zatca.gov.sa/demo",
+                    sandbox=True,
+                    error_message=None if ok else "Demo rejection for dashboard KPI",
+                ))
+
+    elif pack == "eu_peppol":
+        for i, inv in enumerate(invoices):
+            if inv.status == "draft":
+                inv.peppol_status = "pending"
+            elif i == len(invoices) - 1:
+                inv.peppol_status = "rejected"
+            else:
+                inv.peppol_status = "accepted"
+                inv.peppol_document_id = f"DEMO-PEPPOL-{inv.id}"
+                inv.peppol_submitted_at = now
+            s.add(inv)
+            if inv.peppol_status in ("accepted", "rejected") and not s.exec(
+                select(PeppolSubmissionLog).where(
+                    PeppolSubmissionLog.tenant_id == tid,
+                    PeppolSubmissionLog.invoice_id == inv.id,
+                )
+            ).first():
+                ok = inv.peppol_status == "accepted"
+                s.add(PeppolSubmissionLog(
+                    tenant_id=tid, invoice_id=inv.id,
+                    request_payload="<Invoice xmlns='urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'/>",
+                    response_payload='{"ok":true}' if ok else '{"error":"demo"}',
+                    status="accepted" if ok else "rejected",
+                    http_status=202 if ok else 400,
+                    endpoint="https://api.peppol-sandbox.example/v1/send",
+                    sandbox=True,
+                    document_id=inv.peppol_document_id,
+                    error_message=None if ok else "Demo rejection for dashboard KPI",
+                ))
+
+    elif pack == "uae_vat":
+        for i, inv in enumerate(invoices):
+            if inv.status == "draft":
+                continue
+            if s.exec(
+                select(UaeEinvoiceLog).where(
+                    UaeEinvoiceLog.tenant_id == tid,
+                    UaeEinvoiceLog.invoice_id == inv.id,
+                )
+            ).first():
+                continue
+            ok = i < len(invoices) - 1
+            s.add(UaeEinvoiceLog(
+                tenant_id=tid, invoice_id=inv.id,
+                endpoint="https://uae-sandbox.example/einvoice",
+                request_json='{"demo":true}',
+                response_uuid=f"UAE-DEMO-{inv.id}" if ok else None,
+                response_json='{"ok":true}' if ok else '{"error":"demo"}',
+                http_status=200 if ok else 400,
+                success=ok,
+                error_message=None if ok else "Demo rejection for dashboard KPI",
+                sandbox=True,
+            ))
+
+    elif pack == "in_gst":
+        # Filing pack — GSTIN already handled by caller; nothing else required
+        pass
 
 
 def _seed_intercompany_261(s: Session) -> None:
