@@ -98,6 +98,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/assets/rollforward":     ["asset rollforward", "fixed asset movement", "nbv rollforward", "impairment"],
   "/period-close":           ["close period", "lock period", "month end"],
   "/deferred-revenue":       ["ifrs 15", "revenue recognition", "unearned"],
+  "/contract-balances":      ["ifrs 15", "contract asset", "contract liability", "unbilled", "ssp"],
   "/customer-performance":   ["customer analysis", "top customers", "sales by customer"],
   "/reports/builder":        ["custom report", "ad hoc", "report builder", "query"],
   "/profile":                ["my profile", "password", "avatar"],
@@ -369,6 +370,11 @@ const ACTIONS: NavResult[] = [
     keywords: ["deferred form", "recognition schedule"],
   },
   {
+    id: "qa:contract-balances", type: "action", label: "Contract Balances",
+    sub: "IFRS 15 assets & liabilities by customer", href: "/contract-balances",
+    keywords: ["contract asset", "contract liability", "unbilled", "ssp"],
+  },
+  {
     id: "qa:wv-contract-new", type: "action", label: "New Weaving Contract",
     sub: "Create a weaving contract", href: "/weaving/contracts/new",
     keywords: ["weaving contract", "wc form", "new contract", "form"],
@@ -552,6 +558,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:deferred", type: "report", label: "Deferred Revenue",
     sub: "IFRS-15 recognition schedule", href: "/deferred-revenue",
     keywords: ["deferred", "revenue recognition", "ifrs", "subscription revenue", "output"],
+  },
+  {
+    id: "rpt:contract-balances", type: "report", label: "Contract Balances",
+    sub: "Contract assets & liabilities by customer", href: "/contract-balances",
+    keywords: ["contract asset", "contract liability", "unbilled", "ifrs 15", "ssp", "output"],
   },
   {
     id: "rpt:assets", type: "report", label: "Fixed Assets",

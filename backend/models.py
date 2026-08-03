@@ -732,6 +732,10 @@ class Product(SQLModel, table=True):
     track_serial: bool = Field(default=False)
     # Latest estimated net realisable value per unit (optional; NRV runs can override).
     nrv_unit: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4), nullable=True))
+    # IFRS 15 standalone selling price (unit catalog SSP) for relative allocation (#259).
+    standalone_selling_price: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
 
 
 class StockSerial(SQLModel, table=True):
@@ -1229,6 +1233,11 @@ class InvoiceLine(SQLModel, table=True):
     tax_amount: Money = money_col()
     tax_inclusive: bool = Field(default=False)
     promo_rule_id: Optional[int] = Field(default=None, foreign_key="promo_rule.id")
+    # IFRS 15 (#259): SSP snapshot at invoice time; amount before relative-SSP reallocation.
+    ssp: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(18, 4), nullable=True))
+    pre_allocation_amount: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
 
 
 class BillLine(SQLModel, table=True):
@@ -1327,6 +1336,45 @@ class DeferredRevenueSchedule(SQLModel, table=True):
     status: str = Field(default="active")
     deferred_revenue_account_id: int = Field(foreign_key="account.id")
     revenue_account_id: int = Field(foreign_key="account.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RevenueAllocationAudit(SQLModel, table=True):
+    """Audit trail for IFRS 15 relative-SSP allocation on an invoice (#259)."""
+    __tablename__ = "revenueallocationaudit"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    invoice_id: int = Field(foreign_key="invoice.id", index=True)
+    transaction_price: Money = money_col()
+    method: str = Field(default="relative_ssp")  # relative_ssp | none
+    detail_json: Optional[list] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ContractAsset(SQLModel, table=True):
+    """Unbilled receivable after performance obligation satisfied (IFRS 15 #259).
+
+    Certify: Dr Contract Asset (1140) / Cr Revenue.
+    Settle on invoice: Cr 1140 instead of Revenue for the remaining amount.
+    """
+    __tablename__ = "contractasset"
+    __table_args__ = (
+        CheckConstraint("status IN ('open','closed')", name="ck_contract_asset_status"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    customer_id: int = Field(foreign_key="customer.id", index=True)
+    description: str
+    certify_date: str
+    amount: Money = money_col()
+    recognised_amount: Money = money_col()  # settled / billed portion
+    revenue_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    asset_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
+    status: str = Field(default="open", index=True)
+    transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id", index=True)
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

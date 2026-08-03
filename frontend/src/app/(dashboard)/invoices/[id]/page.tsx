@@ -73,6 +73,12 @@ interface Invoice {
   pra_fiscal_number: string | null
   pra_usin: string | null
   pra_submitted_at: string | null
+  allocation_audit?: {
+    method: string
+    transaction_price: number
+    detail: unknown
+    created_at?: string
+  } | null
 }
 
 const PRA_STATUS_TONE: Record<string, string> = {
@@ -438,6 +444,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Lines */}
       <section className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
+        {inv.allocation_audit?.method === "relative_ssp" && (
+          <div className="px-4 py-2 bg-[var(--bg-page)] border-b border-[var(--border)] text-xs text-[var(--text-primary)]/70">
+            Allocated by SSP (IFRS 15 relative standalone selling price) — transaction price {fmt(inv.allocation_audit.transaction_price)}
+          </div>
+        )}
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-[var(--bg-page)]">

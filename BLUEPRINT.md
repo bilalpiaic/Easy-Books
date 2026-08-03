@@ -234,6 +234,7 @@ All tables include `id PK`, `tenant_id` (except cross-tenant tables like `User.e
 | `settings` | KV per tenant — `company_name`, fiscal year, number prefixes, **`user_rights_enabled`** (module toggle for granular permissions) |
 | `account` | `code`, `name`, `type` (`Asset/Liability/Equity/Revenue/Expense` CHECK), **`parent_id` + `is_group`** (V2.4/V2.5 — multi-level hierarchy; the default CoA is now hierarchical and posting is restricted to active **leaf** accounts, parent balances roll up), `is_active`, **`is_memo`** (V2.1 — excludes from formal A=L+E totals) |
 | `deferredrevenueschedule` | IFRS 15 — `invoice_id`, `total_amount`, `recognised_amount`, `start_date`, `end_date`, `frequency`, `next_recognition_date`, `status`, `deferred_revenue_account_id`, `revenue_account_id`. Originated by `create_invoice` for `is_deferred` product lines; released by the recognition run |
+| `revenueallocationaudit` / `contractasset` | IFRS 15 remaining (#259) — relative-SSP allocation audit + unbilled contract assets (1140); `GET /api/reports/contract-balances` |
 | `accountingperiod` | `period_start`, `period_end`, `is_locked`, `name` |
 | `transaction` | `jv_number` (unique per tenant), `date`, `description`, `is_reversed`, `reversed_by_id`, `created_at` |
 | `journalentry` | `transaction_id` (CASCADE), `account_id`, `debit`, `credit`. DB CHECK: `debit≥0 ∧ credit≥0 ∧ ¬(debit>0 ∧ credit>0) ∧ (debit>0 ∨ credit>0)` |

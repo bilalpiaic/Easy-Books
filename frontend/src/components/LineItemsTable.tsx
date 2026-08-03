@@ -15,6 +15,7 @@ export interface LineItem {
   promo_rule_id?: number | null
   amount: number
   tax_code_id?: number | null
+  ssp?: number | null
 }
 
 interface Product {
@@ -25,6 +26,7 @@ interface Product {
   default_rate: number
   product_type: string
   stock_qty?: number
+  standalone_selling_price?: number | null
 }
 
 export interface TaxCodeOption {
@@ -100,9 +102,11 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
     const prod = products.find(p => p.id === Number(productId))
     if (!prod) return
     const amount = calcAmount(lines[idx].qty, prod.default_rate, lines[idx].discount_pct ?? 0)
+    const unitSsp = prod.standalone_selling_price != null ? Number(prod.standalone_selling_price) : null
+    const lineSsp = unitSsp != null ? Math.round(lines[idx].qty * unitSsp * 100) / 100 : null
     onChange(lines.map((l, i) =>
       i === idx
-        ? { ...l, product_id: prod.id, description: prod.name, unit: prod.unit, rate: prod.default_rate, amount }
+        ? { ...l, product_id: prod.id, description: prod.name, unit: prod.unit, rate: prod.default_rate, amount, ssp: lineSsp }
         : l
     ))
     // Fetch last-price hint for this product + party
@@ -163,6 +167,9 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                         <option key={p.id} value={p.id}>{p.code ? `${p.code} — ` : ""}{p.name}</option>
                       ))}
                     </select>
+                  )}
+                  {line.ssp != null && line.ssp > 0 && (
+                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">SSP {fmt(line.ssp)}</p>
                   )}
                 </td>
               )}

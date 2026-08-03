@@ -44,7 +44,12 @@ class DeferralPlan:
 def plan_deferral(session: Session, tenant_id: int, lines, fx_rate: Decimal) -> DeferralPlan:
     """Classify lines by product.is_deferred. Returns the deferred per-line specs
     and their summed net (base currency). Lines with no product, or a
-    non-deferred product, are ignored here (they stay as normal revenue)."""
+    non-deferred product, are ignored here (they stay as normal revenue).
+
+    Net uses line.amount when present (post-SSP allocation + discount-aware);
+    otherwise qty × rate × (1 − discount_pct/100). Never double-counts with
+    contract assets — those are a separate unbilled path (#259).
+    """
     plan = DeferralPlan()
     for ln in lines:
         if not getattr(ln, "product_id", None):
@@ -56,7 +61,15 @@ def plan_deferral(session: Session, tenant_id: int, lines, fx_rate: Decimal) -> 
         ).first()
         if not prod or not prod.is_deferred:
             continue
-        net_base = money(D(ln.qty) * D(ln.rate) * D(fx_rate))
+        amt = getattr(ln, "amount", None)
+        if amt is not None:
+            doc_net = D(amt)
+        else:
+            doc_net = D(ln.qty) * D(ln.rate)
+            disc = D(getattr(ln, "discount_pct", 0) or 0)
+            if disc:
+                doc_net = doc_net * (D("100") - disc) / D("100")
+        net_base = money(doc_net * D(fx_rate))
         # Deferral requires a positive amount. Zero/negative lines deliberately
         # fall through to immediate revenue: a negative-total schedule would
         # break the recognition engine (it divides total/months), and negative

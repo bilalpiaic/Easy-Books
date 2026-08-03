@@ -10,7 +10,7 @@ import {
   ShieldCheck, Briefcase, UserCog, Settings2, CalendarDays, FileCheck, AppWindow,
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
-  AlertTriangle, KeyRound,
+  AlertTriangle, KeyRound, FileSpreadsheet,
 } from "lucide-react"
 
 export type NavItem = {
@@ -117,6 +117,7 @@ export const NAV: NavItem[] = [
   { label: "Leases",           href: "/leases",            icon: KeyRound,         section: "Reports" },
   { label: "Period Close",     href: "/period-close",      icon: CalendarCheck,    section: "Reports" },
   { label: "Deferred Revenue", href: "/deferred-revenue",  icon: Play,             section: "Reports" },
+  { label: "Contract Balances", href: "/contract-balances", icon: FileSpreadsheet,  section: "Reports" },
   { label: "Customer Performance", href: "/customer-performance", icon: TrendingUp, section: "Reports" },
   { label: "Report Builder",       href: "/reports/builder",      icon: Table2,     section: "Reports" },
   { label: "My Profile",       href: "/profile",           icon: UserCircle,       section: "System" },
@@ -230,7 +231,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
-  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/assets", "/leases"],
+  accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/contract-balances", "/assets", "/leases"],
   reports:       ["/trial-balance", "/pl", "/balance", "/consolidation", "/cashflow", "/tax", "/tax-return", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
@@ -339,6 +340,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Analytic Accounts", href: "/analytic-accounts", icon: Layers,          section: "accounting" },
     { label: "Period Close",      href: "/period-close",      icon: CalendarCheck,   section: "accounting" },
     { label: "Deferred Revenue",  href: "/deferred-revenue",  icon: Play,            section: "accounting" },
+    { label: "Contract Balances", href: "/contract-balances", icon: FileSpreadsheet, section: "accounting" },
     { label: "Fixed Assets",      href: "/assets",            icon: Building2,       section: "accounting" },
     { label: "Asset Rollforward", href: "/assets/rollforward", icon: Table2,         section: "accounting" },
     { label: "Leases",            href: "/leases",            icon: KeyRound,        section: "accounting" },

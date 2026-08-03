@@ -36,6 +36,7 @@ class ProductCreate(BaseModel):
     track_lot: bool = False
     track_serial: bool = False
     nrv_unit: Optional[Decimal] = None
+    standalone_selling_price: Optional[Decimal] = None
     opening_qty: Decimal = Decimal("0")
     opening_cost: Decimal = Decimal("0")
 

@@ -39,6 +39,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/analytic-accounts/":   "Analytic P&L",
   "/exchange-rates":       "Exchange Rates",
   "/deferred-revenue":     "Deferred Revenue",
+  "/contract-balances":    "Contract Balances",
   "/tax-codes":            "Tax Codes",
   "/reconciliations":  "Reconciliations",
   "/trial-balance":    "Trial Balance",
