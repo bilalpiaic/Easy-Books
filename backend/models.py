@@ -603,6 +603,10 @@ class Invoice(SQLModel, table=True):
     zatca_hash: Optional[str] = None
     zatca_qr: Optional[str] = None
     zatca_submitted_at: Optional[datetime] = None
+    # Peppol / EU VAT e-Invoice (#266)
+    peppol_status: Optional[str] = Field(default=None, index=True)  # pending|submitted|accepted|rejected|error
+    peppol_document_id: Optional[str] = None
+    peppol_submitted_at: Optional[datetime] = None
     # Approval workflow (#123) — null means no workflow engaged / legacy docs
     approval_status: Optional[str] = Field(default=None, index=True)
     # Intercompany (#261) — flag + sister-entity link; mirror bill id on counterparty
@@ -2214,6 +2218,22 @@ class ZatcaSubmissionLog(SQLModel, table=True):
     endpoint: Optional[str] = None
     error_message: Optional[str] = None
     sandbox: bool = Field(default=True)
+
+
+class PeppolSubmissionLog(SQLModel, table=True):
+    """Audit trail of every outbound call to a Peppol Access Point (#266)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True)
+    invoice_id: int = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    request_payload: str
+    response_payload: Optional[str] = None
+    status: str = Field(default="error")  # accepted|rejected|error|submitted
+    http_status: Optional[int] = None
+    endpoint: Optional[str] = None
+    error_message: Optional[str] = None
+    sandbox: bool = Field(default=True)
+    document_id: Optional[str] = None
 
 
 class Attachment(SQLModel, table=True):

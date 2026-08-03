@@ -129,6 +129,26 @@ _CURATED: list[dict[str, Any]] = [
             "curated": True,
         },
     },
+    {
+        "summary": "Surface the Peppol / EU VAT first-party localization pack.",
+        "tags": ["eu", "peppol", "vat", "ubl", "first-party"],
+        "first_party_module": "eu_peppol",
+        "manifest": {
+            "id": "partner.easybooks.eu-peppol-bridge",
+            "name": "Peppol / EU VAT e-Invoice (first-party)",
+            "version": "1.0.0",
+            "description": (
+                "Installs the built-in Peppol BIS Billing 3.0 UBL export + Access Point sandbox pack."
+            ),
+            "publisher": "Easy-Books",
+            "category": "Localization",
+            "icon": "Globe",
+            "requires_modules": ["eu_peppol"],
+            "requested_permissions": ["read_invoices"],
+            "settings_keys": [],
+            "curated": True,
+        },
+    },
 ]
 
 

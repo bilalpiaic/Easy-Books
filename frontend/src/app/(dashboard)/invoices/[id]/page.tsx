@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { Printer, RotateCcw, FileSignature, Pencil, Link as LinkIcon, History, Send, Ban, CheckCircle2, MessageSquareWarning } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
-import { apiFetch } from "@/lib/api"
+import { apiFetch, apiBase, networkErrorMessage } from "@/lib/api"
 import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
 import DocumentActions from "@/components/DocumentActions"
@@ -79,6 +79,10 @@ interface Invoice {
   zatca_hash: string | null
   zatca_qr: string | null
   zatca_submitted_at: string | null
+  // Peppol / EU VAT (#266)
+  peppol_status: string | null
+  peppol_document_id: string | null
+  peppol_submitted_at: string | null
   allocation_audit?: {
     method: string
     transaction_price: number
@@ -118,6 +122,22 @@ const ZATCA_STATUS_LABEL: Record<string, string> = {
   error:     "ZATCA Error",
 }
 
+const PEPPOL_STATUS_TONE: Record<string, string> = {
+  pending:   "bg-amber-50 text-amber-800 border-amber-300",
+  submitted: "bg-blue-50 text-blue-800 border-blue-300",
+  accepted:  "bg-emerald-50 text-emerald-800 border-emerald-300",
+  rejected:  "bg-red-50 text-red-800 border-red-300",
+  error:     "bg-red-50 text-red-800 border-red-300",
+}
+
+const PEPPOL_STATUS_LABEL: Record<string, string> = {
+  pending:   "Peppol Pending",
+  submitted: "Peppol Submitted",
+  accepted:  "Peppol Accepted",
+  rejected:  "Peppol Rejected",
+  error:     "Peppol Error",
+}
+
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { confirm, toast } = useMessages()
   const { t } = useTranslation()
@@ -135,9 +155,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [uaeUuid, setUaeUuid] = useState<string | null>(null)
   const [uaeMsg, setUaeMsg] = useState<string | null>(null)
   const [zatcaSubmitting, setZatcaSubmitting] = useState(false)
+  const [peppolSubmitting, setPeppolSubmitting] = useState(false)
+  const [peppolExporting, setPeppolExporting] = useState(false)
   const { installedModules } = useModules()
   const uaeInstalled = installedModules.has("uae_vat")
   const zatcaInstalled = installedModules.has("sa_zatca")
+  const peppolInstalled = installedModules.has("eu_peppol")
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
   const [disputes, setDisputes] = useState<PortalDispute[]>([])
@@ -485,6 +508,91 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               </button>
               {inv.zatca_uuid && (
                 <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">UUID: {inv.zatca_uuid}</div>
+              )}
+            </div>
+          )}
+          {peppolInstalled && (
+            <div className="flex flex-col items-end gap-1">
+              {inv.peppol_status && (
+                <span className={`inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold ${PEPPOL_STATUS_TONE[inv.peppol_status] ?? ""}`}>
+                  {PEPPOL_STATUS_LABEL[inv.peppol_status] ?? inv.peppol_status}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  setPeppolSubmitting(true)
+                  setError(null)
+                  try {
+                    const r = await apiFetch<{
+                      success: boolean
+                      peppol_status?: string
+                      peppol_document_id?: string
+                      error_message?: string
+                    }>(`/api/peppol/invoices/${inv.id}/submit`, { method: "POST" })
+                    setInv(prev => prev ? {
+                      ...prev,
+                      peppol_status: r.peppol_status ?? prev.peppol_status,
+                      peppol_document_id: r.peppol_document_id ?? prev.peppol_document_id,
+                    } : prev)
+                    if (!r.success && r.error_message) {
+                      setError(r.error_message)
+                    }
+                  } catch (e: unknown) {
+                    setError(String((e as Error).message ?? e))
+                  } finally {
+                    setPeppolSubmitting(false)
+                  }
+                }}
+                disabled={peppolSubmitting}
+                className="text-[10px] font-semibold text-[var(--text-link)] hover:underline disabled:opacity-50 text-left"
+              >
+                {peppolSubmitting
+                  ? "Submitting…"
+                  : inv.peppol_status === "accepted"
+                    ? "Re-submit to Peppol"
+                    : "Submit to Peppol"}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setPeppolExporting(true)
+                  setError(null)
+                  try {
+                    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+                    const url = `${apiBase}/api/peppol/invoices/${inv.id}/export`
+                    const res = await fetch(url, {
+                      headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    })
+                    if (!res.ok) {
+                      let detail = "UBL export failed"
+                      try {
+                        const body = await res.json()
+                        if (body?.detail) detail = String(body.detail)
+                      } catch { /* ignore */ }
+                      throw new Error(detail)
+                    }
+                    const blob = await res.blob()
+                    const a = document.createElement("a")
+                    a.href = URL.createObjectURL(blob)
+                    a.download = `${inv.number}-peppol.xml`
+                    document.body.appendChild(a)
+                    a.click()
+                    a.remove()
+                    URL.revokeObjectURL(a.href)
+                  } catch (e: unknown) {
+                    setError(networkErrorMessage(e, String((e as Error).message ?? e)))
+                  } finally {
+                    setPeppolExporting(false)
+                  }
+                }}
+                disabled={peppolExporting}
+                className="text-[10px] font-semibold text-[var(--text-link)] hover:underline disabled:opacity-50 text-left"
+              >
+                {peppolExporting ? "Exporting…" : "Export UBL XML"}
+              </button>
+              {inv.peppol_document_id && (
+                <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">Doc: {inv.peppol_document_id}</div>
               )}
             </div>
           )}

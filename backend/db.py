@@ -513,6 +513,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Reports"],
     },
+    "eu_peppol": {
+        "label":       "Peppol / EU VAT e-Invoice",
+        "description": "EU Peppol BIS Billing 3.0 UBL export and Access Point submission — participant ID, VAT tax mapping, sandbox AP adapter, and submission logs.",
+        "category":    "Localization",
+        "icon":        "Globe",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "addon",
+        "nav_sections": ["Peppol"],
+    },
     "healthcare": {
         "label":       "Healthcare",
         "description": "OPD/IPD management, lab orders & results, pharmacy store, procedure billing, ward management, and patient records for hospitals and clinics.",

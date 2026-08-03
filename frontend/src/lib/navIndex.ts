@@ -118,6 +118,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/apps":                   ["add-ons", "modules", "install module", "extensions"],
   "/pra-logs":               ["pra logs", "fiscal submission", "einvoice log"],
   "/zatca/logs":             ["zatca logs", "fatoora", "saudi einvoice", "ksa"],
+  "/peppol/logs":            ["peppol logs", "ubl", "eu einvoice", "access point"],
   "/hrm":                    ["payroll hub", "hr overview"],
   "/payroll":                ["payroll runs", "salary run", "payslip"],
   "/employees":              ["staff", "hr master", "employee list"],
@@ -736,6 +737,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:zatca-logs", type: "report", label: "ZATCA Submission Logs",
     sub: "Saudi Fatoora clear/report attempts", href: "/zatca/logs",
     keywords: ["zatca", "fatoora", "saudi", "einvoice log", "ksa", "output"],
+  },
+  {
+    id: "rpt:peppol-logs", type: "report", label: "Peppol Submission Logs",
+    sub: "EU Access Point send attempts", href: "/peppol/logs",
+    keywords: ["peppol", "ubl", "bis billing", "eu", "access point", "einvoice log", "output"],
   },
   {
     id: "sys:settings", type: "nav", label: "Settings",

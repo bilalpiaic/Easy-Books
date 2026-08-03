@@ -40,6 +40,7 @@
 27. [Attendance Register](#27-attendance-register)
 28. [PRA e-Invoice (Pakistan)](#28-pra-e-invoice-pakistan)
 28a. [Saudi ZATCA e-Invoice](#28a-saudi-zatca-e-invoice)
+28b. [Peppol / EU VAT e-Invoice](#28b-peppol--eu-vat-e-invoice)
 29. [Modules & the Apps Page](#29-modules--the-apps-page)
 30. [Healthcare Module](#30-healthcare-module)
 31. [Universal Search (Ctrl+K)](#31-universal-search-ctrlk)
@@ -1620,6 +1621,37 @@ Open any sales invoice → **Submit to ZATCA**. The badge shows `cleared` (B2B w
 
 ---
 
+## 28b. Peppol / EU VAT e-Invoice
+
+> Requires: **Peppol / EU VAT e-Invoice** module from **System → Apps** (category Localization).
+
+### Access Point (AP) credentials setup
+
+1. Choose a Peppol **Access Point** provider (or your tax authority’s certified AP) and create a sandbox account.
+2. From the AP portal, copy:
+   - **Participant ID** — scheme + identifier, e.g. `0088:<GLN>` (GLN) or `9930:<VAT>` (German VAT scheme). This identifies your company on the Peppol network.
+   - **Send / submit URL** — HTTPS endpoint that accepts UBL Invoice XML (often documented as “AS4 send”, “REST send”, or “sandbox invoice”).
+   - **API key / Bearer token** — write-only in Easy-Books (`peppol_api_key`); never returned by `GET /api/settings`.
+3. Install **Peppol / EU VAT e-Invoice** from Add-ons (optionally seed sample settings).
+4. Open **Settings → Peppol / EU VAT e-Invoice** and set:
+   - **Enable** ON
+   - **Participant ID**
+   - **Access Point URL** (sandbox URL for testing)
+   - **AP API key** (paste once; leave blank to keep an existing secret)
+   - **Sandbox** ON while testing (default)
+5. Click **Test Connection**. Any HTTP response from the AP proves reachability (401 still counts as “reachable”). Override the default sandbox URL with env `PEPPOL_AP_URL` only when the settings AP URL is empty and sandbox mode is on.
+
+Company **tax ID**, **country**, and **currency** (Settings → Company) feed the UBL supplier party and document currency (typically `EUR`).
+
+### Export / submit an invoice
+
+- **Export UBL XML** — downloads a Peppol BIS Billing 3.0 (UBL 2.1) Invoice with `CustomizationID` for EN 16931 / Peppol Billing 3.0. Use this to validate against your AP’s schematron or an offline validator before go-live.
+- **Submit to Peppol** — POSTs the same XML to the configured AP URL with `Authorization: Bearer <api_key>` and `X-Peppol-Participant-ID`. Status becomes `accepted` on HTTP 2xx (document id stored), or `rejected` / `error` otherwise. Every attempt is logged under **System → Peppol Logs** (`/peppol/logs`).
+
+VAT category mapping: standard rate → `S`, zero rate → `Z`, cross-border B2B with buyer VAT ID and 0% → reverse charge `AE`.
+
+---
+
 ## 29. MODULES & THE APPS PAGE
 
 Easy-Books uses an installable module system — similar to Odoo — so every tenant only sees the features they actually need.
@@ -1637,6 +1669,7 @@ A module is a bundle of related features and sidebar sections. The six modules a
 | **Telecom Franchise** | Full telecom module: trackers, RSOs, MSR, MFS, FCA workflow | No — requires Inventory |
 | **PRA e-Invoice** | PRA e-invoice submission, fiscal invoice numbers, submission logs | No |
 | **Saudi ZATCA e-Invoice** | KSA Phase 2 sandbox clear/report, TLV QR, submission logs | No |
+| **Peppol / EU VAT e-Invoice** | BIS Billing 3.0 UBL export, Access Point submit, submission logs | No |
 | **UAE VAT e-Invoice** | UAE 5% VAT codes, CoA leaves, FTA sandbox stub | No |
 
 ### 29.2 The Apps page

@@ -70,6 +70,9 @@ export default function SettingsPage() {
   const [zatcaTesting, setZatcaTesting] = useState(false)
   const [zatcaTestResult, setZatcaTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
   const [zatcaShowToken, setZatcaShowToken] = useState(false)
+  const [peppolTesting, setPeppolTesting] = useState(false)
+  const [peppolTestResult, setPeppolTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [peppolShowKey, setPeppolShowKey] = useState(false)
 
   useEffect(() => {
     setForm(ctxSettings)
@@ -1379,6 +1382,87 @@ export default function SettingsPage() {
               autoComplete="off"
               value={form.in_state_code} onChange={e => handleChange("in_state_code", e.target.value)} />
           </div>
+        </div>
+      </section>
+      )}
+
+      {/* ── Peppol / EU VAT e-Invoice — once the eu_peppol add-on is installed ── */}
+      {installedModules.has("eu_peppol") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Peppol / EU VAT e-Invoice <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(BIS Billing 3.0)</span></h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm text-[var(--text-primary)]/70">{form.peppol_enabled === "true" ? "Enabled" : "Disabled"}</span>
+            <div
+              onClick={() => handleChange("peppol_enabled", form.peppol_enabled === "true" ? "false" : "true")}
+              className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.peppol_enabled === "true" ? "bg-[var(--primary)]" : "bg-[var(--text-primary)]/20"}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-0.5 shadow transition-transform ${form.peppol_enabled === "true" ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-primary)]/50">
+          Export Peppol BIS Billing 3.0 UBL and submit via your Access Point (AP) sandbox or production URL.
+          See <Link href="/guide#28b-peppol--eu-vat-e-invoice" className="underline text-[var(--text-link)]">AP credentials setup</Link>.
+          Submission logs are under <Link href="/peppol/logs" className="underline text-[var(--text-link)]">Peppol Logs</Link>.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Participant ID</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="0088:1234567890123 or 9930:DE123456789"
+              autoComplete="off"
+              value={form.peppol_participant_id} onChange={e => handleChange("peppol_participant_id", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Access Point URL</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="https://ap.example.com/v1/send"
+              autoComplete="off"
+              value={form.peppol_ap_url} onChange={e => handleChange("peppol_ap_url", e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">AP API key (write-only)</label>
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+                type={peppolShowKey ? "text" : "password"}
+                placeholder="Bearer token from your Access Point"
+                autoComplete="new-password"
+                value={form.peppol_api_key} onChange={e => handleChange("peppol_api_key", e.target.value)} />
+              <button type="button" onClick={() => setPeppolShowKey(v => !v)}
+                className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)]/60 hover:border-[var(--primary)]/40">
+                {peppolShowKey ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="rounded border-[var(--border)]"
+            checked={form.peppol_sandbox_mode !== "false"}
+            onChange={e => handleChange("peppol_sandbox_mode", e.target.checked ? "true" : "false")} />
+          <span className="text-[var(--text-primary)]/70">Use Sandbox Access Point</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setPeppolTesting(true); setPeppolTestResult(null)
+              try {
+                const r = await apiFetch<{ ok: boolean; message: string; sandbox: boolean }>("/api/peppol/test", { method: "POST" })
+                setPeppolTestResult({ ok: !!r.ok, msg: `${r.message}${r.sandbox ? " (sandbox)" : ""}` })
+              } catch (e: unknown) {
+                setPeppolTestResult({ ok: false, msg: String((e as Error).message ?? e) })
+              } finally { setPeppolTesting(false) }
+            }}
+            disabled={peppolTesting || !form.peppol_participant_id || !form.peppol_ap_url}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50 transition-colors"
+          >
+            {peppolTesting ? "Testing…" : "Test Connection"}
+          </button>
+          {peppolTestResult && (
+            <span className={`text-sm ${peppolTestResult.ok ? "text-green-700" : "text-red-600"}`}>
+              {peppolTestResult.ok ? "✓" : "✗"} {peppolTestResult.msg}
+            </span>
+          )}
         </div>
       </section>
       )}
