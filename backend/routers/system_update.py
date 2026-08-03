@@ -59,7 +59,7 @@ async def trigger_update(bg: BackgroundTasks, current_user: CurrentUserDep):
     try:
         before = _git("rev-parse", "HEAD")
 
-        _discard_lockfile_drift(_REPO)
+        _discard_installer_drift(_REPO)
 
         pull = subprocess.run(
             ["git", "pull", "--ff-only"],
@@ -203,17 +203,30 @@ def _git(*args: str) -> str:
     ).stdout.strip()
 
 
-def _discard_lockfile_drift(repo: Path) -> None:
-    """`uv sync` (run on every launch by install-and-run.*) can rewrite
-    backend/uv.lock even with no dependency changes (platform-specific
-    resolution), leaving it locally modified. Once upstream also touches the
-    file, that drift blocks `git pull --ff-only` (#138). uv.lock is fully
-    machine-generated and never hand-edited, so discarding local changes to
-    it before pulling is always safe — the next `uv sync` regenerates it."""
+def _discard_installer_drift(repo: Path) -> None:
+    """Discard machine-generated files that block `git pull --ff-only`.
+
+    - `backend/uv.lock`: `uv sync` can rewrite it with platform-specific
+      resolution drift even when dependencies did not change (#138).
+    - `frontend/public/version.json`: older installers wrote the live build
+      identity into this *tracked* path, leaving it dirty after every rebuild
+      and blocking the next update on Debian/script installs.
+
+    Both files are regenerated on the next install/build, so discarding local
+    edits is always safe.
+    """
     subprocess.run(
-        ["git", "checkout", "--", "backend/uv.lock"],
+        [
+            "git", "checkout", "--",
+            "backend/uv.lock",
+            "frontend/public/version.json",
+        ],
         capture_output=True, text=True, cwd=str(repo),
     )
+
+
+# Back-compat alias for tests / callers that still use the #138 name.
+_discard_lockfile_drift = _discard_installer_drift
 
 
 def _launch_script(script: str) -> None:

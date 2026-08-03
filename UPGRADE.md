@@ -23,6 +23,24 @@ cd ~/easy-books          # wherever you cloned or extracted the repo
 
 `update.sh` runs `git pull --ff-only` then re-invokes `install-and-run.sh --rebuild`.
 
+On Debian/Ubuntu, run with bash (not `sh`):
+
+```bash
+./update.sh
+# or, if the file lost execute permission:
+bash update.sh
+```
+
+If pull fails because of local installer drift (common after older builds rewrote
+`frontend/public/version.json`), the script prints a recovery hint. Safe reset of
+the *code* folder only (data in `~/.easy-books` is untouched):
+
+```bash
+git checkout -- backend/uv.lock frontend/public/version.json
+git fetch origin && git reset --hard origin/main
+bash update.sh
+```
+
 `install-and-run.sh` will automatically:
 - Install or update `uv` and Node.js if needed.
 - Rebuild the frontend when the commit hash has changed.

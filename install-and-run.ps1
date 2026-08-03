@@ -223,14 +223,15 @@ if ($Rebuild -or -not (Test-Path $server) -or $stale) {
   if ($buildExitCode -ne 0) {
     throw "next build failed (exit code $buildExitCode) - see the error above. The frontend was not updated; re-run this script once the issue is fixed."
   }
-  # Write version.json so UpdateModal can detect when update.ps1 has already
-  # rebuilt the server (page's baked-in commit differs from server's commit).
+  # Write version.json ONLY into the standalone tree. Writing into
+  # frontend\public dirties a tracked file and blocks the next
+  # `git pull --ff-only` in update.ps1.
   $commitVal = if ($headCommit) { $headCommit } else { 'dev' }
   $vj = '{"version":"' + $appVersion + '","commit":"' + $commitVal + '","built":"' + $buildDate + '"}'
-  Set-Content -Path 'frontend\public\version.json' -Value $vj -Encoding UTF8
   # Next 'standalone' does not copy these - required for the server to serve them.
   Copy-Item 'frontend\.next\static' 'frontend\.next\standalone\.next\static' -Recurse -Force
   Copy-Item 'frontend\public'       'frontend\.next\standalone\public'       -Recurse -Force
+  Set-Content -Path 'frontend\.next\standalone\public\version.json' -Value $vj -Encoding UTF8
   if ($headCommit) { Set-Content -Path $builtMarker -Value $headCommit }
 }
 
