@@ -123,6 +123,9 @@ class InvoiceCreate(BaseModel):
     buyer_cnic: Optional[str] = None     # walk-in CNIC override for PRA payload
     # IFRS 15: settle open contract assets (Cr 1140 instead of Revenue) (#259)
     contract_asset_ids: Optional[List[int]] = None
+    # Intercompany (#261)
+    is_intercompany: bool = False
+    ic_counterparty_tenant_id: Optional[int] = None
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -304,9 +307,16 @@ def get_invoice(session: SessionDep, user: CurrentUserDep, invoice_id: int):
 
 @router.post("/api/invoices", status_code=201, dependencies=[perm_dep("invoices", "edit")])
 def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
-                   background_tasks: BackgroundTasks):
+                   background_tasks: BackgroundTasks, mirror: bool = True):
     from services.saas import check_document_quota
     check_document_quota(session, user.tenant_id)
+
+    if body.is_intercompany:
+        if not body.ic_counterparty_tenant_id:
+            raise HTTPException(400, "IC invoice requires ic_counterparty_tenant_id")
+        from services.intercompany import assert_ic_member
+        if not assert_ic_member(session, user.tenant_id, body.ic_counterparty_tenant_id):
+            raise HTTPException(400, "IC counterparty is not in the same consolidation group")
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "invoice_prefix"
@@ -398,6 +408,10 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         payment_mode=body.payment_mode,
         buyer_ntn=body.buyer_ntn,
         buyer_cnic=body.buyer_cnic,
+        is_intercompany=bool(body.is_intercompany),
+        ic_counterparty_tenant_id=(
+            body.ic_counterparty_tenant_id if body.is_intercompany else None
+        ),
     )
     session.add(invoice)
     session.flush()
@@ -614,6 +628,15 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         invoice.pra_status = "pending"
         invoice.pra_usin = invoice.number
         session.add(invoice)
+
+    # Intercompany mirror draft bill on sister tenant (#261)
+    if invoice.is_intercompany and invoice.ic_counterparty_tenant_id and mirror:
+        from services.intercompany import IntercompanyError, create_ic_mirror_bill_from_invoice
+        try:
+            create_ic_mirror_bill_from_invoice(session, user, invoice)
+        except IntercompanyError as e:
+            raise HTTPException(e.status_code, e.message) from e
+
     session.commit()
     session.refresh(invoice)
 

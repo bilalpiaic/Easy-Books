@@ -52,6 +52,9 @@ class BillCreate(BaseModel):
     analytic_2_id: Optional[int] = None
     analytic_3_id: Optional[int] = None
     analytic_ids: Optional[List[int]] = None
+    # Intercompany (#261)
+    is_intercompany: bool = False
+    ic_counterparty_tenant_id: Optional[int] = None
 
 
 def _next_bill_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -224,9 +227,16 @@ def download_bill_pdf(session: SessionDep, user: CurrentUserDep, bill_id: int):
 
 
 @router.post("/api/bills", status_code=201, dependencies=[perm_dep("bills", "edit")])
-def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
+def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate, mirror: bool = True):
     from services.saas import check_document_quota
     check_document_quota(session, user.tenant_id)
+
+    if body.is_intercompany:
+        if not body.ic_counterparty_tenant_id:
+            raise HTTPException(400, "IC bill requires ic_counterparty_tenant_id")
+        from services.intercompany import assert_ic_member
+        if not assert_ic_member(session, user.tenant_id, body.ic_counterparty_tenant_id):
+            raise HTTPException(400, "IC counterparty is not in the same consolidation group")
     prefix_row = session.exec(
         select(Settings).where(
             Settings.tenant_id == user.tenant_id, Settings.key == "bill_prefix"
@@ -324,6 +334,10 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         analytic_account_id=body.analytic_account_id,
         analytic_2_id=getattr(body, 'analytic_2_id', None),
         analytic_3_id=getattr(body, 'analytic_3_id', None),
+        is_intercompany=bool(body.is_intercompany),
+        ic_counterparty_tenant_id=(
+            body.ic_counterparty_tenant_id if body.is_intercompany else None
+        ),
     )
     session.add(bill)
     session.flush()
@@ -434,6 +448,15 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate):
         "bill_date": bill.bill_date, "due_date": bill.due_date,
         "status": bill.status,
     })
+
+    # Intercompany mirror draft invoice on sister tenant (#261)
+    if bill.is_intercompany and bill.ic_counterparty_tenant_id and mirror:
+        from services.intercompany import IntercompanyError, create_ic_mirror_invoice_from_bill
+        try:
+            create_ic_mirror_invoice_from_bill(session, user, bill)
+        except IntercompanyError as e:
+            raise HTTPException(e.status_code, e.message) from e
+
     session.commit()
     session.refresh(bill)
 
