@@ -119,9 +119,10 @@ from models_weaving import (
     WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch,
 )
 from models_spinning import (
+    STAGE_ORDER,
     SpYarnSpec, SpFiberGrade, SpMachine, SpShift, SpOperator, SpWasteType,
     SpRecipe, SpRecipeLine, SpProductionPlan, SpSpinLot,
-    SpBaleReceipt, SpStageEntry, SpConeOutput, SpWasteLog, SpYarnDispatch,
+    SpBaleReceipt, SpStageEntry, SpConeOutput, SpWasteLog, SpYarnDispatch, SpCalcRun,
 )
 from routers.common import get_or_create_account, next_number
 from services.franchise_posting import (
@@ -2738,7 +2739,7 @@ def _seed_asset_components_258(s: Session, user: User) -> None:
 def _seed_analytic_dimensions_260(s: Session, tenant_id: int) -> None:
     """Wire #260 dimensions onto existing analytic accounts + multi-slot JE tags."""
     specs = [
-        ("CC", "Cost Center", 0, True),
+        ("CC", "Cost Center", 0, False),
         ("PROJ", "Project", 1, False),
         ("LOC", "Location", 2, False),
     ]
@@ -4314,6 +4315,27 @@ def _seed_pra_settings(s: Session, tenant_id: int) -> None:
         s.add(row)
 
 
+def _seed_spinning_settings(s: Session, tenant_id: int) -> None:
+    """GL defaults + company profile for the Yarn Spinning demo tenant."""
+    kvs = {
+        "company_name": "Demo Yarn Spinning Mill",
+        "business_tagline": "Easy-Books · Yarn Spinning · Full GL Production",
+        "default_cogs_account": "5010",
+        "default_mfg_labour_account": "5100",
+        "default_mfg_overhead_account": "5200",
+        "require_purchase_chain": "true",
+        "require_gate_inward": "true",
+    }
+    for key, value in kvs.items():
+        row = s.exec(
+            select(Settings).where(Settings.tenant_id == tenant_id, Settings.key == key)
+        ).first()
+        if row:
+            row.value = value
+        else:
+            s.add(Settings(key=key, value=value, tenant_id=tenant_id))
+
+
 def _seed_pra_customers(s: Session, tenant_id: int) -> list[Customer]:
     """Seed Pakistani customers with NTN and CNIC for PRA BuyerPNTN/BuyerCNIC."""
     out: list[Customer] = []
@@ -5777,11 +5799,56 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
     s.flush()
 
 
+def _spinning_stage_yields() -> dict[str, Decimal]:
+    return {
+        "opening": Decimal("0.98"), "carding": Decimal("0.97"), "drawing": Decimal("0.96"),
+        "roving": Decimal("0.95"), "spinning": Decimal("0.92"), "winding": Decimal("0.99"),
+    }
+
+
+def _spinning_seed_stages(
+    s: Session, user: User, lot: SpSpinLot, *,
+    machines: list[SpMachine], shift: SpShift, operator: SpOperator,
+    today: date, day_base: int, input_kg: Decimal,
+    post_stages: frozenset[str],
+    draft_stages: frozenset[str] | None = None,
+) -> None:
+    from services import spinning_calc as sp_calc
+    from services import spinning_posting as sp_post
+
+    yields = _spinning_stage_yields()
+    draft_stages = draft_stages or frozenset()
+    kg = input_kg
+    for idx, stage in enumerate(STAGE_ORDER):
+        if stage not in post_stages and stage not in draft_stages:
+            break
+        out = money(kg * yields[stage])
+        waste = money(kg - out)
+        se = SpStageEntry(
+            tenant_id=user.tenant_id,
+            number=next_number(s, user.tenant_id, "sp_stage_entry", "SE", fmt="{prefix}-{YYYY}-{seq:04d}"),
+            spin_lot_id=lot.id, stage=stage,
+            date=_past_days(day_base - idx * 2, today=today),
+            input_kg=kg, output_kg=out, waste_kg=waste,
+            yield_pct=sp_calc.stage_yield_pct(kg, out),
+            machine_id=machines[min(idx, len(machines) - 1)].id,
+            shift_id=shift.id, operator_id=operator.id,
+            labour_cost=Decimal("4500") + idx * Decimal("500"),
+            overhead_cost=Decimal("2800") + idx * Decimal("300"),
+            created_by_id=user.id,
+        )
+        s.add(se)
+        s.flush()
+        if stage in post_stages:
+            sp_post.post_stage_entry(s, user, se)
+        kg = out
+
+
 def _seed_spinning(
     s: Session, user: User, customers: list[Customer], vendors: list[Vendor],
     stock_products: list[Product] | None = None,
 ) -> None:
-    """Yarn Spinning mill demo. Idempotent — skips if spin lots exist."""
+    """Yarn Spinning mill demo — all forms, stages, reports. Idempotent."""
     tid = user.tenant_id
     if s.exec(select(SpSpinLot).where(SpSpinLot.tenant_id == tid)).first():
         return
@@ -5792,7 +5859,6 @@ def _seed_spinning(
     sp_post.ensure_spinning_locations(s, tid)
     today = date.today()
 
-    # Products — raw cotton + finished yarn SKUs
     cotton = s.exec(
         select(Product).where(Product.tenant_id == tid, Product.code == "COTTON-BALE")
     ).first()
@@ -5826,15 +5892,35 @@ def _seed_spinning(
     for code, name, ne, prod in yarn_products:
         spec = SpYarnSpec(
             tenant_id=tid, code=code.replace("YARN-", "YS-"), name=name,
-            count_ne=ne, blend_cotton_pct=Decimal("100"), output_product_id=prod.id,
+            count_ne=ne,
+            blend_cotton_pct=Decimal("80") if "PC" in code else Decimal("100"),
+            blend_poly_pct=Decimal("20") if "PC" in code else Decimal("0"),
+            output_product_id=prod.id,
         )
         s.add(spec)
         specs.append(spec)
     s.flush()
 
-    fg = SpFiberGrade(tenant_id=tid, code="FG-A", name="Grade A Cotton", grade="A", staple_mm=Decimal("28"))
+    for spec in specs[:4]:
+        recipe = SpRecipe(
+            tenant_id=tid, yarn_spec_id=spec.id, version=1, is_active=True,
+            notes="Demo blend — seed default",
+        )
+        s.add(recipe)
+        s.flush()
+        s.add(SpRecipeLine(
+            tenant_id=tid, recipe_id=recipe.id, product_id=cotton.id,
+            qty_per_100kg_output=Decimal("102"), stage="opening",
+        ))
+
+    fiber_grades = [
+        SpFiberGrade(tenant_id=tid, code="FG-A", name="Grade A Cotton", grade="A", staple_mm=Decimal("28")),
+        SpFiberGrade(tenant_id=tid, code="FG-B", name="Grade B Cotton", grade="B", staple_mm=Decimal("26")),
+        SpFiberGrade(tenant_id=tid, code="FG-C", name="Grade C Cotton", grade="C", staple_mm=Decimal("24")),
+    ]
     machines = [
         SpMachine(tenant_id=tid, code="CARD-01", name="Card 1", machine_type="card"),
+        SpMachine(tenant_id=tid, code="CARD-02", name="Card 2", machine_type="card"),
         SpMachine(tenant_id=tid, code="DRAW-01", name="Draw Frame 1", machine_type="draw_frame"),
         SpMachine(tenant_id=tid, code="ROV-01", name="Roving 1", machine_type="roving"),
         SpMachine(tenant_id=tid, code="RING-01", name="Ring Frame 1", machine_type="ring", spindle_count=480),
@@ -5853,152 +5939,187 @@ def _seed_spinning(
         SpWasteType(tenant_id=tid, code="DUST", name="Pneumafil", gl_account_code="5903", default_stage="spinning"),
         SpWasteType(tenant_id=tid, code="MOIST", name="Moisture Loss", gl_account_code="5904", default_stage="opening"),
     ]
-    for row in [fg, shift_a, shift_b, shift_c, *machines, *ops, *waste_types]:
+    for row in [*fiber_grades, shift_a, shift_b, shift_c, *machines, *ops, *waste_types]:
         s.add(row)
     s.flush()
 
-    cust = customers[0] if customers else None
-    if not cust:
+    if not customers:
         return
 
-    plans = []
+    gate_inwards = s.exec(
+        select(GateInward).where(GateInward.tenant_id == tid, GateInward.status != "cancelled")
+    ).all()
+    bills = s.exec(
+        select(Bill).where(Bill.tenant_id == tid, Bill.status == "posted").limit(5)
+    ).all()
+
+    plans: list[SpProductionPlan] = []
     for i, (status, spec) in enumerate([
-        ("draft", specs[0]), ("approved", specs[1]), ("closed", specs[2]),
+        ("draft", specs[0]), ("approved", specs[1]), ("closed", specs[2]), ("approved", specs[3]),
     ]):
         p = SpProductionPlan(
             tenant_id=tid,
             number=next_number(s, tid, "sp_production_plan", "PP", fmt="{prefix}-{YYYY}-{seq:04d}"),
-            plan_date=_past_days(30 - i * 10, today=today),
-            yarn_spec_id=spec.id, target_kg=Decimal("5000") + i * Decimal("1000"),
+            plan_date=_past_days(90 - i * 15, today=today),
+            yarn_spec_id=spec.id,
+            customer_id=customers[i % len(customers)].id if i % 2 == 0 else None,
+            target_kg=Decimal("5000") + i * Decimal("1000"),
             status=status, created_by_id=user.id,
         )
         s.add(p)
         s.flush()
         plans.append(p)
 
-    lot_statuses = ["draft", "in_process", "in_process", "completed", "completed", "closed"]
+    lot_targets = [
+        "draft", "in_process", "in_process", "completed", "completed", "closed", "closed", "in_process",
+    ]
     lots: list[SpSpinLot] = []
-    for i, (status, spec) in enumerate(zip(lot_statuses, specs * 2)):
+    for i, target in enumerate(lot_targets):
+        spec = specs[i % len(specs)]
         lot = SpSpinLot(
             tenant_id=tid,
             number=next_number(s, tid, "sp_spin_lot", "SL", fmt="{prefix}-{YYYY}-{seq:04d}"),
-            yarn_spec_id=spec.id, plan_id=plans[min(i, 2)].id if i < 3 else None,
-            start_date=_past_days(60 - i * 8, today=today),
-            target_output_kg=Decimal("4500") + i * Decimal("200"),
-            status=status, created_by_id=user.id,
-        )
-        if status != "draft":
-            lot.started_at = datetime.utcnow()
-        if status in ("completed", "closed"):
-            lot.completed_at = datetime.utcnow()
-        if status == "closed":
-            lot.closed_at = datetime.utcnow()
-        s.add(lot)
-        s.flush()
-        lots.append(lot)
-
-    stage_yields = {
-        "opening": Decimal("0.98"), "carding": Decimal("0.97"), "drawing": Decimal("0.96"),
-        "roving": Decimal("0.95"), "spinning": Decimal("0.92"), "winding": Decimal("0.99"),
-    }
-    active_lot = lots[1]
-    input_kg = Decimal("5000")
-    for stage in ("opening", "carding", "drawing", "roving", "spinning", "winding"):
-        out = money(input_kg * stage_yields[stage])
-        waste = money(input_kg - out)
-        se = SpStageEntry(
-            tenant_id=tid,
-            number=next_number(s, tid, "sp_stage_entry", "SE", fmt="{prefix}-{YYYY}-{seq:04d}"),
-            spin_lot_id=active_lot.id, stage=stage,
-            date=_past_days(45 - list(stage_yields.keys()).index(stage) * 3, today=today),
-            input_kg=input_kg, output_kg=out, waste_kg=waste,
-            yield_pct=sp_calc.stage_yield_pct(input_kg, out),
-            machine_id=machines[min(list(stage_yields.keys()).index(stage), len(machines) - 1)].id,
-            shift_id=shift_a.id, operator_id=ops[0].id,
-            labour_cost=Decimal("5000"), overhead_cost=Decimal("3000"),
+            yarn_spec_id=spec.id,
+            plan_id=plans[min(i, len(plans) - 1)].id if i < 4 else None,
+            start_date=_past_days(75 - i * 6, today=today),
+            target_output_kg=Decimal("4200") + i * Decimal("250"),
+            status="draft",
             created_by_id=user.id,
         )
-        s.add(se)
+        s.add(lot)
         s.flush()
-        sp_post.post_stage_entry(s, user, se)
-        input_kg = out
+        if target != "draft":
+            sp_post.start_spin_lot(s, lot)
+        lots.append(lot)
 
-    for i in range(42):
-        gross = Decimal("220") + Decimal(str(i % 5))
+    # Bale receipts before stages (material cost for GL)
+    for i in range(48):
+        lot = lots[1 + (i % 7)]
+        if lot.status == "draft":
+            continue
+        gross = Decimal("220") + Decimal(str(i % 7))
         tare = Decimal("12")
         net = sp_calc.net_kg(gross, tare)
-        rate = Decimal("380")
+        rate = Decimal("375") + Decimal(str(i % 4)) * Decimal("5")
         br = SpBaleReceipt(
             tenant_id=tid,
             number=next_number(s, tid, "sp_bale_receipt", "BR", fmt="{prefix}-{YYYY}-{seq:04d}"),
-            product_id=cotton.id, spin_lot_id=active_lot.id if i < 30 else lots[0].id,
-            fiber_grade_id=fg.id, date=_past_days(50 - i, today=today),
+            product_id=cotton.id, spin_lot_id=lot.id,
+            fiber_grade_id=fiber_grades[i % len(fiber_grades)].id,
+            date=_past_days(70 - i, today=today),
             gross_kg=gross, tare_kg=tare, net_kg=net, rate_per_kg=rate,
-            total_value=money(net * rate), vendor_id=vendors[0].id if vendors else None,
-            lot_no=f"BALE-{today.year}-{i+1:04d}", created_by_id=user.id,
+            total_value=money(net * rate),
+            vendor_id=vendors[i % len(vendors)].id if vendors else None,
+            gate_inward_id=gate_inwards[i].id if i < len(gate_inwards) else None,
+            bill_id=bills[i % len(bills)].id if bills and i < 8 else None,
+            lot_no=f"BALE-{today.year}-{i+1:04d}",
+            status="draft",
+            created_by_id=user.id,
         )
         s.add(br)
         s.flush()
-        if i < 35:
+        if i % 9 != 0:
             sp_post.approve_bale_receipt(s, user, br)
 
-    for wt in waste_types:
+    stage_plan: list[tuple[SpSpinLot, frozenset[str], frozenset[str], int, Decimal]] = [
+        (lots[1], frozenset(STAGE_ORDER), frozenset(), 55, Decimal("5200")),
+        (lots[2], frozenset(("opening", "carding")), frozenset(("drawing", "roving")), 48, Decimal("4800")),
+        (lots[3], frozenset(STAGE_ORDER), frozenset(), 40, Decimal("5100")),
+        (lots[4], frozenset(STAGE_ORDER), frozenset(), 32, Decimal("5000")),
+        (lots[5], frozenset(STAGE_ORDER), frozenset(), 24, Decimal("4900")),
+        (lots[6], frozenset(STAGE_ORDER), frozenset(), 18, Decimal("4700")),
+        (lots[7], frozenset(("opening", "carding", "drawing")), frozenset(("roving",)), 12, Decimal("4600")),
+    ]
+    for lot, posted, draft_only, day_base, input_kg in stage_plan:
+        _spinning_seed_stages(
+            s, user, lot, machines=machines, shift=shift_a, operator=ops[0],
+            today=today, day_base=day_base, input_kg=input_kg,
+            post_stages=posted, draft_stages=draft_only,
+        )
+
+    for i, wt in enumerate(waste_types * 4):
+        lot = lots[1 + (i % 5)]
         wl = SpWasteLog(
             tenant_id=tid,
             number=next_number(s, tid, "sp_waste_log", "WL", fmt="{prefix}-{YYYY}-{seq:04d}"),
-            spin_lot_id=active_lot.id, stage=wt.default_stage or "carding",
-            waste_type_id=wt.id, date=_past_days(20, today=today),
-            qty_kg=Decimal("45") + Decimal(str(waste_types.index(wt) * 10)),
+            spin_lot_id=lot.id, stage=wt.default_stage or "carding",
+            waste_type_id=wt.id, date=_past_days(35 - i % 30, today=today),
+            qty_kg=Decimal("40") + Decimal(str(i * 3)),
+            status="draft",
             created_by_id=user.id,
         )
         s.add(wl)
         s.flush()
-        sp_post.post_waste_log(s, user, wl)
+        if i % 7 != 0:
+            sp_post.post_waste_log(s, user, wl)
 
-    for i in range(62):
-        lot = lots[min(i // 10, len(lots) - 1)]
-        spec = specs[i % len(specs)]
+    for i in range(58):
+        lot = lots[2 + (i % 5)]
+        if lot.status == "draft":
+            continue
         co = SpConeOutput(
             tenant_id=tid,
             number=next_number(s, tid, "sp_cone_output", "CO", fmt="{prefix}-{YYYY}-{seq:04d}"),
-            spin_lot_id=lot.id, date=_past_days(30 - i % 30, today=today),
-            cones_count=48 + i % 12, net_kg=Decimal("85") + Decimal(str(i % 20)),
-            quality_grade=["A", "B", "A", "C"][i % 4],
+            spin_lot_id=lot.id, date=_past_days(28 - i % 28, today=today),
+            cones_count=40 + i % 20, net_kg=Decimal("80") + Decimal(str(i % 25)),
+            quality_grade=["A", "B", "A", "C", "B"][i % 5],
             lot_no=f"CONE-{today.year}-{i+1:04d}",
-            machine_id=machines[3].id, shift_id=shift_b.id, operator_id=ops[i % len(ops)].id,
+            machine_id=machines[4 + (i % 2)].id, shift_id=shift_b.id,
+            operator_id=ops[i % len(ops)].id,
+            status="draft",
             created_by_id=user.id,
         )
         s.add(co)
         s.flush()
-        if i < 40 and lot.status in ("in_process", "completed", "closed"):
+        if i % 11 != 0:
             try:
                 sp_post.approve_cone_output(s, user, co)
             except Exception:
                 pass
 
-    for i in range(20):
+    for i in range(55):
         spec = specs[i % len(specs)]
-        net = Decimal("500") + i * Decimal("25")
-        rate = Decimal("450")
+        net = Decimal("480") + i * Decimal("18")
+        rate = Decimal("440") + Decimal(str(i % 6)) * Decimal("5")
         yd = SpYarnDispatch(
             tenant_id=tid,
             number=next_number(s, tid, "sp_yarn_dispatch", "YD", fmt="{prefix}-{YYYY}-{seq:04d}"),
-            customer_id=cust.id, yarn_spec_id=spec.id, product_id=spec.output_product_id,
-            date=_past_days(15 - i % 15, today=today),
-            cones_count=20 + i, net_kg=net, rate_per_kg=rate,
+            customer_id=customers[i % len(customers)].id,
+            yarn_spec_id=spec.id, product_id=spec.output_product_id,
+            date=_past_days(20 - i % 20, today=today),
+            cones_count=18 + i % 15, net_kg=net, rate_per_kg=rate,
             dispatch_value=sp_calc.dispatch_value(net, rate),
+            status="draft",
             created_by_id=user.id,
         )
         s.add(yd)
         s.flush()
-        if i < 12:
+        if i < 14:
             try:
                 sp_post.approve_yarn_dispatch(s, user, yd)
             except Exception:
                 pass
 
-    sp_post.complete_spin_lot(s, active_lot)
-    sp_post.close_spin_lot(s, lots[-1])
+    for ctype, inputs, outputs in [
+        ("yield", {"input_kg": 5000, "output_kg": 4200}, {"yield_pct": 84.0}),
+        ("yield", {"input_kg": 4800, "output_kg": 4100}, {"yield_pct": 85.42}),
+        ("blend", {"cotton_pct": 80, "poly_pct": 20, "target_kg": 1000}, {"cotton_kg": 800, "poly_kg": 200}),
+        ("spindle", {"spindle_count": 480, "rpm": 18000, "efficiency_pct": 92}, {"production_kg_per_day": 1250.5}),
+    ] * 4:
+        s.add(SpCalcRun(
+            tenant_id=tid,
+            spin_lot_id=lots[1].id,
+            calc_type=ctype, inputs=inputs, outputs=outputs,
+            created_by_id=user.id,
+        ))
+
+    for lot, target in zip(lots, lot_targets):
+        if target == "completed" and lot.status == "in_process":
+            sp_post.complete_spin_lot(s, lot)
+        elif target == "closed" and lot.status == "in_process":
+            sp_post.complete_spin_lot(s, lot)
+            sp_post.close_spin_lot(s, lot)
+
     s.flush()
 
 
@@ -6316,10 +6437,12 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
 
         # ── Improvement-roadmap modules (Sprint 7–12) ──
         _seed_analytic_accounts(s, tenant_id)
-        _seed_analytic_dimensions_260(s, tenant_id)
         _seed_budgets(s, tenant_id)
         s.commit()
+        # Fixed assets before required dimensions — depreciation posts lack CC tags.
         _seed_fixed_assets(s, user)
+        s.commit()
+        _seed_analytic_dimensions_260(s, tenant_id)
         s.commit()
         _seed_asset_components_258(s, user)
         s.commit()
@@ -6395,6 +6518,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             s.commit()
 
         if business_model == "yarn_spinning":
+            _seed_spinning_settings(s, tenant_id)
+            s.commit()
             _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
             s.commit()
             _seed_spinning(s, user, customers, vendors, stock)
