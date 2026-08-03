@@ -25,6 +25,7 @@ interface Customer {
   phone: string | null
   address: string | null
   opening_balance: number
+  closing_balance: number
   is_active: boolean
 }
 
@@ -40,6 +41,7 @@ export default function Customers() {
   const router = useRouter()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [total, setTotal] = useState(0)
+  const [closingTotal, setClosingTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -65,8 +67,12 @@ export default function Customers() {
     setIsLoading(true)
     const params = new URLSearchParams({ skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
     if (search) params.set('search', search)
-    apiFetch<{ total: number; items: Customer[] }>(`/api/customers?${params}`)
-      .then(d => { setCustomers(d.items); setTotal(d.total) })
+    apiFetch<{ total: number; closing_balance_total?: number; items: Customer[] }>(`/api/customers?${params}`)
+      .then(d => {
+        setCustomers(d.items)
+        setTotal(d.total)
+        setClosingTotal(d.closing_balance_total ?? d.items.reduce((s, c) => s + (c.closing_balance ?? c.opening_balance), 0))
+      })
       .catch(() => {})
       .finally(() => setIsLoading(false))
   }
@@ -99,7 +105,7 @@ export default function Customers() {
     }
   }
 
-  const totalOutstanding = customers.reduce((s, c) => s + c.opening_balance, 0)
+  const bal = (c: Customer) => c.closing_balance ?? c.opening_balance
 
   return (
     <div className="space-y-6">
@@ -112,7 +118,7 @@ export default function Customers() {
         <div className="flex items-center gap-3 flex-wrap">
           <CsvImportButton entity="customers" onSuccess={load} />
           <button
-            onClick={() => downloadCSV('customers.csv', customers.map(c => ({ Name: c.name, Email: c.email, Phone: c.phone, Address: c.address, Balance: c.opening_balance })))}
+            onClick={() => downloadCSV('customers.csv', customers.map(c => ({ Name: c.name, Email: c.email, Phone: c.phone, Address: c.address, Balance: bal(c) })))}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Download className="w-4 h-4" />
@@ -137,8 +143,8 @@ export default function Customers() {
           <p className="text-2xl font-bold text-[var(--primary)] mt-2">{total}</p>
         </div>
         <div className="bg-white rounded-lg border border-[var(--border)] p-6">
-          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Opening Balance Total</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{fmt(totalOutstanding)}</p>
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Closing Balance Total</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{fmt(closingTotal)}</p>
         </div>
       </div>
 
@@ -168,7 +174,7 @@ export default function Customers() {
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Name</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Email</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Phone</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Opening Bal.</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Closing Bal.</th>
               <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.status', 'Status')}</th>
               <th className="ui-th"></th>
             </tr>
@@ -206,7 +212,7 @@ export default function Customers() {
                 </td>
                 <td className="ui-td text-[var(--text-muted)]">{c.email ?? '—'}</td>
                 <td className="ui-td text-[var(--text-muted)]">{c.phone ?? '—'}</td>
-                <td className="ui-td text-right font-mono">{fmt(c.opening_balance)}</td>
+                <td className="ui-td text-right font-mono">{fmt(bal(c))}</td>
                 <td className="ui-td text-center">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                     {c.is_active ? 'active' : 'inactive'}
@@ -240,8 +246,8 @@ export default function Customers() {
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{c.email || c.phone || "—"}</p>
               </div>
               <div className="text-right ml-3 shrink-0">
-                <p className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(c.opening_balance)}</p>
-                <p className="text-xs text-[var(--text-muted)]">balance</p>
+                <p className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(bal(c))}</p>
+                <p className="text-xs text-[var(--text-muted)]">closing</p>
               </div>
             </Link>
           ))}

@@ -336,6 +336,11 @@ export default function SettingsPage() {
                 <option value="EUR">EUR — Euro</option>
                 <option value="GBP">GBP — British Pound</option>
                 <option value="AED">AED — UAE Dirham</option>
+                <option value="SAR">SAR — Saudi Riyal</option>
+                <option value="INR">INR — Indian Rupee</option>
+                <option value="CNY">CNY — Chinese Yuan</option>
+                <option value="CAD">CAD — Canadian Dollar</option>
+                <option value="AUD">AUD — Australian Dollar</option>
               </select>
             </div>
             <div>
@@ -345,6 +350,7 @@ export default function SettingsPage() {
                 onChange={e => handleChange('decimal_places', e.target.value)}
                 className="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-black"
               >
+                <option value="0">0 — Whole numbers (1,500)</option>
                 <option value="2">2 — Standard (1,500.00)</option>
                 <option value="4">4 — Extended (1,500.0000)</option>
               </select>
