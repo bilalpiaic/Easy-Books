@@ -1,4 +1,8 @@
 """Server-side PDF generation using WeasyPrint + Jinja2."""
+from __future__ import annotations
+
+import os
+import sys
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -20,6 +24,16 @@ WEASYPRINT_APT_PACKAGES = (
     "libffi8",
     "shared-mime-info",
     "fonts-dejavu-core",
+)
+
+# Prefer tschoonj's GTK3 runtime (WeasyPrint docs) over older winget GtkD builds.
+_WINDOWS_GTK_BIN_CANDIDATES = (
+    os.environ.get("GTK_BIN") or "",
+    os.environ.get("WEASYPRINT_DLL_DIRECTORIES") or "",  # pathsep-separated ok
+    r"C:\Program Files\GTK3-Runtime Win64\bin",
+    r"C:\GTK3-Runtime Win64\bin",
+    r"C:\Program Files\Gtk-Runtime\bin",
+    r"C:\Program Files (x86)\Gtk-Runtime\bin",
 )
 
 
@@ -48,20 +62,97 @@ def pdf_http(exc: Exception) -> HTTPException:
     return HTTPException(503, _PDF_UNAVAILABLE)
 
 
+def _windows_gtk_bins() -> list[Path]:
+    """Resolve existing GTK runtime bin directories on Windows."""
+    found: list[Path] = []
+    seen: set[str] = set()
+
+    def _add(raw: str) -> None:
+        for part in raw.replace(",", os.pathsep).split(os.pathsep):
+            part = part.strip().strip('"')
+            if not part:
+                continue
+            p = Path(part)
+            # Allow pointing at the install root instead of bin/
+            if p.is_dir() and not (p / "libgobject-2.0-0.dll").exists():
+                maybe = p / "bin"
+                if (maybe / "libgobject-2.0-0.dll").exists():
+                    p = maybe
+            key = str(p).lower()
+            if key in seen:
+                continue
+            if p.is_dir() and (p / "libgobject-2.0-0.dll").exists():
+                seen.add(key)
+                found.append(p)
+
+    for raw in _WINDOWS_GTK_BIN_CANDIDATES:
+        if raw:
+            _add(raw)
+
+    # Also scan PATH for a bin that already contains gobject.
+    for part in os.environ.get("PATH", "").split(os.pathsep):
+        _add(part)
+
+    return found
+
+
+def _prepare_native_libs() -> None:
+    """Make Pango/Cairo/GObject loadable before importing WeasyPrint.
+
+    On Windows (Python 3.8+), DLL dependencies are *not* resolved from PATH
+    alone — callers must ``os.add_dll_directory`` the GTK Runtime ``bin``
+    folder or ``cffi.dlopen`` fails with ``error 0x7e`` even when the DLL
+    is present. Prefer a single bin directory (newest first) so an older
+    winget GtkD install cannot shadow tschoonj's newer Pango.
+    """
+    if sys.platform != "win32":
+        return
+
+    bins = _windows_gtk_bins()
+    if not bins:
+        return
+
+    # Only the highest-priority match — mixing two GTK trees breaks symbol lookup.
+    bin_dir = bins[0]
+    path_str = str(bin_dir)
+    # Prepend so PATH-based loaders also see this tree first.
+    parts = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p and p.lower() != path_str.lower()]
+    os.environ["PATH"] = os.pathsep.join([path_str, *parts])
+    os.environ["GTK_BIN"] = path_str
+    add = getattr(os, "add_dll_directory", None)
+    if add is not None:
+        try:
+            add(path_str)
+        except OSError:
+            pass
+
+
+def _import_hint(exc: BaseException) -> str:
+    detail = f"{type(exc).__name__}: {exc}".strip()
+    if len(detail) > 280:
+        detail = detail[:277] + "…"
+    if sys.platform == "win32":
+        return (
+            f"{_PDF_UNAVAILABLE} (import failed: {detail}). "
+            "On Windows install the WeasyPrint GTK3 runtime "
+            "(https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases), "
+            "then restart the backend. install-and-run.ps1 installs it automatically."
+        )
+    apt = " ".join(WEASYPRINT_APT_PACKAGES)
+    return (
+        f"{_PDF_UNAVAILABLE} (import failed: {detail}). "
+        f"On Debian/Ubuntu/WSL: sudo apt-get install -y {apt}"
+    )
+
+
 def _import_weasyprint_html():
     """Lazy-import WeasyPrint HTML; raise PdfEngineError with actionable detail."""
+    _prepare_native_libs()
     try:
         from weasyprint import HTML  # slow + needs native Pango/Cairo
         return HTML
     except Exception as e:
-        detail = f"{type(e).__name__}: {e}".strip()
-        if len(detail) > 280:
-            detail = detail[:277] + "…"
-        apt = " ".join(WEASYPRINT_APT_PACKAGES)
-        raise PdfEngineError(
-            f"{_PDF_UNAVAILABLE} (import failed: {detail}). "
-            f"On Debian/Ubuntu/WSL: sudo apt-get install -y {apt}"
-        ) from e
+        raise PdfEngineError(_import_hint(e)) from e
 
 
 def render_template_html(template_name: str, context: dict) -> str:

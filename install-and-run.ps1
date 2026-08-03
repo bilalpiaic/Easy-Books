@@ -65,6 +65,35 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 Log 'Installing backend dependencies...'
 Push-Location backend; uv sync --frozen; Pop-Location
 
+# WeasyPrint (Save PDF) needs the GTK3 runtime DLLs on Windows. Python 3.8+
+# also requires the bin folder via os.add_dll_directory (services/pdf.py).
+# Use the WeasyPrint-documented tschoonj installer — older winget GtkD builds
+# ship a Pango too old for WeasyPrint 68+ (missing pango_context_set_round_glyph_positions).
+$gtkBinPreferred = 'C:\Program Files\GTK3-Runtime Win64\bin'
+$gtkDllPreferred = Join-Path $gtkBinPreferred 'libgobject-2.0-0.dll'
+if (-not (Test-Path $gtkDllPreferred)) {
+  Log 'Installing GTK3 Runtime for PDF export (WeasyPrint)...'
+  $gtkSetup = Join-Path $env:TEMP 'gtk3-runtime-tschoonj.exe'
+  $gtkUrl = 'https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases/download/2022-01-04/gtk3-runtime-3.24.31-2022-01-04-ts-win64.exe'
+  try {
+    Invoke-WebRequest -Uri $gtkUrl -OutFile $gtkSetup
+    $p = Start-Process -FilePath $gtkSetup -ArgumentList '/S' -Wait -PassThru
+    if ($p.ExitCode -ne 0) {
+      Write-Host "GTK installer exited $($p.ExitCode). PDF Save may fail until GTK3 is installed." -ForegroundColor Yellow
+    }
+  } catch {
+    Write-Host "Could not download/install GTK3 Runtime: $_" -ForegroundColor Yellow
+    Write-Host "Manual install: $gtkUrl" -ForegroundColor Yellow
+  }
+}
+if (Test-Path $gtkBinPreferred) {
+  $env:Path = "$gtkBinPreferred;$env:Path"
+  $env:GTK_BIN = $gtkBinPreferred
+} elseif (Test-Path 'C:\Program Files\Gtk-Runtime\bin') {
+  $env:Path = "C:\Program Files\Gtk-Runtime\bin;$env:Path"
+  $env:GTK_BIN = 'C:\Program Files\Gtk-Runtime\bin'
+}
+
 # --- 4. Stop ALL running instances of this install, not just whatever is
 #        currently listening on 8000/3000 --------------------------------
 # Port-based killing alone misses an orphaned process that crashed out of
@@ -252,7 +281,7 @@ $backErr = Join-Path $env:EB_DATA_DIR 'backend.err.log'
 # Windows Smart App Control (SAC) blocks unsigned venv entry-point EXEs
 # (os error 4551) but allows the signed python.exe + module import path.
 $back = Start-Process -PassThru -WindowStyle Hidden -WorkingDirectory (Join-Path $Root 'backend') `
-  -FilePath 'cmd.exe' -ArgumentList '/c','set "PYTHONPATH=." && uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000' `
+  -FilePath 'cmd.exe' -ArgumentList '/c','set "PYTHONPATH=." && set "PATH=C:\Program Files\GTK3-Runtime Win64\bin;%PATH%" && set "GTK_BIN=C:\Program Files\GTK3-Runtime Win64\bin" && uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000' `
   -RedirectStandardOutput $backLog -RedirectStandardError $backErr
 
 # Child inherits these (PowerShell 5.1 has no Start-Process -Environment).
