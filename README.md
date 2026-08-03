@@ -103,16 +103,22 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Column alignment** — Date and JV# cells are `whitespace-nowrap`; Description absorbs remaining width via natural table flow
 
 **Advanced features**
-- Fixed Assets register + straight-line/reducing-balance depreciation (IAS 16)
+- Fixed Assets register + straight-line/reducing-balance depreciation (IAS 16); **assets depth (#258)** — componentization, impairment/reversal, disposal, rollforward (`/assets/rollforward`)
 - Purchase Orders (raise → approve → convert-to-bill, 3-way match)
 - Deferred revenue recognition (IFRS 15) — flag a product `is_deferred` and its invoice lines post to Deferred Revenue (2300) and originate a recognition schedule; the recognition run releases revenue over the term, and editing a posted deferred invoice rebuilds the schedule (or is blocked once recognition has begun)
+- **IFRS 15 remainder (#259)** — relative-SSP multi-element allocation + contract assets (1140); UI `/contract-balances`
 - **Group consolidation (IFRS 10)** — holding-tenant entity graph, worksheet runs with IC/NCI eliminations (never posted to member GLs), consolidated BS/P&L package at `/consolidation`
+- **Intercompany (#261)** — IC-flagged invoices/bills with auto mirror drafts across consolidation members; recon at `/intercompany/recon`
 - **IFRS 16 leases** — RoU asset + lease liability schedules, period posting (interest / payment / depreciation), maturity disclosure, early termination; Settings gate `leases_enabled`; UI `/leases`
+- **Analytic dimensions (#260)** — up to 3 dimension types (optional mandatory), JE multi-slot tagging, dimensional P&L
 - **Inventory depth (IAS 2)** — landed-cost allocation onto receipt layers, lot/serial tracking, NRV write-down runs (`/inventory/valuation`)
 - **Month-end close pack** — per-period checklist (required tasks can block Soft Close / Lock) + auditor ZIP export from Period Close
 - **Tax rate history** — effective-dated rates per tax code for multi-jurisdiction / rate-change reporting
+- **Country packs** — Saudi ZATCA (`sa_zatca`), India GST (`in_gst`), Peppol / EU VAT (`eu_peppol`), UAE VAT stub (`uae_vat`)
+- **Withholding tax + CIT (#267)** — vendor WHT on bill payments (Cr 2265) + corporate-tax worksheet adjustments
 - Server-side PDF invoices/bills (WeasyPrint; needs Pango/Cairo system libs — Save PDF returns a clear 503 if the engine is unavailable); Stripe payment links; SMTP email notifications
 - SaaS harden: webhooks + DLQ, background task queue, approvals SoD, customer/vendor/patient portal, bank feeds / statement import, plan quotas
+- **Responsive data entry** — invoice/bill line editors and payment forms stack into mobile cards on sm/md breakpoints (not scroll-only tables)
 
 **Settings & customisation**
 - Company profile: name, tagline, address, logo — all printed via `PrintHeader`
@@ -133,9 +139,9 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
 
 **Module system (v2.9)**
-- **Odoo-style installable modules** — 9 modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`, `ai_assistant`, `purchase_store`. Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
-- **Apps page** (`/apps`) — module store grid grouped by category (Core / Operations / HR / Industry / Intelligence); install/uninstall with dependency resolution and a confirmation dialog before removal; admin/owner only
-- **Post-login onboarding splash** — fresh accounts land on `/onboarding` (full-page, no sidebar) to pick their modules before reaching the dashboard; "Skip for now" available; shown once per account; demo tenants bypass it automatically
+- **Odoo-style installable modules** — **14** modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`, `ai_assistant`, `purchase_store`, `weaving`, plus Localization packs `sa_zatca`, `in_gst`, `eu_peppol`, `uae_vat`. Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
+- **Apps page** (`/apps`) — module store grid grouped by category (Core / Operations / HR / Industry / Intelligence / **Localization**); install/uninstall with dependency resolution and a confirmation dialog before removal; admin/owner only
+- **Add-ons-first UX** — public signup starts with Base Accounting; industry/localization packs live on `/apps` (`?welcome=1`); demo tenants bypass onboarding and ship with model-default modules (+ localization demos where seeded)
 - `Tenant.module_meta` JSON column records `{tier, installed_at, expires_at}` per module — billing-ready schema without a future destructive migration
 - Legacy `enabled_modules` strings auto-normalized on read — zero-downtime upgrade for existing installs
 

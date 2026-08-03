@@ -317,7 +317,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             )}
           </div>
         )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Bill Date</label>
             <input type="date" value={form.bill_date} onChange={e => setForm(p => ({ ...p, bill_date: e.target.value }))}

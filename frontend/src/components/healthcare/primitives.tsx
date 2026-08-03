@@ -84,7 +84,7 @@ export type Bed = {
 
 export function BedGrid({ beds, onSelect }: { beds: Bed[]; onSelect?: (bed: Bed) => void }) {
   return (
-    <div className="grid grid-cols-6 gap-2">
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
       {beds.map(bed => {
         const color =
           bed.status === "available" ? "bg-emerald-50 border-emerald-300 hover:bg-emerald-100 cursor-pointer"

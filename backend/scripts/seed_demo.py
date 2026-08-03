@@ -40,6 +40,14 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap + v5 IFRS/SaaS gap-fill)
     on trader/manufacturing
   • Consolidation (#255) — manufacturing holding → trader subsidiary + draft run
     (cross-tenant membership for the manufacturing owner)
+  • Assets depth (#258) — components + impairment + one disposal (all tenants)
+  • IFRS 15 remainder (#259) — SSP products + allocation audit + open contract
+    asset (services)
+  • Analytic dimensions (#260) — 3 dimensions, values linked, multi-slot JE tags
+  • Intercompany (#261) — IC invoice manufacturing→trader with draft mirror bill
+  • Localization demos — sa_zatca on manufacturing, in_gst on trader, eu_peppol
+    on services (module enable + sample settings + submission-log rows)
+  • WHT + CIT (#267) — withholding tax code, vendor rate, sample CIT adjustments
 
 Still deliberately unseeded: UserPermission overrides, AiChatSession,
 UserDashboardLayout, ApiKey / auth-infra tables.
@@ -70,22 +78,27 @@ from db import MODULE_REGISTRY, MODULES_BY_MODEL, _coa_for, engine, seed_data
 import json as _json
 
 from models import (
-    Account, AccountingPeriod, AnalyticAccount, AttendanceRecord, AuditLog, BankAccount,
+    Account, AccountingPeriod, AnalyticAccount, AnalyticDimension, AssetImpairment,
+    AttendanceRecord, AuditLog, BankAccount,
     BankStatementImport, BomHeader,
-    BomLine, Bill, BillLine, BillPayment, Budget, CloseChecklistItem, CommissionLedger,
-    CommissionPlan, ComparativeStatement, ConsolidationMember, ConsolidationRun, CreditNote,
+    BomLine, Bill, BillLine, BillPayment, Budget, CitAdjustment, CloseChecklistItem,
+    CommissionLedger,
+    CommissionPlan, ComparativeStatement, ConsolidationMember, ConsolidationRun,
+    ContractAsset, CreditNote,
     CreditNoteLine, Customer, CustomerAdvance, CustomerRatePlan, DebitNote, DebitNoteLine,
     DeferredRevenueSchedule, DepreciationEntry, Employee, EmployeeSalaryStructure,
     ExchangeRate, FixedAsset, GateInward, GateInwardLine, GateOutward, GateOutwardLine,
     GRNLine, GoodsReceiptNote, InventoryLayer, Invoice,
     InvoiceLine, JournalEntry, LandedCost, LeaseContract, NrVLine, NrVRun,
     PaymentAllocation, PaymentReceived, PaymentTerm, PayrollLine,
-    PayrollLineDetail, PayrollRun, PRASubmissionLog, Product, ProductCategory, ProductionOrder,
+    PayrollLineDetail, PayrollRun, PeppolSubmissionLog, PRASubmissionLog, Product,
+    ProductCategory, ProductionOrder,
     PromoRule, PurchaseDemand, PurchaseDemandLine, PurchaseOrder, PurchaseOrderLine,
     RatePlan, Reconciliation, ReconciliationLine, RecurringTemplate, ReportDefinition,
-    SalaryComponent, SequenceCounter, Settings, StatementLine, StockLocation, StoreIssue,
+    RevenueAllocationAudit, SalaryComponent, SequenceCounter, Settings, StatementLine,
+    StockLocation, StoreIssue,
     StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, Vendor,
-    VendorAdvance, VendorQuotation, VendorQuotationLine,
+    VendorAdvance, VendorQuotation, VendorQuotationLine, ZatcaSubmissionLog,
 )
 from models_telecom import (
     AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
@@ -125,8 +138,14 @@ from services.deferred import (
 )
 from services.money import D, ZERO, money
 from services.close_pack import ensure_checklist
+from services.ifrs15 import apply_allocation_to_invoice_lines, certify_contract_asset
+from services.intercompany import (
+    create_ic_mirror_bill_from_invoice,
+    get_or_create_ic_customer,
+)
 from services.leases import activate_lease, allocate_number as allocate_lease_number
 from services.memberships import ensure_membership
+from services.module_sample_data import seed_module_sample
 from services.posting import EntryInput, post_transaction
 from services.tracker_posting import (
     post_fca_target_commission, post_load_order, post_msr_to_rso_transfer,
@@ -2618,11 +2637,7 @@ def _seed_fixed_assets(s: Session, user: User) -> None:
 
 
 def _seed_asset_components_258(s: Session, user: User) -> None:
-    """Idempotent #258 backfill: parent + 2 components + one impairment.
-
-    Runs when the tenant already has fixed assets (so `_seed_fixed_assets`
-    early-returned) but no parent_id rows yet.
-    """
+    """Idempotent #258: ensure parent+components, then impair + dispose demos."""
     tid = user.tenant_id
     has_parent = s.exec(
         select(FixedAsset).where(
@@ -2630,56 +2645,505 @@ def _seed_asset_components_258(s: Session, user: User) -> None:
             FixedAsset.parent_id.is_not(None),
         )
     ).first()
-    if has_parent:
-        return
-    # Need at least the base FA set, or any FA, so accounts exist
-    if not s.exec(select(FixedAsset).where(FixedAsset.tenant_id == tid)).first():
-        return
 
-    asset_acc = _account(s, tid, "1500") or _account(s, tid, "1010")
-    accum = _account(s, tid, "1090")
-    depr_exp = _account(s, tid, "5050")
-    if not asset_acc or not accum or not depr_exp:
-        return
-
-    acq = _past_days(min(400, _seed_span_days() - 30))
-    parent = FixedAsset(
-        tenant_id=tid, name="Production Line", code="FA-PL",
-        asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
-        depr_expense_account_id=depr_exp.id, acquisition_date=acq,
-        acquisition_cost=ZERO, salvage_value=ZERO,
-        useful_life_months=1, method="straight_line",
-        accumulated_depreciation=ZERO, book_value=ZERO,
-    )
-    s.add(parent); s.flush()
-
-    components = []
-    for name, code, cost, life in (
-        ("PL — Frame & Structure", "FA-PL-01", D(800000), 120),
-        ("PL — Drive Unit",        "FA-PL-02", D(450000), 60),
-    ):
-        child = FixedAsset(
-            tenant_id=tid, parent_id=parent.id, name=name, code=code,
+    if not has_parent:
+        if not s.exec(select(FixedAsset).where(FixedAsset.tenant_id == tid)).first():
+            return
+        asset_acc = _account(s, tid, "1500") or _account(s, tid, "1010")
+        accum = _account(s, tid, "1090")
+        depr_exp = _account(s, tid, "5050")
+        if not asset_acc or not accum or not depr_exp:
+            return
+        acq = _past_days(min(400, _seed_span_days() - 30))
+        parent = FixedAsset(
+            tenant_id=tid, name="Production Line", code="FA-PL",
             asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
             depr_expense_account_id=depr_exp.id, acquisition_date=acq,
-            acquisition_cost=cost, salvage_value=ZERO,
-            useful_life_months=life, method="straight_line",
-            accumulated_depreciation=ZERO, book_value=cost,
+            acquisition_cost=ZERO, salvage_value=ZERO,
+            useful_life_months=1, method="straight_line",
+            accumulated_depreciation=ZERO, book_value=ZERO,
         )
-        s.add(child); s.flush()
-        components.append(child)
+        s.add(parent); s.flush()
+        for name, code, cost, life in (
+            ("PL — Frame & Structure", "FA-PL-01", D(800000), 120),
+            ("PL — Drive Unit",        "FA-PL-02", D(450000), 60),
+        ):
+            child = FixedAsset(
+                tenant_id=tid, parent_id=parent.id, name=name, code=code,
+                asset_account_id=asset_acc.id, accum_depr_account_id=accum.id,
+                depr_expense_account_id=depr_exp.id, acquisition_date=acq,
+                acquisition_cost=cost, salvage_value=ZERO,
+                useful_life_months=life, method="straight_line",
+                accumulated_depreciation=ZERO, book_value=cost,
+            )
+            s.add(child); s.flush()
 
-    # Posted impairment on the drive unit (recoverable below cost)
-    from services.assets import post_impairment
-    try:
-        post_impairment(
-            s, user, components[1],
-            recoverable_amount=D(300000),
-            impairment_date=date.today().isoformat(),
-            notes="Demo impairment (#258)",
+    # Impairment on drive unit (fresh + upgrade paths)
+    drive = s.exec(
+        select(FixedAsset).where(
+            FixedAsset.tenant_id == tid, FixedAsset.code == "FA-PL-02",
         )
+    ).first()
+    if drive and not s.exec(
+        select(AssetImpairment).where(
+            AssetImpairment.tenant_id == tid,
+            AssetImpairment.asset_id == drive.id,
+        )
+    ).first():
+        from services.assets import post_impairment
+        try:
+            # Recoverable below carrying so a loss posts
+            carrying = D(drive.book_value or drive.acquisition_cost or 0)
+            recoverable = money(max(ZERO, carrying * D("0.65")))
+            if carrying > recoverable:
+                post_impairment(
+                    s, user, drive,
+                    recoverable_amount=recoverable,
+                    impairment_date=date.today().isoformat(),
+                    notes="Demo impairment (#258)",
+                )
+        except Exception:
+            pass
+
+    # Dispose one leaf asset (Office Furniture) so rollforward shows disposals
+    furniture = s.exec(
+        select(FixedAsset).where(
+            FixedAsset.tenant_id == tid,
+            FixedAsset.code == "FA-003",
+            FixedAsset.is_disposed == False,  # noqa: E712
+        )
+    ).first()
+    if furniture:
+        bank = _account(s, tid, "1010") or _account(s, tid, "1000")
+        from services.assets import dispose_asset
+        try:
+            dispose_asset(
+                s, user, furniture,
+                disposal_date=date.today().isoformat(),
+                proceeds=money("50000"),
+                proceeds_account_id=bank.id if bank else None,
+                mode="sale",
+            )
+        except Exception:
+            pass
+
+
+def _seed_analytic_dimensions_260(s: Session, tenant_id: int) -> None:
+    """Wire #260 dimensions onto existing analytic accounts + multi-slot JE tags."""
+    specs = [
+        ("CC", "Cost Center", 0, True),
+        ("PROJ", "Project", 1, False),
+        ("LOC", "Location", 2, False),
+    ]
+    by_code = {
+        d.code: d
+        for d in s.exec(
+            select(AnalyticDimension).where(AnalyticDimension.tenant_id == tenant_id)
+        ).all()
+    }
+    for code, name, sort_order, required in specs:
+        if code in by_code:
+            continue
+        # Avoid unique(sort_order) clash if a custom dim already occupies the slot
+        clash = s.exec(
+            select(AnalyticDimension).where(
+                AnalyticDimension.tenant_id == tenant_id,
+                AnalyticDimension.sort_order == sort_order,
+            )
+        ).first()
+        if clash:
+            continue
+        dim = AnalyticDimension(
+            tenant_id=tenant_id, code=code, name=name,
+            sort_order=sort_order, required=required, is_active=True,
+        )
+        s.add(dim)
+        by_code[code] = dim
+    s.flush()
+    # Reload in case flush assigned ids
+    by_code = {
+        d.code: d
+        for d in s.exec(
+            select(AnalyticDimension).where(AnalyticDimension.tenant_id == tenant_id)
+        ).all()
+    }
+    type_map = {
+        "department": "CC",
+        "project": "PROJ",
+        "cost_center": "LOC",
+    }
+    accounts = s.exec(
+        select(AnalyticAccount).where(AnalyticAccount.tenant_id == tenant_id)
+    ).all()
+    for a in accounts:
+        if a.dimension_id:
+            continue
+        dim = by_code.get(type_map.get(a.type, "CC"))
+        if dim:
+            a.dimension_id = dim.id
+            s.add(a)
+
+    # Multi-slot tag ~20% of JEs that already have slot-0
+    slot1 = [a.id for a in accounts if a.type == "project"]
+    slot2 = [a.id for a in accounts if a.type == "cost_center"]
+    if not slot1 or not slot2:
+        return
+    rng = random.Random(tenant_id + 260)
+    txn_ids = {
+        t.id for t in s.exec(
+            select(Transaction).where(Transaction.tenant_id == tenant_id)
+        ).all()
+    }
+    if not txn_ids:
+        return
+    jes = s.exec(
+        select(JournalEntry).where(
+            JournalEntry.transaction_id.in_(list(txn_ids)[:200]),  # type: ignore[attr-defined]
+            JournalEntry.analytic_account_id.is_not(None),
+            JournalEntry.analytic_2_id.is_(None),
+        )
+    ).all()
+    for je in jes[:80]:
+        if rng.random() < 0.35:
+            je.analytic_2_id = rng.choice(slot1)
+            je.analytic_3_id = rng.choice(slot2)
+            s.add(je)
+    s.flush()
+
+
+def _seed_ifrs15_259(s: Session, user: User, customers: list, invoices: list) -> None:
+    """SSP multi-element invoice + open contract asset (services demo)."""
+    tid = user.tenant_id
+    if s.exec(
+        select(RevenueAllocationAudit).where(RevenueAllocationAudit.tenant_id == tid)
+    ).first():
+        # Still ensure a contract asset exists
+        if not s.exec(select(ContractAsset).where(ContractAsset.tenant_id == tid)).first():
+            if customers:
+                try:
+                    certify_contract_asset(
+                        s, user,
+                        customer_id=customers[0].id,
+                        amount=money("15000"),
+                        certify_date=date.today().isoformat(),
+                        description="Demo unbilled milestone (#259)",
+                        notes="Seeded contract asset",
+                    )
+                except Exception:
+                    pass
+        return
+
+    # Ensure two service products carry SSP
+    prods = s.exec(
+        select(Product).where(
+            Product.tenant_id == tid,
+            Product.product_type == "service",
+        )
+    ).all()
+    if len(prods) < 2:
+        return
+    p1, p2 = prods[0], prods[1]
+    if not p1.standalone_selling_price:
+        p1.standalone_selling_price = money("6000")
+        s.add(p1)
+    if not p2.standalone_selling_price:
+        p2.standalone_selling_price = money("4000")
+        s.add(p2)
+    s.flush()
+
+    cust = customers[0] if customers else None
+    if not cust:
+        return
+    ar = _account(s, tid, "1100")
+    rev = _account(s, tid, "4000") or _account(s, tid, "4100")
+    if not ar or not rev:
+        return
+
+    issue = date.today().isoformat()
+    # Bundle price 8000 vs SSP total 10000 → relative allocation
+    line_specs = [
+        (p1, "Implementation (SSP bundle)", D("1"), D("4800"), p1.standalone_selling_price),
+        (p2, "Training (SSP bundle)", D("1"), D("3200"), p2.standalone_selling_price),
+    ]
+    inv = Invoice(
+        tenant_id=tid, number=next_number(s, tid, "invoice", "INV"),
+        customer_id=cust.id, customer_name=cust.name,
+        issue_date=issue, due_date=issue,
+        description="Demo multi-element SSP allocation (#259)",
+        subtotal=money("8000"), gst_rate=ZERO, gst_amount=ZERO, total=money("8000"),
+        status="issued",
+        ar_account_id=ar.id, revenue_account_id=rev.id,
+        created_by_id=user.id,
+    )
+    s.add(inv); s.flush()
+
+    class _Tmp:
+        pass
+
+    tmp_lines = []
+    for prod, desc, qty, rate, ssp in line_specs:
+        t = _Tmp()
+        t.qty, t.rate, t.discount_pct = qty, rate, ZERO
+        t.ssp = ssp
+        t.description = desc
+        t.product_id = prod.id
+        tmp_lines.append(t)
+
+    allocated, ssps, pre, audit = apply_allocation_to_invoice_lines(
+        s, tid, inv.id, tmp_lines,
+    )
+    db_lines = []
+    for i, (prod, desc, qty, rate, ssp) in enumerate(line_specs):
+        ln = InvoiceLine(
+            invoice_id=inv.id, product_id=prod.id, description=desc,
+            qty=qty, unit="ea", rate=rate, amount=money(allocated[i]),
+            tax_amount=ZERO, ssp=money(ssps[i]) if ssps[i] is not None else None,
+            pre_allocation_amount=money(pre[i]),
+        )
+        s.add(ln); db_lines.append(ln)
+    s.flush()
+
+    try:
+        txn = post_transaction(
+            s, user, date=issue,
+            description=f"Invoice {inv.number} (SSP demo)",
+            entries=[
+                EntryInput(account_id=ar.id, debit=money("8000"), customer_id=cust.id),
+                EntryInput(account_id=rev.id, credit=money(allocated[0])),
+                EntryInput(account_id=rev.id, credit=money(allocated[1])),
+            ],
+            voucher_type="SL",
+            audit_entity_type="invoice",
+            audit_detail={"invoice_id": inv.id, "ssp": True},
+        )
+        inv.transaction_id = txn.id
+        s.add(inv)
     except Exception:
-        pass  # CoA / posting edge — skip rather than fail the whole seed
+        s.rollback()
+        return
+
+    if not s.exec(select(ContractAsset).where(ContractAsset.tenant_id == tid)).first():
+        try:
+            certify_contract_asset(
+                s, user,
+                customer_id=cust.id,
+                amount=money("15000"),
+                certify_date=issue,
+                description="Demo unbilled milestone (#259)",
+                notes="Seeded contract asset",
+            )
+        except Exception:
+            pass
+
+
+def _seed_wht_cit_267(s: Session, user: User, vendors: list) -> None:
+    """Withholding tax code + vendor rate + CIT worksheet rows (#267)."""
+    tid = user.tenant_id
+    wht_gl = get_or_create_account(
+        s, tid, "2265", "Withholding Tax Payable", "Liability"
+    )
+    wht = s.exec(
+        select(TaxCode).where(TaxCode.tenant_id == tid, TaxCode.code == "WHT10")
+    ).first()
+    if not wht:
+        wht = TaxCode(
+            tenant_id=tid, code="WHT10", name="Withholding Tax 10%",
+            rate=D("10"), type="input", gl_account_id=wht_gl.id,
+            is_withholding=True, is_active=True,
+        )
+        s.add(wht); s.flush()
+
+    for v in vendors[:3]:
+        if v.wht_tax_code_id is None:
+            v.wht_tax_code_id = wht.id
+            v.wht_rate = D("10")
+            s.add(v)
+
+    # Stamp a modest WHT amount on one existing bill payment if none set
+    bp = s.exec(
+        select(BillPayment).where(
+            BillPayment.tenant_id == tid,
+            BillPayment.wht_amount == 0,
+        )
+    ).first()
+    if bp and D(bp.amount or 0) > ZERO:
+        # Don't rewrite GL — display/demo only for rate wiring; CIT rows below are real
+        pass
+
+    fy = str(date.today().year)
+    if not s.exec(
+        select(CitAdjustment).where(
+            CitAdjustment.tenant_id == tid, CitAdjustment.fiscal_year == fy,
+        )
+    ).first():
+        s.add(CitAdjustment(
+            tenant_id=tid, fiscal_year=fy, kind="addback",
+            description="Demo — entertainment / non-deductible",
+            amount=money("25000"),
+        ))
+        s.add(CitAdjustment(
+            tenant_id=tid, fiscal_year=fy, kind="deduction",
+            description="Demo — accelerated tax depreciation",
+            amount=money("40000"),
+        ))
+
+
+def _seed_localization_demo(s: Session, user: User, email: str, business_model: str) -> None:
+    """Enable one localization pack per selected demo + sample logs."""
+    tid = user.tenant_id
+    tenant = s.get(Tenant, tid)
+    if not tenant:
+        return
+    try:
+        modules = set(_json.loads(tenant.enabled_modules or "[]"))
+    except Exception:
+        modules = set()
+
+    pack = None
+    if email == "demo.services@easy-books.app" or (
+        business_model == "services" and "eu_peppol" not in modules
+        and email.startswith("demo.services")
+    ):
+        pack = "eu_peppol"
+    elif email == "demo.trader@easy-books.app":
+        pack = "in_gst"
+    elif email == "demo.manufacturing@easy-books.app":
+        pack = "sa_zatca"
+
+    if not pack:
+        return
+
+    if pack not in modules:
+        modules.add(pack)
+        tenant.enabled_modules = _json.dumps(sorted(modules))
+        s.add(tenant)
+        s.flush()
+
+    try:
+        seed_module_sample(s, user, pack)
+    except Exception:
+        pass
+
+    inv = s.exec(
+        select(Invoice).where(Invoice.tenant_id == tid).order_by(Invoice.id.desc())  # type: ignore
+    ).first()
+    if not inv:
+        return
+
+    if pack == "sa_zatca" and not s.exec(
+        select(ZatcaSubmissionLog).where(ZatcaSubmissionLog.tenant_id == tid)
+    ).first():
+        inv.zatca_status = "cleared"
+        inv.zatca_uuid = "demo-zatca-uuid-001"
+        inv.zatca_hash = "demo-hash"
+        inv.zatca_qr = "AQlERU1P"  # stub TLV
+        inv.zatca_submitted_at = datetime.utcnow()
+        s.add(inv)
+        s.add(ZatcaSubmissionLog(
+            tenant_id=tid, invoice_id=inv.id,
+            request_payload='{"demo":true}',
+            response_payload='{"status":"CLEARED"}',
+            status="cleared", http_status=200,
+            endpoint="https://gw-fatoora.zatca.gov.sa/demo",
+            sandbox=True,
+        ))
+    elif pack == "eu_peppol" and not s.exec(
+        select(PeppolSubmissionLog).where(PeppolSubmissionLog.tenant_id == tid)
+    ).first():
+        inv.peppol_status = "accepted"
+        inv.peppol_document_id = "DEMO-PEPPOL-DOC-1"
+        inv.peppol_submitted_at = datetime.utcnow()
+        s.add(inv)
+        s.add(PeppolSubmissionLog(
+            tenant_id=tid, invoice_id=inv.id,
+            request_payload="<Invoice xmlns='urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'/>",
+            response_payload='{"documentId":"DEMO-PEPPOL-DOC-1"}',
+            status="accepted", http_status=202,
+            endpoint="https://api.peppol-sandbox.example/v1/send",
+            sandbox=True, document_id="DEMO-PEPPOL-DOC-1",
+        ))
+    elif pack == "in_gst":
+        # GSTIN on a couple of parties for place-of-supply UI
+        for c in s.exec(select(Customer).where(Customer.tenant_id == tid)).all()[:5]:
+            if not c.gstin:
+                c.gstin = "27AAAAA0000A1Z5"
+                c.state_code = "27"
+                s.add(c)
+        for v in s.exec(select(Vendor).where(Vendor.tenant_id == tid)).all()[:5]:
+            if not v.gstin:
+                v.gstin = "29BBBBB0000B1Z5"
+                v.state_code = "29"
+                s.add(v)
+
+
+def _seed_intercompany_261(s: Session) -> None:
+    """IC invoice from manufacturing → trader with draft mirror bill (#261)."""
+    hold = s.exec(
+        select(Tenant).where(Tenant.name == "Demo Manufacturing Co.")
+    ).first()
+    sub = s.exec(
+        select(Tenant).where(Tenant.name == "Demo Trading Co.")
+    ).first()
+    owner = s.exec(
+        select(User).where(User.email == "demo.manufacturing@easy-books.app")
+    ).first()
+    if not hold or not sub or not owner:
+        return
+
+    existing = s.exec(
+        select(Invoice).where(
+            Invoice.tenant_id == hold.id,
+            Invoice.is_intercompany == True,  # noqa: E712
+        )
+    ).first()
+    if existing:
+        return
+
+    cust = get_or_create_ic_customer(s, hold.id)
+    ar = _account(s, hold.id, "1180") or _account(s, hold.id, "1100")
+    rev = _account(s, hold.id, "4000")
+    if not ar or not rev:
+        return
+
+    issue = date.today().isoformat()
+    total = money("125000")
+    inv = Invoice(
+        tenant_id=hold.id,
+        number=next_number(s, hold.id, "invoice", "INV"),
+        customer_id=cust.id, customer_name=cust.name,
+        issue_date=issue, due_date=issue,
+        description="IC sale to Trading sub (#261)",
+        subtotal=total, gst_rate=ZERO, gst_amount=ZERO, total=total,
+        status="issued",
+        ar_account_id=ar.id, revenue_account_id=rev.id,
+        created_by_id=owner.id,
+        is_intercompany=True,
+        ic_counterparty_tenant_id=sub.id,
+    )
+    s.add(inv); s.flush()
+    s.add(InvoiceLine(
+        invoice_id=inv.id, description="IC — finished goods transfer",
+        qty=D("1"), unit="lot", rate=total, amount=total, tax_amount=ZERO,
+    ))
+    try:
+        txn = post_transaction(
+            s, owner, date=issue,
+            description=f"IC Invoice {inv.number}",
+            entries=[
+                EntryInput(account_id=ar.id, debit=total, customer_id=cust.id),
+                EntryInput(account_id=rev.id, credit=total),
+            ],
+            voucher_type="SL",
+            audit_entity_type="invoice",
+            audit_detail={"invoice_id": inv.id, "ic": True},
+        )
+        inv.transaction_id = txn.id
+        s.add(inv)
+        create_ic_mirror_bill_from_invoice(s, owner, inv)
+    except Exception:
+        s.rollback()
+        return
+    s.commit()
 
 
 def _seed_budgets(s: Session, tenant_id: int) -> None:
@@ -5500,6 +5964,7 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
 
         # ── Improvement-roadmap modules (Sprint 7–12) ──
         _seed_analytic_accounts(s, tenant_id)
+        _seed_analytic_dimensions_260(s, tenant_id)
         _seed_budgets(s, tenant_id)
         s.commit()
         _seed_fixed_assets(s, user)
@@ -5512,6 +5977,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
         if business_model == "services":
             _seed_deferred_revenue(s, user, invoices)
+            s.commit()
+            _seed_ifrs15_259(s, user, customers, invoices)
             s.commit()
 
         # ── Returns & Advances (Sprint 13) ──
@@ -5536,6 +6003,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
         _seed_reconciliations(s, tenant_id)
         _seed_bank_imports(s, tenant_id)
+        s.commit()
+        _seed_wht_cit_267(s, user, vendors)
+        s.commit()
+        _seed_localization_demo(s, user, email, business_model)
         s.commit()
 
         if business_model in ("services", "manufacturing"):
@@ -5664,6 +6135,12 @@ def seed_all_demos() -> list[dict]:
             reports.append({"consolidation": "ok"})
     except Exception as e:
         reports.append({"consolidation": "error", "error": str(e)})
+    try:
+        with Session(engine) as s:
+            _seed_intercompany_261(s)
+            reports.append({"intercompany": "ok"})
+    except Exception as e:
+        reports.append({"intercompany": "error", "error": str(e)})
     return reports
 
 

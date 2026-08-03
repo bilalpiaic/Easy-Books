@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-08-03 · **Version:** 5.0.0
+**Last updated:** 2026-08-04 · **Version:** 5.1.0
 
 ---
 
@@ -41,6 +41,8 @@
 28. [PRA e-Invoice (Pakistan)](#28-pra-e-invoice-pakistan)
 28a. [Saudi ZATCA e-Invoice](#28a-saudi-zatca-e-invoice)
 28b. [Peppol / EU VAT e-Invoice](#28b-peppol--eu-vat-e-invoice)
+28c. [India GST](#28c-india-gst)
+28d. [Withholding Tax & CIT Worksheet](#28d-withholding-tax--cit-worksheet)
 29. [Modules & the Apps Page](#29-modules--the-apps-page)
 30. [Healthcare Module](#30-healthcare-module)
 31. [Universal Search (Ctrl+K)](#31-universal-search-ctrlk)
@@ -51,6 +53,7 @@
 36. [Calculator](#36-calculator)
 37. [IFRS 16 Leases](#37-ifrs-16-leases)
 38. [Group Consolidation (IFRS 10)](#38-group-consolidation-ifrs-10)
+38a. [Intercompany Documents](#38a-intercompany-documents)
 39. [Inventory Valuation Depth](#39-inventory-valuation-depth)
 40. [Save PDF troubleshooting](#40-save-pdf-troubleshooting)
 
@@ -82,6 +85,7 @@ Easy-Books provides **7 pre-seeded demo tenants** for immediate exploration:
 - PRA tenant: invoices with FINs, PKR currency, NTN/CNIC on customers, PCT codes on products, and a PRA submission-log audit trail
 - Promo rules, commission plans + a 3-month commission ledger (draft/approved/posted), accounting periods (incl. a locked prior year), bank reconciliations, and an imported bank statement per tenant
 - **Hospital tenant: 5 doctors, 4 wards (38 beds), 50 patients, ~200 OPD tokens/visits, 20 admissions, 80 lab orders, 25 procedure orders**
+- **v5 IFRS / tax demos (seeded):** analytic dimensions + multi-slot JE tags; services tenant — SSP multi-element invoice + open contract asset; manufacturing↔trader IC invoice/bill mirrors + consolidation graph; asset components + impairment + one disposal; WHT tax code + CIT adjustments; localization modules on selected demos (ZATCA on manufacturing, India GST on trader, Peppol on services) with sample settings + submission-log rows
 
 ### 1.2 Sample / Demo Data (standalone and desktop installs)
 
@@ -889,11 +893,12 @@ Pre-approval workflow for purchases (shown for Trader / Manufacturing / Telecom 
 - Raise a PO with vendor + line items → **Approve** (admin+) → **Convert to Bill** when goods arrive
 - Conversion creates a `BILL-` document and posts **Dr Expense / Cr 2000 Accounts Payable**
 
-### 17.4 Analytic Accounts / Cost Centers (IAS 1)
+### 17.4 Analytic Accounts / Cost Centers (IAS 1) + Dimensions (#260)
 
-- **Analytic Accounts** — create cost-centers, projects, or departments
-- Tag journal/invoice/bill lines with an analytic account (optional everywhere)
-- **Reports → Analytic P&L** shows revenue and expenses for a single dimension
+- **Dimensions** — define up to **3** analytic dimension types (e.g. Cost Center / Project / Location) under Analytic Accounts. Mark one as **required** to force tagging on JE / invoice / bill lines.
+- **Analytic values** — create cost-centers, projects, or departments under a dimension (legacy flat `type` still works)
+- Tag documents with up to three slots (`analytic_account_id`, `analytic_2_id`, `analytic_3_id`)
+- **Reports → Analytic P&L** and **Dimensional P&L** show revenue and expenses sliced by dimension
 
 ### 17.5 Deferred Revenue (IFRS 15) — Services model
 
@@ -1652,23 +1657,71 @@ VAT category mapping: standard rate → `S`, zero rate → `Z`, cross-border B2B
 
 ---
 
+## 28c. India GST
+
+> Requires: **India GST** module from **System → Apps** (category Localization).
+
+### Setup
+
+1. Install **India GST** from Add-ons (optionally seed sample settings — creates CGST/SGST/IGST tax codes + CoA leaves).
+2. Open **Settings → India GST** and set:
+   - **Enable** ON
+   - **GSTIN** (15-character)
+   - **State code** (place of supply default for the seller)
+3. On customers/vendors, fill **GSTIN** and **State code** when known.
+
+### Invoicing
+
+- Place of supply is derived from buyer vs seller state: **intra-state** → CGST + SGST; **inter-state** → IGST.
+- Use **Reports → GSTR-1 / GSTR-3B** (under tax / India GST nav) for period summaries suitable for portal filing drafts.
+
+### Demo
+
+The **Demo Trading Co.** tenant (`demo.trader@easy-books.app`) ships with `in_gst` enabled and sample GSTIN settings so the tax codes and GSTR screens are immediately browsable.
+
+---
+
+## 28d. Withholding Tax & CIT Worksheet
+
+### Withholding tax on vendor payments (#267)
+
+1. Create (or use seeded) a tax code with **Withholding** flagged — posts to **2265 Withholding Tax Payable**.
+2. On the vendor master, set **WHT tax code** and optional **WHT rate %**.
+3. When recording a **Bill Payment**, enter **WHT amount**. The payment posts:
+   - **Dr AP** (gross applied)
+   - **Cr Cash/Bank** (net paid)
+   - **Cr 2265** (withholding withheld)
+
+### Corporate income tax worksheet
+
+- Open **Reports → CIT Worksheet** (or Tax → CIT).
+- Accounting profit comes from the GL; add **addback** / **deduction** rows (`CitAdjustment`) for permanent differences.
+- Demo tenants include sample CIT adjustments for the current fiscal year.
+
+---
+
 ## 29. MODULES & THE APPS PAGE
 
 Easy-Books uses an installable module system — similar to Odoo — so every tenant only sees the features they actually need.
 
 ### 29.1 What is a module?
 
-A module is a bundle of related features and sidebar sections. The six modules are:
+A module is a bundle of related features and sidebar sections. The installable set is:
 
 | Module | What it enables | Always active? |
 |--------|----------------|---------------|
 | **Base Accounting** | GL, Chart of Accounts, invoicing, AR/AP, banking, all reports | Yes (cannot be removed) |
 | **Inventory** | Products, stock, warehouses, product categories, inventory reports | No |
 | **Manufacturing** | BOM, production orders, manufacturing workflows | No — requires Inventory |
+| **Purchases & Store** | Demand → comparative → PO → gate inward/outward, store issues | No — requires Inventory |
+| **Weaving** | Loom/yarn unit-control memos (ops only) | No |
 | **HRM & Payroll** | Employees, salary structures, payroll runs, attendance register | No |
 | **Telecom Franchise** | Full telecom module: trackers, RSOs, MSR, MFS, FCA workflow | No — requires Inventory |
+| **Healthcare** | OPD/IPD/Lab/Procedures/Pharmacy | No |
+| **AI Assistant** | Agentic financial chat (multi-provider) | No |
 | **PRA e-Invoice** | PRA e-invoice submission, fiscal invoice numbers, submission logs | No |
 | **Saudi ZATCA e-Invoice** | KSA Phase 2 sandbox clear/report, TLV QR, submission logs | No |
+| **India GST** | Place of supply, CGST/SGST/IGST, GSTR-1/3B | No |
 | **Peppol / EU VAT e-Invoice** | BIS Billing 3.0 UBL export, Access Point submit, submission logs | No |
 | **UAE VAT e-Invoice** | UAE 5% VAT codes, CoA leaves, FTA sandbox stub | No |
 
@@ -1676,7 +1729,7 @@ A module is a bundle of related features and sidebar sections. The six modules a
 
 Go to **System → Apps** (admin and owner only) to browse all modules. Each card shows:
 - Name and description
-- Category (Core / Operations / Human Resources / Industry)
+- Category (Core / Operations / Human Resources / Industry / Intelligence / **Localization**)
 - Which other modules it depends on
 - Whether it is currently installed
 - An **Install** or **Uninstall** button
@@ -1687,14 +1740,7 @@ Go to **System → Apps** (admin and owner only) to browse all modules. Each car
 
 ### 29.3 First-time onboarding
 
-When you create a new account, Easy-Books shows you a full-page module picker before you reach the dashboard:
-
-1. **Base Accounting** is shown as always included (no choice needed).
-2. Optional modules are grouped by category — toggle the ones you need.
-3. Click **Get Started** — Easy-Books installs your selections and takes you to the dashboard.
-4. Click **Skip for now** if you want to start with Base only; you can install more modules anytime from the Apps page.
-
-The onboarding screen appears only once per account. If you skip it and want to add modules later, go to **System → Apps**.
+Public signup starts with **Base Accounting** only. Industry and localization packs are installed later from **System → Apps** (or via the welcome Add-ons page). Demo tenants already have their model-default modules (and localization demos where seeded).
 
 ### 29.4 After changing modules
 
@@ -2305,6 +2351,18 @@ Build a holding-company entity graph and produce a consolidated worksheet packag
 3. Review eliminations; adjust if needed. **Post** freezes an immutable consolidated BS/P&L package on the holding tenant only.
 
 Locked-period post may require an owner/admin override. Associates appear as a single equity-method line, not line-by-line consolidation.
+
+---
+
+## 38a. Intercompany Documents
+
+Companion to consolidation (#261) — mark sales/purchases between sister entities so each side has a matching document for recon.
+
+1. On an invoice or bill, tick **Intercompany** and pick the **counterparty tenant** (must be in the same consolidation group).
+2. On save, Easy-Books creates a **draft mirror** on the counterparty (no GL until that entity posts it) — invoice → mirror bill, bill → mirror invoice.
+3. Open **Intercompany → Reconciliation** (`/intercompany/recon`) for a paginated match of IC docs across the group (amounts, mirror links, unmatched flags).
+
+Demo seed: Manufacturing ↔ Trading IC invoice with a draft mirror bill after the consolidation graph is built. CoA leaves **1180** Due from Affiliates / **2180** Due to Affiliates support IC AR/AP presentation.
 
 ---
 

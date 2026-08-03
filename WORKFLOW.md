@@ -325,12 +325,14 @@ Easy-Books implements the following international accounting standards and best 
 | **IAS 1** (Presentation of Financial Statements) | Consistent ledger presentation; all GL items traced to source documents | Every JournalEntry links back to Invoice/Bill/Payment/GRN via reverse-resolution lookup; clickable GL hyperlinks to source docs |
 | **IAS 2** (Inventory) | Weighted-Average cost method; no negative stock | `services/inventory.py`: `record_purchase()` appends layer; `consume_stock()` relieves at running WAvg; FIFO layer depletion |
 | **IAS 8** (Accounting Policies) | Consistent methods across periods; change tracking via audit log | Audit trail logs every transaction mutation (INSERT/UPDATE/DELETE); period-close materialises balances immutably |
-| **IAS 18 / IFRS 15** (Revenue Recognition) | Revenue posted on invoice issue; partial payments tracked separately | Invoice `status ∈ {draft, issued, partial, paid, overdue}`; allocations preserve invoice total vs paid amount |
+| **IAS 18 / IFRS 15** (Revenue Recognition) | Invoice-at-issue + deferred schedules + relative-SSP multi-element allocation + contract assets (unbilled) | Invoice statuses; `DeferredRevenueSchedule`; `RevenueAllocationAudit`; `ContractAsset` (1140) certify/settle; `/contract-balances` |
 | **IAS 21** (Effects of Changes in Foreign Exchange Rates) | FX rates snapshot at transaction date; no retroactive revaluation (V1) | `Invoice/Bill.currency + .exchange_rate` captured at issue; `ExchangeRate(date, from, to, rate)` catalog with date fallback |
 | **IAS 32 / IFRS 9** (Financial Instruments) | Separate asset/liability/equity classification; payables credit-normal | `Account.type ∈ {Asset, Liability, Equity, Revenue, Expense}`; AP ledger shows credit-normal (positive = we owe) |
 | **ISA 230** (Audit Documentation) | Complete audit trail; reperformance from any JE to source | Every GL line hyperlinks to its original document (Invoice, Bill, Payment, GRN); time-stamped mutations in audit log |
 | **ISA 315** (Understanding the Entity) | Internal controls enforced in code (not UI) | Period-lock prevents posting into closed periods; tenant_id scoped queries prevent cross-tenant reads; central posting service is sole GL writer |
-| **IFRS 16** (Leases) | Custodial goods tracking for manufacturing (V2) | `StockLocation.type ∈ {own, customer_custodial, wip}`; memo account pair `1210/2150` for customer goods on hand |
+| **IFRS 16** (Leases — lessee) | RoU asset + lease liability schedule; period interest / payment / depreciation | `LeaseContract` / `LeaseScheduleLine`; activate + period post via `posting.py`; UI `/leases`; CoA 1510/1511/2510/5125 |
+| **IAS 2 custody (mfg)** | Customer-supplied goods never hit inventory asset | `StockLocation.type ∈ {own, customer_custodial, wip}`; memo account pair `1210/2150` |
+| **IFRS 10 / IAS 27** | Group consolidation worksheet + intercompany docs | `ConsolidationMember` / `ConsolidationRun`; IC invoice/bill mirrors; `/consolidation`, `/intercompany/recon` |
 
 **Compliance checks embedded in posting service** (`services/posting.py`):
 - ✓ `∑debit == ∑credit` exact (Decimal precision)
@@ -1901,6 +1903,33 @@ Holding tenant owns `ConsolidationMember` graph + `ConsolidationRun`.
 Propose aggregates member TBs by account code; IC AR/AP + NCI eliminations are
 worksheet-only — **never posted to member GLs**. Post freezes consolidated BS/P&L
 on the holding tenant. Associates → equity-method one-liner.
+
+### Intercompany docs (#261) — `/api/intercompany`
+```
+Invoice/Bill.is_intercompany + ic_counterparty_tenant_id (same consol group).
+On save → draft mirror on counterparty (no GL until posted there).
+Recon: GET /api/intercompany/recon — paginated match / unmatched flags.
+CoA: 1180 Due from Affiliates / 2180 Due to Affiliates.
+```
+
+### IFRS 15 remainder (#259) — SSP + contract assets
+```
+Relative-SSP: allocate_relative_ssp → RevenueAllocationAudit; line.ssp snapshot.
+Certify CA:   Dr 1140 Contract Asset / Cr Revenue (unbilled POB).
+Settle:       invoice credits 1140 instead of Revenue for remaining CA.
+UI: /contract-balances
+```
+
+### Analytic dimensions (#260)
+Up to 3 `AnalyticDimension`s (optional `required`); JE slots analytic_account_id /
+analytic_2_id / analytic_3_id. Dimensional P&L slices by dimension.
+
+### Withholding tax + CIT (#267)
+```
+Vendor.wht_tax_code_id / wht_rate → BillPayment.wht_amount
+Post: Dr AP / Cr Cash (net) / Cr 2265 WHT Payable
+CitAdjustment addback|deduction rows feed CIT worksheet reports.
+```
 
 ### Inventory depth (#257) — landed / lot / NRV
 ```

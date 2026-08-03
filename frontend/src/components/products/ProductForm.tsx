@@ -190,7 +190,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
   return (
     <div className="bg-white rounded-2xl border border-[var(--border)] p-8 max-w-2xl mx-auto">
       <div className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Code</label>
             <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))}
@@ -301,7 +301,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
           )}
         </div>
         {isStock && mode === 'create' && (
-          <div className="grid grid-cols-2 gap-4 border border-amber-100 bg-amber-50/60 rounded-xl p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border border-amber-100 bg-amber-50/60 rounded-xl p-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Opening Qty</label>
               <input type="number" min="0" step="0.001" value={form.opening_qty}
@@ -329,7 +329,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
             <span className="text-sm text-[var(--text-primary)]/80">Recognize revenue over time (deferred)</span>
           </label>
           {form.is_deferred && (
-            <div className="w-1/2">
+            <div className="w-full sm:w-1/2 max-w-xs">
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Recognition Months</label>
               <input
                 type="number" min="1" step="1"
