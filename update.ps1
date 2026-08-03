@@ -13,7 +13,7 @@ if (-not (Test-Path (Join-Path $PSScriptRoot '.git'))) {
 
 function Discard-InstallerDrift {
   # uv sync can rewrite backend/uv.lock; older installers dirtied
-  # frontend/public/version.json — both block git pull --ff-only (#138).
+  # frontend/public/version.json - both block git pull --ff-only (#138).
   git checkout -- backend/uv.lock frontend/public/version.json 2>$null
 }
 
@@ -36,7 +36,7 @@ git fetch --quiet origin 2>$null
 $pull = git pull --ff-only 2>&1
 if ($LASTEXITCODE -ne 0) {
   Write-Host ""
-  Write-Host "git pull --ff-only failed — local files are blocking the update:" -ForegroundColor Red
+  Write-Host "git pull --ff-only failed - local files are blocking the update:" -ForegroundColor Red
   git status -sb
   Write-Host ""
   Write-Host "Safe fix for a script install (discards local commits in this folder only):" -ForegroundColor Yellow
