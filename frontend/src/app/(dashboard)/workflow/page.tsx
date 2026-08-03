@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard, CircleDot } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
 
-type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
-const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise"]
+type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise" | "yarn_spinning"
+const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise", "yarn_spinning"]
 
 // ── Primitive building blocks ────────────────────────────────────────────────
 
@@ -782,6 +782,63 @@ function TelecomFranchiseFlow() {
   )
 }
 
+function SpinningFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
+        Yarn-spinning tenants track cotton intake through multi-stage mill production to finished yarn
+        dispatch — with <b>full double-entry GL</b> on every approve/post (unlike Weaving, which is
+        memo-only). Weights are stored in Kg; Lbs and Bags are derived automatically.
+      </p>
+
+      <VFlow>
+        <StepBox
+          title="Bale Receipt (approve)"
+          accent="teal"
+          impact="Incoming cotton bales: gross − tare → net kg. Optional PO / gate-inward / bill link."
+          gl="Dr 1200 Raw Cotton / Cr AP or Cash + stock into RAW location"
+        />
+        <StepBox
+          title="Stage Entries (post)"
+          accent="gold"
+          impact="opening → carding → drawing → roving → spinning → winding. Labour and overhead absorbed into WIP."
+          gl="Dr 1201/1202/1203 WIP / Cr 1200 or prior WIP + Dr WIP / Cr 5100/5200"
+        />
+        <StepBox
+          title="Waste Log (post)"
+          accent="orange"
+          impact="Hard waste, noil, pneumafil, moisture loss — mapped to 5901–5904."
+          gl="Dr 590x Waste Expense / Cr WIP"
+        />
+        <StepBox
+          title="Cone Output (approve)"
+          accent="blue"
+          impact="Finished yarn cones transferred from WIP to Finished Yarn inventory."
+          gl="Dr 1204 Finished Yarn / Cr 1203 WIP + stock into FG-YARN"
+        />
+        <StepBox
+          title="Yarn Dispatch (approve)"
+          accent="purple"
+          impact="Ship finished yarn to customer; COGS at lot cost-per-kg."
+          gl="Dr 5010 COGS / Cr 1204 Finished Yarn + stock relief"
+        />
+        <StepBox
+          title="Lot close"
+          accent="green"
+          impact="Finalises cost-per-kg = (material + labour + overhead + waste) ÷ output kg."
+          gl="—"
+        />
+      </VFlow>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">
+        <span className="font-bold">Spin lots (SL-YYYY-seq)</span> are the cost container — every bale
+        receipt, stage entry, waste log, and cone output rolls up into the lot&apos;s live cost-per-kg
+        until the lot is completed and closed.
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 // ── New-module flows (Sprint 7–12 improvement roadmap) ───────────────────────
@@ -943,6 +1000,7 @@ export default function WorkflowPage() {
   const isInventory = businessModel != null && INVENTORY_MODELS.includes(businessModel)
   const isManufacturing = businessModel === "manufacturing"
   const isTelecom = businessModel === "telecom_franchise"
+  const isYarnSpinning = businessModel === "yarn_spinning"
   const isServices = businessModel === "services"
 
   return (
@@ -1097,6 +1155,18 @@ export default function WorkflowPage() {
           iconColor="text-teal-600"
         >
           <TelecomFranchiseFlow />
+        </SectionCard>
+      )}
+
+      {/* 12b — Yarn Spinning Lifecycle — yarn_spinning only */}
+      {isYarnSpinning && (
+        <SectionCard
+          icon={CircleDot}
+          title="Yarn Spinning Lifecycle"
+          subtitle="Bale receipt → multi-stage lot → cone output → dispatch (full GL)"
+          iconColor="text-amber-600"
+        >
+          <SpinningFlow />
         </SectionCard>
       )}
 

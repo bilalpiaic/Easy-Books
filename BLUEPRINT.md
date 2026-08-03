@@ -29,6 +29,7 @@
 10A. [Telecom Franchise Track (V3)](#10a-telecom-franchise-track-v3)
 10B. [PRA e-Invoice Track (Pakistan)](#10b-pra-e-invoice-track-pakistan)
 10C. [Healthcare / Hospital Track (V4)](#10c-healthcare--hospital-track-v4)
+10D. [Yarn Spinning Track](#10d-yarn-spinning-track)
 11. [Reports](#11-reports)
 12. [Security Model](#12-security-model)
 13. [Cross-Cutting Concerns](#13-cross-cutting-concerns)
@@ -483,6 +484,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `telecom_franchise` | Mobile-operator franchise | + 56-account franchise CoA: Tracker Deposit `1210`, Load Float `1211`, RSO/Retail load receivables `1212/1213`, MM float `1214`, SIM/IMSI/device inventory `1200–1204`, Commission Receivable `1110`, Franchise Intangible `1300`; Operator Payable `2010`, MM Float Liability `2100`, Postpaid Collections Payable `2110`, Royalty Payable `2120`; revenue `4000–4061` (3% load uplift `4020`, FCA target `4060`); fee amortisation `5030`, royalty `5040`, variance `5070`, penalty `5090`. See WORKFLOW §4.8 |
 | `pra_einvoice` | Pakistani retail (PRA-registered) | Same CoA as `simple`; PRA module pre-installed |
 | `hospital` | Healthcare / Hospital | + Hospital CoA: `1100` AR, `2350` Patient Deposit Liability; revenue `4100` OPD / `4110` IPD Ward / `4112` Nursing / `4115` Lab / `4120` Procedures / `4121` Pharmacy; `5010` COGS (drug/supply inventory). Healthcare module pre-installed |
+| `yarn_spinning` | Yarn spinning mill | + Spinning CoA: `1200` Raw Cotton / `1201`–`1203` WIP stages / `1204` Finished Yarn / `5901`–`5904` waste / `5100` Direct Labour / `5200` Overhead / `5010` COGS. Spinning module pre-installed with `purchase_store` |
 
 ### 6.2 Module System (UI visibility & billing)
 
@@ -501,6 +503,8 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 | `healthcare` | Healthcare | Industry | base | — | Healthcare section (OPD/IPD/Lab/Procedures/Store/Reports) |
 | `ai_assistant` | AI Financial Assistant | Intelligence | base | — | Chat FAB + full-page `/agent` route + `POST /api/ai/chat` (no sidebar section) |
 | `purchase_store` | Purchases & Store | Operations | inventory | — | Purchases section (Demands, Comparatives, Gate Inward, dual-homed PO/GRN, reports) + Store section (Gate Outward, reports) |
+| `weaving` | Weaving | Industry | inventory | — | Weaving section (contracts, yarn inward, sizing, production, dispatch — memo/ops only) |
+| `spinning` | Yarn Spinning | Industry | inventory, purchase_store | — | Spinning section (setup, plans, lots, bale receipt, stages, cone output, waste, dispatch, reports, calculators) |
 
 **`MODULES_BY_MODEL`** (default module set assigned at signup):
 
@@ -512,6 +516,7 @@ One `Transaction` is created per `PayrollRun` post; component amounts are aggreg
 "telecom_franchise": ["base", "inventory", "telecom"]
 "pra_einvoice":      ["base", "pra"]
 "hospital":          ["base", "hrm", "inventory", "healthcare"]
+"yarn_spinning":     ["base", "inventory", "purchase_store", "spinning"]
 ```
 
 **Module rules:**
@@ -798,7 +803,7 @@ All endpoints are mounted at `/api/*` and (transparently) at `/api/v1/*` for SDK
 | `GET /patient-statement/{id}` | Full financial statement for one patient |
 
 ### Admin (`/api/admin`)
-- `POST /demo/seed` *(admin+)* — load all 7 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
+- `POST /demo/seed` *(admin+)* — load all 8 demo tenants with full mock data. `DELETE /demo/seed` — remove demo data.
 
 ### AI Financial Assistant (`/api/ai`)
 
@@ -1282,6 +1287,36 @@ The `demo.hospital@easy-books.app` tenant is seeded with:
 
 ---
 
+## 10D. YARN SPINNING TRACK
+
+Applies to `business_model == 'yarn_spinning'`. 16 `sp_*` tables (`models_spinning.py`). Routes in `routers/spinning.py` (40+ endpoints), `routers/spinning_reports.py` (6 reports), and `routers/spinning_calculators.py` (3 calculators). GL writes flow through `services/spinning_posting.py` → `services/posting.py`. Frontend in `src/app/(dashboard)/spinning/` (15 pages).
+
+### 10D.1 Entities (`sp_*`)
+
+Masters: `SpYarnSpec`, `SpFiberGrade`, `SpMachine`, `SpShift`, `SpOperator`, `SpWasteType`, `SpRecipe`/`SpRecipeLine`. Operations: `SpProductionPlan`, `SpSpinLot`, `SpBaleReceipt`, `SpStageEntry`, `SpConeOutput`, `SpWasteLog`, `SpYarnDispatch`, `SpCalcRun`.
+
+### 10D.2 Production cycle
+
+```
+Setup masters → Production Plan (approve) → Spin Lot (start)
+  → Bale Receipt (approve: Dr 1200 / Cr AP|Cash + stock RAW)
+  → Stage Entries (post: WIP transfers 1201→1202→1203 + labour/overhead)
+  → Waste Log (post: Dr 590x / Cr WIP)
+  → Cone Output (approve: Dr 1204 / Cr 1203 + stock FG-YARN)
+  → Yarn Dispatch (approve: Dr 5010 COGS / Cr 1204 + stock relief)
+  → Lot complete → close (cost-per-kg finalised)
+```
+
+### 10D.3 Stock locations
+
+Auto-created by `ensure_spinning_locations()`: `RAW` (raw cotton store), `WIP-CARD`, `WIP-DRAW`, `WIP-SPIN` (stage WIP), `FG-YARN` (finished yarn).
+
+### 10D.4 Demo seed
+
+The `demo.spinning@easy-books.app` tenant is seeded with yarn specs, fiber grades, machines, shifts, operators, waste types, recipes, open and completed spin lots, approved bale receipts, posted stage entries, cone output, waste logs, and yarn dispatches with real GL postings.
+
+---
+
 ## 11. REPORTS
 
 | Endpoint | Source | Notes |
@@ -1310,6 +1345,12 @@ The `demo.hospital@easy-books.app` tenant is seeded with:
 | `GET /api/healthcare/reports/ipd-census` | HcAdmission + HcBed | Active admissions, ward occupancy, avg LOS |
 | `GET /api/healthcare/reports/revenue-by-type` | JournalEntry grouped by GL 4100–4121 | OPD/IPD/Lab/Procedure/Pharmacy revenue split |
 | `GET /api/healthcare/reports/patient-statement/{id}` | HcPatient + all transactions | Full financial history for one patient |
+| `GET /api/spinning/reports/dashboard` | SpSpinLot + SpStageEntry + SpConeOutput | KPIs: open lots, kg in WIP, output today, waste % |
+| `GET /api/spinning/reports/daily` | SpStageEntry + SpConeOutput | Daily production register |
+| `GET /api/spinning/reports/lot-control/{lot_id}` | SpSpinLot + all lot documents | Input/output balance and cost breakdown |
+| `GET /api/spinning/reports/waste` | SpWasteLog | Waste by type and stage |
+| `GET /api/spinning/reports/cost-per-kg` | SpSpinLot | Cost-per-kg across lots |
+| `GET /api/spinning/reports/dispatch` | SpYarnDispatch | Yarn dispatch register |
 
 ---
 
@@ -1716,7 +1757,7 @@ Stage 3 (publish):
 ## 18.1. DEMO DATA & SEEDING
 
 **Automatic Demo Tenants (on first run):**
-- On database init (`db.py`), seven demo tenants are auto-created, one per business model. `dev.sh` seeds each with 50+ records per entity type:
+- On database init (`db.py`), eight demo tenants are auto-created, one per business model. `dev.sh` seeds each with 50+ records per entity type:
   - `demo.simple@easy-books.app` (Simple model)
   - `demo.services@easy-books.app` (Services model)
   - `demo.trader@easy-books.app` (Trader model)
@@ -1724,6 +1765,7 @@ Stage 3 (publish):
   - `demo.telecom@easy-books.app` (Telecom Franchise model)
   - `demo.pra@easy-books.app` (PRA e-Invoice model)
   - `demo.hospital@easy-books.app` (Healthcare / Hospital model — 50 patients, 5 doctors, 4 wards, 200 OPD tokens, 20 IPD admissions, 80 lab orders)
+  - `demo.spinning@easy-books.app` (Yarn Spinning model — spin lots, bale receipts, stages, cones, waste, dispatches with GL)
   - All use password: `demo1234`
 - Each demo tenant has a Chart of Accounts, sequence counters, and stock locations pre-seeded.
 

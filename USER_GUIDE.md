@@ -63,7 +63,7 @@
 
 ### 1.1 First-Time Login
 
-Easy-Books provides **7 pre-seeded demo tenants** for immediate exploration:
+Easy-Books provides **8 pre-seeded demo tenants** for immediate exploration:
 
 | Email | Password | Business Model |
 |-------|----------|---|
@@ -74,6 +74,7 @@ Easy-Books provides **7 pre-seeded demo tenants** for immediate exploration:
 | `demo.telecom@easy-books.app` | `demo1234` | Telecom Franchise (Tracker, RSO chain, FCA, SIM) |
 | `demo.pra@easy-books.app` | `demo1234` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
 | `demo.hospital@easy-books.app` | `demo1234` | Healthcare — hospital/clinic (OPD, IPD, Lab, Procedures, Store) |
+| `demo.spinning@easy-books.app` | `demo1234` | Yarn Spinning Mill (bale receipt, lots, stages, cones, dispatch) |
 
 **Rich mock data included (full year coverage):**
 - Each tenant has **100 invoices, 100 bills, 70 payments received, 70 bill payments**
@@ -89,7 +90,7 @@ Easy-Books provides **7 pre-seeded demo tenants** for immediate exploration:
 
 ### 1.2 Sample / Demo Data (standalone and desktop installs)
 
-**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 7 demo companies on first install** — log straight in with password `demo1234`, no setup required:
+**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 8 demo companies on first install** — log straight in with password `demo1234`, no setup required:
 
 | Email | Business Model |
 |-------|---------------|
@@ -100,6 +101,7 @@ Easy-Books provides **7 pre-seeded demo tenants** for immediate exploration:
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 | `demo.pra@easy-books.app` | PRA e-Invoice |
 | `demo.hospital@easy-books.app` | Healthcare / Hospital |
+| `demo.spinning@easy-books.app` | Yarn Spinning Mill |
 
 The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. **Updating an existing install does not add demo data** — the database is migrated forward in place and your data is left untouched. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer or launching the desktop app.
 
@@ -988,16 +990,17 @@ Account names, document numbers, and balances are clickable throughout: P&L / Ba
 
 The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) now adapt to your **business model** — you only see the sections relevant to how your business operates:
 
-| Section | Simple | Services | Trader | Manufacturing | Telecom | PRA |
-|---------|:------:|:--------:|:------:|:-------------:|:-------:|:---:|
-| Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ | ✓ |
-| Purchases & Store (Demand→Comparative→PO→Gate Inward, Gate Outward) — §34 | — | — | — | ✓ | — | — |
-| Deferred Revenue | — | ✓ | — | — | — | — |
-| Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — | — |
-| Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ | — |
-| PRA e-Invoice (FIN, NTN/CNIC, PCT codes, pra_status) | — | — | — | — | — | ✓ |
+| Section | Simple | Services | Trader | Manufacturing | Telecom | PRA | Spinning |
+|---------|:------:|:--------:|:------:|:-------------:|:-------:|:---:|:--------:|
+| Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Purchases & Store (Demand→Comparative→PO→Gate Inward, Gate Outward) — §34 | — | — | — | ✓ | — | — | ✓ |
+| Deferred Revenue | — | ✓ | — | — | — | — | — |
+| Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — | — | — |
+| Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ | — | — |
+| PRA e-Invoice (FIN, NTN/CNIC, PCT codes, pra_status) | — | — | — | — | — | ✓ | — |
+| Yarn Spinning (lots, bale receipt, stages, cones, dispatch) — §30A | — | — | — | — | — | — | ✓ |
 
 The model is read from your tenant at login; switching business model (admin API) re-tailors both pages automatically.
 
@@ -1715,6 +1718,7 @@ A module is a bundle of related features and sidebar sections. The installable s
 | **Manufacturing** | BOM, production orders, manufacturing workflows | No — requires Inventory |
 | **Purchases & Store** | Demand → comparative → PO → gate inward/outward, store issues | No — requires Inventory |
 | **Weaving** | Loom/yarn unit-control memos (ops only) | No |
+| **Yarn Spinning** | Spinning mill production with full GL costing | No — requires Inventory + Purchases & Store |
 | **HRM & Payroll** | Employees, salary structures, payroll runs, attendance register | No |
 | **Telecom Franchise** | Full telecom module: trackers, RSOs, MSR, MFS, FCA workflow | No — requires Inventory |
 | **Healthcare** | OPD/IPD/Lab/Procedures/Pharmacy | No |
@@ -1866,6 +1870,93 @@ Pre-seeded data:
 - **20 IPD admissions** (15 discharged with charges, 5 currently admitted)
 - **80 lab orders** with results entered for most; sample collection records for non-walk-in orders
 - **25 procedure orders** (most marked performed)
+
+---
+
+## 30A. YARN SPINNING MODULE
+
+> Requires: **Base**, **Inventory**, **Purchases & Store**, **Yarn Spinning** modules installed.  
+> Demo tenant: `demo.spinning@easy-books.app` / `demo1234`
+
+The Yarn Spinning module tracks cotton/fiber intake through multi-stage mill production to finished yarn dispatch — with **full double-entry GL** on every approve/post (unlike the Weaving module, which is memo-only).
+
+### 30A.1 Setup (`/spinning/setup`)
+
+Configure master data before recording production:
+
+| Master | Purpose |
+|--------|---------|
+| **Yarn Specs** | Count (Ne/Nm), twist direction, cotton/poly blend %; links to a finished-yarn `Product` |
+| **Fiber Grades** | Staple length, micronaire, grade code for incoming cotton |
+| **Machines** | Carding/drawing/spinning machines with spindle count |
+| **Shifts & Operators** | Production shift roster |
+| **Waste Types** | Hard waste, soft waste/noil, pneumafil, moisture loss — each mapped to GL `5901`–`5904` |
+| **Recipes** | Blend ratios per yarn spec (fiber grade × percentage) |
+
+### 30A.2 Production Plans (`/spinning/plans`)
+
+Create monthly targets (PP-YYYY-seq) by yarn spec and target kg. Approve a plan to lock it. Plans give the dashboard something to compare actual output against.
+
+### 30A.3 Spin Lots (`/spinning/lots`)
+
+A spin lot (SL-YYYY-seq) is the cost container for one production run:
+
+1. **Draft** — create with yarn spec, target kg, optional recipe
+2. **Start** — opens the lot for bale receipts and stage entries
+3. **Complete** — freezes further production input
+4. **Close** — finalises cost-per-kg
+
+The lot detail page shows accumulated material, labour, overhead, and waste costs with a live cost-per-kg figure.
+
+### 30A.4 Bale Receipt (`/spinning/bale-receipts`)
+
+Record incoming cotton bales (BR-YYYY-seq):
+
+- Enter gross weight, tare, and derived net kg (Lbs/Bags shown automatically)
+- Link to a spin lot, vendor, and optionally a Purchase Order, Gate Inward, or Bill
+- **Approve** posts GL: `Dr 1200 Raw Cotton / Cr AP` (if bill-linked) or `Cr Cash`, plus stock into the **RAW** location
+
+### 30A.5 Stage Entries (`/spinning/stages`)
+
+Record each processing stage against a lot:
+
+| Stage | WIP Account | Typical flow |
+|-------|-------------|--------------|
+| Opening / Carding | 1201 | `Dr 1201 / Cr 1200` (RM → WIP) |
+| Drawing / Roving | 1202 | `Dr 1202 / Cr 1201` (WIP transfer) |
+| Spinning / Winding | 1203 | `Dr 1203 / Cr 1202` (WIP transfer) |
+
+Enter input kg, output kg, labour cost, and overhead cost per entry. **Post** creates the balanced JV.
+
+### 30A.6 Cone Output (`/spinning/cone-output`)
+
+Record finished yarn cones (CO-YYYY-seq) against a lot. **Approve** transfers cost from WIP to Finished Yarn (`Dr 1204 / Cr 1203`) and adds stock to the **FG-YARN** location.
+
+### 30A.7 Waste Log (`/spinning/waste`)
+
+Log hard waste, noil, pneumafil, or moisture loss. **Post** debits the mapped waste expense account (`5901`–`5904`) and credits WIP.
+
+### 30A.8 Yarn Dispatch (`/spinning/dispatch`)
+
+Ship finished yarn to customers (YD-YYYY-seq). **Approve** posts COGS (`Dr 5010 / Cr 1204`) and relieves FG stock.
+
+### 30A.9 Reports & Calculators
+
+| Screen | What it shows |
+|--------|---------------|
+| **Dashboard** (`/spinning/dashboard`) | KPIs: lots open, kg in WIP, cones today, waste % |
+| **Daily Register** | Stage entries and output by date |
+| **Lot Control** | Per-lot input/output balance and variance |
+| **Waste Summary** | Waste by type and stage |
+| **Yield Calculator** | Expected vs actual yield from input kg |
+| **Blend Calculator** | Recipe mix validation |
+| **Spindle Calculator** | Production rate from spindle count |
+
+### 30A.10 Demo Spinning Tenant
+
+Login: `demo.spinning@easy-books.app` / `demo1234`
+
+Pre-seeded with yarn specs, fiber grades, machines, shifts, operators, waste types, recipes, open and completed spin lots, approved bale receipts, posted stage entries, cone output, waste logs, and yarn dispatches — every Spinning screen and report is populated on first login.
 
 ---
 

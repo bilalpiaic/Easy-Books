@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. Everyone starts on **Base Accounting**; industry capabilities (Inventory, Manufacturing, Telecom Franchise, PRA e-Invoice, Healthcare, Weaving, AI Assistant, …) are **Add-ons** installed after login from System → Add-ons. IAS/IFRS-aligned accounting with an enforced ∑Dr = ∑Cr invariant and live reports from the General Ledger.
+**Easy-Books** is a multi-tenant double-entry bookkeeping SaaS for SMEs. Everyone starts on **Base Accounting**; industry capabilities (Inventory, Manufacturing, Telecom Franchise, PRA e-Invoice, Healthcare, Weaving, Yarn Spinning, AI Assistant, …) are **Add-ons** installed after login from System → Add-ons. IAS/IFRS-aligned accounting with an enforced ∑Dr = ∑Cr invariant and live reports from the General Ledger.
 
 Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (frontend) · SQLite for dev/local, PostgreSQL for production.
 
@@ -139,7 +139,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
 
 **Module system (v2.9)**
-- **Odoo-style installable modules** — **14** modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`, `ai_assistant`, `purchase_store`, `weaving`, plus Localization packs `sa_zatca`, `in_gst`, `eu_peppol`, `uae_vat`. Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
+- **Odoo-style installable modules** — **15** modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`, `ai_assistant`, `purchase_store`, `weaving`, `spinning`, plus Localization packs `sa_zatca`, `in_gst`, `eu_peppol`, `uae_vat`. Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
 - **Apps page** (`/apps`) — module store grid grouped by category (Core / Operations / HR / Industry / Intelligence / **Localization**); install/uninstall with dependency resolution and a confirmation dialog before removal; admin/owner only
 - **Add-ons-first UX** — public signup starts with Base Accounting; industry/localization packs live on `/apps` (`?welcome=1`); demo tenants bypass onboarding and ship with model-default modules (+ localization demos where seeded)
 - `Tenant.module_meta` JSON column records `{tier, installed_at, expires_at}` per module — billing-ready schema without a future destructive migration
@@ -183,6 +183,19 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **HC Reports** — dashboard KPIs, OPD summary, doctor collections, lab summary, IPD census, revenue by type (accounts 4100–4121)
 - **Demo tenant** — `demo.hospital@easy-books.app` / `demo1234` — 5 doctors, 4 wards (38 beds), 50 patients, ~200 OPD tokens, 20 admissions, 80 lab orders, 25 procedure orders
 
+**Yarn Spinning module**
+- **Master data** — yarn specs (Ne/Nm count, blend %), fiber grades, machines (spindle count), shifts, operators, waste types (mapped to GL 5901–5904), blend recipes
+- **Production plans** — monthly targets by yarn spec; approve to lock
+- **Spin lots** — SL-YYYY-seq lifecycle: draft → started → completed → closed; accumulates material/labour/overhead/waste costs; cost-per-kg computed live
+- **Bale receipt** — BR-YYYY-seq; gross/tare → net kg; optional PO/gate-inward/bill link; approve posts `Dr 1200 RM / Cr AP or Cash` + stock into RAW location
+- **Multi-stage entries** — opening → carding → drawing → roving → spinning → winding; WIP transfers across `1201`/`1202`/`1203`; labour/overhead to `5100`/`5200`
+- **Cone output** — CO-YYYY-seq; approve transfers WIP → FG (`1204`) at lot cost
+- **Waste log** — posts to waste expense accounts (`5901`–`5904`) and relieves WIP
+- **Yarn dispatch** — YD-YYYY-seq; approve posts COGS (`Dr 5010 / Cr 1204`) + stock relief
+- **Reports & calculators** — dashboard KPIs, daily register, lot-control panel, waste summary, cost-per-kg, dispatch register; yield/blend/spindle calculators
+- **Full GL integration** — unlike Weaving (memo-only), every approve/post hits the central posting service
+- **Demo tenant** — `demo.spinning@easy-books.app` / `demo1234` — pre-loaded masters, open/completed lots, bale receipts, stage entries, cone output, waste, and dispatches
+
 **Multi-tenant SaaS**
 - RBAC: `owner | admin | accountant | viewer`; team management with invite links
 - Tenant isolation at the data layer — every query filters by `tenant_id`
@@ -195,6 +208,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Manufacturing (V2):** multi-location inventory, Bills of Material, Rate Plans, GRN, Production Order lifecycle (draft→started→completed→delivered→billed) with full GL postings
 - **Telecom Franchise (V3):** 56-account franchise CoA, Tracker wallet & load orders, MSR→RSO→Retail chain, SIM inventory, FCA targets, Mobile Money agency, Postpaid billing, Commission reconciliation, 9 telecom reports
 - **PRA e-Invoice (Pakistan):** real-time invoice submission to Punjab Revenue Authority (PRA eIMS); FIN (Fiscal Invoice Number) returned and printed on invoices; `pra_status` badge (pending/submitted/failed) with retry; Payment Mode field; customer NTN/CNIC fields; product PCT codes; Settings card with Test Connection; non-blocking `BackgroundTasks` submission so invoice save is never delayed
+- **Yarn Spinning:** cotton bale receipt → multi-stage lot tracking (carding/drawing/roving/spinning/winding) → cone output → yarn dispatch with full GL costing (`1200`–`1204` WIP chain, waste accounts `5901`–`5904`, COGS at dispatch)
 
 ---
 
@@ -221,7 +235,7 @@ Your data lives **outside** the app folder:
 | macOS / Linux | `~/.easy-books` (override: `EB_DATA_DIR`) |
 | Windows | `%USERPROFILE%\.easy-books` (override: `%EB_DATA_DIR%`) |
 
-On first install the 7 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
+On first install the 8 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
 
 Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a source update.
 
@@ -282,7 +296,7 @@ npm install
 npm run dev
 ```
 
-`dev.sh` auto-seeds seven demo tenants with rich mock data on each run (idempotent).
+`dev.sh` auto-seeds eight demo tenants with rich mock data on each run (idempotent).
 
 ---
 
@@ -290,7 +304,7 @@ npm run dev
 
 **Public path:** Login → **Try the live demo** signs into one Base Accounting company (`demo.simple@easy-books.app` / `demo1234`). Install industry packs from **System → Add-ons** (optional “Include sample data”). There is no pre-login multi-company picker.
 
-**QA / admin:** Standalone installs and `dev.sh` still seed seven fully-populated demo companies for regression testing. They are not advertised on the login page; use Settings → Sample / Demo Data or the emails below with password `demo1234`:
+**QA / admin:** Standalone installs and `dev.sh` still seed eight fully-populated demo companies for regression testing. They are not advertised on the login page; use Settings → Sample / Demo Data or the emails below with password `demo1234`:
 
 | Email | Pre-loaded pack (QA) |
 |---|---|
@@ -301,14 +315,15 @@ npm run dev
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 | `demo.pra@easy-books.app` | PRA e-Invoice |
 | `demo.hospital@easy-books.app` | Healthcare |
+| `demo.spinning@easy-books.app` | Yarn Spinning (full GL production chain) |
 
 The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 
-The **desktop (Electron) app** also auto-loads the 7 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
+The **desktop (Electron) app** also auto-loads the 8 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 
 The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time.
 
-Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across **two fiscal years** (so comparative reports have a prior period). The hospital tenant additionally contains 5 doctors, 4 wards, 50 patients, ~200 OPD visits, 20 IPD admissions, 80 lab orders, and 25 procedure orders. The manufacturing tenant additionally exercises the full Purchases & Store chain: 6 Purchase Demands across every status, 3 Comparative Statements (lowest-wins, non-lowest-with-justification, and one left pending approval), 4 Purchase Orders spanning partial/full/short-received and billed/unbilled states, Gate Inward entries including a cancelled-and-re-entered one, and Gate Outward exits covering invoice/debit-note memos plus a scrap entry approved with real GL postings — every Purchases and Store screen and report has real data to show on first login. Transactions carry their correct voucher types, the services tenant demonstrates **deferred-revenue origination with partial recognition**, and each tenant has **multiple users** (owner / accountant / clerk) so the Audit Log shows realistic attribution.
+Each demo tenant contains 100 invoices, 100 bills, 70 payments received, 70 bill payments, 25 customers, 25 vendors, 3 bank accounts, 6 recurring templates, and 60+ manual journal entries spread across **two fiscal years** (so comparative reports have a prior period). The hospital tenant additionally contains 5 doctors, 4 wards, 50 patients, ~200 OPD visits, 20 IPD admissions, 80 lab orders, and 25 procedure orders. The spinning tenant additionally contains yarn specs, fiber grades, machines, open and completed spin lots, bale receipts, multi-stage entries, cone output, waste logs, and yarn dispatches with real GL postings — every Spinning screen and report has data on first login. The manufacturing tenant additionally exercises the full Purchases & Store chain: 6 Purchase Demands across every status, 3 Comparative Statements (lowest-wins, non-lowest-with-justification, and one left pending approval), 4 Purchase Orders spanning partial/full/short-received and billed/unbilled states, Gate Inward entries including a cancelled-and-re-entered one, and Gate Outward exits covering invoice/debit-note memos plus a scrap entry approved with real GL postings — every Purchases and Store screen and report has real data to show on first login. Transactions carry their correct voucher types, the services tenant demonstrates **deferred-revenue origination with partial recognition**, and each tenant has **multiple users** (owner / accountant / clerk) so the Audit Log shows realistic attribution.
 
 In **developer mode**, `dev.sh` seeds these tenants automatically on every run. To seed manually:
 

@@ -16,9 +16,9 @@
 
 It combines:
 
-- Seven **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, orthogonal to the CoA — **14** modules incl. Localization packs)
+- Eight **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, orthogonal to the CoA — **15** modules incl. Localization packs)
 - **One GL writer** — [`backend/services/posting.py`](../backend/services/posting.py) — so every financial number on screen is derived live from the journal (no shadow-balance drift)
-- Vertical depth rarely bundled in one SME product: contract manufacturing custody, telecom franchise, PRA e-invoice (Pakistan), hospital OPD/IPD/Lab, purchase→gate→store chain, weaving unit control, and a multi-provider agentic AI assistant
+- Vertical depth rarely bundled in one SME product: contract manufacturing custody, telecom franchise, PRA e-invoice (Pakistan), hospital OPD/IPD/Lab, purchase→gate→store chain, weaving unit control, **yarn spinning with full GL costing**, and a multi-provider agentic AI assistant
 - **IFRS Track A (shipped):** consolidation (IFRS 10), intercompany recon, leases (IFRS 16), IFRS 15 SSP + contract assets, assets depth (IAS 16/36), dimensional analytics, inventory depth (IAS 2), month-end close + auditor pack, tax rate history
 - **Country packs (shipped):** Saudi ZATCA, India GST, Peppol / EU VAT, UAE VAT stub — plus withholding tax & CIT worksheet (#267)
 
@@ -133,7 +133,7 @@ flowchart TB
   Apps[/apps store] --> Registry
 ```
 
-**Business models (CoA seed):** `simple` · `services` · `trader` · `manufacturing` · `telecom_franchise` · `pra_einvoice` · `hospital`
+**Business models (CoA seed):** `simple` · `services` · `trader` · `manufacturing` · `telecom_franchise` · `pra_einvoice` · `hospital` · `yarn_spinning`
 
 **Modules (`MODULE_REGISTRY`):**
 
@@ -147,6 +147,8 @@ flowchart TB
 | `telecom` | Industry | Telecom franchise |
 | `pra` | Industry | PRA e-Invoice (Pakistan) |
 | `healthcare` | Industry | OPD / IPD / Lab / Procedures |
+| `weaving` | Industry | Weaving unit control (memo/ops) |
+| `spinning` | Industry | Yarn spinning mill (full GL) |
 | `ai_assistant` | Intelligence | FAB + `/agent` (no sidebar section) |
 
 `business_model` seeds the CoA once; `enabled_modules` controls UI and feature gates afterward — they are **orthogonal**.
@@ -198,6 +200,7 @@ Narrative detail: [`WORKFLOW.md`](../WORKFLOW.md) purchase/store sections; API m
 | **Manufacturing** | GRN (custodial intake) → Production Order stages → FG / value-add revenue; memo customer goods | WORKFLOW §4.7 |
 | **Telecom franchise** | Tracker / load float → RSO chain → commissions / royalty / FCA | WORKFLOW §4.8 |
 | **Healthcare** | OPD visit bill → IPD admission + charges → discharge invoice; Lab order → collect → result → deliver; pharmacy dispense | WORKFLOW §4.9 · BLUEPRINT §10C |
+| **Yarn Spinning** | Bale receipt → multi-stage lot (carding→drawing→spinning) → cone output → dispatch with full GL WIP chain | WORKFLOW §4.11 · BLUEPRINT §10D |
 | **PRA e-Invoice** | Invoice → PRA submit → Fiscal Invoice Number; portal mode | BLUEPRINT §10B |
 
 ---
@@ -317,7 +320,7 @@ Parity audit methodology and historical gap IDs: [`claude-improvement.md`](../cl
 | 9 | **Security & deploy** | Diagrams 3.3 + 3.4 | RBAC + sparse overrides; script / Docker / Electron / cloud |
 | 10 | **Competitive Best / Better** | Tables 7.1–7.2 | Moat: verticals + GL rigor + AI + deploy flexibility |
 | 11 | **Parity & gaps** | Tables 7.3–7.4 | Honest: bank feeds, FX UX, MRP depth, ecosystem |
-| 12 | **Close / ask** | Positioning one-liner | Demo path: seven demo tenants (`demo1234`); docs index |
+| 12 | **Close / ask** | Positioning one-liner | Demo path: eight demo tenants (`demo1234`); docs index |
 
 ---
 

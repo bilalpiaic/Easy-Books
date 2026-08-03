@@ -9,13 +9,13 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard,
+  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
 
 // Business models — used to tailor which guide sections each tenant sees.
-type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise"
+type BusinessModel = "simple" | "services" | "trader" | "manufacturing" | "telecom_franchise" | "yarn_spinning"
 
 interface Tab {
   id: string
@@ -27,7 +27,7 @@ interface Tab {
 }
 
 // Inventory-tracking models (stock, procurement, COGS apply)
-const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise"]
+const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_franchise", "yarn_spinning"]
 
 const TABS: Tab[] = [
   { id: "getting-started",  label: "Getting Started",        icon: LogIn,           shortLabel: "Start"    },
@@ -58,6 +58,7 @@ const TABS: Tab[] = [
   { id: "csv",              label: "CSV Import",             icon: Upload,          shortLabel: "CSV"      },
   { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg",      forModels: ["manufacturing"] },
   { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom",  forModels: ["telecom_franchise"] },
+  { id: "spinning",         label: "Yarn Spinning",           icon: CircleDot,      shortLabel: "Spinning", forModels: ["yarn_spinning"] },
   { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
   { id: "tips-shortcuts",   label: "Tips & Shortcuts",        icon: Keyboard,       shortLabel: "Tips"     },
 ]
@@ -148,6 +149,7 @@ function GettingStartedPanel() {
               ["trader",        "Buy-and-resell goods",          "Finished Goods, COGS, Freight In, Storage, Inventory Adj."],
               ["manufacturing", "Value-addition on customer goods", "Raw Material / WIP / FG, memo pair 1210/2150, Direct Labour, Overhead, Service Revenue (Value-Add)"],
               ["telecom_franchise", "Mobile-operator franchise", "56-account franchise CoA: Tracker Deposit 1210, Load Float 1211, RSO/Retail receivables, MM float, SIM/device inventory, commission & FCA revenue, royalty & fee amortisation"],
+              ["yarn_spinning",     "Cotton/yarn spinning mill", "Raw Cotton 1200, WIP stages 1201–1203, Finished Yarn 1204, waste 5901–5904, Direct Labour 5100, Overhead 5200, COGS 5010"],
             ].map(([model, use, extras]) => (
               <tr key={model} className="hover:bg-[#faf8f4]">
                 <td className="px-4 py-2.5 font-mono font-semibold text-[var(--primary)]">{model}</td>
@@ -1389,6 +1391,82 @@ total      = subtotal + margin            (excl. GST)`}
   )
 }
 
+function SpinningPanel() {
+  const { t } = useTranslation()
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        The yarn-spinning track is enabled when you pick <CodeBadge>yarn_spinning</CodeBadge> as
+        your business model at signup (or install the <CodeBadge>spinning</CodeBadge> module from
+        System → Add-ons). It tracks cotton bale intake through multi-stage mill production to
+        finished yarn dispatch — with <b>full double-entry GL</b> on every approve/post.
+      </p>
+
+      <SectionHeading>The production cycle</SectionHeading>
+      <StepList steps={[
+        "Setup — yarn specs (Ne/Nm, blend %), fiber grades, machines, shifts, operators, waste types (GL 5901–5904), blend recipes.",
+        "Production Plan — monthly targets by yarn spec (PP-YYYY-seq); approve to lock.",
+        "Spin Lot — cost container (SL-YYYY-seq): draft → start → complete → close; live cost-per-kg.",
+        "Bale Receipt — gross/tare → net kg; approve posts Dr 1200 / Cr AP or Cash + stock into RAW.",
+        "Stage Entries — opening → carding → drawing → roving → spinning → winding; WIP transfers across 1201/1202/1203.",
+        "Cone Output — approve transfers WIP → FG (Dr 1204 / Cr 1203) + stock into FG-YARN.",
+        "Waste Log — posts to 5901–5904 and relieves WIP.",
+        "Yarn Dispatch — approve posts COGS (Dr 5010 / Cr 1204) + stock relief.",
+      ]} />
+
+      <SectionHeading>Journal entries by stage</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
+              <th className="px-4 py-2.5 text-left">Stage</th>
+              <th className="px-4 py-2.5 text-left">{t('col.debit', 'Debit')}</th>
+              <th className="px-4 py-2.5 text-left">{t('col.credit', 'Credit')}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--border)]">
+            {[
+              ["Bale receipt (approve)", "1200 Raw Cotton", "2100 AP or 1000 Cash"],
+              ["Stage — RM to WIP",      "1201 WIP Carding", "1200 Raw Cotton"],
+              ["Stage — WIP transfer", "1202/1203 next WIP", "1201/1202 prior WIP"],
+              ["Stage — labour",         "120x WIP", "5100 Direct Labour"],
+              ["Stage — overhead",       "120x WIP", "5200 Mfg Overhead"],
+              ["Waste log",              "5901–5904 Waste", "120x WIP"],
+              ["Cone output (approve)",  "1204 Finished Yarn", "1203 WIP"],
+              ["Dispatch (approve)",     "5010 COGS", "1204 Finished Yarn"],
+            ].map(([stage, dr, cr]) => (
+              <tr key={stage} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{stage}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70">{dr}</td>
+                <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-primary)]/70">{cr}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Spinning reports & calculators</SectionHeading>
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1.5 mt-2 list-disc pl-5">
+        <li><b>Dashboard</b> — open lots, kg in WIP, cones today, waste %.</li>
+        <li><b>Daily Register</b> — stage entries and output by date.</li>
+        <li><b>Lot Control</b> — per-lot input/output balance and cost breakdown.</li>
+        <li><b>Calculators</b> — yield, blend mix, spindle production rate.</li>
+      </ul>
+
+      <TipCallout>
+        <b>Demo tenant:</b> log in as <CodeBadge>demo.spinning@easy-books.app</CodeBadge> /{" "}
+        <CodeBadge>demo1234</CodeBadge> — every Spinning screen and report is pre-populated.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Approving a bale receipt without linking it to a spin lot — costs won&apos;t roll up into lot cost-per-kg until the receipt carries a <CodeBadge>spin_lot_id</CodeBadge>.</p>
+        <p>Posting stage entries out of sequence — WIP transfers assume the prior stage account has balance; follow opening → carding → drawing → roving → spinning → winding.</p>
+        <p>Confusing Spinning with Weaving — Weaving is memo/ops-only with no GL; Spinning posts every approve to the central GL via <CodeBadge>services/spinning_posting.py</CodeBadge>.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
 function TelecomFranchisePanel() {
   const { t } = useTranslation()
   return (
@@ -1950,6 +2028,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "csv":             <CsvImportPanel />,
   "manufacturing":   <ManufacturingPanel />,
   "telecom":         <TelecomFranchisePanel />,
+  "spinning":        <SpinningPanel />,
   "bulk-statements": <BulkStatementsPanel />,
   "tips-shortcuts":  <TipsShortcutsPanel />,
 }

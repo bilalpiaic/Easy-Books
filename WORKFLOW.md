@@ -24,6 +24,7 @@
    - 6.8 [Telecom Franchise (V3)](#48-telecom-franchise-v3)
    - 6.9 [Healthcare / Hospital (V3.0)](#49-healthcare--hospital-v30)
    - 6.10 [Weaving Unit Control (#140)](#410-weaving-unit-control-140)
+   - 6.11 [Yarn Spinning Unit (#319)](#411-yarn-spinning-unit-319)
 7. [Cross-Cutting Features](#5-cross-cutting-features)
    - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 7.2 [Tax Codes](#52-tax-codes)
@@ -55,7 +56,7 @@
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
-| Demo tenants | 7 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital (email: demo.{model}@easy-books.app, password: demo1234) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates; hospital tenant additionally has 5 doctors, 4 wards, 50 patients, 200 OPD tokens, 20 admissions, 80 lab orders |
+| Demo tenants | 8 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital/yarn_spinning (email: `demo.{model}@easy-books.app` — spinning uses `demo.spinning@easy-books.app`; password: `demo1234`) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates; hospital tenant additionally has 5 doctors, 4 wards, 50 patients, 200 OPD tokens, 20 admissions, 80 lab orders; spinning tenant additionally has yarn specs, spin lots, bale receipts, stage entries, cone output, waste, and dispatches |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+); **Ctrl+K universal search** — 3-tier command palette (open tabs → nav index → API, 8 entity types, prefix filter syntax, recent searches) (v3.0+); **in-app auto-update** — `UpdateAvailablePopup` + `UpdateProgressScreen` with 4-phase progress and changelog (v3.0+); **mobile navigation** — `BottomNav`, `FAB`, `MoreDrawer` (v3.0+); **QB token system** — all 155+ pages migrated to CSS custom properties, dark mode entirely token-driven (v3.0+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
@@ -434,11 +435,11 @@ Easy-Books implements the following international accounting standards and best 
 
 ### Demo Tenant Initialization
 
-**Both standalone script installs** (`install-and-run.*`) **and the desktop (Electron) app auto-load the 7 demo companies on first install** (`SEED_DEMO=true` default). Both run `scripts.autoseed_demo` after `alembic upgrade head`; the guard skips if any user already exists, so **updating an existing install is migrate-only — no demo data is added**. Set `SEED_DEMO=false` for a clean install with no demo data. Log in immediately with `demo1234` — no signup required.
+**Both standalone script installs** (`install-and-run.*`) **and the desktop (Electron) app auto-load the 8 demo companies on first install** (`SEED_DEMO=true` default). Both run `scripts.autoseed_demo` after `alembic upgrade head`; the guard skips if any user already exists, so **updating an existing install is migrate-only — no demo data is added**. Set `SEED_DEMO=false` for a clean install with no demo data. Log in immediately with `demo1234` — no signup required.
 
 **Settings → Sample / Demo Data** lets you **Load** or **Remove** the demo companies at any time on any install type. (Admin/owner only.)
 
-**Dev / cloud installs** (`dev.sh` / hosted): Easy-Books auto-creates 7 pre-seeded demo tenants (one per business model) on first database run. `dev.sh` also seeds each with 50+ records per entity type:
+**Dev / cloud installs** (`dev.sh` / hosted): Easy-Books auto-creates 8 pre-seeded demo tenants (one per business model) on first database run. `dev.sh` also seeds each with 50+ records per entity type:
 
 | Tenant | Email | Model | Use Case |
 |---|---|---|---|
@@ -449,6 +450,7 @@ Easy-Books implements the following international accounting standards and best 
 | Demo Telecom Co. | `demo.telecom@easy-books.app` | Telecom Franchise | Operator franchise — Tracker, RSO chain, FCA targets |
 | Demo PRA Co. | `demo.pra@easy-books.app` | PRA e-Invoice | Pakistani retail — PRA eIMS, PKR, NTN/CNIC, PCT codes |
 | City General Hospital | `demo.hospital@easy-books.app` | Healthcare / Hospital | OPD/IPD, Lab, Procedures, Pharmacy store |
+| Demo Yarn Spinning Mill | `demo.spinning@easy-books.app` | Yarn Spinning | Bale receipt → multi-stage lots → cone output → dispatch (full GL) |
 
 **Password (all):** `demo1234`
 
@@ -1083,6 +1085,36 @@ Master Data → Contracts (+ Rate/Costing) → Yarn Inward → Sizing → Produc
 `Lbs = Kg × 2.2046226218`, `Bags = Lbs ÷ 100`, `Rate/Lb = Rate/Kg ÷ 2.2046226218`.
 
 **Reports (`/api/weaving/reports/`):** `dashboard` (KPIs + monthly trend), `daily`, `contract-control?contract_id=`, `customer-kpi`.
+
+### 4.11 YARN SPINNING UNIT (#319)
+
+Installable Industry module (`spinning`, deps `base`+`inventory`+`purchase_store`). **Full GL integration from day 1** via `services/spinning_posting.py`.
+
+```
+Setup → Production Plan → Spin Lot → Bale Receipt → Stage Entries → Cone Output
+                                              ↘ Waste Log ↗
+                                        Yarn Dispatch (COGS)
+```
+
+| Screen | Notes |
+|---|---|
+| Setup | Yarn specs (Ne/Nm, blend %), fiber grades, machines, shifts, operators, waste types (GL 5901–5904), blend recipes |
+| Plans | PP-YYYY-seq; monthly targets by yarn spec; approve to lock |
+| Spin Lots | SL-YYYY-seq; draft→started→completed→closed; live cost-per-kg from material + labour + overhead + waste |
+| Bale Receipt | BR-YYYY-seq; gross/tare→net kg; optional PO/gate-inward/bill link; approve posts `Dr 1200 / Cr AP or Cash` + stock into RAW |
+| Stage Entries | opening→carding→drawing→roving→spinning→winding; WIP transfers across 1201/1202/1203; labour→5100, overhead→5200 |
+| Cone Output | CO-YYYY-seq; approve transfers WIP→FG (1204) at lot cost |
+| Waste Log | posts to 5901–5904 and relieves WIP |
+| Dispatch | YD-YYYY-seq; approve posts COGS (`Dr 5010 / Cr 1204`) + stock relief |
+
+**Shared conversion** (`services/spinning_calc.py` + frontend `lib/spinningUnits.ts`):
+`Lbs = Kg × 2.2046226218`, `Bags = Lbs ÷ 100`, `Ne ↔ Nm` conversion for yarn count.
+
+**Stock locations** (auto-created): `RAW`, `WIP-CARD`, `WIP-DRAW`, `WIP-SPIN`, `FG-YARN`.
+
+**Reports (`/api/spinning/reports/`):** `dashboard`, `daily`, `lot-control/{lot_id}`, `waste`, `cost-per-kg`, `dispatch`.
+
+**Calculators (`/api/spinning/calculators/`):** `yield`, `blend`, `spindle`.
 
 ---
 
