@@ -49,15 +49,31 @@ def list_customers(
     sort_by: str = "name", sort_dir: str = "asc",
 ):
     from sqlmodel import asc as _asc, desc as _desc
+    from routers.subledger import ar_closing_balances
+    from services.money import ZERO, money
+
     _sortable = {"name": Customer.name, "email": Customer.email, "opening_balance": Customer.opening_balance}
     col = _sortable.get(sort_by, Customer.name)
     q = select(Customer).where(Customer.tenant_id == user.tenant_id)
     if search:
         q = q.where(Customer.name.ilike(f"%{search}%"))
     q = q.order_by(_asc(col) if sort_dir == "asc" else _desc(col))
-    total = session.exec(select(func.count()).select_from(q.subquery())).one()
-    items = session.exec(q.offset(skip).limit(limit)).all()
-    return {"total": total, "items": items}
+    all_matching = session.exec(q).all()
+    total = len(all_matching)
+    all_closing = ar_closing_balances(session, user.tenant_id, all_matching)
+    closing_balance_total = money(sum(all_closing.values(), start=ZERO))
+
+    items = all_matching[skip : skip + limit]
+    page_out = []
+    for c in items:
+        row = c.model_dump()
+        row["closing_balance"] = float(all_closing.get(c.id, money(c.opening_balance)))
+        page_out.append(row)
+    return {
+        "total": total,
+        "closing_balance_total": float(closing_balance_total),
+        "items": page_out,
+    }
 
 
 @router.get("/{customer_id}")

@@ -49,15 +49,31 @@ def list_vendors(
     sort_by: str = "name", sort_dir: str = "asc",
 ):
     from sqlmodel import asc as _asc, desc as _desc
+    from routers.subledger import ap_closing_balances
+    from services.money import ZERO, money
+
     _sortable = {"name": Vendor.name, "email": Vendor.email, "opening_balance": Vendor.opening_balance}
     col = _sortable.get(sort_by, Vendor.name)
     q = select(Vendor).where(Vendor.tenant_id == user.tenant_id)
     if search:
         q = q.where(Vendor.name.ilike(f"%{search}%"))
     q = q.order_by(_asc(col) if sort_dir == "asc" else _desc(col))
-    total = session.exec(select(func.count()).select_from(q.subquery())).one()
-    items = session.exec(q.offset(skip).limit(limit)).all()
-    return {"total": total, "items": items}
+    all_matching = session.exec(q).all()
+    total = len(all_matching)
+    all_closing = ap_closing_balances(session, user.tenant_id, all_matching)
+    closing_balance_total = money(sum(all_closing.values(), start=ZERO))
+
+    items = all_matching[skip : skip + limit]
+    page_out = []
+    for v in items:
+        row = v.model_dump()
+        row["closing_balance"] = float(all_closing.get(v.id, money(v.opening_balance)))
+        page_out.append(row)
+    return {
+        "total": total,
+        "closing_balance_total": float(closing_balance_total),
+        "items": page_out,
+    }
 
 
 @router.get("/{vendor_id}")

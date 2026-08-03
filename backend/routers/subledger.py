@@ -153,6 +153,90 @@ def ap_party_movement(session, tenant_id: int, vendor, start: Optional[str], end
     }
 
 
+def ar_closing_balances(session, tenant_id: int, customers: list) -> dict[int, Decimal]:
+    """All-time AR closing balance per customer (setup opening + invoices − payments).
+
+    Matches the statement/sub-ledger convention in document currency (no FX
+    revaluation here — same as customer statement closing as-of today).
+    """
+    from sqlmodel import func
+
+    out: dict[int, Decimal] = {c.id: D(c.opening_balance) for c in customers if c.id is not None}
+    if not out:
+        return out
+    ids = list(out.keys())
+
+    for cid, tot in session.exec(
+        select(Invoice.customer_id, func.coalesce(func.sum(Invoice.total), 0))
+        .where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.customer_id.in_(ids),
+            Invoice.status.not_in(["void", "cancelled"]),
+            Invoice.transaction_id.is_not(None),
+        )
+        .group_by(Invoice.customer_id)
+    ).all():
+        if cid in out:
+            out[cid] += D(tot)
+
+    for cid, paid in session.exec(
+        select(Invoice.customer_id, func.coalesce(func.sum(PaymentAllocation.amount), 0))
+        .join(PaymentAllocation, PaymentAllocation.invoice_id == Invoice.id)
+        .where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.customer_id.in_(ids),
+            Invoice.status.not_in(["void", "cancelled"]),
+            Invoice.transaction_id.is_not(None),
+            PaymentAllocation.tenant_id == tenant_id,
+        )
+        .group_by(Invoice.customer_id)
+    ).all():
+        if cid in out:
+            out[cid] -= D(paid)
+
+    return {cid: money(bal) for cid, bal in out.items()}
+
+
+def ap_closing_balances(session, tenant_id: int, vendors: list) -> dict[int, Decimal]:
+    """All-time AP closing balance per vendor (setup opening + bills − payments)."""
+    from sqlmodel import func
+
+    out: dict[int, Decimal] = {v.id: D(v.opening_balance) for v in vendors if v.id is not None}
+    if not out:
+        return out
+    ids = list(out.keys())
+
+    for vid, tot in session.exec(
+        select(Bill.vendor_id, func.coalesce(func.sum(Bill.total), 0))
+        .where(
+            Bill.tenant_id == tenant_id,
+            Bill.vendor_id.in_(ids),
+            Bill.status.not_in(["void", "cancelled"]),
+            Bill.transaction_id.is_not(None),
+        )
+        .group_by(Bill.vendor_id)
+    ).all():
+        if vid in out:
+            out[vid] += D(tot)
+
+    for vid, paid in session.exec(
+        select(Bill.vendor_id, func.coalesce(func.sum(PaymentAllocation.amount), 0))
+        .join(PaymentAllocation, PaymentAllocation.bill_id == Bill.id)
+        .where(
+            Bill.tenant_id == tenant_id,
+            Bill.vendor_id.in_(ids),
+            Bill.status.not_in(["void", "cancelled"]),
+            Bill.transaction_id.is_not(None),
+            PaymentAllocation.tenant_id == tenant_id,
+        )
+        .group_by(Bill.vendor_id)
+    ).all():
+        if vid in out:
+            out[vid] -= D(paid)
+
+    return {vid: money(bal) for vid, bal in out.items()}
+
+
 def _payment_applied_to_invoices(
     session, tenant_id: int, p: "PaymentReceived", invoice_ids: set
 ) -> Decimal:

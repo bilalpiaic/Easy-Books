@@ -25,6 +25,7 @@ interface Vendor {
   phone: string | null
   address: string | null
   opening_balance: number
+  closing_balance: number
   is_active: boolean
 }
 
@@ -40,6 +41,7 @@ export default function Vendors() {
   const router = useRouter()
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [total, setTotal] = useState(0)
+  const [closingTotal, setClosingTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -65,8 +67,12 @@ export default function Vendors() {
     setIsLoading(true)
     const params = new URLSearchParams({ skip: String((page - 1) * PAGE_SIZE), limit: String(PAGE_SIZE) })
     if (search) params.set('search', search)
-    apiFetch<{ total: number; items: Vendor[] }>(`/api/vendors?${params}`)
-      .then(d => { setVendors(d.items); setTotal(d.total) })
+    apiFetch<{ total: number; closing_balance_total?: number; items: Vendor[] }>(`/api/vendors?${params}`)
+      .then(d => {
+        setVendors(d.items)
+        setTotal(d.total)
+        setClosingTotal(d.closing_balance_total ?? d.items.reduce((s, v) => s + (v.closing_balance ?? v.opening_balance), 0))
+      })
       .catch(() => {})
       .finally(() => setIsLoading(false))
   }
@@ -99,6 +105,8 @@ export default function Vendors() {
     }
   }
 
+  const bal = (v: Vendor) => v.closing_balance ?? v.opening_balance
+
   return (
     <div className="space-y-6">
       <PrintHeader title="Vendors" />
@@ -110,7 +118,7 @@ export default function Vendors() {
         <div className="flex items-center gap-3 flex-wrap">
           <CsvImportButton entity="vendors" onSuccess={load} />
           <button
-            onClick={() => downloadCSV('vendors.csv', vendors.map(v => ({ Name: v.name, Email: v.email, Phone: v.phone, Address: v.address, Balance: v.opening_balance })))}
+            onClick={() => downloadCSV('vendors.csv', vendors.map(v => ({ Name: v.name, Email: v.email, Phone: v.phone, Address: v.address, Balance: bal(v) })))}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Download className="w-4 h-4" />
@@ -135,8 +143,8 @@ export default function Vendors() {
           <p className="text-2xl font-bold text-[var(--primary)] mt-2">{total}</p>
         </div>
         <div className="bg-white rounded-lg border border-[var(--border)] p-6">
-          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Opening Balance Total</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{fmt(vendors.reduce((s, v) => s + v.opening_balance, 0))}</p>
+          <p className="text-xs text-[var(--text-muted)] uppercase tracking-widest font-bold">Closing Balance Total</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{fmt(closingTotal)}</p>
         </div>
       </div>
 
@@ -166,7 +174,7 @@ export default function Vendors() {
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Name</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Email</th>
               <th className="ui-th text-left text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Phone</th>
-              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Opening Bal.</th>
+              <th className="ui-th text-right text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Closing Bal.</th>
               <th className="ui-th text-center text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{t('col.status', 'Status')}</th>
               <th className="ui-th"></th>
             </tr>
@@ -204,7 +212,7 @@ export default function Vendors() {
                 </td>
                 <td className="ui-td text-[var(--text-muted)]">{v.email ?? '—'}</td>
                 <td className="ui-td text-[var(--text-muted)]">{v.phone ?? '—'}</td>
-                <td className="ui-td text-right font-mono">{fmt(v.opening_balance)}</td>
+                <td className="ui-td text-right font-mono">{fmt(bal(v))}</td>
                 <td className="ui-td text-center">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${v.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                     {v.is_active ? 'active' : 'inactive'}
@@ -238,8 +246,8 @@ export default function Vendors() {
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{v.email || v.phone || "—"}</p>
               </div>
               <div className="text-right ml-3 shrink-0">
-                <p className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(v.opening_balance)}</p>
-                <p className="text-xs text-[var(--text-muted)]">balance</p>
+                <p className="text-sm font-bold font-mono text-[var(--text-primary)]">{fmt(bal(v))}</p>
+                <p className="text-xs text-[var(--text-muted)]">closing</p>
               </div>
             </Link>
           ))}

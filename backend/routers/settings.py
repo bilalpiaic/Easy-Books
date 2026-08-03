@@ -82,7 +82,7 @@ class SettingsUpdate(BaseModel):
     require_gate_inward: Optional[str] = None
     # UI density preference ("comfortable" or "compact")
     ui_density: Optional[str] = None
-    # Amount display precision ("2" or "4")
+    # Amount display precision ("0" | "2" | "4")
     decimal_places: Optional[str] = None
     user_rights_enabled: Optional[str] = None  # "true" | "false"
     # Approvals SoD (#269) — default on when unset; creator cannot approve own submit
@@ -192,8 +192,8 @@ def update_settings(session: SessionDep, user: WriteUserDep, body: SettingsUpdat
 
     if "decimal_places" in updates:
         dp = updates["decimal_places"]
-        if dp not in ("2", "4"):
-            raise HTTPException(400, "decimal_places must be '2' or '4'")
+        if dp not in ("0", "2", "4"):
+            raise HTTPException(400, "decimal_places must be '0', '2', or '4'")
 
     if "user_rights_enabled" in updates:
         if updates["user_rights_enabled"] not in ("true", "false"):

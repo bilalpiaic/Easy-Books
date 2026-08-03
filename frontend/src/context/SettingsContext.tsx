@@ -270,7 +270,7 @@ export function useCurrency(): string {
   return settings.currency || "PKR"
 }
 
-/** Returns the tenant's configured decimal places as a number (2 or 4). */
+/** Returns the tenant's configured decimal places as a number (0, 2, or 4). */
 export function useDp(): number {
   const { settings } = useSettings()
   return parseInt(settings.decimal_places || "2")
