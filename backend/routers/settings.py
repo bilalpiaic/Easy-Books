@@ -112,6 +112,10 @@ class SettingsUpdate(BaseModel):
     zatca_device_id: Optional[str] = None
     zatca_csid_token: Optional[str] = None   # write-only secret
     zatca_sandbox_mode: Optional[str] = None  # "true" default
+    # India GST (#265)
+    in_gst_enabled: Optional[str] = None
+    in_gstin: Optional[str] = None
+    in_state_code: Optional[str] = None  # 2-digit seller state code
     # Marketplace (#227) — optional curated remote catalog URL (https only)
     marketplace_catalog_url: Optional[str] = None
     # AI assistant (#117) — key values are write-only; GET redacts them

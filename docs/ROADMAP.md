@@ -26,7 +26,7 @@ IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 |-------|-------|--------|
 | **#263** | Core multi-jurisdiction tax engine | Shipped |
 | **#264** | Country pack: Saudi ZATCA e-invoice | Shipped |
-| **#265** | Country pack: India GST | In progress (`feat/india-gst-265`) |
+| **#265** | Country pack: India GST | Shipping (`feat/india-gst-265`) |
 | **#266** | Country pack: Peppol / EU VAT e-invoice | Open |
 | **#267** | Withholding tax + corporate tax summary reports | Open |
 

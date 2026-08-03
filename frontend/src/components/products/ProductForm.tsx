@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
+import { useModules } from '@/context/ModuleContext'
 
 export interface ProductFull {
   id: number
@@ -20,6 +21,7 @@ export interface ProductFull {
   recognition_months: number
   hs_code: string | null
   pct_code: string | null
+  hsn_sac: string | null
   cost_method: string | null
   standalone_selling_price: number | null
 }
@@ -44,6 +46,7 @@ interface FormState {
   opening_cost: string
   hs_code: string
   pct_code: string    // PRA 8-digit product classification
+  hsn_sac: string
   cost_method: string  // '' = inherit from tenant, 'wavg', 'fifo'
   standalone_selling_price: string
 }
@@ -57,7 +60,7 @@ const emptyForm: FormState = {
   category_id: '',
   is_deferred: false, recognition_months: '12',
   opening_qty: '0', opening_cost: '0',
-  hs_code: '', pct_code: '',
+  hs_code: '', pct_code: '', hsn_sac: '',
   cost_method: '',
   standalone_selling_price: '',
 }
@@ -70,6 +73,8 @@ interface Props {
 }
 
 export default function ProductForm({ mode, product, onSaved, onCancel }: Props) {
+  const { installedModules } = useModules()
+  const showGst = installedModules.has('in_gst')
   const [form, setForm] = useState<FormState>(emptyForm)
   const [formParentCat, setFormParentCat] = useState('')
   const [saving, setSaving] = useState(false)
@@ -126,6 +131,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       opening_cost: '0',
       hs_code: product.hs_code ?? '',
       pct_code: product.pct_code ?? '',
+      hsn_sac: product.hsn_sac ?? '',
       cost_method: product.cost_method ?? '',
       standalone_selling_price: product.standalone_selling_price != null
         ? String(product.standalone_selling_price) : '',
@@ -151,6 +157,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         recognition_months: parseInt(form.recognition_months) || 12,
         hs_code: form.hs_code.trim() || null,
         pct_code: form.pct_code.trim() || null,
+        hsn_sac: form.hsn_sac.trim() || null,
         cost_method: form.cost_method || null,
         standalone_selling_price: form.standalone_selling_price.trim()
           ? parseFloat(form.standalone_selling_price) : null,
@@ -202,6 +209,14 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
               placeholder="8-digit PRA code"
               className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)]" />
           </div>
+          {showGst && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">HSN / SAC <span className="normal-case font-normal">(India GST)</span></label>
+              <input value={form.hsn_sac} onChange={e => setForm(p => ({ ...p, hsn_sac: e.target.value }))}
+                placeholder="e.g. 998314"
+                className="w-full ui-field bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] font-mono" />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/60 mb-1">Unit</label>
             <select value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}

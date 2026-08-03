@@ -93,6 +93,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/leases":                 ["leases", "ifrs 16", "right of use", "rou", "lease liability", "maturity"],
   "/cashflow":               ["cash flow", "funds flow"],
   "/tax":                    ["gst", "vat", "tax summary", "sales tax"],
+  "/india-gst/gstr":         ["gstr", "india gst", "cgst", "sgst", "igst", "gstr-1"],
   "/tax-codes":              ["tax code", "tax rate"],
   "/budgets":                ["budget vs actual", "variance"],
   "/assets":                 ["fixed assets", "depreciation", "capex", "asset register"],
@@ -530,6 +531,11 @@ const REPORTS: NavResult[] = [
     id: "rpt:tax", type: "report", label: "Tax Reports",
     sub: "GST / VAT summary", href: "/tax",
     keywords: ["tax", "gst", "vat", "tax report", "tax summary", "sales tax", "output"],
+  },
+  {
+    id: "rpt:gstr", type: "report", label: "GSTR Report",
+    sub: "India GST GSTR-1 B2B summary", href: "/india-gst/gstr",
+    keywords: ["gstr", "india gst", "cgst", "sgst", "igst", "gstr-1", "place of supply"],
   },
   {
     id: "rpt:aging-ar", type: "report", label: "AR Aging Report",

@@ -214,6 +214,10 @@ def install_module(
         from services.module_sample_data import enable_zatca_settings
         enable_zatca_settings(session, current_user.tenant_id)
 
+    if "in_gst" in to_install:
+        from services.module_sample_data import enable_india_gst_settings
+        enable_india_gst_settings(session, current_user.tenant_id)
+
     if seed_sample:
         from services.module_sample_data import seed_module_sample
         for mid in to_install:

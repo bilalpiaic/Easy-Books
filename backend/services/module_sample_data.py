@@ -86,6 +86,14 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
                 _set_setting(session, tid, "zatca_cr_number", "1010000000")
             if not _get_setting_value(session, tid, "zatca_device_id"):
                 _set_setting(session, tid, "zatca_device_id", "EGS1-8888")
+        elif module_id == "in_gst":
+            from services.india_gst import ensure_india_gst_tax_and_coa
+            ensure_india_gst_tax_and_coa(session, tid)
+            _set_setting(session, tid, "in_gst_enabled", "true")
+            if not _get_setting_value(session, tid, "in_state_code"):
+                _set_setting(session, tid, "in_state_code", "27")
+            if not _get_setting_value(session, tid, "in_gstin"):
+                _set_setting(session, tid, "in_gstin", "27AAAAA0000A1Z5")
         elif module_id == "weaving":
             customers, vendors = _ensure_party(session, tid)
             sd._seed_weaving(session, user, customers, vendors)
@@ -139,3 +147,10 @@ def enable_zatca_settings(session: Session, tenant_id: int) -> None:
     _set_setting(session, tenant_id, "zatca_enabled", "true")
     _set_setting(session, tenant_id, "zatca_sandbox_mode", "true")
     session.commit()
+
+
+def enable_india_gst_settings(session: Session, tenant_id: int) -> None:
+    """Turn on India GST + seed CGST/SGST/IGST tax codes on install."""
+    from services.india_gst import enable_india_gst_settings as _enable
+
+    _enable(session, tenant_id)

@@ -532,6 +532,9 @@ class Customer(SQLModel, table=True):
     ntn: Optional[str] = None   # 7-digit NTN e.g. "1234567-8" (maps to BuyerPNTN)
     cnic: Optional[str] = None  # 13-digit CNIC (maps to BuyerCNIC)
     dunning_opt_out: bool = Field(default=False)  # #120 — skip automated reminders
+    # India GST (#265)
+    gstin: Optional[str] = None       # 15-char GSTIN
+    state_code: Optional[str] = None  # 2-digit place-of-supply state code
 
 
 class Vendor(SQLModel, table=True):
@@ -544,6 +547,9 @@ class Vendor(SQLModel, table=True):
     opening_balance: Money = money_col()
     is_active: bool = Field(default=True)
     payment_term_id: Optional[int] = Field(default=None, foreign_key="paymentterm.id")
+    # India GST (#265)
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
 
 
 class Invoice(SQLModel, table=True):
@@ -751,6 +757,7 @@ class Product(SQLModel, table=True):
     recognition_months: int = Field(default=12)
     hs_code: Optional[str] = Field(default=None)  # Harmonized System code for FBR / customs
     pct_code: Optional[str] = Field(default=None)  # 8-digit PRA product classification (PCTCode)
+    hsn_sac: Optional[str] = Field(default=None)  # India GST HSN/SAC (#265)
     # IAS 2.25: per-product cost-flow override. None → inherit from Tenant.cost_method.
     cost_method: Optional[str] = Field(default=None)  # 'wavg' | 'fifo' | None
     # IAS 2 tracking (#257)
