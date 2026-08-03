@@ -113,7 +113,8 @@ export const NAV: NavItem[] = [
   { label: "Tax Reports",      href: "/tax",               icon: Percent,          section: "Reports" },
   { label: "Withholding Tax",  href: "/reports/wht",       icon: Percent,          section: "Reports" },
   { label: "CIT Worksheet",    href: "/reports/cit-worksheet", icon: FileSpreadsheet, section: "Reports" },
-  { label: "GSTR Report",      href: "/india-gst/gstr",    icon: FileSpreadsheet,  section: "Reports",  forModule: "in_gst" },
+  { label: "GSTR Report",      href: "/india-gst/gstr",    icon: FileSpreadsheet,  section: "India GST", forModule: "in_gst" },
+  { label: "India GST Home",   href: "/india-gst",         icon: LayoutDashboard,  section: "India GST", forModule: "in_gst" },
   { label: "Tax Return",       href: "/tax-return",        icon: Percent,          section: "Reports" },
   { label: "Tax Codes",        href: "/tax-codes",         icon: Percent,          section: "Reports" },
   { label: "Budget vs Actual", href: "/budgets",           icon: TrendingUp,       section: "Reports" },
@@ -139,10 +140,14 @@ export const NAV: NavItem[] = [
   { label: "AI Assistant",     href: "/agent",             icon: Sparkles,         section: "System",    forModule: "ai_assistant" },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
   { label: "Add-ons",          href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
-  { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "System",    forModule: "pra" },
-  { label: "UAE e-Invoice Logs", href: "/uae-logs",        icon: Landmark,         section: "System",    forModule: "uae_vat" },
-  { label: "ZATCA Logs",         href: "/zatca/logs",      icon: Landmark,         section: "System",    forModule: "sa_zatca" },
-  { label: "Peppol Logs",        href: "/peppol/logs",     icon: Globe,            section: "System",    forModule: "eu_peppol" },
+  { label: "PRA Dashboard",    href: "/pra-dashboard",     icon: LayoutDashboard,  section: "PRA",       forModule: "pra" },
+  { label: "PRA Logs",         href: "/pra-logs",          icon: FileCheck,        section: "PRA",       forModule: "pra" },
+  { label: "UAE Dashboard",    href: "/uae",               icon: LayoutDashboard,  section: "UAE",       forModule: "uae_vat" },
+  { label: "UAE e-Invoice Logs", href: "/uae/logs",        icon: Landmark,         section: "UAE",       forModule: "uae_vat" },
+  { label: "ZATCA Dashboard",  href: "/zatca",             icon: LayoutDashboard,  section: "ZATCA",     forModule: "sa_zatca" },
+  { label: "ZATCA Logs",       href: "/zatca/logs",        icon: Landmark,         section: "ZATCA",     forModule: "sa_zatca" },
+  { label: "Peppol Dashboard", href: "/peppol",            icon: LayoutDashboard,  section: "Peppol",    forModule: "eu_peppol" },
+  { label: "Peppol Logs",      href: "/peppol/logs",       icon: Globe,            section: "Peppol",    forModule: "eu_peppol" },
   // Payroll
   { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll",   forModule: "hrm" },
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll",   forModule: "hrm" },
@@ -177,7 +182,7 @@ export const NAV: NavItem[] = [
   { label: "Weaving Dashboard", href: "/weaving/dashboard",       icon: LayoutDashboard, section: "Weaving", forModule: "weaving" },
 ]
 
-export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Store","Inventory","Manufacturing","Telecom","Healthcare","Weaving","Banking","Reports","Payroll","System"]
+export const ALL_SECTIONS = ["Overview","Ledger","Receivable","Payable","Purchases","Store","Inventory","Manufacturing","Telecom","Healthcare","Weaving","Banking","Reports","Payroll","PRA","UAE","ZATCA","Peppol","India GST","System"]
 
 /**
  * Resolve a pathname to its breadcrumb context using the sidebar map.
@@ -220,7 +225,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "accounting",    label: "Accounting"    },
   { key: "reports",       label: "Reports"       },
   { key: "system",        label: "System"        },
-  // module-gated — appear inline between Purchases and Accounting when installed
+  // module-gated — appear inline when installed
   { key: "store",         label: "Store",         forModule: "purchase_store" },
   { key: "inventory",     label: "Inventory",     forModule: "inventory"   },
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
@@ -229,7 +234,48 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
   { key: "pra",           label: "PRA e-Invoice", shortLabel: "PRA", forModule: "pra" },
+  { key: "uae",           label: "UAE VAT",       shortLabel: "UAE", forModule: "uae_vat" },
+  { key: "zatca",         label: "ZATCA",         shortLabel: "ZATCA", forModule: "sa_zatca" },
+  { key: "peppol",        label: "Peppol",        shortLabel: "Peppol", forModule: "eu_peppol" },
+  { key: "india_gst",     label: "India GST",     shortLabel: "GST", forModule: "in_gst" },
 ]
+
+/**
+ * Mobile More-drawer section order by daily-use importance.
+ * Sales/Purchases/Reports stay near the top (sub-nav depth) even though they
+ * also have BottomNav shortcuts; Dashboard + System sit last.
+ */
+export const MOBILE_MORE_SECTION_ORDER: string[] = [
+  "sales",
+  "purchases",
+  "banking",
+  "accounting",
+  "store",
+  "inventory",
+  "reports",
+  "payroll",
+  "pra",
+  "uae",
+  "zatca",
+  "peppol",
+  "india_gst",
+  "manufacturing",
+  "healthcare",
+  "telecom",
+  "weaving",
+  "dashboard",
+  "system",
+]
+
+/** TOP_NAV sorted for the sm/md More drawer (unknown keys append at end). */
+export function mobileMoreSections(): TopNavSection[] {
+  const rank = new Map(MOBILE_MORE_SECTION_ORDER.map((k, i) => [k, i]))
+  return [...TOP_NAV].sort((a, b) => {
+    const ra = rank.get(a.key) ?? 999
+    const rb = rank.get(b.key) ?? 999
+    return ra - rb
+  })
+}
 
 /** Pathname-prefix → top-nav section key mapping */
 const SECTION_PREFIXES: Record<string, string[]> = {
@@ -239,7 +285,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/contract-balances", "/assets", "/leases", "/intercompany"],
-  reports:       ["/trial-balance", "/pl", "/reports/dimensional-pl", "/balance", "/consolidation", "/intercompany", "/cashflow", "/tax", "/reports/wht", "/reports/cit-worksheet", "/india-gst", "/tax-return", "/budgets", "/customer-performance"],
+  reports:       ["/trial-balance", "/pl", "/reports/dimensional-pl", "/balance", "/consolidation", "/intercompany", "/cashflow", "/tax", "/reports/wht", "/reports/cit-worksheet", "/tax-return", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
   payroll:       ["/hrm", "/payroll", "/employees", "/attendance"],
   healthcare:    ["/healthcare"],
@@ -247,7 +293,11 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
-  system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/approvals", "/workflow", "/agent", "/uae-logs", "/zatca", "/peppol"],
+  uae:           ["/uae"],
+  zatca:         ["/zatca"],
+  peppol:        ["/peppol"],
+  india_gst:     ["/india-gst"],
+  system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/approvals", "/workflow", "/agent"],
 }
 
 /** Routes homed under /manufacturing that move to the Purchases section when purchase_store is installed */
@@ -286,6 +336,10 @@ export function getSectionHref(key: string): string {
     manufacturing: "/manufacturing",
     telecom:       "/telecom",
     pra:           "/pra-dashboard",
+    uae:           "/uae",
+    zatca:         "/zatca",
+    peppol:        "/peppol",
+    india_gst:     "/india-gst",
     system:        "/settings",
   }
   return map[key] ?? "/dashboard"
@@ -440,6 +494,22 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "PRA Dashboard", href: "/pra-dashboard", icon: LayoutDashboard, section: "pra", forModule: "pra" },
     { label: "PRA Logs",      href: "/pra-logs",      icon: FileCheck,       section: "pra", forModule: "pra" },
   ],
+  uae: [
+    { label: "UAE Dashboard", href: "/uae",      icon: LayoutDashboard, section: "uae", forModule: "uae_vat" },
+    { label: "UAE Logs",      href: "/uae/logs", icon: Landmark,        section: "uae", forModule: "uae_vat" },
+  ],
+  zatca: [
+    { label: "ZATCA Dashboard", href: "/zatca",      icon: LayoutDashboard, section: "zatca", forModule: "sa_zatca" },
+    { label: "ZATCA Logs",      href: "/zatca/logs", icon: Landmark,        section: "zatca", forModule: "sa_zatca" },
+  ],
+  peppol: [
+    { label: "Peppol Dashboard", href: "/peppol",      icon: LayoutDashboard, section: "peppol", forModule: "eu_peppol" },
+    { label: "Peppol Logs",      href: "/peppol/logs", icon: Globe,           section: "peppol", forModule: "eu_peppol" },
+  ],
+  india_gst: [
+    { label: "GST Dashboard", href: "/india-gst",      icon: LayoutDashboard, section: "india_gst", forModule: "in_gst" },
+    { label: "GSTR Report",   href: "/india-gst/gstr", icon: FileSpreadsheet, section: "india_gst", forModule: "in_gst" },
+  ],
   system: [
     { label: "Settings",      href: "/settings",             icon: Settings,    section: "system" },
     { label: "Team",          href: "/team",                 icon: UsersRound,  section: "system", adminOnly: true },
@@ -455,8 +525,5 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "system" },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
     { label: "AI Assistant",  href: "/agent",                icon: Sparkles,    section: "system", forModule: "ai_assistant" },
-    { label: "UAE e-Invoice Logs", href: "/uae-logs",        icon: Landmark,    section: "system", forModule: "uae_vat" },
-    { label: "ZATCA Logs",         href: "/zatca/logs",      icon: Landmark,    section: "system", forModule: "sa_zatca" },
-    { label: "Peppol Logs",        href: "/peppol/logs",     icon: Globe,       section: "system", forModule: "eu_peppol" },
   ],
 }

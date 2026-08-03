@@ -32,11 +32,16 @@ export default function PeppolLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-3xl font-bold">Peppol Submission Logs</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          Audit trail of Access Point send attempts (sandbox or production)
-        </p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-bold">Peppol Submission Logs</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            Audit trail of Access Point send attempts (sandbox or production)
+          </p>
+        </div>
+        <Link href="/peppol" className="text-sm font-semibold text-[var(--primary)] hover:underline">
+          ← Dashboard
+        </Link>
       </div>
 
       <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
