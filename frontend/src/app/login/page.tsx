@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { setAuthToken, setMustChangePwd } from "@/lib/auth"
+import { setAuthToken, setMustChangePwd, isAuthenticated, reconcileAuthOnLoad } from "@/lib/auth"
 import { apiBase, networkErrorMessage } from "@/lib/api"
 
 const DEMO_EMAIL = "demo.simple@easy-books.app"
@@ -23,6 +23,12 @@ function LoginForm() {
   const router = useRouter()
 
   useEffect(() => {
+    reconcileAuthOnLoad()
+    // Mid-session visit to /login (already signed in this tab) → dashboard
+    if (isAuthenticated()) {
+      router.replace("/dashboard")
+      return
+    }
     if (search.get("demo") === "1") {
       setEmail(DEMO_EMAIL)
       setPassword(DEMO_PASSWORD)
