@@ -685,9 +685,9 @@ export default function SettingsPage() {
             { key: 'default_ap_account',      label: 'Accounts Payable (AP)',    hint: 'Credited on bill post',    types: ['Liability'] },
             { key: 'default_revenue_account', label: 'Revenue Account',          hint: 'Credited on invoice post', types: ['Revenue'] },
             { key: 'default_cogs_account',    label: 'COGS / Expense Account',   hint: 'Debited on bill post',     types: ['Expense'] },
-            { key: 'default_mfg_labour_account',    label: 'Manufacturing Labour',    hint: 'Credited when PO absorbs labour into WIP',    types: ['Expense'] },
-            { key: 'default_mfg_overhead_account',  label: 'Manufacturing Overhead',  hint: 'Credited when PO absorbs overhead into WIP',  types: ['Expense'] },
-            { key: 'default_scrap_expense_account', label: 'Production Scrap Expense', hint: 'Debited when scrap/damage is recorded on a PO', types: ['Expense'] },
+            { key: 'default_mfg_labour_account',    label: 'Manufacturing Labour',    hint: 'Stage entries + PO labour (spinning: Cr 5100)',    types: ['Expense'] },
+            { key: 'default_mfg_overhead_account',  label: 'Manufacturing Overhead',  hint: 'Stage entries + PO overhead (spinning: Cr 5200)',  types: ['Expense'] },
+            { key: 'default_scrap_expense_account', label: 'Production Scrap Expense', hint: 'PO scrap/damage + spinning waste types 5901–5904', types: ['Expense'] },
           ] as { key: keyof AppSettings; label: string; hint: string; types: string[] }[]).map(({ key, label, hint, types }) => (
             <div key={key}>
               <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1">{label}</label>
@@ -838,6 +838,25 @@ export default function SettingsPage() {
             />
             <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--primary)]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
           </label>
+        </div> }
+
+        { installedModules.has("spinning") && <div className="pt-4 mt-4 border-t border-[var(--border)]">
+          <h3 className="font-semibold text-black">Yarn Spinning</h3>
+          <p className="text-sm text-[var(--text-muted)] mt-1 mb-3">
+            Bale receipt posts to <code className="text-xs px-1 bg-[var(--bg-page)] rounded">1200</code>;
+            stage entries move WIP across <code className="text-xs px-1 bg-[var(--bg-page)] rounded">1201</code>–
+            <code className="text-xs px-1 bg-[var(--bg-page)] rounded">1203</code> and credit labour/overhead above;
+            cone output transfers to <code className="text-xs px-1 bg-[var(--bg-page)] rounded">1204</code>;
+            dispatch posts COGS via the COGS account. Waste types map to{" "}
+            <code className="text-xs px-1 bg-[var(--bg-page)] rounded">5901</code>–
+            <code className="text-xs px-1 bg-[var(--bg-page)] rounded">5904</code>.
+          </p>
+          <Link
+            href="/spinning"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
+          >
+            Open Spinning hub →
+          </Link>
         </div> }
 
         <div className="flex items-center justify-between pt-4 mt-4 border-t border-[var(--border)]">
@@ -1504,6 +1523,7 @@ export default function SettingsPage() {
               </thead>
               <tbody className="text-[var(--text-primary)]">
                 {[
+                  { screen: "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports", login: "demo.spinning@easy-books.app" },
                   { screen: "HC Store (Healthcare pharmacy)", login: "demo.hospital@easy-books.app" },
                   { screen: "Telecom — Mobile Money, Devices, Postpaid", login: "demo.telecom@easy-books.app" },
                   { screen: "Store Issues, Purchases chain, Weaving", login: "demo.manufacturing@easy-books.app" },
