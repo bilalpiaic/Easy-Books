@@ -164,7 +164,7 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         {/* PRA e-Invoice identification (optional) */}
         <div className="border-t border-[var(--border)] pt-4 space-y-3">
           <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/40">PRA e-Invoice (optional)</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">NTN / PNTN</label>
               <input
@@ -189,7 +189,7 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         {showGst && (
           <div className="border-t border-[var(--border)] pt-4 space-y-3">
             <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/40">India GST</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">GSTIN</label>
                 <input

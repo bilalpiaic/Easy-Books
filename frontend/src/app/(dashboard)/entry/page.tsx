@@ -687,16 +687,16 @@ export default function NewEntryPage() {
               </div>
               <div className="space-y-2">
                 {payToRows.map((row, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <div className="flex-1">
+                  <div key={idx} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <div className="flex-1 min-w-0">
                       {GroupedSelect(payToGroups, row.account_id, v => updatePayRow(idx, "account_id", v), "Select account to pay")}
                     </div>
                     <input type="number" step="0.01" inputMode="decimal" value={row.amount}
                       onChange={e => updatePayRow(idx, "amount", e.target.value)}
                       placeholder="0.00"
-                      className="w-32 px-3 py-2.5 bg-white border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--primary)] outline-none text-right font-mono text-sm" />
+                      className="w-full sm:w-32 px-3 py-2.5 bg-white border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--primary)] outline-none text-right font-mono text-sm" />
                     <button type="button" onClick={() => removePayRow(idx)} disabled={payToRows.length <= 1}
-                      className="p-2 text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0">
+                      className="p-2 text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0 self-end sm:self-auto">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -758,16 +758,16 @@ export default function NewEntryPage() {
               </div>
               <div className="space-y-2">
                 {recFromRows.map((row, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <div className="flex-1">
+                  <div key={idx} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <div className="flex-1 min-w-0">
                       {GroupedSelect(recFromGroups, row.account_id, v => updateRecRow(idx, "account_id", v), "Select income / source account")}
                     </div>
                     <input type="number" step="0.01" inputMode="decimal" value={row.amount}
                       onChange={e => updateRecRow(idx, "amount", e.target.value)}
                       placeholder="0.00"
-                      className="w-32 px-3 py-2.5 bg-white border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--primary)] outline-none text-right font-mono text-sm" />
+                      className="w-full sm:w-32 px-3 py-2.5 bg-white border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--primary)] outline-none text-right font-mono text-sm" />
                     <button type="button" onClick={() => removeRecRow(idx)} disabled={recFromRows.length <= 1}
-                      className="p-2 text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0">
+                      className="p-2 text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors shrink-0 self-end sm:self-auto">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>

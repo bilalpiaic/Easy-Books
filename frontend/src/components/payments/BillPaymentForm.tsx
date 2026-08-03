@@ -217,7 +217,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
               Amount Paid{showFx && fxCurrency ? ` (${fxCurrency})` : ''}
@@ -240,7 +240,7 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
           </div>
         </div>
         {showFx && (
-          <div className="grid grid-cols-2 gap-4 p-3 rounded-xl bg-amber-50/60 border border-amber-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-amber-50/60 border border-amber-200">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Currency</label>
               <div className="px-3 py-2 text-sm font-mono font-bold">{fxCurrency}</div>
@@ -307,8 +307,8 @@ export default function BillPaymentForm({ onSaved, onCancel }: Props) {
               {form.vendor_id ? 'No outstanding bills for this vendor.' : 'No outstanding bills.'}
             </p>
           ) : (
-            <div className="border border-[var(--border)] rounded-xl overflow-hidden text-sm">
-              <table className="w-full">
+            <div className="border border-[var(--border)] rounded-xl overflow-x-auto text-sm" data-scroll-x>
+              <table className="w-full min-w-[640px]">
                 <thead className="bg-[var(--bg-page)]">
                   <tr>
                     <th className="w-8 px-3 py-2" />

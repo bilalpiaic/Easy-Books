@@ -6,7 +6,7 @@
 >
 > **Ground truth for current implementation:** prefer [`CLAUDE.md`](../CLAUDE.md) over older BLUEPRINT header notes (e.g. migrations — Alembic is source of truth) and over stale “still open” lines in early improvement audits.
 >
-> **Last assembled:** 2026-08-03
+> **Last assembled:** 2026-08-04
 
 ---
 
@@ -16,10 +16,11 @@
 
 It combines:
 
-- Seven **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, orthogonal to the CoA)
+- Seven **business models** (CoA seed at signup — structural and irreversible) × installable modules (Odoo-style `MODULE_REGISTRY`, orthogonal to the CoA — **14** modules incl. Localization packs)
 - **One GL writer** — [`backend/services/posting.py`](../backend/services/posting.py) — so every financial number on screen is derived live from the journal (no shadow-balance drift)
 - Vertical depth rarely bundled in one SME product: contract manufacturing custody, telecom franchise, PRA e-invoice (Pakistan), hospital OPD/IPD/Lab, purchase→gate→store chain, weaving unit control, and a multi-provider agentic AI assistant
-- **IFRS Track A (shipping):** group consolidation (IFRS 10), leases (IFRS 16), inventory depth (IAS 2 landed/lot/NRV), month-end close checklist + auditor pack, tax rate history
+- **IFRS Track A (shipped):** consolidation (IFRS 10), intercompany recon, leases (IFRS 16), IFRS 15 SSP + contract assets, assets depth (IAS 16/36), dimensional analytics, inventory depth (IAS 2), month-end close + auditor pack, tax rate history
+- **Country packs (shipped):** Saudi ZATCA, India GST, Peppol / EU VAT, UAE VAT stub — plus withholding tax & CIT worksheet (#267)
 
 **Positioning one-liner**
 
@@ -256,7 +257,7 @@ Surfaces: Sparkles FAB popup + full-page `/agent` (session sidebar).
 
 ### 7.3 Where Easy-Books is Good (parity)
 
-AR / AP · Credit / Debit Notes · payment allocations · advances · bank CSV import + reconciliation · weighted-average inventory · fixed assets + depreciation · deferred revenue (IFRS 15) · budgets vs actual · analytic / cost centres · payroll + attendance · multi-currency **backend** · comparative financial statements · period close · sales commissions · promotional discounts · multi-user RBAC · audit log.
+AR / AP · Credit / Debit Notes · payment allocations · advances · bank CSV import + reconciliation · weighted-average inventory · fixed assets + depreciation · deferred revenue (IFRS 15) · budgets vs actual · analytic / cost centres · payroll + attendance · multi-currency **backend** · comparative financial statements · period close · sales commissions · promotional discounts · multi-user RBAC · audit log · consolidation / leases / IC / dimensional P&L · ZATCA / India GST / Peppol · WHT + CIT worksheet.
 
 ### 7.4 Where Easy-Books is Behind (honest)
 
@@ -264,10 +265,10 @@ AR / AP · Credit / Debit Notes · payment allocations · advances · bank CSV i
 |-----|---------|------|
 | Multi-currency UX / payment FX | Odoo, Xero, QB | Backend strong; document FX UI and payment FX incomplete |
 | Ecosystem / marketplace / accountant network | QB, Xero, Odoo | No third-party App Store yet |
-| Bank feeds (Open Banking / Plaid-class) | QB, Xero | CSV import + reconciliation today |
+| Bank feeds (Open Banking / Plaid-class) | QB, Xero | CSV import + reconciliation + hardened feeds; not full Open Banking |
 | Mature manufacturing MRP | Odoo | Custody / value-add strong; multi-output BoM, labour/overhead absorption still open |
-| Global localization packs | Odoo, Xero | Strong Pakistan (PRA); fewer country packs |
-| Native mobile apps | QB, Xero | Responsive web + BottomNav; no iOS / Android apps |
+| Global localization breadth | Odoo, Xero | PRA + ZATCA + India GST + Peppol + UAE VAT shipped; more jurisdictions still open |
+| Native mobile apps | QB, Xero | Responsive web (sm/md data-entry cards) + BottomNav; no iOS / Android apps |
 | Commercial scale / SOC 2 marketing / support org | Incumbents | Product controls (tenant isolation, RBAC, audit) exist; go-to-market maturity differs |
 
 ### 7.5 Side-by-side snapshot
@@ -275,7 +276,7 @@ AR / AP · Credit / Debit Notes · payment allocations · advances · bank CSV i
 | Dimension | Easy-Books | Odoo | QuickBooks Online | Manager.io | Xero / Zoho |
 |-----------|------------|------|-------------------|------------|-------------|
 | Double-entry rigor | **Best** (single writer) | Better | Good | Better | Good |
-| Module / apps model | **Better** (9 focused) | **Best** (ecosystem) | Behind | Good | Good |
+| Module / apps model | **Better** (14 focused + Localization) | **Best** (ecosystem) | Behind | Good | Good |
 | Vertical industry packs | **Best** (PRA, telecom, hospital, mfg custody) | Better (many apps) | Behind | Behind | Behind |
 | SME UX familiarity | Better (QB-inspired presets / hubs) | Good | **Best** | Good | Better |
 | Local / offline-first install | **Best** (script + Electron) | Good | Behind (cloud-first) | **Best** | Behind |
@@ -295,7 +296,7 @@ From [`BLUEPRINT.md`](../BLUEPRINT.md) §19 and current CLAUDE notes (verify bef
 - Playwright E2E coverage for full UI lifecycles
 - Storybook for guidance / form patterns
 
-**Recently shipped (do not present as gaps)** — payroll, overdue sweep + reminders, purchase_store P1–P4, Gate Outward scrap GL, report pagination on Purchases/Store registers, AI triage/specialist/reviewer/drafting + full agent roster, Ollama provider, hierarchical statements, CN/DN, deferred revenue engine, fixed assets, budgets, analytic accounts, Alembic migrations.
+**Recently shipped (do not present as gaps)** — payroll, overdue sweep + reminders, purchase_store P1–P4, Gate Outward scrap GL, report pagination on Purchases/Store registers, AI triage/specialist/reviewer/drafting + full agent roster, Ollama provider, hierarchical statements, CN/DN, deferred revenue engine, fixed assets depth (#258), budgets, analytic dimensions + dimensional P&L (#260), IFRS 15 SSP/contract assets (#259), consolidation + intercompany (#255/#261), IFRS 16 leases, ZATCA/India GST/Peppol country packs, WHT + CIT (#267), Alembic migrations.
 
 Parity audit methodology and historical gap IDs: [`claude-improvement.md`](../claude-improvement.md) (cross-check against CLAUDE before using any “still open” claim).
 

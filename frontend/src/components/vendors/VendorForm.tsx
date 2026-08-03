@@ -175,7 +175,7 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
         {showGst && (
           <div className="border-t border-[var(--border)] pt-4 space-y-3">
             <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/40">India GST</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">GSTIN</label>
                 <input

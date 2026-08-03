@@ -963,6 +963,13 @@ Trial Balance ── click account code ──▶ /ledger?account={name}
 | **Month-end close pack** | **ISA / close controls** | `CloseChecklistItem` per period; optional lock gate via `period_close_require_checklist`; auditor ZIP export (`services/close_pack.py`). |
 | **Tax rate history** | **Multi-jurisdiction** | `TaxRateHistory` effective-dated rates; documents snapshot rates at post time (#263). |
 | **Saudi ZATCA e-invoice** | **KSA Phase 2** | `sa_zatca` module — sandbox clear/report via Fatoora, TLV QR, `ZatcaSubmissionLog` (#264). |
+| **IFRS 15 remainder** | **IFRS 15** | Relative-SSP multi-element allocation (`RevenueAllocationAudit`); contract assets (`ContractAsset`, CoA 1140); UI `/contract-balances` (#259). |
+| **Analytic dimensions** | **IAS 1 segment** | Up to 3 `AnalyticDimension`s; JE slots `analytic_account_id` / `analytic_2_id` / `analytic_3_id`; mandatory dims; dimensional P&L (#260). |
+| **Intercompany** | **IFRS 10 companion** | `is_intercompany` + mirror drafts across consolidation members; recon at `/intercompany/recon` (#261). CoA 1180/2180. |
+| **India GST** | **GST India** | `in_gst` module — place of supply, CGST/SGST/IGST, GSTR-1/3B (#265). |
+| **Peppol / EU VAT** | **EN 16931** | `eu_peppol` module — BIS Billing 3.0 UBL export + Access Point submit, `PeppolSubmissionLog` (#266). |
+| **Withholding + CIT** | **Tax reporting** | Vendor `wht_*` + `BillPayment.wht_amount` (Cr 2265); `CitAdjustment` worksheet (#267). |
+| **Fixed assets depth** | **IAS 16 / 36** | Componentization (`parent_id`), impairment/reversal, disposal, rollforward report (#258). |
 
 ---
 

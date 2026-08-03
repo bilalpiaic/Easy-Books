@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-08-04 (against `main` + #261 intercompany)._
+_Last reviewed: 2026-08-04 (against `main` through #267 WHT/CIT + #266 Peppol)._
 
 ## Status summary
 
@@ -14,10 +14,10 @@ IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 | **#255** | Multi-entity consolidation (IFRS 10 / IAS 27) | Shipped (PR #279) |
 | **#256** | IFRS 16 leases (RoU + liability) | Shipped (PR #280) |
 | **#257** | Inventory depth — landed cost, lot/serial, NRV | Shipped |
-| **#258** | Fixed assets depth — IAS 16/36 | Shipped |
-| **#259** | IFRS 15 remaining — multi-element + contract assets | Shipped |
-| **#260** | Analytic dimensions on all JE lines + dimensional P&L | Shipped |
-| **#261** | Intercompany + IC reconciliation | Shipped |
+| **#258** | Fixed assets depth — IAS 16/36 | Shipped (PR #284) |
+| **#259** | IFRS 15 remaining — multi-element + contract assets | Shipped (PR #286) |
+| **#260** | Analytic dimensions on all JE lines + dimensional P&L | Shipped (PR #287) |
+| **#261** | Intercompany + IC reconciliation | Shipped (PR #288) |
 | **#262** | Month-end close checklist + auditor export pack | Shipped |
 
 ### B — Country tax packs
@@ -25,10 +25,10 @@ IFRS-ready books (A) + country tax packs (B) + SaaS harden (C).
 | Issue | Title | Status |
 |-------|-------|--------|
 | **#263** | Core multi-jurisdiction tax engine | Shipped |
-| **#264** | Country pack: Saudi ZATCA e-invoice | Shipped |
-| **#265** | Country pack: India GST | Shipped |
-| **#266** | Country pack: Peppol / EU VAT e-invoice | Shipping (`feat/peppol-266`) |
-| **#267** | Withholding tax + corporate tax summary reports | Open |
+| **#264** | Country pack: Saudi ZATCA e-invoice | Shipped (PR #289) |
+| **#265** | Country pack: India GST | Shipped (PR #290) |
+| **#266** | Country pack: Peppol / EU VAT e-invoice | Shipped (PR #291) |
+| **#267** | Withholding tax + corporate tax summary reports | Shipped (PR #292) |
 
 ### C — SaaS hardening
 
@@ -47,18 +47,23 @@ Many items from the old v4 Cloud Launch list (#114–#125, #140) have landed und
 
 ## Shipped history (recent)
 
-### v5.x — IFRS Track A + SaaS harden (2026-08)
+### v5.x — IFRS Track A + country packs + SaaS harden (2026-08)
 
 | Feature | Detail |
 |---------|--------|
 | **Consolidation (#255)** | Holding entity graph, worksheet propose/post, IC/NCI elims, `/consolidation` |
 | **Intercompany (#261)** | IC flag on invoice/bill, auto mirror draft, recon report `/intercompany/recon` |
 | **IFRS 16 leases (#256)** | RoU + liability schedule, period post, maturity disclosure, `/leases` |
+| **IFRS 15 remainder (#259)** | Relative-SSP multi-element allocation, contract assets (1140), `/contract-balances` |
+| **Assets depth (#258)** | Componentization, impairment/reversal, disposal, rollforward `/assets/rollforward` |
+| **Dimensions (#260)** | Up to 3 `AnalyticDimension`s, mandatory dims, dimensional P&L |
 | **Inventory depth (#257)** | Landed cost, lot/serial, NRV valuation UI |
 | **Close / audit pack (#262)** | Period checklist + auditor ZIP |
 | **Tax engine (#263)** | Effective-dated `TaxRateHistory` |
 | **Saudi ZATCA (#264)** | `sa_zatca` module — sandbox clear/report, TLV QR, submission logs |
+| **India GST (#265)** | `in_gst` module — place of supply, CGST/SGST/IGST, GSTR-1/3B |
 | **Peppol / EU VAT (#266)** | `eu_peppol` module — BIS Billing 3.0 UBL, AP submit, submission logs |
+| **WHT + CIT (#267)** | Vendor withholding on bill payments (Cr 2265), CIT worksheet + adjustments |
 | **SaaS harden (#268–#271)** | Bank feeds, approvals, portal, webhooks/DLQ/quotas |
 
 ### Older releases
