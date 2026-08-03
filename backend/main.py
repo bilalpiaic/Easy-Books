@@ -34,6 +34,7 @@ from routers import (
 )
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
+from routers.zatca import zatca_router
 from routers import marketplace
 from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
@@ -312,9 +313,10 @@ _ROUTERS = [
 # Health is mounted once (no /api/v1 duplicate) — load balancers + Caddy probe it.
 app.include_router(health.router)
 
-# PRA e-Invoice router mounted separately (not in the shared prefix list above)
+# PRA / UAE / ZATCA e-Invoice routers mounted separately (not in the shared prefix list above)
 app.include_router(pra_router, prefix="/api")
 app.include_router(uae_router, prefix="/api")
+app.include_router(zatca_router, prefix="/api")
 app.include_router(marketplace.router)
 
 for r in _ROUTERS:

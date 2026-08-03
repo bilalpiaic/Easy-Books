@@ -109,6 +109,26 @@ _CURATED: list[dict[str, Any]] = [
             "curated": True,
         },
     },
+    {
+        "summary": "Surface the Saudi ZATCA first-party localization pack.",
+        "tags": ["saudi", "zatca", "tax", "first-party"],
+        "first_party_module": "sa_zatca",
+        "manifest": {
+            "id": "partner.easybooks.sa-zatca-bridge",
+            "name": "Saudi ZATCA e-Invoice (first-party)",
+            "version": "1.0.0",
+            "description": (
+                "Installs the built-in KSA ZATCA Phase 2 sandbox clear/report pack."
+            ),
+            "publisher": "Easy-Books",
+            "category": "Localization",
+            "icon": "Landmark",
+            "requires_modules": ["sa_zatca"],
+            "requested_permissions": ["read_invoices"],
+            "settings_keys": [],
+            "curated": True,
+        },
+    },
 ]
 
 

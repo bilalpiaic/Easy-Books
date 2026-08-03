@@ -18,7 +18,7 @@ from services.whatsapp import WA_SECRET_SETTINGS_KEYS, status_payload as wa_stat
 from .common import AdminUserDep, CurrentUserDep, SessionDep, WriteUserDep, mark_onboarding_step
 
 # Secrets that must never leave GET /api/settings unredacted.
-SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {"uae_api_key"}
+SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {"uae_api_key", "zatca_csid_token"}
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -105,6 +105,13 @@ class SettingsUpdate(BaseModel):
     uae_legal_name: Optional[str] = None
     uae_api_key: Optional[str] = None        # future live connector (write-only)
     uae_sandbox_mode: Optional[str] = None
+    # Saudi ZATCA e-Invoice (#264)
+    zatca_enabled: Optional[str] = None
+    zatca_vat_number: Optional[str] = None
+    zatca_cr_number: Optional[str] = None
+    zatca_device_id: Optional[str] = None
+    zatca_csid_token: Optional[str] = None   # write-only secret
+    zatca_sandbox_mode: Optional[str] = None  # "true" default
     # Marketplace (#227) — optional curated remote catalog URL (https only)
     marketplace_catalog_url: Optional[str] = None
     # AI assistant (#117) — key values are write-only; GET redacts them

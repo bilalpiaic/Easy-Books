@@ -51,6 +51,13 @@ export const ADDON_PACKS: AddonPack[] = [
     features: ["5% VAT tax codes", "VAT Payable/Receivable CoA", "Sandbox FTA stub"],
   },
   {
+    id: "sa_zatca",
+    label: "Saudi ZATCA e-Invoice",
+    tagline: "KSA localization",
+    modules: ["sa_zatca"],
+    features: ["Phase 2 sandbox clear/report", "TLV QR payload", "Submission logs"],
+  },
+  {
     id: "ai",
     label: "AI Assistant",
     tagline: "Ask your books",
