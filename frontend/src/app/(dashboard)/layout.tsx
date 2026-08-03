@@ -9,7 +9,7 @@ import BottomNav from "@/components/BottomNav"
 import MoreDrawer from "@/components/MoreDrawer"
 import FAB from "@/components/FAB"
 import TabBar from "@/components/TabBar"
-import { isAuthenticated, getMustChangePwd, getCurrentUser } from "@/lib/auth"
+import { isAuthenticated, getMustChangePwd, getCurrentUser, reconcileAuthOnLoad } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
 import { PermissionProvider } from "@/context/PermissionContext"
 import { ModuleProvider } from "@/context/ModuleContext"
@@ -91,11 +91,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .catch(() => { /* silently ignore — never block the app */ })
   }, [])
 
-  // Auth gate
+  // Auth gate — cold start / post-update have no session marker → login
   useEffect(() => {
-    if (!isAuthenticated()) { router.push("/login"); return }
+    reconcileAuthOnLoad()
+    if (!isAuthenticated()) { router.replace("/login"); return }
     if (getMustChangePwd() && !pathname.startsWith("/profile")) {
-      router.push("/profile?changePassword=1")
+      router.replace("/profile?changePassword=1")
     }
   }, [router, pathname])
 

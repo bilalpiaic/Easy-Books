@@ -1,29 +1,73 @@
+const TOKEN_KEY = "access_token"
+const MUST_CHANGE_KEY = "eb.must_change_pwd"
+/** Tab/window session marker — cleared when the browser session ends. */
+const SESSION_KEY = "eb.auth_session"
+
 export const getAuthToken = () => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("access_token")
+    return localStorage.getItem(TOKEN_KEY)
   }
   return null
 }
 
 export const setAuthToken = (token: string) => {
-  localStorage.setItem("access_token", token)
+  localStorage.setItem(TOKEN_KEY, token)
+  markAuthSession()
 }
 
 export const removeAuthToken = () => {
-  localStorage.removeItem("access_token")
-  localStorage.removeItem("eb.must_change_pwd")
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(MUST_CHANGE_KEY)
+  clearAuthSession()
 }
 
 export const setMustChangePwd = (v: boolean) => {
-  if (v) localStorage.setItem("eb.must_change_pwd", "1")
-  else localStorage.removeItem("eb.must_change_pwd")
+  if (v) localStorage.setItem(MUST_CHANGE_KEY, "1")
+  else localStorage.removeItem(MUST_CHANGE_KEY)
 }
 
 export const getMustChangePwd = (): boolean =>
-  typeof window !== "undefined" && localStorage.getItem("eb.must_change_pwd") === "1"
+  typeof window !== "undefined" && localStorage.getItem(MUST_CHANGE_KEY) === "1"
+
+export function markAuthSession() {
+  if (typeof window === "undefined") return
+  try {
+    sessionStorage.setItem(SESSION_KEY, "1")
+  } catch { /* private mode */ }
+}
+
+export function clearAuthSession() {
+  if (typeof window === "undefined") return
+  try {
+    sessionStorage.removeItem(SESSION_KEY)
+  } catch { /* private mode */ }
+}
+
+export function hasAuthSession(): boolean {
+  if (typeof window === "undefined") return false
+  try {
+    return sessionStorage.getItem(SESSION_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Drop a leftover JWT when this browser tab/session never completed login.
+ * Cold start, new Electron window, and post-update always require /login.
+ */
+export function reconcileAuthOnLoad() {
+  if (typeof window === "undefined") return
+  if (localStorage.getItem(TOKEN_KEY) && !hasAuthSession()) {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(MUST_CHANGE_KEY)
+  }
+}
 
 export const isAuthenticated = () => {
-  return !!getAuthToken()
+  if (typeof window === "undefined") return false
+  reconcileAuthOnLoad()
+  return !!getAuthToken() && hasAuthSession()
 }
 
 export const getAuthHeader = (): HeadersInit => {

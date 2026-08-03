@@ -30,7 +30,7 @@ FRONT=$!
 
 trap 'kill $BACK $FRONT 2>/dev/null || true' EXIT INT TERM
 sleep 2
-( command -v xdg-open >/dev/null && xdg-open http://127.0.0.1:3000 ) \
-  || ( command -v open >/dev/null && open http://127.0.0.1:3000 ) \
-  || echo "Open http://127.0.0.1:3000 in your browser."
+( command -v xdg-open >/dev/null && xdg-open http://127.0.0.1:3000/login >/dev/null 2>&1 ) \
+  || ( command -v open >/dev/null && open http://127.0.0.1:3000/login ) \
+  || echo "Open http://127.0.0.1:3000/login in your browser."
 wait

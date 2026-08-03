@@ -65,7 +65,7 @@ async function createWindow() {
   try {
     await waitForServer(BACKEND_PORT, 360)   // up to ~3 min, covers first-run seeding
     await waitForServer(FRONTEND_PORT)
-    await win.loadURL(`http://127.0.0.1:${FRONTEND_PORT}`)
+    await win.loadURL(`http://127.0.0.1:${FRONTEND_PORT}/login`)
   } catch (e) {
     // If the backend printed a FATAL migration error, surface it (includes backup path)
     // instead of the generic waitForServer timeout message.

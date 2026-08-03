@@ -4,6 +4,7 @@ import { createPortal } from "react-dom"
 import { useEffect, useRef, useState } from "react"
 import { CheckCircle, AlertCircle, Zap } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { removeAuthToken } from "@/lib/auth"
 
 const CURRENT_COMMIT = process.env.NEXT_PUBLIC_GIT_COMMIT ?? ""
 
@@ -53,7 +54,10 @@ export default function UpdateProgressScreen({ onClose }: Props) {
       )
       if (res.status === "up_to_date") {
         stopTimers(); setDone(true); setNewCommit(null)
-        setTimeout(() => window.location.reload(), 2_000)
+        setTimeout(() => {
+          removeAuthToken()
+          window.location.href = "/login"
+        }, 2_000)
       } else if (res.status === "restarting") {
         setPhase(2)
         pollRestart(Date.now())
@@ -95,7 +99,11 @@ export default function UpdateProgressScreen({ onClose }: Props) {
               `/api/system/update/changelog?since=${CURRENT_COMMIT}&limit=8`,
             ).then(r => setChangelog(r.commits)).catch(() => {})
             setReloading(true)
-            setTimeout(() => window.location.reload(), 4_500)
+            // Force login after update (drop JWT + open /login)
+            setTimeout(() => {
+              removeAuthToken()
+              window.location.href = "/login"
+            }, 4_500)
             return
           }
         }

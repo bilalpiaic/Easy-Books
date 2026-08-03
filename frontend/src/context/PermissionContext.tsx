@@ -26,6 +26,11 @@ const PermissionContext = createContext<PermissionCtx>({
 
 function isAuthenticated() {
   if (typeof window === "undefined") return false
+  try {
+    if (sessionStorage.getItem("eb.auth_session") !== "1") return false
+  } catch {
+    return false
+  }
   return !!localStorage.getItem("access_token")
 }
 
