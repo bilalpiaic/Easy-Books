@@ -207,7 +207,7 @@ function PlTable({
   title: string
   lines: PlLine[]
   totals: { revenue: number; expenses: number; net_profit: number }
-  fmt: (n: number | string) => string
+  fmt: (n: number) => string
 }) {
   return (
     <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden">
