@@ -1,0 +1,79 @@
+# Deploy Easy-Books cloud stack:
+#   Frontend → Vercel (Next.js)
+#   Backend  → Vercel (FastAPI / Python)
+#   Database → Neon Postgres (via DATABASE_URL on the backend project)
+#
+# Enable by setting the repository variable:
+#   DEPLOY_VERCEL=true
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN              — https://vercel.com/account/tokens
+#   VERCEL_ORG_ID             — from each project .vercel/project.json → orgId
+#   VERCEL_FRONTEND_PROJECT_ID
+#   VERCEL_BACKEND_PROJECT_ID
+#
+# Backend env vars (DATABASE_URL / JWT_SECRET_KEY / FRONTEND_ORIGIN / …)
+# and frontend NEXT_PUBLIC_API_URL must already be set in the Vercel
+# project dashboards (or via `vercel env add`). This workflow only builds
+# and promotes; it does not provision Neon or push secrets.
+name: Deploy Vercel + Neon
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-backend:
+    name: Deploy backend (Vercel → Neon)
+    runs-on: ubuntu-latest
+    if: ${{ vars.DEPLOY_VERCEL == 'true' }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+      - name: Pull project settings
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy production
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+        run: vercel deploy --prebuilt=false --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  deploy-frontend:
+    name: Deploy frontend (Vercel)
+    runs-on: ubuntu-latest
+    if: ${{ vars.DEPLOY_VERCEL == 'true' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+      - name: Pull project settings
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy production
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_FRONTEND_PROJECT_ID }}
+        run: vercel deploy --prebuilt=false --prod --token=${{ secrets.VERCEL_TOKEN }}

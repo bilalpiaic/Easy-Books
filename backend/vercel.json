@@ -1,13 +1,9 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": { "maxLambdaSize": "50mb", "runtime": "python3.12" }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "main.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{tests/**,**/test_*.py,uploads/**,.venv/**,venv/**,**/*.db,**/*.db.bak,scripts/**,easybooks-backend.spec}"
     }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "api/index.py" }
-  ]
+  }
 }

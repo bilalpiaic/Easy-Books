@@ -6,8 +6,9 @@ const _require = createRequire(import.meta.url);
 const { version } = _require("./package.json") as { version: string };
 
 const nextConfig: NextConfig = {
-  // Self-contained server bundle for local/on-premise packaging (Phase 0).
-  output: "standalone",
+  // Self-contained server bundle for Docker / script installers.
+  // Skip on Vercel — the platform uses its own Next.js output tracing.
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     // Stamped by install-and-run scripts at build time; empty in `npm run dev`

@@ -6,6 +6,9 @@ from models import Account, PaymentTerm, ProductCategory, SequenceCounter, Setti
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# Neon (and most managed Postgres) require TLS. Prefer the Neon *pooled*
+# connection string (`…-pooler.…neon.tech`) on Vercel — each invocation
+# opens at most one connection (pool_size=1) so the pooler can multiplex.
 if DATABASE_URL:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -19,10 +22,17 @@ if DATABASE_URL:
         max_overflow=0,
     )
 else:
-    _environment = os.environ.get("ENVIRONMENT", "development").lower()
-    if _environment == "production":
+    _environment = (
+        os.environ.get("ENVIRONMENT")
+        or os.environ.get("APP_ENV")
+        or os.environ.get("ENV")
+        or "development"
+    ).lower()
+    _on_vercel = os.environ.get("VERCEL", "").lower() in ("1", "true")
+    if _environment in ("production", "prod") or _on_vercel:
         raise RuntimeError(
             "DATABASE_URL environment variable must be set in production. "
+            "Point it at Neon Postgres (pooled connection string). "
             "SQLite fallback is not supported for serverless deployments."
         )
     from local_config import sqlite_path

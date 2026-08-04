@@ -1,8 +1,7 @@
-"""Vercel serverless entry point for the FastAPI app.
+"""Legacy Vercel entry point — prefer `main:app` (see pyproject.toml
+`[tool.vercel] entrypoint` and backend/vercel.json).
 
-Vercel's @vercel/python runtime imports `app` (or `handler`) from this file
-and forwards every HTTP request through ASGI. The actual FastAPI app lives
-in `backend/main.py`.
+Kept so older Vercel projects that still route to `api/index.py` keep working.
 """
 import sys
 from pathlib import Path
