@@ -231,7 +231,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-sm text-[var(--text-primary)]/60">
               Dated {bill.bill_date} · Due {bill.due_date}
               {bill.currency && bill.currency !== baseCurrency && (
-                <> · {bill.currency} @ {Number(bill.carrying_rate ?? bill.exchange_rate)} · {baseCurrency} {fmt(Number(bill.total) * Number(bill.carrying_rate ?? bill.exchange_rate || 1))}</>
+                <> · {bill.currency} @ {Number(bill.carrying_rate ?? bill.exchange_rate)} · {baseCurrency} {fmt(Number(bill.total) * Number((bill.carrying_rate ?? bill.exchange_rate) || 1))}</>
               )}
             </p>
           </div>
@@ -324,7 +324,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             {bill.currency && bill.currency !== baseCurrency && (
               <div className="flex justify-between text-xs text-[var(--text-muted)] mt-1">
                 <span>≈ {baseCurrency}</span>
-                <span className="font-mono">{fmt(Number(bill.total) * Number(bill.carrying_rate ?? bill.exchange_rate || 1))}</span>
+                <span className="font-mono">{fmt(Number(bill.total) * Number((bill.carrying_rate ?? bill.exchange_rate) || 1))}</span>
               </div>
             )}
           </div>
