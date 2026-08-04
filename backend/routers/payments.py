@@ -16,7 +16,7 @@ from models import (
     Account, Bill, BillPayment, Customer, Invoice, PaymentAllocation, PaymentReceived, TaxCode, Vendor,
 )
 from services.events import emit
-from services.money import D, ZERO, money
+from services.money import D, ONE, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services.vouchers import classify_cash_account
 
@@ -237,10 +237,33 @@ def get_payment_received(
             "invoice_id": a.invoice_id,
             "invoice_number": inv.number if inv else None,
             "amount": a.amount,
+            "currency": inv.currency if inv else None,
+            "carrying_rate": (
+                float(inv.carrying_rate if inv and inv.carrying_rate is not None else inv.exchange_rate)
+                if inv else None
+            ),
         }
         for a, inv in rows
     ]
-    return {**pay.model_dump(), "allocations": allocations}
+    settle_rate = D(pay.exchange_rate) if pay.exchange_rate is not None else ONE
+    cash_base = money(D(pay.amount) * settle_rate)
+    cleared_base = money(sum(
+        (
+            D(a["amount"]) * D(str(a["carrying_rate"] or 1))
+            for a in allocations
+            if a.get("carrying_rate") is not None
+        ),
+        start=ZERO,
+    )) if allocations else cash_base
+    realised = money(cash_base - cleared_base) if allocations else ZERO
+    return {
+        **pay.model_dump(),
+        "allocations": allocations,
+        "cash_base": cash_base,
+        "cleared_base": cleared_base,
+        "realised_fx": realised,
+        "is_fx": bool(pay.currency and pay.exchange_rate is not None and D(pay.exchange_rate) != ONE),
+    }
 
 
 @router.post("/api/payments-received", status_code=201, dependencies=[perm_dep("payments_received", "edit")])
@@ -373,7 +396,13 @@ def create_payment_received(
     })
     session.commit()
     session.refresh(pmt)
-    return pmt
+    return {
+        **pmt.model_dump(),
+        "realised_fx": plan.realised,
+        "cash_base": plan.cash_base,
+        "cleared_base": plan.cleared_base,
+        "is_fx": plan.is_fx,
+    }
 
 
 # ── Vendor bill payments ─────────────────────────────────────────────────────
@@ -427,10 +456,33 @@ def get_bill_payment(
             "bill_id": a.bill_id,
             "bill_number": bill.number if bill else None,
             "amount": a.amount,
+            "currency": bill.currency if bill else None,
+            "carrying_rate": (
+                float(bill.carrying_rate if bill and bill.carrying_rate is not None else bill.exchange_rate)
+                if bill else None
+            ),
         }
         for a, bill in rows
     ]
-    return {**pay.model_dump(), "allocations": allocations}
+    settle_rate = D(pay.exchange_rate) if pay.exchange_rate is not None else ONE
+    cash_base = money(D(pay.amount) * settle_rate)
+    cleared_base = money(sum(
+        (
+            D(a["amount"]) * D(str(a["carrying_rate"] or 1))
+            for a in allocations
+            if a.get("carrying_rate") is not None
+        ),
+        start=ZERO,
+    )) if allocations else cash_base
+    realised = money(cash_base - cleared_base) if allocations else ZERO
+    return {
+        **pay.model_dump(),
+        "allocations": allocations,
+        "cash_base": cash_base,
+        "cleared_base": cleared_base,
+        "realised_fx": realised,
+        "is_fx": bool(pay.currency and pay.exchange_rate is not None and D(pay.exchange_rate) != ONE),
+    }
 
 
 @router.get("/api/bill-payments", dependencies=[perm_dep("bill_payments")])
@@ -596,4 +648,10 @@ def create_bill_payment(
     })
     session.commit()
     session.refresh(bp)
-    return bp
+    return {
+        **bp.model_dump(),
+        "realised_fx": plan.realised,
+        "cash_base": plan.cash_base,
+        "cleared_base": plan.cleared_base,
+        "is_fx": plan.is_fx,
+    }

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Account, CreditNote, CreditNoteLine, Customer, Invoice, Product
+from models import Account, CreditNote, CreditNoteLine, Customer, Invoice, Product, Tenant
 from routers.common import (
     SessionDep,
     WriteUserDep,
@@ -15,7 +15,7 @@ from routers.common import (
     next_number,
 )
 from services.inventory import reverse_consumption
-from services.money import D, ZERO, money
+from services.money import D, ONE, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services.permissions import perm_dep, apply_own_filter
 
@@ -40,8 +40,9 @@ class CNCreate(BaseModel):
     lines: List[CNLineCreate] = []
     ar_account_id: Optional[int] = None
     revenue_account_id: Optional[int] = None
-    currency: str = "PKR"
-    exchange_rate: Decimal = Decimal("1")
+    # None → inherit from linked invoice, else tenant base @ 1 (#300)
+    currency: Optional[str] = None
+    exchange_rate: Optional[Decimal] = None
     gst_amount: Decimal = Decimal("0")   # GST-output to reverse (sales return)
     restock: bool = True                 # restock stock-product lines (sales return)
 
@@ -79,6 +80,7 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
         raise HTTPException(400, "At least one line is required")
 
     # Validate all tenant-owned foreign keys (IDOR protection)
+    inv = None
     if body.invoice_id:
         inv = session.exec(
             select(Invoice).where(Invoice.id == body.invoice_id, Invoice.tenant_id == user.tenant_id)
@@ -91,6 +93,23 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
         ).first()
         if not cust:
             raise HTTPException(400, "Customer not found for this tenant")
+
+    tenant = session.get(Tenant, user.tenant_id)
+    base_ccy = tenant.base_currency if tenant else "PKR"
+    if body.currency is not None:
+        currency = body.currency
+    elif inv is not None:
+        currency = inv.currency
+    else:
+        currency = base_ccy
+    if body.exchange_rate is not None:
+        exchange_rate = D(str(body.exchange_rate))
+    elif inv is not None:
+        exchange_rate = D(str(inv.exchange_rate))
+    else:
+        exchange_rate = ONE
+    if exchange_rate <= ZERO:
+        raise HTTPException(400, "exchange_rate must be > 0")
 
     subtotal = money(sum(D(ln.qty) * D(ln.rate) for ln in body.lines))
     gst = money(D(str(body.gst_amount)))   # GST-output to reverse (sales return)
@@ -110,8 +129,8 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
         subtotal=subtotal,
         gst_amount=gst,
         total=total,
-        currency=body.currency,
-        exchange_rate=D(str(body.exchange_rate)),
+        currency=currency,
+        exchange_rate=exchange_rate,
         status="draft",
     )
     session.add(cn)
@@ -131,7 +150,7 @@ def create_credit_note(session: SessionDep, user: WriteUserDep, body: CNCreate):
         )
 
     # GL posting (value side): Dr Revenue (+ Dr GST Payable) / Cr AR
-    fx = D(str(body.exchange_rate))
+    fx = exchange_rate
     subtotal_base = money(subtotal * fx)
     gst_base = money(gst * fx)
     total_base = money(total * fx)

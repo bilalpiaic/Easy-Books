@@ -30,6 +30,7 @@ interface Bill {
   subtotal: number
   gst_amount: number
   total: number
+  currency?: string
   status: string
 }
 
@@ -162,7 +163,7 @@ function BillsContent() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => downloadCSV('bills.csv', bills.map(b => ({ Number: b.number, Vendor: b.vendor_name, Date: b.bill_date, Due: b.due_date, Subtotal: b.subtotal, GST: b.gst_amount, Total: b.total, Status: b.status })))}
+            onClick={() => downloadCSV('bills.csv', bills.map(b => ({ Number: b.number, Vendor: b.vendor_name, Date: b.bill_date, Due: b.due_date, Currency: b.currency ?? '', Subtotal: b.subtotal, GST: b.gst_amount, Total: b.total, Status: b.status })))}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-bold hover:bg-[var(--bg-page)] transition-colors"
           >
             <Download className="w-4 h-4" /> Export
@@ -274,7 +275,12 @@ function BillsContent() {
                   </td>
                   <td className="ui-td text-[var(--text-muted)]">{fmtDate(b.bill_date)}</td>
                   <td className={`ui-td ${b.status === 'overdue' ? 'text-red-600 font-medium' : 'text-[var(--text-muted)]'}`}>{fmtDate(b.due_date)}</td>
-                  <td className="ui-td text-right font-mono">{fmt(b.total)}</td>
+                  <td className="ui-td text-right font-mono">
+                    {fmt(b.total)}
+                    {b.currency && (
+                      <span className="ml-1.5 text-[10px] font-semibold text-[var(--text-muted)]">{b.currency}</span>
+                    )}
+                  </td>
                   <td className="ui-td text-center">
                     <StatusBadge status={b.status} />
                   </td>

@@ -53,6 +53,7 @@ interface Bill {
   total: number
   currency: string
   exchange_rate: number
+  carrying_rate?: number | null
   status: string
   approval_status: string | null
   transaction_id: number | null
@@ -230,7 +231,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-sm text-[var(--text-primary)]/60">
               Dated {bill.bill_date} · Due {bill.due_date}
               {bill.currency && bill.currency !== baseCurrency && (
-                <> · {bill.currency} @ {bill.exchange_rate} · {baseCurrency} {fmt(Number(bill.total) * Number(bill.exchange_rate || 1))}</>
+                <> · {bill.currency} @ {Number(bill.carrying_rate ?? bill.exchange_rate)} · {baseCurrency} {fmt(Number(bill.total) * Number(bill.carrying_rate ?? bill.exchange_rate || 1))}</>
               )}
             </p>
           </div>
@@ -319,7 +320,13 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <Row label="Subtotal" value={fmt(bill.subtotal)} />
           {bill.gst_rate > 0 && <Row label={`GST (${bill.gst_rate}%)`} value={fmt(bill.gst_amount)} />}
           <div className="border-t border-[var(--text-primary)] pt-1.5 mt-1.5">
-            <Row label="Total" value={fmt(bill.total)} bold />
+            <Row label={`Total (${bill.currency || baseCurrency})`} value={fmt(bill.total)} bold />
+            {bill.currency && bill.currency !== baseCurrency && (
+              <div className="flex justify-between text-xs text-[var(--text-muted)] mt-1">
+                <span>≈ {baseCurrency}</span>
+                <span className="font-mono">{fmt(Number(bill.total) * Number(bill.carrying_rate ?? bill.exchange_rate || 1))}</span>
+              </div>
+            )}
           </div>
         </div>
       </section>
