@@ -386,7 +386,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-sm text-[var(--text-primary)]/60">
               Issued {inv.issue_date} · Due {inv.due_date}
               {inv.currency && inv.currency !== baseCurrency && (
-                <> · {inv.currency} @ {Number(inv.carrying_rate ?? inv.exchange_rate)} · {baseCurrency} {fmt(Number(inv.total) * Number(inv.carrying_rate ?? inv.exchange_rate || 1))}</>
+                <> · {inv.currency} @ {Number(inv.carrying_rate ?? inv.exchange_rate)} · {baseCurrency} {fmt(Number(inv.total) * Number((inv.carrying_rate ?? inv.exchange_rate) || 1))}</>
               )}
             </p>
           </div>
@@ -693,7 +693,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             {inv.currency && inv.currency !== baseCurrency && (
               <div className="flex justify-between text-xs text-[var(--text-muted)] mt-1">
                 <span>≈ {baseCurrency}</span>
-                <span className="font-mono">{fmt(Number(inv.total) * Number(inv.carrying_rate ?? inv.exchange_rate || 1))}</span>
+                <span className="font-mono">{fmt(Number(inv.total) * Number((inv.carrying_rate ?? inv.exchange_rate) || 1))}</span>
               </div>
             )}
           </div>
