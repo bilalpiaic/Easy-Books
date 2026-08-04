@@ -37,6 +37,9 @@ import {
   HealthcareCensusWidget, TelecomTrackerWidget, PurchasesPipelineWidget,
   TextileProcessingWidget,
 } from "@/components/dashboard/widgets/OpsWidgets"
+import {
+  OpsProcessChart, OpsTrendChart, OpsStatusTable, OpsMixChart,
+} from "@/components/dashboard/widgets/OpsCharts"
 import type { OperationsSummary } from "@/lib/operationsSummary"
 import { DEFAULT_FINANCIAL_QUICK_ACTIONS } from "@/lib/dashboardHome"
 import type { DashboardView } from "@/lib/dashboardHome"
@@ -615,5 +618,38 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     requiredModule: "textile_processing",
     conditional: true,
     render: (ctx) => <TextileProcessingWidget ctx={ctx} />,
+  },
+  // Process-visibility charts / tables (adapt to whichever purpose modules are installed)
+  {
+    id: "ops_process_chart",
+    title: "Process Visibility",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsProcessChart ctx={ctx} />,
+  },
+  {
+    id: "ops_trend_chart",
+    title: "Operations Trend",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsTrendChart ctx={ctx} />,
+  },
+  {
+    id: "ops_status_table",
+    title: "Status Board",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsStatusTable ctx={ctx} />,
+  },
+  {
+    id: "ops_mix_chart",
+    title: "Composition Mix",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsMixChart ctx={ctx} />,
   },
 ]

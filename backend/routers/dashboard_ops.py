@@ -48,25 +48,23 @@ def _safe_call(fn, *args, **kwargs) -> Any | None:
         return None
 
 
+def _status_counts(session: Session, model, tid: int) -> dict[str, int]:
+    rows = session.exec(
+        select(model.status, func.count(model.id))  # type: ignore[attr-defined]
+        .where(model.tenant_id == tid)
+        .group_by(model.status)  # type: ignore[attr-defined]
+    ).all()
+    return {str(status): int(cnt) for status, cnt in rows}
+
+
 def _purchase_store_summary(session: Session, tid: int) -> dict:
-    demand_open = session.exec(
-        select(func.count(PurchaseDemand.id)).where(
-            PurchaseDemand.tenant_id == tid,
-            PurchaseDemand.status.in_(["draft", "approved"]),  # type: ignore[attr-defined]
-        )
-    ).one() or 0
-    po_open = session.exec(
-        select(func.count(PurchaseOrder.id)).where(
-            PurchaseOrder.tenant_id == tid,
-            PurchaseOrder.status.in_(["draft", "approved", "received"]),  # type: ignore[attr-defined]
-        )
-    ).one() or 0
-    gi_open = session.exec(
-        select(func.count(GateInward.id)).where(
-            GateInward.tenant_id == tid,
-            GateInward.status == "open",
-        )
-    ).one() or 0
+    demand_by_status = _status_counts(session, PurchaseDemand, tid)
+    po_by_status = _status_counts(session, PurchaseOrder, tid)
+    gi_by_status = _status_counts(session, GateInward, tid)
+
+    demand_open = sum(demand_by_status.get(s, 0) for s in ("draft", "approved"))
+    po_open = sum(po_by_status.get(s, 0) for s in ("draft", "approved", "received"))
+    gi_open = gi_by_status.get("open", 0)
     low_stock = session.exec(
         select(func.count(Product.id)).where(
             Product.tenant_id == tid,
@@ -74,11 +72,26 @@ def _purchase_store_summary(session: Session, tid: int) -> dict:
             Product.stock_qty <= Product.reorder_level,
         )
     ).one() or 0
+
+    # Funnel for process visibility: Demand → PO → Gate In → Billed PO
+    funnel = {
+        "demands": int(sum(demand_by_status.values())),
+        "demands_open": int(demand_open),
+        "pos": int(sum(po_by_status.values())),
+        "pos_open": int(po_open),
+        "gate_inwards": int(sum(gi_by_status.values())),
+        "gate_open": int(gi_open),
+        "pos_billed": int(po_by_status.get("billed", 0)),
+    }
     return {
         "open_demands": int(demand_open),
         "open_pos": int(po_open),
         "open_gate_inwards": int(gi_open),
         "low_stock_items": int(low_stock),
+        "demand_by_status": demand_by_status,
+        "po_by_status": po_by_status,
+        "gi_by_status": gi_by_status,
+        "funnel": funnel,
     }
 
 

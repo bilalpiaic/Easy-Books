@@ -51,13 +51,17 @@ describe("defaultGrid packs", () => {
     expect(ids).not.toContain("spinning_summary")
   })
 
-  it("operations defaults include ops widgets and module tiles", () => {
+  it("operations defaults include ops widgets, charts, and module tiles", () => {
     const ids = defaultGrid(
       "operations",
       new Set(["base", "inventory", "purchase_store", "spinning"]),
     ).map(i => i.id)
     expect(ids).toContain("ops_primary_kpis")
     expect(ids).toContain("ops_pipeline")
+    expect(ids).toContain("ops_process_chart")
+    expect(ids).toContain("ops_trend_chart")
+    expect(ids).toContain("ops_status_table")
+    expect(ids).toContain("ops_mix_chart")
     expect(ids).toContain("spinning_summary")
     expect(ids).toContain("purchases_pipeline")
     expect(ids).toContain("quick_actions")
