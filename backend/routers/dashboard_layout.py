@@ -1,5 +1,9 @@
-"""Per-user dashboard layout store (#52 §3). The backend treats the layout as
-an opaque JSON object — the widget registry + merge live in the frontend."""
+"""Per-user dashboard layout store (#52 §3 / dual-home v4).
+
+The backend treats the layout as an opaque JSON object — the widget registry
++ merge live in the frontend. Schema v4 stores two independently customized
+homes under `dashboards.financial` and `dashboards.operations`.
+"""
 import json
 from datetime import datetime
 
@@ -37,7 +41,8 @@ def get_layout(session: SessionDep, user: CurrentUserDep):
 @router.put("/layout")
 def put_layout(session: SessionDep, user: CurrentUserDep, body: LayoutBody):
     # CurrentUserDep (not WriteUserDep): saving one's OWN dashboard layout is a
-    # personal UI preference, so even viewer-role users may persist it.
+    # personal UI preference (Financial + Operations slices in one v4 blob),
+    # so even viewer-role users may persist it.
     row = session.exec(
         select(UserDashboardLayout).where(
             UserDashboardLayout.tenant_id == user.tenant_id,

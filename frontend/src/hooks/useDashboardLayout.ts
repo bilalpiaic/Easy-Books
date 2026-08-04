@@ -1,188 +1,32 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { getCurrentUser } from "@/lib/auth"
-import { WIDGET_REGISTRY, type WidgetDef, DEFAULT_QUICK_ACTION_IDS } from "@/lib/dashboardWidgets"
-import { isShortcutId, resolveShortcut } from "@/lib/dashboardShortcuts"
 import { useModules } from "@/context/ModuleContext"
+import type { DashboardView } from "@/lib/dashboardHome"
+import {
+  BP_COLS,
+  defaultGrid,
+  migrateToV4,
+  toV4Payload,
+  validateBreakpoint,
+  registryById,
+  type Breakpoint,
+  type DashboardSlice,
+  type GridItem,
+  type Meta,
+  type ResolvedLayouts,
+  type SavedAny,
+} from "@/lib/dashboardLayoutLogic"
 
-/** @deprecated Use BP_COLS.lg — kept for external consumers only. */
-export const GRID_COLS = 4
-
-export interface GridItem { id: string; x: number; y: number; w: number; h: number }
-export interface GridLayoutV2 { version: 2; items: GridItem[] }
-
-export type Breakpoint = "lg" | "sm" | "xs"
-export const BP_COLS: Record<Breakpoint, number> = { lg: 4, sm: 2, xs: 1 }
-
-export interface ResolvedLayouts {
-  lg: GridItem[]
-  sm?: GridItem[]
-  xs?: GridItem[]
-}
-
-export interface GridLayoutV3 {
-  version: 3
-  layouts: ResolvedLayouts
-  /** IDs explicitly removed by the user — skipped during additive default-widget injection. */
-  dismissed?: string[]
-  /** Ordered quick-action IDs chosen by the user. */
-  quickActions?: string[]
-}
-
-// Phase-1 shapes (for migration only)
-interface StoredWidgetV1 { id: string; visible: boolean }
-interface StoredLayoutV1 { version: 1; widgets: StoredWidgetV1[] }
-
-type Meta = { model: string | undefined; role: string; installedModules: Set<string> }
-type SavedAny = GridLayoutV3 | GridLayoutV2 | StoredLayoutV1 | Record<string, unknown> | null
-
-const registryById = new Map<string, WidgetDef>(WIDGET_REGISTRY.map(w => [w.id, w]))
-const gridDefs = WIDGET_REGISTRY.filter(w => !w.pinned)
-
-/** Shelf-pack {id,w,h} entries into a BP_COLS.lg-wide layout (left→right, wrap). */
-export function packItems(sized: { id: string; w: number; h: number }[]): GridItem[] {
-  const items: GridItem[] = []
-  let x = 0, y = 0, rowH = 0
-  for (const s of sized) {
-    const w = Math.min(s.w, BP_COLS.lg)
-    if (x + w > BP_COLS.lg) { x = 0; y += rowH; rowH = 0 }
-    items.push({ id: s.id, x, y, w, h: s.h })
-    x += w; rowH = Math.max(rowH, s.h)
-  }
-  return items
-}
-
-export function defaultGrid(installedModules?: Set<string>): GridItem[] {
-  const mods = installedModules ?? new Set(["base"])
-  return packItems(
-    gridDefs
-      .filter(d => d.defaultOnGrid !== false)
-      .filter(d => !d.requiredModule || mods.has(d.requiredModule))
-      .map(d => ({ id: d.id, w: d.defaultSize.w, h: d.defaultSize.h })),
-  )
-}
-
-export function migrateV1toV2(v1: StoredLayoutV1): GridItem[] {
-  const sized = v1.widgets
-    .filter(w => w.visible)
-    .map(w => registryById.get(w.id))
-    .filter((d): d is WidgetDef => Boolean(d) && !d!.pinned)
-    .map(d => ({ id: d.id, w: d.defaultSize.w, h: d.defaultSize.h }))
-  return packItems(sized)
-}
-
-function validateV2(items: GridItem[], meta: Meta): GridItem[] {
-  const seen = new Set<string>()
-  const out: GridItem[] = []
-  for (let it of items) {
-    if (!it || typeof it.id !== "string" || seen.has(it.id)) continue
-    if (isShortcutId(it.id)) {
-      if (!resolveShortcut(it.id, meta.installedModules, meta.role)) continue
-    } else {
-      const def = registryById.get(it.id)
-      if (!def || def.pinned) continue
-      if (def.requiredModule && !meta.installedModules.has(def.requiredModule)) continue
-      if (it.w < def.minSize.w) it = { ...it, w: def.minSize.w }
-      if (it.h < def.minSize.h) it = { ...it, h: def.minSize.h }
-    }
-    seen.add(it.id)
-    out.push(it)
-  }
-  return out
-}
-
-function validateBreakpoint(
-  items: GridItem[],
-  meta: Meta,
-  lgIds: Set<string>,
-  cols: number,
-): GridItem[] {
-  const seen = new Set<string>()
-  const out: GridItem[] = []
-  for (let it of items) {
-    if (!it || typeof it.id !== "string" || seen.has(it.id)) continue
-    if (!lgIds.has(it.id)) continue  // shared-membership invariant
-    if (isShortcutId(it.id)) {
-      if (!resolveShortcut(it.id, meta.installedModules, meta.role)) continue
-    } else {
-      const def = registryById.get(it.id)
-      if (!def || def.pinned) continue
-      if (def.requiredModule && !meta.installedModules.has(def.requiredModule)) continue
-      const minW = Math.min(def.minSize.w, cols)
-      const minH = def.minSize.h
-      if (it.w < minW) it = { ...it, w: minW }
-      if (it.h < minH) it = { ...it, h: minH }
-    }
-    const maxW = cols
-    if (it.w > maxW) it = { ...it, w: maxW }
-    seen.add(it.id)
-    out.push(it)
-  }
-  return out
-}
-
-/**
- * Inject any default-on-grid widgets missing from an existing layout.
- * Skips widgets the user has explicitly dismissed via removeWidget,
- * and widgets whose requiredModule is not installed.
- */
-function injectMissingDefaults(
-  lg: GridItem[],
-  dismissed: Set<string>,
-  installedModules?: Set<string>,
-): GridItem[] {
-  const mods = installedModules ?? new Set(["base"])
-  const present = new Set(lg.map(i => i.id))
-  const missing = gridDefs.filter(
-    d =>
-      d.defaultOnGrid !== false &&
-      !present.has(d.id) &&
-      !dismissed.has(d.id) &&
-      (!d.requiredModule || mods.has(d.requiredModule)),
-  )
-  if (missing.length === 0) return lg
-  const baseY = lg.reduce((m, i) => Math.max(m, i.y + i.h), 0)
-  const packed = packItems(missing.map(d => ({ id: d.id, w: d.defaultSize.w, h: d.defaultSize.h })))
-  return [...lg, ...packed.map(i => ({ ...i, y: i.y + baseY }))]
-}
-
-/** Resolve a saved blob (null | v1 | v2 | v3) into validated layouts by breakpoint. */
-export function resolveLayout(saved: SavedAny, meta: Meta): ResolvedLayouts {
-  if (!saved || typeof saved !== "object") return { lg: defaultGrid(meta.installedModules) }
-  const v = (saved as { version?: number }).version
-
-  if (v === 3) {
-    const s = saved as GridLayoutV3
-    if (!Array.isArray(s.layouts?.lg)) return { lg: defaultGrid(meta.installedModules) }
-    // Auto-clamp KPI rows: they were previously h:2 but now max h:1
-    const KPI_H1_IDS = new Set(["primary_kpis", "secondary_kpis", "quick_actions", "alerts"])
-    const clampKpi = (items: GridItem[]): GridItem[] =>
-      items.map(i => KPI_H1_IDS.has(i.id) && i.h > 1 ? { ...i, h: 1 } : i)
-    const dismissed = new Set<string>(Array.isArray(s.dismissed) ? s.dismissed : [])
-    const validated = validateV2(clampKpi(s.layouts.lg), meta)
-    if (validated.length === 0) return { lg: defaultGrid(meta.installedModules) }
-    const lg = injectMissingDefaults(validated, dismissed, meta.installedModules)
-    const lgIds = new Set(lg.map(i => i.id))
-    const result: ResolvedLayouts = { lg }
-    for (const bp of ["sm", "xs"] as const) {
-      const raw = s.layouts[bp]
-      if (!Array.isArray(raw)) continue
-      const bpValidated = validateBreakpoint(clampKpi(raw), meta, lgIds, BP_COLS[bp])
-      if (bpValidated.length > 0) result[bp] = bpValidated
-    }
-    return result
-  }
-
-  if (v === 2 && Array.isArray((saved as GridLayoutV2).items)) {
-    return { lg: validateV2((saved as GridLayoutV2).items, meta) }
-  }
-  if (v === 1 && Array.isArray((saved as StoredLayoutV1).widgets)) {
-    return { lg: migrateV1toV2(saved as StoredLayoutV1) }
-  }
-  return { lg: defaultGrid(meta.installedModules) }
-}
+export {
+  GRID_COLS, BP_COLS, packItems, defaultGrid, migrateV1toV2, resolveLayout,
+} from "@/lib/dashboardLayoutLogic"
+export type {
+  GridItem, GridLayoutV2, GridLayoutV3, ResolvedLayouts, Breakpoint,
+} from "@/lib/dashboardLayoutLogic"
 
 export interface UseDashboardLayout {
+  view: DashboardView
   layouts: ResolvedLayouts
   meta: Meta
   loading: boolean
@@ -195,130 +39,174 @@ export interface UseDashboardLayout {
   reset: () => void
   reload: () => void
   save: () => Promise<void>
-  /** Update quick actions and persist immediately (avoids stale-state race with save()). */
   updateQuickActions: (ids: string[]) => Promise<void>
 }
 
-export function useDashboardLayout(): UseDashboardLayout {
+function updateSlice(
+  slices: { financial: DashboardSlice; operations: DashboardSlice },
+  view: DashboardView,
+  patch: Partial<DashboardSlice>,
+): { financial: DashboardSlice; operations: DashboardSlice } {
+  return { ...slices, [view]: { ...slices[view], ...patch } }
+}
+
+export function useDashboardLayout(view: DashboardView = "financial"): UseDashboardLayout {
   const { installedModules } = useModules()
-  const [layouts, setLayouts] = useState<ResolvedLayouts>(() => ({ lg: defaultGrid() }))
-  const [dismissed, setDismissed] = useState<string[]>([])
-  const [quickActions, setQuickActions] = useState<string[]>(DEFAULT_QUICK_ACTION_IDS)
-  const [saved, setSaved] = useState<SavedAny>(null)
-  const [meta, setMeta] = useState<Meta>({ model: undefined, role: getCurrentUser()?.role ?? "viewer", installedModules })
+  const [meta, setMeta] = useState<Meta>({
+    model: undefined,
+    role: getCurrentUser()?.role ?? "viewer",
+    installedModules,
+  })
+  const [slices, setSlices] = useState<{ financial: DashboardSlice; operations: DashboardSlice }>(() => {
+    const m: Meta = { model: undefined, role: "viewer", installedModules }
+    const migrated = migrateToV4(null, m)
+    return { financial: migrated.financial, operations: migrated.operations }
+  })
+  const [savedPayload, setSavedPayload] = useState<SavedAny>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       apiFetch<{ layout: SavedAny }>("/api/dashboard/layout").catch(() => ({ layout: null })),
-      apiFetch<{ role?: string; tenant?: { business_model?: string } }>("/api/auth/me").catch(() => ({} as { role?: string; tenant?: { business_model?: string } })),
+      apiFetch<{ role?: string; tenant?: { business_model?: string } }>("/api/auth/me").catch(
+        () => ({} as { role?: string; tenant?: { business_model?: string } }),
+      ),
     ]).then(([lay, me]) => {
-      const m: Meta = { model: me?.tenant?.business_model, role: me?.role ?? getCurrentUser()?.role ?? "viewer", installedModules }
-      setMeta(m)
-      setSaved(lay.layout)
-      const savedDismissed: string[] = Array.isArray((lay.layout as GridLayoutV3)?.dismissed)
-        ? (lay.layout as GridLayoutV3).dismissed!
-        : []
-      setDismissed(savedDismissed)
-      const savedQuickActions = (lay.layout as GridLayoutV3)?.quickActions
-      if (Array.isArray(savedQuickActions) && savedQuickActions.length > 0) {
-        setQuickActions(savedQuickActions)
+      const m: Meta = {
+        model: me?.tenant?.business_model,
+        role: me?.role ?? getCurrentUser()?.role ?? "viewer",
+        installedModules,
       }
-      setLayouts(resolveLayout(lay.layout, m))
+      setMeta(m)
+      setSavedPayload(lay.layout)
+      const migrated = migrateToV4(lay.layout, m)
+      setSlices({ financial: migrated.financial, operations: migrated.operations })
     }).finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot load matches prior behaviour
   }, [])
 
-  // bp is part of the caller contract (DashboardGrid passes activeBp); write targets derive from allLayouts keys + prev state.
-  const applyLayout = (_bp: Breakpoint, allLayouts: Record<string, readonly { i: string; x: number; y: number; w: number; h: number }[]>) => {
-    setLayouts(prev => {
-      const next = { ...prev }
+  const active = slices[view]
+
+  const setActive = (updater: (prev: DashboardSlice) => DashboardSlice) => {
+    setSlices(prev => ({ ...prev, [view]: updater(prev[view]) }))
+  }
+
+  const applyLayout = (
+    _bp: Breakpoint,
+    allLayouts: Record<string, readonly { i: string; x: number; y: number; w: number; h: number }[]>,
+  ) => {
+    setActive(prev => {
+      const nextLayouts = { ...prev.layouts }
       for (const key of Object.keys(allLayouts) as Breakpoint[]) {
         const arr = allLayouts[key]
         if (!arr) continue
         const mapped = arr.map(l => ({ id: l.i, x: l.x, y: l.y, w: l.w, h: l.h }))
-        if (key === "lg") { next.lg = mapped; continue }
-        if (prev[key]) next[key] = mapped  // only update if override already exists
+        if (key === "lg") { nextLayouts.lg = mapped; continue }
+        if (prev.layouts[key]) nextLayouts[key] = mapped
       }
-      return next
+      return { ...prev, layouts: nextLayouts }
     })
   }
 
   const markCustomized = (bp: Breakpoint) => {
-    if (bp === "lg") return  // lg is always present
-    setLayouts(prev => {
-      if (prev[bp]) return prev  // already an override, nothing to do
-      // Promote: derive from lg with column clamping
+    if (bp === "lg") return
+    setActive(prev => {
+      if (prev.layouts[bp]) return prev
       const cols = BP_COLS[bp]
-      const lgIds = new Set(prev.lg.map(i => i.id))
-      const derived = validateBreakpoint(prev.lg, meta, lgIds, cols)
-      return { ...prev, [bp]: derived }
+      const lgIds = new Set(prev.layouts.lg.map(i => i.id))
+      const derived = validateBreakpoint(prev.layouts.lg, meta, lgIds, cols, view)
+      return { ...prev, layouts: { ...prev.layouts, [bp]: derived } }
     })
   }
 
   const addWidget = (id: string) => {
-    setDismissed(prev => prev.filter(d => d !== id))
-    setLayouts(prev => {
-      if (prev.lg.some(i => i.id === id)) return prev
+    setActive(prev => {
+      const dismissed = prev.dismissed.filter(d => d !== id)
+      if (prev.layouts.lg.some(i => i.id === id)) return { ...prev, dismissed }
       const def = registryById.get(id)
       const size = def ? def.defaultSize : { w: 1, h: 1 }
       const newLg: GridItem[] = [
-        ...prev.lg,
-        { id, x: 0, y: prev.lg.reduce((m, i) => Math.max(m, i.y + i.h), 0), w: size.w, h: size.h }
+        ...prev.layouts.lg,
+        { id, x: 0, y: prev.layouts.lg.reduce((m, i) => Math.max(m, i.y + i.h), 0), w: size.w, h: size.h },
       ]
-      const next: ResolvedLayouts = { lg: newLg }
+      const nextLayouts: ResolvedLayouts = { lg: newLg }
       for (const bp of ["sm", "xs"] as const) {
-        if (!prev[bp]) continue
+        if (!prev.layouts[bp]) continue
         const cols = BP_COLS[bp]
         const w = Math.min(size.w, cols)
-        const y = prev[bp]!.reduce((m, i) => Math.max(m, i.y + i.h), 0)
-        next[bp] = [...prev[bp]!, { id, x: 0, y, w, h: size.h }]
+        const y = prev.layouts[bp]!.reduce((m, i) => Math.max(m, i.y + i.h), 0)
+        nextLayouts[bp] = [...prev.layouts[bp]!, { id, x: 0, y, w, h: size.h }]
       }
-      return next
+      return { ...prev, dismissed, layouts: nextLayouts }
     })
   }
 
   const removeWidget = (id: string) => {
-    setDismissed(prev => prev.includes(id) ? prev : [...prev, id])
-    setLayouts(prev => {
-      const next: ResolvedLayouts = { lg: prev.lg.filter(i => i.id !== id) }
+    setActive(prev => {
+      const dismissed = prev.dismissed.includes(id) ? prev.dismissed : [...prev.dismissed, id]
+      const nextLayouts: ResolvedLayouts = { lg: prev.layouts.lg.filter(i => i.id !== id) }
       for (const bp of ["sm", "xs"] as const) {
-        if (prev[bp]) next[bp] = prev[bp]!.filter(i => i.id !== id)
+        if (prev.layouts[bp]) nextLayouts[bp] = prev.layouts[bp]!.filter(i => i.id !== id)
       }
-      return next
+      return { ...prev, dismissed, layouts: nextLayouts }
     })
   }
 
   const reset = () => {
-    setDismissed([])
-    setQuickActions(DEFAULT_QUICK_ACTION_IDS)
-    setLayouts({ lg: defaultGrid() })
+    const fresh = migrateToV4(null, meta)[view]
+    setActive(() => ({
+      layouts: { lg: defaultGrid(view, meta.installedModules) },
+      dismissed: [],
+      quickActions: fresh.quickActions,
+    }))
   }
-  const reload = () => setLayouts(resolveLayout(saved, meta))
 
-  const save = async () => {
-    const payload: GridLayoutV3 = { version: 3, layouts, dismissed, quickActions }
+  const reload = () => {
+    const migrated = migrateToV4(savedPayload, meta)
+    setSlices({ financial: migrated.financial, operations: migrated.operations })
+  }
+
+  const persist = async (
+    nextSlices: { financial: DashboardSlice; operations: DashboardSlice },
+  ) => {
+    const payload = toV4Payload(nextSlices.financial, nextSlices.operations, view)
     await apiFetch("/api/dashboard/layout", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ layout: payload }),
     })
-    setSaved(payload)
+    setSavedPayload(payload)
+  }
+
+  const save = async () => {
+    await persist(slices)
   }
 
   const updateQuickActions = async (ids: string[]) => {
-    setQuickActions(ids)
-    // Build payload directly from ids to avoid stale-state race
-    const payload: GridLayoutV3 = { version: 3, layouts, dismissed, quickActions: ids }
-    await apiFetch("/api/dashboard/layout", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ layout: payload }),
-    })
-    setSaved(payload)
+    const next = updateSlice(slices, view, { quickActions: ids })
+    setSlices(next)
+    await persist(next)
   }
 
-  const baseline = resolveLayout(saved, meta)
-  const dirty = JSON.stringify(layouts) !== JSON.stringify(baseline)
+  const baseline = migrateToV4(savedPayload, meta)[view]
+  const dirty = JSON.stringify(active.layouts) !== JSON.stringify(baseline.layouts)
+    || JSON.stringify(active.dismissed) !== JSON.stringify(baseline.dismissed)
+    || JSON.stringify(active.quickActions) !== JSON.stringify(baseline.quickActions)
 
-  return { layouts, meta, loading, dirty, quickActions, applyLayout, markCustomized, addWidget, removeWidget, reset, reload, save, updateQuickActions }
+  return {
+    view,
+    layouts: active.layouts,
+    meta,
+    loading,
+    dirty,
+    quickActions: active.quickActions,
+    applyLayout,
+    markCustomized,
+    addWidget,
+    removeWidget,
+    reset,
+    reload,
+    save,
+    updateQuickActions,
+  }
 }

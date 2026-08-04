@@ -6,14 +6,21 @@ import { WIDGET_REGISTRY } from "@/lib/dashboardWidgets"
 import { shortcutCatalog, shortcutId } from "@/lib/dashboardShortcuts"
 import { ALL_SECTIONS } from "@/lib/nav"
 import type { GridItem } from "@/hooks/useDashboardLayout"
+import type { DashboardView } from "@/lib/dashboardHome"
 import { useTranslation } from "react-i18next"
 import { useModules } from "@/context/ModuleContext"
 
-export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
+function matchesHome(home: DashboardView | "both" | undefined, view: DashboardView): boolean {
+  const h = home ?? "financial"
+  return h === "both" || h === view
+}
+
+export default function AddWidgetPanel({ items, meta, onAdd, onClose, view = "financial" }: {
   items: GridItem[]
   meta: { model: string | undefined; role: string }
   onAdd: (id: string) => void
   onClose: () => void
+  view?: DashboardView
 }) {
   const { t } = useTranslation()
   const { installedModules } = useModules()
@@ -25,6 +32,7 @@ export default function AddWidgetPanel({ items, meta, onAdd, onClose }: {
     w =>
       !w.pinned &&
       !present.has(w.id) &&
+      matchesHome(w.home, view) &&
       (!w.requiredModule || installedModules.has(w.requiredModule)),
   )
   const catalog = useMemo(() => shortcutCatalog(installedModules, meta.role), [installedModules, meta.role])

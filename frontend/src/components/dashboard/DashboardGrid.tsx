@@ -66,7 +66,9 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
     <div className="space-y-3">
       {editing && (
         <div className="flex flex-wrap items-center gap-2 bg-[var(--bg-page)] border border-[var(--primary)]/30 rounded-xl px-3 py-2 sticky top-2 z-20">
-          <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/55">Customizing dashboard</span>
+          <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]/55">
+            Customizing {layout.view === "operations" ? "Operations" : "Financial"} dashboard
+          </span>
           <span className="text-[11px] text-[var(--primary)]/70 font-semibold">
             {activeBp === "lg" ? "Desktop layout" : activeBp === "sm" ? "Tablet layout" : "Phone layout"}
           </span>
@@ -90,6 +92,7 @@ export default function DashboardGrid({ layout, ctx, editing, onExitEditing }: {
       {editing && adding && (
         <AddWidgetPanel
           items={layouts.lg} meta={meta}
+          view={layout.view}
           onAdd={(id) => { addWidget(id); setAdding(false) }}
           onClose={() => setAdding(false)}
         />

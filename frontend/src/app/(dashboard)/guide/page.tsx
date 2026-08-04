@@ -31,7 +31,7 @@ const INVENTORY_MODELS: BusinessModel[] = ["trader", "manufacturing", "telecom_f
 
 const TABS: Tab[] = [
   { id: "getting-started",  label: "Getting Started",        icon: LogIn,           shortLabel: "Start"    },
-  { id: "dashboard",        label: "Dashboard Customization", icon: LayoutDashboard, shortLabel: "Dash"     },
+  { id: "dashboard",        label: "Dual-Home Dashboard",     icon: LayoutDashboard, shortLabel: "Dash"     },
   { id: "coa",              label: "Chart of Accounts",      icon: BarChart3,       shortLabel: "COA"      },
   { id: "invoicing",        label: "Invoicing",              icon: FileSignature,   shortLabel: "Invoices" },
   { id: "billing",          label: "Billing",                icon: Receipt,         shortLabel: "Bills"    },
@@ -201,7 +201,7 @@ function GettingStartedPanel() {
         "Create an Invoice for a sale, or a Bill for a purchase.",
         "Manufacturing tenants: see the Manufacturing tab for the BoM → GRN → PO → bill flow.",
         "Use New Entry (Ledger section) for a direct journal entry whenever you need an adjustment.",
-        "Check the Dashboard for KPIs and recent activity.",
+        "Check the Dashboard — switch Financial | Operations when industry packs are installed.",
       ]} />
 
       <TipCallout>
@@ -1933,9 +1933,21 @@ function DashboardCustomizationPanel() {
   return (
     <div>
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
-        The dashboard is fully customizable per user. Your layout is saved to your account —
-        other users see their own arrangement.
+        Easy-Books has <b>two home dashboards</b> you can switch between on{" "}
+        <CodeBadge>/dashboard</CodeBadge>: <b>Financial</b> (P&amp;L, cash, AR/AP) and{" "}
+        <b>Operations</b> (purpose-built KPIs for Manufacturing, Spinning, Healthcare,
+        Telecom, Purchases, and other installed industry packs). Each home has its own
+        customizable layout, saved per user.
       </p>
+
+      <SectionHeading>Financial vs Operations</SectionHeading>
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Financial</b> — revenue, expenses, net profit, cash &amp; bank, AR/AP aging, trends, day book</li>
+        <li><b>Operations</b> — throughput KPIs (open lots, WIP, bed occupancy, tracker floats, purchase pipeline…) with deep-links into module dashboards</li>
+        <li>The <b>Financial | Operations</b> toggle appears when any purpose module is installed; pure Base/Services tenants stay Financial-only</li>
+        <li>Industry tenants (manufacturing, spinning, hospital, telecom, textile processing) default to Operations on first visit</li>
+        <li>Set your login home under <b>Settings → Advanced → Home dashboard</b>, or use the toggle on the Dashboard page</li>
+      </ul>
 
       <SectionHeading>Entering customize mode</SectionHeading>
       <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
@@ -1968,30 +1980,34 @@ function DashboardCustomizationPanel() {
 
       <SectionHeading>Adding widgets and shortcuts</SectionHeading>
       <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-1">
-        Click <b>+ Add widget</b> in the toolbar to open the Add panel:
+        Click <b>+ Add widget</b> in the toolbar to open the Add panel (filtered to the
+        active home — Financial or Operations):
       </p>
       <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
-        <li><b>Widgets tab</b> — Bank Balances, Top Products, Inventory Summary — self-fetching data widgets</li>
-        <li><b>Shortcuts tab</b> — pin any navigation page as a quick-access tile (e.g., Invoices, Bills, Products, Bank Accounts)</li>
+        <li><b>Financial widgets</b> — Bank Balances, Top Products, Inventory Summary, HRM &amp; Payroll, trend charts</li>
+        <li><b>Operations widgets</b> — Ops KPIs, pipeline, alerts, Spinning / Weaving / Production / Healthcare / Telecom / Purchases / Processing tiles</li>
+        <li><b>Shortcuts tab</b> — pin any navigation page as a quick-access tile (e.g., Invoices, Spin Lots, OPD)</li>
       </ul>
       <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed mt-2">
         Shortcut tiles show live metric badges where available (e.g., overdue count, total outstanding).
+        Quick Actions also differ per home (invoices/journals vs demands/lots/OPD).
       </p>
 
       <SectionHeading>Saving and resetting</SectionHeading>
       <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
-        <li><b>Done</b> — saves your layout and exits customize mode</li>
+        <li><b>Done</b> — saves the <em>active</em> home&apos;s layout and exits customize mode</li>
         <li><b>{t('common.cancel', 'Cancel')}</b> — discards unsaved changes</li>
-        <li><b>Reset all</b> — removes all customizations and returns to the default grid for all screen sizes</li>
+        <li><b>Reset all</b> — restores defaults for the active home (Financial or Operations) across breakpoints</li>
       </ul>
 
       <TipCallout>
-        Your dashboard layout is saved per-user. Team members each have their own arrangement
-        and can customize independently.
+        Financial and Operations layouts are saved independently per user. Customizing
+        one home never overwrites the other. Staff Rights (when enabled) can gate
+        <b> Dashboard → Financial</b> and <b>Dashboard → Operations</b> separately.
       </TipCallout>
 
       <MistakeCallout>
-        <p><b>Reset all</b> clears ALL breakpoint layouts — desktop, tablet, and phone. There is no undo once saved.</p>
+        <p><b>Reset all</b> clears breakpoint layouts for the home you are customizing — desktop, tablet, and phone. There is no undo once saved.</p>
       </MistakeCallout>
     </div>
   )

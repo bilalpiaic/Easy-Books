@@ -51,7 +51,11 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap + v5 IFRS/SaaS gap-fill)
   • WHT + CIT (#267) — withholding tax code, vendor rate, sample CIT adjustments
 
 Still deliberately unseeded: UserPermission overrides, AiChatSession,
-UserDashboardLayout, ApiKey / auth-infra tables.
+ApiKey / auth-infra tables.
+
+Dashboard layouts (v4 dual-home): seeded for each demo owner — Financial +
+Operations slices with module-aware default widget IDs so industry tenants
+land on a populated Operations home on first login.
 
 Usage:
     PYTHONPATH=. uv run python -m scripts.seed_demo
@@ -98,8 +102,8 @@ from models import (
     RatePlan, Reconciliation, ReconciliationLine, RecurringTemplate, ReportDefinition,
     RevenueAllocationAudit, SalaryComponent, SequenceCounter, Settings, StatementLine,
     StockLocation, StoreIssue,
-    StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, Vendor,
-    VendorAdvance, VendorQuotation, VendorQuotationLine, UaeEinvoiceLog, ZatcaSubmissionLog,
+    StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, UserDashboardLayout,
+    Vendor, VendorAdvance, VendorQuotation, VendorQuotationLine, UaeEinvoiceLog, ZatcaSubmissionLog,
 )
 from models_telecom import (
     AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
@@ -6573,6 +6577,126 @@ def _seed_consolidation_graph(s: Session) -> None:
     s.commit()
 
 
+# Modules that light the Operations home tab (mirrors frontend PURPOSE_MODULES).
+_PURPOSE_MODULES = (
+    "production", "spinning", "weaving", "textile_processing",
+    "healthcare", "telecom", "purchase_store",
+)
+_OPS_DEFAULT_MODELS = {
+    "manufacturing", "yarn_spinning", "textile_processing",
+    "hospital", "telecom_franchise",
+}
+
+
+def _pack_items(sized: list[tuple[str, int, int]], cols: int = 4) -> list[dict]:
+    """Shelf-pack (id, w, h) into a left→right wrap layout (matches frontend packItems)."""
+    items: list[dict] = []
+    x = y = row_h = 0
+    for wid, w, h in sized:
+        w = min(w, cols)
+        if x + w > cols:
+            x = 0
+            y += row_h
+            row_h = 0
+        items.append({"id": wid, "x": x, "y": y, "w": w, "h": h})
+        x += w
+        row_h = max(row_h, h)
+    return items
+
+
+def _seed_dashboard_layouts(s: Session, tenant_id: int, user: User, enabled: list[str], business_model: str) -> None:
+    """Idempotent v4 dual-home layout for the demo owner (and accountant if present)."""
+    mods = set(enabled)
+    purpose = [m for m in _PURPOSE_MODULES if m in mods]
+    active = "operations" if business_model in _OPS_DEFAULT_MODELS and purpose else "financial"
+
+    financial_widgets = [
+        ("quick_actions", 4, 1),
+        ("primary_kpis", 4, 1),
+        ("secondary_kpis", 4, 1),
+        ("ar_aging", 2, 3),
+        ("monthly_rev_exp", 2, 3),
+        ("net_profit_trend", 2, 3),
+        ("expense_breakdown", 2, 3),
+        ("top_customers", 2, 4),
+        ("recent_transactions", 4, 3),
+    ]
+    if "hrm" in mods:
+        financial_widgets.append(("hrm_summary", 2, 2))
+
+    ops_widgets: list[tuple[str, int, int]] = [
+        ("quick_actions", 4, 1),
+        ("ops_primary_kpis", 4, 1),
+        ("ops_alerts", 4, 1),
+        ("ops_pipeline", 2, 3),
+    ]
+    module_tiles = [
+        ("spinning", "spinning_summary"),
+        ("weaving", "weaving_summary"),
+        ("production", "production_wip"),
+        ("healthcare", "healthcare_census"),
+        ("telecom", "telecom_tracker"),
+        ("purchase_store", "purchases_pipeline"),
+        ("textile_processing", "textile_processing_summary"),
+    ]
+    for mod, wid in module_tiles:
+        if mod in mods:
+            ops_widgets.append((wid, 2, 2))
+    if "hrm" in mods:
+        ops_widgets.append(("hrm_summary", 2, 2))
+
+    fin_qa = ["new_invoice", "new_bill", "new_entry", "products", "workflow", "guide"]
+    ops_qa = [qid for qid, need in [
+        ("new_demand", "purchase_store"), ("new_po", "purchase_store"),
+        ("gate_inward", "purchase_store"), ("new_production", "production"),
+        ("new_spin_lot", "spinning"), ("new_opd", "healthcare"),
+        ("telecom_tracker", "telecom"), ("attendance", "hrm"), ("products", "inventory"),
+    ] if need in mods or need == "inventory" and "inventory" in mods]
+    if not ops_qa:
+        ops_qa = ["products", "workflow", "guide"]
+
+    payload = {
+        "version": 4,
+        "activeView": active,
+        "dashboards": {
+            "financial": {
+                "layouts": {"lg": _pack_items(financial_widgets)},
+                "dismissed": [],
+                "quickActions": fin_qa,
+            },
+            "operations": {
+                "layouts": {"lg": _pack_items(ops_widgets)},
+                "dismissed": [],
+                "quickActions": ops_qa,
+            },
+        },
+    }
+    blob = _json.dumps(payload)
+
+    # Seed owner + accountant so both demos see dual homes immediately.
+    targets = [user]
+    for u in s.exec(select(User).where(User.tenant_id == tenant_id)).all():
+        if u.id != user.id and u.role in ("owner", "admin", "accountant"):
+            targets.append(u)
+
+    for u in targets:
+        row = s.exec(
+            select(UserDashboardLayout).where(
+                UserDashboardLayout.tenant_id == tenant_id,
+                UserDashboardLayout.user_id == u.id,
+            )
+        ).first()
+        if row is None:
+            s.add(UserDashboardLayout(
+                tenant_id=tenant_id, user_id=u.id, layout_json=blob,
+            ))
+        else:
+            # Converge — refresh demo layouts so re-seed picks up new widgets.
+            row.layout_json = blob
+            row.updated_at = datetime.utcnow()
+            s.add(row)
+
+
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
@@ -6793,6 +6917,16 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _seed_payroll_runs(s, tenant_id, user, employees_hrm, components_hrm)
         s.commit()
         _seed_attendance(s, tenant_id, employees_hrm)
+        s.commit()
+
+        # ── Dual-home dashboard layouts (Financial + Operations) ──────────────
+        try:
+            enabled_mods = _json.loads(
+                (s.get(Tenant, tenant_id).enabled_modules or "[]")
+            )
+        except Exception:
+            enabled_mods = list(MODULES_BY_MODEL.get(business_model, ["base"]))
+        _seed_dashboard_layouts(s, tenant_id, user, enabled_mods, business_model)
         s.commit()
 
         return {

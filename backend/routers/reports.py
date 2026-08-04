@@ -120,7 +120,7 @@ def get_trial_balance(
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[perm_dep("dashboard.financial", "view")])
 def get_dashboard_data(
     session: SessionDep, user: CurrentUserDep,
     start: Optional[str] = None, end: Optional[str] = None,

@@ -368,7 +368,7 @@ function AppsPageInner() {
     try {
       await uninstall(id)
       if (id === "pra") {
-        localStorage.setItem(HOME_PREF_KEY, "accounting")
+        localStorage.setItem(HOME_PREF_KEY, "financial")
         localStorage.setItem("eb.pra_portal_mode", "0")
       }
       setSuccess(`${mod?.label ?? id} uninstalled.`)
@@ -424,7 +424,7 @@ function AppsPageInner() {
   }
 
   const choosePraHome = (usePra: boolean) => {
-    localStorage.setItem(HOME_PREF_KEY, usePra ? "pra" : "accounting")
+    localStorage.setItem(HOME_PREF_KEY, usePra ? "pra" : "financial")
     localStorage.setItem("eb.pra_portal_mode", usePra ? "1" : "0")
     setPraPrompt(false)
     router.push(usePra ? "/pra-dashboard" : "/dashboard")

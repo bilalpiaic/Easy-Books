@@ -57,7 +57,7 @@
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
 | Demo tenants | 8 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital/yarn_spinning (email: `demo.{model}@easy-books.app` — spinning uses `demo.spinning@easy-books.app`; password: `demo1234`) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates; hospital tenant additionally has 5 doctors, 4 wards, 50 patients, 200 OPD tokens, 20 admissions, 80 lab orders; spinning tenant additionally has yarn specs, spin lots, bale receipts, stage entries, cone output, waste, and dispatches |
-| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **per-user dashboard layout** — drag/resize/add/remove widgets, per-breakpoint (desktop/tablet/phone), saved per user account (v2.5+); **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+); **Ctrl+K universal search** — 3-tier command palette (open tabs → nav index → API, 8 entity types, prefix filter syntax, recent searches) (v3.0+); **in-app auto-update** — `UpdateAvailablePopup` + `UpdateProgressScreen` with 4-phase progress and changelog (v3.0+); **mobile navigation** — `BottomNav`, `FAB`, `MoreDrawer` (v3.0+); **QB token system** — all 155+ pages migrated to CSS custom properties, dark mode entirely token-driven (v3.0+) |
+| Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **dual-home dashboard (v4)** — Financial \| Operations toggle on `/dashboard`, each home drag/resize/add/remove independently, per-breakpoint (desktop/tablet/phone), saved per user via `/api/dashboard/layout`; home preference in Settings → Advanced (`eb.home_dashboard`); ops aggregate `GET /api/dashboard/operations-summary`; staff rights `dashboard.financial` / `dashboard.operations`; **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+); **Ctrl+K universal search** — 3-tier command palette (open tabs → nav index → API, 8 entity types, prefix filter syntax, recent searches) (v3.0+); **in-app auto-update** — `UpdateAvailablePopup` + `UpdateProgressScreen` with 4-phase progress and changelog (v3.0+); **mobile navigation** — `BottomNav`, `FAB`, `MoreDrawer` (v3.0+); **QB token system** — all 155+ pages migrated to CSS custom properties, dark mode entirely token-driven (v3.0+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
 | Roles | `owner | admin | accountant | viewer` (CHECK-constrained at DB) |
@@ -300,7 +300,7 @@ backend/
     └── idempotency.py     ← response-cache middleware
 
 frontend/src/app/(dashboard)/
-├── dashboard/             ← KPI cards + 12-month charts
+├── dashboard/             ← Dual home: Financial | Operations (v4 layouts)
 ├── entry/                 ← manual JV form (Dr = Cr live tally)
 ├── journal/ · ledger/     ← read-only GL views
 ├── trial-balance/         ← Dr/Cr per account, warning if imbalanced
@@ -1428,9 +1428,12 @@ For **closed periods**, trial-balance and ledger reads can pull from materialise
 | Product Ledger | `GET /api/reports/product-ledger` | Stock movements + running quantity per product; filter by store or **Consolidated** |
 | Inventory Performance | `GET /api/reports/inventory-performance` | Per product: on-hand qty + value (qty × avg cost), low-stock flag, last-movement date, units sold + COGS over a period |
 | Customer Performance | `GET /api/reports/customer-performance` | Per customer: revenue, invoice count, outstanding AR, avg days-to-pay; ranked |
-| Dashboard KPIs | `GET /api/reports/dashboard` | Revenue, expense, AR/AP outstanding (net of allocations), overdue counts, low stock |
+| Dashboard KPIs (Financial) | `GET /api/reports/dashboard` | Revenue, expense, AR/AP outstanding (net of allocations), overdue counts, low stock — gated by `dashboard.financial` |
 | Dashboard charts | `GET /api/reports/dashboard/charts?months=12` | 12-month series for chart components; Top Customers capped at 10 (v3.1) |
 | Net Worth trend | `GET /api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1); one grouped query + Python cumulative sums, gap months carried forward |
+| Operations summary | `GET /api/dashboard/operations-summary` | Module-keyed ops KPIs (production/spinning/weaving/healthcare/telecom/purchase_store/hrm/textile_processing) — gated by `dashboard.operations` |
+| Operations available | `GET /api/dashboard/operations-available` | Whether the tenant lights the Operations home toggle |
+| Dashboard layout | `GET/PUT /api/dashboard/layout` | Opaque v4 dual-slice layout blob (financial + operations) |
 | Report Builder | `POST /api/report-builder/run` | User-configurable ad-hoc report: column chooser, filter predicates, group-by/aggregates, pagination — over any whitelisted source; tenant isolation enforced by the engine |
 
 **Hierarchical statements (V2.5).** In single-period mode, Trial Balance, Balance Sheet, and Income Statement roll up over the multi-level Chart of Accounts (`services/account_tree.py`): each parent's subtotal = its own direct balance + the sum of its descendant leaves, zero subtrees pruned. The payloads are nested trees — TB `{tree, totals}`, BS `{assets, liabilities, equity, totals}` (with a synthetic current-period retained-earnings line), P&L `{revenue, expenses, totals}` + `net_profit`. The frontend renders them with the `<AccountTree>` component (expand/collapse, parent subtotals, and click-through drill from a leaf line → its ledger → the underlying voucher). **Comparison mode** keeps the flat `{current, comparison}` shape.
@@ -1540,9 +1543,12 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 | GET | `/api/reports/balance-sheet` | A = L + E |
 | GET | `/api/reports/cash-flow` | Indirect method |
 | GET | `/api/reports/tax-summary` | GST + income-tax slabs |
-| GET | `/api/reports/dashboard` | KPIs (outstanding net of allocations) |
+| GET | `/api/reports/dashboard` | Financial home KPIs (outstanding net of allocations) |
 | GET | `/api/reports/dashboard/charts?months=12` | Chart series (Top Customers capped at 10, v3.1) |
 | GET | `/api/reports/dashboard/net-worth?months=N` | Monthly cumulative Assets / Liabilities / Net Worth series (v3.1) |
+| GET | `/api/dashboard/operations-summary` | Operations home — module KPI bag |
+| GET | `/api/dashboard/operations-available` | Ops toggle visibility for tenant |
+| GET/PUT | `/api/dashboard/layout` | Dual-home layout store (v4) |
 | POST | `/api/ai/chat` | AI Financial Assistant — SSE, 4-stage Triage→Specialist→Reviewer→Drafting pipeline over live report data (11 domain agents, ~50 read-only tools, module-gated); `ai_assistant` module + at least one configured provider required (v3.8) |
 | GET | `/api/ai/models` | Configured providers + default model for the chat UI's picker |
 | GET | `/api/ai/key-status` | *(admin+)* masked per-provider key status |

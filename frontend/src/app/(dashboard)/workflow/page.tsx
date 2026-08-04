@@ -963,22 +963,24 @@ function DashboardCustomizationFlow() {
   return (
     <div className="space-y-4 min-w-[480px]">
       <HFlow>
-        <StepBox title="Dashboard" impact="Any screen size" accent="blue" />
+        <StepBox title="Open Dashboard" impact="Financial or Operations home" accent="blue" />
         <Arrow />
-        <StepBox title="Click Customize" impact="Edit mode activates" accent="gold" />
+        <StepBox title="Toggle home" impact="Financial | Operations" accent="gold" />
         <Arrow />
-        <StepBox title="Drag / Resize widgets" impact="Reorder or resize any card" accent="purple" />
+        <StepBox title="Click Customize" impact="Edit that home only" accent="purple" />
         <Arrow />
-        <StepBox title="Add widget (optional)" impact="Pick from widget menu" accent="orange" />
+        <StepBox title="Drag / Add widgets" impact="Per-home widget pack" accent="orange" />
         <Arrow />
-        <StepBox title="Done" impact="Layout auto-saved" accent="green" />
+        <StepBox title="Done" impact="Slice saved (v4 layout)" accent="green" />
       </HFlow>
 
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-800 leading-relaxed">
-        <span className="font-bold">Responsive breakpoints:</span> Desktop, tablet, and phone layouts are
-        independent. Resize the browser window to the target width and click{" "}
-        <span className="font-mono">Customize</span> — changes are saved for that breakpoint only.
-        Switch between breakpoints to adjust each view separately.
+        <span className="font-bold">Dual homes:</span> Financial (P&amp;L / cash / AR-AP) and
+        Operations (industry KPIs) are customized separately. Ops-heavy tenants
+        (manufacturing, spinning, hospital, telecom, textile processing) default to Operations.
+        Pure Base/Services stay Financial-only. Layouts persist as schema{" "}
+        <span className="font-mono">v4</span> with independent breakpoint overrides
+        (desktop / tablet / phone) per home.
       </div>
     </div>
   )
@@ -1246,11 +1248,11 @@ export default function WorkflowPage() {
         <VendorAdvanceFlow />
       </SectionCard>
 
-      {/* 20 — Dashboard Customization */}
+      {/* 20 — Dual-home Dashboard Customization */}
       <SectionCard
         icon={LayoutDashboard}
-        title="Dashboard Customization"
-        subtitle="Drag, resize, and save your widget layout per breakpoint"
+        title="Dual-Home Dashboard"
+        subtitle="Financial | Operations — customize each home per breakpoint"
         iconColor="text-blue-600"
       >
         <DashboardCustomizationFlow />

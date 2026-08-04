@@ -12,7 +12,8 @@ const LS_PORTAL = "eb.pra_portal_mode"
  * Requires the `pra` add-on installed. `pra_enabled` remains the compliance
  * API switch (set in Settings once the module is on).
  *
- * Preference `eb.home_dashboard` = `pra` | `accounting` drives login landing.
+ * Preference `eb.home_dashboard` = `pra` | `accounting` | `financial` | `operations`
+ * drives login landing. `accounting` and `financial` both mean the accounting home.
  * `eb.pra_portal_mode` keeps slim portal nav when on the PRA Sales home.
  */
 export function usePRAPortal(): {
@@ -47,6 +48,7 @@ export function usePRAPortal(): {
     if (home === "pra" || (!home && legacy === "1") || (!home && legacy === null && !isAdminOrOwner)) {
       setPortalOn(true)
     } else {
+      // financial | operations | accounting → accounting home (not PRA portal)
       setPortalOn(false)
     }
     setSettled(true)
@@ -56,7 +58,7 @@ export function usePRAPortal(): {
     setPortalOn(prev => {
       const next = !prev
       localStorage.setItem(LS_PORTAL, next ? "1" : "0")
-      localStorage.setItem(HOME_PREF_KEY, next ? "pra" : "accounting")
+      localStorage.setItem(HOME_PREF_KEY, next ? "pra" : "financial")
       return next
     })
   }, [])

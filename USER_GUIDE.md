@@ -18,7 +18,8 @@
 7. [Inventory Management](#7-inventory-management)
 8. [Bank Reconciliation](#8-bank-reconciliation)
 9. [Financial Reporting](#9-financial-reporting)
-   - 9.1 [Dashboard Quick Actions & KPIs](#91-dashboard-quick-actions--kpis)
+   - 9.1 [Dual Home Dashboards (Financial | Operations)](#91-dual-home-dashboards-financial--operations)
+   - 9.2 [Dashboard Quick Actions & KPIs](#92-dashboard-quick-actions--kpis)
    - 9.7 [Customizing Your Dashboard](#97-customizing-your-dashboard)
 10. [Period Close](#10-period-close)
 11. [Recurring Journal Entries](#11-recurring-journal-entries)
@@ -571,11 +572,32 @@ All reports are **live from the GL** — always current, no batch jobs.
 
 **Exporting** — click **Export ▾** to download the current view as **CSV** or **Excel (XLSX)**. Up to 10 000 rows are exported. Use **Print** to send the on-screen table to your printer or save it as a PDF.
 
-### 9.1 Dashboard Quick Actions & KPIs
+### 9.1 Dual Home Dashboards (Financial | Operations)
 
-**Quick Actions** is a horizontal toolbar displayed at the **top of the Dashboard** (directly below the page title). It provides one-click shortcuts to the most common workflows — New Invoice, New Bill, Record Payment, New Journal Entry, and more — without navigating away from the overview.
+The home page at `/dashboard` supports **two separately maintained dashboards**:
 
-The dashboard also shows the following KPIs:
+| Home | Audience | Contents |
+|------|----------|----------|
+| **Financial** | Financial managers & management P&amp;L review | Revenue, expenses, net profit, cash &amp; bank, AR/AP, aging, trends, day book |
+| **Operations** | Operations & production visibility | Module-aware KPIs — spinning lots/yield, manufacturing WIP, weaving efficiency, healthcare census, telecom tracker floats, purchase pipeline, textile processing |
+
+Use the **Financial | Operations** segmented control under the page title to switch. The toggle appears only when a purpose module is installed (production, spinning, weaving, healthcare, telecom, purchase_store, textile_processing). Pure Base / Services tenants stay Financial-only.
+
+**Default landing by tenant segment**
+
+| Business model / pack | Default home |
+|-----------------------|--------------|
+| simple, services, trader (no purchase_store) | Financial |
+| manufacturing, yarn_spinning, textile_processing, hospital, telecom_franchise | Operations |
+| PRA portal mode | `/pra-dashboard` (unchanged) |
+
+Set your preferred login home under **Settings → Advanced → Home dashboard** (`localStorage` key `eb.home_dashboard` = `financial` \| `operations` \| `pra`). Staff Rights (when enabled) expose **Dashboard → Financial Dashboard** and **Dashboard → Operations Dashboard**.
+
+### 9.2 Dashboard Quick Actions & KPIs
+
+**Quick Actions** sit at the top of each home. Financial defaults: New Invoice, New Bill, New Entry, Products…. Operations defaults swap in module shortcuts (New Demand, Spin Lots, OPD, Tracker…) filtered by installed modules.
+
+**Financial KPIs include:**
 - **Net Profit** — revenue minus expenses YTD
 - **Cash & Bank** — sum of all bank/cash GL accounts
 - **AR Outstanding** — total unpaid invoices
@@ -585,56 +607,44 @@ The dashboard also shows the following KPIs:
 - **AR Aging Chart** — 5-bucket mini-chart
 - **Recent Transactions** — last 10 JVs
 
+**Operations KPIs** vary by installed pack (open lots / yield %, WIP cost, bed occupancy, load float, open demands…). Each tile deep-links into the module dashboard (e.g. `/spinning/dashboard`, `/healthcare`).
+
 ### 9.7 Customizing Your Dashboard
 
-**(v2.5+)** The Dashboard is fully customizable — rearrange, resize, add, and remove widgets to suit your workflow. Each user's layout is saved independently, so your arrangement does not affect other users' dashboards.
+**(v2.5+ / dual-home v4)** Each home is fully customizable — rearrange, resize, add, and remove widgets. Financial and Operations layouts are saved **independently** per user (schema v4 under `/api/dashboard/layout`).
 
 #### Entering and Exiting Customize Mode
 
-Click the **pencil / customize icon** (top-right of the Dashboard) to enter customize mode. A toolbar appears at the top of the page. When you are done:
-
-- Click **Done** to save all changes.
-- Click **Cancel** to discard all changes and revert to the previous layout.
+1. Switch to the home you want to edit (Financial or Operations).
+2. Click **Customize** (top-right). The toolbar labels which home you are editing.
+3. Click **Done** to save that home, or **Cancel** to discard.
 
 #### Rearranging and Resizing Widgets
 
 While in customize mode:
 - **Drag** a widget by its header to move it to a new position in the grid.
 - **Drag a corner** of a widget to resize it.
-- Click the **× button** on a widget to remove it from the dashboard.
+- Click the **× button** on a widget to remove it from the active home.
 
 #### Per-Breakpoint Layouts
 
-The dashboard maintains **separate layouts for Desktop, Tablet, and Phone**. The customize toolbar displays which breakpoint you are currently editing — **"Desktop layout"**, **"Tablet layout"**, or **"Phone layout"**. To edit the tablet or phone layout, narrow your browser window until the toolbar label changes, then rearrange widgets in that view. Layouts for each breakpoint are saved independently.
+Each home maintains **separate layouts for Desktop, Tablet, and Phone**. The customize toolbar displays which breakpoint you are currently editing — **"Desktop layout"**, **"Tablet layout"**, or **"Phone layout"**.
 
 #### Adding Widgets
 
-Click **+ Add widget** in the customize toolbar to open the **Add panel**. The panel has two tabs:
+Click **+ Add widget** — the panel is filtered to the active home:
 
-| Tab | Contents |
-|-----|----------|
-| **Widgets** | Data widgets: Bank Balances, Top Products, Inventory Summary |
-| **Shortcuts** | Any navigation page pinned as a quick-access tile |
-
-Click any item in the panel to add it to the dashboard.
-
-**Data widgets available:**
-
-| Widget | What it shows |
-|--------|--------------|
-| **Bank Balances** | Live balances across all your bank accounts at a glance |
-| **Top Products** | Your 5 best-selling products by revenue |
-| **Inventory Summary** | Total stock value and total on-hand quantity |
-
-#### Shortcut Tiles
-
-Pin any navigation page (Invoices, Bills, Bank Accounts, Products, etc.) as a tile directly on your dashboard. Where applicable, shortcut tiles display a **live metric badge** — for example, "12 overdue" on the Invoices tile, or "£5,420 total" on the Bank Accounts tile. Badges update automatically each time the dashboard loads.
+| Home | Example widgets |
+|------|-----------------|
+| **Financial** | Bank Balances, Top Products, Inventory Summary, HRM & Payroll, trend charts |
+| **Operations** | Ops KPIs, pipeline, alerts, Spinning / Weaving / Production / Healthcare / Telecom / Purchases / Processing summaries |
+| **Shortcuts** (both) | Any navigation page pinned as a quick-access tile |
 
 #### Resetting to Defaults
 
-Click **Reset all** in the customize toolbar to remove all customization and restore the default grid layout for every breakpoint.
+Click **Reset all** to restore the default grid for the **active home** across breakpoints.
 
-> **Note** — layouts are tied to your user account. Resetting affects only your own dashboard, not your colleagues'.
+> **Note** — layouts are tied to your user account. Resetting Financial never clears Operations (and vice versa).
 
 ---
 
@@ -990,17 +1000,24 @@ Account names, document numbers, and balances are clickable throughout: P&L / Ba
 
 The in-app **User Guide** (`/guide`) and **Transaction Workflow** (`/workflow`) now adapt to your **business model** — you only see the sections relevant to how your business operates:
 
-| Section | Simple | Services | Trader | Manufacturing | Telecom | PRA | Spinning |
-|---------|:------:|:--------:|:------:|:-------------:|:-------:|:---:|:--------:|
-| Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Purchases & Store (Demand→Comparative→PO→Gate Inward, Gate Outward) — §34 | — | — | — | ✓ | — | — | ✓ |
-| Deferred Revenue | — | ✓ | — | — | — | — | — |
-| Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — | — | — |
-| Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ | — | — |
-| PRA e-Invoice (FIN, NTN/CNIC, PCT codes, pra_status) | — | — | — | — | — | ✓ | — |
-| Yarn Spinning (lots, bale receipt, stages, cones, dispatch) — §30A | — | — | — | — | — | — | ✓ |
+| Section | Simple | Services | Trader | Manufacturing | Telecom | PRA | Spinning | Hospital | Processing |
+|---------|:------:|:--------:|:------:|:-------------:|:-------:|:---:|:--------:|:--------:|:----------:|
+| Invoicing, Billing, Credit Notes / Sales Returns, Payments, Journal | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Fixed Assets, Budgets, Cost Centers, Tax, Multi-Currency, Reports, Advances, Period Close | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Products & Inventory, Purchase Orders, Purchase Returns (Debit Notes) | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Purchases & Store (Demand→Comparative→PO→Gate Inward, Gate Outward) — §34 | — | — | — | ✓ | — | — | ✓ | — | ✓ |
+| Deferred Revenue | — | ✓ | — | — | — | — | — | — | — |
+| Manufacturing (BoM, GRN, Production Orders) | — | — | — | ✓ | — | — | — | — | — |
+| Telecom Franchise (Tracker, RSO, FCA, SIM) | — | — | — | — | ✓ | — | — | — | — |
+| PRA e-Invoice (FIN, NTN/CNIC, PCT codes, pra_status) | — | — | — | — | — | ✓ | — | — | — |
+| Yarn Spinning (lots, bale receipt, stages, cones, dispatch) — §30A | — | — | — | — | — | — | ✓ | — | — |
+| Healthcare (OPD/IPD/Lab) | — | — | — | — | — | — | — | ✓ | — |
+| Textile Processing (grey lots, PPC stages) | — | — | — | — | — | — | — | — | ✓ |
+| **Operations home dashboard** (dual-home toggle) | — | — | ◐* | ✓ | ✓ | — | ✓ | ✓ | ✓ |
+
+\* Trader shows Operations when `purchase_store` is installed.
+
+**Default home after login:** Financial for simple/services/trader; Operations for manufacturing, spinning, hospital, telecom, textile processing (see §9.1).
 
 The model is read from your tenant at login; switching business model (admin API) re-tailors both pages automatically.
 
@@ -1580,9 +1597,13 @@ PRA-enabled tenants have a dedicated **Portal Mode** that presents a clean, PRA-
 
 **Toggling portal mode:**
 - Admin and owner users see a toggle button at the bottom of the sidebar labelled **Portal View** (or **Full View** when already in portal mode).
-- Clicking it switches the view immediately. The preference is stored per browser in `localStorage` key `eb.pra_portal_mode`.
+- Clicking it switches the view immediately. Preferences live in `localStorage`:
+  - `eb.pra_portal_mode` = `1` \| `0`
+  - `eb.home_dashboard` = `pra` \| `financial` \| `operations` \| `accounting` (legacy synonym for financial)
+- Leaving portal mode restores the dual Financial / Operations accounting home (`/dashboard`).
 - Non-admin / non-owner users always land in Portal mode and cannot switch to Full Accounting view.
 - Switching on one device does not affect other sessions — the toggle is local.
+- You can also pick **PRA Sales** under **Settings → Advanced → Home dashboard**.
 
 **Portal sidebar (7 items):**
 

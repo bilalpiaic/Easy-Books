@@ -106,4 +106,4 @@ export const ADDON_HOMES: AddonHome[] = [
   { module: "pra", href: "/pra-dashboard", label: "PRA Sales", preferenceKey: "pra" },
 ]
 
-export const HOME_PREF_KEY = "eb.home_dashboard"
+export { HOME_PREF_KEY } from "@/lib/dashboardHome"
