@@ -164,6 +164,23 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/spinning/reports/lot-control": ["lot control", "spin lot progress"],
   "/spinning/reports/waste": ["waste analysis", "spinning waste report"],
   "/spinning/dashboard":     ["spinning dashboard", "spinning kpis"],
+  "/processing":             ["textile processing", "ballor", "printing unit", "processing hub"],
+  "/processing/setup":       ["quality blend width", "process catalog", "contractor"],
+  "/processing/sales-orders": ["processing sales order", "grey rate", "job order"],
+  "/processing/lots":        ["grey lot", "than entry", "custodial grey"],
+  "/processing/mending":     ["mending", "l-kami", "safai", "safi grey", "ready meters"],
+  "/processing/kachi-parchi": ["kachi parchi", "provisional slip"],
+  "/processing/pakki-parchi": ["pakki parchi", "unit responsibility"],
+  "/processing/rejection":   ["rejection note", "rejection ogp", "outward gate pass"],
+  "/processing/production-orders": ["textile production order", "ppc order"],
+  "/processing/stages":      ["ppc stage", "process wastage", "visible wastage"],
+  "/processing/dispatch":    ["fresh dispatch", "process invoice"],
+  "/processing/labor-bills": ["contractor labor", "labor bill"],
+  "/processing/settlements": ["grey settlement", "grey credit"],
+  "/processing/inspections": ["rm inspection", "gate inspection"],
+  "/processing/reports/rejection": ["rejection register"],
+  "/processing/reports/stock-ledger": ["customer grey stock", "custodial ledger"],
+  "/processing/reports/ppc": ["ppc report", "stage register"],
 }
 
 // ── 1. Sidebar pages ──────────────────────────────────────────────────────────

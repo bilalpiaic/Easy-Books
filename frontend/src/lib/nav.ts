@@ -19,7 +19,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing"
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -195,12 +195,30 @@ export const NAV: NavItem[] = [
   { label: "Lot Control",       href: "/spinning/reports/lot-control", icon: ClipboardList,   section: "Spinning", forModule: "spinning" },
   { label: "Waste Analysis",    href: "/spinning/reports/waste",       icon: PieChart,        section: "Spinning", forModule: "spinning" },
   { label: "Spinning Dashboard", href: "/spinning/dashboard",          icon: LayoutDashboard, section: "Spinning", forModule: "spinning" },
+  // Textile Processing
+  { label: "Processing Overview", href: "/processing",                 icon: Layers,          section: "Processing", forModule: "textile_processing" },
+  { label: "Processing Setup",    href: "/processing/setup",           icon: Settings2,       section: "Processing", forModule: "textile_processing" },
+  { label: "Sales Orders",        href: "/processing/sales-orders",    icon: FileSignature,   section: "Processing", forModule: "textile_processing" },
+  { label: "Grey Lots",           href: "/processing/lots",            icon: Package,         section: "Processing", forModule: "textile_processing" },
+  { label: "Mending",             href: "/processing/mending",         icon: Scissors,        section: "Processing", forModule: "textile_processing" },
+  { label: "Kachi Parchi",        href: "/processing/kachi-parchi",    icon: ScrollText,      section: "Processing", forModule: "textile_processing" },
+  { label: "Pakki Parchi",        href: "/processing/pakki-parchi",    icon: FileCheck,       section: "Processing", forModule: "textile_processing" },
+  { label: "Rejection / OGP",     href: "/processing/rejection",       icon: DoorOpen,        section: "Processing", forModule: "textile_processing" },
+  { label: "Production Orders",   href: "/processing/production-orders", icon: Factory,       section: "Processing", forModule: "textile_processing" },
+  { label: "PPC Stages",          href: "/processing/stages",          icon: Activity,        section: "Processing", forModule: "textile_processing" },
+  { label: "Fresh Dispatch",      href: "/processing/dispatch",        icon: Truck,           section: "Processing", forModule: "textile_processing" },
+  { label: "Labor Bills",         href: "/processing/labor-bills",     icon: Receipt,         section: "Processing", forModule: "textile_processing" },
+  { label: "Grey Settlement",     href: "/processing/settlements",     icon: Scale,           section: "Processing", forModule: "textile_processing" },
+  { label: "Inspections",         href: "/processing/inspections",     icon: ClipboardCheck,  section: "Processing", forModule: "textile_processing" },
+  { label: "Rejection Register",  href: "/processing/reports/rejection", icon: AlertTriangle, section: "Processing", forModule: "textile_processing" },
+  { label: "Customer Stock",      href: "/processing/reports/stock-ledger", icon: BookOpen,   section: "Processing", forModule: "textile_processing" },
+  { label: "PPC Reports",         href: "/processing/reports/ppc",     icon: PieChart,        section: "Processing", forModule: "textile_processing" },
 ]
 
 export const ALL_SECTIONS = [
   "Overview", "Ledger", "Reports", "Banking", "Receivable", "Payable", "Purchases",
   "Store", "Manufacturing", "Inventory", "Payroll",
-  "Healthcare", "Telecom", "Weaving", "Spinning", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
+  "Healthcare", "Telecom", "Weaving", "Spinning", "Processing", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
   "System",
 ]
 
@@ -233,7 +251,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "spinning"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -252,6 +270,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
   { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
   { key: "spinning",      label: "Spinning",      forModule: "spinning"    },
+  { key: "processing",    label: "Processing",    forModule: "textile_processing" },
   { key: "pra",           label: "PRA e-Invoice", shortLabel: "PRA", forModule: "pra" },
   { key: "uae",           label: "UAE VAT",       shortLabel: "UAE", forModule: "uae_vat" },
   { key: "zatca",         label: "ZATCA",         shortLabel: "ZATCA", forModule: "sa_zatca" },
@@ -279,6 +298,7 @@ export const NAV_SECTION_ORDER: string[] = [
   "telecom",
   "weaving",
   "spinning",
+  "processing",
   "pra",
   "uae",
   "zatca",
@@ -314,6 +334,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   healthcare:    ["/healthcare"],
   weaving:       ["/weaving"],
   spinning:      ["/spinning"],
+  processing:    ["/processing"],
   manufacturing: ["/manufacturing"],
   telecom:       ["/telecom"],
   pra:           ["/pra-dashboard", "/pra-logs"],
@@ -358,6 +379,7 @@ export function getSectionHref(key: string): string {
     healthcare:    "/healthcare",
     weaving:       "/weaving",
     spinning:      "/spinning",
+    processing:    "/processing",
     manufacturing: "/manufacturing",
     telecom:       "/telecom",
     pra:           "/pra-dashboard",
@@ -507,6 +529,25 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Lot Control",      href: "/spinning/reports/lot-control", icon: ClipboardList,   section: "spinning", forModule: "spinning" },
     { label: "Waste Analysis",   href: "/spinning/reports/waste",       icon: PieChart,        section: "spinning", forModule: "spinning" },
     { label: "Dashboard",        href: "/spinning/dashboard",           icon: LayoutDashboard, section: "spinning", forModule: "spinning" },
+  ],
+  processing: [
+    { label: "Overview",          href: "/processing",                    icon: Layers,         section: "processing", forModule: "textile_processing" },
+    { label: "Setup",             href: "/processing/setup",              icon: Settings2,      section: "processing", forModule: "textile_processing" },
+    { label: "Sales Orders",      href: "/processing/sales-orders",       icon: FileSignature,  section: "processing", forModule: "textile_processing" },
+    { label: "Grey Lots",         href: "/processing/lots",               icon: Package,        section: "processing", forModule: "textile_processing" },
+    { label: "Mending",           href: "/processing/mending",            icon: Scissors,       section: "processing", forModule: "textile_processing" },
+    { label: "Kachi Parchi",      href: "/processing/kachi-parchi",       icon: ScrollText,     section: "processing", forModule: "textile_processing" },
+    { label: "Pakki Parchi",      href: "/processing/pakki-parchi",       icon: FileCheck,      section: "processing", forModule: "textile_processing" },
+    { label: "Rejection / OGP",   href: "/processing/rejection",          icon: DoorOpen,       section: "processing", forModule: "textile_processing" },
+    { label: "Production Orders", href: "/processing/production-orders",  icon: Factory,        section: "processing", forModule: "textile_processing" },
+    { label: "PPC Stages",        href: "/processing/stages",             icon: Activity,       section: "processing", forModule: "textile_processing" },
+    { label: "Fresh Dispatch",    href: "/processing/dispatch",           icon: Truck,          section: "processing", forModule: "textile_processing" },
+    { label: "Labor Bills",       href: "/processing/labor-bills",        icon: Receipt,        section: "processing", forModule: "textile_processing" },
+    { label: "Grey Settlement",   href: "/processing/settlements",        icon: Scale,          section: "processing", forModule: "textile_processing" },
+    { label: "Inspections",       href: "/processing/inspections",        icon: ClipboardCheck, section: "processing", forModule: "textile_processing" },
+    { label: "Rejection Register", href: "/processing/reports/rejection", icon: AlertTriangle,  section: "processing", forModule: "textile_processing" },
+    { label: "Customer Stock",    href: "/processing/reports/stock-ledger", icon: BookOpen,     section: "processing", forModule: "textile_processing" },
+    { label: "PPC Reports",       href: "/processing/reports/ppc",        icon: PieChart,       section: "processing", forModule: "textile_processing" },
   ],
   manufacturing: [
     { label: "Production Floor",  href: "/manufacturing",                   icon: Factory,      section: "manufacturing", forModule: "production" },

@@ -122,6 +122,19 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "spinning.dispatch":      {"label": "Yarn Dispatch",         "category": "Spinning"},
     "spinning.calculators":   {"label": "Spinning Calculators",  "category": "Spinning"},
     "spinning.reports":       {"label": "Spinning Reports",      "category": "Spinning"},
+    # Textile Processing (ballor)
+    "textile.setup":          {"label": "Processing Setup",      "category": "Processing"},
+    "textile.sales_orders":   {"label": "Processing Sales Orders","category": "Processing"},
+    "textile.lots":           {"label": "Grey Lots / Parchis",    "category": "Processing"},
+    "textile.mending":        {"label": "Mending",               "category": "Processing"},
+    "textile.rejection":      {"label": "Rejection / OGP",       "category": "Processing"},
+    "textile.production":     {"label": "Production Orders",     "category": "Processing"},
+    "textile.stages":         {"label": "PPC Stages",            "category": "Processing"},
+    "textile.dispatch":       {"label": "Fresh Dispatch",        "category": "Processing"},
+    "textile.labor":          {"label": "Contractor Labor",      "category": "Processing"},
+    "textile.settlement":     {"label": "Grey Settlement",       "category": "Processing"},
+    "textile.inspection":     {"label": "RM Inspection",         "category": "Processing"},
+    "textile.reports":        {"label": "Processing Reports",    "category": "Processing"},
 }
 
 # Role defaults: owner/admin/accountant → edit, viewer → view
