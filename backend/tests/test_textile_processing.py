@@ -2,7 +2,8 @@
 from decimal import Decimal
 
 from services.textile_processing import (
-    ready_mtr, rej_note_balance, rej_note_status, settlement_credit, stage_balance_ok,
+    format_quality_code, ready_mtr, rej_note_balance, rej_note_status,
+    settlement_credit, stage_balance_ok, than_safi_mtr,
 )
 
 
@@ -212,3 +213,117 @@ def test_dispatch_settlement(client):
 
     ppc = client.get("/api/textile-processing/reports/ppc-stage?group_by=stage", headers=auth).json()
     assert ppc["total"] >= 1
+
+
+def test_quality_code_structure():
+    assert format_quality_code("ctn", 60, 60, 40, 52, 45) == 'CTN 60X60 40X52 45"'
+    assert format_quality_code("PC", "60", "60", "40", "52", '45"') == 'PC 60X60 40X52 45"'
+    assert format_quality_code("CTN", None, 60, 40, 52, 45) is None
+    assert than_safi_mtr(100, 5) == Decimal("95.0000")
+
+
+def test_strengthen_multi_quality_so_and_printouts(client):
+    auth = _signup(client, "tp-strengthen@test.com")
+    _install(client, auth, "inventory", "purchase_store", "textile_processing")
+
+    cust = client.post("/api/customers", headers=auth, json={"name": "Multi Grey Co"}).json()
+    q1 = client.post("/api/textile-processing/qualities", headers=auth, json={
+        "fiber": "CTN", "warp_count": "60", "weft_count": "60",
+        "epi": "40", "ppi": "52", "width_inch": "45",
+    }).json()
+    assert q1["code"] == 'CTN 60X60 40X52 45"'
+    q2 = client.post("/api/textile-processing/qualities", headers=auth, json={
+        "fiber": "PC", "warp_count": "40", "weft_count": "40",
+        "epi": "90", "ppi": "88", "width_inch": "58", "name": "PC Lawn",
+    }).json()
+
+    procs = client.get("/api/textile-processing/processes", headers=auth).json()
+    assert any(p["code"] == "dyeing" for p in procs)
+    dyeing = next(p for p in procs if p["code"] == "dyeing")
+    printing = next(p for p in procs if p["code"] == "printing")
+
+    # Process ADD / UPDATE / DELETE
+    created = client.post("/api/textile-processing/processes", headers=auth, json={
+        "seq": 175, "code": "extra-fold", "name": "Extra Fold", "is_billing": False,
+    }).json()
+    upd = client.put(f"/api/textile-processing/processes/{created['id']}", headers=auth, json={
+        "seq": 176, "code": "extra-fold", "name": "Extra Folding", "is_billing": False,
+        "default_sale_rate": 0, "is_active": True,
+    }).json()
+    assert upd["name"] == "Extra Folding"
+    deleted = client.delete(f"/api/textile-processing/processes/{created['id']}", headers=auth).json()
+    assert deleted["ok"] is True
+
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Dye Gang"}).json()
+    ctr = client.post("/api/textile-processing/contractors", headers=auth, json={
+        "code": "DYE1", "name": "Dyers", "vendor_id": vendor["id"],
+        "default_process_id": dyeing["id"],
+    }).json()
+    assert ctr["default_process_id"] == dyeing["id"]
+    ctr2 = client.put(f"/api/textile-processing/contractors/{ctr['id']}", headers=auth, json={
+        "code": "DYE1", "name": "Dyers Ltd", "vendor_id": vendor["id"],
+        "default_process_id": printing["id"], "is_active": True,
+    }).json()
+    assert ctr2["name"] == "Dyers Ltd"
+    assert ctr2["default_process_id"] == printing["id"]
+
+    so = client.post("/api/textile-processing/sales-orders", headers=auth, json={
+        "customer_id": cust["id"], "date": "2026-08-01",
+        "quality_lines": [
+            {"quality_id": q1["id"], "expected_mtr": 500, "grey_rate": 120},
+            {"quality_id": q2["id"], "expected_mtr": 300, "grey_rate": 140},
+        ],
+        "packing_lines": [
+            {"item_type": "KMZ", "quality_id": q1["id"], "process_id": printing["id"],
+             "qty": 10, "meters": 400, "rate": 5},
+            {"item_type": "2PC", "quality_id": q2["id"], "process_id": dyeing["id"],
+             "qty": 20, "meters": 250, "rate": 6},
+            {"item_type": "SHL", "quality_id": q1["id"], "process_id": printing["id"],
+             "qty": 5, "meters": 50, "rate": 4},
+        ],
+    }).json()
+    assert len(so["quality_lines"]) == 2
+    assert len(so["packing_lines"]) == 3
+    assert so["quality_id"] == q1["id"]
+    assert so["expected_mtr"] == 800.0
+
+    lot = client.post("/api/textile-processing/lots", headers=auth, json={
+        "sales_order_id": so["id"], "quality_id": q2["id"], "date": "2026-08-02",
+        "thans": [
+            {"than_no": "1", "meters": 100, "rejection_mtr": 2},
+            {"than_no": "2", "meters": 80, "rejection_mtr": 0},
+        ],
+    }).json()
+    assert lot["quality_id"] == q2["id"]
+    assert lot["received_mtr"] == 180.0
+    assert lot["rejection_mtr"] == 2.0
+    assert lot["thans"][0]["safi_mtr"] == 98.0
+    assert "kachi_parchi" in lot
+
+    kp = client.get(
+        f"/api/textile-processing/kachi-parchis/{lot['kachi_parchi']['id']}", headers=auth,
+    ).json()
+    assert kp["customer_name"] == "Multi Grey Co"
+    assert kp["quality_code"] == q2["code"]
+    assert len(kp["thans"]) == 2
+
+    mend = client.post("/api/textile-processing/mendings", headers=auth, json={
+        "lot_id": lot["id"], "date": "2026-08-03",
+        "l_kami_mtr": 0, "rejection_mtr": 5, "safai_mtr": 5,
+    }).json()
+    posted = client.patch(
+        f"/api/textile-processing/mendings/{mend['id']}/post", headers=auth,
+    ).json()
+    pakki = client.get(
+        f"/api/textile-processing/pakki-parchis/{posted['pakki_parchi']['id']}", headers=auth,
+    ).json()
+    assert pakki["customer_name"] == "Multi Grey Co"
+    assert "mending" in pakki
+
+    ogp = client.post("/api/textile-processing/rejection-ogps", headers=auth, json={
+        "rejection_issue_note_id": posted["rejection_note"]["id"],
+        "date": "2026-08-04", "qty_mtr": 5, "vehicle": "LES-1",
+    }).json()
+    ogp_d = client.get(f"/api/textile-processing/rejection-ogps/{ogp['id']}", headers=auth).json()
+    assert ogp_d["customer_name"] == "Multi Grey Co"
+    assert ogp_d["qty_mtr"] == 5.0

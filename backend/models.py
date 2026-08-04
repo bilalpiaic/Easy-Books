@@ -2862,7 +2862,9 @@ from models_spinning import (  # noqa: E402,F401
     SpBaleReceipt, SpStageEntry, SpConeOutput, SpWasteLog, SpYarnDispatch, SpCalcRun,
 )
 from models_textile_processing import (  # noqa: E402,F401
-    TpQuality, TpProcess, TpContractor, TpSalesOrder, TpGreyLot, TpGreyThan,
+    TpQuality, TpProcess, TpContractor, TpSalesOrder,
+    TpSalesOrderQualityLine, TpSalesOrderPackingLine,
+    TpGreyLot, TpGreyThan,
     TpKachiParchi, TpMending, TpPakkiParchi, TpRejectionIssueNote, TpRejectionOgp,
     TpProductionOrder, TpStageEntry as TpStageEntry, TpPacking, TpBaling,
     TpDispatch, TpGreySettlement, TpLaborBill, TpInspection,
