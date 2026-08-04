@@ -13,6 +13,9 @@ from models import Settings, User, UserPermission
 # ── Resource registry ─────────────────────────────────────────────────────────
 
 PERMISSION_RESOURCES: dict[str, dict] = {
+    # Dashboard (dual home — Financial / Operations)
+    "dashboard.financial":    {"label": "Financial Dashboard",     "category": "Dashboard"},
+    "dashboard.operations":   {"label": "Operations Dashboard",    "category": "Dashboard"},
     # Receivable
     "invoices":               {"label": "Sales Invoices",          "category": "Receivable"},
     "credit_notes":           {"label": "Credit Notes",            "category": "Receivable"},

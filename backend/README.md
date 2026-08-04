@@ -36,7 +36,8 @@ For one-shot dev (backend + frontend + demo seed together), use `./dev.sh` at th
 backend/
 ├── main.py              # FastAPI bootstrap — middleware, router mounts, /api/v1 alias, Stripe webhook
 ├── models.py            # SQLModel tables (core): CoA, invoices/bills, products, payroll+attendance,
-│                        #   permissions, commissions, promo rules, deferred revenue, dashboard layout
+│                        #   permissions, commissions, promo rules, deferred revenue,
+│                        #   dual-home dashboard layout (v4 financial + operations)
 ├── models_telecom.py    # 23 tc_* tables for telecom_franchise
 ├── models_healthcare.py # 19 hc_* tables: patients, doctors, wards/beds, OPD/IPD, lab, procedures, store
 ├── db.py                # Engine, create_all, hierarchical default CoA (group skeleton + parented

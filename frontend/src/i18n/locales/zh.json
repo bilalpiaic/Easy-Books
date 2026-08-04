@@ -162,6 +162,10 @@
     "setupChecklist": "设置清单",
     "keyFigures": "关键数据",
     "financialOverview": "财务概览",
+    "operationsOverview": "运营概览",
+    "financial": "财务",
+    "operations": "运营",
+    "homeDashboard": "主页仪表板",
     "workflowGuide": "工作流指南",
     "newEntry": "新建记录"
   },
@@ -182,6 +186,9 @@
   "dashboard": {
     "title": "仪表板",
     "subtitle": "财务概览",
+    "financial": "财务",
+    "operations": "运营",
+    "operationsSubtitle": "运营概览",
     "revenue": "收入",
     "expenses": "支出",
     "netProfit": "净利润",

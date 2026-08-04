@@ -1449,10 +1449,12 @@ The `demo.spinning@easy-books.app` tenant is seeded with yarn specs, fiber grade
 - `SECTIONS` is filtered to those with at least one visible item — sections with no items disappear.
 - **3-state collapsible** (v2.7): collapsed (icon strip, 196 px wide) / open (labels visible) / pinned (always open); state stored in `localStorage` (`eb.sidebar.pinned`, `eb.sidebar.open`). Hover over the collapsed strip shows a floating tooltip nav panel. Auto-pins at `window.innerWidth >= 1280`. Sidebar section headers link to their hub page.
 
-### 14.5 Dashboard grid (react-grid-layout)
+### 14.5 Dashboard grid (react-grid-layout) — dual-home v4
 - Import as `import ReactGridLayout from 'react-grid-layout/legacy'` — this is the **v2 API** (React 19 compatible, self-typed). Do **not** import from `'react-grid-layout'` (v1 API) and do **not** install `@types/react-grid-layout` (types incompatible with v2, will cause TS errors).
-- Layout schema v3: `{version:3, layouts:{lg, sm?, xs?}}` with `BP_COLS = {lg:4, sm:2, xs:1}` and `rowHeight=96`.
-- **`WIDGET_REGISTRY`** in `src/lib/dashboardWidgets.tsx` is the single widget catalog — every dashboard widget (KPIs, charts, self-fetching widgets) registers there; `injectMissingDefaults` in `hooks/useDashboardLayout.ts` auto-adds newly shipped default widgets to existing saved layouts without a schema bump.
+- **Dual homes:** Financial \| Operations toggle on `/dashboard` (`useHomeDashboard` + `eb.home_dashboard`). Ops-capable modules from `lib/dashboardHome.ts`; ops-heavy models default to Operations.
+- Layout schema **v4**: `{version:4, activeView?, dashboards:{financial:{layouts,dismissed?,quickActions?}, operations:{…}}}` with `BP_COLS = {lg:4, sm:2, xs:1}`. Pure migrate/default helpers in `lib/dashboardLayoutLogic.ts`; hook `useDashboardLayout(view)` edits one slice. v1–v3 migrate under `financial`.
+- Ops aggregate API: `GET /api/dashboard/operations-summary` (`routers/dashboard_ops.py`). Staff rights: `dashboard.financial` / `dashboard.operations`.
+- **`WIDGET_REGISTRY`** in `src/lib/dashboardWidgets.tsx` — widgets carry `home: "financial" | "operations" | "both"` + optional `requiredModule`; `injectMissingDefaults` adds newly shipped defaults per active home.
 - **`KpiCard` (v3.1)** — all stat tiles render through the shared `components/dashboard/KpiCard.tsx` (replaced the divergent `PrimaryKpi`/`SecondaryKpi`): `tone` prop for colored-tile variants, icon top-left/title bottom-left/value bottom-right when an icon is present (title top-left otherwise), CSS theme variables for dark-mode safety, optional `href`/badge/subtext/shimmer.
 - **`NetWorthTrendWidget` (v3.1)** — self-fetching combo chart (Chart.js mixed bar/line): Assets bars up, Liabilities bars down around a zero axis, Net Worth line with square markers; 3M/6M/1Y/All range pills (client-side slicing of a 36-month fetch); legend click toggles series.
 - **Top-10 widgets (v3.1)** — Top Customers (backend `limit=10` in `/dashboard/charts`) and Top Products (client slice 10) show ten entries.

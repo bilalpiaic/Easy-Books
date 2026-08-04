@@ -1,6 +1,6 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check, MessageCircle } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check, MessageCircle, LayoutDashboard } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
@@ -8,6 +8,11 @@ import { fmtDate } from '@/lib/utils'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import { useModules } from '@/context/ModuleContext'
 import { getCurrentUser } from '@/lib/auth'
+import {
+  HOME_PREF_KEY,
+  hasOperationsHome,
+  type HomePreference,
+} from '@/lib/dashboardHome'
 import VersionBadge from '@/components/VersionBadge'
 import UpdateModal from '@/components/UpdateModal'
 import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
@@ -1114,7 +1119,8 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--text-muted)] mb-4">
           Every company starts with Base Accounting. Inventory, Manufacturing, Healthcare,
           Telecom, PRA, and more are installed from <strong>System → Add-ons</strong> —
-          not by switching a business model here.
+          not by switching a business model here. Industry packs unlock the
+          <strong> Operations</strong> home dashboard alongside Financial.
         </p>
         <Link
           href="/apps"
@@ -1123,6 +1129,9 @@ export default function SettingsPage() {
           Open Add-ons
         </Link>
       </div>
+
+      {/* Dual-home dashboard preference (browser-local, mirrors /dashboard toggle) */}
+      <HomeDashboardSettingsCard opsAvailable={hasOperationsHome(installedModules)} praInstalled={installedModules.has("pra")} />
 
       {/* ── PRA e-Invoice (Pakistan) — compliance switch once the PRA add-on is installed ── */}
       {installedModules.has("pra") && (
@@ -2518,5 +2527,100 @@ function Security2FACard() {
       />
       {status && <p className="text-sm text-[var(--text-muted)]">{status}{enabled ? " ✓" : ""}</p>}
     </section>
+  )
+}
+
+/** Browser-local home preference — Financial / Operations / PRA (when installed). */
+function HomeDashboardSettingsCard({
+  opsAvailable,
+  praInstalled,
+}: {
+  opsAvailable: boolean
+  praInstalled: boolean
+}) {
+  const [home, setHome] = useState<HomePreference>("financial")
+
+  useEffect(() => {
+    const stored = localStorage.getItem(HOME_PREF_KEY) as HomePreference | null
+    if (stored === "pra" || stored === "operations" || stored === "financial" || stored === "accounting") {
+      setHome(stored === "accounting" ? "financial" : stored)
+    }
+  }, [])
+
+  const choose = (next: HomePreference) => {
+    if (next === "operations" && !opsAvailable) return
+    if (next === "pra" && !praInstalled) return
+    setHome(next)
+    localStorage.setItem(HOME_PREF_KEY, next)
+    if (next === "pra") localStorage.setItem("eb.pra_portal_mode", "1")
+    else localStorage.setItem("eb.pra_portal_mode", "0")
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm space-y-3">
+      <h2 className="text-xl font-semibold mb-1 flex items-center gap-3 text-black">
+        <LayoutDashboard className="w-5 h-5 text-[var(--primary)]" />
+        Home dashboard
+      </h2>
+      <p className="text-sm text-[var(--text-muted)]">
+        Choose which home opens after login. Financial is the P&amp;L / cash overview;
+        Operations shows purpose-built KPIs for installed industry modules.
+        Preference is stored in this browser (<code className="text-xs">eb.home_dashboard</code>).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => choose("financial")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+            home === "financial"
+              ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+              : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"
+          }`}
+        >
+          Financial
+        </button>
+        <button
+          type="button"
+          disabled={!opsAvailable}
+          onClick={() => choose("operations")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            home === "operations"
+              ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+              : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"
+          }`}
+          title={opsAvailable ? undefined : "Install an industry pack (Manufacturing, Spinning, Healthcare, …) to enable Operations"}
+        >
+          Operations
+        </button>
+        {praInstalled && (
+          <button
+            type="button"
+            onClick={() => choose("pra")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+              home === "pra"
+                ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"
+            }`}
+          >
+            PRA Sales
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-[var(--text-muted)]">
+        You can also switch on the Dashboard page itself
+        {opsAvailable ? " via the Financial | Operations toggle" : ""}.
+        Staff access is controlled under{" "}
+        <Link href="/settings/permissions" className="text-[var(--primary)] underline underline-offset-2">
+          User Rights → Dashboard
+        </Link>
+        {" "}when the rights module is enabled.
+      </p>
+      <Link
+        href={home === "pra" ? "/pra-dashboard" : home === "operations" ? "/dashboard?view=operations" : "/dashboard?view=financial"}
+        className="inline-flex items-center gap-2 text-sm font-medium text-[var(--primary)] hover:underline"
+      >
+        Open home →
+      </Link>
+    </div>
   )
 }

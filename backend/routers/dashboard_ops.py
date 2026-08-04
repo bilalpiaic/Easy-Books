@@ -20,6 +20,7 @@ from models import (
 )
 from routers.common import CurrentUserDep, SessionDep
 from routers.modules import _get_enabled
+from services.permissions import perm_dep
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -81,7 +82,7 @@ def _purchase_store_summary(session: Session, tid: int) -> dict:
     }
 
 
-@router.get("/operations-summary")
+@router.get("/operations-summary", dependencies=[perm_dep("dashboard.operations", "view")])
 def operations_summary(session: SessionDep, user: CurrentUserDep):
     """Keyed bag of module ops KPIs for the Operations home dashboard."""
     tenant = session.get(Tenant, user.tenant_id)
@@ -145,7 +146,7 @@ def operations_summary(session: SessionDep, user: CurrentUserDep):
     return out
 
 
-@router.get("/operations-available")
+@router.get("/operations-available", dependencies=[perm_dep("dashboard.operations", "view")])
 def operations_available(session: SessionDep, user: CurrentUserDep):
     """Whether the tenant has any ops-capable module (drives the home toggle)."""
     tenant = session.get(Tenant, user.tenant_id)

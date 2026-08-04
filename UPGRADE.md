@@ -214,10 +214,11 @@ cd backend && uv run alembic downgrade -1
 | **Script installers** | `install-and-run.sh` and `install-and-run.ps1` now inject `NEXT_PUBLIC_APP_VERSION` before `next build` so the correct version string appears in Settings on all script installs. |
 | **Version sync** | `desktop/package.json` and `backend/pyproject.toml` were at 2.6.0; now synced to 2.8.0. |
 | **GitHub Actions** | `.github/workflows/release.yml` improved: validates all 3 version files against the tag; macOS build is conditional on `APPLE_ID` secret (skipped gracefully if absent); `fail-fast` removed; prerelease detection (tags with hyphen auto-flag `--prerelease`); `workflow_dispatch` added to re-run any tag manually. |
-| **PRA portal mode** | Admin/owner users on PRA-enabled tenants can toggle between Full Accounting and PRA Portal views via a button at the bottom of the sidebar. Non-admin users always land in Portal view. `usePRAPortal()` hook with `settled` flag prevents redirect loops. `/pra-dashboard` is the portal home page (KPI cards + today's invoice table). `PORTAL_NAV` is a clean 7-item nav (New Invoice / Invoice Queue / Credit Notes / Customers / Products / Submission Logs / Settings). |
+| **PRA portal mode** | Admin/owner users on PRA-enabled tenants can toggle between Full Accounting and PRA Portal views via a button at the bottom of the sidebar. Non-admin users always land in Portal view. `usePRAPortal()` hook with `settled` flag prevents redirect loops. `/pra-dashboard` is the portal home page (KPI cards + today's invoice table). `PORTAL_NAV` is a clean 7-item nav (New Invoice / Invoice Queue / Credit Notes / Customers / Products / Submission Logs / Settings). Leaving portal restores the dual Financial \| Operations accounting home. |
+| **Dual-home dashboard (v4)** | `/dashboard` toggles **Financial** and **Operations** homes (each with its own customizable layout). Preference `eb.home_dashboard` = `financial` \| `operations` \| `pra` (legacy `accounting` = financial). Ops-heavy tenants default to Operations. Aggregate API `GET /api/dashboard/operations-summary`. Staff Rights resources: `dashboard.financial`, `dashboard.operations`. Settings → Advanced → Home dashboard. |
 | **Form widening** | Invoice and Bill forms widened from `max-w-3xl` to `max-w-6xl`. `LineItemsTable` column widths rebalanced: Product 18% / Description 28% / Qty `w-28` with "On hand" hint on one line. |
 
-**New localStorage keys:** `eb.pra_portal_mode` (`"1"` = portal, `"0"` = full accounting).
+**New localStorage keys:** `eb.pra_portal_mode` (`"1"` = portal, `"0"` = full accounting); `eb.home_dashboard` (`financial` \| `operations` \| `pra`).
 
 **Upgrade path:** `git pull && ./update.sh` — no migrations; the installer rebuilds the frontend automatically.
 
