@@ -795,6 +795,37 @@ def create_lot(user: WriteUserDep, session: SessionDep, body: GreyLotIn):
         meters=received, than_count=len(body.thans), created_by_id=user.id,
     )
     session.add(kachi)
+
+    # Memo custodial GL — customer-owned grey on hand (mirrors manufacturing GRN pair)
+    if received > ZERO:
+        custodial = get_or_create_account(
+            session, user.tenant_id, "1210", "Customer Goods on Hand", "Asset",
+        )
+        liability = get_or_create_account(
+            session, user.tenant_id, "2150", "Customer Goods Liability", "Liability",
+        )
+        # Memo valuation at SO grey_rate (qty visibility; not owned inventory)
+        memo_val = money(received * D(so.grey_rate)) if D(so.grey_rate) > ZERO else ZERO
+        if memo_val > ZERO:
+            post_transaction(
+                session, user,
+                date=body.date,
+                description=f"{number} — grey receipt (custodial)",
+                voucher_type="JV",
+                entries=[
+                    EntryInput(account_id=custodial.id, debit=memo_val, customer_id=so.customer_id),
+                    EntryInput(account_id=liability.id, credit=memo_val, customer_id=so.customer_id),
+                ],
+                reference=number,
+            )
+            # Mark memo accounts
+            if not custodial.is_memo:
+                custodial.is_memo = True
+                session.add(custodial)
+            if not liability.is_memo:
+                liability.is_memo = True
+                session.add(liability)
+
     session.commit()
     session.refresh(lot)
     thans = session.exec(select(TpGreyThan).where(TpGreyThan.lot_id == lot.id)).all()
@@ -1751,8 +1782,9 @@ def create_labor_bill(user: WriteUserDep, session: SessionDep, body: LaborBillIn
 
     ccy = _tenant_ccy(session, user.tenant_id)
     bill_num = next_number(session, user.tenant_id, "bill", "BILL", fmt="{prefix}-{YYYY}-{seq:04d}")
+    from services.module_integration import resolve_tp_expense_account
     ap = get_or_create_account(session, user.tenant_id, "2000", "Accounts Payable", "Liability")
-    exp = get_or_create_account(session, user.tenant_id, "5200", "Contractor Labor Expense", "Expense")
+    exp = resolve_tp_expense_account(session, user.tenant_id, "contractor")
 
     bill = Bill(
         tenant_id=user.tenant_id, number=bill_num, vendor_id=vendor.id,
@@ -1847,12 +1879,13 @@ def create_settlement(user: WriteUserDep, session: SessionDep, body: SettlementI
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
 
+    from services.module_integration import resolve_tp_expense_account
     ccy = _tenant_ccy(session, user.tenant_id)
     ar = get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
     # Grey credit reduces processing/sales revenue (or a dedicated grey-credit contra)
     rev = get_or_create_account(session, user.tenant_id, "4150", "Processing Revenue", "Revenue")
     waste_rev = get_or_create_account(session, user.tenant_id, "4160", "Wastage Sales Revenue", "Revenue")
-    shrink_exp = get_or_create_account(session, user.tenant_id, "5210", "Process Shrinkage Expense", "Expense")
+    shrink_exp = resolve_tp_expense_account(session, user.tenant_id, "shrinkage")
 
     number = next_number(session, user.tenant_id, "tp_settlement", "GS", fmt="{prefix}-{YYYY}-{seq:04d}")
     sett = TpGreySettlement(

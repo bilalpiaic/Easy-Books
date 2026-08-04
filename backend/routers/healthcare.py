@@ -12,7 +12,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from models import Account, Customer, Settings
+from models import Account, Customer, Invoice, InvoiceLine, Product, Settings
 from models_healthcare import (
     HcAdmission, HcAdmissionCharge, HcBed, HcDoctor, HcLabOrder,
     HcLabOrderItem, HcLabTest, HcOpdToken, HcOpdVisit, HcPatient,
@@ -21,13 +21,14 @@ from models_healthcare import (
     HcStoreIssue, HcStoreIssueItem, HcWard,
 )
 from routers.common import (
-    CurrentUserDep, SessionDep, WriteUserDep, log_audit, next_number,
+    CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number,
 )
 from services.healthcare_posting import (
     post_discharge_bill, post_ipd_deposit, post_lab_order,
     post_opd_consultation, post_procedure, post_store_issue,
 )
-from services.money import D, ZERO
+from services.inventory import InventoryError, consume_stock
+from services.money import D, ZERO, money
 from services.permissions import perm_dep
 
 router = APIRouter(prefix="/api/healthcare", tags=["healthcare"])
@@ -1276,6 +1277,7 @@ def discharge_patient(user: WriteUserDep, session: SessionDep, admission_id: int
     ).all()
     total = sum(c.amount for c in charges)
 
+    invoice_id = None
     if total > ZERO or adm.deposit_amount > ZERO:
         charge_breakdown = {c.charge_type: str(c.amount) for c in charges}
         txn = post_discharge_bill(
@@ -1288,7 +1290,34 @@ def discharge_patient(user: WriteUserDep, session: SessionDep, admission_id: int
             customer_id=patient.customer_id,
             charge_breakdown=charge_breakdown,
         )
-        adm.discharge_invoice_id = txn.id
+        # Create a real AR Invoice document so statements / aging stay in sync
+        if patient.customer_id and total > ZERO:
+            ar = get_or_create_account(session, user.tenant_id, "1100", "Accounts Receivable", "Asset")
+            rev = get_or_create_account(session, user.tenant_id, "4121", "Ward / Bed Charges Revenue", "Revenue")
+            inv_num = next_number(session, user.tenant_id, "invoice", "INV", fmt="{prefix}-{YYYY}-{seq:04d}")
+            cust = session.get(Customer, patient.customer_id)
+            inv = Invoice(
+                tenant_id=user.tenant_id, number=inv_num,
+                customer_id=patient.customer_id,
+                customer_name=cust.name if cust else patient.name,
+                issue_date=discharge_date, due_date=discharge_date,
+                description=f"IPD discharge — {adm.admission_number}",
+                subtotal=money(total), gst_rate=ZERO, gst_amount=ZERO, total=money(total),
+                currency="PKR", exchange_rate=D("1"), status="open",
+                ar_account_id=ar.id, revenue_account_id=rev.id,
+                transaction_id=txn.id if txn else None,
+                created_by_id=user.id,
+            )
+            session.add(inv)
+            session.flush()
+            for c in charges:
+                session.add(InvoiceLine(
+                    invoice_id=inv.id,
+                    description=c.description or c.charge_type,
+                    qty=D("1"), unit="svc", rate=c.amount, amount=c.amount,
+                ))
+            invoice_id = inv.id
+            adm.discharge_invoice_id = inv.id
 
     adm.status = "discharged"
     adm.discharge_date = discharge_date
@@ -1307,6 +1336,7 @@ def discharge_patient(user: WriteUserDep, session: SessionDep, admission_id: int
         "admission_number": adm.admission_number,
         "total_charges": str(total),
         "deposit_amount": str(adm.deposit_amount),
+        "invoice_id": invoice_id,
         "balance_due": str(max(total - adm.deposit_amount, ZERO)),
     }
 
@@ -2028,11 +2058,13 @@ def create_store_issue(user: WriteUserDep, session: SessionDep, body: StoreIssue
     session.flush()
 
     total_charged = ZERO
+    total_cogs = ZERO
     for item_data in body.items:
+        qty = Decimal(str(item_data.get("qty", 1)))
         item = HcStoreIssueItem(
             issue_id=issue.id,
             product_id=item_data["product_id"],
-            qty=Decimal(str(item_data.get("qty", 1))),
+            qty=qty,
             unit_cost=Decimal(str(item_data.get("unit_cost", 0))),
             charge_to_patient=item_data.get("charge_to_patient", False),
             charge_amount=Decimal(str(item_data.get("charge_amount", 0))),
@@ -2041,9 +2073,23 @@ def create_store_issue(user: WriteUserDep, session: SessionDep, body: StoreIssue
         if item.charge_to_patient:
             total_charged += item.charge_amount
 
+        # Relieve core inventory so Product stock stays in sync with GL
+        try:
+            cogs = consume_stock(
+                session,
+                tenant_id=user.tenant_id,
+                product_id=item_data["product_id"],
+                qty=qty,
+                source_doc_type="hc_store_issue",
+                source_doc_id=issue.id,
+                block_negative=False,
+            )
+            total_cogs = money(total_cogs + (cogs or ZERO))
+        except InventoryError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
         # Add to admission charges if patient-charged and IPD
         if item.charge_to_patient and body.admission_id:
-            from models import Product
             product = session.get(Product, item_data["product_id"])
             adm_charge = HcAdmissionCharge(
                 tenant_id=user.tenant_id,
@@ -2057,18 +2103,20 @@ def create_store_issue(user: WriteUserDep, session: SessionDep, body: StoreIssue
             )
             session.add(adm_charge)
 
-    # Post GL for charged issues
-    if total_charged > ZERO:
+    # Post GL — prefer inventory COGS; fall back to charged amount for patient billing
+    gl_amount = total_cogs if total_cogs > ZERO else total_charged
+    if gl_amount > ZERO:
         txn = post_store_issue(
             session, user,
-            amount=total_charged,
+            amount=gl_amount,
             date=body.issue_date,
             issue_number=issue_number,
             purpose=body.purpose,
             charge_to_patient=bool(body.patient_id),
             customer_id=None,  # resolved at discharge
         )
-        issue.transaction_id = txn.id
+        if txn:
+            issue.transaction_id = txn.id
 
     session.commit()
     session.refresh(issue)

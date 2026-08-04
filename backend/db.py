@@ -357,15 +357,19 @@ _COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool, str]] = [
 ]
 
 
-# Textile Processing CoA — process revenue, wastage sales, contractor labor, shrinkage
+# Textile Processing CoA — process revenue, wastage sales, contractor labor, shrinkage.
+# 5220/5215 avoid colliding with manufacturing 5200 (OH) / 5210 (indirect materials).
+# Custodial 1210/2150 pair mirrors manufacturing GRN for customer-owned grey.
 _COA_TEXTILE_PROCESSING_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    ("1210", "Customer Goods on Hand",     "Asset",     True,  "11"),
+    ("2150", "Customer Goods Liability",   "Liability", True,  "21"),
     ("4150", "Processing Revenue",         "Revenue", False, "41"),
     ("4160", "Wastage Sales Revenue",      "Revenue", False, "41"),
-    ("5200", "Contractor Labor Expense",   "Expense", False, "52"),
-    ("5210", "Process Shrinkage Expense",  "Expense", False, "52"),
+    ("5220", "Contractor Labor Expense",   "Expense", False, "52"),
+    ("5215", "Process Shrinkage Expense",  "Expense", False, "52"),
 ]
 
-# Yarn Spinning CoA — stage WIP sub-accounts + waste + FG yarn
+# Yarn Spinning CoA — stage WIP sub-accounts + waste + FG yarn + sales revenue
 _COA_YARN_SPINNING_EXTRA: list[tuple[str, str, str, bool, str]] = [
     ("1200", "Raw Cotton / Fiber Inventory", "Asset",     False, "11"),
     ("1201", "WIP — Opening & Carding",      "Asset",     False, "11"),
@@ -373,6 +377,7 @@ _COA_YARN_SPINNING_EXTRA: list[tuple[str, str, str, bool, str]] = [
     ("1203", "WIP — Ring Spinning",          "Asset",     False, "11"),
     ("1204", "Finished Yarn Inventory",      "Asset",     False, "11"),
     ("1250", "GST Receivable (Input)",       "Asset",     False, "11"),
+    ("4170", "Yarn Sales Revenue",           "Revenue",   False, "41"),
     ("5010", "Cost of Goods Sold",           "Expense",   False, "51"),
     ("5100", "Direct Labour",                "Expense",   False, "51"),
     ("5200", "Manufacturing Overhead",       "Expense",   False, "51"),
