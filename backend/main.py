@@ -31,6 +31,7 @@ from routers import (
     search, ai_chat, webhooks, tasks, health,
     billing, portal, approvals, bank_feeds, agent_ext, inventory_depth,
     consolidation, leases, contract_assets, intercompany, india_gst,
+    practice,
 )
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
@@ -310,6 +311,7 @@ _ROUTERS = [
     agent_ext.router,
     inventory_depth.router,
     consolidation.router,
+    practice.router,
     leases.router,
     contract_assets.router,
     intercompany.router,
