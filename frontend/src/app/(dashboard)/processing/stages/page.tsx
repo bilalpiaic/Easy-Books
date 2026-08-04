@@ -8,10 +8,11 @@ type Stage = {
   id: number; number: string; date: string; process_id: number; lot_id: number
   input_mtr: number; output_mtr: number; visible_wastage_mtr: number
   invisible_wastage_mtr: number; labor_amount: number; status: string
+  contractor_id?: number | null
 }
 type PO = { id: number; number: string; issued_mtr: number; status: string }
 type Process = { id: number; code: string; name: string; seq: number }
-type Contractor = { id: number; name: string }
+type Contractor = { id: number; name: string; default_process_id?: number | null }
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -57,8 +58,29 @@ export default function StagesPage() {
     } catch (ex: unknown) { setErr(ex instanceof Error ? ex.message : "Failed") }
   }
 
+  async function tagContractor(stageId: number, contractorId: string) {
+    setErr("")
+    try {
+      await apiFetch(`/api/textile-processing/stages/${stageId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          contractor_id: contractorId ? Number(contractorId) : null,
+        }),
+      })
+      load()
+    } catch (ex: unknown) { setErr(ex instanceof Error ? ex.message : "Failed") }
+  }
+
+  // Prefer contractor tagged for selected process
+  useEffect(() => {
+    if (!form.process_id || form.contractor_id) return
+    const tagged = contractors.find(c => String(c.default_process_id) === form.process_id)
+    if (tagged) setForm(f => ({ ...f, contractor_id: String(tagged.id) }))
+  }, [form.process_id, contractors]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const input = "border border-[var(--border)] rounded-lg px-3 py-2 text-sm w-full"
   const procMap = Object.fromEntries(processes.map(p => [p.id, p.name]))
+  const contrMap = Object.fromEntries(contractors.map(c => [c.id, c.name]))
 
   return (
     <div className="p-4 space-y-4 max-w-6xl mx-auto">
@@ -96,6 +118,7 @@ export default function StagesPage() {
             <th className="p-2 text-right">In</th><th className="p-2 text-right">Out</th>
             <th className="p-2 text-right">Vis</th><th className="p-2 text-right">Invis</th>
             <th className="p-2 text-right">Labor</th>
+            <th className="p-2 print:hidden">Contractor tag</th>
           </tr></thead>
           <tbody>
             {rows.map(r => (
@@ -108,6 +131,17 @@ export default function StagesPage() {
                 <td className="p-2 text-right">{r.visible_wastage_mtr}</td>
                 <td className="p-2 text-right">{r.invisible_wastage_mtr}</td>
                 <td className="p-2 text-right">{r.labor_amount}</td>
+                <td className="p-2 print:hidden">
+                  <select
+                    className="border border-[var(--border)] rounded px-2 py-1 text-xs max-w-[140px]"
+                    value={r.contractor_id ?? ""}
+                    onChange={e => tagContractor(r.id, e.target.value)}
+                    title={r.contractor_id ? contrMap[r.contractor_id] : "Tag contractor"}
+                  >
+                    <option value="">—</option>
+                    {contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </td>
               </tr>
             ))}
           </tbody>

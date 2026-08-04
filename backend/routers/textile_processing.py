@@ -15,10 +15,12 @@ from models import (
 )
 from models_textile_processing import (
     DEFAULT_PROCESSES,
+    PACKING_ITEM_TYPES,
     TpBaling, TpContractor, TpDispatch, TpGreyLot, TpGreySettlement, TpGreyThan,
     TpInspection, TpKachiParchi, TpLaborBill, TpMending, TpPakkiParchi,
     TpProcess, TpProductionOrder, TpQuality, TpRejectionIssueNote, TpRejectionOgp,
-    TpSalesOrder, TpStageEntry, TpPacking,
+    TpSalesOrder, TpSalesOrderPackingLine, TpSalesOrderQualityLine,
+    TpStageEntry, TpPacking,
 )
 from routers.common import (
     CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number,
@@ -49,14 +51,26 @@ def _ensure_processes(session: Session, tenant_id: int) -> None:
     existing = session.exec(
         select(TpProcess).where(TpProcess.tenant_id == tenant_id).limit(1)
     ).first()
-    if existing:
+    if not existing:
+        for seq, code, name, is_billing in DEFAULT_PROCESSES:
+            session.add(TpProcess(
+                tenant_id=tenant_id, seq=seq, code=code, name=name,
+                is_billing=is_billing, default_sale_rate=ZERO, is_active=True,
+            ))
+        session.flush()
         return
-    for seq, code, name, is_billing in DEFAULT_PROCESSES:
+    # Backfill dyeing for tenants seeded before dyeing was in DEFAULT_PROCESSES
+    dye = session.exec(
+        select(TpProcess).where(
+            TpProcess.tenant_id == tenant_id, TpProcess.code == "dyeing",
+        )
+    ).first()
+    if not dye:
         session.add(TpProcess(
-            tenant_id=tenant_id, seq=seq, code=code, name=name,
-            is_billing=is_billing, default_sale_rate=ZERO, is_active=True,
+            tenant_id=tenant_id, seq=65, code="dyeing", name="Dyeing",
+            is_billing=True, default_sale_rate=ZERO, is_active=True,
         ))
-    session.flush()
+        session.flush()
 
 
 def _tenant_ccy(session: Session, tenant_id: int) -> str:
@@ -71,6 +85,8 @@ def _ser_quality(r: TpQuality) -> dict:
     return {
         "id": r.id, "code": r.code, "name": r.name, "blend": r.blend,
         "width": r.width, "unit": r.unit, "is_active": r.is_active,
+        "fiber": r.fiber, "warp_count": r.warp_count, "weft_count": r.weft_count,
+        "epi": r.epi, "ppi": r.ppi, "width_inch": r.width_inch,
     }
 
 
@@ -91,13 +107,39 @@ def _ser_contractor(r: TpContractor) -> dict:
     }
 
 
-def _ser_so(r: TpSalesOrder) -> dict:
+def _ser_so_quality_line(r: TpSalesOrderQualityLine) -> dict:
     return {
+        "id": r.id, "sales_order_id": r.sales_order_id, "quality_id": r.quality_id,
+        "expected_mtr": _f(r.expected_mtr), "grey_rate": _f(r.grey_rate),
+        "notes": r.notes,
+    }
+
+
+def _ser_so_packing_line(r: TpSalesOrderPackingLine) -> dict:
+    return {
+        "id": r.id, "sales_order_id": r.sales_order_id, "item_type": r.item_type,
+        "quality_id": r.quality_id, "process_id": r.process_id,
+        "qty": _f(r.qty), "meters": _f(r.meters), "rate": _f(r.rate),
+        "notes": r.notes,
+    }
+
+
+def _ser_so(
+    r: TpSalesOrder,
+    quality_lines: list | None = None,
+    packing_lines: list | None = None,
+) -> dict:
+    d = {
         "id": r.id, "number": r.number, "customer_id": r.customer_id,
         "quality_id": r.quality_id, "date": r.date,
         "expected_mtr": _f(r.expected_mtr), "grey_rate": _f(r.grey_rate),
         "process_rates": r.process_rates or [], "status": r.status, "notes": r.notes,
     }
+    if quality_lines is not None:
+        d["quality_lines"] = [_ser_so_quality_line(x) for x in quality_lines]
+    if packing_lines is not None:
+        d["packing_lines"] = [_ser_so_packing_line(x) for x in packing_lines]
+    return d
 
 
 def _ser_lot(r: TpGreyLot, thans: list | None = None) -> dict:
@@ -113,8 +155,12 @@ def _ser_lot(r: TpGreyLot, thans: list | None = None) -> dict:
     }
     if thans is not None:
         d["thans"] = [
-            {"id": t.id, "than_no": t.than_no, "meters": _f(t.meters),
-             "width": t.width, "notes": t.notes}
+            {
+                "id": t.id, "than_no": t.than_no, "meters": _f(t.meters),
+                "rejection_mtr": _f(getattr(t, "rejection_mtr", 0) or 0),
+                "safi_mtr": _f(getattr(t, "safi_mtr", 0) or 0),
+                "width": t.width, "notes": t.notes,
+            }
             for t in thans
         ]
     return d
@@ -242,12 +288,47 @@ def _ser_inspection(r: TpInspection) -> dict:
 
 
 class QualityIn(BaseModel):
-    code: str
-    name: str
+    code: Optional[str] = None  # auto-built from structure when omitted
+    name: Optional[str] = None
     blend: Optional[str] = None
     width: Optional[str] = None
     unit: str = "MTR"
+    fiber: Optional[str] = None
+    warp_count: Optional[str] = None
+    weft_count: Optional[str] = None
+    epi: Optional[str] = None
+    ppi: Optional[str] = None
+    width_inch: Optional[str] = None
     is_active: bool = True
+
+
+def _resolve_quality_fields(body: QualityIn) -> dict:
+    structured = tp_math.format_quality_code(
+        body.fiber, body.warp_count, body.weft_count, body.epi, body.ppi, body.width_inch,
+    )
+    code = (body.code or "").strip() or (structured or "")
+    if not code:
+        raise HTTPException(
+            400,
+            'Provide code or structured fields (fiber, warp/weft, epi/ppi, width) '
+            'e.g. CTN 60X60 40X52 45"',
+        )
+    name = (body.name or "").strip() or code
+    width = body.width or (f'{str(body.width_inch).rstrip(chr(34))}\"' if body.width_inch else None)
+    return {
+        "code": code,
+        "name": name,
+        "blend": body.blend,
+        "width": width,
+        "unit": body.unit or "MTR",
+        "fiber": (body.fiber or "").strip().upper() or None,
+        "warp_count": body.warp_count,
+        "weft_count": body.weft_count,
+        "epi": body.epi,
+        "ppi": body.ppi,
+        "width_inch": str(body.width_inch).rstrip('"').rstrip("'") if body.width_inch else None,
+        "is_active": body.is_active,
+    }
 
 
 class ProcessIn(BaseModel):
@@ -281,11 +362,8 @@ def list_qualities(user: CurrentUserDep, session: SessionDep, active_only: bool 
 @router.post("/qualities", status_code=201, dependencies=[perm_dep("textile.setup", "edit")])
 def create_quality(user: WriteUserDep, session: SessionDep, body: QualityIn):
     _require_tp(session, user)
-    row = TpQuality(
-        tenant_id=user.tenant_id, code=body.code.strip(), name=body.name.strip(),
-        blend=body.blend, width=body.width, unit=body.unit or "MTR",
-        is_active=body.is_active,
-    )
+    fields = _resolve_quality_fields(body)
+    row = TpQuality(tenant_id=user.tenant_id, **fields)
     session.add(row)
     session.commit()
     session.refresh(row)
@@ -300,13 +378,28 @@ def update_quality(id: int, user: WriteUserDep, session: SessionDep, body: Quali
     ).first()
     if not row:
         raise HTTPException(404, "Quality not found")
-    row.code, row.name = body.code.strip(), body.name.strip()
-    row.blend, row.width, row.unit = body.blend, body.width, body.unit or "MTR"
-    row.is_active = body.is_active
+    fields = _resolve_quality_fields(body)
+    for k, v in fields.items():
+        setattr(row, k, v)
     session.add(row)
     session.commit()
     session.refresh(row)
     return _ser_quality(row)
+
+
+@router.delete("/qualities/{id}", dependencies=[perm_dep("textile.setup", "edit")])
+def delete_quality(id: int, user: WriteUserDep, session: SessionDep):
+    """Soft-delete (deactivate) a grey quality."""
+    _require_tp(session, user)
+    row = session.exec(
+        select(TpQuality).where(TpQuality.id == id, TpQuality.tenant_id == user.tenant_id)
+    ).first()
+    if not row:
+        raise HTTPException(404, "Quality not found")
+    row.is_active = False
+    session.add(row)
+    session.commit()
+    return {"ok": True, "id": id}
 
 
 @router.get("/processes", dependencies=[perm_dep("textile.setup", "view")])
@@ -355,6 +448,31 @@ def update_process(id: int, user: WriteUserDep, session: SessionDep, body: Proce
     return _ser_process(row)
 
 
+@router.delete("/processes/{id}", dependencies=[perm_dep("textile.setup", "edit")])
+def delete_process(id: int, user: WriteUserDep, session: SessionDep):
+    """Soft-delete a process (deactivate). Hard delete blocked when stage entries exist."""
+    _require_tp(session, user)
+    row = session.exec(
+        select(TpProcess).where(TpProcess.id == id, TpProcess.tenant_id == user.tenant_id)
+    ).first()
+    if not row:
+        raise HTTPException(404, "Process not found")
+    used = session.exec(
+        select(TpStageEntry).where(
+            TpStageEntry.tenant_id == user.tenant_id,
+            TpStageEntry.process_id == id,
+        ).limit(1)
+    ).first()
+    if used:
+        row.is_active = False
+        session.add(row)
+        session.commit()
+        return {"ok": True, "id": id, "soft": True}
+    session.delete(row)
+    session.commit()
+    return {"ok": True, "id": id, "soft": False}
+
+
 @router.get("/contractors", dependencies=[perm_dep("textile.setup", "view")])
 def list_contractors(user: CurrentUserDep, session: SessionDep, active_only: bool = False):
     _require_tp(session, user)
@@ -372,11 +490,57 @@ def create_contractor(user: WriteUserDep, session: SessionDep, body: ContractorI
     ).first()
     if not v:
         raise HTTPException(400, "Vendor not found")
+    if body.default_process_id:
+        proc = session.exec(
+            select(TpProcess).where(
+                TpProcess.id == body.default_process_id,
+                TpProcess.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not proc:
+            raise HTTPException(400, "Default process not found")
     row = TpContractor(
         tenant_id=user.tenant_id, code=body.code.strip(), name=body.name.strip(),
         vendor_id=body.vendor_id, default_process_id=body.default_process_id,
         phone=body.phone, is_active=body.is_active,
     )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return _ser_contractor(row)
+
+
+@router.put("/contractors/{id}", dependencies=[perm_dep("textile.setup", "edit")])
+def update_contractor(id: int, user: WriteUserDep, session: SessionDep, body: ContractorIn):
+    """Update contractor including default process tagging for staging."""
+    _require_tp(session, user)
+    row = session.exec(
+        select(TpContractor).where(
+            TpContractor.id == id, TpContractor.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not row:
+        raise HTTPException(404, "Contractor not found")
+    v = session.exec(
+        select(Vendor).where(Vendor.id == body.vendor_id, Vendor.tenant_id == user.tenant_id)
+    ).first()
+    if not v:
+        raise HTTPException(400, "Vendor not found")
+    if body.default_process_id:
+        proc = session.exec(
+            select(TpProcess).where(
+                TpProcess.id == body.default_process_id,
+                TpProcess.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not proc:
+            raise HTTPException(400, "Default process not found")
+    row.code = body.code.strip()
+    row.name = body.name.strip()
+    row.vendor_id = body.vendor_id
+    row.default_process_id = body.default_process_id
+    row.phone = body.phone
+    row.is_active = body.is_active
     session.add(row)
     session.commit()
     session.refresh(row)
@@ -392,14 +556,43 @@ class ProcessRateIn(BaseModel):
     enabled: bool = True
 
 
+class SoQualityLineIn(BaseModel):
+    quality_id: int
+    expected_mtr: Decimal = ZERO
+    grey_rate: Decimal = ZERO
+    notes: Optional[str] = None
+
+
+class SoPackingLineIn(BaseModel):
+    item_type: str = "KMZ"
+    quality_id: int
+    process_id: Optional[int] = None
+    qty: Decimal = ZERO
+    meters: Decimal = ZERO
+    rate: Decimal = ZERO
+    notes: Optional[str] = None
+
+
 class SalesOrderIn(BaseModel):
     customer_id: int
-    quality_id: int
+    quality_id: Optional[int] = None  # primary; defaults to first quality_lines entry
     date: str
     expected_mtr: Decimal = ZERO
     grey_rate: Decimal = ZERO
     process_rates: list[ProcessRateIn] = Field(default_factory=list)
+    quality_lines: list[SoQualityLineIn] = Field(default_factory=list)
+    packing_lines: list[SoPackingLineIn] = Field(default_factory=list)
     notes: Optional[str] = None
+
+
+def _so_lines(session: Session, so_id: int):
+    qlines = session.exec(
+        select(TpSalesOrderQualityLine).where(TpSalesOrderQualityLine.sales_order_id == so_id)
+    ).all()
+    plines = session.exec(
+        select(TpSalesOrderPackingLine).where(TpSalesOrderPackingLine.sales_order_id == so_id)
+    ).all()
+    return qlines, plines
 
 
 @router.get("/sales-orders", dependencies=[perm_dep("textile.sales_orders", "view")])
@@ -409,7 +602,11 @@ def list_sales_orders(user: CurrentUserDep, session: SessionDep):
         select(TpSalesOrder).where(TpSalesOrder.tenant_id == user.tenant_id)
         .order_by(TpSalesOrder.id.desc())
     ).all()
-    return [_ser_so(r) for r in rows]
+    out = []
+    for r in rows:
+        ql, pl = _so_lines(session, r.id)
+        out.append(_ser_so(r, ql, pl))
+    return out
 
 
 @router.post("/sales-orders", status_code=201, dependencies=[perm_dep("textile.sales_orders", "edit")])
@@ -420,25 +617,86 @@ def create_sales_order(user: WriteUserDep, session: SessionDep, body: SalesOrder
     ).first()
     if not cust:
         raise HTTPException(400, "Customer not found")
-    q = session.exec(
-        select(TpQuality).where(TpQuality.id == body.quality_id, TpQuality.tenant_id == user.tenant_id)
-    ).first()
-    if not q:
-        raise HTTPException(400, "Quality not found")
+
+    quality_lines = list(body.quality_lines)
+    if not quality_lines and body.quality_id:
+        quality_lines = [SoQualityLineIn(
+            quality_id=body.quality_id,
+            expected_mtr=body.expected_mtr,
+            grey_rate=body.grey_rate,
+        )]
+    if not quality_lines:
+        raise HTTPException(400, "At least one grey quality line is required")
+
+    for ql in quality_lines:
+        q = session.exec(
+            select(TpQuality).where(
+                TpQuality.id == ql.quality_id, TpQuality.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not q:
+            raise HTTPException(400, f"Quality {ql.quality_id} not found")
+
+    for pl in body.packing_lines:
+        itype = (pl.item_type or "KMZ").strip().upper()
+        if itype not in PACKING_ITEM_TYPES:
+            raise HTTPException(
+                400,
+                f"Invalid packing item_type '{pl.item_type}'. "
+                f"Use one of: {', '.join(PACKING_ITEM_TYPES)}",
+            )
+        q = session.exec(
+            select(TpQuality).where(
+                TpQuality.id == pl.quality_id, TpQuality.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not q:
+            raise HTTPException(400, f"Packing quality {pl.quality_id} not found")
+        if pl.process_id:
+            proc = session.exec(
+                select(TpProcess).where(
+                    TpProcess.id == pl.process_id, TpProcess.tenant_id == user.tenant_id,
+                )
+            ).first()
+            if not proc:
+                raise HTTPException(400, f"Process {pl.process_id} not found")
+
+    primary = quality_lines[0]
+    primary_qid = body.quality_id or primary.quality_id
+    expected = D(body.expected_mtr) if body.expected_mtr else money(
+        sum(D(ql.expected_mtr) for ql in quality_lines)
+    )
+    grey_rate = D(body.grey_rate) if body.grey_rate else D(primary.grey_rate)
+
     number = next_number(session, user.tenant_id, "tp_sales_order", "SO", fmt="{prefix}-{YYYY}-{seq:04d}")
     row = TpSalesOrder(
         tenant_id=user.tenant_id, number=number, customer_id=body.customer_id,
-        quality_id=body.quality_id, date=body.date,
-        expected_mtr=D(body.expected_mtr), grey_rate=D(body.grey_rate),
+        quality_id=primary_qid, date=body.date,
+        expected_mtr=expected, grey_rate=grey_rate,
         process_rates=[pr.model_dump(mode="json") for pr in body.process_rates],
         status="open", notes=body.notes, created_by_id=user.id,
     )
     session.add(row)
+    session.flush()
+    for ql in quality_lines:
+        session.add(TpSalesOrderQualityLine(
+            tenant_id=user.tenant_id, sales_order_id=row.id,
+            quality_id=ql.quality_id, expected_mtr=D(ql.expected_mtr),
+            grey_rate=D(ql.grey_rate), notes=ql.notes,
+        ))
+    for pl in body.packing_lines:
+        session.add(TpSalesOrderPackingLine(
+            tenant_id=user.tenant_id, sales_order_id=row.id,
+            item_type=(pl.item_type or "KMZ").strip().upper(),
+            quality_id=pl.quality_id, process_id=pl.process_id,
+            qty=D(pl.qty), meters=D(pl.meters), rate=D(pl.rate), notes=pl.notes,
+        ))
     session.commit()
     session.refresh(row)
     log_audit(session, user, "create", "tp_sales_order", row.id, {"number": number})
     session.commit()
-    return _ser_so(row)
+    ql, pl = _so_lines(session, row.id)
+    return _ser_so(row, ql, pl)
 
 
 @router.get("/sales-orders/{id}", dependencies=[perm_dep("textile.sales_orders", "view")])
@@ -449,7 +707,8 @@ def get_sales_order(id: int, user: CurrentUserDep, session: SessionDep):
     ).first()
     if not row:
         raise HTTPException(404, "Sales order not found")
-    return _ser_so(row)
+    ql, pl = _so_lines(session, row.id)
+    return _ser_so(row, ql, pl)
 
 
 # ── Grey Lots + Kachi Parchi ─────────────────────────────────────────────────
@@ -458,6 +717,8 @@ def get_sales_order(id: int, user: CurrentUserDep, session: SessionDep):
 class ThanIn(BaseModel):
     than_no: str
     meters: Decimal
+    rejection_mtr: Decimal = ZERO
+    safi_mtr: Optional[Decimal] = None  # computed as meters − rej when omitted
     width: Optional[str] = None
     notes: Optional[str] = None
 
@@ -465,6 +726,7 @@ class ThanIn(BaseModel):
 class GreyLotIn(BaseModel):
     sales_order_id: int
     date: str
+    quality_id: Optional[int] = None  # which SO grey quality this lot is for
     godown_location_id: Optional[int] = None
     thans: list[ThanIn] = Field(default_factory=list)
     notes: Optional[str] = None
@@ -493,21 +755,37 @@ def create_lot(user: WriteUserDep, session: SessionDep, body: GreyLotIn):
         raise HTTPException(400, "Sales order not found")
     if not body.thans:
         raise HTTPException(400, "At least one than line is required")
+
+    quality_id = body.quality_id or so.quality_id
+    qlines, _ = _so_lines(session, so.id)
+    allowed = {so.quality_id} | {ql.quality_id for ql in qlines}
+    if quality_id not in allowed:
+        raise HTTPException(400, "quality_id is not on this sales order")
+
     received = money(sum(D(t.meters) for t in body.thans))
+    intake_rej = money(sum(D(t.rejection_mtr or 0) for t in body.thans))
     number = next_number(session, user.tenant_id, "tp_grey_lot", "LOT", fmt="{prefix}-{YYYY}-{seq:04d}")
     lot = TpGreyLot(
         tenant_id=user.tenant_id, number=number, sales_order_id=so.id,
-        customer_id=so.customer_id, quality_id=so.quality_id,
+        customer_id=so.customer_id, quality_id=quality_id,
         godown_location_id=body.godown_location_id, date=body.date,
-        received_mtr=received, than_count=len(body.thans), status="received",
+        received_mtr=received, than_count=len(body.thans),
+        rejection_mtr=intake_rej, status="received",
         notes=body.notes, created_by_id=user.id,
     )
     session.add(lot)
     session.flush()
     for t in body.thans:
+        try:
+            safi = D(t.safi_mtr) if t.safi_mtr is not None else tp_math.than_safi_mtr(
+                t.meters, t.rejection_mtr or ZERO,
+            )
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
         session.add(TpGreyThan(
             tenant_id=user.tenant_id, lot_id=lot.id, than_no=t.than_no.strip(),
-            meters=D(t.meters), width=t.width, notes=t.notes,
+            meters=D(t.meters), rejection_mtr=D(t.rejection_mtr or 0),
+            safi_mtr=safi, width=t.width, notes=t.notes,
         ))
     # Auto-issue Kachi Parchi on receipt
     kp_num = next_number(session, user.tenant_id, "tp_kachi_parchi", "KP", fmt="{prefix}-{YYYY}-{seq:04d}")
@@ -564,6 +842,16 @@ def list_kachi(user: CurrentUserDep, session: SessionDep):
     return [_ser_kachi(r) for r in rows]
 
 
+def _print_party_names(session: Session, customer_id: int, quality_id: int) -> dict:
+    cust = session.get(Customer, customer_id)
+    qual = session.get(TpQuality, quality_id)
+    return {
+        "customer_name": cust.name if cust else str(customer_id),
+        "quality_code": qual.code if qual else str(quality_id),
+        "quality_name": qual.name if qual else "",
+    }
+
+
 @router.get("/kachi-parchis/{id}", dependencies=[perm_dep("textile.lots", "view")])
 def get_kachi(id: int, user: CurrentUserDep, session: SessionDep):
     _require_tp(session, user)
@@ -574,7 +862,21 @@ def get_kachi(id: int, user: CurrentUserDep, session: SessionDep):
     ).first()
     if not row:
         raise HTTPException(404, "Kachi Parchi not found")
-    return _ser_kachi(row)
+    out = _ser_kachi(row)
+    out.update(_print_party_names(session, row.customer_id, row.quality_id))
+    lot = session.get(TpGreyLot, row.lot_id)
+    if lot:
+        out["lot_number"] = lot.number
+        thans = session.exec(select(TpGreyThan).where(TpGreyThan.lot_id == lot.id)).all()
+        out["thans"] = [
+            {
+                "than_no": t.than_no, "meters": _f(t.meters),
+                "rejection_mtr": _f(getattr(t, "rejection_mtr", 0) or 0),
+                "safi_mtr": _f(getattr(t, "safi_mtr", 0) or 0),
+            }
+            for t in thans
+        ]
+    return out
 
 
 # ── Mending → Pakki + Rejection Note ─────────────────────────────────────────
@@ -706,7 +1008,15 @@ def get_pakki(id: int, user: CurrentUserDep, session: SessionDep):
     ).first()
     if not row:
         raise HTTPException(404, "Pakki Parchi not found")
-    return _ser_pakki(row)
+    out = _ser_pakki(row)
+    out.update(_print_party_names(session, row.customer_id, row.quality_id))
+    lot = session.get(TpGreyLot, row.lot_id)
+    if lot:
+        out["lot_number"] = lot.number
+    mend = session.get(TpMending, row.mending_id)
+    if mend:
+        out["mending"] = _ser_mending(mend)
+    return out
 
 
 # ── Rejection Issue Note + OGP ───────────────────────────────────────────────
@@ -783,6 +1093,30 @@ def list_ogps(user: CurrentUserDep, session: SessionDep):
         .order_by(TpRejectionOgp.id.desc())
     ).all()
     return [_ser_ogp(r) for r in rows]
+
+
+@router.get("/rejection-ogps/{id}", dependencies=[perm_dep("textile.rejection", "view")])
+def get_ogp(id: int, user: CurrentUserDep, session: SessionDep):
+    """Grey Rej Outward (OGP) detail for printout."""
+    _require_tp(session, user)
+    row = session.exec(
+        select(TpRejectionOgp).where(
+            TpRejectionOgp.id == id, TpRejectionOgp.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not row:
+        raise HTTPException(404, "Grey Rej Outward not found")
+    out = _ser_ogp(row)
+    cust = session.get(Customer, row.customer_id)
+    out["customer_name"] = cust.name if cust else str(row.customer_id)
+    note = session.get(TpRejectionIssueNote, row.rejection_issue_note_id)
+    if note:
+        out["rejection_note"] = _ser_rej_note(note)
+        out.update(_print_party_names(session, note.customer_id, note.quality_id))
+        lot = session.get(TpGreyLot, note.lot_id)
+        if lot:
+            out["lot_number"] = lot.number
+    return out
 
 
 @router.post("/rejection-ogps", status_code=201, dependencies=[perm_dep("textile.rejection", "edit")])
@@ -1028,6 +1362,51 @@ def create_stage(user: WriteUserDep, session: SessionDep, body: StageIn):
     return _ser_stage(stage)
 
 
+class StageContractorIn(BaseModel):
+    contractor_id: Optional[int] = None
+    labor_qty: Optional[Decimal] = None
+    labor_rate: Optional[Decimal] = None
+    notes: Optional[str] = None
+
+
+@router.patch("/stages/{id}", dependencies=[perm_dep("textile.stages", "edit")])
+def update_stage_contractor(id: int, user: WriteUserDep, session: SessionDep, body: StageContractorIn):
+    """Update contractor tagging / labor on a completed stage entry."""
+    _require_tp(session, user)
+    stage = session.exec(
+        select(TpStageEntry).where(
+            TpStageEntry.id == id, TpStageEntry.tenant_id == user.tenant_id,
+        )
+    ).first()
+    if not stage:
+        raise HTTPException(404, "Stage entry not found")
+    if stage.status == "cancelled":
+        raise HTTPException(400, "Cannot update a cancelled stage")
+    if body.contractor_id is not None:
+        if body.contractor_id:
+            c = session.exec(
+                select(TpContractor).where(
+                    TpContractor.id == body.contractor_id,
+                    TpContractor.tenant_id == user.tenant_id,
+                )
+            ).first()
+            if not c:
+                raise HTTPException(400, "Contractor not found")
+        stage.contractor_id = body.contractor_id or None
+    if body.labor_qty is not None:
+        stage.labor_qty = D(body.labor_qty)
+    if body.labor_rate is not None:
+        stage.labor_rate = D(body.labor_rate)
+    if body.labor_qty is not None or body.labor_rate is not None:
+        stage.labor_amount = money(D(stage.labor_qty) * D(stage.labor_rate))
+    if body.notes is not None:
+        stage.notes = body.notes
+    session.add(stage)
+    session.commit()
+    session.refresh(stage)
+    return _ser_stage(stage)
+
+
 @router.get("/lots/{id}/timeline", dependencies=[perm_dep("textile.production", "view")])
 def lot_timeline(id: int, user: CurrentUserDep, session: SessionDep):
     _require_tp(session, user)
@@ -1089,6 +1468,9 @@ class PackingIn(BaseModel):
     date: str
     meters: Decimal
     pieces: int = 0
+    item_type: Optional[str] = None  # KMZ|SHL|DPT|2PC|3PC|OTHER
+    quality_id: Optional[int] = None
+    process_id: Optional[int] = None
     notes: Optional[str] = None
 
 
@@ -1121,11 +1503,19 @@ def create_packing(user: WriteUserDep, session: SessionDep, body: PackingIn):
     ).first()
     if not po:
         raise HTTPException(400, "Production order not found")
+    item_type = (body.item_type or "").strip().upper() or None
+    if item_type and item_type not in PACKING_ITEM_TYPES:
+        raise HTTPException(
+            400,
+            f"Invalid packing item_type. Use one of: {', '.join(PACKING_ITEM_TYPES)}",
+        )
     number = next_number(session, user.tenant_id, "tp_packing", "PK", fmt="{prefix}-{YYYY}-{seq:04d}")
     row = TpPacking(
         tenant_id=user.tenant_id, number=number, production_order_id=po.id,
         lot_id=po.lot_id, date=body.date, meters=D(body.meters),
-        pieces=body.pieces, notes=body.notes, created_by_id=user.id,
+        pieces=body.pieces, item_type=item_type,
+        quality_id=body.quality_id or po.quality_id,
+        process_id=body.process_id, notes=body.notes, created_by_id=user.id,
     )
     session.add(row)
     lot = session.get(TpGreyLot, po.lot_id)
@@ -1137,7 +1527,8 @@ def create_packing(user: WriteUserDep, session: SessionDep, body: PackingIn):
     return {
         "id": row.id, "number": row.number, "production_order_id": row.production_order_id,
         "lot_id": row.lot_id, "date": row.date, "meters": _f(row.meters),
-        "pieces": row.pieces, "notes": row.notes,
+        "pieces": row.pieces, "item_type": row.item_type,
+        "quality_id": row.quality_id, "process_id": row.process_id, "notes": row.notes,
     }
 
 

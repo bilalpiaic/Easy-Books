@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 
@@ -46,7 +47,7 @@ export default function RejectionPage() {
 
   return (
     <div className="p-4 space-y-6 max-w-6xl mx-auto">
-      <h1 className="text-xl font-semibold">Rejection Issuance & OGP</h1>
+      <h1 className="text-xl font-semibold">Rejection Issuance & Grey Rej Outward</h1>
       {err && <p className="text-sm text-red-600">{err}</p>}
 
       <form onSubmit={createOgp} className="grid grid-cols-2 md:grid-cols-5 gap-2 border border-[var(--border)] rounded-xl p-3 print:hidden">
@@ -88,21 +89,27 @@ export default function RejectionPage() {
       </div>
 
       <div>
-        <h2 className="font-semibold mb-2">OGPs</h2>
+        <h2 className="font-semibold mb-2">Grey Rej Outward (OGP)</h2>
         <div className="table-freeze overflow-auto border border-[var(--border)] rounded-xl">
           <table className="w-full text-sm">
             <thead><tr className="text-left border-b border-[var(--border)]">
               <th className="p-2">OGP</th><th className="p-2">Date</th><th className="p-2 text-right">Qty</th>
               <th className="p-2">Vehicle</th><th className="p-2">Challan</th>
+              <th className="p-2 print:hidden">Print</th>
             </tr></thead>
             <tbody>
               {ogps.map(o => (
                 <tr key={o.id} className="border-b border-[var(--border)]/60">
-                  <td className="p-2 whitespace-nowrap">{o.number}</td>
+                  <td className="p-2 whitespace-nowrap">
+                    <Link href={`/processing/rejection/ogp/${o.id}`} className="text-[var(--primary)]">{o.number}</Link>
+                  </td>
                   <td className="p-2 whitespace-nowrap">{fmtDate(o.date)}</td>
                   <td className="p-2 text-right">{o.qty_mtr}</td>
                   <td className="p-2">{o.vehicle || "—"}</td>
                   <td className="p-2">{o.challan || "—"}</td>
+                  <td className="p-2 print:hidden">
+                    <Link href={`/processing/rejection/ogp/${o.id}`} className="text-xs text-[var(--primary)]">Print</Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

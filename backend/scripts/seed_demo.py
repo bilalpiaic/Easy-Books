@@ -132,7 +132,8 @@ from models_textile_processing import (
     DEFAULT_PROCESSES,
     TpContractor, TpGreyLot, TpGreyThan, TpKachiParchi, TpMending,
     TpPakkiParchi, TpProcess, TpProductionOrder, TpQuality, TpRejectionIssueNote,
-    TpRejectionOgp, TpSalesOrder, TpStageEntry as TpPpcStage,
+    TpRejectionOgp, TpSalesOrder, TpSalesOrderPackingLine, TpSalesOrderQualityLine,
+    TpStageEntry as TpPpcStage,
 )
 from routers.common import get_or_create_account, next_number
 from services.franchise_posting import (
@@ -6161,12 +6162,16 @@ def _seed_textile_processing(
         s.flush()
 
     q1 = TpQuality(
-        tenant_id=tid, code="PC-60", name="Poplin 60s", blend="100% Cotton",
-        width="60\"", unit="MTR", is_active=True,
+        tenant_id=tid, code='CTN 60X60 40X52 45"', name="Cotton Poplin",
+        blend="100% Cotton", width='45"', unit="MTR",
+        fiber="CTN", warp_count="60", weft_count="60", epi="40", ppi="52",
+        width_inch="45", is_active=True,
     )
     q2 = TpQuality(
-        tenant_id=tid, code="CVC-58", name="CVC Lawn", blend="60/40 CVC",
-        width="58\"", unit="MTR", is_active=True,
+        tenant_id=tid, code='CVC 40X40 90X88 58"', name="CVC Lawn",
+        blend="60/40 CVC", width='58"', unit="MTR",
+        fiber="CVC", warp_count="40", weft_count="40", epi="90", ppi="88",
+        width_inch="58", is_active=True,
     )
     s.add(q1); s.add(q2); s.flush()
 
@@ -6183,6 +6188,7 @@ def _seed_textile_processing(
         select(TpProcess).where(TpProcess.tenant_id == tid).order_by(TpProcess.seq)
     ).all()
     printing = next((p for p in processes if p.code == "printing"), processes[0])
+    dyeing = next((p for p in processes if p.code == "dyeing"), printing)
     contractor = TpContractor(
         tenant_id=tid, code="CTR-01", name="Print Labor Gang",
         vendor_id=vendor.id, default_process_id=printing.id, is_active=True,
@@ -6198,10 +6204,30 @@ def _seed_textile_processing(
         tenant_id=tid,
         number=next_number(s, tid, "tp_sales_order", "SO", fmt="{prefix}-{YYYY}-{seq:04d}"),
         customer_id=cust.id, quality_id=q1.id, date=d0,
-        expected_mtr=Decimal("1000"), grey_rate=Decimal("120"),
+        expected_mtr=Decimal("1300"), grey_rate=Decimal("120"),
         process_rates=rates, status="open", created_by_id=user.id,
     )
     s.add(so); s.flush()
+    s.add(TpSalesOrderQualityLine(
+        tenant_id=tid, sales_order_id=so.id, quality_id=q1.id,
+        expected_mtr=Decimal("1000"), grey_rate=Decimal("120"),
+    ))
+    s.add(TpSalesOrderQualityLine(
+        tenant_id=tid, sales_order_id=so.id, quality_id=q2.id,
+        expected_mtr=Decimal("300"), grey_rate=Decimal("140"),
+    ))
+    for item_type, qid, pid, qty, mtr in (
+        ("KMZ", q1.id, printing.id, 20, 600),
+        ("SHL", q1.id, printing.id, 10, 200),
+        ("2PC", q2.id, dyeing.id, 15, 250),
+        ("DPT", q2.id, dyeing.id, 5, 50),
+    ):
+        s.add(TpSalesOrderPackingLine(
+            tenant_id=tid, sales_order_id=so.id, item_type=item_type,
+            quality_id=qid, process_id=pid, qty=Decimal(qty),
+            meters=Decimal(mtr), rate=Decimal("5"),
+        ))
+    s.flush()
 
     # Lot 1 — full path with rejection + OGP + stages + dispatch
     lot1 = TpGreyLot(
@@ -6213,9 +6239,10 @@ def _seed_textile_processing(
     )
     s.add(lot1); s.flush()
     for i in range(1, 16):
+        meters = Decimal("66.6667") if i < 15 else Decimal("66.6658")
         s.add(TpGreyThan(
             tenant_id=tid, lot_id=lot1.id, than_no=str(i),
-            meters=Decimal("66.6667") if i < 15 else Decimal("66.6658"),
+            meters=meters, rejection_mtr=ZERO, safi_mtr=meters,
         ))
     s.add(TpKachiParchi(
         tenant_id=tid,

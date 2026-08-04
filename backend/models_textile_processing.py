@@ -26,6 +26,7 @@ def _qty(default: Decimal = ZERO, **kw):
 
 # Default PPC pipeline after mending (mending is pre-PO, not a stage entry).
 # "Production" renamed to "prep" in seed code to avoid clash with TpProductionOrder.
+# Dyeing (65) sits beside Printing (70) — SO/process_rates pick which path applies.
 DEFAULT_PROCESSES: tuple[tuple[int, str, str, bool], ...] = (
     (10, "prep", "Production Prep", True),
     (20, "salai", "Salai", True),
@@ -33,6 +34,7 @@ DEFAULT_PROCESSES: tuple[tuple[int, str, str, bool], ...] = (
     (40, "desizing", "Desizing", True),
     (50, "washing", "Washing / Jet", True),
     (60, "batching", "Batching", True),
+    (65, "dyeing", "Dyeing", True),
     (70, "printing", "Printing", True),
     (80, "ageing", "Ageing", True),
     (90, "stentoring", "Stentoring", True),
@@ -45,11 +47,20 @@ DEFAULT_PROCESSES: tuple[tuple[int, str, str, bool], ...] = (
     (160, "dispatch", "Dispatch", False),
 )
 
+# Fresh packing assortment codes (SO planned lines + packing docs).
+PACKING_ITEM_TYPES: tuple[str, ...] = ("KMZ", "SHL", "DPT", "2PC", "3PC", "OTHER")
+
 
 # ── Masters ──────────────────────────────────────────────────────────────────
 
 
 class TpQuality(SQLModel, table=True):
+    """Grey quality master.
+
+    Structured CODE form: ``{fiber} {warp}X{weft} {epi}X{ppi} {width}"``
+    e.g. ``CTN 60X60 40X52 45"``. Free-text ``code`` remains the unique key;
+    structured columns feed the formatter when present.
+    """
     __tablename__ = "tp_quality"
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="uq_tp_quality_code"),
@@ -61,6 +72,13 @@ class TpQuality(SQLModel, table=True):
     blend: Optional[str] = None
     width: Optional[str] = None
     unit: str = Field(default="MTR")  # MTR | YRD
+    # Structured segments for CODE STRUCTURE (optional; code may still be free-text)
+    fiber: Optional[str] = None          # CTN | PC | CVC | …
+    warp_count: Optional[str] = None     # e.g. 60
+    weft_count: Optional[str] = None     # e.g. 60
+    epi: Optional[str] = None            # ends per inch
+    ppi: Optional[str] = None            # picks per inch
+    width_inch: Optional[str] = None     # e.g. 45
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -110,6 +128,7 @@ class TpSalesOrder(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     number: str = Field(index=True)
     customer_id: int = Field(foreign_key="customer.id", index=True)
+    # Primary / first grey quality (compat); full list lives in TpSalesOrderQualityLine
     quality_id: int = Field(foreign_key="tp_quality.id", index=True)
     date: str = Field(index=True)
     expected_mtr: Decimal = _qty()
@@ -120,6 +139,37 @@ class TpSalesOrder(SQLModel, table=True):
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class TpSalesOrderQualityLine(SQLModel, table=True):
+    """Grey quality input line on a sales order (many qualities per SO)."""
+    __tablename__ = "tp_sales_order_quality_line"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    sales_order_id: int = Field(foreign_key="tp_sales_order.id", index=True)
+    quality_id: int = Field(foreign_key="tp_quality.id", index=True)
+    expected_mtr: Decimal = _qty()
+    grey_rate: Decimal = _money()
+    notes: Optional[str] = None
+
+
+class TpSalesOrderPackingLine(SQLModel, table=True):
+    """Planned fresh packing assortment on a sales order.
+
+    item_type: KMZ | SHL | DPT | 2PC | 3PC | OTHER — each line may target a
+    different grey quality and process path (printing / dyeing).
+    """
+    __tablename__ = "tp_sales_order_packing_line"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    sales_order_id: int = Field(foreign_key="tp_sales_order.id", index=True)
+    item_type: str = Field(default="KMZ", index=True)
+    quality_id: int = Field(foreign_key="tp_quality.id", index=True)
+    process_id: Optional[int] = Field(default=None, foreign_key="tp_process.id")
+    qty: Decimal = _qty()          # pieces or packs
+    meters: Decimal = _qty()
+    rate: Decimal = _money()
+    notes: Optional[str] = None
 
 
 class TpGreyLot(SQLModel, table=True):
@@ -151,12 +201,15 @@ class TpGreyLot(SQLModel, table=True):
 
 
 class TpGreyThan(SQLModel, table=True):
+    """Than line on a grey lot — Than#, Mtrs, Rej, Safi."""
     __tablename__ = "tp_grey_than"
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     lot_id: int = Field(foreign_key="tp_grey_lot.id", index=True)
     than_no: str
     meters: Decimal = _qty()
+    rejection_mtr: Decimal = _qty()  # Rej at intake (optional; full mending still later)
+    safi_mtr: Decimal = _qty()       # Safi = meters − rejection_mtr (stored for printouts)
     width: Optional[str] = None
     notes: Optional[str] = None
 
@@ -340,6 +393,9 @@ class TpPacking(SQLModel, table=True):
     date: str = Field(index=True)
     meters: Decimal = _qty()
     pieces: int = Field(default=0)
+    item_type: Optional[str] = Field(default=None, index=True)  # KMZ|SHL|DPT|2PC|3PC|OTHER
+    quality_id: Optional[int] = Field(default=None, foreign_key="tp_quality.id")
+    process_id: Optional[int] = Field(default=None, foreign_key="tp_process.id")
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
