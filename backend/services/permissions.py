@@ -144,9 +144,14 @@ def _rights_enabled(tenant_id: int, session: Session) -> bool:
 
 
 def get_effective_permission(user: User, resource_key: str, session: Session) -> str:
-    """Returns 'none' | 'view' | 'edit'. Falls back to role default when no override row."""
+    """Returns 'none' | 'view' | 'edit'. Falls back to role default when no override row.
+
+    Overrides are tenant-scoped (#299) so a practice user can have different
+    rights on each client company.
+    """
     override = session.exec(
         select(UserPermission).where(
+            UserPermission.tenant_id == user.tenant_id,
             UserPermission.user_id == user.id,
             UserPermission.resource_key == resource_key,
         )

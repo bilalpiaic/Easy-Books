@@ -218,12 +218,17 @@ class TaskDeadLetter(SQLModel, table=True):
 
 
 class UserPermission(SQLModel, table=True):
-    """Sparse per-user permission overrides. When no row exists for a
-    (user_id, resource_key) pair, the role default applies:
-    owner/admin/accountant → edit, viewer → view."""
+    """Sparse per-user permission overrides, scoped per tenant (#299).
+
+    When no row exists for a (tenant_id, user_id, resource_key) triple, the
+    role default applies: owner/admin/accountant → edit, viewer → view.
+    """
     __tablename__ = "user_permission"
     __table_args__ = (
-        UniqueConstraint("user_id", "resource_key", name="uq_user_permission"),
+        UniqueConstraint(
+            "tenant_id", "user_id", "resource_key",
+            name="uq_user_permission_tenant",
+        ),
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
