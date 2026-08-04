@@ -15,7 +15,7 @@ import { apiFetch } from "@/lib/api"
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles,
-  Scissors, ShoppingCart, Landmark, Store, FileText, MapPin, Globe, CircleDot,
+  Scissors, ShoppingCart, Landmark, Store, FileText, MapPin, Globe, CircleDot, Layers,
 }
 
 /** Allowlist of MODULE_REGISTRY categories shown on this page (sort + filter). */

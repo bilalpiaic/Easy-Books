@@ -96,6 +96,7 @@ def create_db_and_tables():
                 ("demo.pra@easy-books.app", "trader", "Lahore Retail Traders (PRA Demo)", "Demo User"),
                 ("demo.hospital@easy-books.app", "hospital", "City General Hospital (Demo)", "Demo User"),
                 ("demo.spinning@easy-books.app", "yarn_spinning", "Demo - Yarn Spinning Mill", "Demo User"),
+                ("demo.processing@easy-books.app", "textile_processing", "Demo - Textile Processing Unit", "Demo User"),
             ]
             demo_password_hash = get_password_hash("demo1234")
             created = 0
@@ -356,6 +357,14 @@ _COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool, str]] = [
 ]
 
 
+# Textile Processing CoA — process revenue, wastage sales, contractor labor, shrinkage
+_COA_TEXTILE_PROCESSING_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    ("4150", "Processing Revenue",         "Revenue", False, "41"),
+    ("4160", "Wastage Sales Revenue",      "Revenue", False, "41"),
+    ("5200", "Contractor Labor Expense",   "Expense", False, "52"),
+    ("5210", "Process Shrinkage Expense",  "Expense", False, "52"),
+]
+
 # Yarn Spinning CoA — stage WIP sub-accounts + waste + FG yarn
 _COA_YARN_SPINNING_EXTRA: list[tuple[str, str, str, bool, str]] = [
     ("1200", "Raw Cotton / Fiber Inventory", "Asset",     False, "11"),
@@ -415,6 +424,7 @@ def _coa_for(business_model: str):
         "telecom_franchise": _COA_TELECOM_FRANCHISE_EXTRA,
         "hospital":          _COA_HEALTHCARE_EXTRA,
         "yarn_spinning":     _COA_YARN_SPINNING_EXTRA,
+        "textile_processing": _COA_TEXTILE_PROCESSING_EXTRA,
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
@@ -600,6 +610,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Spinning"],
     },
+    "textile_processing": {
+        "label":       "Textile Processing",
+        "description": "Ballor/jobber printing unit: customer-owned grey lots, mending, PPC stages, process billing, contractor labor, and grey settlement.",
+        "category":    "Industry",
+        "icon":        "Layers",
+        "deps":        ["base", "inventory", "purchase_store"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Processing"],
+    },
 }
 
 # Maps legacy business_model → sensible default module set.
@@ -614,6 +635,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],
     "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning"],
+    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing"],
 }
 
 
@@ -769,6 +791,22 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                     s.add(StockLocation(
                         tenant_id=tenant_id, code=code, name=name, type=ltype,
                     ))
+        if model == "textile_processing":
+            for code, name, ltype in (
+                ("GODOWN", "Customer Grey Godown", "customer_custodial"),
+                ("REJ",    "Rejection Bay",        "customer_custodial"),
+                ("WIP",    "Processing Floor",     "wip"),
+            ):
+                exists = s.exec(
+                    select(StockLocation).where(
+                        StockLocation.tenant_id == tenant_id,
+                        StockLocation.code == code,
+                    )
+                ).first()
+                if not exists:
+                    s.add(StockLocation(
+                        tenant_id=tenant_id, code=code, name=name, type=ltype,
+                    ))
         # Seed default payment terms for every tenant
         for code, name, days in (
             ("DOR",   "Due on Receipt",  0),
@@ -799,6 +837,8 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                                   "Services": ["OPD", "Lab", "IPD"]},
             "yarn_spinning":     {"Raw Fiber": ["Cotton Bales", "Synthetic"],
                                   "Finished Yarn": ["Carded", "Combed", "Blended"]},
+            "textile_processing": {"Process Chemicals": ["Dyes", "Auxiliaries"],
+                                   "Maintenance": ["Spares", "Consumables"]},
         }
         if not s.exec(select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)).first():
             for parent_name, subs in STARTER_CATEGORIES.get(model, {}).items():

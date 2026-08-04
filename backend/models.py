@@ -29,7 +29,7 @@ def money_col(default: Decimal = ZERO, **kw):
 class Tenant(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(
-            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise','pra_einvoice','hospital','yarn_spinning')",
+            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise','pra_einvoice','hospital','yarn_spinning','textile_processing')",
             name="ck_tenant_business_model",
         ),
         CheckConstraint(
@@ -2855,4 +2855,10 @@ from models_spinning import (  # noqa: E402,F401
     SpYarnSpec, SpFiberGrade, SpMachine, SpShift, SpOperator, SpWasteType,
     SpRecipe, SpRecipeLine, SpProductionPlan, SpSpinLot,
     SpBaleReceipt, SpStageEntry, SpConeOutput, SpWasteLog, SpYarnDispatch, SpCalcRun,
+)
+from models_textile_processing import (  # noqa: E402,F401
+    TpQuality, TpProcess, TpContractor, TpSalesOrder, TpGreyLot, TpGreyThan,
+    TpKachiParchi, TpMending, TpPakkiParchi, TpRejectionIssueNote, TpRejectionOgp,
+    TpProductionOrder, TpStageEntry as TpStageEntry, TpPacking, TpBaling,
+    TpDispatch, TpGreySettlement, TpLaborBill, TpInspection,
 )
