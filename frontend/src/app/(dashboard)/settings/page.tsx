@@ -690,9 +690,9 @@ export default function SettingsPage() {
             { key: 'default_ap_account',      label: 'Accounts Payable (AP)',    hint: 'Credited on bill post',    types: ['Liability'] },
             { key: 'default_revenue_account', label: 'Revenue Account',          hint: 'Credited on invoice post', types: ['Revenue'] },
             { key: 'default_cogs_account',    label: 'COGS / Expense Account',   hint: 'Debited on bill post',     types: ['Expense'] },
-            { key: 'default_mfg_labour_account',    label: 'Manufacturing Labour',    hint: 'Stage entries + PO labour (spinning: Cr 5100)',    types: ['Expense'] },
-            { key: 'default_mfg_overhead_account',  label: 'Manufacturing Overhead',  hint: 'Stage entries + PO overhead (spinning: Cr 5200)',  types: ['Expense'] },
-            { key: 'default_scrap_expense_account', label: 'Production Scrap Expense', hint: 'PO scrap/damage + spinning waste types 5901–5904', types: ['Expense'] },
+            { key: 'default_mfg_labour_account',    label: 'Manufacturing Labour',    hint: 'Stage entries + PO labour (spinning: Cr 5100). Processing uses contractor labor 5220.',    types: ['Expense'] },
+            { key: 'default_mfg_overhead_account',  label: 'Manufacturing Overhead',  hint: 'Stage entries + PO overhead (spinning: Cr 5200). Processing shrinkage posts to 5215.',  types: ['Expense'] },
+            { key: 'default_scrap_expense_account', label: 'Production Scrap Expense', hint: 'PO scrap/damage + spinning waste 5901–5904. Processing wastage sales credit 4160.', types: ['Expense'] },
           ] as { key: keyof AppSettings; label: string; hint: string; types: string[] }[]).map(({ key, label, hint, types }) => (
             <div key={key}>
               <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1">{label}</label>
@@ -861,6 +861,26 @@ export default function SettingsPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
           >
             Open Spinning hub →
+          </Link>
+        </div> }
+
+        { installedModules.has("textile_processing") && <div className="pt-4 mt-4 border-t border-[var(--border)]">
+          <h3 className="font-semibold text-black">Textile Processing</h3>
+          <p className="text-sm text-[var(--text-muted)] mt-1 mb-3">
+            Ballor / jobber unit: customer-owned grey lots stay in custody (
+            <code className="text-xs px-1 bg-[var(--bg-page)] rounded">1210</code> /
+            <code className="text-xs px-1 bg-[var(--bg-page)] rounded">2150</code>).
+            Process billing credits <code className="text-xs px-1 bg-[var(--bg-page)] rounded">4150</code>;
+            wastage sales credit <code className="text-xs px-1 bg-[var(--bg-page)] rounded">4160</code>;
+            contractor labor bills debit <code className="text-xs px-1 bg-[var(--bg-page)] rounded">5220</code>;
+            shrinkage posts to <code className="text-xs px-1 bg-[var(--bg-page)] rounded">5215</code>.
+            Flow: sales order → grey lot → mending → kachi/pakki parchi → PPC stages → fresh dispatch → grey settlement.
+          </p>
+          <Link
+            href="/processing"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
+          >
+            Open Processing hub →
           </Link>
         </div> }
 
@@ -1117,10 +1137,10 @@ export default function SettingsPage() {
           Industry capabilities
         </h2>
         <p className="text-sm text-[var(--text-muted)] mb-4">
-          Every company starts with Base Accounting. Inventory, Manufacturing, Healthcare,
-          Telecom, PRA, and more are installed from <strong>System → Add-ons</strong> —
-          not by switching a business model here. Industry packs unlock the
-          <strong> Operations</strong> home dashboard alongside Financial.
+          Every company starts with Base Accounting. Inventory, Manufacturing, Yarn Spinning,
+          Textile Processing, Healthcare, Telecom, PRA, and more are installed from{" "}
+          <strong>System → Add-ons</strong> — not by switching a business model here.
+          Industry packs unlock the <strong>Operations</strong> home dashboard alongside Financial.
         </p>
         <Link
           href="/apps"
@@ -1132,6 +1152,57 @@ export default function SettingsPage() {
 
       {/* Dual-home dashboard preference (browser-local, mirrors /dashboard toggle) */}
       <HomeDashboardSettingsCard opsAvailable={hasOperationsHome(installedModules)} praInstalled={installedModules.has("pra")} />
+
+      {/* ── Textile Processing — ops CoA cheat-sheet once the pack is installed ── */}
+      {installedModules.has("textile_processing") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              Textile Processing{" "}
+              <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">
+                (ballor / jobber printing unit)
+              </span>
+            </h2>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
+              Customer-owned grey fabric is tracked as custody stock — it never hits your inventory
+              valuation. Process charges, wastage sales, contractor labor, and shrinkage post to
+              dedicated CoA leaves seeded with the pack.
+            </p>
+          </div>
+          <Link
+            href="/processing"
+            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-dark)]"
+          >
+            Open hub →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+          {[
+            { code: "1210", name: "Customer Goods on Hand", role: "Memo asset — grey on floor" },
+            { code: "2150", name: "Customer Goods Liability", role: "Memo liability — owed back" },
+            { code: "4150", name: "Processing Revenue", role: "Process / PPC billing" },
+            { code: "4160", name: "Wastage Sales Revenue", role: "Sold process waste" },
+            { code: "5220", name: "Contractor Labor Expense", role: "Labor bills / jobbers" },
+            { code: "5215", name: "Process Shrinkage Expense", role: "Shrinkage write-off" },
+          ].map(row => (
+            <div key={row.code} className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2">
+              <div className="font-mono text-xs font-bold text-[var(--primary)]">{row.code}</div>
+              <div className="font-semibold text-[var(--text-primary)]">{row.name}</div>
+              <div className="text-xs text-[var(--text-muted)]">{row.role}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-[var(--text-muted)]">
+          Typical flow: Sales Order → Grey Lot → Mending → Kachi / Pakki Parchi → PPC Stages →
+          Fresh Dispatch → Labor Bills → Grey Settlement. Demo login:{" "}
+          <code className="px-1 bg-[var(--bg-page)] rounded border border-[var(--border)]">
+            demo.processing@easy-books.app
+          </code>{" "}
+          / <code className="px-1 bg-[var(--bg-page)] rounded border border-[var(--border)]">demo1234</code>
+        </p>
+      </section>
+      )}
 
       {/* ── PRA e-Invoice (Pakistan) — compliance switch once the PRA add-on is installed ── */}
       {installedModules.has("pra") && (
@@ -1533,6 +1604,7 @@ export default function SettingsPage() {
               <tbody className="text-[var(--text-primary)]">
                 {[
                   { screen: "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports", login: "demo.spinning@easy-books.app" },
+                  { screen: "Textile Processing — grey lots, mending, kachi/pakki, PPC, dispatch, settlements", login: "demo.processing@easy-books.app" },
                   { screen: "HC Store (Healthcare pharmacy)", login: "demo.hospital@easy-books.app" },
                   { screen: "Telecom — Mobile Money, Devices, Postpaid", login: "demo.telecom@easy-books.app" },
                   { screen: "Store Issues, Purchases chain, Weaving", login: "demo.manufacturing@easy-books.app" },
@@ -2588,7 +2660,7 @@ function HomeDashboardSettingsCard({
               ? "bg-[var(--primary)] text-white border-[var(--primary)]"
               : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"
           }`}
-          title={opsAvailable ? undefined : "Install an industry pack (Manufacturing, Spinning, Healthcare, …) to enable Operations"}
+          title={opsAvailable ? undefined : "Install an industry pack (Manufacturing, Spinning, Processing, Healthcare, …) to enable Operations"}
         >
           Operations
         </button>
