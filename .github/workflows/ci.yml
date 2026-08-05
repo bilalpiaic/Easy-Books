@@ -1,0 +1,64 @@
+# Lightweight CI on every PR / push — complements deploy.yml (main-only image build)
+# and e2e.yml (Playwright). Uses uv for the backend (same as the rest of the repo).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install + test
+        working-directory: backend
+        env:
+          OVERDUE_SWEEP_ENABLED: "false"
+          WEBHOOKS_ENABLED: "false"
+        run: |
+          uv sync
+          uv run pytest -q --tb=line
+
+  frontend:
+    name: Frontend (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
