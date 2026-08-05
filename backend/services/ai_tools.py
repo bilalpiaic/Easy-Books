@@ -27,12 +27,15 @@ from models import (
 )
 from models_healthcare import HcPatient
 from models_telecom import RsoAgent
+from models_textile_processing import TpGreyLot
 from models_weaving import WvContract
 from routers.aging import invoice_aging, bill_aging
-from routers.assets import list_assets
+from routers.assets import asset_rollforward, list_assets
 from routers.attendance import get_summary as attendance_summary
 from routers.bank_accounts import list_bank_accounts
 from routers.commissions import list_ledger as commission_list_ledger, list_plans as commission_list_plans
+from routers.consolidation import get_elims as consol_get_elims, get_statements as consol_get_statements, list_runs as consol_list_runs
+from routers.dashboard_ops import operations_summary
 from routers.deferred_revenue import list_schedules as deferred_list_schedules
 from routers.healthcare_reports import (
     dashboard as hc_dashboard,
@@ -43,14 +46,27 @@ from routers.healthcare_reports import (
     patient_statement,
     revenue_by_type as hc_revenue_by_type,
 )
+from routers.india_gst import gstr1, gstr3b
+from routers.intercompany import get_counterparties as ic_counterparties, get_recon as ic_recon
+from routers.leases import list_leases, maturity as lease_maturity
 from routers.manufacturing_reports import (
     customer_custody,
     dashboard as mfg_dashboard,
     production_summary,
+    scrap_by_reason,
     wip_aging,
 )
 from routers.payroll import hrm_summary
+from routers.peppol import get_invoice_peppol_status, list_peppol_logs
 from routers.pra import get_invoice_pra_status, list_pra_logs
+from routers.textile_processing_reports import (
+    customer_rejection_register,
+    customer_stock_ledger,
+    lot_register as tp_lot_register,
+    ppc_stage_report,
+)
+from routers.uae_einvoice import get_invoice_uae_status, list_uae_logs
+from routers.zatca import get_invoice_zatca_status, list_zatca_logs
 from routers.purchase_reports import (
     gate_register,
     three_way_match,
@@ -113,6 +129,9 @@ from routers.spinning_reports import (
     lot_control as spinning_lot_control,
     spinning_dashboard,
     daily_register as spinning_daily_register,
+    waste_analysis as spinning_waste_analysis,
+    cost_per_kg_report as spinning_cost_per_kg,
+    dispatch_register as spinning_dispatch_register,
 )
 
 # Oversized tool results are truncated before they re-enter the LLM loop —
@@ -699,6 +718,207 @@ def _exec_lot_control(session, user, tool_input):
         _require_id(tool_input, "lot_id", "list spin lots via /api/spinning/lots"),
         user, session,
     )
+
+
+def _exec_spinning_waste(session, user, tool_input):
+    return spinning_waste_analysis(user, session)
+
+
+def _exec_spinning_cost_per_kg(session, user, tool_input):
+    return spinning_cost_per_kg(user, session)
+
+
+def _exec_spinning_dispatch(session, user, tool_input):
+    return spinning_dispatch_register(
+        user, session,
+        q=tool_input.get("q"),
+        skip=int(tool_input.get("skip") or 0),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+    )
+
+
+# textile_processing — (user, session, ...) like weaving/healthcare ───────────
+
+def _exec_tp_lot_register(session, user, tool_input):
+    return tp_lot_register(user, session)
+
+
+def _exec_tp_rejection_register(session, user, tool_input):
+    return customer_rejection_register(
+        user, session,
+        customer_id=tool_input.get("customer_id"),
+        lot_id=tool_input.get("lot_id"),
+        quality_id=tool_input.get("quality_id"),
+        date_from=tool_input.get("start") or tool_input.get("date_from"),
+        date_to=tool_input.get("end") or tool_input.get("date_to"),
+        open_balance_only=bool(tool_input.get("open_balance_only") or False),
+    )
+
+
+def _exec_tp_stock_ledger(session, user, tool_input):
+    return customer_stock_ledger(
+        user, session,
+        customer_id=tool_input.get("customer_id"),
+        quality_id=tool_input.get("quality_id"),
+    )
+
+
+def _exec_tp_ppc_stage(session, user, tool_input):
+    return ppc_stage_report(
+        user, session,
+        process_id=tool_input.get("process_id"),
+        customer_id=tool_input.get("customer_id"),
+        quality_id=tool_input.get("quality_id"),
+        lot_id=tool_input.get("lot_id"),
+        date_from=tool_input.get("start") or tool_input.get("date_from"),
+        date_to=tool_input.get("end") or tool_input.get("date_to"),
+        group_by=tool_input.get("group_by") or "stage",
+    )
+
+
+def _exec_find_tp_lot(session, user, tool_input):
+    q = (tool_input.get("query") or "").strip()
+    if not q:
+        raise ValueError("query is required.")
+    rows = session.exec(
+        select(TpGreyLot).where(
+            TpGreyLot.tenant_id == user.tenant_id,
+            TpGreyLot.number.ilike(f"%{q}%"),
+        ).limit(10)
+    ).all()
+    return [
+        {
+            "id": lot.id,
+            "number": lot.number,
+            "status": lot.status,
+            "customer_id": lot.customer_id,
+            "date": lot.date,
+        }
+        for lot in rows
+    ]
+
+
+# localization packs ─────────────────────────────────────────────────────────
+
+def _exec_zatca_logs(session, user, tool_input):
+    return list_zatca_logs(
+        user, session,
+        skip=int(tool_input.get("skip") or 0),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+        invoice_id=tool_input.get("invoice_id"),
+    )
+
+
+def _exec_invoice_zatca_status(session, user, tool_input):
+    return get_invoice_zatca_status(
+        _require_id(tool_input, "invoice_id", "run_custom_report (source invoices)"),
+        user, session,
+    )
+
+
+def _exec_peppol_logs(session, user, tool_input):
+    return list_peppol_logs(
+        user, session,
+        skip=int(tool_input.get("skip") or 0),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+        invoice_id=tool_input.get("invoice_id"),
+    )
+
+
+def _exec_invoice_peppol_status(session, user, tool_input):
+    return get_invoice_peppol_status(
+        _require_id(tool_input, "invoice_id", "run_custom_report (source invoices)"),
+        user, session,
+    )
+
+
+def _exec_uae_logs(session, user, tool_input):
+    return list_uae_logs(
+        user, session,
+        limit=min(int(tool_input.get("limit") or 100), 200),
+    )
+
+
+def _exec_invoice_uae_status(session, user, tool_input):
+    return get_invoice_uae_status(
+        _require_id(tool_input, "invoice_id", "run_custom_report (source invoices)"),
+        user, session,
+    )
+
+
+def _exec_gstr1(session, user, tool_input):
+    start, end = _dates(tool_input)
+    if not start or not end:
+        raise ValueError("start and end (YYYY-MM-DD) are required for GSTR-1.")
+    return gstr1(session, user, start=start, end=end)
+
+
+def _exec_gstr3b(session, user, tool_input):
+    start, end = _dates(tool_input)
+    if not start or not end:
+        raise ValueError("start and end (YYYY-MM-DD) are required for GSTR-3B.")
+    return gstr3b(session, user, start=start, end=end)
+
+
+# IFRS / group / ops polish ──────────────────────────────────────────────────
+
+def _exec_asset_rollforward(session, user, tool_input):
+    start, end = _dates(tool_input)
+    if not start or not end:
+        raise ValueError("start and end (YYYY-MM-DD) are required for the asset rollforward.")
+    return asset_rollforward(session, user, start=start, end=end)
+
+
+def _exec_list_leases(session, user, tool_input):
+    return list_leases(
+        session, user,
+        status=tool_input.get("status"),
+        skip=int(tool_input.get("skip") or 0),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+    )
+
+
+def _exec_lease_maturity(session, user, tool_input):
+    return lease_maturity(session, user, as_of=tool_input.get("as_of"))
+
+
+def _exec_consol_list_runs(session, user, tool_input):
+    return consol_list_runs(session, user)
+
+
+def _exec_consol_statements(session, user, tool_input):
+    return consol_get_statements(
+        _require_id(tool_input, "run_id", "list_consol_runs"),
+        session, user,
+    )
+
+
+def _exec_consol_elims(session, user, tool_input):
+    return consol_get_elims(
+        _require_id(tool_input, "run_id", "list_consol_runs"),
+        session, user,
+    )
+
+
+def _exec_ic_counterparties(session, user, tool_input):
+    return ic_counterparties(session, user)
+
+
+def _exec_ic_recon(session, user, tool_input):
+    return ic_recon(
+        session, user,
+        skip=int(tool_input.get("skip") or 0),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+        q=tool_input.get("q") or "",
+    )
+
+
+def _exec_scrap_by_reason(session, user, tool_input):
+    return scrap_by_reason(session, user, po_id=tool_input.get("po_id"))
+
+
+def _exec_operations_summary(session, user, tool_input):
+    return operations_summary(session, user)
 
 
 # pra ────────────────────────────────────────────────────────────────────────
@@ -1796,6 +2016,23 @@ _TOOLS: tuple[ToolDef, ...] = (
         executor=_exec_customer_custody,
         required_module="production",
     ),
+    ToolDef(
+        name="get_scrap_by_reason",
+        description=(
+            "Get production scrap aggregated by reason code (qty, cost, count). Optional po_id "
+            "limits to one production order."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "po_id": {"type": "integer", "description": "Production order id (optional)"},
+            },
+            "required": [],
+        },
+        label="Checking scrap by reason…",
+        executor=_exec_scrap_by_reason,
+        required_module="production",
+    ),
     # ── weaving ──────────────────────────────────────────────────────────────
     ToolDef(
         name="get_weaving_dashboard",
@@ -1903,6 +2140,250 @@ _TOOLS: tuple[ToolDef, ...] = (
         label="Checking lot control…",
         executor=_exec_lot_control,
         required_module="spinning",
+    ),
+    ToolDef(
+        name="get_spinning_waste",
+        description=(
+            "Get spinning waste analysis: waste kg and cost by waste type and by stage, "
+            "plus total waste kg."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking spinning waste…",
+        executor=_exec_spinning_waste,
+        required_module="spinning",
+    ),
+    ToolDef(
+        name="get_spinning_cost_per_kg",
+        description=(
+            "Get cost-per-kg for completed/closed spin lots: material, labour, overhead, "
+            "waste, total cost and cost_per_kg per lot."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking spinning cost per kg…",
+        executor=_exec_spinning_cost_per_kg,
+        required_module="spinning",
+    ),
+    ToolDef(
+        name="get_spinning_dispatch",
+        description=(
+            "Get yarn dispatch register: dispatch numbers, net kg, value, status, cone counts. "
+            "Optional q searches by dispatch number."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "q": {"type": "string", "description": "Search dispatch number (optional)"},
+                "skip": {"type": "integer"},
+                "limit": {"type": "integer", "description": "Max rows (default 50, max 100)"},
+            },
+            "required": [],
+        },
+        label="Checking yarn dispatch…",
+        executor=_exec_spinning_dispatch,
+        required_module="spinning",
+    ),
+    # ── textile_processing ───────────────────────────────────────────────────
+    ToolDef(
+        name="get_tp_lot_register",
+        description=(
+            "Get the textile-processing grey lot register: received/ready/rejection/wastage/"
+            "dispatched meters per lot with customer and quality."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking grey lot register…",
+        executor=_exec_tp_lot_register,
+        required_module="textile_processing",
+    ),
+    ToolDef(
+        name="get_tp_rejection_register",
+        description=(
+            "Get the customer rejection register for textile processing: issued vs lifted "
+            "meters, open balances, linked OGPs. Optional filters: customer_id, lot_id, "
+            "quality_id, start/end, open_balance_only."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "customer_id": {"type": "integer"},
+                "lot_id": {"type": "integer"},
+                "quality_id": {"type": "integer"},
+                "start": {"type": "string", "description": "Date from YYYY-MM-DD"},
+                "end": {"type": "string", "description": "Date to YYYY-MM-DD"},
+                "open_balance_only": {"type": "boolean"},
+            },
+            "required": [],
+        },
+        label="Checking rejection register…",
+        executor=_exec_tp_rejection_register,
+        required_module="textile_processing",
+    ),
+    ToolDef(
+        name="get_tp_stock_ledger",
+        description=(
+            "Get customer stock ledger for textile processing (customer × quality meters on hand)."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "customer_id": {"type": "integer"},
+                "quality_id": {"type": "integer"},
+            },
+            "required": [],
+        },
+        label="Checking customer stock ledger…",
+        executor=_exec_tp_stock_ledger,
+        required_module="textile_processing",
+    ),
+    ToolDef(
+        name="get_tp_ppc_stage",
+        description=(
+            "Get PPC stage analytics for textile processing: stage entries with input/output/"
+            "wastage/labor, plus aggregates. group_by: stage|lot|quality|customer."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "process_id": {"type": "integer"},
+                "customer_id": {"type": "integer"},
+                "quality_id": {"type": "integer"},
+                "lot_id": {"type": "integer"},
+                "start": {"type": "string"},
+                "end": {"type": "string"},
+                "group_by": {"type": "string", "description": "stage|lot|quality|customer"},
+            },
+            "required": [],
+        },
+        label="Checking PPC stages…",
+        executor=_exec_tp_ppc_stage,
+        required_module="textile_processing",
+    ),
+    ToolDef(
+        name="find_tp_lot",
+        description=(
+            "Search textile-processing grey lots by (partial) lot number; returns up to 10 "
+            "matches as {id, number, status, customer_id, date}. Use before lot-scoped reports."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Full or partial grey lot number"},
+            },
+            "required": ["query"],
+        },
+        label="Looking up the grey lot…",
+        executor=_exec_find_tp_lot,
+        required_module="textile_processing",
+    ),
+    # ── localization ─────────────────────────────────────────────────────────
+    ToolDef(
+        name="get_zatca_logs",
+        description="Get recent ZATCA e-invoice submission logs (Saudi). Optional invoice_id filter.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "invoice_id": {"type": "integer"},
+                "limit": {"type": "integer"},
+                "skip": {"type": "integer"},
+            },
+            "required": [],
+        },
+        label="Checking ZATCA logs…",
+        executor=_exec_zatca_logs,
+        required_module="sa_zatca",
+    ),
+    ToolDef(
+        name="get_invoice_zatca_status",
+        description="Get one invoice's ZATCA status, UUID, hash, QR, and submitted_at.",
+        input_schema={
+            "type": "object",
+            "properties": {"invoice_id": {"type": "integer"}},
+            "required": ["invoice_id"],
+        },
+        label="Checking invoice ZATCA status…",
+        executor=_exec_invoice_zatca_status,
+        required_module="sa_zatca",
+    ),
+    ToolDef(
+        name="get_peppol_logs",
+        description="Get recent Peppol / EU e-invoice submission logs. Optional invoice_id filter.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "invoice_id": {"type": "integer"},
+                "limit": {"type": "integer"},
+                "skip": {"type": "integer"},
+            },
+            "required": [],
+        },
+        label="Checking Peppol logs…",
+        executor=_exec_peppol_logs,
+        required_module="eu_peppol",
+    ),
+    ToolDef(
+        name="get_invoice_peppol_status",
+        description="Get one invoice's Peppol status, document id, and submitted_at.",
+        input_schema={
+            "type": "object",
+            "properties": {"invoice_id": {"type": "integer"}},
+            "required": ["invoice_id"],
+        },
+        label="Checking invoice Peppol status…",
+        executor=_exec_invoice_peppol_status,
+        required_module="eu_peppol",
+    ),
+    ToolDef(
+        name="get_uae_logs",
+        description="Get recent UAE e-invoice submission logs.",
+        input_schema={
+            "type": "object",
+            "properties": {"limit": {"type": "integer"}},
+            "required": [],
+        },
+        label="Checking UAE e-invoice logs…",
+        executor=_exec_uae_logs,
+        required_module="uae_vat",
+    ),
+    ToolDef(
+        name="get_invoice_uae_status",
+        description="Get one invoice's UAE e-invoice submission status.",
+        input_schema={
+            "type": "object",
+            "properties": {"invoice_id": {"type": "integer"}},
+            "required": ["invoice_id"],
+        },
+        label="Checking invoice UAE status…",
+        executor=_exec_invoice_uae_status,
+        required_module="uae_vat",
+    ),
+    ToolDef(
+        name="get_gstr1",
+        description="Build India GSTR-1 summary for a required start/end date window.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "YYYY-MM-DD (required)"},
+                "end": {"type": "string", "description": "YYYY-MM-DD (required)"},
+            },
+            "required": ["start", "end"],
+        },
+        label="Building GSTR-1…",
+        executor=_exec_gstr1,
+        required_module="in_gst",
+    ),
+    ToolDef(
+        name="get_gstr3b",
+        description="Build India GSTR-3B summary for a required start/end date window.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "YYYY-MM-DD (required)"},
+                "end": {"type": "string", "description": "YYYY-MM-DD (required)"},
+            },
+            "required": ["start", "end"],
+        },
+        label="Building GSTR-3B…",
+        executor=_exec_gstr3b,
+        required_module="in_gst",
     ),
     # ── pra ──────────────────────────────────────────────────────────────────
     ToolDef(
@@ -2229,6 +2710,117 @@ _TOOLS: tuple[ToolDef, ...] = (
         input_schema={"type": "object", "properties": {}},
         label="Checking AI insights…",
         executor=_exec_list_suggestions,
+    ),
+    ToolDef(
+        name="get_asset_rollforward",
+        description=(
+            "Get the fixed-asset rollforward for a required start/end window: opening cost/"
+            "accum dep, additions, disposals, depreciation, closing NBV."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "YYYY-MM-DD (required)"},
+                "end": {"type": "string", "description": "YYYY-MM-DD (required)"},
+            },
+            "required": ["start", "end"],
+        },
+        label="Building asset rollforward…",
+        executor=_exec_asset_rollforward,
+    ),
+    ToolDef(
+        name="list_leases",
+        description=(
+            "List IFRS 16 lease contracts (number, lessor, status, liability, RoU). Optional "
+            "status filter. Returns empty/error if leases are disabled for the tenant."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"},
+                "skip": {"type": "integer"},
+                "limit": {"type": "integer"},
+            },
+            "required": [],
+        },
+        label="Listing leases…",
+        executor=_exec_list_leases,
+    ),
+    ToolDef(
+        name="get_lease_maturity",
+        description="Get IFRS 16 lease liability maturity analysis (optional as_of date).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "as_of": {"type": "string", "description": "YYYY-MM-DD (optional)"},
+            },
+            "required": [],
+        },
+        label="Checking lease maturity…",
+        executor=_exec_lease_maturity,
+    ),
+    ToolDef(
+        name="list_consol_runs",
+        description="List consolidation runs for this holding tenant (IFRS 10 worksheets).",
+        input_schema=_EMPTY_SCHEMA,
+        label="Listing consolidation runs…",
+        executor=_exec_consol_list_runs,
+    ),
+    ToolDef(
+        name="get_consol_statements",
+        description=(
+            "Get consolidated statements for one consolidation run_id (from list_consol_runs)."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {"run_id": {"type": "integer"}},
+            "required": ["run_id"],
+        },
+        label="Fetching consolidated statements…",
+        executor=_exec_consol_statements,
+    ),
+    ToolDef(
+        name="get_consol_elims",
+        description="Get elimination lines for one consolidation run_id.",
+        input_schema={
+            "type": "object",
+            "properties": {"run_id": {"type": "integer"}},
+            "required": ["run_id"],
+        },
+        label="Fetching consolidations eliminations…",
+        executor=_exec_consol_elims,
+    ),
+    ToolDef(
+        name="get_ic_counterparties",
+        description="List intercompany counterparties available for this tenant's entity graph.",
+        input_schema=_EMPTY_SCHEMA,
+        label="Listing IC counterparties…",
+        executor=_exec_ic_counterparties,
+    ),
+    ToolDef(
+        name="get_ic_recon",
+        description="Intercompany AR vs AP reconciliation for the holding tenant's entity graph.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "q": {"type": "string"},
+                "skip": {"type": "integer"},
+                "limit": {"type": "integer"},
+            },
+            "required": [],
+        },
+        label="Running intercompany recon…",
+        executor=_exec_ic_recon,
+    ),
+    ToolDef(
+        name="get_operations_summary",
+        description=(
+            "Get the Operations home summary bag: installed ops modules plus KPIs for "
+            "production/spinning/weaving/textile_processing/healthcare/telecom/purchases when enabled."
+        ),
+        input_schema=_EMPTY_SCHEMA,
+        label="Checking operations summary…",
+        executor=_exec_operations_summary,
     ),
 )
 

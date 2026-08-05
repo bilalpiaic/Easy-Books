@@ -11,10 +11,12 @@ prompt bound to all 7 tools on every turn.
 
 Base agents (required_module=None) cover Receivables, Payables, Financial
 Reports, Sales & Customers, Banking, Deferred Revenue, Staff Commissions,
-Fixed Assets, plus a General fallback. `required_module` gates module-
-specific agents to tenants with that module installed — adding a domain
-agent is a new registry entry (tools come from services/ai_tools.TOOL_REGISTRY),
-not a pipeline change.
+Fixed Assets, Leases, Consolidation/IC, plus a General fallback.
+`required_module` gates module-specific agents (inventory, hrm, healthcare,
+telecom, purchasing/store, manufacturing, weaving, spinning, textile_proc,
+pra + localization packs) to tenants with that module installed — adding a
+domain agent is a new registry entry (tools from TOOL_REGISTRY), not a
+pipeline change.
 
 Invariants (enforced by tests + the import-time assert below): every name in
 an AgentDef.tools must exist in TOOL_REGISTRY, and no agent key may be a
@@ -169,14 +171,47 @@ AGENTS: dict[str, AgentDef] = {
         label="Fixed Assets Agent",
         trigger_hint=(
             "Fixed assets register: asset cost, accumulated depreciation, net book value, "
-            "acquisition dates — not inventory stock."
+            "acquisition dates, asset rollforward — not inventory stock."
         ),
         system_prompt_fragment=(
             "You specialize in the fixed-asset register. Use list_fixed_assets for active "
-            "(non-disposed) assets with cost and book value. Do not attempt depreciation or "
-            "disposal — those are write actions outside your tools."
+            "(non-disposed) assets with cost and book value, and get_asset_rollforward for "
+            "period movements. Do not attempt depreciation or disposal — those are write "
+            "actions outside your tools."
         ),
-        tools=("list_fixed_assets",),
+        tools=("list_fixed_assets", "get_asset_rollforward"),
+    ),
+    "leases": AgentDef(
+        key="leases",
+        label="Leases Agent",
+        trigger_hint=(
+            "IFRS 16 leases: lease contracts, right-of-use assets, lease liability, "
+            "maturity analysis — not ordinary rental invoices."
+        ),
+        system_prompt_fragment=(
+            "You specialize in IFRS 16 leases. Use list_leases for the contract register and "
+            "get_lease_maturity for liability maturity. If leases are disabled for the tenant, "
+            "say so clearly. Do not create or terminate leases."
+        ),
+        tools=("list_leases", "get_lease_maturity"),
+    ),
+    "consol": AgentDef(
+        key="consol",
+        label="Consolidation Agent",
+        trigger_hint=(
+            "Group consolidation and intercompany: consolidation runs, consolidated "
+            "statements, eliminations, IC counterparties, IC AR/AP recon (IFRS 10)."
+        ),
+        system_prompt_fragment=(
+            "You specialize in IFRS 10 consolidation worksheets and intercompany recon. "
+            "Use list_consol_runs, then get_consol_statements / get_consol_elims for a run. "
+            "Use get_ic_counterparties and get_ic_recon for affiliate AR/AP matching. "
+            "Eliminations never post to member GLs — explain that if asked."
+        ),
+        tools=(
+            "list_consol_runs", "get_consol_statements", "get_consol_elims",
+            "get_ic_counterparties", "get_ic_recon",
+        ),
     ),
     "inventory": AgentDef(
         key="inventory",
@@ -305,11 +340,12 @@ AGENTS: dict[str, AgentDef] = {
         system_prompt_fragment=(
             "You specialize in manufacturing. Use get_manufacturing_dashboard for pipeline "
             "KPIs, get_wip_aging for open orders by age, get_production_summary for period "
-            "output and billed revenue, and get_customer_custody for goods held for customers."
+            "output and billed revenue, get_customer_custody for goods held for customers, "
+            "and get_scrap_by_reason for scrap analysis."
         ),
         tools=(
             "get_manufacturing_dashboard", "get_wip_aging", "get_production_summary",
-            "get_customer_custody",
+            "get_customer_custody", "get_scrap_by_reason",
         ),
         required_module="production",
     ),
@@ -337,17 +373,38 @@ AGENTS: dict[str, AgentDef] = {
         label="Spinning Ops Agent",
         trigger_hint=(
             "Yarn spinning mill: bale receipt, spin lots, stage entries, cone output, "
-            "waste, yarn dispatch, WIP/yield KPIs (Kg/Lbs/Bags)."
+            "waste analysis, cost per kg, yarn dispatch, WIP/yield KPIs (Kg/Lbs/Bags)."
         ),
         system_prompt_fragment=(
             "You specialize in yarn spinning mill operations. Use get_spinning_dashboard for "
-            "headline KPIs, get_spinning_daily for daily production register, get_lot_control "
-            "for one spin lot's bale-in → stage → cone-out progress."
+            "headline KPIs, get_spinning_daily for the daily register, get_lot_control for one "
+            "lot's progress, get_spinning_waste / get_spinning_cost_per_kg / get_spinning_dispatch "
+            "for waste, costing, and dispatch."
         ),
         tools=(
             "get_spinning_dashboard", "get_spinning_daily", "get_lot_control",
+            "get_spinning_waste", "get_spinning_cost_per_kg", "get_spinning_dispatch",
         ),
         required_module="spinning",
+    ),
+    "textile_proc": AgentDef(
+        key="textile_proc",
+        label="Textile Processing Agent",
+        trigger_hint=(
+            "Textile processing / ballor / jobber unit: grey lots, mending, kachi/pakki parchi, "
+            "PPC stages, rejection register, customer stock ledger, fresh dispatch, settlements."
+        ),
+        system_prompt_fragment=(
+            "You specialize in textile processing (customer-owned grey fabric). Use "
+            "get_tp_lot_register for lots, find_tp_lot before lot-scoped questions, "
+            "get_tp_rejection_register / get_tp_stock_ledger / get_tp_ppc_stage for reports. "
+            "Customer goods are custody (1210/2150), not inventory valuation."
+        ),
+        tools=(
+            "get_tp_lot_register", "get_tp_rejection_register", "get_tp_stock_ledger",
+            "get_tp_ppc_stage", "find_tp_lot",
+        ),
+        required_module="textile_processing",
     ),
     "pra_status": AgentDef(
         key="pra_status",
@@ -365,22 +422,75 @@ AGENTS: dict[str, AgentDef] = {
         tools=("get_pra_logs", "get_invoice_pra_status", "get_pra_today_summary"),
         required_module="pra",
     ),
+    "zatca_status": AgentDef(
+        key="zatca_status",
+        label="ZATCA Compliance Agent",
+        trigger_hint=(
+            "Saudi ZATCA e-invoice compliance: submission logs, invoice ZATCA status, UUID/QR."
+        ),
+        system_prompt_fragment=(
+            "You specialize in ZATCA e-invoice compliance. Use get_zatca_logs and "
+            "get_invoice_zatca_status. Do not submit or clear invoices."
+        ),
+        tools=("get_zatca_logs", "get_invoice_zatca_status"),
+        required_module="sa_zatca",
+    ),
+    "peppol_status": AgentDef(
+        key="peppol_status",
+        label="Peppol Compliance Agent",
+        trigger_hint=(
+            "Peppol / EU e-invoice compliance: submission logs, invoice Peppol status."
+        ),
+        system_prompt_fragment=(
+            "You specialize in Peppol e-invoice compliance. Use get_peppol_logs and "
+            "get_invoice_peppol_status. Do not submit invoices."
+        ),
+        tools=("get_peppol_logs", "get_invoice_peppol_status"),
+        required_module="eu_peppol",
+    ),
+    "uae_einvoice": AgentDef(
+        key="uae_einvoice",
+        label="UAE e-Invoice Agent",
+        trigger_hint=(
+            "UAE VAT e-invoice compliance: submission logs and per-invoice UAE status."
+        ),
+        system_prompt_fragment=(
+            "You specialize in UAE e-invoice compliance. Use get_uae_logs and "
+            "get_invoice_uae_status. Do not submit invoices."
+        ),
+        tools=("get_uae_logs", "get_invoice_uae_status"),
+        required_module="uae_vat",
+    ),
+    "india_gst": AgentDef(
+        key="india_gst",
+        label="India GST Agent",
+        trigger_hint=(
+            "India GST returns: GSTR-1 and GSTR-3B summaries for a date window."
+        ),
+        system_prompt_fragment=(
+            "You specialize in India GST reporting. Use get_gstr1 and get_gstr3b with "
+            "explicit start/end dates. Do not file returns."
+        ),
+        tools=("get_gstr1", "get_gstr3b"),
+        required_module="in_gst",
+    ),
     "general": AgentDef(
         key="general",
         label="Assistant",
         trigger_hint=(
             "Anything that doesn't clearly match one specific domain above — general questions, "
-            "small talk, or ambiguous/multi-topic requests."
+            "small talk, operations overview, or ambiguous/multi-topic requests."
         ),
         system_prompt_fragment=(
             "For questions no dedicated report tool answers, you can query raw records with "
-            "run_custom_report — call list_report_sources first to see valid sources and fields."
+            "run_custom_report — call list_report_sources first to see valid sources and fields. "
+            "Use get_operations_summary for a cross-module ops KPI bag when the question is broad."
         ),
         tools=(
             "get_dashboard_summary", "get_income_statement", "get_ar_aging", "get_ap_aging",
             "get_trial_balance", "get_cash_flow", "get_top_customers",
             "list_report_sources", "run_custom_report",
-            "list_agent_suggestions",
+            "list_agent_suggestions", "get_operations_summary",
         ),
     ),
     "data_entry": AgentDef(
