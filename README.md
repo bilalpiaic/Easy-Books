@@ -479,6 +479,7 @@ uv run arq worker.WorkerSettings
 | [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud / Vercel deployment for backend + frontend |
 | [`BLUEPRINT.md`](./BLUEPRINT.md) | Complete project blueprint: every model, endpoint, flow, and decision |
 | [`docs/PRESENTATION.md`](./docs/PRESENTATION.md) | Project review pack — architecture Mermaid diagrams + Good/Better/Best vs Odoo, QB, peers |
+| [`docs/marketing/`](./docs/marketing/) | Narrated pictograph video, slides, voiceover script, and social media attraction pack |
 | [`CLAUDE.md`](./CLAUDE.md) | AI-assistant instructions and architecture reference |
 | [`backend/README.md`](./backend/README.md) | Backend quick-start, commands, structure, API conventions |
 | [`frontend/README.md`](./frontend/README.md) | Frontend quick-start, scripts, environment variables |

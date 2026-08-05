@@ -29,7 +29,7 @@ import {
   TrendingUp, TrendingDown, Hash, Wallet, ArrowDownLeft, ArrowUpRight, Clock,
   Package, AlertTriangle, FileSignature, Receipt, Banknote, CalendarClock,
   CalendarDays, Users, Briefcase, Truck, Landmark, Scale, HelpCircle,
-  Factory, ClipboardCheck, DoorOpen, Radio, Activity, ShoppingCart, CircleDot,
+  Factory, ClipboardCheck, DoorOpen, Radio, Activity, ShoppingCart, CircleDot, Layers,
 } from "lucide-react"
 import {
   OpsPrimaryKpis, OpsAlerts, OpsPipelineWidget,
@@ -152,6 +152,7 @@ export const ALL_QUICK_ACTIONS: QuickActionDef[] = [
   { id: "gate_inward",     label: "Gate Inward",         href: "/purchases/gate-inward",              icon: DoorOpen,       color: "text-teal-700",  requiredModule: "purchase_store" },
   { id: "new_production",  label: "Production Orders",   href: "/manufacturing/production-orders",    icon: Factory,        color: "text-blue-700",  requiredModule: "production" },
   { id: "new_spin_lot",    label: "Spin Lots",           href: "/spinning/lots",                      icon: CircleDot,      color: "text-indigo-700", requiredModule: "spinning" },
+  { id: "new_grey_lot",    label: "Grey Lots",           href: "/processing/lots",                    icon: Layers,         color: "text-teal-700",   requiredModule: "textile_processing" },
   { id: "new_opd",         label: "OPD",                 href: "/healthcare/opd",                     icon: Activity,       color: "text-rose-600",  requiredModule: "healthcare" },
   { id: "telecom_tracker", label: "Tracker & Load",      href: "/telecom/tracker",                    icon: Radio,          color: "text-cyan-700",  requiredModule: "telecom" },
 ]

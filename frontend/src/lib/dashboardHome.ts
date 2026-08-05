@@ -71,6 +71,7 @@ export const DEFAULT_OPS_QUICK_ACTIONS = [
   "new_demand",
   "new_po",
   "new_spin_lot",
+  "new_grey_lot",
   "new_opd",
   "telecom_tracker",
   "new_production",

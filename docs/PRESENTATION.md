@@ -1,5 +1,7 @@
 # Easy-Books — Project Review & Presentation Pack
 
+> **Narrated pictograph deck + social pack:** see [`marketing/`](./marketing/) — 12 slides, voiceover script, and `video/easy-books-overview.mp4` (~3 min). Social copy in [`marketing/social/SOCIAL_MEDIA_PACK.md`](./marketing/social/SOCIAL_MEDIA_PACK.md).
+>
 > Mixed-audience brief: architecture diagrams (Mermaid), product thesis, and a **Good / Better / Best** competitive frame vs Odoo, QuickBooks Online, Manager.io, Xero, and Zoho Books.
 >
 > **Sources reviewed:** [`README.md`](../README.md), [`BLUEPRINT.md`](../BLUEPRINT.md), [`WORKFLOW.md`](../WORKFLOW.md), [`CLAUDE.md`](../CLAUDE.md), [`.claude/`](../.claude/), [`.remember/`](../.remember/), [`claude-improvement.md`](../claude-improvement.md).
