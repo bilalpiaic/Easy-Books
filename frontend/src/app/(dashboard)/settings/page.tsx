@@ -1928,7 +1928,6 @@ function DemoSampleDataSection() {
   })
   // Surface any extra demo tenants the API returns that aren't in the catalog yet
   for (const st of rows) {
-    if (!statusByEmail.has(st.email.toLowerCase())) continue
     if (DEMO_CATALOG.some(c => c.email.toLowerCase() === st.email.toLowerCase())) continue
     displayRows.push({
       email: st.email,
