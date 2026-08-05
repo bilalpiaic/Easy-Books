@@ -3,8 +3,14 @@
 Demo tenants are SEPARATE from the caller's own tenant, so loading them never
 touches the user's real books. The seeder (scripts.seed_demo) is idempotent.
 Imported lazily to avoid a db <-> scripts.seed_demo import cycle.
+
+Cloud UI (Vercel) should POST with `{ "email": "demo.…@easy-books.app" }` so
+each tenant is seeded in its own request; omit `email` for a full local seed.
 """
-from fastapi import APIRouter
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sqlmodel import SQLModel, select
 
 from models import Tenant, User
@@ -13,15 +19,57 @@ from .common import AdminUserDep, SessionDep, log_audit
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-@router.post("/demo/seed")
-def seed_demo(session: SessionDep, user: AdminUserDep):
-    """Create the demo companies (login: each email / demo1234) with rich data.
+class DemoSeedBody(BaseModel):
+    email: Optional[str] = None
 
-    Idempotent — safe to call multiple times. Each call returns a per-tenant
-    report dict that includes the 'email' key so the caller can confirm which
-    tenants were created/updated.
+
+@router.get("/demo/status")
+def demo_status(session: SessionDep, user: AdminUserDep):
+    """Catalog of QA demo companies + whether each has rich seed data."""
+    from scripts.seed_demo import demo_tenant_status  # lazy: avoids import cycle
+
+    return {"tenants": demo_tenant_status(session)}
+
+
+@router.post("/demo/seed")
+def seed_demo(
+    session: SessionDep,
+    user: AdminUserDep,
+    body: Optional[DemoSeedBody] = None,
+):
+    """Create demo companies (login: each email / demo1234) with rich data.
+
+    Idempotent. Pass `email` to seed one DEMO_TENANTS entry (preferred on
+    serverless). Omit `email` to run `seed_all_demos()` (local / tests).
     """
-    from scripts.seed_demo import seed_all_demos  # lazy: avoids import cycle
+    from scripts.seed_demo import (  # lazy: avoids import cycle
+        DEMO_TENANTS,
+        seed_all_demos,
+        seed_one_tenant,
+    )
+
+    target = (body.email if body else None) or None
+    if target:
+        target = target.strip().lower()
+        match = next(
+            ((e, c, m) for e, c, m in DEMO_TENANTS if e.lower() == target),
+            None,
+        )
+        if not match:
+            raise HTTPException(
+                400,
+                f"Unknown demo email. Expected one of: "
+                f"{', '.join(e for e, _, _ in DEMO_TENANTS)}",
+            )
+        email, company, model = match
+        try:
+            report = seed_one_tenant(email, company, model)
+        except Exception as exc:
+            raise HTTPException(500, f"Seed failed for {email}: {exc}") from exc
+        log_audit(session, user, "demo_seed", "system", None, {"email": email, "count": 1})
+        session.commit()
+        return {"tenants": [report]}
+
     reports = seed_all_demos()
     log_audit(session, user, "demo_seed", "system", None, {"count": len(reports)})
     session.commit()

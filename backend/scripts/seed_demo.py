@@ -6604,6 +6604,61 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         }
 
 
+def demo_tenant_status(session: Session) -> list[dict]:
+    """Per-demo catalog for Settings → Advanced (exists vs richly loaded).
+
+    CoA-only shells from startup seed count as exists=True, loaded=False.
+    `loaded` uses invoice volume (≥5) plus model-specific markers so specialty
+    packs (hospital / spinning / telecom) aren't missed if invoices are sparse.
+    """
+    rows: list[dict] = []
+    for email, company, model in DEMO_TENANTS:
+        user = session.exec(select(User).where(User.email == email)).first()
+        exists = user is not None
+        loaded = False
+        tenant_id: Optional[int] = None
+        if user:
+            tenant_id = user.tenant_id
+            inv_n = len(
+                session.exec(select(Invoice).where(Invoice.tenant_id == tenant_id)).all()
+            )
+            loaded = inv_n >= 5
+            if not loaded and model == "hospital":
+                loaded = (
+                    session.exec(
+                        select(HcPatient).where(HcPatient.tenant_id == tenant_id)
+                    ).first()
+                    is not None
+                )
+            if not loaded and model == "yarn_spinning":
+                loaded = (
+                    session.exec(
+                        select(SpSpinLot).where(SpSpinLot.tenant_id == tenant_id)
+                    ).first()
+                    is not None
+                )
+            if not loaded and model == "telecom_franchise":
+                loaded = (
+                    session.exec(
+                        select(MobileMoneyAccount).where(
+                            MobileMoneyAccount.tenant_id == tenant_id
+                        )
+                    ).first()
+                    is not None
+                )
+        rows.append(
+            {
+                "email": email,
+                "company": company,
+                "business_model": model,
+                "exists": exists,
+                "loaded": loaded,
+                "tenant_id": tenant_id,
+            }
+        )
+    return rows
+
+
 def seed_all_demos() -> list[dict]:
     reports = []
     for email, company, model in DEMO_TENANTS:

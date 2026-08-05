@@ -1495,94 +1495,8 @@ export default function SettingsPage() {
       {/* ── Appearance ── */}
       <AppearanceSection />
 
-      {/* Sample / Demo Data (evaluation) */}
-      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">Sample / Demo Data</h2>
-        <p className="text-sm text-[var(--text-primary)]/60">
-          Load or remove the <strong>QA demo companies</strong> (separate tenants used for regression testing).
-          The public live demo is <code className="mx-1 px-1 bg-[var(--bg-page)] rounded">demo.simple@easy-books.app</code>
-          / <code className="mx-1 px-1 bg-[var(--bg-page)] rounded">demo1234</code> —
-          install industry packs from <Link href="/apps" className="text-[var(--primary)] underline">Add-ons</Link>
-          with optional sample data. Your own company is never affected by Load/Remove below.
-        </p>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] overflow-hidden">
-          <div className="px-3 py-2 border-b border-[var(--border)]">
-            <p className="text-sm font-semibold text-[var(--text-primary)]">How to see specialty demo data</p>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              After Load, log out and sign in with the matching company below. Password for all:{" "}
-              <code className="px-1 bg-white rounded border border-[var(--border)]">demo1234</code>
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
-                  <th className="px-3 py-2 font-semibold">Screen / area</th>
-                  <th className="px-3 py-2 font-semibold">Login</th>
-                </tr>
-              </thead>
-              <tbody className="text-[var(--text-primary)]">
-                {[
-                  { screen: "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports", login: "demo.spinning@easy-books.app" },
-                  { screen: "HC Store (Healthcare pharmacy)", login: "demo.hospital@easy-books.app" },
-                  { screen: "Telecom — Mobile Money, Devices, Postpaid", login: "demo.telecom@easy-books.app" },
-                  { screen: "Store Issues, Purchases chain, Weaving", login: "demo.manufacturing@easy-books.app" },
-                  { screen: "PRA Logs", login: "demo.pra@easy-books.app" },
-                  { screen: "Simple books (shared AR/AP baseline)", login: "demo.simple@easy-books.app" },
-                  { screen: "Services + deferred revenue", login: "demo.services@easy-books.app" },
-                  { screen: "Trader + inventory", login: "demo.trader@easy-books.app" },
-                ].map(row => (
-                  <tr key={row.login} className="border-t border-[var(--border)]">
-                    <td className="px-3 py-2 align-top">{row.screen}</td>
-                    <td className="px-3 py-2 align-top">
-                      <code className="text-xs px-1.5 py-0.5 bg-white rounded border border-[var(--border)] break-all">
-                        {row.login}
-                      </code>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:bg-[#a07f33] disabled:opacity-50"
-            onClick={async (e) => {
-              const btn = e.currentTarget; btn.disabled = true
-              try {
-                const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
-                const res = await fetch(`${base}/api/admin/demo/seed`, {
-                  method: "POST",
-                  headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
-                })
-                toast(res.ok
-                  ? "QA demo companies loaded. They remain separate from your company."
-                  : "Could not load demo data (admin only).",
-                  res.ok ? "success" : "error")
-              } finally { btn.disabled = false }
-            }}
-          >Load demo companies</button>
-          <button
-            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
-            onClick={async () => {
-              const ok = await confirm({
-                title: "Remove demo companies?",
-                message: "Remove all QA demo companies and their data? Your own company is not affected.",
-                confirmLabel: "Remove",
-                danger: true,
-              })
-              if (!ok) return
-              const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
-              const res = await fetch(`${base}/api/admin/demo/seed`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
-              })
-              toast(res.ok ? "Demo companies removed." : "Could not remove demo data (admin only).", res.ok ? "success" : "error")
-            }}
-          >Remove demo companies</button>
-        </div>
-      </section>
+      {/* Sample / Demo Data (evaluation) — admin/owner */}
+      {isAdminOrOwner && <DemoSampleDataSection />}
 
       {/* AI Assistant (#117) — provider keys, default model, rate limit */}
       { installedModules.has("ai_assistant") &&
@@ -1801,6 +1715,208 @@ function AppearanceSection() {
       <p className="text-[11px] text-[var(--text-primary)]/40">
         Appearance preferences are saved per account and synced across sessions.
       </p>
+    </section>
+  )
+}
+
+/* ── Sample / Demo Data — sequential per-tenant seed (Vercel-safe) ── */
+
+type DemoStatusRow = {
+  email: string
+  company: string
+  business_model: string
+  exists: boolean
+  loaded: boolean
+  tenant_id: number | null
+}
+
+const DEMO_SCREEN_HINTS: Record<string, string> = {
+  "demo.spinning@easy-books.app": "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports",
+  "demo.hospital@easy-books.app": "HC Store (Healthcare pharmacy)",
+  "demo.telecom@easy-books.app": "Telecom — Mobile Money, Devices, Postpaid",
+  "demo.manufacturing@easy-books.app": "Store Issues, Purchases chain, Weaving",
+  "demo.pra@easy-books.app": "PRA Logs",
+  "demo.simple@easy-books.app": "Simple books (shared AR/AP baseline)",
+  "demo.services@easy-books.app": "Services + deferred revenue",
+  "demo.trader@easy-books.app": "Trader + inventory",
+}
+
+function DemoSampleDataSection() {
+  const { confirm, toast } = useMessages()
+  const [rows, setRows] = useState<DemoStatusRow[]>([])
+  const [loadingStatus, setLoadingStatus] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<string | null>(null)
+
+  const refresh = async () => {
+    setLoadingStatus(true)
+    try {
+      const data = await apiFetch<{ tenants: DemoStatusRow[] }>("/api/admin/demo/status")
+      setRows(data.tenants)
+    } catch {
+      setRows([])
+    } finally {
+      setLoadingStatus(false)
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  const loadAll = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      // Prefer catalog order from status; fall back to hint keys if status empty
+      let emails = rows.map(r => r.email)
+      if (emails.length === 0) {
+        const data = await apiFetch<{ tenants: DemoStatusRow[] }>("/api/admin/demo/status")
+        emails = data.tenants.map(t => t.email)
+        setRows(data.tenants)
+      }
+      const total = emails.length
+      for (let i = 0; i < total; i++) {
+        const email = emails[i]
+        setProgress(`Seeding ${i + 1}/${total} — ${email}`)
+        try {
+          await apiFetch("/api/admin/demo/seed", {
+            method: "POST",
+            body: JSON.stringify({ email }),
+          })
+        } catch (err) {
+          toast(
+            `Failed on ${email}: ${(err as Error).message}. Earlier companies may already be loaded — retry to continue.`,
+            "error",
+          )
+          await refresh()
+          return
+        }
+      }
+      setProgress(null)
+      await refresh()
+      toast("QA demo companies loaded. They remain separate from your company.", "success")
+    } catch (err) {
+      toast((err as Error).message || "Could not load demo data (admin only).", "error")
+    } finally {
+      setBusy(false)
+      setProgress(null)
+    }
+  }
+
+  const removeAll = async () => {
+    const ok = await confirm({
+      title: "Remove demo companies?",
+      message: "Remove all QA demo companies and their data? Your own company is not affected.",
+      confirmLabel: "Remove",
+      danger: true,
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      await apiFetch("/api/admin/demo/seed", { method: "DELETE" })
+      await refresh()
+      toast("Demo companies removed.", "success")
+    } catch (err) {
+      toast((err as Error).message || "Could not remove demo data (admin only).", "error")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const displayRows =
+    rows.length > 0
+      ? rows
+      : Object.keys(DEMO_SCREEN_HINTS).map(email => ({
+          email,
+          company: "",
+          business_model: "",
+          exists: false,
+          loaded: false,
+          tenant_id: null,
+        }))
+
+  return (
+    <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
+      <h2 className="text-lg font-bold text-[var(--text-primary)]">Sample / Demo Data</h2>
+      <p className="text-sm text-[var(--text-primary)]/60">
+        Load or remove the <strong>QA demo companies</strong> (separate tenants used for regression testing).
+        Each company is seeded one-at-a-time so cloud deploys do not time out.
+        Password for all:{" "}
+        <code className="mx-1 px-1 bg-[var(--bg-page)] rounded">demo1234</code>
+        — install industry packs from{" "}
+        <Link href="/apps" className="text-[var(--primary)] underline">Add-ons</Link>
+        {" "}with optional sample data. Your own company is never affected.
+      </p>
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] overflow-hidden">
+        <div className="px-3 py-2 border-b border-[var(--border)]">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">How to see specialty demo data</p>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+            After Load, log out and sign in with the matching company below.
+            {loadingStatus ? " Checking status…" : null}
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-muted)]">
+                <th className="px-3 py-2 font-semibold">Screen / area</th>
+                <th className="px-3 py-2 font-semibold">Login</th>
+                <th className="px-3 py-2 font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody className="text-[var(--text-primary)]">
+              {displayRows.map(row => {
+                const screen = DEMO_SCREEN_HINTS[row.email] ?? row.company ?? row.email
+                const statusLabel = row.loaded ? "Loaded" : row.exists ? "Empty" : "Missing"
+                const statusClass = row.loaded
+                  ? "text-green-700 bg-green-50 border-green-200"
+                  : row.exists
+                    ? "text-amber-800 bg-amber-50 border-amber-200"
+                    : "text-[var(--text-muted)] bg-white border-[var(--border)]"
+                return (
+                  <tr key={row.email} className="border-t border-[var(--border)]">
+                    <td className="px-3 py-2 align-top">{screen}</td>
+                    <td className="px-3 py-2 align-top">
+                      <code className="text-xs px-1.5 py-0.5 bg-white rounded border border-[var(--border)] break-all">
+                        {row.email}
+                      </code>
+                    </td>
+                    <td className="px-3 py-2 align-top">
+                      <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded border ${statusClass}`}>
+                        {statusLabel}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {progress && (
+        <p className="text-sm text-[var(--primary)] font-medium" aria-live="polite">
+          {progress}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:bg-[#a07f33] disabled:opacity-50"
+          onClick={() => void loadAll()}
+        >
+          {busy && progress ? "Seeding…" : "Load demo companies"}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4] disabled:opacity-50"
+          onClick={() => void removeAll()}
+        >
+          Remove demo companies
+        </button>
+      </div>
     </section>
   )
 }
