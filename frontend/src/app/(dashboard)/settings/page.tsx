@@ -1810,17 +1810,18 @@ type DemoStatusRow = {
   tenant_id: number | null
 }
 
-const DEMO_SCREEN_HINTS: Record<string, string> = {
-  "demo.spinning@easy-books.app": "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports",
-  "demo.processing@easy-books.app": "Textile Processing — grey lots, mending, kachi/pakki, PPC, dispatch, settlements",
-  "demo.hospital@easy-books.app": "HC Store (Healthcare pharmacy)",
-  "demo.telecom@easy-books.app": "Telecom — Mobile Money, Devices, Postpaid",
-  "demo.manufacturing@easy-books.app": "Store Issues, Purchases chain, Weaving",
-  "demo.pra@easy-books.app": "PRA Logs",
-  "demo.simple@easy-books.app": "Simple books (shared AR/AP baseline)",
-  "demo.services@easy-books.app": "Services + deferred revenue",
-  "demo.trader@easy-books.app": "Trader + inventory",
-}
+/** Fixed catalog order — always render these rows even if /demo/status is older or missing. */
+const DEMO_CATALOG: { email: string; screen: string }[] = [
+  { email: "demo.spinning@easy-books.app", screen: "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports" },
+  { email: "demo.processing@easy-books.app", screen: "Textile Processing — grey lots, mending, kachi/pakki, PPC, dispatch, settlements" },
+  { email: "demo.hospital@easy-books.app", screen: "HC Store (Healthcare pharmacy)" },
+  { email: "demo.telecom@easy-books.app", screen: "Telecom — Mobile Money, Devices, Postpaid" },
+  { email: "demo.manufacturing@easy-books.app", screen: "Store Issues, Purchases chain, Weaving" },
+  { email: "demo.pra@easy-books.app", screen: "PRA Logs" },
+  { email: "demo.simple@easy-books.app", screen: "Simple books (shared AR/AP baseline)" },
+  { email: "demo.services@easy-books.app", screen: "Services + deferred revenue" },
+  { email: "demo.trader@easy-books.app", screen: "Trader + inventory" },
+]
 
 function DemoSampleDataSection() {
   const { confirm, toast } = useMessages()
@@ -1849,13 +1850,23 @@ function DemoSampleDataSection() {
     if (busy) return
     setBusy(true)
     try {
-      // Prefer catalog order from status; fall back to hint keys if status empty
+      // Prefer live status order; always include catalog emails the API omits
       let emails = rows.map(r => r.email)
       if (emails.length === 0) {
-        const data = await apiFetch<{ tenants: DemoStatusRow[] }>("/api/admin/demo/status")
-        emails = data.tenants.map(t => t.email)
-        setRows(data.tenants)
+        try {
+          const data = await apiFetch<{ tenants: DemoStatusRow[] }>("/api/admin/demo/status")
+          emails = data.tenants.map(t => t.email)
+          setRows(data.tenants)
+        } catch {
+          emails = []
+        }
       }
+      const known = new Set(emails)
+      for (const { email } of DEMO_CATALOG) {
+        if (!known.has(email)) emails.push(email)
+      }
+      if (emails.length === 0) emails = DEMO_CATALOG.map(c => c.email)
+
       const total = emails.length
       for (let i = 0; i < total; i++) {
         const email = emails[i]
@@ -1905,17 +1916,27 @@ function DemoSampleDataSection() {
     }
   }
 
-  const displayRows =
-    rows.length > 0
-      ? rows
-      : Object.keys(DEMO_SCREEN_HINTS).map(email => ({
-          email,
-          company: "",
-          business_model: "",
-          exists: false,
-          loaded: false,
-          tenant_id: null,
-        }))
+  const statusByEmail = new Map(rows.map(r => [r.email.toLowerCase(), r]))
+  const displayRows = DEMO_CATALOG.map(item => {
+    const st = statusByEmail.get(item.email.toLowerCase())
+    return {
+      email: item.email,
+      screen: item.screen,
+      exists: st?.exists ?? false,
+      loaded: st?.loaded ?? false,
+    }
+  })
+  // Surface any extra demo tenants the API returns that aren't in the catalog yet
+  for (const st of rows) {
+    if (!statusByEmail.has(st.email.toLowerCase())) continue
+    if (DEMO_CATALOG.some(c => c.email.toLowerCase() === st.email.toLowerCase())) continue
+    displayRows.push({
+      email: st.email,
+      screen: st.company || st.email,
+      exists: st.exists,
+      loaded: st.loaded,
+    })
+  }
 
   return (
     <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-3">
@@ -1948,7 +1969,6 @@ function DemoSampleDataSection() {
             </thead>
             <tbody className="text-[var(--text-primary)]">
               {displayRows.map(row => {
-                const screen = DEMO_SCREEN_HINTS[row.email] ?? row.company ?? row.email
                 const statusLabel = row.loaded ? "Loaded" : row.exists ? "Empty" : "Missing"
                 const statusClass = row.loaded
                   ? "text-green-700 bg-green-50 border-green-200"
@@ -1957,7 +1977,7 @@ function DemoSampleDataSection() {
                     : "text-[var(--text-muted)] bg-white border-[var(--border)]"
                 return (
                   <tr key={row.email} className="border-t border-[var(--border)]">
-                    <td className="px-3 py-2 align-top">{screen}</td>
+                    <td className="px-3 py-2 align-top">{row.screen}</td>
                     <td className="px-3 py-2 align-top">
                       <code className="text-xs px-1.5 py-0.5 bg-white rounded border border-[var(--border)] break-all">
                         {row.email}
