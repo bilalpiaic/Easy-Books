@@ -37,3 +37,8 @@ dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
 ]
+
+# Vercel FastAPI preset: load the app from backend/main.py when the project
+# root directory is set to `backend/` in the Vercel dashboard.
+[tool.vercel]
+entrypoint = "main:app"

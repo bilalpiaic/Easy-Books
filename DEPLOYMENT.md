@@ -8,12 +8,29 @@
 
 ---
 
-## Vercel Strategy
+## Architecture
 
-> Two separate Vercel projects + Neon Postgres:
-> Frontend → `easy-books-frontend.vercel.app` (Next.js)
-> Backend → `easy-books-backend.vercel.app` (FastAPI on `@vercel/python`)
-> Database → Neon Postgres (managed, serverless)
+```
+┌─────────────────────┐       ┌──────────────────────────┐
+│  Frontend (Next.js) │──────▶│  Backend (FastAPI)       │
+│  Vercel project     │ HTTP  │  Vercel Python function  │
+│  Root: frontend/    │       │  Root: backend/          │
+└─────────────────────┘       └────────────┬─────────────┘
+                                           │ DATABASE_URL
+                                           ▼
+                                  ┌─────────────────┐
+                                  │  Neon Postgres  │
+                                  │  (pooled)       │
+                                  └─────────────────┘
+```
+
+| Layer | Host | Notes |
+|---|---|---|
+| Frontend | **Vercel** | Next.js 16 app (`frontend/`) |
+| Backend API | **Vercel** | FastAPI on `@vercel/python` (`backend/main.py`) |
+| Database | **Neon** | Managed Postgres — Neon does **not** run the API process |
+
+Neon is the database. The FastAPI backend still deploys to Vercel and connects to Neon with `DATABASE_URL`.
 
 ---
 
@@ -21,28 +38,25 @@
 
 | File | Purpose |
 |---|---|
-| `backend/db.py` | Now reads `DATABASE_URL` env var (Postgres on Vercel, SQLite fallback for dev) |
-| `backend/requirements.txt` | pip dependencies for Vercel Python runtime (includes `psycopg2-binary`) |
-| `backend/api/index.py` | Vercel entry point — imports FastAPI `app` from `main.py` |
-| `backend/vercel.json` | Routes all requests to the Python serverless handler |
-| `backend/.env.example` | Documents all required env vars |
-| `backend/.vercelignore` | Keeps venv, .db files, tests out of the deploy bundle |
-| `frontend/vercel.json` | Explicit Next.js framework config |
-| `frontend/.env.example` | Documents `NEXT_PUBLIC_API_URL` |
-| `.vercelignore` (root) | Excludes legacy root files (`server.js`, `db.js`, etc.) |
+| `backend/main.py` | FastAPI app + serverless-safe lifespan (background loops off on Vercel) |
+| `backend/db.py` | Reads `DATABASE_URL`; Neon TLS + `pool_size=1` for serverless |
+| `backend/requirements.txt` | pip deps for Vercel Python runtime (includes `psycopg2-binary`) |
+| `backend/vercel.json` | Modern `functions` config (`maxDuration: 60`) |
+| `backend/pyproject.toml` | `[tool.vercel] entrypoint = "main:app"` |
+| `backend/api/index.py` | Legacy entry point (kept for older projects) |
+| `backend/.env.vercel.example` | Backend env checklist for Vercel |
+| `frontend/vercel.json` | Next.js framework config |
+| `frontend/.env.vercel.example` | Frontend env checklist |
+| `scripts/deploy-cloud.sh` | One-shot CLI deploy helper |
+| `.github/workflows/deploy-vercel.yml` | CI deploy when `DEPLOY_VERCEL=true` |
 
 ---
 
 ## 1. PREREQUISITES
 
 ```bash
-# 1. Install Vercel CLI (one-time)
 npm install -g vercel
-
-# 2. Authenticate (opens browser)
 vercel login
-
-# 3. Verify
 vercel whoami
 ```
 
@@ -53,63 +67,67 @@ vercel whoami
 1. Go to **https://neon.tech** → sign up / log in
 2. Create project named `easy-books`
 3. Region: pick one close to your Vercel region (e.g. `us-east-1`)
-4. Copy the **pooled connection string** from the dashboard — looks like:
+4. Copy the **pooled** connection string from the dashboard — looks like:
    ```
    postgresql://user:pass@ep-xxxxx-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
    ```
-   Save this — it goes into `DATABASE_URL` on the backend.
+   Use the host that contains `-pooler` (serverless-safe). Save this as `DATABASE_URL`.
 
-Alternative: **Vercel Postgres** (Storage tab in Vercel dashboard) — same product, deeper integration. Auto-injects `DATABASE_URL`.
+Alternative: **Vercel Postgres** (Storage tab) — same Neon under the hood; can auto-inject `DATABASE_URL`.
 
 ---
 
 ## 3. DEPLOY BACKEND
 
 ```bash
-cd /home/mbilal71/projects/Easy-Books/backend
+cd backend
 vercel
 ```
 
-Answer prompts:
+Prompts:
 - **Set up and deploy?** Y
-- **Scope?** Your account / team
-- **Link to existing project?** N
+- **Link to existing project?** N (first time)
 - **Project name?** `easy-books-backend`
-- **Directory?** `./` (we're already in /backend)
+- **Directory?** `./`
 - **Override settings?** N
 
-After the first `vercel` run (which deploys to preview), add env vars:
+Add env vars (see `backend/.env.vercel.example`):
 
 ```bash
-# These three are required
 vercel env add DATABASE_URL production
-# Paste the Neon connection string when prompted
+# Paste the Neon *pooled* connection string
 
 vercel env add JWT_SECRET_KEY production
 # Generate with: openssl rand -hex 32
 
 vercel env add FRONTEND_ORIGIN production
-# Use the frontend URL once you have it, e.g.
-# https://easy-books-frontend.vercel.app
+# Placeholder OK for now; update after frontend deploy
+# e.g. https://easy-books-frontend.vercel.app
 
-# Optional: seed an admin user on first run
+vercel env add APP_ENV production
+
+# Optional: seed an admin user on first empty DB
 vercel env add SEED_ADMIN_EMAIL production
 vercel env add SEED_ADMIN_PASSWORD production
 vercel env add SEED_COMPANY_NAME production
 ```
 
-Then promote to production:
+Promote to production:
 
 ```bash
 vercel --prod
 ```
 
-Note the production URL printed (e.g. `https://easy-books-backend.vercel.app`).
-
 **Verify:**
 ```bash
-curl https://easy-books-backend.vercel.app/docs
-# Should return Swagger UI HTML
+curl -sS -o /dev/null -w "%{http_code}\n" https://<backend>.vercel.app/docs
+# → 200
+```
+
+Or use the helper from the repo root:
+
+```bash
+./scripts/deploy-cloud.sh --prod --backend
 ```
 
 ---
@@ -117,82 +135,79 @@ curl https://easy-books-backend.vercel.app/docs
 ## 4. DEPLOY FRONTEND
 
 ```bash
-cd /home/mbilal71/projects/Easy-Books/frontend
+cd frontend
 vercel
 ```
 
-Answer prompts the same way; project name `easy-books-frontend`.
-
-Add the only required env var:
+Project name: `easy-books-frontend`.
 
 ```bash
 vercel env add NEXT_PUBLIC_API_URL production
-# Value: https://easy-books-backend.vercel.app   (from previous step)
-```
+# Value: https://<your-backend>.vercel.app   (from step 3)
 
-Deploy to production:
-
-```bash
 vercel --prod
 ```
-
-Note the URL (e.g. `https://easy-books-frontend.vercel.app`).
 
 ---
 
 ## 5. UPDATE BACKEND CORS
 
-Now that you know the frontend URL, update the backend env var:
-
 ```bash
-cd /home/mbilal71/projects/Easy-Books/backend
+cd backend
 vercel env rm FRONTEND_ORIGIN production
 vercel env add FRONTEND_ORIGIN production
-# Value: https://easy-books-frontend.vercel.app
+# Value: https://<your-frontend>.vercel.app
 vercel --prod
 ```
+
+`FRONTEND_ORIGIN` accepts a comma-separated list (no trailing slashes) if you have preview + custom domains.
 
 ---
 
 ## 6. POST-DEPLOY SMOKE TEST
 
 ```bash
-# 1. Backend health
-curl -i https://easy-books-backend.vercel.app/docs
-# → 200 OK, Swagger UI
+BACKEND=https://easy-books-backend.vercel.app
+FRONTEND=https://easy-books-frontend.vercel.app
+
+# 1. Backend health / docs
+curl -i "$BACKEND/docs"
 
 # 2. Frontend serves
-curl -I https://easy-books-frontend.vercel.app/
-# → 307 redirect to /login (correct)
+curl -I "$FRONTEND/"
 
-# 3. CORS check
+# 3. CORS preflight
 curl -X OPTIONS \
-  -H "Origin: https://easy-books-frontend.vercel.app" \
+  -H "Origin: $FRONTEND" \
   -H "Access-Control-Request-Method: POST" \
-  https://easy-books-backend.vercel.app/api/auth/login
-# → 200 OK, Access-Control-Allow-Origin matches
+  "$BACKEND/api/auth/login"
 
-# 4. Login flow
-# Open https://easy-books-frontend.vercel.app/login
-# Sign in with SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD
-# Confirm dashboard loads, charts render
+# 4. Login in the browser with SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD
 ```
 
 ---
 
-## 7. CONTINUOUS DEPLOYMENT (auto-deploy on git push)
+## 7. CONTINUOUS DEPLOYMENT
 
-After the first manual deploy, every push to GitHub triggers a deploy automatically:
+### Option A — Vercel Git integration (simplest)
 
-- Push to `saas-transition-foundation` → preview deploy
-- Push to `main` → production deploy
+1. Each Vercel project → Settings → Git → connect `bilalpiaic/Easy-Books`
+2. **Root Directory** = `backend/` or `frontend/`
+3. **Production Branch** = `main`
 
-To wire it up:
+### Option B — GitHub Actions
 
-1. In each Vercel project's dashboard → Settings → Git
-2. Connect to `bilalpiaic/Easy-Books`
-3. Set **Root Directory** = `backend/` (for backend project) or `frontend/` (for frontend project)
-4. Set **Production Branch** = `main`
+1. Create a Vercel token: https://vercel.com/account/tokens
+2. After linking projects once via CLI, copy IDs from `.vercel/project.json`
+3. Add repository **secrets**:
+   - `VERCEL_TOKEN`
+   - `VERCEL_ORG_ID`
+   - `VERCEL_BACKEND_PROJECT_ID`
+   - `VERCEL_FRONTEND_PROJECT_ID`
+4. Add repository **variable**: `DEPLOY_VERCEL=true`
+5. Push to `main` (or run **Deploy Vercel + Neon** via `workflow_dispatch`)
+
+Env vars still live in the Vercel project dashboards — the workflow only builds/promotes.
 
 ---
 
@@ -202,9 +217,10 @@ To wire it up:
 
 | Variable | Required | Example |
 |---|---|---|
-| `DATABASE_URL` | ✅ | `postgresql://user:pass@host/db?sslmode=require` |
-| `JWT_SECRET_KEY` | ✅ | 64-hex generated via `openssl rand -hex 32` |
+| `DATABASE_URL` | ✅ | `postgresql://…@…-pooler.…neon.tech/neondb?sslmode=require` |
+| `JWT_SECRET_KEY` | ✅ | 64-hex from `openssl rand -hex 32` |
 | `FRONTEND_ORIGIN` | ✅ | `https://easy-books-frontend.vercel.app` |
+| `APP_ENV` | ✅ | `production` |
 | `SEED_ADMIN_EMAIL` | optional | `admin@example.com` |
 | `SEED_ADMIN_PASSWORD` | optional | Strong password |
 | `SEED_COMPANY_NAME` | optional | `My Company` |
@@ -220,56 +236,49 @@ To wire it up:
 ## 9. TROUBLESHOOTING
 
 ### Backend cold-start error: `psycopg2 not found`
-Make sure `requirements.txt` includes `psycopg2-binary` (already done). Redeploy with `vercel --prod`.
+`requirements.txt` must include `psycopg2-binary`. Redeploy with `vercel --prod`.
 
 ### Frontend can't reach backend (CORS error)
-1. Verify `FRONTEND_ORIGIN` exactly matches the frontend's deployed URL (no trailing slash)
-2. Confirm `NEXT_PUBLIC_API_URL` on the frontend points to the right backend
-3. Check backend logs: `vercel logs --follow` (from backend project dir)
+1. `FRONTEND_ORIGIN` must exactly match the frontend URL (no trailing slash)
+2. `NEXT_PUBLIC_API_URL` must point at the backend (rebuild frontend after changing it — it is inlined at build time)
+3. Logs: `vercel logs --follow` from the backend project dir
 
-### "JWT_SECRET_KEY is not set" warning in logs
-Set the env var (Step 3) and redeploy. The warning is harmless during local dev.
+### `DATABASE_URL environment variable must be set`
+Set the Neon pooled URL on the backend Vercel project and redeploy. On Vercel, SQLite is rejected even if `APP_ENV` is unset.
 
-### Backend cold-start latency (3-5 seconds first request)
-Normal for serverless Python. Subsequent requests within the same instance are fast (≤200ms).
-For lower latency, consider a long-running host like Railway or Fly.io for the backend instead.
+### Backend cold-start latency (3–5 s first request)
+Normal for serverless Python. Subsequent requests on a warm instance are fast.
+For always-on latency, host the API on Railway/Fly/Render and keep Neon as the DB.
 
 ### Database tables missing on first deploy
-`SQLModel.metadata.create_all()` runs at startup alongside Alembic. If the first cold start times out before the schema is ready, hit any endpoint twice to trigger a warm-start retry. Subsequent boots are instant since `CREATE TABLE IF NOT EXISTS` is a no-op.
+Default `SCHEMA_BOOTSTRAP=create_all` runs `SQLModel.metadata.create_all()` on cold start. If the first request times out, retry once. For stricter prod, set `SCHEMA_BOOTSTRAP=alembic` and run `alembic upgrade head` against Neon from CI before traffic.
 
-### Lockfile warning on Next.js build
-Already mitigated — the root `package.json`/`package-lock.json` are legacy artifacts
-of an earlier Express prototype. The `.vercelignore` at the root excludes them from
-deploys. If they still cause warnings, delete them locally:
-```bash
-rm /home/mbilal71/projects/Easy-Books/{package.json,package-lock.json,db.js,server.js}
-```
+### PDF generation fails on Vercel
+WeasyPrint needs native Pango/Cairo libs that are not on the Vercel Python image. Invoice PDFs degrade gracefully; use Docker/self-host if PDF is critical.
+
+### Background jobs (overdue reminders, webhooks)
+Disabled automatically when `VERCEL=1`. Use an external cron (Vercel Cron → authenticated sweep route) or a long-running host + Redis worker (`worker.py` / ARQ) for those features.
 
 ---
 
-## 9.1 SEEDING DEMO DATA (optional)
+## 10. SEEDING DEMO DATA (optional)
 
-Once production is live, demo tenants are auto-created on the first database init. To populate them with realistic mock data (customers, vendors, invoices, bills), you have two options:
+Demo tenants are created on first DB init when seed paths run. To load rich mock data:
 
-**Option A: Seed via backend API (recommended for production)**
-- Write a script that calls `POST /api/auth/login` with `demo.simple@easy-books.app` / `demo1234`
-- Use the returned JWT to call `POST /api/invoices`, `POST /api/bills`, etc. via the public API
-- This respects all business logic (GL postings, permissions, audit logging)
+**Option A (API):** log in as a demo user and create records through the public API.
 
-**Option B: Direct database seeding (dev/test only)**
-- In your local backend, run: `cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo`
-- This populates all five demo tenants with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates, and 60+ journal entries per tenant — spread across two fiscal years, with correct voucher types, deferred-revenue origination (services tenant), and multiple users. Every tenant (real or demo) is created with a hierarchical Chart of Accounts.
-- **WARNING:** This approach bypasses the API and should only be used in dev/staging — it does not generate audit logs or trigger webhooks
+**Option B (dev only):** locally, with `DATABASE_URL` pointed at a *non-production* Neon branch:
+```bash
+cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
+```
+Do **not** run the rich seeder against a live customer database.
 
 ---
 
 ## 11. ROLLBACK
 
 ```bash
-# List recent deployments
 vercel ls easy-books-backend
-
-# Promote a previous deploy to production
 vercel promote <deployment-url>
 ```
 
@@ -279,11 +288,11 @@ vercel promote <deployment-url>
 
 | Feature | Status | Why |
 |---|---|---|
-| Custom domain | Manual | Add via Vercel Dashboard → Domains |
-| Email send | Not setup | Needs SMTP/SendGrid integration |
-| File uploads | Limited | Vercel /tmp is ephemeral — use S3/R2 for production uploads |
-| Background jobs | Not supported | Vercel is request/response only — use Inngest or Trigger.dev |
-| Long-running tasks (>10s) | Use Edge | Default Vercel function timeout is 10s on hobby tier |
+| Custom domain | Manual | Vercel Dashboard → Domains |
+| Email send | Not setup | Needs SMTP / SendGrid |
+| File uploads | Limited | Prefer Supabase/S3 (`STORAGE_BACKEND`) — `/uploads` is ephemeral on Vercel |
+| Background jobs | Off by default | Serverless request/response only |
+| Long-running tasks | Plan limits | Raise `maxDuration` (60s configured); Hobby tier caps apply |
 
 ---
 
@@ -292,20 +301,18 @@ vercel promote <deployment-url>
 | Service | Free tier | Sufficient for |
 |---|---|---|
 | Vercel (frontend) | 100GB bandwidth/mo | A few thousand active users |
-| Vercel (backend) | 100k function invocations/mo | Same |
-| Neon Postgres | 0.5 GB storage, 100 hrs compute/mo | ~5-10 small businesses |
+| Vercel (backend) | Function invocations | Same (watch cold starts) |
+| Neon Postgres | 0.5 GB storage, compute hours | ~5–10 small businesses |
 
-All-in: **$0/month** to get started. Upgrade path is clean once you exceed limits.
-
----
+All-in: **$0/month** to get started.
 
 ---
 
 ## 14. ROUTER ORDERING NOTE
 
-FastAPI matches routes in registration order. If you add new named sub-routes under a resource (e.g. `/api/invoices/aging`, `/api/invoices/bulk`), ensure those routers are mounted **before** the parameterized router (`/{invoice_id}`) in `backend/main.py`. In the current codebase this means `aging.router` is listed before `invoices.router` and `bills.router` in the `_ROUTERS` list.
+FastAPI matches routes in registration order. Named sub-routes under a resource (e.g. `/api/invoices/aging`) must be mounted **before** parameterized `/{id}` routers in `backend/main.py`.
 
 ---
 
-**Last updated:** 2026-06-21
+**Last updated:** 2026-08-04
 **Branch:** `main`

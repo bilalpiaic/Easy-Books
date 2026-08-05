@@ -476,7 +476,7 @@ uv run arq worker.WorkerSettings
 | [`USER_GUIDE.md`](./USER_GUIDE.md) | End-user walkthrough for every feature |
 | [`WORKFLOW.md`](./WORKFLOW.md) | Accounting workflows, GL Dr/Cr maps, report-linking matrix, API catalog |
 | [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) | One-click installer, Electron desktop app, data safety, update paths |
-| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud / Vercel deployment for backend + frontend |
+| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud deploy: frontend + API on Vercel, database on Neon |
 | [`BLUEPRINT.md`](./BLUEPRINT.md) | Complete project blueprint: every model, endpoint, flow, and decision |
 | [`docs/PRESENTATION.md`](./docs/PRESENTATION.md) | Project review pack — architecture Mermaid diagrams + Good/Better/Best vs Odoo, QB, peers |
 | [`docs/marketing/`](./docs/marketing/) | Narrated pictograph video, slides, voiceover script, and social media attraction pack |

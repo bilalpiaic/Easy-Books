@@ -153,6 +153,16 @@ async def _revoked_token_prune_loop() -> None:
         await asyncio.sleep(6 * 3600)
 
 
+def _env_flag(name: str, default: str = "true") -> bool:
+    return os.environ.get(name, default).lower() not in ("0", "false", "no", "off")
+
+
+def _is_serverless() -> bool:
+    """Vercel (and similar) set VERCEL=1 — background loops can't survive
+    across invocations, so default them off unless explicitly re-enabled."""
+    return os.environ.get("VERCEL", "").lower() in ("1", "true")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # `lifespan` replaces the deprecated @app.on_event("startup") hook.
@@ -163,12 +173,16 @@ async def lifespan(_app: FastAPI):
     if os.environ.get("SCHEMA_BOOTSTRAP", "create_all") == "create_all":
         create_db_and_tables()
 
+    # On Vercel, long-lived asyncio loops do nothing useful (the function
+    # freezes between requests). Opt in explicitly if you wire an external
+    # cron to hit a sweep endpoint instead.
+    _bg_default = "false" if _is_serverless() else "true"
     tasks = []
-    if os.environ.get("OVERDUE_SWEEP_ENABLED", "true").lower() != "false":
+    if _env_flag("OVERDUE_SWEEP_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_overdue_scheduler_loop()))
-    if os.environ.get("REVOKED_TOKEN_PRUNE_ENABLED", "true").lower() != "false":
+    if _env_flag("REVOKED_TOKEN_PRUNE_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_revoked_token_prune_loop()))
-    if os.environ.get("WEBHOOKS_ENABLED", "true").lower() != "false":
+    if _env_flag("WEBHOOKS_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_webhook_delivery_loop()))
 
     yield
