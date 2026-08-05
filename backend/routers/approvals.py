@@ -20,6 +20,7 @@ from models import (
     Settings,
     User,
 )
+from services.approval_document_types import is_valid_document_type, list_document_types
 from services.permissions import perm_dep
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
@@ -216,6 +217,20 @@ def _replace_steps(session, workflow_id: int, steps: list[StepIn]) -> None:
         session.add(ApprovalStep(workflow_id=workflow_id, **st.model_dump()))
 
 
+# ── document-type LOV ────────────────────────────────────────────────────────
+
+@router.get("/document-types", dependencies=[perm_dep("approvals.workflows", "view")])
+def document_types(session: SessionDep, user: CurrentUserDep):
+    """Document Type LOV for Approval Workflows.
+
+    Seeded from every document type available across all tenant business
+    models / installed modules, plus any keys already stored on workflows
+    in any tenant.
+    """
+    _ = user  # auth + tenant gate via dependency
+    return list_document_types(session)
+
+
 # ── workflows ────────────────────────────────────────────────────────────────
 
 @router.get("/workflows", dependencies=[perm_dep("approvals.workflows", "view")])
@@ -245,7 +260,7 @@ def list_workflows(
     dependencies=[perm_dep("approvals.workflows", "edit")],
 )
 def create_workflow(body: WorkflowIn, session: SessionDep, user: WriteUserDep):
-    if body.document_type not in ("invoice", "bill", "purchase_order", "journal"):
+    if not is_valid_document_type(session, body.document_type):
         raise HTTPException(400, "Invalid document_type")
     if not body.steps:
         raise HTTPException(400, "At least one step is required")
@@ -270,7 +285,7 @@ def update_workflow(
     wf = session.get(ApprovalWorkflow, workflow_id)
     if not wf or wf.tenant_id != user.tenant_id:
         raise HTTPException(404, "Workflow not found")
-    if body.document_type not in ("invoice", "bill", "purchase_order", "journal"):
+    if not is_valid_document_type(session, body.document_type):
         raise HTTPException(400, "Invalid document_type")
     if not body.steps:
         raise HTTPException(400, "At least one step is required")

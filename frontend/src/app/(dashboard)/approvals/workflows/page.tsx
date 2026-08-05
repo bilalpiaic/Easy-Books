@@ -30,7 +30,12 @@ type StepDraft = {
   min_amount: string
 }
 
-const DOC_TYPES = ["invoice", "bill", "purchase_order", "journal"] as const
+type DocTypeOption = {
+  key: string
+  label: string
+  module?: string
+}
+
 const ROLES = ["owner", "admin", "accountant"] as const
 
 function emptyStep(order: number): StepDraft {
@@ -45,6 +50,7 @@ function emptyStep(order: number): StepDraft {
 
 export default function ApprovalWorkflowsPage() {
   const [items, setItems] = useState<Workflow[]>([])
+  const [docTypes, setDocTypes] = useState<DocTypeOption[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [name, setName] = useState("Invoice approval")
@@ -56,7 +62,24 @@ export default function ApprovalWorkflowsPage() {
       .then(setItems)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    apiFetch<DocTypeOption[]>("/api/approvals/document-types")
+      .then((rows) => {
+        setDocTypes(rows)
+        setDocumentType((current) =>
+          rows.some((r) => r.key === current) ? current : (rows[0]?.key ?? current),
+        )
+      })
+      .catch(() => {
+        setDocTypes([
+          { key: "invoice", label: "Sales Invoice" },
+          { key: "bill", label: "Purchase Bill" },
+          { key: "purchase_order", label: "Purchase Order" },
+          { key: "journal", label: "Journal Entry" },
+        ])
+      })
+  }, [])
 
   const save = async () => {
     setError(null)
@@ -140,8 +163,8 @@ export default function ApprovalWorkflowsPage() {
               value={documentType}
               onChange={(e) => setDocumentType(e.target.value)}
             >
-              {DOC_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+              {docTypes.map((t) => (
+                <option key={t.key} value={t.key}>{t.label}</option>
               ))}
             </select>
           </label>
@@ -246,8 +269,13 @@ export default function ApprovalWorkflowsPage() {
           <div key={wf.id} className="bg-white border border-[var(--border)] rounded-xl p-4 flex justify-between gap-3">
             <div>
               <div className="font-medium">{wf.name}</div>
-              <div className="text-xs text-[var(--text-muted)] capitalize">
-                {wf.document_type} · {wf.is_active ? "active" : "inactive"} · {wf.steps.length} step(s)
+              <div className="text-xs text-[var(--text-muted)]">
+                {docTypes.find((d) => d.key === wf.document_type)?.label
+                  ?? wf.document_type}
+                {" · "}
+                {wf.is_active ? "active" : "inactive"}
+                {" · "}
+                {wf.steps.length} step(s)
               </div>
               <ul className="mt-2 text-xs text-[var(--text-muted)] space-y-0.5">
                 {wf.steps.map((st, i) => (
