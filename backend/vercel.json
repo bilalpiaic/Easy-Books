@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "main.py": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "excludeFiles": "{tests/**,**/test_*.py,uploads/**,.venv/**,venv/**,**/*.db,**/*.db.bak,scripts/**,easybooks-backend.spec}"
     }
   }

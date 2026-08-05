@@ -1162,7 +1162,9 @@ class ProductionOrder(SQLModel, table=True):
     posted at GRN time (released at delivery) tracks them.
     """
     __table_args__ = (
-        UniqueConstraint("tenant_id", "number", name="unique_po_number_per_tenant"),
+        # Must not reuse PurchaseOrder's constraint name — Postgres requires
+        # unique constraint names across the whole schema.
+        UniqueConstraint("tenant_id", "number", name="unique_prod_order_number_per_tenant"),
         CheckConstraint(
             "state IN ('draft','started','completed','delivered','billed','cancelled')",
             name="ck_production_order_state",
