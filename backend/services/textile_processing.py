@@ -1,0 +1,115 @@
+"""Pure maths helpers for the Textile Processing module."""
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Optional
+
+from services.money import D, ZERO, money
+
+# Fresh packing assortment codes used on SO packing lines / packing docs.
+PACKING_ITEM_TYPES: tuple[str, ...] = ("KMZ", "SHL", "DPT", "2PC", "3PC", "OTHER")
+
+
+def format_quality_code(
+    fiber: str | None,
+    warp_count: str | int | None,
+    weft_count: str | int | None,
+    epi: str | int | None,
+    ppi: str | int | None,
+    width_inch: str | int | float | None,
+) -> Optional[str]:
+    """Build structured grey quality code: ``CTN 60X60 40X52 45"``.
+
+    Returns None when any required segment is missing (caller keeps free-text code).
+    """
+    f = (fiber or "").strip().upper()
+    warp = str(warp_count or "").strip()
+    weft = str(weft_count or "").strip()
+    e = str(epi or "").strip()
+    p = str(ppi or "").strip()
+    w = str(width_inch or "").strip().rstrip('"').rstrip("'")
+    if not (f and warp and weft and e and p and w):
+        return None
+    return f'{f} {warp}X{weft} {e}X{p} {w}"'
+
+
+def than_safi_mtr(
+    meters: Decimal | float | str,
+    rejection_mtr: Decimal | float | str = ZERO,
+) -> Decimal:
+    """Per-than Safi = meters − Rej (non-negative)."""
+    safi = D(meters) - D(rejection_mtr)
+    if safi < ZERO:
+        raise ValueError("than rejection cannot exceed meters")
+    return money(safi)
+
+
+def ready_mtr(
+    grey_mtr: Decimal | float | str,
+    l_kami_mtr: Decimal | float | str = ZERO,
+    rejection_mtr: Decimal | float | str = ZERO,
+    safai_mtr: Decimal | float | str = ZERO,
+) -> Decimal:
+    """Safi / ready = grey − L-Kami − Rejection − Safai (mending loss)."""
+    g = D(grey_mtr)
+    ready = g - D(l_kami_mtr) - D(rejection_mtr) - D(safai_mtr)
+    if ready < ZERO:
+        raise ValueError("ready_mtr cannot be negative — check mending components")
+    return money(ready)
+
+
+def stage_balance_ok(
+    input_mtr: Decimal | float | str,
+    output_mtr: Decimal | float | str,
+    visible_wastage_mtr: Decimal | float | str = ZERO,
+    invisible_wastage_mtr: Decimal | float | str = ZERO,
+    *,
+    tolerance: Decimal | float | str = Decimal("0.01"),
+) -> bool:
+    """input ≈ output + visible + invisible (± tolerance)."""
+    left = D(input_mtr)
+    right = D(output_mtr) + D(visible_wastage_mtr) + D(invisible_wastage_mtr)
+    return abs(left - right) <= D(tolerance)
+
+
+def loss_mtr(
+    visible_wastage_mtr: Decimal | float | str = ZERO,
+    invisible_wastage_mtr: Decimal | float | str = ZERO,
+) -> Decimal:
+    return money(D(visible_wastage_mtr) + D(invisible_wastage_mtr))
+
+
+def settlement_credit(
+    total_grey_received: Decimal | float | str,
+    fresh_dispatch_mtr: Decimal | float | str,
+    visible_wastage_mtr: Decimal | float | str,
+    invisible_wastage_mtr: Decimal | float | str,
+    grey_rate: Decimal | float | str,
+) -> tuple[Decimal, Decimal]:
+    """
+    credit_qty = total − fresh_dispatch − (Σ visible + Σ invisible)
+    credit_value = credit_qty × grey_rate
+    """
+    process_wastage = D(visible_wastage_mtr) + D(invisible_wastage_mtr)
+    credit_qty = D(total_grey_received) - D(fresh_dispatch_mtr) - process_wastage
+    if credit_qty < ZERO:
+        raise ValueError("credit_qty_mtr cannot be negative — check settlement inputs")
+    credit_value = money(credit_qty * D(grey_rate))
+    return money(credit_qty), credit_value
+
+
+def rej_note_balance(issued_mtr: Decimal | float | str, lifted_mtr: Decimal | float | str) -> Decimal:
+    bal = D(issued_mtr) - D(lifted_mtr)
+    if bal < ZERO:
+        raise ValueError("lifted_mtr cannot exceed issued_mtr")
+    return money(bal)
+
+
+def rej_note_status(issued_mtr: Decimal | float | str, lifted_mtr: Decimal | float | str) -> str:
+    issued = D(issued_mtr)
+    lifted = D(lifted_mtr)
+    if lifted <= ZERO:
+        return "issued"
+    if lifted + Decimal("0.0001") >= issued:
+        return "lifted"
+    return "partially_lifted"

@@ -13,6 +13,9 @@ from models import Settings, User, UserPermission
 # ── Resource registry ─────────────────────────────────────────────────────────
 
 PERMISSION_RESOURCES: dict[str, dict] = {
+    # Dashboard (dual home — Financial / Operations)
+    "dashboard.financial":    {"label": "Financial Dashboard",     "category": "Dashboard"},
+    "dashboard.operations":   {"label": "Operations Dashboard",    "category": "Dashboard"},
     # Receivable
     "invoices":               {"label": "Sales Invoices",          "category": "Receivable"},
     "credit_notes":           {"label": "Credit Notes",            "category": "Receivable"},
@@ -122,6 +125,19 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "spinning.dispatch":      {"label": "Yarn Dispatch",         "category": "Spinning"},
     "spinning.calculators":   {"label": "Spinning Calculators",  "category": "Spinning"},
     "spinning.reports":       {"label": "Spinning Reports",      "category": "Spinning"},
+    # Textile Processing (ballor)
+    "textile.setup":          {"label": "Processing Setup",      "category": "Processing"},
+    "textile.sales_orders":   {"label": "Processing Sales Orders","category": "Processing"},
+    "textile.lots":           {"label": "Grey Lots / Parchis",    "category": "Processing"},
+    "textile.mending":        {"label": "Mending",               "category": "Processing"},
+    "textile.rejection":      {"label": "Rejection / OGP",       "category": "Processing"},
+    "textile.production":     {"label": "Production Orders",     "category": "Processing"},
+    "textile.stages":         {"label": "PPC Stages",            "category": "Processing"},
+    "textile.dispatch":       {"label": "Fresh Dispatch",        "category": "Processing"},
+    "textile.labor":          {"label": "Contractor Labor",      "category": "Processing"},
+    "textile.settlement":     {"label": "Grey Settlement",       "category": "Processing"},
+    "textile.inspection":     {"label": "RM Inspection",         "category": "Processing"},
+    "textile.reports":        {"label": "Processing Reports",    "category": "Processing"},
 }
 
 # Role defaults: owner/admin/accountant → edit, viewer → view
@@ -144,9 +160,14 @@ def _rights_enabled(tenant_id: int, session: Session) -> bool:
 
 
 def get_effective_permission(user: User, resource_key: str, session: Session) -> str:
-    """Returns 'none' | 'view' | 'edit'. Falls back to role default when no override row."""
+    """Returns 'none' | 'view' | 'edit'. Falls back to role default when no override row.
+
+    Overrides are tenant-scoped (#299) so a practice user can have different
+    rights on each client company.
+    """
     override = session.exec(
         select(UserPermission).where(
+            UserPermission.tenant_id == user.tenant_id,
             UserPermission.user_id == user.id,
             UserPermission.resource_key == resource_key,
         )

@@ -29,7 +29,20 @@ import {
   TrendingUp, TrendingDown, Hash, Wallet, ArrowDownLeft, ArrowUpRight, Clock,
   Package, AlertTriangle, FileSignature, Receipt, Banknote, CalendarClock,
   CalendarDays, Users, Briefcase, Truck, Landmark, Scale, HelpCircle,
+  Factory, ClipboardCheck, DoorOpen, Radio, Activity, ShoppingCart, CircleDot, Layers,
 } from "lucide-react"
+import {
+  OpsPrimaryKpis, OpsAlerts, OpsPipelineWidget,
+  SpinningSummaryWidget, WeavingSummaryWidget, ProductionWipWidget,
+  HealthcareCensusWidget, TelecomTrackerWidget, PurchasesPipelineWidget,
+  TextileProcessingWidget,
+} from "@/components/dashboard/widgets/OpsWidgets"
+import {
+  OpsProcessChart, OpsTrendChart, OpsStatusTable, OpsMixChart,
+} from "@/components/dashboard/widgets/OpsCharts"
+import type { OperationsSummary } from "@/lib/operationsSummary"
+import { DEFAULT_FINANCIAL_QUICK_ACTIONS } from "@/lib/dashboardHome"
+import type { DashboardView } from "@/lib/dashboardHome"
 
 // ── Shared data shapes (moved here from page.tsx; page now imports them) ──────
 export interface ArAging {
@@ -77,6 +90,10 @@ export interface WidgetContext {
   t: TFunction
   quickActions: string[]
   updateQuickActions: (ids: string[]) => Promise<void>
+  /** Active home view — financial or operations. */
+  view: DashboardView
+  /** Aggregated ops KPIs (loaded when view === operations). */
+  opsSummary: OperationsSummary | null
 }
 
 export interface WidgetSize { w: number; h: number }
@@ -91,6 +108,8 @@ export interface WidgetDef {
   defaultOnGrid?: boolean        // default true; false = not on the default dashboard, add via panel
   /** When set, widget is only available if this module is installed. */
   requiredModule?: string
+  /** Which home dashboard this widget belongs to. Defaults to financial. */
+  home?: DashboardView | "both"
   render: (ctx: WidgetContext) => React.ReactNode
 }
 
@@ -130,11 +149,18 @@ export const ALL_QUICK_ACTIONS: QuickActionDef[] = [
   { id: "trial_balance", label: "Trial Balance",     href: "/trial-balance",     icon: Scale,         color: "text-rose-600" },
   { id: "workflow",      label: "Workflow Guide",    href: "/workflow",          icon: TrendingUp,    color: "text-[#b8943f]" },
   { id: "guide",         label: "User Guide",        href: "/guide",             icon: HelpCircle,    color: "text-[#1a1814]" },
+  // Operations / purpose quick actions
+  { id: "new_demand",      label: "New Demand",          href: "/purchases/demands/new",              icon: ClipboardCheck, color: "text-amber-700", requiredModule: "purchase_store" },
+  { id: "new_po",          label: "Purchase Orders",     href: "/manufacturing/purchase-orders",      icon: ShoppingCart,   color: "text-orange-600", requiredModule: "purchase_store" },
+  { id: "gate_inward",     label: "Gate Inward",         href: "/purchases/gate-inward",              icon: DoorOpen,       color: "text-teal-700",  requiredModule: "purchase_store" },
+  { id: "new_production",  label: "Production Orders",   href: "/manufacturing/production-orders",    icon: Factory,        color: "text-blue-700",  requiredModule: "production" },
+  { id: "new_spin_lot",    label: "Spin Lots",           href: "/spinning/lots",                      icon: CircleDot,      color: "text-indigo-700", requiredModule: "spinning" },
+  { id: "new_grey_lot",    label: "Grey Lots",           href: "/processing/lots",                    icon: Layers,         color: "text-teal-700",   requiredModule: "textile_processing" },
+  { id: "new_opd",         label: "OPD",                 href: "/healthcare/opd",                     icon: Activity,       color: "text-rose-600",  requiredModule: "healthcare" },
+  { id: "telecom_tracker", label: "Tracker & Load",      href: "/telecom/tracker",                    icon: Radio,          color: "text-cyan-700",  requiredModule: "telecom" },
 ]
 
-export const DEFAULT_QUICK_ACTION_IDS = [
-  "new_invoice", "new_bill", "new_entry", "products", "workflow", "guide",
-]
+export const DEFAULT_QUICK_ACTION_IDS = DEFAULT_FINANCIAL_QUICK_ACTIONS
 
 export const WIDGET_REGISTRY: WidgetDef[] = [
   {
@@ -142,6 +168,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     title: "Quick Actions",
     defaultVisible: true,
     defaultSize: { w: 4, h: 1 }, minSize: { w: 2, h: 1 },
+    home: "both",
     render: (ctx) => (
       <QuickActionsWidget quickActions={ctx.quickActions} updateQuickActions={ctx.updateQuickActions} />
     ),
@@ -151,6 +178,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     title: "Setup Checklist",
     defaultVisible: true,
     defaultSize: { w: 4, h: 2 }, minSize: { w: 4, h: 1 }, pinned: true,
+    home: "financial",
     conditional: true,
     render: (ctx) => {
       const { settings, checklistDismissed, setChecklistDismissed, reloadSettings } = ctx
@@ -285,6 +313,7 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     title: "Action Alerts",
     defaultVisible: true,
     defaultSize: { w: 4, h: 1 }, minSize: { w: 4, h: 1 }, pinned: true,
+    home: "financial",
     conditional: true,
     render: (ctx) => {
       const { s } = ctx
@@ -491,6 +520,137 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     id: "hrm_summary", title: "HRM & Payroll", defaultVisible: true,
     defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
     requiredModule: "hrm",
+    home: "both",
     render: () => <HRMSummaryWidget />,
+  },
+
+  // ── Operations / purpose home widgets ─────────────────────────────────────
+  {
+    id: "ops_primary_kpis",
+    title: "Operations KPIs",
+    defaultVisible: true,
+    defaultSize: { w: 4, h: 1 }, minSize: { w: 2, h: 1 },
+    home: "operations",
+    render: (ctx) => <OpsPrimaryKpis ctx={ctx} />,
+  },
+  {
+    id: "ops_alerts",
+    title: "Operations Alerts",
+    defaultVisible: true,
+    defaultSize: { w: 4, h: 1 }, minSize: { w: 4, h: 1 },
+    home: "operations",
+    conditional: true,
+    render: (ctx) => <OpsAlerts ctx={ctx} />,
+  },
+  {
+    id: "ops_pipeline",
+    title: "Operations Pipeline",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsPipelineWidget ctx={ctx} />,
+  },
+  {
+    id: "spinning_summary",
+    title: "Spinning Summary",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    requiredModule: "spinning",
+    conditional: true,
+    render: (ctx) => <SpinningSummaryWidget ctx={ctx} />,
+  },
+  {
+    id: "weaving_summary",
+    title: "Weaving Summary",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    requiredModule: "weaving",
+    conditional: true,
+    render: (ctx) => <WeavingSummaryWidget ctx={ctx} />,
+  },
+  {
+    id: "production_wip",
+    title: "Production WIP",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    requiredModule: "production",
+    conditional: true,
+    render: (ctx) => <ProductionWipWidget ctx={ctx} />,
+  },
+  {
+    id: "healthcare_census",
+    title: "Healthcare Census",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    requiredModule: "healthcare",
+    conditional: true,
+    render: (ctx) => <HealthcareCensusWidget ctx={ctx} />,
+  },
+  {
+    id: "telecom_tracker",
+    title: "Telecom Tracker",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    requiredModule: "telecom",
+    conditional: true,
+    render: (ctx) => <TelecomTrackerWidget ctx={ctx} />,
+  },
+  {
+    id: "purchases_pipeline",
+    title: "Purchases Pipeline",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    requiredModule: "purchase_store",
+    conditional: true,
+    render: (ctx) => <PurchasesPipelineWidget ctx={ctx} />,
+  },
+  {
+    id: "textile_processing_summary",
+    title: "Textile Processing",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    requiredModule: "textile_processing",
+    conditional: true,
+    render: (ctx) => <TextileProcessingWidget ctx={ctx} />,
+  },
+  // Process-visibility charts / tables (adapt to whichever purpose modules are installed)
+  {
+    id: "ops_process_chart",
+    title: "Process Visibility",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsProcessChart ctx={ctx} />,
+  },
+  {
+    id: "ops_trend_chart",
+    title: "Operations Trend",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsTrendChart ctx={ctx} />,
+  },
+  {
+    id: "ops_status_table",
+    title: "Status Board",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsStatusTable ctx={ctx} />,
+  },
+  {
+    id: "ops_mix_chart",
+    title: "Composition Mix",
+    defaultVisible: true,
+    defaultSize: { w: 2, h: 3 }, minSize: { w: 2, h: 2 },
+    home: "operations",
+    render: (ctx) => <OpsMixChart ctx={ctx} />,
   },
 ]

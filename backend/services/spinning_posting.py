@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlmodel import Session, func, select
 
-from models import Product, StockLocation, User
+from models import Customer, Invoice, InvoiceLine, Product, StockLocation, User
 from models_spinning import (
     STAGE_WIP_ACCOUNTS,
     SpBaleReceipt,
@@ -23,7 +23,7 @@ from services.inventory import InventoryError, consume_stock, record_purchase
 from services.money import D, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services import spinning_calc as calc
-from routers.common import get_default_account, get_or_create_account
+from routers.common import get_default_account, get_or_create_account, next_number
 
 
 def _location(session: Session, tenant_id: int, code: str, ltype: str) -> StockLocation:
@@ -384,6 +384,53 @@ def approve_yarn_dispatch(session: Session, user: User, dispatch: SpYarnDispatch
     dispatch.transaction_id = txn.id
     dispatch.status = "approved"
     dispatch.dispatch_value = calc.dispatch_value(dispatch.net_kg, dispatch.rate_per_kg)
+
+    # Uniform sales link — create AR Invoice when customer + rate present
+    if dispatch.customer_id and D(dispatch.rate_per_kg or 0) > ZERO and D(dispatch.net_kg) > ZERO:
+        revenue = get_or_create_account(
+            session, user.tenant_id, "4170", "Yarn Sales Revenue", "Revenue",
+        )
+        ar = get_or_create_account(
+            session, user.tenant_id, "1100", "Accounts Receivable", "Asset",
+        )
+        sales_amt = money(D(dispatch.net_kg) * D(dispatch.rate_per_kg))
+        cust = session.get(Customer, dispatch.customer_id)
+        inv_num = next_number(session, user.tenant_id, "invoice", "INV", fmt="{prefix}-{YYYY}-{seq:04d}")
+        inv = Invoice(
+            tenant_id=user.tenant_id, number=inv_num,
+            customer_id=dispatch.customer_id,
+            customer_name=cust.name if cust else "Customer",
+            issue_date=dispatch.date, due_date=dispatch.date,
+            description=f"Yarn dispatch {dispatch.number}",
+            subtotal=sales_amt, gst_rate=ZERO, gst_amount=ZERO, total=sales_amt,
+            currency="PKR", exchange_rate=D("1"), status="open",
+            ar_account_id=ar.id, revenue_account_id=revenue.id,
+            created_by_id=user.id,
+        )
+        session.add(inv)
+        session.flush()
+        session.add(InvoiceLine(
+            invoice_id=inv.id,
+            description=f"Yarn {spec.code if spec else ''} — {dispatch.net_kg} kg",
+            qty=D(dispatch.net_kg), unit="KG",
+            rate=D(dispatch.rate_per_kg), amount=sales_amt,
+            product_id=product_id,
+        ))
+        sales_txn = post_transaction(
+            session, user,
+            date=dispatch.date,
+            description=f"Invoice {inv_num} — yarn sales",
+            voucher_type="SL",
+            entries=[
+                EntryInput(account_id=ar.id, debit=sales_amt, customer_id=dispatch.customer_id),
+                EntryInput(account_id=revenue.id, credit=sales_amt),
+            ],
+            reference=inv_num,
+        )
+        inv.transaction_id = sales_txn.id
+        session.add(inv)
+        dispatch.invoice_id = inv.id
+
     session.add(dispatch)
 
 

@@ -162,6 +162,10 @@
     "setupChecklist": "Setup Checklist",
     "keyFigures": "Key Figures",
     "financialOverview": "Financial Overview",
+    "operationsOverview": "Operations Overview",
+    "financial": "Financial",
+    "operations": "Operations",
+    "homeDashboard": "Home dashboard",
     "workflowGuide": "Workflow Guide",
     "newEntry": "New Entry"
   },
@@ -182,6 +186,9 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Financial Overview",
+    "financial": "Financial",
+    "operations": "Operations",
+    "operationsSubtitle": "Operations Overview",
     "revenue": "Revenue",
     "expenses": "Expenses",
     "netProfit": "Net Profit",

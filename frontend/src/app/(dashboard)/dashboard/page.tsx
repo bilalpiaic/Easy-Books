@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
+import { useHomeDashboard } from "@/hooks/useHomeDashboard"
 import { Settings2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
@@ -20,6 +21,7 @@ import { useDashboardLayout } from "@/hooks/useDashboardLayout"
 import {
   type DashboardData, type ChartData, type WidgetContext, type DashboardChartConfigs,
 } from "@/lib/dashboardWidgets"
+import type { OperationsSummary } from "@/lib/operationsSummary"
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, LineElement,
@@ -37,7 +39,7 @@ function defaultRange() {
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }
 }
 
-export default function Dashboard() {
+function DashboardInner() {
   const fmt = useFmtCompact()
   const fmtFull = useFmt()
   const range = defaultRange()
@@ -45,34 +47,51 @@ export default function Dashboard() {
   const [end, setEnd]     = useState(range.end)
   const [data, setData]   = useState<DashboardData | null>(null)
   const [charts, setCharts] = useState<ChartData | null>(null)
+  const [opsSummary, setOpsSummary] = useState<OperationsSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { settings, reload: reloadSettings } = useSettings()
-  const { isPortal, settled } = usePRAPortal()
+  const { isPortal, settled: praSettled } = usePRAPortal()
+  const { view, setView, opsAvailable, settled: homeSettled, subtitle } = useHomeDashboard()
   const router = useRouter()
   const { t } = useTranslation()
   const [checklistDismissed, setChecklistDismissed] = useState(false)
 
-  const layout = useDashboardLayout()
+  const layout = useDashboardLayout(view)
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
-    if (settled && isPortal) router.replace("/pra-dashboard")
-  }, [settled, isPortal, router])
+    if (praSettled && isPortal) router.replace("/pra-dashboard")
+  }, [praSettled, isPortal, router])
 
   useEffect(() => {
+    if (view !== "financial") return
     setData(null)
     apiFetch<DashboardData>(`/api/reports/dashboard?start=${start}&end=${end}`)
       .then(d => { if (!d.summary) throw new Error("Invalid response"); setData(d) })
       .catch(err => setError((err as Error).message))
-  }, [start, end])
+  }, [start, end, view])
 
   useEffect(() => {
+    if (view !== "financial") return
     apiFetch<ChartData>("/api/reports/dashboard/charts?months=12")
       .then(setCharts)
       .catch(() => {})
-  }, [])
+  }, [view])
 
-  if (settled && isPortal) return null
+  useEffect(() => {
+    if (view !== "operations") return
+    setOpsSummary(null)
+    apiFetch<OperationsSummary>("/api/dashboard/operations-summary")
+      .then(setOpsSummary)
+      .catch(err => setError((err as Error).message))
+  }, [view])
+
+  // Exit customize mode when switching homes so save state stays per-view
+  useEffect(() => {
+    setEditing(false)
+  }, [view])
+
+  if ((praSettled && isPortal) || !homeSettled) return null
 
   const s = data?.summary
   const netProfit = s ? s.total_revenue - s.total_expense : 0
@@ -155,6 +174,8 @@ export default function Dashboard() {
     settings, reloadSettings, checklistDismissed, setChecklistDismissed, t,
     quickActions: layout.quickActions,
     updateQuickActions: layout.updateQuickActions,
+    view,
+    opsSummary,
   }
 
   const onboardingWidget = WIDGET_REGISTRY.find(w => w.id === "onboarding")
@@ -165,12 +186,42 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">{t('nav.Dashboard', 'Dashboard')}</h1>
-          <p className="text-xs text-[var(--text-primary)]/50 mt-0.5 font-medium tracking-wide uppercase">{t('common.financialOverview', 'Financial Overview')}</p>
+          <p className="text-xs text-[var(--text-primary)]/50 mt-0.5 font-medium tracking-wide uppercase">
+            {view === "financial" ? t('common.financialOverview', 'Financial Overview') : subtitle}
+          </p>
+          {opsAvailable && (
+            <div className="mt-2 inline-flex rounded-lg border border-[var(--border)] bg-white p-0.5 shadow-sm print:hidden">
+              <button
+                type="button"
+                onClick={() => setView("financial")}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  view === "financial"
+                    ? "bg-[var(--primary)] text-white"
+                    : "text-[var(--text-primary)]/60 hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Financial
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("operations")}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  view === "operations"
+                    ? "bg-[var(--primary)] text-white"
+                    : "text-[var(--text-primary)]/60 hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Operations
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="bg-white border border-[var(--border)] rounded-xl px-3 py-2 shadow-sm">
-            <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label={t('common.period', 'Period')} />
-          </div>
+          {view === "financial" && (
+            <div className="bg-white border border-[var(--border)] rounded-xl px-3 py-2 shadow-sm">
+              <DateRangePicker start={start} end={end} onStartChange={setStart} onEndChange={setEnd} label={t('common.period', 'Period')} />
+            </div>
+          )}
           {!editing && (
             <button
               onClick={() => setEditing(true)}
@@ -184,11 +235,19 @@ export default function Dashboard() {
 
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      {/* Pinned notices (not part of the customizable grid) */}
-      {onboardingWidget?.render(ctx)}
-      {alertsWidget?.render(ctx)}
+      {/* Pinned notices — financial home only */}
+      {view === "financial" && onboardingWidget?.render(ctx)}
+      {view === "financial" && alertsWidget?.render(ctx)}
 
       <DashboardGrid layout={layout} ctx={ctx} editing={editing} onExitEditing={() => setEditing(false)} />
     </div>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<div className="shimmer h-40 rounded-xl" />}>
+      <DashboardInner />
+    </Suspense>
   )
 }

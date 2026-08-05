@@ -58,13 +58,16 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Report Builder** — user-configurable reports (column chooser, click-to-filter, grouping/totals, saved views, CSV/XLSX export), backed by a whitelisted data-source registry + tenant-safe report engine on the backend
 - **Freeze panes (v3.1)** — table reports scroll inside a bounded viewport with a sticky header row and sticky totals row (`.table-freeze`); wide reports also lock the first column (`.freeze-col`) — Excel-style scrolling on aging, ledgers, performance and industry reports
 
-**Dashboard (v2.5+)**
-- Per-user drag-to-arrange, resize, show/hide widgets — layouts saved per-user via `/api/dashboard/layout`
-- Responsive 2D grid (react-grid-layout) — 4-col desktop / 2-col tablet / 1-col phone; per-breakpoint layouts saved independently
-- **Shortcut tiles** — pin any nav page (invoices, bills, bank accounts, …) as a dashboard tile with live metric badge (count / total)
-- **Data widgets** — opt-in Bank Balances, Top Products, Inventory Summary (self-fetching; zero additional backend queries); Top Customers and Top Products show the **top 10** entries
-- **Net Worth Trend (v3.1)** — combo chart widget: Assets as upward bars, Liabilities as downward bars around a zero axis, Net Worth as an overlaid line; 3M/6M/1Y/All range selector; click legend entries to toggle series
-- **Unified KPI cards (v3.1)** — all stat tiles render through one shared `KpiCard` component (tone variants, icon/no-icon layouts, dark-mode-safe theme variables)
+**Dashboard (v2.5+ / dual-home v4)**
+- **Two homes per tenant** — **Financial** (P&amp;L / cash / AR-AP) and **Operations** (purpose-built industry KPIs), toggled on `/dashboard` and preferred via Settings → Advanced → Home dashboard (`eb.home_dashboard`)
+- Per-user drag-to-arrange, resize, show/hide widgets — **each home saved independently** via `/api/dashboard/layout` (schema v4 dual-slice JSON; v1–v3 migrate under Financial)
+- Responsive 2D grid (react-grid-layout) — 4-col desktop / 2-col tablet / 1-col phone; per-breakpoint layouts per home
+- **Operations widgets** — ops KPIs / pipeline / alerts plus Spinning, Weaving, Production WIP, Healthcare census, Telecom tracker, Purchases pipeline, Textile Processing tiles (module-gated); aggregate API `GET /api/dashboard/operations-summary`
+- **Shortcut tiles** — pin any nav page as a dashboard tile with live metric badge (count / total); Quick Actions differ per home
+- **Data widgets** — opt-in Bank Balances, Top Products, Inventory Summary; Top Customers and Top Products show the **top 10** entries
+- **Net Worth Trend (v3.1)** — combo chart widget: Assets as upward bars, Liabilities as downward bars around a zero axis, Net Worth as an overlaid line; 3M/6M/1Y/All range selector
+- **Unified KPI cards (v3.1)** — shared `KpiCard` component (tone variants, icon/no-icon layouts, dark-mode-safe theme variables)
+- **Staff Rights** — `dashboard.financial` / `dashboard.operations` resources in the User Rights matrix
 - **Cash-flow tie-out** — reconciling row on the Cash Flow statement shows ✓ (balanced) or amber delta per IAS 7
 
 **Navigation & UX (v2.7)**
@@ -473,9 +476,10 @@ uv run arq worker.WorkerSettings
 | [`USER_GUIDE.md`](./USER_GUIDE.md) | End-user walkthrough for every feature |
 | [`WORKFLOW.md`](./WORKFLOW.md) | Accounting workflows, GL Dr/Cr maps, report-linking matrix, API catalog |
 | [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md) | One-click installer, Electron desktop app, data safety, update paths |
-| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud / Vercel deployment for backend + frontend |
+| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Cloud deploy: frontend + API on Vercel, database on Neon |
 | [`BLUEPRINT.md`](./BLUEPRINT.md) | Complete project blueprint: every model, endpoint, flow, and decision |
 | [`docs/PRESENTATION.md`](./docs/PRESENTATION.md) | Project review pack — architecture Mermaid diagrams + Good/Better/Best vs Odoo, QB, peers |
+| [`docs/marketing/`](./docs/marketing/) | Narrated pictograph video, slides, voiceover script, and social media attraction pack |
 | [`CLAUDE.md`](./CLAUDE.md) | AI-assistant instructions and architecture reference |
 | [`backend/README.md`](./backend/README.md) | Backend quick-start, commands, structure, API conventions |
 | [`frontend/README.md`](./frontend/README.md) | Frontend quick-start, scripts, environment variables |

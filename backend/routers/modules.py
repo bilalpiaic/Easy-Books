@@ -201,6 +201,15 @@ def install_module(
     _set_enabled(tenant, enabled, session)
     _set_meta(tenant, meta, session)
 
+    # Uniform CoA + stock locations for every newly installed pack (idempotent).
+    from services.module_integration import ensure_module_integration
+    integration_results: list[dict] = []
+    for mid in to_install:
+        integration_results.append(
+            ensure_module_integration(session, current_user.tenant_id, mid)
+        )
+    session.commit()
+
     sample_results: list[dict] = []
     if "pra" in to_install:
         from services.module_sample_data import enable_pra_settings
@@ -227,8 +236,39 @@ def install_module(
         "enabled_modules": sorted(set(enabled)),
         "installed": to_install,
         "message": f"Installed: {', '.join(to_install)}",
+        "integration": integration_results,
         "sample_data": sample_results,
     }
+
+
+@router.get("/api/modules/integration-status")
+def module_integration_status(current_user: CurrentUserDep, session: SessionDep):
+    """CoA / location health for installed industry packs (uniform tenant integration)."""
+    from models import Tenant
+    from services.module_integration import integration_status
+    tenant = session.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+    return integration_status(session, current_user.tenant_id, _get_enabled(tenant))
+
+
+@router.post("/api/modules/repair-integration")
+def repair_module_integration(current_user: CurrentUserDep, session: SessionDep):
+    """Backfill missing CoA accounts and stock locations for all installed packs."""
+    if current_user.role not in ("admin", "owner"):
+        raise HTTPException(403, "Only admin or owner can repair module integration")
+    from models import Tenant
+    from services.module_integration import ensure_module_integration, integration_status
+    tenant = session.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+    enabled = _get_enabled(tenant)
+    results = []
+    for mid in enabled:
+        results.append(ensure_module_integration(session, current_user.tenant_id, mid))
+    session.commit()
+    status = integration_status(session, current_user.tenant_id, enabled)
+    return {"repaired": results, "status": status}
 
 
 @router.post("/api/modules/{module_id}/uninstall")

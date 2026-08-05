@@ -259,7 +259,10 @@ async def upload_logo(session: SessionDep, user: WriteUserDep, file: UploadFile 
 
 # ── Business-model switching ─────────────────────────────────────────────────
 
-_VALID_MODELS = {"simple", "services", "trader", "manufacturing", "telecom_franchise", "yarn_spinning"}
+_VALID_MODELS = {
+    "simple", "services", "trader", "manufacturing", "telecom_franchise",
+    "yarn_spinning", "textile_processing",
+}
 
 
 class BusinessModelUpdate(BaseModel):

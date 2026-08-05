@@ -79,6 +79,13 @@ export const ADDON_PACKS: AddonPack[] = [
     features: ["Bale receipt & lots", "Multi-stage tracking", "Cone output & GL costing"],
   },
   {
+    id: "textile_processing",
+    label: "Textile Processing",
+    tagline: "Printing / ballor unit",
+    modules: ["inventory", "purchase_store", "textile_processing"],
+    features: ["Grey lots & mending", "PPC stages & wastage", "Process billing & grey credit"],
+  },
+  {
     id: "ai",
     label: "AI Assistant",
     tagline: "Ask your books",
@@ -99,4 +106,4 @@ export const ADDON_HOMES: AddonHome[] = [
   { module: "pra", href: "/pra-dashboard", label: "PRA Sales", preferenceKey: "pra" },
 ]
 
-export const HOME_PREF_KEY = "eb.home_dashboard"
+export { HOME_PREF_KEY } from "@/lib/dashboardHome"

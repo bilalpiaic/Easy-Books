@@ -5,7 +5,9 @@ import { Plus, Undo2, Download, Printer } from "lucide-react"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import DocLink from "@/components/DocLink"
 import { apiFetch } from "@/lib/api"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useSettings } from "@/context/SettingsContext"
+import CurrencyRatePicker from "@/components/fx/CurrencyRatePicker"
+import { isForeignCurrency, toBase } from "@/lib/fx"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 import StatusBadge from "@/components/StatusBadge"
@@ -18,10 +20,19 @@ interface DebitNote {
   total: number
   status: string
   bill_id: number
+  currency?: string
+  exchange_rate?: number
 }
 
 interface Vendor { id: number; name: string }
-interface Bill { id: number; number: string; vendor_id: number | null; total: number }
+interface Bill {
+  id: number
+  number: string
+  vendor_id: number | null
+  total: number
+  currency?: string
+  exchange_rate?: number
+}
 
 interface DNForm {
   bill_id: string
@@ -29,14 +40,20 @@ interface DNForm {
   issue_date: string
   description: string
   gst_amount: string
+  currency: string
+  exchange_rate: string
   lines: Array<{ product_id: string; description: string; qty: string; rate: string }>
 }
 
-const emptyForm: DNForm = {
-  bill_id: '', vendor_id: '',
-  issue_date: new Date().toISOString().split('T')[0],
-  description: '', gst_amount: '0',
-  lines: [{ product_id: '', description: '', qty: '1', rate: '0' }],
+function makeEmptyForm(baseCurrency: string): DNForm {
+  return {
+    bill_id: '', vendor_id: '',
+    issue_date: new Date().toISOString().split('T')[0],
+    description: '', gst_amount: '0',
+    currency: baseCurrency,
+    exchange_rate: '1',
+    lines: [{ product_id: '', description: '', qty: '1', rate: '0' }],
+  }
 }
 
 
@@ -44,11 +61,12 @@ export default function DebitNotesPage() {
   const { t } = useTranslation()
 
   const fmt = useFmt()
+  const { settings } = useSettings()
   const [items, setItems] = useState<DebitNote[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<DNForm>(emptyForm)
+  const [form, setForm] = useState<DNForm>(() => makeEmptyForm('PKR'))
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [bills, setBills] = useState<Bill[]>([])
   const [saving, setSaving] = useState(false)
@@ -63,7 +81,7 @@ export default function DebitNotesPage() {
   useEffect(() => { load() }, [])
 
   async function openModal() {
-    setForm(emptyForm)
+    setForm(makeEmptyForm(settings.currency || 'PKR'))
     setFormError('')
     const [vData, bData] = await Promise.all([
       apiFetch<{ items: Vendor[] }>('/api/vendors?limit=200'),
@@ -96,6 +114,8 @@ export default function DebitNotesPage() {
           issue_date: form.issue_date,
           description: form.description || null,
           gst_amount: parseFloat(form.gst_amount) || 0,
+          currency: form.currency || settings.currency,
+          exchange_rate: parseFloat(form.exchange_rate) || 1,
           lines: form.lines.map(l => ({
             product_id: l.product_id ? parseInt(l.product_id) : null,
             description: l.description,
@@ -212,10 +232,25 @@ export default function DebitNotesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Original Bill</label>
-                  <select value={form.bill_id} onChange={e => setForm(f => ({ ...f, bill_id: e.target.value }))}
+                  <select
+                    value={form.bill_id}
+                    onChange={e => {
+                      const id = e.target.value
+                      const bill = bills.find(b => String(b.id) === id)
+                      setForm(f => ({
+                        ...f,
+                        bill_id: id,
+                        currency: bill?.currency || f.currency || settings.currency,
+                        exchange_rate: bill ? String(bill.exchange_rate ?? 1) : f.exchange_rate,
+                      }))
+                    }}
                     className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
                     <option value="">Select bill</option>
-                    {visibleBills.map(b => <option key={b.id} value={b.id}>{b.number} — {fmt(b.total)}</option>)}
+                    {visibleBills.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.number} — {fmt(b.total)}{b.currency ? ` ${b.currency}` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -224,6 +259,18 @@ export default function DebitNotesPage() {
                 <input type="date" value={form.issue_date} onChange={e => setForm(f => ({ ...f, issue_date: e.target.value }))}
                   className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
               </div>
+              <CurrencyRatePicker
+                currency={form.currency}
+                exchangeRate={form.exchange_rate}
+                baseCurrency={settings.currency}
+                onDate={form.issue_date}
+                onCurrencyChange={cur => setForm(f => ({
+                  ...f,
+                  currency: cur,
+                  exchange_rate: cur === settings.currency ? '1' : f.exchange_rate,
+                }))}
+                onRateChange={rate => setForm(f => ({ ...f, exchange_rate: rate }))}
+              />
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Reason</label>
                 <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -254,8 +301,17 @@ export default function DebitNotesPage() {
                   className="w-32 px-2 py-1.5 bg-[var(--bg-page)] rounded-lg text-sm text-right outline-none focus:ring-1 focus:ring-[var(--primary)]" />
               </div>
               <div className="flex justify-between font-bold text-sm border-t border-[var(--border)] pt-3">
-                <span>Total Return</span><span className="font-mono">{fmt(subtotal + (parseFloat(form.gst_amount) || 0))}</span>
+                <span>Total Return ({form.currency})</span>
+                <span className="font-mono">{fmt(subtotal + (parseFloat(form.gst_amount) || 0))}</span>
               </div>
+              {isForeignCurrency(form.currency, settings.currency) && (
+                <div className="flex justify-between text-xs text-[var(--text-muted)]">
+                  <span>≈ {settings.currency} equivalent</span>
+                  <span className="font-mono">
+                    {fmt(toBase(subtotal + (parseFloat(form.gst_amount) || 0), { exchange_rate: form.exchange_rate }))}
+                  </span>
+                </div>
+              )}
               <p className="text-xs text-[var(--text-muted)] italic">GL: Dr Accounts Payable / Cr Inventory (at original cost) + Cr GST Input. Stock is reduced.</p>
               {formError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>}
               <button onClick={handleSave} disabled={saving}

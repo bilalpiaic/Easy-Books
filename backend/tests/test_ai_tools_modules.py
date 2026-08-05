@@ -47,7 +47,8 @@ def test_module_tools_smoke(client: TestClient):
     auth = _signup(client, "mt1@t.com")
     # deps are installed recursively by the modules router
     _install(client, auth, "inventory", "production", "hrm", "telecom",
-             "healthcare", "purchase_store", "weaving", "spinning", "pra")
+             "healthcare", "purchase_store", "weaving", "spinning", "pra",
+             "textile_processing", "sa_zatca", "eu_peppol", "uae_vat", "in_gst")
 
     r = client.post("/api/products", headers=auth,
                     json={"name": "Widget", "product_type": "stock"})
@@ -151,6 +152,26 @@ def test_module_tools_smoke(client: TestClient):
             "get_spinning_dashboard": {},
             "get_spinning_daily": {},
             "get_lot_control": {"lot_id": spin_lot_id},
+            "get_spinning_waste": {},
+            "get_spinning_cost_per_kg": {},
+            "get_spinning_dispatch": {},
+            # textile_processing
+            "get_tp_lot_register": {},
+            "get_tp_rejection_register": {},
+            "get_tp_stock_ledger": {},
+            "get_tp_ppc_stage": {},
+            "find_tp_lot": {"query": "GL"},
+            # production scrap
+            "get_scrap_by_reason": {},
+            # localization
+            "get_zatca_logs": {},
+            "get_invoice_zatca_status": {"invoice_id": invoice_id},
+            "get_peppol_logs": {},
+            "get_invoice_peppol_status": {"invoice_id": invoice_id},
+            "get_uae_logs": {},
+            "get_invoice_uae_status": {"invoice_id": invoice_id},
+            "get_gstr1": {"start": "2026-07-01", "end": "2026-07-31"},
+            "get_gstr3b": {"start": "2026-07-01", "end": "2026-07-31"},
             # pra
             "get_pra_logs": {},
             "get_invoice_pra_status": {"invoice_id": invoice_id},

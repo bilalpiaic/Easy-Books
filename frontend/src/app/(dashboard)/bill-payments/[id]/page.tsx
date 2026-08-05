@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Printer, Receipt } from "lucide-react"
 import { useBreadcrumb } from "@/context/BreadcrumbContext"
 import { apiFetch } from "@/lib/api"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useSettings } from "@/context/SettingsContext"
 import AttachmentPanel, { AttachmentPreviewPane, type Attachment as AttachmentT } from "@/components/AttachmentPanel"
+import { fxGainLossLabel, isForeignCurrency } from "@/lib/fx"
 import { useTranslation } from "react-i18next"
 
 interface Allocation {
@@ -21,16 +22,24 @@ interface BillPayment {
   vendor_name: string | null
   payment_date: string
   amount: string | number
+  currency?: string | null
+  exchange_rate?: string | number | null
   method: string
   reference: string | null
   transaction_id: number | null
   allocations: Allocation[]
+  cash_base?: string | number | null
+  cleared_base?: string | number | null
+  realised_fx?: string | number | null
+  is_fx?: boolean
 }
 
 export default function BillPaymentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { t } = useTranslation()
 
   const fmt = useFmt()
+  const { settings } = useSettings()
+  const baseCurrency = settings.currency || "USD"
   const { id } = use(params)
   const [pay, setPay] = useState<BillPayment | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +68,10 @@ export default function BillPaymentDetail({ params }: { params: Promise<{ id: st
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Bill Payment #{pay.id}</h1>
           <p className="text-sm text-[var(--text-primary)]/60">
             {pay.payment_date} · {pay.method}{pay.reference ? ` · ${pay.reference}` : ""}
+            {pay.currency ? ` · ${pay.currency}` : ""}
+            {pay.exchange_rate != null && Number(pay.exchange_rate) !== 1
+              ? ` @ ${Number(pay.exchange_rate).toFixed(4)}`
+              : ""}
           </p>
         </div>
       </header>
@@ -106,9 +119,33 @@ export default function BillPaymentDetail({ params }: { params: Promise<{ id: st
           </tbody>
           <tfoot className="bg-[var(--bg-page)] border-t border-[var(--text-primary)]">
             <tr>
-              <td className="px-4 py-2 text-sm font-bold">Total paid</td>
+              <td className="px-4 py-2 text-sm font-bold">
+                Total paid{pay.currency ? ` (${pay.currency})` : ""}
+              </td>
               <td className="px-4 py-2 text-right font-mono font-bold">{fmt(Number(pay.amount))}</td>
             </tr>
+            {pay.currency && isForeignCurrency(pay.currency, baseCurrency) && pay.cash_base != null && (
+              <>
+                <tr>
+                  <td className="px-4 py-1.5 text-xs text-[var(--text-muted)]">Cash in {baseCurrency}</td>
+                  <td className="px-4 py-1.5 text-right font-mono text-xs">{fmt(Number(pay.cash_base))}</td>
+                </tr>
+                {pay.cleared_base != null && (
+                  <tr>
+                    <td className="px-4 py-1.5 text-xs text-[var(--text-muted)]">AP cleared ({baseCurrency})</td>
+                    <td className="px-4 py-1.5 text-right font-mono text-xs">{fmt(Number(pay.cleared_base))}</td>
+                  </tr>
+                )}
+                {pay.realised_fx != null && (
+                  <tr>
+                    <td className="px-4 py-1.5 text-xs text-[var(--text-muted)]">Realised FX (4903)</td>
+                    <td className={`px-4 py-1.5 text-right font-mono text-xs font-semibold ${Number(pay.realised_fx) < 0 ? "text-green-700" : Number(pay.realised_fx) > 0 ? "text-red-700" : ""}`}>
+                      {fxGainLossLabel(Number(pay.realised_fx), "bill_payment")}
+                    </td>
+                  </tr>
+                )}
+              </>
+            )}
           </tfoot>
         </table>
       </section>

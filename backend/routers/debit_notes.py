@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from models import Account, Bill, DebitNote, DebitNoteLine, Product, Vendor
+from models import Account, Bill, DebitNote, DebitNoteLine, Product, Tenant, Vendor
 from routers.common import (
     SessionDep,
     WriteUserDep,
@@ -20,7 +20,7 @@ from routers.common import (
     next_number,
 )
 from services.inventory import InventoryError, return_to_vendor
-from services.money import D, ZERO, money
+from services.money import D, ONE, ZERO, money
 from services.posting import EntryInput, post_transaction
 from services.permissions import perm_dep, apply_own_filter
 
@@ -45,8 +45,9 @@ class DNCreate(BaseModel):
     lines: List[DNLineCreate] = []
     gst_amount: Decimal = Decimal("0")
     ap_account_id: Optional[int] = None
-    currency: str = "PKR"
-    exchange_rate: Decimal = Decimal("1")
+    # None → inherit from linked bill, else tenant base @ 1 (#300)
+    currency: Optional[str] = None
+    exchange_rate: Optional[Decimal] = None
 
 
 @router.get("")
@@ -94,6 +95,16 @@ def create_debit_note(session: SessionDep, user: WriteUserDep, body: DNCreate):
             raise HTTPException(400, "Vendor not found for this tenant")
         vendor_name = vendor_name or v.name
 
+    tenant = session.get(Tenant, user.tenant_id)
+    base_ccy = tenant.base_currency if tenant else "PKR"
+    currency = body.currency if body.currency is not None else bill.currency or base_ccy
+    if body.exchange_rate is not None:
+        exchange_rate = D(str(body.exchange_rate))
+    else:
+        exchange_rate = D(str(bill.exchange_rate)) if bill.exchange_rate is not None else ONE
+    if exchange_rate <= ZERO:
+        raise HTTPException(400, "exchange_rate must be > 0")
+
     subtotal = money(sum(D(ln.qty) * D(ln.rate) for ln in body.lines))
     gst = money(D(str(body.gst_amount)))
     total = money(subtotal + gst)
@@ -104,8 +115,8 @@ def create_debit_note(session: SessionDep, user: WriteUserDep, body: DNCreate):
         tenant_id=user.tenant_id, number=number, bill_id=bill.id,
         vendor_id=vendor_id, vendor_name=vendor_name, issue_date=body.issue_date,
         description=body.description, notes=body.notes, subtotal=subtotal,
-        gst_amount=gst, total=total, currency=body.currency,
-        exchange_rate=D(str(body.exchange_rate)), status="draft",
+        gst_amount=gst, total=total, currency=currency,
+        exchange_rate=exchange_rate, status="draft",
     )
     session.add(dn)
     session.flush()
@@ -119,7 +130,7 @@ def create_debit_note(session: SessionDep, user: WriteUserDep, body: DNCreate):
             )
         )
 
-    fx = D(str(body.exchange_rate))
+    fx = exchange_rate
     gst_base = money(gst * fx)
 
     ap_acc = (

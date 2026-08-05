@@ -6,6 +6,9 @@ from models import Account, PaymentTerm, ProductCategory, SequenceCounter, Setti
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# Neon (and most managed Postgres) require TLS. Prefer the Neon *pooled*
+# connection string (`…-pooler.…neon.tech`) on Vercel — each invocation
+# opens at most one connection (pool_size=1) so the pooler can multiplex.
 if DATABASE_URL:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -19,10 +22,17 @@ if DATABASE_URL:
         max_overflow=0,
     )
 else:
-    _environment = os.environ.get("ENVIRONMENT", "development").lower()
-    if _environment == "production":
+    _environment = (
+        os.environ.get("ENVIRONMENT")
+        or os.environ.get("APP_ENV")
+        or os.environ.get("ENV")
+        or "development"
+    ).lower()
+    _on_vercel = os.environ.get("VERCEL", "").lower() in ("1", "true")
+    if _environment in ("production", "prod") or _on_vercel:
         raise RuntimeError(
             "DATABASE_URL environment variable must be set in production. "
+            "Point it at Neon Postgres (pooled connection string). "
             "SQLite fallback is not supported for serverless deployments."
         )
     from local_config import sqlite_path
@@ -96,6 +106,7 @@ def create_db_and_tables():
                 ("demo.pra@easy-books.app", "trader", "Lahore Retail Traders (PRA Demo)", "Demo User"),
                 ("demo.hospital@easy-books.app", "hospital", "City General Hospital (Demo)", "Demo User"),
                 ("demo.spinning@easy-books.app", "yarn_spinning", "Demo - Yarn Spinning Mill", "Demo User"),
+                ("demo.processing@easy-books.app", "textile_processing", "Demo - Textile Processing Unit", "Demo User"),
             ]
             demo_password_hash = get_password_hash("demo1234")
             created = 0
@@ -356,7 +367,19 @@ _COA_TELECOM_FRANCHISE_EXTRA: list[tuple[str, str, str, bool, str]] = [
 ]
 
 
-# Yarn Spinning CoA — stage WIP sub-accounts + waste + FG yarn
+# Textile Processing CoA — process revenue, wastage sales, contractor labor, shrinkage.
+# 5220/5215 avoid colliding with manufacturing 5200 (OH) / 5210 (indirect materials).
+# Custodial 1210/2150 pair mirrors manufacturing GRN for customer-owned grey.
+_COA_TEXTILE_PROCESSING_EXTRA: list[tuple[str, str, str, bool, str]] = [
+    ("1210", "Customer Goods on Hand",     "Asset",     True,  "11"),
+    ("2150", "Customer Goods Liability",   "Liability", True,  "21"),
+    ("4150", "Processing Revenue",         "Revenue", False, "41"),
+    ("4160", "Wastage Sales Revenue",      "Revenue", False, "41"),
+    ("5220", "Contractor Labor Expense",   "Expense", False, "52"),
+    ("5215", "Process Shrinkage Expense",  "Expense", False, "52"),
+]
+
+# Yarn Spinning CoA — stage WIP sub-accounts + waste + FG yarn + sales revenue
 _COA_YARN_SPINNING_EXTRA: list[tuple[str, str, str, bool, str]] = [
     ("1200", "Raw Cotton / Fiber Inventory", "Asset",     False, "11"),
     ("1201", "WIP — Opening & Carding",      "Asset",     False, "11"),
@@ -364,6 +387,7 @@ _COA_YARN_SPINNING_EXTRA: list[tuple[str, str, str, bool, str]] = [
     ("1203", "WIP — Ring Spinning",          "Asset",     False, "11"),
     ("1204", "Finished Yarn Inventory",      "Asset",     False, "11"),
     ("1250", "GST Receivable (Input)",       "Asset",     False, "11"),
+    ("4170", "Yarn Sales Revenue",           "Revenue",   False, "41"),
     ("5010", "Cost of Goods Sold",           "Expense",   False, "51"),
     ("5100", "Direct Labour",                "Expense",   False, "51"),
     ("5200", "Manufacturing Overhead",       "Expense",   False, "51"),
@@ -415,6 +439,7 @@ def _coa_for(business_model: str):
         "telecom_franchise": _COA_TELECOM_FRANCHISE_EXTRA,
         "hospital":          _COA_HEALTHCARE_EXTRA,
         "yarn_spinning":     _COA_YARN_SPINNING_EXTRA,
+        "textile_processing": _COA_TEXTILE_PROCESSING_EXTRA,
     }
     for row in extra_map.get(business_model, []):
         by_code[row[0]] = row
@@ -600,6 +625,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Spinning"],
     },
+    "textile_processing": {
+        "label":       "Textile Processing",
+        "description": "Ballor/jobber printing unit: customer-owned grey lots, mending, PPC stages, process billing, contractor labor, and grey settlement.",
+        "category":    "Industry",
+        "icon":        "Layers",
+        "deps":        ["base", "inventory", "purchase_store"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Processing"],
+    },
 }
 
 # Maps legacy business_model → sensible default module set.
@@ -614,6 +650,7 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],
     "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning"],
+    "textile_processing": ["base", "inventory", "purchase_store", "textile_processing"],
 }
 
 
@@ -769,6 +806,22 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                     s.add(StockLocation(
                         tenant_id=tenant_id, code=code, name=name, type=ltype,
                     ))
+        if model == "textile_processing":
+            for code, name, ltype in (
+                ("GODOWN", "Customer Grey Godown", "customer_custodial"),
+                ("REJ",    "Rejection Bay",        "customer_custodial"),
+                ("WIP",    "Processing Floor",     "wip"),
+            ):
+                exists = s.exec(
+                    select(StockLocation).where(
+                        StockLocation.tenant_id == tenant_id,
+                        StockLocation.code == code,
+                    )
+                ).first()
+                if not exists:
+                    s.add(StockLocation(
+                        tenant_id=tenant_id, code=code, name=name, type=ltype,
+                    ))
         # Seed default payment terms for every tenant
         for code, name, days in (
             ("DOR",   "Due on Receipt",  0),
@@ -799,6 +852,8 @@ def seed_data(tenant_id: int, session: Optional[Session] = None):
                                   "Services": ["OPD", "Lab", "IPD"]},
             "yarn_spinning":     {"Raw Fiber": ["Cotton Bales", "Synthetic"],
                                   "Finished Yarn": ["Carded", "Combed", "Blended"]},
+            "textile_processing": {"Process Chemicals": ["Dyes", "Auxiliaries"],
+                                   "Maintenance": ["Spares", "Consumables"]},
         }
         if not s.exec(select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)).first():
             for parent_name, subs in STARTER_CATEGORIES.get(model, {}).items():

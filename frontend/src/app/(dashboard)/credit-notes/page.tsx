@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Plus, Receipt, Download, Printer } from "lucide-react"
 import { downloadCSV, fmtDate } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
-import { useFmt } from "@/context/SettingsContext"
-import { useSettings } from "@/context/SettingsContext"
+import { useFmt, useSettings } from "@/context/SettingsContext"
+import CurrencyRatePicker from "@/components/fx/CurrencyRatePicker"
+import { isForeignCurrency, toBase } from "@/lib/fx"
 import DocLink from "@/components/DocLink"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
@@ -20,10 +21,19 @@ interface CreditNote {
   total: number
   status: string
   invoice_id: number | null
+  currency?: string
+  exchange_rate?: number
 }
 
 interface Customer { id: number; name: string }
-interface Invoice { id: number; number: string; total: number }
+interface Invoice {
+  id: number
+  number: string
+  total: number
+  currency?: string
+  exchange_rate?: number
+  customer_id?: number | null
+}
 interface Product { id: number; name: string; product_type: string }
 
 interface CNForm {
@@ -33,17 +43,23 @@ interface CNForm {
   issue_date: string
   description: string
   gst_amount: string
+  currency: string
+  exchange_rate: string
   lines: Array<{ product_id: string; description: string; qty: string; rate: string }>
 }
 
-const emptyForm: CNForm = {
-  invoice_id: '',
-  customer_id: '',
-  customer_name: '',
-  issue_date: new Date().toISOString().split('T')[0],
-  description: '',
-  gst_amount: '0',
-  lines: [{ product_id: '', description: '', qty: '1', rate: '0' }],
+function makeEmptyForm(baseCurrency: string): CNForm {
+  return {
+    invoice_id: '',
+    customer_id: '',
+    customer_name: '',
+    issue_date: new Date().toISOString().split('T')[0],
+    description: '',
+    gst_amount: '0',
+    currency: baseCurrency,
+    exchange_rate: '1',
+    lines: [{ product_id: '', description: '', qty: '1', rate: '0' }],
+  }
 }
 
 
@@ -56,7 +72,7 @@ export default function CreditNotesPage() {
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<CNForm>(emptyForm)
+  const [form, setForm] = useState<CNForm>(() => makeEmptyForm('PKR'))
   const [customers, setCustomers] = useState<Customer[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -73,7 +89,7 @@ export default function CreditNotesPage() {
   useEffect(() => { load() }, [])
 
   async function openModal() {
-    setForm(emptyForm)
+    setForm(makeEmptyForm(settings.currency || 'PKR'))
     setFormError('')
     const [custData, invData, prodData] = await Promise.all([
       apiFetch<{ items: Customer[] }>('/api/customers?limit=200'),
@@ -121,6 +137,8 @@ export default function CreditNotesPage() {
           issue_date: form.issue_date,
           description: form.description || null,
           gst_amount: parseFloat(form.gst_amount) || 0,
+          currency: form.currency || settings.currency,
+          exchange_rate: parseFloat(form.exchange_rate) || 1,
           lines: form.lines.map(l => ({
             product_id: l.product_id ? parseInt(l.product_id) : null,
             description: l.description,
@@ -251,12 +269,25 @@ export default function CreditNotesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Original Invoice (optional)</label>
-                  <select value={form.invoice_id} onChange={e => setForm(f => ({ ...f, invoice_id: e.target.value }))}
+                  <select
+                    value={form.invoice_id}
+                    onChange={e => {
+                      const id = e.target.value
+                      const inv = invoices.find(i => String(i.id) === id)
+                      setForm(f => ({
+                        ...f,
+                        invoice_id: id,
+                        currency: inv?.currency || f.currency || settings.currency,
+                        exchange_rate: inv ? String(inv.exchange_rate ?? 1) : f.exchange_rate,
+                      }))
+                    }}
                     className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm">
                     <option value="">No linked invoice</option>
-                    {invoices
-                      .filter(inv => !form.customer_id || true) // show all; filter by customer optionally
-                      .map(inv => <option key={inv.id} value={inv.id}>{inv.number} — {fmt(inv.total)}</option>)}
+                    {invoices.map(inv => (
+                      <option key={inv.id} value={inv.id}>
+                        {inv.number} — {fmt(inv.total)}{inv.currency ? ` ${inv.currency}` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -265,6 +296,18 @@ export default function CreditNotesPage() {
                     className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
                 </div>
               </div>
+              <CurrencyRatePicker
+                currency={form.currency}
+                exchangeRate={form.exchange_rate}
+                baseCurrency={settings.currency}
+                onDate={form.issue_date}
+                onCurrencyChange={cur => setForm(f => ({
+                  ...f,
+                  currency: cur,
+                  exchange_rate: cur === settings.currency ? '1' : f.exchange_rate,
+                }))}
+                onRateChange={rate => setForm(f => ({ ...f, exchange_rate: rate }))}
+              />
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Reason</label>
                 <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -312,9 +355,17 @@ export default function CreditNotesPage() {
                 <span className="text-[10px] text-[var(--text-muted)]">optional — reverses output GST on a sales return</span>
               </div>
               <div className="flex justify-between font-bold text-sm border-t border-[var(--border)] pt-3">
-                <span>Total Credit</span>
+                <span>Total Credit ({form.currency})</span>
                 <span className="font-mono text-red-600">({fmt(subtotal + (parseFloat(form.gst_amount) || 0))})</span>
               </div>
+              {isForeignCurrency(form.currency, settings.currency) && (
+                <div className="flex justify-between text-xs text-[var(--text-muted)]">
+                  <span>≈ {settings.currency} equivalent</span>
+                  <span className="font-mono">
+                    {fmt(toBase(subtotal + (parseFloat(form.gst_amount) || 0), { exchange_rate: form.exchange_rate }))}
+                  </span>
+                </div>
+              )}
               <p className="text-xs text-[var(--text-muted)] italic">
                 GL: Dr Sales Revenue (+ Dr GST Payable) / Cr Accounts Receivable. Stock lines also Dr Inventory / Cr COGS and restock.
               </p>

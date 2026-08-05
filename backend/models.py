@@ -29,7 +29,7 @@ def money_col(default: Decimal = ZERO, **kw):
 class Tenant(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(
-            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise','pra_einvoice','hospital','yarn_spinning')",
+            "business_model IN ('simple','services','trader','manufacturing','telecom_franchise','pra_einvoice','hospital','yarn_spinning','textile_processing')",
             name="ck_tenant_business_model",
         ),
         CheckConstraint(
@@ -218,12 +218,17 @@ class TaskDeadLetter(SQLModel, table=True):
 
 
 class UserPermission(SQLModel, table=True):
-    """Sparse per-user permission overrides. When no row exists for a
-    (user_id, resource_key) pair, the role default applies:
-    owner/admin/accountant → edit, viewer → view."""
+    """Sparse per-user permission overrides, scoped per tenant (#299).
+
+    When no row exists for a (tenant_id, user_id, resource_key) triple, the
+    role default applies: owner/admin/accountant → edit, viewer → view.
+    """
     __tablename__ = "user_permission"
     __table_args__ = (
-        UniqueConstraint("user_id", "resource_key", name="uq_user_permission"),
+        UniqueConstraint(
+            "tenant_id", "user_id", "resource_key",
+            name="uq_user_permission_tenant",
+        ),
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
@@ -273,9 +278,14 @@ class CommissionLedger(SQLModel, table=True):
 
 
 class UserDashboardLayout(SQLModel, table=True):
-    """Per-user dashboard layout (#52 §3). Opaque JSON blob — the widget
-    registry and merge logic live in the frontend; the backend only stores
-    and returns the string keyed by (tenant_id, user_id)."""
+    """Per-user dual-home dashboard layout (#52 §3 / v4). Opaque JSON blob —
+    the widget registry and merge logic live in the frontend; the backend only
+    stores and returns the string keyed by (tenant_id, user_id).
+
+    Schema v4: `{version:4, activeView?, dashboards:{financial, operations}}`
+    where each slice holds `{layouts:{lg, sm?, xs?}, dismissed?, quickActions?}`.
+    Older v1–v3 blobs are migrated under `dashboards.financial` on the client.
+    """
     tenant_id: int = Field(foreign_key="tenant.id", primary_key=True)
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     layout_json: str
@@ -2852,4 +2862,12 @@ from models_spinning import (  # noqa: E402,F401
     SpYarnSpec, SpFiberGrade, SpMachine, SpShift, SpOperator, SpWasteType,
     SpRecipe, SpRecipeLine, SpProductionPlan, SpSpinLot,
     SpBaleReceipt, SpStageEntry, SpConeOutput, SpWasteLog, SpYarnDispatch, SpCalcRun,
+)
+from models_textile_processing import (  # noqa: E402,F401
+    TpQuality, TpProcess, TpContractor, TpSalesOrder,
+    TpSalesOrderQualityLine, TpSalesOrderPackingLine,
+    TpGreyLot, TpGreyThan,
+    TpKachiParchi, TpMending, TpPakkiParchi, TpRejectionIssueNote, TpRejectionOgp,
+    TpProductionOrder, TpStageEntry as TpStageEntry, TpPacking, TpBaling,
+    TpDispatch, TpGreySettlement, TpLaborBill, TpInspection,
 )

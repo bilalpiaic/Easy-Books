@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Clock, Printer, Download } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { useFmt } from "@/context/SettingsContext"
+import { useFmt, useSettings } from "@/context/SettingsContext"
 import { downloadCSV, fmtDateJs } from "@/lib/utils"
+import { isForeignCurrency } from "@/lib/fx"
 import PrintHeader from "@/components/PrintHeader"
 import { useTranslation } from "react-i18next"
 
@@ -15,6 +16,8 @@ interface AgingItem {
   number: string
   due_date: string
   amount: number
+  amount_base?: number
+  currency?: string
   days_past: number
   bucket: string
   vendor_id: number | null
@@ -26,6 +29,7 @@ interface AgingData {
   "31_60": number
   "61_90": number
   over_90: number
+  base_currency?: string
   items: AgingItem[]
 }
 
@@ -41,6 +45,8 @@ export default function APAgingPage() {
   const { t } = useTranslation()
 
   const fmt = useFmt()
+  const { settings } = useSettings()
+  const baseCurrency = settings.currency || "USD"
   const [data, setData] = useState<AgingData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null)
@@ -59,7 +65,9 @@ export default function APAgingPage() {
       "Bill #": r.number,
       "Due Date": r.due_date,
       "Days Past Due": r.days_past,
+      Currency: r.currency || baseCurrency,
       Outstanding: r.amount,
+      [`Outstanding (${data.base_currency || baseCurrency})`]: r.amount_base ?? r.amount,
       Bucket: r.bucket,
     })))
   }
@@ -116,6 +124,9 @@ export default function APAgingPage() {
               <p className="text-lg font-mono font-bold">
                 {data ? fmt(data[b.key as keyof AgingData] as number) : "—"}
               </p>
+              {data?.base_currency && (
+                <p className="text-[10px] opacity-60 mt-0.5">{data.base_currency}</p>
+              )}
             </button>
           )
         })}
@@ -147,18 +158,22 @@ export default function APAgingPage() {
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Bill #</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">{t('col.dueDate', 'Due Date')}</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Days Past</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">CCY</th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">Outstanding</th>
+                <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 text-right">
+                  Base ({data?.base_currency || baseCurrency})
+                </th>
                 <th className="ui-th text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75">Bucket</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--text-primary)]/5">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/75">{t('common.loading', 'Loading...')}</td>
+                  <td colSpan={8} className="px-6 py-10 text-center text-[var(--text-primary)]/75">{t('common.loading', 'Loading...')}</td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-[var(--text-primary)]/75">
+                  <td colSpan={8} className="px-6 py-10 text-center text-[var(--text-primary)]/75">
                     {selectedBucket ? "No items in this bucket." : "No outstanding payables."}
                   </td>
                 </tr>
@@ -180,9 +195,15 @@ export default function APAgingPage() {
                     <td className="ui-td font-mono text-sm">
                       <Link href={`/bills/${item.id}`} className="text-[var(--primary)] hover:underline print:text-[var(--text-primary)]">{item.number}</Link>
                     </td>
-                    <td className="ui-td text-sm text-[var(--text-primary)]/70">{item.due_date}</td>
+                    <td className="ui-td text-sm text-[var(--text-primary)]/70 whitespace-nowrap">{item.due_date}</td>
                     <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">{item.days_past}</td>
+                    <td className="ui-td font-mono text-xs">
+                      <span className={isForeignCurrency(item.currency, data?.base_currency || baseCurrency) ? "font-semibold text-[var(--primary)]" : "text-[var(--text-muted)]"}>
+                        {item.currency || data?.base_currency || baseCurrency}
+                      </span>
+                    </td>
                     <td className="ui-td text-right font-mono text-sm font-semibold">{fmt(item.amount)}</td>
+                    <td className="ui-td text-right font-mono text-sm text-[var(--text-primary)]/70">{fmt(item.amount_base ?? item.amount)}</td>
                     <td className="ui-td">
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">
                         {item.bucket}

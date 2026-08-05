@@ -76,6 +76,7 @@ def set_user_permissions(
 
         existing = session.exec(
             select(UserPermission).where(
+                UserPermission.tenant_id == admin.tenant_id,
                 UserPermission.user_id == user_id,
                 UserPermission.resource_key == upd.resource_key,
             )

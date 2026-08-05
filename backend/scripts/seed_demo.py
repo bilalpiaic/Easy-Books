@@ -51,7 +51,11 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap + v5 IFRS/SaaS gap-fill)
   • WHT + CIT (#267) — withholding tax code, vendor rate, sample CIT adjustments
 
 Still deliberately unseeded: UserPermission overrides, AiChatSession,
-UserDashboardLayout, ApiKey / auth-infra tables.
+ApiKey / auth-infra tables.
+
+Dashboard layouts (v4 dual-home): seeded for each demo owner — Financial +
+Operations slices with module-aware default widget IDs so industry tenants
+land on a populated Operations home on first login.
 
 Usage:
     PYTHONPATH=. uv run python -m scripts.seed_demo
@@ -98,8 +102,8 @@ from models import (
     RatePlan, Reconciliation, ReconciliationLine, RecurringTemplate, ReportDefinition,
     RevenueAllocationAudit, SalaryComponent, SequenceCounter, Settings, StatementLine,
     StockLocation, StoreIssue,
-    StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, Vendor,
-    VendorAdvance, VendorQuotation, VendorQuotationLine, UaeEinvoiceLog, ZatcaSubmissionLog,
+    StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, UserDashboardLayout,
+    Vendor, VendorAdvance, VendorQuotation, VendorQuotationLine, UaeEinvoiceLog, ZatcaSubmissionLog,
 )
 from models_telecom import (
     AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
@@ -123,6 +127,13 @@ from models_spinning import (
     SpYarnSpec, SpFiberGrade, SpMachine, SpShift, SpOperator, SpWasteType,
     SpRecipe, SpRecipeLine, SpProductionPlan, SpSpinLot,
     SpBaleReceipt, SpStageEntry, SpConeOutput, SpWasteLog, SpYarnDispatch, SpCalcRun,
+)
+from models_textile_processing import (
+    DEFAULT_PROCESSES,
+    TpContractor, TpGreyLot, TpGreyThan, TpKachiParchi, TpMending,
+    TpPakkiParchi, TpProcess, TpProductionOrder, TpQuality, TpRejectionIssueNote,
+    TpRejectionOgp, TpSalesOrder, TpSalesOrderPackingLine, TpSalesOrderQualityLine,
+    TpStageEntry as TpPpcStage,
 )
 from routers.common import get_or_create_account, next_number
 from services.franchise_posting import (
@@ -173,6 +184,7 @@ DEMO_TENANTS = [
     ("demo.pra@easy-books.app",           "Lahore Retail Traders (PRA Demo)", "trader"),
     ("demo.hospital@easy-books.app",      "City General Hospital (Demo)",      "hospital"),
     ("demo.spinning@easy-books.app",      "Demo Yarn Spinning Mill",           "yarn_spinning"),
+    ("demo.processing@easy-books.app",    "Demo Textile Processing Unit",      "textile_processing"),
 ]
 
 # PRA demo tenant — Pakistani customers with NTN/CNIC
@@ -6123,6 +6135,256 @@ def _seed_spinning(
     s.flush()
 
 
+def _seed_textile_processing(
+    s: Session, user: User, customers: list[Customer], vendors: list[Vendor],
+) -> None:
+    """Textile processing (ballor) demo — lots, mending, rejection OGP, PPC. Idempotent."""
+    tid = user.tenant_id
+    if s.exec(select(TpGreyLot).where(TpGreyLot.tenant_id == tid)).first():
+        return
+
+    from services import textile_processing as tp_math
+
+    today = date.today()
+    d0 = (today - timedelta(days=20)).isoformat()
+    d1 = (today - timedelta(days=15)).isoformat()
+    d2 = (today - timedelta(days=10)).isoformat()
+    d3 = (today - timedelta(days=5)).isoformat()
+
+    # Seed process catalog
+    if not s.exec(select(TpProcess).where(TpProcess.tenant_id == tid)).first():
+        for seq, code, name, is_billing in DEFAULT_PROCESSES:
+            rate = Decimal("2.50") if is_billing else ZERO
+            s.add(TpProcess(
+                tenant_id=tid, seq=seq, code=code, name=name,
+                is_billing=is_billing, default_sale_rate=rate, is_active=True,
+            ))
+        s.flush()
+
+    q1 = TpQuality(
+        tenant_id=tid, code='CTN 60X60 40X52 45"', name="Cotton Poplin",
+        blend="100% Cotton", width='45"', unit="MTR",
+        fiber="CTN", warp_count="60", weft_count="60", epi="40", ppi="52",
+        width_inch="45", is_active=True,
+    )
+    q2 = TpQuality(
+        tenant_id=tid, code='CVC 40X40 90X88 58"', name="CVC Lawn",
+        blend="60/40 CVC", width='58"', unit="MTR",
+        fiber="CVC", warp_count="40", weft_count="40", epi="90", ppi="88",
+        width_inch="58", is_active=True,
+    )
+    s.add(q1); s.add(q2); s.flush()
+
+    cust = customers[0] if customers else None
+    if not cust:
+        cust = Customer(tenant_id=tid, name="Ballor Customer A", email="cust-a@demo.test")
+        s.add(cust); s.flush()
+    vendor = vendors[0] if vendors else None
+    if not vendor:
+        vendor = Vendor(tenant_id=tid, name="Contractor Labor House")
+        s.add(vendor); s.flush()
+
+    processes = s.exec(
+        select(TpProcess).where(TpProcess.tenant_id == tid).order_by(TpProcess.seq)
+    ).all()
+    printing = next((p for p in processes if p.code == "printing"), processes[0])
+    dyeing = next((p for p in processes if p.code == "dyeing"), printing)
+    contractor = TpContractor(
+        tenant_id=tid, code="CTR-01", name="Print Labor Gang",
+        vendor_id=vendor.id, default_process_id=printing.id, is_active=True,
+    )
+    s.add(contractor); s.flush()
+
+    rates = [
+        {"process_id": p.id, "rate": float(p.default_sale_rate), "enabled": p.is_billing}
+        for p in processes if p.is_billing
+    ]
+
+    so = TpSalesOrder(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_sales_order", "SO", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        customer_id=cust.id, quality_id=q1.id, date=d0,
+        expected_mtr=Decimal("1300"), grey_rate=Decimal("120"),
+        process_rates=rates, status="open", created_by_id=user.id,
+    )
+    s.add(so); s.flush()
+    s.add(TpSalesOrderQualityLine(
+        tenant_id=tid, sales_order_id=so.id, quality_id=q1.id,
+        expected_mtr=Decimal("1000"), grey_rate=Decimal("120"),
+    ))
+    s.add(TpSalesOrderQualityLine(
+        tenant_id=tid, sales_order_id=so.id, quality_id=q2.id,
+        expected_mtr=Decimal("300"), grey_rate=Decimal("140"),
+    ))
+    for item_type, qid, pid, qty, mtr in (
+        ("KMZ", q1.id, printing.id, 20, 600),
+        ("SHL", q1.id, printing.id, 10, 200),
+        ("2PC", q2.id, dyeing.id, 15, 250),
+        ("DPT", q2.id, dyeing.id, 5, 50),
+    ):
+        s.add(TpSalesOrderPackingLine(
+            tenant_id=tid, sales_order_id=so.id, item_type=item_type,
+            quality_id=qid, process_id=pid, qty=Decimal(qty),
+            meters=Decimal(mtr), rate=Decimal("5"),
+        ))
+    s.flush()
+
+    # Lot 1 — full path with rejection + OGP + stages + dispatch
+    lot1 = TpGreyLot(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_grey_lot", "LOT", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        sales_order_id=so.id, customer_id=cust.id, quality_id=q1.id,
+        date=d0, received_mtr=Decimal("1000"), than_count=15, status="received",
+        created_by_id=user.id,
+    )
+    s.add(lot1); s.flush()
+    for i in range(1, 16):
+        meters = Decimal("66.6667") if i < 15 else Decimal("66.6658")
+        s.add(TpGreyThan(
+            tenant_id=tid, lot_id=lot1.id, than_no=str(i),
+            meters=meters, rejection_mtr=ZERO, safi_mtr=meters,
+        ))
+    s.add(TpKachiParchi(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_kachi_parchi", "KP", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot1.id, customer_id=cust.id, quality_id=q1.id, date=d0,
+        meters=Decimal("1000"), than_count=15, created_by_id=user.id,
+    ))
+    ready = tp_math.ready_mtr(1000, 10, 15, 75)
+    mend = TpMending(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_mending", "MD", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot1.id, date=d1, grey_mtr=Decimal("1000"),
+        l_kami_mtr=Decimal("10"), rejection_mtr=Decimal("15"), safai_mtr=Decimal("75"),
+        ready_mtr=ready, status="posted", created_by_id=user.id,
+    )
+    s.add(mend); s.flush()
+    lot1.ready_mtr = ready
+    lot1.rejection_mtr = Decimal("15")
+    lot1.status = "ready"
+    s.add(lot1)
+    s.add(TpPakkiParchi(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_pakki_parchi", "PP", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot1.id, mending_id=mend.id, customer_id=cust.id, quality_id=q1.id,
+        date=d1, meters=ready, than_count=15, created_by_id=user.id,
+    ))
+    rej = TpRejectionIssueNote(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_rej_note", "RN", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot1.id, mending_id=mend.id, customer_id=cust.id, quality_id=q1.id,
+        date=d1, issued_mtr=Decimal("15"), lifted_mtr=Decimal("10"),
+        status="partially_lifted", created_by_id=user.id,
+    )
+    s.add(rej); s.flush()
+    s.add(TpRejectionOgp(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_rej_ogp", "OGP", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        rejection_issue_note_id=rej.id, customer_id=cust.id, date=d2,
+        qty_mtr=Decimal("10"), vehicle="LES-1234", challan="CH-88",
+        status="posted", created_by_id=user.id,
+    ))
+
+    po = TpProductionOrder(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_prod_order", "TPO", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot1.id, sales_order_id=so.id, customer_id=cust.id, quality_id=q1.id,
+        date=d2, issued_mtr=ready, status="in_process", created_by_id=user.id,
+    )
+    s.add(po); s.flush()
+    lot1.status = "in_process"
+    s.add(lot1)
+
+    # A few PPC stages with wastage
+    inp = ready
+    for proc in processes[:4]:
+        vis, invis = Decimal("2"), Decimal("1")
+        out = inp - vis - invis
+        s.add(TpPpcStage(
+            tenant_id=tid,
+            number=next_number(s, tid, "tp_stage", "ST", fmt="{prefix}-{YYYY}-{seq:04d}"),
+            production_order_id=po.id, process_id=proc.id, lot_id=lot1.id,
+            customer_id=cust.id, quality_id=q1.id, date=d2,
+            input_mtr=inp, output_mtr=out, visible_wastage_mtr=vis,
+            invisible_wastage_mtr=invis, contractor_id=contractor.id,
+            labor_qty=out, labor_rate=Decimal("0.40"),
+            labor_amount=money(out * Decimal("0.40")),
+            status="completed", created_by_id=user.id,
+        ))
+        lot1.visible_wastage_mtr = money(D(lot1.visible_wastage_mtr) + vis)
+        lot1.invisible_wastage_mtr = money(D(lot1.invisible_wastage_mtr) + invis)
+        inp = out
+    s.add(lot1)
+
+    # Lot 2 — received only (Kachi)
+    so2 = TpSalesOrder(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_sales_order", "SO", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        customer_id=cust.id, quality_id=q2.id, date=d3,
+        expected_mtr=Decimal("500"), grey_rate=Decimal("95"),
+        process_rates=rates, status="open", created_by_id=user.id,
+    )
+    s.add(so2); s.flush()
+    lot2 = TpGreyLot(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_grey_lot", "LOT", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        sales_order_id=so2.id, customer_id=cust.id, quality_id=q2.id,
+        date=d3, received_mtr=Decimal("500"), than_count=8, status="received",
+        created_by_id=user.id,
+    )
+    s.add(lot2); s.flush()
+    for i in range(1, 9):
+        s.add(TpGreyThan(
+            tenant_id=tid, lot_id=lot2.id, than_no=str(i), meters=Decimal("62.5"),
+        ))
+    s.add(TpKachiParchi(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_kachi_parchi", "KP", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot2.id, customer_id=cust.id, quality_id=q2.id, date=d3,
+        meters=Decimal("500"), than_count=8, created_by_id=user.id,
+    ))
+
+    # Lot 3 — mended + pakki, ready for PO
+    lot3 = TpGreyLot(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_grey_lot", "LOT", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        sales_order_id=so.id, customer_id=cust.id, quality_id=q1.id,
+        date=d3, received_mtr=Decimal("400"), than_count=6, status="received",
+        created_by_id=user.id,
+    )
+    s.add(lot3); s.flush()
+    for i in range(1, 7):
+        s.add(TpGreyThan(
+            tenant_id=tid, lot_id=lot3.id, than_no=str(i),
+            meters=Decimal("66.6667") if i < 6 else Decimal("66.6665"),
+        ))
+    s.add(TpKachiParchi(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_kachi_parchi", "KP", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot3.id, customer_id=cust.id, quality_id=q1.id, date=d3,
+        meters=Decimal("400"), than_count=6, created_by_id=user.id,
+    ))
+    ready3 = tp_math.ready_mtr(400, 5, 0, 20)
+    mend3 = TpMending(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_mending", "MD", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot3.id, date=d3, grey_mtr=Decimal("400"),
+        l_kami_mtr=Decimal("5"), rejection_mtr=ZERO, safai_mtr=Decimal("20"),
+        ready_mtr=ready3, status="posted", created_by_id=user.id,
+    )
+    s.add(mend3); s.flush()
+    lot3.ready_mtr = ready3
+    lot3.status = "ready"
+    s.add(lot3)
+    s.add(TpPakkiParchi(
+        tenant_id=tid,
+        number=next_number(s, tid, "tp_pakki_parchi", "PP", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        lot_id=lot3.id, mending_id=mend3.id, customer_id=cust.id, quality_id=q1.id,
+        date=d3, meters=ready3, than_count=6, created_by_id=user.id,
+    ))
+    s.flush()
+
+
 # ── v5 IFRS / SaaS gap-fill (#255–#263) ───────────────────────────────────────
 
 def _seed_tax_rate_history(s: Session, tenant_id: int) -> None:
@@ -6342,6 +6604,131 @@ def _seed_consolidation_graph(s: Session) -> None:
     s.commit()
 
 
+# Modules that light the Operations home tab (mirrors frontend PURPOSE_MODULES).
+_PURPOSE_MODULES = (
+    "production", "spinning", "weaving", "textile_processing",
+    "healthcare", "telecom", "purchase_store",
+)
+_OPS_DEFAULT_MODELS = {
+    "manufacturing", "yarn_spinning", "textile_processing",
+    "hospital", "telecom_franchise",
+}
+
+
+def _pack_items(sized: list[tuple[str, int, int]], cols: int = 4) -> list[dict]:
+    """Shelf-pack (id, w, h) into a left→right wrap layout (matches frontend packItems)."""
+    items: list[dict] = []
+    x = y = row_h = 0
+    for wid, w, h in sized:
+        w = min(w, cols)
+        if x + w > cols:
+            x = 0
+            y += row_h
+            row_h = 0
+        items.append({"id": wid, "x": x, "y": y, "w": w, "h": h})
+        x += w
+        row_h = max(row_h, h)
+    return items
+
+
+def _seed_dashboard_layouts(s: Session, tenant_id: int, user: User, enabled: list[str], business_model: str) -> None:
+    """Idempotent v4 dual-home layout for the demo owner (and accountant if present)."""
+    mods = set(enabled)
+    purpose = [m for m in _PURPOSE_MODULES if m in mods]
+    active = "operations" if business_model in _OPS_DEFAULT_MODELS and purpose else "financial"
+
+    financial_widgets = [
+        ("quick_actions", 4, 1),
+        ("primary_kpis", 4, 1),
+        ("secondary_kpis", 4, 1),
+        ("ar_aging", 2, 3),
+        ("monthly_rev_exp", 2, 3),
+        ("net_profit_trend", 2, 3),
+        ("expense_breakdown", 2, 3),
+        ("top_customers", 2, 4),
+        ("recent_transactions", 4, 3),
+    ]
+    if "hrm" in mods:
+        financial_widgets.append(("hrm_summary", 2, 2))
+
+    ops_widgets: list[tuple[str, int, int]] = [
+        ("quick_actions", 4, 1),
+        ("ops_primary_kpis", 4, 1),
+        ("ops_alerts", 4, 1),
+        ("ops_pipeline", 2, 3),
+        # Process-visibility charts/tables (module-adaptive)
+        ("ops_process_chart", 2, 3),
+        ("ops_trend_chart", 2, 3),
+        ("ops_status_table", 2, 3),
+        ("ops_mix_chart", 2, 3),
+    ]
+    module_tiles = [
+        ("spinning", "spinning_summary"),
+        ("weaving", "weaving_summary"),
+        ("production", "production_wip"),
+        ("healthcare", "healthcare_census"),
+        ("telecom", "telecom_tracker"),
+        ("purchase_store", "purchases_pipeline"),
+        ("textile_processing", "textile_processing_summary"),
+    ]
+    for mod, wid in module_tiles:
+        if mod in mods:
+            ops_widgets.append((wid, 2, 2))
+    if "hrm" in mods:
+        ops_widgets.append(("hrm_summary", 2, 2))
+
+    fin_qa = ["new_invoice", "new_bill", "new_entry", "products", "workflow", "guide"]
+    ops_qa = [qid for qid, need in [
+        ("new_demand", "purchase_store"), ("new_po", "purchase_store"),
+        ("gate_inward", "purchase_store"), ("new_production", "production"),
+        ("new_spin_lot", "spinning"), ("new_opd", "healthcare"),
+        ("telecom_tracker", "telecom"), ("attendance", "hrm"), ("products", "inventory"),
+    ] if need in mods or need == "inventory" and "inventory" in mods]
+    if not ops_qa:
+        ops_qa = ["products", "workflow", "guide"]
+
+    payload = {
+        "version": 4,
+        "activeView": active,
+        "dashboards": {
+            "financial": {
+                "layouts": {"lg": _pack_items(financial_widgets)},
+                "dismissed": [],
+                "quickActions": fin_qa,
+            },
+            "operations": {
+                "layouts": {"lg": _pack_items(ops_widgets)},
+                "dismissed": [],
+                "quickActions": ops_qa,
+            },
+        },
+    }
+    blob = _json.dumps(payload)
+
+    # Seed owner + accountant so both demos see dual homes immediately.
+    targets = [user]
+    for u in s.exec(select(User).where(User.tenant_id == tenant_id)).all():
+        if u.id != user.id and u.role in ("owner", "admin", "accountant"):
+            targets.append(u)
+
+    for u in targets:
+        row = s.exec(
+            select(UserDashboardLayout).where(
+                UserDashboardLayout.tenant_id == tenant_id,
+                UserDashboardLayout.user_id == u.id,
+            )
+        ).first()
+        if row is None:
+            s.add(UserDashboardLayout(
+                tenant_id=tenant_id, user_id=u.id, layout_json=blob,
+            ))
+        else:
+            # Converge — refresh demo layouts so re-seed picks up new widgets.
+            row.layout_json = blob
+            row.updated_at = datetime.utcnow()
+            s.add(row)
+
+
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
@@ -6525,6 +6912,12 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             _seed_spinning(s, user, customers, vendors, stock)
             s.commit()
 
+        if business_model == "textile_processing":
+            _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
+            s.commit()
+            _seed_textile_processing(s, user, customers, vendors)
+            s.commit()
+
         # ── PRA e-Invoice demo (Pakistani retail trader) ───────────────────────
         if email == "demo.pra@easy-books.app":
             _seed_pra_settings(s, tenant_id)
@@ -6556,6 +6949,16 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         _seed_payroll_runs(s, tenant_id, user, employees_hrm, components_hrm)
         s.commit()
         _seed_attendance(s, tenant_id, employees_hrm)
+        s.commit()
+
+        # ── Dual-home dashboard layouts (Financial + Operations) ──────────────
+        try:
+            enabled_mods = _json.loads(
+                (s.get(Tenant, tenant_id).enabled_modules or "[]")
+            )
+        except Exception:
+            enabled_mods = list(MODULES_BY_MODEL.get(business_model, ["base"]))
+        _seed_dashboard_layouts(s, tenant_id, user, enabled_mods, business_model)
         s.commit()
 
         return {
@@ -6643,6 +7046,13 @@ def demo_tenant_status(session: Session) -> list[dict]:
                         select(MobileMoneyAccount).where(
                             MobileMoneyAccount.tenant_id == tenant_id
                         )
+                    ).first()
+                    is not None
+                )
+            if not loaded and model == "textile_processing":
+                loaded = (
+                    session.exec(
+                        select(TpGreyLot).where(TpGreyLot.tenant_id == tenant_id)
                     ).first()
                     is not None
                 )

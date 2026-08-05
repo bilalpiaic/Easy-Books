@@ -162,6 +162,10 @@
     "setupChecklist": "سیٹ اپ چیک لسٹ",
     "keyFigures": "اہم اعداد",
     "financialOverview": "مالی جائزہ",
+    "operationsOverview": "آپریشنز جائزہ",
+    "financial": "مالی",
+    "operations": "آپریشنز",
+    "homeDashboard": "ہوم ڈیش بورڈ",
     "workflowGuide": "ورک فلو گائیڈ",
     "newEntry": "نئی اندراج"
   },
@@ -182,6 +186,9 @@
   "dashboard": {
     "title": "ڈیش بورڈ",
     "subtitle": "مالی جائزہ",
+    "financial": "مالی",
+    "operations": "آپریشنز",
+    "operationsSubtitle": "آپریشنز جائزہ",
     "revenue": "آمدنی",
     "expenses": "اخراجات",
     "netProfit": "خالص منافع",

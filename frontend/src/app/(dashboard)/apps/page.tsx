@@ -15,7 +15,7 @@ import { apiFetch } from "@/lib/api"
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, Package, Factory, Users, Radio, FileCheck, Stethoscope, Sparkles,
-  Scissors, ShoppingCart, Landmark, Store, FileText, MapPin, Globe, CircleDot,
+  Scissors, ShoppingCart, Landmark, Store, FileText, MapPin, Globe, CircleDot, Layers,
 }
 
 /** Allowlist of MODULE_REGISTRY categories shown on this page (sort + filter). */
@@ -368,7 +368,7 @@ function AppsPageInner() {
     try {
       await uninstall(id)
       if (id === "pra") {
-        localStorage.setItem(HOME_PREF_KEY, "accounting")
+        localStorage.setItem(HOME_PREF_KEY, "financial")
         localStorage.setItem("eb.pra_portal_mode", "0")
       }
       setSuccess(`${mod?.label ?? id} uninstalled.`)
@@ -424,7 +424,7 @@ function AppsPageInner() {
   }
 
   const choosePraHome = (usePra: boolean) => {
-    localStorage.setItem(HOME_PREF_KEY, usePra ? "pra" : "accounting")
+    localStorage.setItem(HOME_PREF_KEY, usePra ? "pra" : "financial")
     localStorage.setItem("eb.pra_portal_mode", usePra ? "1" : "0")
     setPraPrompt(false)
     router.push(usePra ? "/pra-dashboard" : "/dashboard")

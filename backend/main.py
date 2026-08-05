@@ -22,7 +22,7 @@ from db import create_db_and_tables
 from routers import (
     accounts, admin, advances, aging, alerts, analytic_accounts, analytic_dimensions, api_keys, assets, attachments,
     audit, auth, backup, bank_accounts, bank_imports, bills, bom, budgets,
-    comparatives, credit_notes, dashboard_layout, customers, debit_notes, deferred_revenue, exchange_rates, gate_inward, gate_outward, grn,
+    comparatives, credit_notes, dashboard_layout, dashboard_ops, customers, debit_notes, deferred_revenue, exchange_rates, gate_inward, gate_outward, grn,
     imports, invoices, manufacturing_reports, modules, payment_terms, payments, periods,
     product_categories, production_orders, products, purchase_demands, purchase_orders, purchase_reports, quotations, rate_plans,
     reconciliations, recurring, report_builder, reports, settings, scrap_reasons, stock_locations, store_issues, store_reports,
@@ -31,6 +31,7 @@ from routers import (
     search, ai_chat, webhooks, tasks, health,
     billing, portal, approvals, bank_feeds, agent_ext, inventory_depth,
     consolidation, leases, contract_assets, intercompany, india_gst,
+    practice,
 )
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
@@ -40,6 +41,7 @@ from routers import marketplace
 from routers import healthcare, healthcare_reports, healthcare_dialysis
 from routers import weaving, weaving_reports, weaving_calculators
 from routers import spinning, spinning_reports, spinning_calculators
+from routers import textile_processing, textile_processing_reports
 # Side-effect import: registers TOTP/OAuth routes on auth.router (#118)
 import routers.auth_security  # noqa: F401
 from services.csrf import CsrfMiddleware
@@ -151,6 +153,16 @@ async def _revoked_token_prune_loop() -> None:
         await asyncio.sleep(6 * 3600)
 
 
+def _env_flag(name: str, default: str = "true") -> bool:
+    return os.environ.get(name, default).lower() not in ("0", "false", "no", "off")
+
+
+def _is_serverless() -> bool:
+    """Vercel (and similar) set VERCEL=1 — background loops can't survive
+    across invocations, so default them off unless explicitly re-enabled."""
+    return os.environ.get("VERCEL", "").lower() in ("1", "true")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # `lifespan` replaces the deprecated @app.on_event("startup") hook.
@@ -161,12 +173,16 @@ async def lifespan(_app: FastAPI):
     if os.environ.get("SCHEMA_BOOTSTRAP", "create_all") == "create_all":
         create_db_and_tables()
 
+    # On Vercel, long-lived asyncio loops do nothing useful (the function
+    # freezes between requests). Opt in explicitly if you wire an external
+    # cron to hit a sweep endpoint instead.
+    _bg_default = "false" if _is_serverless() else "true"
     tasks = []
-    if os.environ.get("OVERDUE_SWEEP_ENABLED", "true").lower() != "false":
+    if _env_flag("OVERDUE_SWEEP_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_overdue_scheduler_loop()))
-    if os.environ.get("REVOKED_TOKEN_PRUNE_ENABLED", "true").lower() != "false":
+    if _env_flag("REVOKED_TOKEN_PRUNE_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_revoked_token_prune_loop()))
-    if os.environ.get("WEBHOOKS_ENABLED", "true").lower() != "false":
+    if _env_flag("WEBHOOKS_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_webhook_delivery_loop()))
 
     yield
@@ -252,7 +268,7 @@ _ROUTERS = [
     report_builder.router,
     payments.router, payment_terms.router, bank_accounts.router,
     reconciliations.router, periods.router, audit.router, webhooks.router,
-    transactions.router, reports.router, dashboard_layout.router, imports.router,
+    transactions.router, reports.router, dashboard_layout.router, dashboard_ops.router, imports.router,
     tax_codes.router, recurring.router, exchange_rates.router,
     bank_imports.router, stock_locations.router,
     bom.router, rate_plans.router,
@@ -297,6 +313,8 @@ _ROUTERS = [
     spinning.router,
     spinning_reports.router,
     spinning_calculators.router,
+    textile_processing.router,
+    textile_processing_reports.router,
     system_update.router,
     search.router,
     ai_chat.router,
@@ -310,6 +328,7 @@ _ROUTERS = [
     agent_ext.router,
     inventory_depth.router,
     consolidation.router,
+    practice.router,
     leases.router,
     contract_assets.router,
     intercompany.router,

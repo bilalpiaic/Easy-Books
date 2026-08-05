@@ -1,6 +1,6 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check, MessageCircle } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check, MessageCircle, LayoutDashboard } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
@@ -8,6 +8,11 @@ import { fmtDate } from '@/lib/utils'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import { useModules } from '@/context/ModuleContext'
 import { getCurrentUser } from '@/lib/auth'
+import {
+  HOME_PREF_KEY,
+  hasOperationsHome,
+  type HomePreference,
+} from '@/lib/dashboardHome'
 import VersionBadge from '@/components/VersionBadge'
 import UpdateModal from '@/components/UpdateModal'
 import { useTheme, type ThemeMode, type ColorTheme } from '@/context/ThemeContext'
@@ -685,9 +690,9 @@ export default function SettingsPage() {
             { key: 'default_ap_account',      label: 'Accounts Payable (AP)',    hint: 'Credited on bill post',    types: ['Liability'] },
             { key: 'default_revenue_account', label: 'Revenue Account',          hint: 'Credited on invoice post', types: ['Revenue'] },
             { key: 'default_cogs_account',    label: 'COGS / Expense Account',   hint: 'Debited on bill post',     types: ['Expense'] },
-            { key: 'default_mfg_labour_account',    label: 'Manufacturing Labour',    hint: 'Stage entries + PO labour (spinning: Cr 5100)',    types: ['Expense'] },
-            { key: 'default_mfg_overhead_account',  label: 'Manufacturing Overhead',  hint: 'Stage entries + PO overhead (spinning: Cr 5200)',  types: ['Expense'] },
-            { key: 'default_scrap_expense_account', label: 'Production Scrap Expense', hint: 'PO scrap/damage + spinning waste types 5901–5904', types: ['Expense'] },
+            { key: 'default_mfg_labour_account',    label: 'Manufacturing Labour',    hint: 'Stage entries + PO labour (spinning: Cr 5100). Processing uses contractor labor 5220.',    types: ['Expense'] },
+            { key: 'default_mfg_overhead_account',  label: 'Manufacturing Overhead',  hint: 'Stage entries + PO overhead (spinning: Cr 5200). Processing shrinkage posts to 5215.',  types: ['Expense'] },
+            { key: 'default_scrap_expense_account', label: 'Production Scrap Expense', hint: 'PO scrap/damage + spinning waste 5901–5904. Processing wastage sales credit 4160.', types: ['Expense'] },
           ] as { key: keyof AppSettings; label: string; hint: string; types: string[] }[]).map(({ key, label, hint, types }) => (
             <div key={key}>
               <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1">{label}</label>
@@ -856,6 +861,26 @@ export default function SettingsPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
           >
             Open Spinning hub →
+          </Link>
+        </div> }
+
+        { installedModules.has("textile_processing") && <div className="pt-4 mt-4 border-t border-[var(--border)]">
+          <h3 className="font-semibold text-black">Textile Processing</h3>
+          <p className="text-sm text-[var(--text-muted)] mt-1 mb-3">
+            Ballor / jobber unit: customer-owned grey lots stay in custody (
+            <code className="text-xs px-1 bg-[var(--bg-page)] rounded">1210</code> /
+            <code className="text-xs px-1 bg-[var(--bg-page)] rounded">2150</code>).
+            Process billing credits <code className="text-xs px-1 bg-[var(--bg-page)] rounded">4150</code>;
+            wastage sales credit <code className="text-xs px-1 bg-[var(--bg-page)] rounded">4160</code>;
+            contractor labor bills debit <code className="text-xs px-1 bg-[var(--bg-page)] rounded">5220</code>;
+            shrinkage posts to <code className="text-xs px-1 bg-[var(--bg-page)] rounded">5215</code>.
+            Flow: sales order → grey lot → mending → kachi/pakki parchi → PPC stages → fresh dispatch → grey settlement.
+          </p>
+          <Link
+            href="/processing"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[#faf8f4]"
+          >
+            Open Processing hub →
           </Link>
         </div> }
 
@@ -1112,9 +1137,10 @@ export default function SettingsPage() {
           Industry capabilities
         </h2>
         <p className="text-sm text-[var(--text-muted)] mb-4">
-          Every company starts with Base Accounting. Inventory, Manufacturing, Healthcare,
-          Telecom, PRA, and more are installed from <strong>System → Add-ons</strong> —
-          not by switching a business model here.
+          Every company starts with Base Accounting. Inventory, Manufacturing, Yarn Spinning,
+          Textile Processing, Healthcare, Telecom, PRA, and more are installed from{" "}
+          <strong>System → Add-ons</strong> — not by switching a business model here.
+          Industry packs unlock the <strong>Operations</strong> home dashboard alongside Financial.
         </p>
         <Link
           href="/apps"
@@ -1123,6 +1149,60 @@ export default function SettingsPage() {
           Open Add-ons
         </Link>
       </div>
+
+      {/* Dual-home dashboard preference (browser-local, mirrors /dashboard toggle) */}
+      <HomeDashboardSettingsCard opsAvailable={hasOperationsHome(installedModules)} praInstalled={installedModules.has("pra")} />
+
+      {/* ── Textile Processing — ops CoA cheat-sheet once the pack is installed ── */}
+      {installedModules.has("textile_processing") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              Textile Processing{" "}
+              <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">
+                (ballor / jobber printing unit)
+              </span>
+            </h2>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
+              Customer-owned grey fabric is tracked as custody stock — it never hits your inventory
+              valuation. Process charges, wastage sales, contractor labor, and shrinkage post to
+              dedicated CoA leaves seeded with the pack.
+            </p>
+          </div>
+          <Link
+            href="/processing"
+            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-dark)]"
+          >
+            Open hub →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+          {[
+            { code: "1210", name: "Customer Goods on Hand", role: "Memo asset — grey on floor" },
+            { code: "2150", name: "Customer Goods Liability", role: "Memo liability — owed back" },
+            { code: "4150", name: "Processing Revenue", role: "Process / PPC billing" },
+            { code: "4160", name: "Wastage Sales Revenue", role: "Sold process waste" },
+            { code: "5220", name: "Contractor Labor Expense", role: "Labor bills / jobbers" },
+            { code: "5215", name: "Process Shrinkage Expense", role: "Shrinkage write-off" },
+          ].map(row => (
+            <div key={row.code} className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2">
+              <div className="font-mono text-xs font-bold text-[var(--primary)]">{row.code}</div>
+              <div className="font-semibold text-[var(--text-primary)]">{row.name}</div>
+              <div className="text-xs text-[var(--text-muted)]">{row.role}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-[var(--text-muted)]">
+          Typical flow: Sales Order → Grey Lot → Mending → Kachi / Pakki Parchi → PPC Stages →
+          Fresh Dispatch → Labor Bills → Grey Settlement. Demo login:{" "}
+          <code className="px-1 bg-[var(--bg-page)] rounded border border-[var(--border)]">
+            demo.processing@easy-books.app
+          </code>{" "}
+          / <code className="px-1 bg-[var(--bg-page)] rounded border border-[var(--border)]">demo1234</code>
+        </p>
+      </section>
+      )}
 
       {/* ── PRA e-Invoice (Pakistan) — compliance switch once the PRA add-on is installed ── */}
       {installedModules.has("pra") && (
@@ -1732,6 +1812,7 @@ type DemoStatusRow = {
 
 const DEMO_SCREEN_HINTS: Record<string, string> = {
   "demo.spinning@easy-books.app": "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports",
+  "demo.processing@easy-books.app": "Textile Processing — grey lots, mending, kachi/pakki, PPC, dispatch, settlements",
   "demo.hospital@easy-books.app": "HC Store (Healthcare pharmacy)",
   "demo.telecom@easy-books.app": "Telecom — Mobile Money, Devices, Postpaid",
   "demo.manufacturing@easy-books.app": "Store Issues, Purchases chain, Weaving",
@@ -2634,5 +2715,100 @@ function Security2FACard() {
       />
       {status && <p className="text-sm text-[var(--text-muted)]">{status}{enabled ? " ✓" : ""}</p>}
     </section>
+  )
+}
+
+/** Browser-local home preference — Financial / Operations / PRA (when installed). */
+function HomeDashboardSettingsCard({
+  opsAvailable,
+  praInstalled,
+}: {
+  opsAvailable: boolean
+  praInstalled: boolean
+}) {
+  const [home, setHome] = useState<HomePreference>("financial")
+
+  useEffect(() => {
+    const stored = localStorage.getItem(HOME_PREF_KEY) as HomePreference | null
+    if (stored === "pra" || stored === "operations" || stored === "financial" || stored === "accounting") {
+      setHome(stored === "accounting" ? "financial" : stored)
+    }
+  }, [])
+
+  const choose = (next: HomePreference) => {
+    if (next === "operations" && !opsAvailable) return
+    if (next === "pra" && !praInstalled) return
+    setHome(next)
+    localStorage.setItem(HOME_PREF_KEY, next)
+    if (next === "pra") localStorage.setItem("eb.pra_portal_mode", "1")
+    else localStorage.setItem("eb.pra_portal_mode", "0")
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm space-y-3">
+      <h2 className="text-xl font-semibold mb-1 flex items-center gap-3 text-black">
+        <LayoutDashboard className="w-5 h-5 text-[var(--primary)]" />
+        Home dashboard
+      </h2>
+      <p className="text-sm text-[var(--text-muted)]">
+        Choose which home opens after login. Financial is the P&amp;L / cash overview;
+        Operations shows purpose-built KPIs for installed industry modules.
+        Preference is stored in this browser (<code className="text-xs">eb.home_dashboard</code>).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => choose("financial")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+            home === "financial"
+              ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+              : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"
+          }`}
+        >
+          Financial
+        </button>
+        <button
+          type="button"
+          disabled={!opsAvailable}
+          onClick={() => choose("operations")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            home === "operations"
+              ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+              : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"
+          }`}
+          title={opsAvailable ? undefined : "Install an industry pack (Manufacturing, Spinning, Processing, Healthcare, …) to enable Operations"}
+        >
+          Operations
+        </button>
+        {praInstalled && (
+          <button
+            type="button"
+            onClick={() => choose("pra")}
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+              home === "pra"
+                ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                : "border-[var(--border)] text-[var(--text-primary)]/70 hover:border-[var(--primary)]/40"
+            }`}
+          >
+            PRA Sales
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-[var(--text-muted)]">
+        You can also switch on the Dashboard page itself
+        {opsAvailable ? " via the Financial | Operations toggle" : ""}.
+        Staff access is controlled under{" "}
+        <Link href="/settings/permissions" className="text-[var(--primary)] underline underline-offset-2">
+          User Rights → Dashboard
+        </Link>
+        {" "}when the rights module is enabled.
+      </p>
+      <Link
+        href={home === "pra" ? "/pra-dashboard" : home === "operations" ? "/dashboard?view=operations" : "/dashboard?view=financial"}
+        className="inline-flex items-center gap-2 text-sm font-medium text-[var(--primary)] hover:underline"
+      >
+        Open home →
+      </Link>
+    </div>
   )
 }
