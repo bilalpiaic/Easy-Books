@@ -61,3 +61,5 @@ Layout save remains a personal preference for any authenticated user.
 | `demo.pra@easy-books.app` | trader + PRA | PRA portal or Financial |
 
 Demo seed writes v4 dual-home layouts for owner/accountant users so Operations widgets appear on first login.
+
+Operations home includes process-visibility charts and tables (funnel / WIP / status board / mix) that adapt to installed purpose modules — not only KPI tiles.

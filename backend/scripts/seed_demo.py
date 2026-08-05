@@ -6656,6 +6656,11 @@ def _seed_dashboard_layouts(s: Session, tenant_id: int, user: User, enabled: lis
         ("ops_primary_kpis", 4, 1),
         ("ops_alerts", 4, 1),
         ("ops_pipeline", 2, 3),
+        # Process-visibility charts/tables (module-adaptive)
+        ("ops_process_chart", 2, 3),
+        ("ops_trend_chart", 2, 3),
+        ("ops_status_table", 2, 3),
+        ("ops_mix_chart", 2, 3),
     ]
     module_tiles = [
         ("spinning", "spinning_summary"),

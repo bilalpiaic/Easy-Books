@@ -6,6 +6,15 @@ export interface WeightTriple {
   bags: number
 }
 
+export interface WeavingMonth {
+  month: string
+  yarn_received: WeightTriple
+  yarn_used: WeightTriple
+  grey_meters: number
+  dispatch_meters: number
+  weaving_revenue: number
+}
+
 export interface OperationsSummary {
   modules: string[]
   business_model?: string | null
@@ -38,6 +47,7 @@ export interface OperationsSummary {
       contract_count: number
       status_summary: Record<string, number>
     }
+    monthly_trend?: WeavingMonth[]
   }
   textile_processing?: {
     kpis: {
@@ -62,6 +72,7 @@ export interface OperationsSummary {
     pending_lab_results: number
     dialysis_sessions_today?: number
     dialysis_capacity?: number
+    dialysis_machines?: number
   }
   telecom?: {
     as_of: string
@@ -91,6 +102,18 @@ export interface OperationsSummary {
     open_pos: number
     open_gate_inwards: number
     low_stock_items: number
+    demand_by_status?: Record<string, number>
+    po_by_status?: Record<string, number>
+    gi_by_status?: Record<string, number>
+    funnel?: {
+      demands: number
+      demands_open: number
+      pos: number
+      pos_open: number
+      gate_inwards: number
+      gate_open: number
+      pos_billed: number
+    }
   }
   hrm?: {
     active_employees: number

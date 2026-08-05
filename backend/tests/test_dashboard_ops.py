@@ -93,6 +93,15 @@ def test_operations_available_for_manufacturing(client):
     assert "purchase_store" in data
     assert "pipeline" in data["production"]
     assert "open_demands" in data["purchase_store"]
+    ps = data["purchase_store"]
+    assert "funnel" in ps
+    assert "demand_by_status" in ps
+    assert "po_by_status" in ps
+    assert "gi_by_status" in ps
+    assert set(ps["funnel"]) >= {
+        "demands", "demands_open", "pos", "pos_open",
+        "gate_inwards", "gate_open", "pos_billed",
+    }
 
 
 def test_operations_summary_requires_auth(client):
