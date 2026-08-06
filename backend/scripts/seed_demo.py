@@ -98,19 +98,20 @@ def _demo_seed_lite() -> bool:
 
 def _demo_seed_counts() -> dict[str, int]:
     if _demo_seed_lite():
+        # Keep under a warm ~60–90s Neon budget; status treats ≥5 invoices as loaded.
         return {
-            "bills": 12,
-            "invoices": 12,
-            "payments_received": 8,
-            "bill_payments": 8,
-            "manual_jvs": 10,
-            "credit_notes": 2,
-            "sales_returns": 2,
-            "purchase_returns": 2,
-            "customer_advances": 2,
-            "vendor_advances": 2,
-            "purchase_orders": 3,
-            "deferred_revenue": 2,
+            "bills": 8,
+            "invoices": 8,
+            "payments_received": 5,
+            "bill_payments": 5,
+            "manual_jvs": 5,
+            "credit_notes": 1,
+            "sales_returns": 1,
+            "purchase_returns": 1,
+            "customer_advances": 1,
+            "vendor_advances": 1,
+            "purchase_orders": 2,
+            "deferred_revenue": 1,
         }
     return {
         "bills": 100,
@@ -6868,69 +6869,69 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
         _seed_manual_jvs(s, user, count=counts["manual_jvs"])
         s.commit()
-        _seed_recurring_templates(s, tenant_id)
-        s.commit()
-
-        # ── Improvement-roadmap modules (Sprint 7–12) ──
-        _seed_analytic_accounts(s, tenant_id)
-        _seed_budgets(s, tenant_id)
-        s.commit()
-        # Fixed assets before required dimensions — depreciation posts lack CC tags.
-        _seed_fixed_assets(s, user)
-        s.commit()
-        _seed_analytic_dimensions_260(s, tenant_id)
-        s.commit()
         if not lite:
+            _seed_recurring_templates(s, tenant_id)
+            s.commit()
+
+        # Serverless lite: AR/AP baseline + specialty pack only. Full gap-fill
+        # (assets/commissions/HRM/recon/…) stays on local/installer runs.
+        if not lite:
+            # ── Improvement-roadmap modules (Sprint 7–12) ──
+            _seed_analytic_accounts(s, tenant_id)
+            _seed_budgets(s, tenant_id)
+            s.commit()
+            # Fixed assets before required dimensions — depreciation posts lack CC tags.
+            _seed_fixed_assets(s, user)
+            s.commit()
+            _seed_analytic_dimensions_260(s, tenant_id)
+            s.commit()
             _seed_asset_components_258(s, user)
             s.commit()
-        _seed_credit_notes(s, clerk, invoices, count=counts["credit_notes"])
-        s.commit()
-        _seed_purchase_orders(s, user, vendors, all_products, count=counts["purchase_orders"])
-        s.commit()
-        if business_model == "services":
-            _seed_deferred_revenue(s, user, invoices, count=counts["deferred_revenue"])
+            _seed_credit_notes(s, clerk, invoices, count=counts["credit_notes"])
             s.commit()
-            if not lite:
+            _seed_purchase_orders(s, user, vendors, all_products, count=counts["purchase_orders"])
+            s.commit()
+            if business_model == "services":
+                _seed_deferred_revenue(s, user, invoices, count=counts["deferred_revenue"])
+                s.commit()
                 _seed_ifrs15_259(s, user, customers, invoices)
                 s.commit()
 
-        # ── Returns & Advances (Sprint 13) ──
-        _seed_sales_returns(s, clerk, invoices, count=counts["sales_returns"])
-        s.commit()
-        _seed_purchase_returns(s, user, bills, count=counts["purchase_returns"])
-        s.commit()
-        _seed_customer_advances(s, user, customers, invoices, count=counts["customer_advances"])
-        _seed_vendor_advances(s, user, vendors, bills, count=counts["vendor_advances"])
-        s.commit()
+            # ── Returns & Advances (Sprint 13) ──
+            _seed_sales_returns(s, clerk, invoices, count=counts["sales_returns"])
+            s.commit()
+            _seed_purchase_returns(s, user, bills, count=counts["purchase_returns"])
+            s.commit()
+            _seed_customer_advances(s, user, customers, invoices, count=counts["customer_advances"])
+            _seed_vendor_advances(s, user, vendors, bills, count=counts["vendor_advances"])
+            s.commit()
 
-        # ── Sales incentives + close/reconcile (gap-fill batch) ──
-        _seed_promo_rules(s, tenant_id)
-        s.commit()
-        _seed_commissions(s, owner, [accountant, clerk])
-        s.commit()
-        _seed_accounting_periods(s, tenant_id)
-        s.commit()
-        _seed_close_checklists(s, tenant_id, user)
-        s.commit()
-        _seed_tax_rate_history(s, tenant_id)
-        s.commit()
-        # Bank recon / statement import are GL-heavy — skip on serverless lite.
-        if not lite:
+            # ── Sales incentives + close/reconcile (gap-fill batch) ──
+            _seed_promo_rules(s, tenant_id)
+            s.commit()
+            _seed_commissions(s, owner, [accountant, clerk])
+            s.commit()
+            _seed_accounting_periods(s, tenant_id)
+            s.commit()
+            _seed_close_checklists(s, tenant_id, user)
+            s.commit()
+            _seed_tax_rate_history(s, tenant_id)
+            s.commit()
             _seed_reconciliations(s, tenant_id)
             _seed_bank_imports(s, tenant_id)
             s.commit()
-        _seed_wht_cit_267(s, user, vendors)
-        s.commit()
-        _seed_localization_demo(s, user, email, business_model)
-        s.commit()
-
-        if business_model in ("services", "manufacturing") and not lite:
-            _seed_leases(s, user)
+            _seed_wht_cit_267(s, user, vendors)
+            s.commit()
+            _seed_localization_demo(s, user, email, business_model)
             s.commit()
 
-        if business_model in ("trader", "manufacturing") and not lite:
-            _seed_inventory_depth(s, user, stock)
-            s.commit()
+            if business_model in ("services", "manufacturing"):
+                _seed_leases(s, user)
+                s.commit()
+
+            if business_model in ("trader", "manufacturing"):
+                _seed_inventory_depth(s, user, stock)
+                s.commit()
 
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
@@ -6993,19 +6994,17 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             _seed_pra_submission_logs(s, tenant_id)
             s.commit()
 
-        # ── Starter saved report (Report Builder) ──────────────────────────────
-        _seed_report_definitions(s, tenant_id, user)
-        s.commit()
-
-        # ── HRM: Employees, Payroll, Attendance ───────────────────────────────
-        # Payroll/attendance loops are expensive on Neon — keep a thin HRM
-        # sample on serverless lite so the tenant still shows Payroll screens.
-        employees_hrm = _seed_employees(s, tenant_id, business_model)
-        components_hrm = _seed_salary_components(s, tenant_id)
-        s.commit()
-        _seed_salary_structures(s, employees_hrm, components_hrm)
-        s.commit()
         if not lite:
+            # ── Starter saved report (Report Builder) ──────────────────────────────
+            _seed_report_definitions(s, tenant_id, user)
+            s.commit()
+
+            # ── HRM: Employees, Payroll, Attendance ───────────────────────────────
+            employees_hrm = _seed_employees(s, tenant_id, business_model)
+            components_hrm = _seed_salary_components(s, tenant_id)
+            s.commit()
+            _seed_salary_structures(s, employees_hrm, components_hrm)
+            s.commit()
             _seed_payroll_runs(s, tenant_id, user, employees_hrm, components_hrm)
             s.commit()
             _seed_attendance(s, tenant_id, employees_hrm)

@@ -1875,14 +1875,34 @@ function DemoSampleDataSection() {
       for (let i = 0; i < total; i++) {
         const email = emails[i]
         setProgress(`Seeding ${i + 1}/${total} — ${email}`)
-        try {
-          await apiFetch("/api/admin/demo/seed", {
-            method: "POST",
-            body: JSON.stringify({ email }),
-          })
-        } catch (err) {
+        let lastErr: Error | null = null
+        // Idempotent seeder: on cloud timeouts, retry a few times so a
+        // partially-written tenant can finish on warm invocations.
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            if (attempt > 1) {
+              setProgress(`Seeding ${i + 1}/${total} — ${email} (retry ${attempt}/3)`)
+            }
+            await apiFetch("/api/admin/demo/seed", {
+              method: "POST",
+              body: JSON.stringify({ email }),
+            })
+            lastErr = null
+            break
+          } catch (err) {
+            lastErr = err as Error
+            const msg = lastErr.message || ""
+            const retryable =
+              /timeout|timed out|can't reach the api|failed to fetch|HTTP 504|HTTP 503|HTTP 500/i.test(
+                msg,
+              )
+            if (!retryable || attempt === 3) break
+            await new Promise(r => setTimeout(r, 1500 * attempt))
+          }
+        }
+        if (lastErr) {
           toast(
-            `Failed on ${email}: ${(err as Error).message}. Earlier companies may already be loaded — retry to continue.`,
+            `Failed on ${email}: ${lastErr.message}. Earlier companies may already be loaded — retry to continue.`,
             "error",
           )
           await refresh()
