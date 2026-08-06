@@ -1,3 +1,6 @@
+# Ignore legacy root Express stack + backend noise.
+# Patterns without a leading / match ANY path — that previously stripped
+# frontend/package.json and frontend/public on Git deploys (rootDirectory=frontend).
 node_modules/
 .next/
 backend/venv/
@@ -10,7 +13,7 @@ verify_app.py
 check_login_ui.py
 db.js
 server.js
-package-lock.json
-package.json
-public/
+/package-lock.json
+/package.json
+/public/
 docs/
