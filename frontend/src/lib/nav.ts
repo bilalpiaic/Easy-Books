@@ -11,7 +11,7 @@ import {
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
   AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
-  Store, ArrowLeftRight,
+  Store, ArrowLeftRight, Palmtree,
 } from "lucide-react"
 
 export type NavItem = {
@@ -161,6 +161,7 @@ export const NAV: NavItem[] = [
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll",   forModule: "hrm" },
   { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll",   forModule: "hrm" },
   { label: "Attendance",       href: "/attendance",        icon: CalendarDays,     section: "Payroll",   forModule: "hrm" },
+  { label: "Leave",            href: "/leave",             icon: Palmtree,         section: "Payroll",   forModule: "hrm" },
   { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll",   forModule: "hrm" },
   // Healthcare
   { label: "HC Overview",       href: "/healthcare",              icon: Stethoscope,  section: "Healthcare", forModule: "healthcare" },
@@ -505,6 +506,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Payroll Runs",      href: "/payroll",            icon: Briefcase,    section: "payroll", forModule: "hrm" },
     { label: "Employees",         href: "/employees",          icon: UserCog,      section: "payroll", forModule: "hrm" },
     { label: "Attendance",        href: "/attendance",         icon: CalendarDays, section: "payroll", forModule: "hrm" },
+    { label: "Leave",             href: "/leave",              icon: Palmtree,     section: "payroll", forModule: "hrm" },
     { label: "Salary Components", href: "/payroll/components", icon: Settings2,    section: "payroll", forModule: "hrm" },
   ],
   healthcare: [
