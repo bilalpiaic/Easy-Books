@@ -2731,7 +2731,7 @@ class DunningRule(SQLModel, table=True):
 class ApprovalWorkflow(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
-    document_type: str  # invoice | bill | purchase_order | journal
+    document_type: str  # see services.approval_document_types (full product LOV)
     name: str
     is_active: bool = Field(default=True)
 
