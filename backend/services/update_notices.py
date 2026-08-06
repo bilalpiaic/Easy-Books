@@ -24,6 +24,12 @@ BOOTSTRAP_KEY = "app_update_notices_bootstrapped"
 DEDUPE_PREFIX = "app_update:"
 ENTITY_TYPE = "app_update"
 
+# In-process cache so dashboard polls don't re-hit GitHub every 90s.
+_commits_cache: list[dict] | None = None
+_commits_cache_at: float = 0.0
+_COMMITS_TTL = 30 * 60
+_sync_lock_busy = False
+
 # Conventional-commit → plain English label
 _PREFIX_LABELS = (
     (re.compile(r"^feat(\([^)]*\))?:\s*", re.I), "New"),
@@ -79,17 +85,25 @@ def humanize_commit(message: str) -> tuple[str, str]:
 
 
 def _git_log(limit: int = 8) -> list[dict]:
+    import os
+    import time
+
+    global _commits_cache, _commits_cache_at
+    now = time.time()
+    if _commits_cache is not None and (now - _commits_cache_at) < _COMMITS_TTL:
+        return _commits_cache[:limit]
+
+    out: list[dict] = []
     try:
         raw = subprocess.run(
             [
                 "git", "log", f"--max-count={limit}",
                 "--pretty=format:%h|%s|%as",
             ],
-            capture_output=True, text=True, cwd=str(_REPO), timeout=5,
+            capture_output=True, text=True, cwd=str(_REPO), timeout=3,
         ).stdout.strip()
     except Exception:
         raw = ""
-    out: list[dict] = []
     for line in (raw or "").splitlines():
         parts = line.strip().split("|", 2)
         if len(parts) >= 2:
@@ -98,25 +112,40 @@ def _git_log(limit: int = 8) -> list[dict]:
                 "message": parts[1],
                 "date": parts[2] if len(parts) > 2 else "",
             })
-    if out:
-        return out
-    # Cloud / packaged installs often have no .git — fall back to GitHub.
-    return _github_log(limit=limit)
+
+    # Cloud / packaged installs often have no .git — fall back to GitHub
+    # with a hard short timeout so serverless never burns the whole request.
+    if not out and os.environ.get("UPDATE_NOTICES_GITHUB", "true").lower() not in (
+        "0", "false", "no", "off",
+    ):
+        out = _github_log(limit=limit)
+
+    _commits_cache = out
+    _commits_cache_at = now
+    return out[:limit]
 
 
 def _github_log(limit: int = 8) -> list[dict]:
     import json
+    import socket
+    import urllib.error
     import urllib.request
 
     url = (
         "https://api.github.com/repos/bilalpiaic/Easy-Books/commits"
-        f"?sha=main&per_page={max(1, min(limit, 15))}"
+        f"?sha=main&per_page={max(1, min(limit, 8))}"
     )
     try:
-        req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "Easy-Books-UpdateNotices",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-    except Exception:
+    except (socket.timeout, TimeoutError, urllib.error.URLError, Exception):
         return []
     out: list[dict] = []
     for row in data if isinstance(data, list) else []:
@@ -188,11 +217,21 @@ def _active_users(session: Session) -> list[User]:
 
 def fanout_notice(session: Session, notice: AppUpdateNotice) -> int:
     """Create a system alert for every active user (dedupe by sha)."""
-    n = 0
+    from datetime import datetime
+
     key = f"{DEDUPE_PREFIX}{notice.sha}"
-    for u in _active_users(session):
-        if emit_alert(
-            session,
+    users = _active_users(session)
+    if not users:
+        return 0
+    existing_ids = set(session.exec(
+        select(UserAlert.user_id).where(UserAlert.dedupe_key == key)
+    ).all())
+    now = datetime.utcnow()
+    batch: list[UserAlert] = []
+    for u in users:
+        if u.id in existing_ids:
+            continue
+        batch.append(UserAlert(
             tenant_id=u.tenant_id,
             user_id=u.id,  # type: ignore[arg-type]
             kind="system",
@@ -203,9 +242,13 @@ def fanout_notice(session: Session, notice: AppUpdateNotice) -> int:
             entity_type=ENTITY_TYPE,
             entity_id=notice.id,
             dedupe_key=key,
-        ):
-            n += 1
-    return n
+            created_at=now,
+        ))
+    if not batch:
+        return 0
+    session.add_all(batch)
+    session.flush()
+    return len(batch)
 
 
 def sync_update_notices(
@@ -219,6 +262,24 @@ def sync_update_notices(
     First run after this feature ships records the current HEAD history
     without spamming everyone. Later new commits create alerts.
     """
+    global _sync_lock_busy
+    if _sync_lock_busy and not force_fanout:
+        return {"created": 0, "alerted": 0, "skipped": "busy"}
+    _sync_lock_busy = True
+    try:
+        return _sync_update_notices_inner(
+            session, limit=limit, force_fanout=force_fanout
+        )
+    finally:
+        _sync_lock_busy = False
+
+
+def _sync_update_notices_inner(
+    session: Session,
+    *,
+    limit: int = 8,
+    force_fanout: bool = False,
+) -> dict:
     ensure_notice_table(session)
 
     commits = _git_log(limit=limit)
@@ -265,21 +326,26 @@ def sync_update_notices(
                 .limit(1)
             ).first()
             targets = [latest] if latest else []
-        for notice in targets:
+        # Cap fan-out work per request (serverless time budget).
+        for notice in targets[:2]:
             alerted += fanout_notice(session, notice)
         session.commit()
 
     return {"created": len(created_notices), "alerted": alerted, "bootstrapped": True}
 
 
-def ensure_user_notices(session: Session, user: User, *, limit: int = 5) -> int:
+def ensure_user_notices(session: Session, user: User, *, limit: int = 3) -> int:
     """Backfill recent notify-able notices for this user (late join / missed fanout)."""
-    notices = session.exec(
-        select(AppUpdateNotice)
-        .where(AppUpdateNotice.notify_users == True)  # noqa: E712
-        .order_by(AppUpdateNotice.id.desc())  # type: ignore
-        .limit(limit)
-    ).all()
+    try:
+        notices = session.exec(
+            select(AppUpdateNotice)
+            .where(AppUpdateNotice.notify_users == True)  # noqa: E712
+            .order_by(AppUpdateNotice.id.desc())  # type: ignore
+            .limit(limit)
+        ).all()
+    except Exception:
+        session.rollback()
+        return 0
     n = 0
     for notice in notices:
         if emit_alert(
@@ -302,7 +368,10 @@ def ensure_user_notices(session: Session, user: User, *, limit: int = 5) -> int:
 
 
 def unread_update_alerts(session: Session, user: User) -> list[UserAlert]:
-    ensure_user_notices(session, user)
+    try:
+        ensure_user_notices(session, user)
+    except Exception:
+        session.rollback()
     return list(session.exec(
         select(UserAlert)
         .where(
