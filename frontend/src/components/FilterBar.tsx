@@ -47,7 +47,7 @@ export default function FilterBar({
         <select
           value={status ?? ''}
           onChange={e => onStatus(e.target.value)}
-          className="px-2 sm:px-3 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white max-w-[40%] sm:max-w-none"
+          className="w-full sm:w-auto px-2 sm:px-3 py-1.5 sm:py-2 border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] bg-white sm:max-w-none"
         >
           <option value="">All statuses</option>
           {statuses.map(s => (

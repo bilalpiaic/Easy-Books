@@ -79,13 +79,15 @@ export default function DateRangePicker({
       >
         <input
           type="date" value={start} disabled={!showCustomDates}
-          onChange={(e) => onStartChange(e.target.value)} className={inputCls}
+          onChange={(e) => onStartChange(e.target.value)}
+          className={inputCls + " flex-1 min-w-0 sm:flex-none"}
           aria-label="From date"
         />
-        <span className="text-[var(--text-muted)] text-xs">to</span>
+        <span className="text-[var(--text-muted)] text-xs shrink-0">to</span>
         <input
           type="date" value={end} disabled={!showCustomDates}
-          onChange={(e) => onEndChange(e.target.value)} className={inputCls}
+          onChange={(e) => onEndChange(e.target.value)}
+          className={inputCls + " flex-1 min-w-0 sm:flex-none"}
           aria-label="To date"
         />
       </div>

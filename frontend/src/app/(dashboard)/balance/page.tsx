@@ -207,12 +207,12 @@ export default function BalanceSheetPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <PrintHeader title="Balance Sheet" subtitle={`As of ${fmtDate(asOf)}`} />
-      <div className="flex justify-between items-center mb-8 print:hidden">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8 print:hidden">
+        <div className="min-w-0">
           <h1 className="text-xl sm:text-3xl font-bold text-[var(--text-primary)]">Balance Sheet</h1>
-          <p className="text-[var(--text-primary)]/60">Financial position as of {fmtDate(asOf)}</p>
+          <p className="text-[var(--text-primary)]/60 text-sm sm:text-base">Financial position as of {fmtDate(asOf)}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {!compareMode && (
             <button onClick={exportCsv} disabled={isLoading} className="p-3 bg-white border border-[var(--text-primary)]/10 rounded-xl hover:bg-[var(--bg-page)] transition-colors text-[var(--text-primary)]/60 disabled:opacity-40" title="Export CSV">
               <Download className="w-5 h-5" />

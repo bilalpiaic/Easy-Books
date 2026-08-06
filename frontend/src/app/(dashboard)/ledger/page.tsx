@@ -386,34 +386,38 @@ function LedgerPageInner() {
       </nav>
 
       {/* Page title + toggle + actions */}
-      <div className="flex items-center justify-between gap-3 mb-5 print:hidden">
-        <div className="flex items-center gap-3">
-          <BookOpen className="w-5 h-5 text-[var(--primary)]" />
-          <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 print:hidden">
+        <div className="flex items-center gap-3 min-w-0">
+          <BookOpen className="w-5 h-5 text-[var(--primary)] shrink-0" />
+          <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">General Ledger</h1>
-            <p className="text-xs text-[var(--text-primary)]/55">
+            <p className="text-xs text-[var(--text-primary)]/55 hidden sm:block">
               {view === "consolidated"
                 ? "Select an account to view its transaction history with running balance"
                 : "All accounts — expand AR / AP rows to see per-entity breakdowns"}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Consolidated / Sub-Ledger toggle */}
           <div className="flex rounded-lg border border-[var(--border)] overflow-hidden">
             <button
               onClick={() => setView("consolidated")}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === "consolidated" ? "bg-[var(--text-primary)] text-white" : "bg-white text-[var(--text-muted)] hover:bg-[var(--bg-page)]"}`}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-sm font-bold transition-colors ${view === "consolidated" ? "bg-[var(--text-primary)] text-white" : "bg-white text-[var(--text-muted)] hover:bg-[var(--bg-page)]"}`}
               title="Single account view"
             >
-              <List className="w-4 h-4" /> Consolidated
+              <List className="w-4 h-4 shrink-0" />
+              <span className="sm:hidden">Consol.</span>
+              <span className="hidden sm:inline">Consolidated</span>
             </button>
             <button
               onClick={() => setView("subledger")}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors ${view === "subledger" ? "bg-[var(--text-primary)] text-white" : "bg-white text-[var(--text-muted)] hover:bg-[var(--bg-page)]"}`}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-sm font-bold transition-colors ${view === "subledger" ? "bg-[var(--text-primary)] text-white" : "bg-white text-[var(--text-muted)] hover:bg-[var(--bg-page)]"}`}
               title="Sub-ledger view with expandable control accounts"
             >
-              <Layers className="w-4 h-4" /> Sub-Ledger
+              <Layers className="w-4 h-4 shrink-0" />
+              <span className="sm:hidden">Sub</span>
+              <span className="hidden sm:inline">Sub-Ledger</span>
             </button>
           </div>
 
