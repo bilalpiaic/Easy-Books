@@ -31,6 +31,8 @@ jobs:
         env:
           OVERDUE_SWEEP_ENABLED: "false"
           WEBHOOKS_ENABLED: "false"
+          # Flat backend package layout (db.py, models.py, …) — matches e2e.yml seed step.
+          PYTHONPATH: .
         run: |
           uv sync
           uv run pytest -q --tb=line

@@ -60,7 +60,11 @@ def score_candidate(
     else:
         return 0.0
 
-    score += min(10.0, _desc_overlap(line.description or "", txn_description) * 10.0)
+    # Remittance / merchant text (#301): weight description overlap a bit
+    # higher so recurring Open Banking remittance strings surface as confident
+    # suggestions even when the JV narration is abbreviated.
+    overlap = _desc_overlap(line.description or "", txn_description)
+    score += min(20.0, overlap * 20.0)
     return min(100.0, round(score, 1))
 
 

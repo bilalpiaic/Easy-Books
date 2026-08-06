@@ -99,6 +99,7 @@ export const NAV: NavItem[] = [
   { label: "Bank Accounts",    href: "/bank-accounts",     icon: Landmark,         section: "Banking" },
   { label: "Exchange Rates",   href: "/exchange-rates",    icon: TrendingUp,       section: "Banking" },
   { label: "Bank Imports",     href: "/bank-imports",      icon: Upload,           section: "Banking" },
+  { label: "Bank Feeds",       href: "/banking/feeds",     icon: RefreshCw,        section: "Banking" },
   { label: "Bank Rules",       href: "/bank-imports/rules", icon: Tags,            section: "Banking" },
   { label: "Cash Book",        href: "/cash-book",         icon: Wallet,           section: "Banking" },
   { label: "Bank Book",        href: "/bank-book",         icon: BookOpen,         section: "Banking" },
@@ -323,7 +324,7 @@ export function mobileMoreSections(): TopNavSection[] {
 /** Pathname-prefix → top-nav section key mapping */
 const SECTION_PREFIXES: Record<string, string[]> = {
   dashboard:     ["/dashboard"],
-  banking:       ["/banking", "/bank-accounts", "/bank-book", "/cash-book", "/reconciliations", "/bank-imports", "/exchange-rates"],
+  banking:       ["/banking", "/bank-accounts", "/bank-book", "/cash-book", "/reconciliations", "/bank-imports", "/banking/feeds", "/exchange-rates"],
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
@@ -403,6 +404,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Cash Book",       href: "/cash-book",       icon: Wallet,     section: "banking" },
     { label: "Reconciliations", href: "/reconciliations", icon: CheckCheck, section: "banking" },
     { label: "Bank Imports",    href: "/bank-imports",    icon: Upload,     section: "banking" },
+    { label: "Bank Feeds",      href: "/banking/feeds",   icon: RefreshCw,  section: "banking" },
     { label: "Bank Rules",      href: "/bank-imports/rules", icon: Tags,  section: "banking" },
     { label: "Exchange Rates",  href: "/exchange-rates",  icon: TrendingUp, section: "banking" },
   ],

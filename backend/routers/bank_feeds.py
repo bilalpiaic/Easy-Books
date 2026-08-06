@@ -1,12 +1,17 @@
-"""Plaid bank feeds (#121) + categorization rules CRUD (#268).
+"""Plaid bank feeds (#121) + categorization rules (#268) + Open Banking depth (#301).
 
 Graceful 503 when PLAID_* unset. Rules live under /api/banking/rules so they
 work without Plaid credentials (CSV/OFX imports share the same rule table).
+
+#301 adds provider-agnostic feed connections under /api/banking/feeds
+(mock EU/UK-style pull today; real aggregator adapters plug into
+services.bank_providers).
 """
 from __future__ import annotations
 
 import os
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
@@ -14,12 +19,20 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import select
 
-from models import Account, CategorizationRule, PlaidConnection, StatementLine
+from models import Account, BankAccount, CategorizationRule, PlaidConnection, StatementLine
 from services.bank_rules import apply_rules_to_lines
+from services.bank_sync import (
+    STATUS_OK,
+    connection_status_payload,
+    mark_connection_error,
+    mark_connection_ok,
+    sync_connection,
+)
 from services.crypto_secrets import decrypt_secret, encrypt_secret
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 
 plaid_router = APIRouter(prefix="/api/banking/plaid", tags=["bank-feeds"])
+feeds_router = APIRouter(prefix="/api/banking/feeds", tags=["bank-feeds"])
 rules_router = APIRouter(prefix="/api/banking/rules", tags=["bank-feeds"])
 
 PLAID_BASE = {
@@ -51,14 +64,8 @@ def list_connections(session: SessionDep, user: CurrentUserDep):
             PlaidConnection.is_active == True,  # noqa: E712
         )
     ).all()
-    return [
-        {
-            "id": r.id, "institution_name": r.institution_name,
-            "item_id": r.item_id, "last_sync": r.last_sync,
-            "bank_account_id": r.bank_account_id,
-        }
-        for r in rows
-    ]
+    # Enriched payload (#301) — keep legacy keys for older clients.
+    return [connection_status_payload(r) for r in rows]
 
 
 @plaid_router.post("/link-token")
@@ -111,11 +118,24 @@ def exchange_token(body: ExchangeBody, session: SessionDep, user: WriteUserDep):
 
 
 @plaid_router.post("/sync/{connection_id}")
-def sync_connection(connection_id: int, session: SessionDep, user: WriteUserDep):
-    _require_plaid()
+def sync_plaid_connection(connection_id: int, session: SessionDep, user: WriteUserDep):
     conn = session.get(PlaidConnection, connection_id)
     if not conn or conn.tenant_id != user.tenant_id:
         raise HTTPException(404, "Connection not found")
+
+    # Non-Plaid providers (mock / future OB) use the shared sync path.
+    if (conn.provider or "plaid").lower() != "plaid":
+        try:
+            return sync_connection(session, conn)
+        except ValueError as exc:
+            code = str(exc)
+            if code == "consent_expired":
+                raise HTTPException(400, "Open Banking consent expired — reconnect the account")
+            if code == "connection_missing_bank_account":
+                raise HTTPException(400, "Connection has no bank_account_id")
+            raise HTTPException(400, code)
+
+    _require_plaid()
     if not conn.bank_account_id:
         raise HTTPException(
             400,
@@ -127,38 +147,50 @@ def sync_connection(connection_id: int, session: SessionDep, user: WriteUserDep)
         "secret": os.environ["PLAID_SECRET"],
         "access_token": access,
     }
-    r = httpx.post(_plaid_url("/transactions/sync"), json=payload, timeout=30.0)
-    if r.status_code >= 400:
-        raise HTTPException(502, f"Plaid error: {r.text[:300]}")
-    body = r.json()
-    added_txns = body.get("added") or []
-    from services.plaid_sync import upsert_plaid_transactions
-    counts = upsert_plaid_transactions(
-        session,
-        tenant_id=user.tenant_id,
-        bank_account_id=conn.bank_account_id,
-        transactions=added_txns,
-    )
-    # Categorize newly imported lines for this account's open imports
-    lines = list(session.exec(
-        select(StatementLine).where(
-            StatementLine.tenant_id == user.tenant_id,
-            StatementLine.is_matched == False,  # noqa: E712
-            StatementLine.categorized_account_id == None,  # noqa: E711
+    try:
+        r = httpx.post(_plaid_url("/transactions/sync"), json=payload, timeout=30.0)
+        if r.status_code >= 400:
+            mark_connection_error(conn, f"Plaid error: {r.text[:300]}")
+            session.add(conn)
+            session.commit()
+            raise HTTPException(502, f"Plaid error: {r.text[:300]}")
+        body = r.json()
+        added_txns = body.get("added") or []
+        from services.plaid_sync import upsert_plaid_transactions
+        counts = upsert_plaid_transactions(
+            session,
+            tenant_id=user.tenant_id,
+            bank_account_id=conn.bank_account_id,
+            transactions=added_txns,
         )
-    ).all())
-    categorized = apply_rules_to_lines(session, tenant_id=user.tenant_id, lines=lines)
-    conn.last_sync = datetime.utcnow()
-    session.add(conn)
-    session.commit()
-    return {
-        "ok": True,
-        "added": len(added_txns),
-        "imported": counts["imported"],
-        "skipped": counts["skipped"],
-        "categorized": categorized,
-        "last_sync": conn.last_sync,
-    }
+        lines = list(session.exec(
+            select(StatementLine).where(
+                StatementLine.tenant_id == user.tenant_id,
+                StatementLine.is_matched == False,  # noqa: E712
+                StatementLine.categorized_account_id == None,  # noqa: E711
+            )
+        ).all())
+        categorized = apply_rules_to_lines(session, tenant_id=user.tenant_id, lines=lines)
+        mark_connection_ok(conn)
+        session.add(conn)
+        session.commit()
+        return {
+            "ok": True,
+            "provider": "plaid",
+            "added": len(added_txns),
+            "imported": counts["imported"],
+            "skipped": counts["skipped"],
+            "categorized": categorized,
+            "last_sync": conn.last_sync,
+            "sync_status": conn.sync_status or STATUS_OK,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        mark_connection_error(conn, f"{type(exc).__name__}: {exc}")
+        session.add(conn)
+        session.commit()
+        raise HTTPException(502, f"Plaid sync failed: {exc}") from exc
 
 
 @plaid_router.delete("/connections/{connection_id}", status_code=204)
@@ -174,6 +206,72 @@ def disconnect(connection_id: int, session: SessionDep, user: WriteUserDep):
 @plaid_router.post("/webhook")
 async def plaid_webhook():
     return {"received": True}
+
+
+# ── Provider-agnostic feeds (#301) ────────────────────────────────────────────
+
+@feeds_router.get("/connections")
+def list_feed_connections(session: SessionDep, user: CurrentUserDep):
+    """Multi-account sync status: last success / error / consent expired."""
+    rows = session.exec(
+        select(PlaidConnection).where(
+            PlaidConnection.tenant_id == user.tenant_id,
+            PlaidConnection.is_active == True,  # noqa: E712
+        )
+    ).all()
+    return [connection_status_payload(r) for r in rows]
+
+
+class MockConnectBody(BaseModel):
+    bank_account_id: int
+    institution_name: str = "Mock Open Banking (EU/UK)"
+    consent_days: int = Field(default=90, ge=1, le=180)
+
+
+@feeds_router.post("/mock/connect", status_code=201)
+def connect_mock_feed(body: MockConnectBody, session: SessionDep, user: WriteUserDep):
+    """Attach a deterministic mock Open Banking feed for demo/tests (no aggregator)."""
+    acct = session.get(BankAccount, body.bank_account_id)
+    if not acct or acct.tenant_id != user.tenant_id:
+        raise HTTPException(400, "Invalid bank account for this tenant")
+    token = encrypt_secret(f"mock-{secrets.token_hex(8)}")
+    conn = PlaidConnection(
+        tenant_id=user.tenant_id,
+        bank_account_id=body.bank_account_id,
+        access_token=token,
+        item_id=f"mock-item-{secrets.token_hex(6)}",
+        institution_name=body.institution_name,
+        provider="mock",
+        sync_status="never",
+        consent_expires_at=datetime.utcnow() + timedelta(days=body.consent_days),
+    )
+    session.add(conn)
+    session.commit()
+    session.refresh(conn)
+    log_audit(session, user, "CREATE", "bank_feed_connection", conn.id, {
+        "provider": "mock", "bank_account_id": body.bank_account_id,
+    })
+    session.commit()
+    return connection_status_payload(conn)
+
+
+@feeds_router.post("/{connection_id}/sync")
+def sync_feed_connection(connection_id: int, session: SessionDep, user: WriteUserDep):
+    """On-demand pull for any provider (mock / future OB). Plaid uses legacy path."""
+    conn = session.get(PlaidConnection, connection_id)
+    if not conn or conn.tenant_id != user.tenant_id or not conn.is_active:
+        raise HTTPException(404, "Connection not found")
+    if (conn.provider or "plaid").lower() == "plaid":
+        return sync_plaid_connection(connection_id, session, user)
+    try:
+        return sync_connection(session, conn)
+    except ValueError as exc:
+        code = str(exc)
+        if code == "consent_expired":
+            raise HTTPException(400, "Open Banking consent expired — reconnect the account")
+        if code == "connection_missing_bank_account":
+            raise HTTPException(400, "Connection has no bank_account_id")
+        raise HTTPException(400, code)
 
 
 # ── Categorization rules (shared by Plaid + CSV/OFX) ─────────────────────────
@@ -273,4 +371,5 @@ from fastapi import APIRouter as _APIRouter
 
 router = _APIRouter()
 router.include_router(plaid_router)
+router.include_router(feeds_router)
 router.include_router(rules_router)
