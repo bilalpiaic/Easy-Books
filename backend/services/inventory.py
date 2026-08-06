@@ -43,6 +43,167 @@ def _default_own_location(session: Session, tenant_id: int) -> Optional[int]:
     return loc.id if loc else None
 
 
+def ensure_in_transit_location(session: Session, tenant_id: int) -> StockLocation:
+    """System location holding stock between ship and receive (#302)."""
+    loc = session.exec(
+        select(StockLocation).where(
+            StockLocation.tenant_id == tenant_id,
+            StockLocation.code == "INTR",
+        )
+    ).first()
+    if loc:
+        if not loc.is_active:
+            loc.is_active = True
+            session.add(loc)
+        return loc
+    loc = StockLocation(
+        tenant_id=tenant_id,
+        code="INTR",
+        name="In Transit",
+        type="in_transit",
+        is_active=True,
+    )
+    session.add(loc)
+    session.flush()
+    return loc
+
+
+def location_on_hand(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    location_id: int,
+) -> Decimal:
+    """Sum of InventoryLayer.qty_remaining at a location for a product."""
+    from sqlalchemy import func as sa_func
+
+    total = session.exec(
+        select(sa_func.coalesce(sa_func.sum(InventoryLayer.qty_remaining), 0)).where(
+            InventoryLayer.tenant_id == tenant_id,
+            InventoryLayer.product_id == product_id,
+            InventoryLayer.location_id == location_id,
+            InventoryLayer.qty_remaining > 0,
+        )
+    ).one()
+    return D(total)
+
+
+def transfer_stock(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    qty: Decimal,
+    from_location_id: int,
+    to_location_id: int,
+    source_doc_type: str,
+    source_doc_id: Optional[int] = None,
+    lot_no: Optional[str] = None,
+    notes: Optional[str] = None,
+) -> Decimal:
+    """Move qty between locations without changing Product.stock_qty (#302).
+
+    Drains FIFO layers at ``from_location_id`` and creates matching layers at
+    ``to_location_id``. Logs TRANSFER_OUT then TRANSFER_IN. Returns total cost
+    of the moved quantity. Raises InventoryError if insufficient at source.
+    """
+    qty = D(qty)
+    if qty <= 0:
+        raise InventoryError(f"qty must be > 0; got {qty}")
+    if from_location_id == to_location_id:
+        raise InventoryError("from and to locations must differ")
+
+    prod = session.exec(
+        select(Product)
+        .where(Product.id == product_id, Product.tenant_id == tenant_id)
+        .with_for_update()
+    ).first()
+    if not prod or prod.product_type != "stock":
+        raise InventoryError("Only stock products can be transferred")
+
+    layer_q = (
+        select(InventoryLayer)
+        .where(
+            InventoryLayer.tenant_id == tenant_id,
+            InventoryLayer.product_id == product_id,
+            InventoryLayer.location_id == from_location_id,
+            InventoryLayer.qty_remaining > 0,
+        )
+        .order_by(InventoryLayer.id.asc())
+    )
+    if lot_no:
+        layer_q = layer_q.where(InventoryLayer.lot_no == lot_no)
+    layers = session.exec(layer_q).all()
+
+    available = sum((D(ly.qty_remaining) for ly in layers), start=ZERO)
+    if available < qty:
+        raise InventoryError(
+            f"Insufficient stock at location for {prod.name}: "
+            f"on hand {money(available)}, transfer {money(qty)}"
+        )
+
+    remaining = qty
+    moved_cost = ZERO
+    for layer in layers:
+        if remaining <= ZERO:
+            break
+        take = min(D(layer.qty_remaining), remaining)
+        unit = D(layer.unit_cost)
+        layer.qty_remaining = money(D(layer.qty_remaining) - take)
+        session.add(layer)
+        dest = InventoryLayer(
+            tenant_id=tenant_id,
+            product_id=product_id,
+            location_id=to_location_id,
+            owner_customer_id=layer.owner_customer_id,
+            lot_no=layer.lot_no,
+            qty_received=take,
+            qty_remaining=take,
+            unit_cost=unit,
+            source_doc=f"XFER:{source_doc_type}:{source_doc_id or ''}",
+        )
+        session.add(dest)
+        moved_cost = money(moved_cost + take * unit)
+        remaining -= take
+
+        record_movement(
+            session,
+            tenant_id=tenant_id,
+            product_id=product_id,
+            direction="TRANSFER_OUT",
+            qty=take,
+            from_location_id=from_location_id,
+            to_location_id=to_location_id,
+            lot_no=layer.lot_no,
+            owner_customer_id=layer.owner_customer_id,
+            unit_cost=unit,
+            source_doc_type=source_doc_type,
+            source_doc_id=source_doc_id,
+            posted_to_gl=False,
+            notes=notes,
+        )
+        record_movement(
+            session,
+            tenant_id=tenant_id,
+            product_id=product_id,
+            direction="TRANSFER_IN",
+            qty=take,
+            from_location_id=from_location_id,
+            to_location_id=to_location_id,
+            lot_no=layer.lot_no,
+            owner_customer_id=layer.owner_customer_id,
+            unit_cost=unit,
+            source_doc_type=source_doc_type,
+            source_doc_id=source_doc_id,
+            posted_to_gl=False,
+            notes=notes,
+        )
+
+    session.flush()
+    return moved_cost
+
+
 def record_movement(
     session: Session,
     *,

@@ -11,7 +11,7 @@ import {
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
   AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
-  Store,
+  Store, ArrowLeftRight,
 } from "lucide-react"
 
 export type NavItem = {
@@ -79,6 +79,10 @@ export const NAV: NavItem[] = [
   { label: "Product Ledger",    href: "/products/ledger",    icon: BookOpen,         section: "Inventory",      forModule: "inventory" },
   { label: "Inventory Report",  href: "/inventory/performance", icon: PieChart,      section: "Inventory",      forModule: "inventory" },
   { label: "Valuation",         href: "/inventory/valuation",   icon: Scale,         section: "Inventory",      forModule: "inventory" },
+  { label: "Stock Transfers",   href: "/inventory/transfers",   icon: ArrowLeftRight, section: "Inventory",     forModule: "inventory" },
+  { label: "Transfer Register", href: "/inventory/transfer-register", icon: ScrollText, section: "Inventory", forModule: "inventory" },
+  { label: "Stock by Warehouse", href: "/inventory/stock-by-warehouse", icon: Warehouse, section: "Inventory", forModule: "inventory" },
+  { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Inventory", forModule: "inventory" },
   { label: "Production Floor", href: "/manufacturing",     icon: Factory,          section: "Manufacturing",    forModule: "production" },
   { label: "Bills of Material",href: "/manufacturing/boms",icon: ListChecks,       section: "Manufacturing",    forModule: "production" },
   { label: "Rate Plans",       href: "/manufacturing/rate-plans", icon: Tags,      section: "Manufacturing",    forModule: "production" },
@@ -491,6 +495,10 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Product Ledger",     href: "/products/ledger",       icon: BookOpen, section: "inventory", forModule: "inventory" },
     { label: "Inventory Report",   href: "/inventory/performance", icon: PieChart, section: "inventory", forModule: "inventory" },
     { label: "Valuation",          href: "/inventory/valuation",   icon: Scale,    section: "inventory", forModule: "inventory" },
+    { label: "Stock Transfers",    href: "/inventory/transfers",   icon: ArrowLeftRight, section: "inventory", forModule: "inventory" },
+    { label: "Transfer Register",  href: "/inventory/transfer-register", icon: ScrollText, section: "inventory", forModule: "inventory" },
+    { label: "Stock by Warehouse", href: "/inventory/stock-by-warehouse", icon: Warehouse, section: "inventory", forModule: "inventory" },
+    { label: "Stock Locations",    href: "/manufacturing/stock-locations", icon: Warehouse, section: "inventory", forModule: "inventory" },
   ],
   payroll: [
     { label: "Overview",          href: "/hrm",                icon: LayoutGrid,   section: "payroll", forModule: "hrm" },

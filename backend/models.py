@@ -1040,11 +1040,12 @@ class StockLocation(SQLModel, table=True):
       customer_custodial — godown holding goods we received from a customer
                            for processing; goods are NOT our asset
       wip                — work-in-progress holding bucket during production
+      in_transit         — system bucket between ship and receive (#302)
     """
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="unique_stock_location_code"),
         CheckConstraint(
-            "type IN ('own','customer_custodial','wip')",
+            "type IN ('own','customer_custodial','wip','in_transit')",
             name="ck_stock_location_type",
         ),
     )
@@ -1052,7 +1053,7 @@ class StockLocation(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     code: str = Field(index=True)              # e.g. RM-1, GODOWN-A
     name: str                                  # human label
-    type: str                                  # own | customer_custodial | wip
+    type: str                                  # own | customer_custodial | wip | in_transit
     is_active: bool = Field(default=True)
 
 
@@ -1088,7 +1089,8 @@ class StockMovement(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(
             "direction IN ('RECEIPT','CUSTODIAL_RECEIPT','ISSUE','CUSTODIAL_ISSUE',"
-            "'COMPLETION','CUSTODIAL_COMPLETION','DELIVERY','SHIPMENT','ADJUSTMENT')",
+            "'COMPLETION','CUSTODIAL_COMPLETION','DELIVERY','SHIPMENT','ADJUSTMENT',"
+            "'TRANSFER_OUT','TRANSFER_IN')",
             name="ck_stock_movement_direction",
         ),
         CheckConstraint("qty > 0", name="ck_stock_movement_qty_positive"),
@@ -1110,6 +1112,45 @@ class StockMovement(SQLModel, table=True):
     transaction_id: Optional[int] = Field(default=None, foreign_key="transaction.id")
     posted_to_gl: bool = Field(default=False)
     notes: Optional[str] = None
+
+
+class StockTransfer(SQLModel, table=True):
+    """Inter-warehouse transfer with in-transit state (#302). Memo location move —
+    Product.stock_qty unchanged; no GL for own↔own transfers."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="unique_stock_transfer_number"),
+        CheckConstraint(
+            "status IN ('draft','in_transit','received','cancelled')",
+            name="ck_stock_transfer_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)  # ST-YYYY-seq
+    transfer_date: str
+    from_location_id: int = Field(foreign_key="stocklocation.id", index=True)
+    to_location_id: int = Field(foreign_key="stocklocation.id", index=True)
+    status: str = Field(default="draft", index=True)
+    notes: Optional[str] = None
+    created_by_id: int = Field(foreign_key="user.id")
+    shipped_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    shipped_at: Optional[datetime] = None
+    received_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    received_at: Optional[datetime] = None
+    cancel_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class StockTransferLine(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_st_line_qty_positive"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    transfer_id: int = Field(foreign_key="stocktransfer.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id")
+    qty: Money = money_col()
+    lot_no: Optional[str] = None
+    unit_cost: Money = money_col(default=Decimal("0"))  # filled on ship
 
 
 class GoodsReceiptNote(SQLModel, table=True):

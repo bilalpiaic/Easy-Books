@@ -2033,6 +2033,62 @@ def inventory_performance(
     return {"items": out}
 
 
+# ── Stock by Warehouse (#302) ─────────────────────────────────────────────────
+
+
+@router.get("/stock-by-warehouse", dependencies=[perm_dep("report.stock_by_warehouse")])
+def stock_by_warehouse(session: SessionDep, user: CurrentUserDep):
+    """Location-level on-hand from InventoryLayer (own + in_transit)."""
+    from models import InventoryLayer, StockLocation
+
+    locs = session.exec(
+        select(StockLocation).where(
+            StockLocation.tenant_id == user.tenant_id,
+            StockLocation.is_active == True,  # noqa: E712
+            StockLocation.type.in_(["own", "in_transit"]),  # type: ignore[attr-defined]
+        ).order_by(StockLocation.code)
+    ).all()
+    warehouses = []
+    for loc in locs:
+        rows = session.exec(
+            select(
+                Product.id,
+                Product.code,
+                Product.name,
+                func.sum(InventoryLayer.qty_remaining).label("qty"),
+                func.sum(InventoryLayer.qty_remaining * InventoryLayer.unit_cost).label("value"),
+            )
+            .join(InventoryLayer, InventoryLayer.product_id == Product.id)
+            .where(
+                InventoryLayer.tenant_id == user.tenant_id,
+                InventoryLayer.location_id == loc.id,
+                InventoryLayer.qty_remaining > 0,
+            )
+            .group_by(Product.id)
+            .order_by(Product.name)
+        ).all()
+        items = [
+            {
+                "product_id": r.id,
+                "product_code": r.code,
+                "product_name": r.name,
+                "qty": float(D(r.qty)),
+                "value": float(D(r.value)),
+            }
+            for r in rows
+        ]
+        warehouses.append({
+            "location_id": loc.id,
+            "code": loc.code,
+            "name": loc.name,
+            "type": loc.type,
+            "items": items,
+            "total_qty": sum(i["qty"] for i in items),
+            "total_value": sum(i["value"] for i in items),
+        })
+    return {"warehouses": warehouses}
+
+
 # ── Product COA (category valuation tree) ─────────────────────────────────────
 
 
