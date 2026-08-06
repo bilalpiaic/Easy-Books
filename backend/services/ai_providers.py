@@ -1,8 +1,8 @@
 """Multi-provider LLM registry for the AI Financial Assistant (#117).
 
 Single source of truth for which providers/models exist, how their API
-keys resolve (tenant Settings KV wins; ANTHROPIC_API_KEY env is a
-dev/demo fallback for the anthropic provider only), and what the chat
+keys resolve (tenant Settings KV wins; ANTHROPIC_API_KEY / XAI_API_KEY
+env are a dev/demo fallback for those providers), and what the chat
 UI's model dropdown may offer. All key material stays server-side —
 callers that need to show key state use mask_key().
 
@@ -45,6 +45,23 @@ PROVIDERS: dict[str, dict] = {
         # account age; dated IDs kept selectable for tenants whose key
         # still has access to them.
         "models": ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
+    },
+    # xAI Grok (Cursor Grok family) — LiteLLM routes as `xai/<id>` with
+    # XAI_API_KEY / tenant Settings KV. Flagship grok-4.5 matches the
+    # Cursor Grok 4.5 line; fast-non-reasoning is the cheap-tier stage.
+    "xai": {
+        "label": "xAI / Cursor Grok",
+        "settings_key": "ai_api_key_xai",
+        "env_fallback": "XAI_API_KEY",
+        "models": [
+            "grok-4.5",
+            "grok-4.5-latest",
+            "grok-4",
+            "grok-4-1-fast-reasoning",
+            "grok-4-1-fast-non-reasoning",
+            "grok-3-mini",
+            "grok-code-fast",
+        ],
     },
     "ollama": {
         "label": "Ollama (Local)",
@@ -169,6 +186,7 @@ CHEAP_TIER: dict[str, str] = {
     "openai": "gpt-4o-mini",
     # "-latest" alias, not a dated ID — see the sunset note on PROVIDERS above.
     "gemini": "gemini-flash-latest",
+    "xai": "grok-4-1-fast-non-reasoning",
 }
 
 

@@ -132,6 +132,7 @@ class SettingsUpdate(BaseModel):
     ai_api_key_anthropic: Optional[str] = None
     ai_api_key_openai: Optional[str] = None
     ai_api_key_gemini: Optional[str] = None
+    ai_api_key_xai: Optional[str] = None  # xAI / Cursor Grok
     ai_default_model: Optional[str] = None
     ai_rate_limit_per_hour: Optional[str] = None
     # Ollama (self-hosted, #163 follow-up) -- not a secret, no redaction needed

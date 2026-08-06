@@ -2022,20 +2022,41 @@ function DemoSampleDataSection() {
 }
 
 /* ── AI Assistant settings (#117) — provider keys, default model, rate limit ── */
-type AiKeyStatus = { anthropic: string | null; openai: string | null; gemini: string | null }
+type AiKeyStatus = {
+  anthropic: string | null
+  openai: string | null
+  gemini: string | null
+  xai: string | null
+}
 type AiProviderId = keyof AiKeyStatus
 
 const AI_PROVIDERS: { id: AiProviderId; label: string; settingsKey: string; models: string[] }[] = [
   { id: "anthropic", label: "Anthropic (Claude)", settingsKey: "ai_api_key_anthropic", models: ["claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"] },
   { id: "openai",    label: "OpenAI (GPT)",       settingsKey: "ai_api_key_openai",    models: ["gpt-4o-mini", "gpt-4o"] },
   { id: "gemini",    label: "Google (Gemini)",    settingsKey: "ai_api_key_gemini",    models: ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"] },
+  {
+    id: "xai",
+    label: "xAI / Cursor Grok",
+    settingsKey: "ai_api_key_xai",
+    models: [
+      "grok-4.5",
+      "grok-4.5-latest",
+      "grok-4",
+      "grok-4-1-fast-reasoning",
+      "grok-4-1-fast-non-reasoning",
+      "grok-3-mini",
+      "grok-code-fast",
+    ],
+  },
 ]
 
 function AiAssistantSection() {
   const { confirm } = useMessages()
   const [keyStatus, setKeyStatus] = useState<AiKeyStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(true)
-  const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({ anthropic: "", openai: "", gemini: "" })
+  const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({
+    anthropic: "", openai: "", gemini: "", xai: "",
+  })
   const [defaultModel, setDefaultModel] = useState("")
   const [rateLimit, setRateLimit] = useState("")
   // Ollama (self-hosted): no secret key -- gated by a tenant-tagged model
@@ -2126,7 +2147,7 @@ function AiAssistantSection() {
           body: JSON.stringify(payload),
         })
       }
-      setNewKeys({ anthropic: "", openai: "", gemini: "" })
+      setNewKeys({ anthropic: "", openai: "", gemini: "", xai: "" })
       initial.current = { defaultModel, rateLimit, ollamaBaseUrl, ollamaModels }
       loadKeyStatus()
       setSaved(true)
