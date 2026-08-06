@@ -194,10 +194,19 @@ def list_update_notices(session: SessionDep, current_user: CurrentUserDep):
     Called on dashboard load and periodically while the session is open so
     updates that land mid-session (or while the user was logged out) popup.
     """
-    from services.update_notices import sync_update_notices, unread_update_alerts
+    from services.update_notices import (
+        ensure_notice_table,
+        sync_update_notices,
+        unread_update_alerts,
+    )
 
-    sync = sync_update_notices(session)
-    rows = unread_update_alerts(session, current_user)
+    try:
+        ensure_notice_table(session)
+        sync = sync_update_notices(session)
+        rows = unread_update_alerts(session, current_user)
+    except Exception as exc:
+        # Never break the dashboard for a what's-new failure.
+        return {"sync": {"error": str(exc)[:200]}, "items": []}
     return {
         "sync": sync,
         "items": [
