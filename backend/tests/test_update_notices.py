@@ -124,3 +124,64 @@ def test_sync_bootstraps_without_alerting(client: TestClient):
         assert alert.kind == "system"
         # silence unused
         _ = before
+
+
+def test_get_notices_is_per_user_not_global_fanout(client: TestClient):
+    """Hot-path sync with for_user must alert only that user — not everyone."""
+    from services.update_notices import ensure_user_notices
+
+    auth_a = _signup(client, "per-user-a@co.test")
+    auth_b = _signup(client, "per-user-b@co.test")
+
+    # Quiet first-run seed so later notify rows are real "what's new" items.
+    assert client.get("/api/system/update/notices", headers=auth_a).status_code == 200
+
+    with Session(app.state.engine) as session:
+        session.add(AppUpdateNotice(
+            sha="peruser1",
+            title="New: Soft landing for updates",
+            body="What's-new pops up only for you when you open the app.",
+            notify_users=True,
+        ))
+        session.commit()
+
+        user_a = session.exec(select(User).where(User.email == "per-user-a@co.test")).first()
+        user_b = session.exec(select(User).where(User.email == "per-user-b@co.test")).first()
+        assert user_a and user_b
+
+        # Mirror the GET hot path: sync + for_user (no global fanout)
+        sync_update_notices(session, for_user=user_a)
+
+        a_alert = session.exec(
+            select(UserAlert).where(
+                UserAlert.user_id == user_a.id,
+                UserAlert.dedupe_key == "app_update:peruser1",
+            )
+        ).first()
+        b_alert = session.exec(
+            select(UserAlert).where(
+                UserAlert.user_id == user_b.id,
+                UserAlert.dedupe_key == "app_update:peruser1",
+            )
+        ).first()
+        assert a_alert is not None
+        assert b_alert is None  # A's sync must not wake B
+
+        # B's own lazy ensure creates their alert
+        ensure_user_notices(session, user_b, commit=True)
+        b_alert2 = session.exec(
+            select(UserAlert).where(
+                UserAlert.user_id == user_b.id,
+                UserAlert.dedupe_key == "app_update:peruser1",
+            )
+        ).first()
+        assert b_alert2 is not None
+
+    # HTTP surface still returns unread items for the caller
+    a = client.get("/api/system/update/notices", headers=auth_a)
+    assert a.status_code == 200, a.text
+    assert any(i.get("dedupe_key") == "app_update:peruser1" for i in a.json()["items"])
+
+    b = client.get("/api/system/update/notices", headers=auth_b)
+    assert b.status_code == 200, b.text
+    assert any(i.get("dedupe_key") == "app_update:peruser1" for i in b.json()["items"])

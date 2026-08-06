@@ -31,7 +31,7 @@ import QuotaBanner from "@/components/QuotaBanner"
 
 const SKIP_KEY = "eb.update-skip"     // persisted per remote SHA
 const SESSION_LATER_KEY = "eb.update-later-session" // session-only dismiss
-const NOTICE_POLL_MS = 90_000 // mid-session catch-up while logged in
+const NOTICE_POLL_MS = 180_000 // mid-session catch-up while logged in (lighter on DB)
 
 interface UpdateStatus {
   status: "up_to_date" | "update_available" | "unknown"
