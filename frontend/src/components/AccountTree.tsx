@@ -41,7 +41,10 @@ function TreeRow({ node, columns, renderLeafLabel }: {
     <>
       <tr className={isGroup ? "font-semibold bg-[var(--bg-page)]/40" : ""}>
         <td className="py-2 pr-3">
-          <span style={{ paddingLeft: `${node.level * 20}px` }} className="inline-flex items-center gap-1">
+          <span
+            style={{ paddingLeft: `calc(${node.level} * var(--tree-indent, 20px))` }}
+            className="inline-flex items-center gap-1 min-w-0 max-w-full [--tree-indent:12px] sm:[--tree-indent:20px]"
+          >
             {hasChildren ? (
               <button onClick={() => setOpen(o => !o)} className="text-[var(--text-primary)]/50 hover:text-[var(--primary)]">
                 {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
