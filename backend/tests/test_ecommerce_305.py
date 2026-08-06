@@ -51,7 +51,7 @@ def test_mock_connect_map_import_orders(client: TestClient):
     assert p1.get("id") and p2.get("id")
 
     providers = client.get("/api/ecommerce/providers", headers=auth).json()
-    assert {p["id"] for p in providers} >= {"mock", "shopify", "woocommerce"}
+    assert {p["id"] for p in providers} >= {"mock", "shopify", "woocommerce", "daraz"}
 
     conn = client.post("/api/ecommerce/connections", headers=auth, json={
         "provider": "mock",
@@ -100,3 +100,26 @@ def test_shopify_provider_requires_token(client: TestClient):
     r = client.post(f"/api/ecommerce/connections/{conn['id']}/sync", headers=auth)
     assert r.status_code == 400
     assert "access_token" in r.json()["detail"].lower() or "required" in r.json()["detail"].lower()
+
+
+def test_daraz_sandbox_sync_and_eb_to_store_push(client: TestClient):
+    auth = _signup(client, "ecom-daraz@test.com")
+    _install(client, auth, "inventory", "ecommerce")
+    client.post("/api/products", headers=auth, json={
+        "name": "Daraz Tote", "code": "DZ-SKU-A", "product_type": "stock",
+        "default_rate": 1499, "opening_qty": 10, "opening_cost": 100,
+    })
+    conn = client.post("/api/ecommerce/connections", headers=auth, json={
+        "provider": "daraz",
+        "shop_name": "Daraz PK",
+        "stock_sync_direction": "eb_to_store",
+    }).json()
+    assert conn["provider"] == "daraz"
+    cid = conn["id"]
+    mapped = client.post(f"/api/ecommerce/connections/{cid}/products/auto-map", headers=auth).json()
+    assert mapped["linked"] >= 1
+    sync = client.post(f"/api/ecommerce/connections/{cid}/sync", headers=auth)
+    assert sync.status_code == 200, sync.text
+    body = sync.json()
+    assert body["created_count"] >= 1
+

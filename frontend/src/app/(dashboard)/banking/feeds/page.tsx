@@ -103,6 +103,26 @@ export default function BankFeedsPage() {
     }
   }
 
+  const connectOpenBanking = async () => {
+    if (accountId === "") return
+    setConnecting(true)
+    setError(null)
+    try {
+      await apiFetch("/api/banking/feeds/openbanking/connect", {
+        method: "POST",
+        body: JSON.stringify({
+          bank_account_id: accountId,
+          institution_name: "Open Banking Sandbox (EU/UK)",
+        }),
+      })
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Connect failed")
+    } finally {
+      setConnecting(false)
+    }
+  }
+
   const syncNow = async (id: number) => {
     setBusyId(id)
     setError(null)
@@ -168,6 +188,14 @@ export default function BankFeedsPage() {
           >
             <Plus className="w-4 h-4" />
             {connecting ? "Connecting…" : "Connect mock feed"}
+          </button>
+          <button
+            type="button"
+            disabled={connecting || accountId === ""}
+            onClick={connectOpenBanking}
+            className="inline-flex items-center gap-2 border border-[var(--border)] px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40"
+          >
+            Connect EU/UK Open Banking
           </button>
         </div>
       </div>

@@ -57,6 +57,7 @@ def list_providers(user: CurrentUserDep, session: SessionDep):
         {"id": "mock", "label": "Mock Store (demo)", "auth": "none"},
         {"id": "shopify", "label": "Shopify", "auth": "access_token"},
         {"id": "woocommerce", "label": "WooCommerce", "auth": "consumer_key_secret"},
+        {"id": "daraz", "label": "Daraz", "auth": "access_token"},
     ]
 
 
@@ -84,13 +85,21 @@ def connect_store(user: WriteUserDep, session: SessionDep, body: ConnectIn):
     domain = (body.shop_domain or "").strip()
     if provider == "mock" and not domain:
         domain = "mock.local"
+    if provider == "daraz" and not domain:
+        domain = "api.daraz.pk"
+
+    token = body.access_token or ""
+    if provider == "mock" and not token:
+        token = "mock-token"
+    if provider == "daraz" and not token:
+        token = "sandbox"
 
     row = EcommerceConnection(
         tenant_id=user.tenant_id,
         provider=provider,
         shop_domain=domain,
         shop_name=(body.shop_name or domain or provider).strip(),
-        access_token=body.access_token or ("mock-token" if provider == "mock" else ""),
+        access_token=token,
         api_secret=body.api_secret,
         stock_sync_direction=direction,
         default_customer_id=body.default_customer_id,

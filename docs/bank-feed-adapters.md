@@ -19,6 +19,7 @@ Easy-Books normalizes every bank feed onto `NormalizedTxn` before writing
 |---|---|---|
 | `plaid` | `services.bank_providers.plaid_adapter` | HTTP in `routers/bank_feeds.py` (`/transactions/sync`) |
 | `mock` | `services.bank_providers.mock` | Deterministic sample remittance txns for demo/tests |
+| `openbanking` | `services.bank_providers.openbanking` | EU/UK AIS path — sandbox samples or JSON AIS dump |
 
 ## Sync model
 
@@ -27,10 +28,17 @@ Use:
 
 1. On-demand `POST /api/banking/feeds/{id}/sync`
 2. Scheduled `BANK_SYNC_ENABLED` loop in `main.py` (`BANK_SYNC_INTERVAL_HOURS`, default 24)
+3. Connect EU/UK: `POST /api/banking/feeds/openbanking/connect` (optional `transactions_json` AIS dump)
 
 Consent expiry (typically 90 days) is stored on `PlaidConnection.consent_expires_at`
 and surfaces as `sync_status=consent_expired` — distinct from a failed pull
 (`sync_status=error` + `last_error`).
+
+## Match confidence (#301)
+
+`services.bank_match.score_candidate` boosts remittance overlap and recurring
+merchant fingerprints (prior accepted matches with similar tokens, plus
+MONTHLY / DD / SUBSCRIPTION hints).
 
 ## Adding a real EU/UK aggregator
 

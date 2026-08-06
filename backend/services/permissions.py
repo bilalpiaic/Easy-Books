@@ -59,6 +59,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "production_orders":      {"label": "Production Orders",       "category": "Manufacturing"},
     "stock_locations":        {"label": "Stock Locations",         "category": "Manufacturing"},
     "inventory.transfer":     {"label": "Stock Transfers",         "category": "Inventory"},
+    "inventory.pick":         {"label": "Pick / Pack & Reservations", "category": "Inventory"},
     "report.stock_by_warehouse": {"label": "Stock by Warehouse",   "category": "Reports"},
     # Banking
     "bank_accounts":          {"label": "Bank Accounts",           "category": "Banking"},
@@ -108,6 +109,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "payroll.components":     {"label": "Salary Components",      "category": "Payroll"},
     "attendance":             {"label": "Attendance Register",    "category": "Payroll"},
     "leave":                  {"label": "Leave",                   "category": "Payroll"},
+    "expense_claims":         {"label": "Expense Claims",          "category": "Payroll"},
     # Healthcare
     "healthcare.patients":    {"label": "Patients",              "category": "Healthcare"},
     "healthcare.opd":         {"label": "OPD / Outpatient",      "category": "Healthcare"},

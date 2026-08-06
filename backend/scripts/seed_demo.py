@@ -3930,7 +3930,8 @@ _STANDARD_COMPONENTS = [
     ("HRA",     "House Rent Allowance", "earnings",   True,  True),
     ("CONVEY",  "Conveyance Allowance", "earnings",   False, True),
     ("MEDICAL", "Medical Allowance",    "earnings",   False, True),
-    ("EOBI",    "EOBI Deduction",       "deductions", False, True),
+    ("EOBI",    "EOBI Contribution",    "statutory",  False, True),
+    ("SESSTI",  "SESSTI / Social Security", "statutory", False, True),
     ("TAX",     "Income Tax",           "deductions", True,  True),
 ]
 
@@ -4009,6 +4010,7 @@ def _seed_salary_structures(s: Session, employees: list, components: list) -> No
             "CONVEY":  5_000,
             "MEDICAL": 3_000,
             "EOBI":    round(basic * 0.05),
+            "SESSTI":  round(basic * 0.01),
             "TAX":     round(basic * 0.08),
         }
         for code, amount in amounts.items():

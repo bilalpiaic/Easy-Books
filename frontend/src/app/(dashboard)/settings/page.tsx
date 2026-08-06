@@ -787,6 +787,7 @@ export default function SettingsPage() {
         </div>
 
         {([
+          ["stock_reservation_enabled", "Stock reservations (ATP)", "Open pick/pack holds reduce available-to-promise and block oversell."],
           ["inventory_landed_cost_enabled", "Landed cost allocation", "Allocate freight/duty onto receipt layers (IAS 2)."],
           ["inventory_lot_tracking_enabled", "Lot / serial tracking", "Allow products to require lot or serial numbers on receipt and sale."],
           ["inventory_nrv_enabled", "NRV write-downs", "Run net realisable value valuations and post write-down journals."],

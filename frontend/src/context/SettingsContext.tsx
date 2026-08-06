@@ -42,6 +42,7 @@ export interface AppSettings {
   onboarding_dismissed: string
   // Inventory
   block_negative_stock: string
+  stock_reservation_enabled: string
   inventory_landed_cost_enabled: string
   inventory_lot_tracking_enabled: string
   inventory_nrv_enabled: string
@@ -133,6 +134,7 @@ const defaults: AppSettings = {
   onboarding_steps: "",
   onboarding_dismissed: "",
   block_negative_stock: "false",
+  stock_reservation_enabled: "false",
   inventory_landed_cost_enabled: "true",
   inventory_lot_tracking_enabled: "true",
   inventory_nrv_enabled: "true",
