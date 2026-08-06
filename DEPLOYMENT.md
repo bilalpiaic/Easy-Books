@@ -263,15 +263,17 @@ Disabled automatically when `VERCEL=1`. Use an external cron (Vercel Cron → au
 
 ## 10. SEEDING DEMO DATA (optional)
 
-Demo tenants are created on first DB init when seed paths run. To load rich mock data:
+On first DB init with `SEED_DEMO=true` (default), Vercel creates **empty** demo login shells (CoA only). Rich mock data is **not** auto-loaded on serverless — load it on demand:
 
-**Option A (API):** log in as a demo user and create records through the public API.
+**Option A (cloud — preferred):** sign in as any admin/owner (including a demo owner) → **Settings → Sample / Demo Data → Load**. The UI seeds one company per request so each call stays under the 60s function limit. Then log out and sign in with the demo email you want (password `demo1234`).
 
-**Option B (dev only):** locally, with `DATABASE_URL` pointed at a *non-production* Neon branch:
+**Option B (dev / Neon branch):** locally, with `DATABASE_URL` pointed at a *non-production* Neon branch:
 ```bash
 cd backend && PYTHONPATH=. uv run python -m scripts.seed_demo
 ```
 Do **not** run the rich seeder against a live customer database.
+
+> The backend serverless bundle **must include** `backend/scripts/seed_demo.py`. Do not add `scripts/` to `.vercelignore` or `excludeFiles` — that leaves demo logins empty and makes `/api/admin/demo/*` return 503.
 
 ---
 

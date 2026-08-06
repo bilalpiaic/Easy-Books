@@ -5,7 +5,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "excludeFiles": "{tests/**,__pycache__/**,*.pyc,database.db,.venv/**,alembic/**,scripts/**}"
+      "excludeFiles": "{tests/**,__pycache__/**,*.pyc,database.db,.venv/**,alembic/**}"
     }
   }
 }
