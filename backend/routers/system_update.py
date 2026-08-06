@@ -6,6 +6,8 @@ servers (ports 8000 + 3000), rebuild Next.js, and restart everything.
 
 The BackgroundTasks mechanism ensures the HTTP response is fully sent
 before the script kills our own process.
+
+Also serves what's-new notices for every logged-in user (popup + Alerts).
 """
 import json as _json
 import subprocess
@@ -13,9 +15,11 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
+from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from routers.common import CurrentUserDep
+from pydantic import BaseModel
+from routers.common import CurrentUserDep, SessionDep
 
 router = APIRouter()
 
@@ -38,7 +42,11 @@ _STATUS_TTL                = 30 * 60  # seconds
 
 
 @router.post("/api/system/update")
-async def trigger_update(bg: BackgroundTasks, current_user: CurrentUserDep):
+async def trigger_update(
+    bg: BackgroundTasks,
+    current_user: CurrentUserDep,
+    session: SessionDep,
+):
     global _phase
 
     if current_user.role not in ("admin", "owner"):
@@ -75,6 +83,14 @@ async def trigger_update(bg: BackgroundTasks, current_user: CurrentUserDep):
         if before == after:
             _phase = "idle"
             return {"status": "up_to_date", "commit": after[:7]}
+
+        # Fan out easy-language what's-new into every user's Alerts inbox
+        # before the process restarts so returning sessions see the popup.
+        try:
+            from services.update_notices import sync_update_notices
+            sync_update_notices(session, force_fanout=True)
+        except Exception:
+            pass
 
         _phase = "restarting"
         bg.add_task(_launch_script, script)
@@ -163,6 +179,51 @@ async def get_changelog(
             })
 
     return {"commits": commits}
+
+
+# ── What's-new notices (every logged-in user) ────────────────────────────────
+
+class AckBody(BaseModel):
+    alert_ids: Optional[List[int]] = None
+
+
+@router.get("/api/system/update/notices")
+def list_update_notices(session: SessionDep, current_user: CurrentUserDep):
+    """Sync shipped commits → Alerts, then return unread what's-new for this user.
+
+    Called on dashboard load and periodically while the session is open so
+    updates that land mid-session (or while the user was logged out) popup.
+    """
+    from services.update_notices import sync_update_notices, unread_update_alerts
+
+    sync = sync_update_notices(session)
+    rows = unread_update_alerts(session, current_user)
+    return {
+        "sync": sync,
+        "items": [
+            {
+                "id": a.id,
+                "title": a.title,
+                "body": a.body,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+                "dedupe_key": a.dedupe_key,
+            }
+            for a in rows
+        ],
+    }
+
+
+@router.post("/api/system/update/notices/ack")
+def ack_update_notices(
+    body: AckBody,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+):
+    """Mark what's-new alerts as read after the user dismisses the popup."""
+    from services.update_notices import ack_update_alerts
+
+    n = ack_update_alerts(session, current_user, body.alert_ids)
+    return {"ok": True, "acked": n}
 
 
 def _fetch_remote_sha() -> str | None:
