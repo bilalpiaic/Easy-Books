@@ -83,6 +83,8 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/exchange-rates":         ["fx", "currency rate", "forex"],
   "/bank-imports":           ["bank statement import", "ofx", "csv bank"],
   "/banking/feeds":          ["bank feeds", "open banking", "plaid sync", "statement sync"],
+  "/pos":                    ["pos", "point of sale", "register", "checkout", "counter sale"],
+  "/pos/shifts":             ["pos shifts", "cash up", "shift close", "till variance"],
   "/cash-book":              ["cash book", "petty cash", "cash ledger"],
   "/bank-book":              ["bank book", "bank ledger"],
   "/reconciliations":        ["bank recon", "reconcile", "match statement"],

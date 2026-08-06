@@ -47,6 +47,10 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "purchase.gate":          {"label": "Gate Inward",             "category": "Purchasing"},
     "store.gate_outward":     {"label": "Gate Outward",            "category": "Store"},
     "store.issue":            {"label": "Store Issue",             "category": "Store"},
+    # Point of Sale (#304)
+    "pos.register":           {"label": "POS Registers",           "category": "POS"},
+    "pos.shift":              {"label": "POS Shifts",              "category": "POS"},
+    "pos.sale":               {"label": "POS Sales",               "category": "POS"},
     "grn":                    {"label": "Goods Receipt Notes",     "category": "Manufacturing"},
     "production_orders":      {"label": "Production Orders",       "category": "Manufacturing"},
     "stock_locations":        {"label": "Stock Locations",         "category": "Manufacturing"},

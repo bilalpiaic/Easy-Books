@@ -2884,3 +2884,4 @@ from models_textile_processing import (  # noqa: E402,F401
     TpProductionOrder, TpStageEntry as TpStageEntry, TpPacking, TpBaling,
     TpDispatch, TpGreySettlement, TpLaborBill, TpInspection,
 )
+from models_pos import PosRegister, PosShift, PosSale  # noqa: E402,F401

@@ -11,6 +11,7 @@ import {
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
   AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
+  Store,
 } from "lucide-react"
 
 export type NavItem = {
@@ -19,7 +20,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing" | "pos"
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -48,6 +49,8 @@ export const NAV: NavItem[] = [
   { label: "Credit Notes",     href: "/credit-notes",      icon: Receipt,          section: "Receivable" },
   { label: "Customers",        href: "/customers",         icon: Users,            section: "Receivable" },
   { label: "Payments Received",href: "/payments-received", icon: ArrowDownLeft,    section: "Receivable" },
+  { label: "Register",         href: "/pos",               icon: Store,            section: "POS", forModule: "pos" },
+  { label: "Shifts",           href: "/pos/shifts",        icon: Clock,            section: "POS", forModule: "pos" },
   { label: "Advances Received",href: "/advances",          icon: Wallet,           section: "Receivable" },
   { label: "AR Aging",         href: "/aging/receivable",  icon: Clock,            section: "Receivable" },
   { label: "Overview",         href: "/payable",           icon: LayoutGrid,       section: "Payable" },
@@ -218,7 +221,7 @@ export const NAV: NavItem[] = [
 
 export const ALL_SECTIONS = [
   "Overview", "Ledger", "Reports", "Banking", "Receivable", "Payable", "Purchases",
-  "Store", "Manufacturing", "Inventory", "Payroll",
+  "Store", "POS", "Manufacturing", "Inventory", "Payroll",
   "Healthcare", "Telecom", "Weaving", "Spinning", "Processing", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
   "System",
 ]
@@ -252,7 +255,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing" | "pos"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -264,6 +267,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "sales",         label: "Sales"         },
   { key: "purchases",     label: "Purchases"     },
   { key: "store",         label: "Store",         forModule: "purchase_store" },
+  { key: "pos",           label: "POS",           forModule: "pos" },
   { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
   { key: "inventory",     label: "Inventory",     forModule: "inventory"   },
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
@@ -292,6 +296,7 @@ export const NAV_SECTION_ORDER: string[] = [
   "sales",
   "purchases",
   "store",
+  "pos",
   "manufacturing",
   "inventory",
   "payroll",
@@ -328,6 +333,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
+  pos:           ["/pos"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/contract-balances", "/assets", "/leases", "/intercompany"],
   reports:       ["/trial-balance", "/pl", "/reports/dimensional-pl", "/balance", "/consolidation", "/intercompany", "/cashflow", "/tax", "/reports/wht", "/reports/cit-worksheet", "/tax-return", "/budgets", "/customer-performance"],
   inventory:     ["/inventory", "/products"],
@@ -381,6 +387,7 @@ export function getSectionHref(key: string): string {
     weaving:       "/weaving",
     spinning:      "/spinning",
     processing:    "/processing",
+    pos:           "/pos",
     manufacturing: "/manufacturing",
     telecom:       "/telecom",
     pra:           "/pra-dashboard",
@@ -417,6 +424,10 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Commissions",       href: "/commissions",       icon: Percent,       section: "sales" },
     { label: "Promo Discounts",   href: "/promo-discounts",   icon: Tags,          section: "sales" },
     { label: "AR Aging",          href: "/aging/receivable",  icon: Clock,         section: "sales" },
+  ],
+  pos: [
+    { label: "Register", href: "/pos",        icon: Store, section: "pos", forModule: "pos" },
+    { label: "Shifts",   href: "/pos/shifts", icon: Clock, section: "pos", forModule: "pos" },
   ],
   purchases: [
     { label: "Vendors",       href: "/vendors",       icon: Truck,        section: "purchases" },
