@@ -189,10 +189,13 @@ class AckBody(BaseModel):
 
 @router.get("/api/system/update/notices")
 def list_update_notices(session: SessionDep, current_user: CurrentUserDep):
-    """Sync shipped commits → Alerts, then return unread what's-new for this user.
+    """Sync shipped commits → this user's Alerts, return unread what's-new.
 
     Called on dashboard load and periodically while the session is open so
     updates that land mid-session (or while the user was logged out) popup.
+
+    Intentionally per-user only — never fans out to every active account on
+    this hot path (that exhausted Neon pool_size=1 and timed out at 60s).
     """
     from services.update_notices import (
         ensure_notice_table,
@@ -207,7 +210,7 @@ def list_update_notices(session: SessionDep, current_user: CurrentUserDep):
         return {"sync": {"error": f"schema:{str(exc)[:160]}"}, "items": []}
 
     try:
-        sync = sync_update_notices(session)
+        sync = sync_update_notices(session, for_user=current_user)
     except Exception as exc:
         sync = {"error": str(exc)[:200]}
         try:
@@ -216,7 +219,8 @@ def list_update_notices(session: SessionDep, current_user: CurrentUserDep):
             pass
 
     try:
-        rows = unread_update_alerts(session, current_user)
+        # sync already called ensure_user_notices for this user
+        rows = unread_update_alerts(session, current_user, ensure=False)
     except Exception as exc:
         try:
             session.rollback()

@@ -179,36 +179,61 @@ def _github_log(limit: int = 8) -> list[dict]:
     return out
 
 
+_notice_table_ready = False
+
+
 def ensure_notice_table(session: Session) -> None:
-    """Create ``app_update_notice`` if missing (Vercel often skips Alembic)."""
-    from sqlalchemy import inspect
+    """Create ``app_update_notice`` if missing (Vercel often skips Alembic).
+
+    Cached per process after the first successful check so dashboard polls
+    don't pay inspect/create cost on every request.
+    """
+    global _notice_table_ready
+    if _notice_table_ready:
+        return
+    from sqlalchemy import inspect, text
 
     bind = session.get_bind()
     try:
-        if inspect(bind).has_table("app_update_notice"):
+        insp = inspect(bind)
+        if insp.has_table("app_update_notice"):
+            cols = {c["name"] for c in insp.get_columns("app_update_notice")}
+            if "notify_users" not in cols:
+                # Older create_all / partial deploys may lack this column.
+                with bind.begin() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE app_update_notice "
+                        "ADD COLUMN notify_users BOOLEAN NOT NULL DEFAULT TRUE"
+                    ))
+            _notice_table_ready = True
             return
     except Exception:
         pass
     try:
         AppUpdateNotice.__table__.create(bind, checkfirst=True)
+        _notice_table_ready = True
     except Exception:
         # Concurrent cold starts may race; subsequent selects will succeed.
         pass
 
 
 def _is_bootstrapped(session: Session) -> bool:
-    # Any tenant setting or any notice counts as bootstrapped.
+    """True only after the quiet first-run seed has finished.
+
+    Do **not** treat “any notice row exists” as bootstrapped — a stray or
+    manually-inserted row would then mark the whole git history as
+    notify-able and spam every inbox on the next sync.
+    """
     try:
-        if session.exec(select(AppUpdateNotice).limit(1)).first():
-            return True
+        row = session.exec(
+            select(Settings).where(Settings.key == BOOTSTRAP_KEY).limit(1)
+        ).first()
     except Exception:
         session.rollback()
         ensure_notice_table(session)
-        if session.exec(select(AppUpdateNotice).limit(1)).first():
-            return True
-    row = session.exec(
-        select(Settings).where(Settings.key == BOOTSTRAP_KEY).limit(1)
-    ).first()
+        row = session.exec(
+            select(Settings).where(Settings.key == BOOTSTRAP_KEY).limit(1)
+        ).first()
     return bool(row and row.value == "1")
 
 
@@ -278,19 +303,31 @@ def sync_update_notices(
     *,
     limit: int = 8,
     force_fanout: bool = False,
+    for_user: Optional[User] = None,
 ) -> dict:
-    """Upsert notices from recent git commits and fan out to users.
+    """Upsert notices from recent git commits.
 
-    First run after this feature ships records the current HEAD history
-    without spamming everyone. Later new commits create alerts.
+    * ``for_user`` (dashboard GET): create notice rows + alert **only that user**.
+      Never walks all active users — Neon pool_size=1 cannot afford that.
+    * ``force_fanout`` (admin self-hosted update pull): alert every active user.
     """
     global _sync_lock_busy
     if _sync_lock_busy and not force_fanout:
-        return {"created": 0, "alerted": 0, "skipped": "busy"}
+        # Another request is upserting commits — still deliver this user's inbox.
+        alerted = 0
+        if for_user is not None:
+            try:
+                alerted = ensure_user_notices(session, for_user, commit=True)
+            except Exception:
+                session.rollback()
+        return {"created": 0, "alerted": alerted, "skipped": "busy"}
     _sync_lock_busy = True
     try:
         return _sync_update_notices_inner(
-            session, limit=limit, force_fanout=force_fanout
+            session,
+            limit=limit,
+            force_fanout=force_fanout,
+            for_user=for_user,
         )
     finally:
         _sync_lock_busy = False
@@ -301,12 +338,20 @@ def _sync_update_notices_inner(
     *,
     limit: int = 8,
     force_fanout: bool = False,
+    for_user: Optional[User] = None,
 ) -> dict:
     ensure_notice_table(session)
 
     commits = _git_log(limit=limit)
     if not commits:
-        return {"created": 0, "alerted": 0, "bootstrapped": _is_bootstrapped(session)}
+        alerted = 0
+        if for_user is not None:
+            alerted = ensure_user_notices(session, for_user, commit=True)
+        return {
+            "created": 0,
+            "alerted": alerted,
+            "bootstrapped": _is_bootstrapped(session),
+        }
 
     bootstrapped = _is_bootstrapped(session)
     created_notices: list[AppUpdateNotice] = []
@@ -336,11 +381,21 @@ def _sync_update_notices_inner(
         # Seed quietly — users shouldn't get 8 historical popups on first deploy.
         _mark_bootstrapped(session)
         session.commit()
-        return {"created": len(created_notices), "alerted": 0, "bootstrapped": False}
+        # Still deliver any explicitly notify-able rows (rare edge case).
+        if for_user is not None:
+            alerted = ensure_user_notices(session, for_user, commit=True)
+        return {
+            "created": len(created_notices),
+            "alerted": alerted,
+            "bootstrapped": False,
+        }
 
-    if created_notices or force_fanout:
+    if created_notices:
+        session.commit()
+
+    if force_fanout:
         targets = [n for n in created_notices if n.notify_users]
-        if force_fanout and not targets:
+        if not targets:
             latest = session.exec(
                 select(AppUpdateNotice)
                 .where(AppUpdateNotice.notify_users == True)  # noqa: E712
@@ -351,13 +406,23 @@ def _sync_update_notices_inner(
         # Cap fan-out work per request (serverless time budget).
         for notice in targets[:2]:
             alerted += fanout_notice(session, notice)
-        session.commit()
+        if alerted:
+            session.commit()
+    elif for_user is not None:
+        # Per-request path: only this user's inbox (popup + bell).
+        alerted = ensure_user_notices(session, for_user, commit=True)
 
     return {"created": len(created_notices), "alerted": alerted, "bootstrapped": True}
 
 
-def ensure_user_notices(session: Session, user: User, *, limit: int = 3) -> int:
-    """Backfill recent notify-able notices for this user (late join / missed fanout)."""
+def ensure_user_notices(
+    session: Session,
+    user: User,
+    *,
+    limit: int = 8,
+    commit: bool = True,
+) -> int:
+    """Backfill recent notify-able notices for this user only (lazy fan-out)."""
     try:
         notices = session.exec(
             select(AppUpdateNotice)
@@ -384,16 +449,22 @@ def ensure_user_notices(session: Session, user: User, *, limit: int = 3) -> int:
             dedupe_key=f"{DEDUPE_PREFIX}{notice.sha}",
         ):
             n += 1
-    if n:
+    if n and commit:
         session.commit()
     return n
 
 
-def unread_update_alerts(session: Session, user: User) -> list[UserAlert]:
-    try:
-        ensure_user_notices(session, user)
-    except Exception:
-        session.rollback()
+def unread_update_alerts(
+    session: Session,
+    user: User,
+    *,
+    ensure: bool = True,
+) -> list[UserAlert]:
+    if ensure:
+        try:
+            ensure_user_notices(session, user)
+        except Exception:
+            session.rollback()
     return list(session.exec(
         select(UserAlert)
         .where(
