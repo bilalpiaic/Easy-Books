@@ -13,14 +13,30 @@ from pathlib import Path
 _BASE = Path(__file__).resolve().parent
 
 
+def _on_vercel() -> bool:
+    return os.environ.get("VERCEL", "").lower() in ("1", "true")
+
+
 def data_dir() -> Path:
-    d = Path(os.environ.get("EB_DATA_DIR", str(_BASE)))
-    d.mkdir(parents=True, exist_ok=True)
-    # The data dir holds the database + signing key — owner-only on POSIX.
+    # Vercel's function filesystem is read-only except /tmp. Prefer an
+    # explicit EB_DATA_DIR; otherwise stay under the package for local/
+    # desktop installs, and under /tmp on Vercel so import-time mkdirs work.
+    default = "/tmp/easy-books" if _on_vercel() else str(_BASE)
+    d = Path(os.environ.get("EB_DATA_DIR", default))
     try:
-        os.chmod(d, 0o700)
+        d.mkdir(parents=True, exist_ok=True)
+        # The data dir holds the database + signing key — owner-only on POSIX.
+        try:
+            os.chmod(d, 0o700)
+        except OSError:
+            pass
     except OSError:
-        pass
+        # Last resort: never fail module import on a read-only FS.
+        if _on_vercel():
+            d = Path("/tmp/easy-books")
+            d.mkdir(parents=True, exist_ok=True)
+        else:
+            raise
     return d
 
 
@@ -30,7 +46,14 @@ def sqlite_path() -> str:
 
 def uploads_dir() -> Path:
     d = data_dir() / "uploads"
-    d.mkdir(parents=True, exist_ok=True)
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        if _on_vercel():
+            d = Path("/tmp/easy-books/uploads")
+            d.mkdir(parents=True, exist_ok=True)
+        else:
+            raise
     return d
 
 

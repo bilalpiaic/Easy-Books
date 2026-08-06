@@ -426,10 +426,10 @@ async def stripe_webhook(request: _Request):
     return {"received": True}
 
 
-# Serve uploaded files (company logos, attachments) under /uploads/
-import pathlib as _pl
-_uploads = _pl.Path(__file__).parent / "uploads"
-_uploads.mkdir(exist_ok=True)
+# Serve uploaded files (company logos, attachments) under /uploads/.
+# Use local_config.uploads_dir() so Vercel (read-only /var/task) lands in /tmp.
+from local_config import uploads_dir as _uploads_dir
+_uploads = _uploads_dir()
 app.mount("/uploads", StaticFiles(directory=str(_uploads)), name="uploads")
 
 # v1 alias: a thin pass-through that re-mounts every /api/* route at /api/v1/*
