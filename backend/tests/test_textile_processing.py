@@ -220,6 +220,87 @@ def test_quality_code_structure():
     assert format_quality_code("PC", "60", "60", "40", "52", '45"') == 'PC 60X60 40X52 45"'
     assert format_quality_code("CTN", None, 60, 40, 52, 45) is None
     assert than_safi_mtr(100, 5) == Decimal("95.0000")
+    assert than_safi_mtr(100, 10, 5, 2) == Decimal("83.0000")
+    try:
+        than_safi_mtr(100, 50, 40, 20)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
+def test_grey_inward_form_fields(client):
+    """GREY IN voucher: G.Kami / CP / L.Kami / rejection return / summary bands."""
+    auth = _signup(client, "tp-grey-in@test.com")
+    _install(client, auth, "inventory", "purchase_store", "textile_processing")
+
+    cust = client.post("/api/customers", headers=auth, json={"name": "S.N FABRICS"}).json()
+    vendor = client.post("/api/vendors", headers=auth, json={"name": "Mending Gang"}).json()
+    q = client.post("/api/textile-processing/qualities", headers=auth, json={
+        "fiber": "CTN", "warp_count": "66", "weft_count": "66",
+        "epi": "35", "ppi": "35", "width_inch": "45",
+    }).json()
+    procs = client.get("/api/textile-processing/processes", headers=auth).json()
+    prep = next(p for p in procs if p["code"] == "prep")
+    ctr = client.post("/api/textile-processing/contractors", headers=auth, json={
+        "code": "CAMIR", "name": "SHEIKH AMIR", "vendor_id": vendor["id"],
+        "default_process_id": prep["id"],
+    }).json()
+    so = client.post("/api/textile-processing/sales-orders", headers=auth, json={
+        "customer_id": cust["id"], "quality_id": q["id"], "date": "2026-08-05",
+        "expected_mtr": 200, "grey_rate": 111,
+    }).json()
+
+    lot = client.post("/api/textile-processing/lots", headers=auth, json={
+        "sales_order_id": so["id"],
+        "date": "2026-08-05",
+        "mending_date": "2026-08-06",
+        "contractor_id": ctr["id"],
+        "category": "CHOTA ARZ",
+        "process_name": "PRINT",
+        "rate": 111,
+        "lot_no": "1328",
+        "lot_remarks": "STAPLE 66x66",
+        "l_kami_mtr": 0,
+        "manual_rejection_mtr": 40,
+        "rej_driver_name": "Ali",
+        "rej_mobile": "03016047225",
+        "rej_vehicle": "LES-900",
+        "notes": "INCHARGE OK",
+        "thans": [
+            {"than_no": "1", "meters": 100, "g_kami_mtr": 0, "rejection_mtr": 0, "cp_mtr": 0},
+            {"than_no": "2", "meters": 50, "g_kami_mtr": 0, "rejection_mtr": 0, "cp_mtr": 5},
+            {"than_no": "3", "meters": 50, "g_kami_mtr": 2, "rejection_mtr": 48, "cp_mtr": 0},
+        ],
+    }).json()
+
+    assert lot["lot_no"] == "1328"
+    assert lot["category"] == "CHOTA ARZ"
+    assert lot["process_name"] == "PRINT"
+    assert lot["contractor_id"] == ctr["id"]
+    assert lot["party_name"] == "S.N FABRICS"
+    assert lot["contractor_name"] == "SHEIKH AMIR"
+    assert lot["quality_code"] == q["code"]
+    assert lot["rej_driver_name"] == "Ali"
+    assert lot["manual_rejection_mtr"] == 40.0
+
+    thans = {t["than_no"]: t for t in lot["thans"]}
+    assert thans["1"]["safi_mtr"] == 100.0
+    assert thans["2"]["safi_mtr"] == 45.0   # 50 - 5 CP
+    assert thans["3"]["safi_mtr"] == 0.0    # 50 - 2 G.Kami - 48 reject
+
+    sm = lot["summary"]
+    assert sm["g_total"]["detail_mtrs"] == 200.0
+    assert sm["total_cp"]["detail_mtrs"] == 5.0
+    assert sm["total_cp"]["than"] == 1
+    assert sm["total_rejection"]["detail_mtrs"] == 48.0
+    assert sm["total_rejection"]["manual_mtrs"] == 40.0
+    assert sm["total_rejection"]["variance"] == -8.0
+    assert sm["total_safi"]["detail_mtrs"] == 145.0
+    assert lot["ready_mtr"] == 145.0
+
+    detail = client.get(f"/api/textile-processing/lots/{lot['id']}", headers=auth).json()
+    assert detail["summary"]["total_g_kami"]["detail_mtrs"] == 2.0
+    assert detail["l_kami_mtr"] == 0.0
 
 
 def test_strengthen_multi_quality_so_and_printouts(client):

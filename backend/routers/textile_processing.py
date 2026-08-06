@@ -142,11 +142,45 @@ def _ser_so(
     return d
 
 
+def _enrich_lot_display(session: Session, out: dict, lot: TpGreyLot) -> dict:
+    """Attach party / contractor / quality / SO labels for the GREY IN form."""
+    cust = session.get(Customer, lot.customer_id)
+    out["party_name"] = cust.name if cust else None
+    out["party_code"] = str(cust.id) if cust else None
+    q = session.get(TpQuality, lot.quality_id)
+    out["quality_code"] = q.code if q else None
+    so = session.get(TpSalesOrder, lot.sales_order_id)
+    out["sales_order_number"] = so.number if so else None
+    if lot.contractor_id:
+        ctr = session.get(TpContractor, lot.contractor_id)
+        out["contractor_name"] = ctr.name if ctr else None
+        out["contractor_code"] = ctr.code if ctr else None
+    else:
+        out["contractor_name"] = None
+        out["contractor_code"] = None
+    return out
+
+
 def _ser_lot(r: TpGreyLot, thans: list | None = None) -> dict:
     d = {
         "id": r.id, "number": r.number, "sales_order_id": r.sales_order_id,
         "customer_id": r.customer_id, "quality_id": r.quality_id,
         "godown_location_id": r.godown_location_id, "date": r.date,
+        "mending_date": getattr(r, "mending_date", None),
+        "contractor_id": getattr(r, "contractor_id", None),
+        "category": getattr(r, "category", None),
+        "process_name": getattr(r, "process_name", None),
+        "rate": _f(getattr(r, "rate", 0) or 0),
+        "lot_no": getattr(r, "lot_no", None),
+        "lot_remarks": getattr(r, "lot_remarks", None),
+        "l_kami_mtr": _f(getattr(r, "l_kami_mtr", 0) or 0),
+        "manual_rejection_mtr": (
+            _f(r.manual_rejection_mtr)
+            if getattr(r, "manual_rejection_mtr", None) is not None else None
+        ),
+        "rej_driver_name": getattr(r, "rej_driver_name", None),
+        "rej_mobile": getattr(r, "rej_mobile", None),
+        "rej_vehicle": getattr(r, "rej_vehicle", None),
         "received_mtr": _f(r.received_mtr), "than_count": r.than_count,
         "ready_mtr": _f(r.ready_mtr), "rejection_mtr": _f(r.rejection_mtr),
         "visible_wastage_mtr": _f(r.visible_wastage_mtr),
@@ -157,12 +191,52 @@ def _ser_lot(r: TpGreyLot, thans: list | None = None) -> dict:
         d["thans"] = [
             {
                 "id": t.id, "than_no": t.than_no, "meters": _f(t.meters),
+                "g_kami_mtr": _f(getattr(t, "g_kami_mtr", 0) or 0),
                 "rejection_mtr": _f(getattr(t, "rejection_mtr", 0) or 0),
+                "cp_mtr": _f(getattr(t, "cp_mtr", 0) or 0),
                 "safi_mtr": _f(getattr(t, "safi_mtr", 0) or 0),
+                "des_date": getattr(t, "des_date", None),
                 "width": t.width, "notes": t.notes,
             }
             for t in thans
         ]
+        # Summary bands for GREY IN form
+        g_kami = sum(D(getattr(t, "g_kami_mtr", 0) or 0) for t in thans)
+        rej = sum(D(getattr(t, "rejection_mtr", 0) or 0) for t in thans)
+        cp = sum(D(getattr(t, "cp_mtr", 0) or 0) for t in thans)
+        safi = sum(D(getattr(t, "safi_mtr", 0) or 0) for t in thans)
+        greigh = sum(D(t.meters) for t in thans)
+        than_rej = sum(
+            1 for t in thans
+            if D(getattr(t, "rejection_mtr", 0) or 0) > 0
+            and D(getattr(t, "safi_mtr", 0) or 0) == 0
+        )
+        than_cp = sum(1 for t in thans if D(getattr(t, "cp_mtr", 0) or 0) > 0)
+        than_safi = sum(1 for t in thans if D(getattr(t, "safi_mtr", 0) or 0) > 0)
+        manual_rej = getattr(r, "manual_rejection_mtr", None)
+        d["summary"] = {
+            "total_safi": {"than": than_safi, "detail_mtrs": _f(safi), "manual_mtrs": _f(safi), "variance": 0.0},
+            "total_g_kami": {"than": 0, "detail_mtrs": _f(g_kami), "manual_mtrs": _f(g_kami), "variance": 0.0},
+            "total_l_kami": {
+                "than": 0,
+                "detail_mtrs": _f(getattr(r, "l_kami_mtr", 0) or 0),
+                "manual_mtrs": _f(getattr(r, "l_kami_mtr", 0) or 0),
+                "variance": 0.0,
+            },
+            "total_rejection": {
+                "than": than_rej,
+                "detail_mtrs": _f(rej),
+                "manual_mtrs": _f(manual_rej if manual_rej is not None else rej),
+                "variance": _f(D(manual_rej if manual_rej is not None else rej) - rej),
+            },
+            "total_cp": {"than": than_cp, "detail_mtrs": _f(cp), "manual_mtrs": _f(cp), "variance": 0.0},
+            "g_total": {
+                "than": len(thans),
+                "detail_mtrs": _f(greigh),
+                "manual_mtrs": _f(greigh),
+                "variance": 0.0,
+            },
+        }
     return d
 
 
@@ -717,8 +791,11 @@ def get_sales_order(id: int, user: CurrentUserDep, session: SessionDep):
 class ThanIn(BaseModel):
     than_no: str
     meters: Decimal
+    g_kami_mtr: Decimal = ZERO
     rejection_mtr: Decimal = ZERO
-    safi_mtr: Optional[Decimal] = None  # computed as meters − rej when omitted
+    cp_mtr: Decimal = ZERO
+    safi_mtr: Optional[Decimal] = None  # computed when omitted
+    des_date: Optional[str] = None
     width: Optional[str] = None
     notes: Optional[str] = None
 
@@ -728,6 +805,18 @@ class GreyLotIn(BaseModel):
     date: str
     quality_id: Optional[int] = None  # which SO grey quality this lot is for
     godown_location_id: Optional[int] = None
+    mending_date: Optional[str] = None
+    contractor_id: Optional[int] = None
+    category: Optional[str] = None
+    process_name: Optional[str] = None
+    rate: Optional[Decimal] = None
+    lot_no: Optional[str] = None
+    lot_remarks: Optional[str] = None
+    l_kami_mtr: Decimal = ZERO
+    manual_rejection_mtr: Optional[Decimal] = None
+    rej_driver_name: Optional[str] = None
+    rej_mobile: Optional[str] = None
+    rej_vehicle: Optional[str] = None
     thans: list[ThanIn] = Field(default_factory=list)
     notes: Optional[str] = None
 
@@ -762,13 +851,38 @@ def create_lot(user: WriteUserDep, session: SessionDep, body: GreyLotIn):
     if quality_id not in allowed:
         raise HTTPException(400, "quality_id is not on this sales order")
 
+    if body.contractor_id:
+        from models_textile_processing import TpContractor
+        c = session.exec(
+            select(TpContractor).where(
+                TpContractor.id == body.contractor_id,
+                TpContractor.tenant_id == user.tenant_id,
+            )
+        ).first()
+        if not c:
+            raise HTTPException(400, "Contractor not found")
+
     received = money(sum(D(t.meters) for t in body.thans))
     intake_rej = money(sum(D(t.rejection_mtr or 0) for t in body.thans))
+    intake_safi = ZERO
     number = next_number(session, user.tenant_id, "tp_grey_lot", "LOT", fmt="{prefix}-{YYYY}-{seq:04d}")
+    rate = D(body.rate) if body.rate is not None else D(so.grey_rate or 0)
     lot = TpGreyLot(
         tenant_id=user.tenant_id, number=number, sales_order_id=so.id,
         customer_id=so.customer_id, quality_id=quality_id,
         godown_location_id=body.godown_location_id, date=body.date,
+        mending_date=body.mending_date,
+        contractor_id=body.contractor_id,
+        category=(body.category or None),
+        process_name=(body.process_name or None),
+        rate=rate,
+        lot_no=(body.lot_no or None),
+        lot_remarks=(body.lot_remarks or None),
+        l_kami_mtr=D(body.l_kami_mtr or 0),
+        manual_rejection_mtr=body.manual_rejection_mtr,
+        rej_driver_name=body.rej_driver_name,
+        rej_mobile=body.rej_mobile,
+        rej_vehicle=body.rej_vehicle,
         received_mtr=received, than_count=len(body.thans),
         rejection_mtr=intake_rej, status="received",
         notes=body.notes, created_by_id=user.id,
@@ -778,15 +892,27 @@ def create_lot(user: WriteUserDep, session: SessionDep, body: GreyLotIn):
     for t in body.thans:
         try:
             safi = D(t.safi_mtr) if t.safi_mtr is not None else tp_math.than_safi_mtr(
-                t.meters, t.rejection_mtr or ZERO,
+                t.meters,
+                t.rejection_mtr or ZERO,
+                t.g_kami_mtr or ZERO,
+                t.cp_mtr or ZERO,
             )
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
+        intake_safi += safi
         session.add(TpGreyThan(
             tenant_id=user.tenant_id, lot_id=lot.id, than_no=t.than_no.strip(),
-            meters=D(t.meters), rejection_mtr=D(t.rejection_mtr or 0),
-            safi_mtr=safi, width=t.width, notes=t.notes,
+            meters=D(t.meters),
+            g_kami_mtr=D(t.g_kami_mtr or 0),
+            rejection_mtr=D(t.rejection_mtr or 0),
+            cp_mtr=D(t.cp_mtr or 0),
+            safi_mtr=safi,
+            des_date=t.des_date,
+            width=t.width, notes=t.notes,
         ))
+    # Seed ready_mtr from intake safi (mending can still refine later)
+    lot.ready_mtr = money(intake_safi)
+    session.add(lot)
     # Auto-issue Kachi Parchi on receipt
     kp_num = next_number(session, user.tenant_id, "tp_kachi_parchi", "KP", fmt="{prefix}-{YYYY}-{seq:04d}")
     kachi = TpKachiParchi(
@@ -829,7 +955,7 @@ def create_lot(user: WriteUserDep, session: SessionDep, body: GreyLotIn):
     session.commit()
     session.refresh(lot)
     thans = session.exec(select(TpGreyThan).where(TpGreyThan.lot_id == lot.id)).all()
-    out = _ser_lot(lot, thans)
+    out = _enrich_lot_display(session, _ser_lot(lot, thans), lot)
     out["kachi_parchi"] = _ser_kachi(kachi)
     return out
 
@@ -843,7 +969,7 @@ def get_lot(id: int, user: CurrentUserDep, session: SessionDep):
     if not lot:
         raise HTTPException(404, "Lot not found")
     thans = session.exec(select(TpGreyThan).where(TpGreyThan.lot_id == lot.id)).all()
-    out = _ser_lot(lot, thans)
+    out = _enrich_lot_display(session, _ser_lot(lot, thans), lot)
     kachi = session.exec(
         select(TpKachiParchi).where(TpKachiParchi.lot_id == lot.id)
     ).first()

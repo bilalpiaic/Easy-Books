@@ -174,7 +174,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/processing":             ["textile processing", "ballor", "printing unit", "processing hub"],
   "/processing/setup":       ["quality blend width", "process catalog", "contractor"],
   "/processing/sales-orders": ["processing sales order", "grey rate", "job order"],
-  "/processing/lots":        ["grey lot", "than entry", "custodial grey"],
+  "/processing/lots":        ["grey lot", "grey inward", "grey in", "than entry", "custodial grey"],
   "/processing/mending":     ["mending", "l-kami", "safai", "safi grey", "ready meters"],
   "/processing/kachi-parchi": ["kachi parchi", "provisional slip"],
   "/processing/pakki-parchi": ["pakki parchi", "unit responsibility"],

@@ -185,6 +185,24 @@ class TpGreyLot(SQLModel, table=True):
     quality_id: int = Field(foreign_key="tp_quality.id", index=True)
     godown_location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
     date: str = Field(index=True)
+    # GREY IN header extras (# classic voucher)
+    mending_date: Optional[str] = None
+    contractor_id: Optional[int] = Field(default=None, foreign_key="tp_contractor.id", index=True)
+    category: Optional[str] = None          # e.g. CHOTA ARZ
+    process_name: Optional[str] = None      # e.g. PRINT
+    rate: Decimal = _money()                # process/grey rate snapshot
+    lot_no: Optional[str] = None            # external lot# (e.g. 1328)
+    lot_remarks: Optional[str] = None
+    # Lot-level L-Kami (mending short) — G-Kami lives per-than
+    l_kami_mtr: Decimal = _qty()
+    # Manual rejection meters for variance vs than-detail sum
+    manual_rejection_mtr: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(18, 4), nullable=True)
+    )
+    # Rejection return transport
+    rej_driver_name: Optional[str] = None
+    rej_mobile: Optional[str] = None
+    rej_vehicle: Optional[str] = None
     received_mtr: Decimal = _qty()
     than_count: int = Field(default=0)
     # rolled after mending / stages
@@ -201,15 +219,18 @@ class TpGreyLot(SQLModel, table=True):
 
 
 class TpGreyThan(SQLModel, table=True):
-    """Than line on a grey lot — Than#, Mtrs, Rej, Safi."""
+    """Than (roll) line on a grey lot — SAFI THAN DETAIL columns."""
     __tablename__ = "tp_grey_than"
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     lot_id: int = Field(foreign_key="tp_grey_lot.id", index=True)
     than_no: str
-    meters: Decimal = _qty()
-    rejection_mtr: Decimal = _qty()  # Rej at intake (optional; full mending still later)
-    safi_mtr: Decimal = _qty()       # Safi = meters − rejection_mtr (stored for printouts)
+    meters: Decimal = _qty()                 # Greigh
+    g_kami_mtr: Decimal = _qty()             # G.Kami
+    rejection_mtr: Decimal = _qty()          # Reject
+    cp_mtr: Decimal = _qty()                 # Cut piece
+    safi_mtr: Decimal = _qty()               # Safi = Greigh − G.Kami − Reject − CP
+    des_date: Optional[str] = None           # DES.DATE
     width: Optional[str] = None
     notes: Optional[str] = None
 
