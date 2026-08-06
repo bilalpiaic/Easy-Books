@@ -12,8 +12,8 @@ export const ADDON_PACKS: AddonPack[] = [
     id: "trader",
     label: "Trader",
     tagline: "Buy & resell",
-    modules: ["inventory"],
-    features: ["Products & stock", "Product ledger", "Inventory performance"],
+    modules: ["inventory", "pos"],
+    features: ["Products & stock", "Point of Sale register", "Inventory performance"],
   },
   {
     id: "manufacturing",
@@ -40,8 +40,8 @@ export const ADDON_PACKS: AddonPack[] = [
     id: "pra",
     label: "PRA e-Invoice",
     tagline: "Pakistani retail",
-    modules: ["pra"],
-    features: ["Fiscal invoice numbers", "PRA Sales home dashboard", "Submission logs"],
+    modules: ["inventory", "pos", "pra"],
+    features: ["Fiscal invoice numbers", "POS counter sales", "PRA Sales home dashboard"],
   },
   {
     id: "uae_vat",

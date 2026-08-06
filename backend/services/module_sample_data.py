@@ -126,6 +126,23 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
         elif module_id == "inventory":
             if not session.exec(select(Product).where(Product.tenant_id == tid)).first():
                 sd._seed_products(session, tid, "trader")
+        elif module_id == "pos":
+            from models_pos import PosRegister
+            from services.pos import ensure_walk_in_customer, resolve_default_cash_account
+            if not session.exec(select(Product).where(Product.tenant_id == tid)).first():
+                sd._seed_products(session, tid, "trader")
+            ensure_walk_in_customer(session, tid)
+            if not session.exec(
+                select(PosRegister).where(PosRegister.tenant_id == tid)
+            ).first():
+                session.add(
+                    PosRegister(
+                        tenant_id=tid,
+                        name="Front Counter",
+                        code="REG1",
+                        cash_account_id=resolve_default_cash_account(session, tid),
+                    )
+                )
         elif module_id in ("production", "purchase_store", "ai_assistant"):
             return {
                 "seeded": False,

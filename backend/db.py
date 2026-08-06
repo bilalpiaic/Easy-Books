@@ -603,6 +603,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Purchases"],
     },
+    "pos": {
+        "label":       "Point of Sale",
+        "description": "Counter sales: register UI, shift cash-up, and atomic invoice + stock + cash/bank receipt posting.",
+        "category":    "Operations",
+        "icon":        "Store",
+        "deps":        ["inventory"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["POS"],
+    },
     "weaving": {
         "label":       "Weaving",
         "description": "Weaving unit control: contracts, yarn inward, sizing, production, dispatch, and operational dashboards (Kg/Lbs/Bags). Memo/ops in v1 — no GL posting.",
@@ -644,7 +655,7 @@ MODULE_REGISTRY: dict[str, dict] = {
 MODULES_BY_MODEL: dict[str, list[str]] = {
     "simple":            ["base"],
     "services":          ["base"],
-    "trader":            ["base", "inventory"],
+    "trader":            ["base", "inventory", "pos"],
     "manufacturing":     ["base", "inventory", "production", "purchase_store", "weaving"],
     "telecom_franchise": ["base", "inventory", "telecom"],
     "pra_einvoice":      ["base", "pra"],
