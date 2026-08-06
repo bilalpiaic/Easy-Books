@@ -185,32 +185,32 @@ _notice_table_ready = False
 def ensure_notice_table(session: Session) -> None:
     """Create ``app_update_notice`` if missing (Vercel often skips Alembic).
 
-    Cached per process after the first successful check so dashboard polls
-    don't pay inspect/create cost on every request.
+    Cached per process after the first successful check.
+
+    Critical: must use ``session.connection()`` — never ``session.get_bind()``
+    for inspect/create/ALTER. Neon runs with ``pool_size=1``; checking out a
+    second connection while the request session holds the only one deadlocks
+    until the 60s Vercel timeout.
     """
     global _notice_table_ready
     if _notice_table_ready:
         return
     from sqlalchemy import inspect, text
 
-    bind = session.get_bind()
     try:
-        insp = inspect(bind)
+        conn = session.connection()
+        insp = inspect(conn)
         if insp.has_table("app_update_notice"):
             cols = {c["name"] for c in insp.get_columns("app_update_notice")}
             if "notify_users" not in cols:
                 # Older create_all / partial deploys may lack this column.
-                with bind.begin() as conn:
-                    conn.execute(text(
-                        "ALTER TABLE app_update_notice "
-                        "ADD COLUMN notify_users BOOLEAN NOT NULL DEFAULT TRUE"
-                    ))
+                conn.execute(text(
+                    "ALTER TABLE app_update_notice "
+                    "ADD COLUMN notify_users BOOLEAN NOT NULL DEFAULT TRUE"
+                ))
             _notice_table_ready = True
             return
-    except Exception:
-        pass
-    try:
-        AppUpdateNotice.__table__.create(bind, checkfirst=True)
+        AppUpdateNotice.__table__.create(conn, checkfirst=True)
         _notice_table_ready = True
     except Exception:
         # Concurrent cold starts may race; subsequent selects will succeed.

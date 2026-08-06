@@ -13,6 +13,44 @@ from services.update_notices import (
 )
 
 
+def test_ensure_notice_table_reuses_session_connection():
+    """pool_size=1 must not deadlock when ensuring the notice table.
+
+    Production Neon uses QueuePool(pool_size=1). Inspecting/creating via
+    ``session.get_bind()`` checks out a second connection and hangs forever.
+    """
+    from sqlalchemy.pool import QueuePool
+    from sqlmodel import Session, SQLModel, create_engine
+
+    from services.update_notices import ensure_notice_table
+    import services.update_notices as un
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=QueuePool,
+        pool_size=1,
+        max_overflow=0,
+    )
+    # Intentionally do NOT create app_update_notice via metadata.create_all —
+    # ensure_notice_table must create it using the open session's connection.
+    tables = [
+        t for t in SQLModel.metadata.sorted_tables
+        if t.name != "app_update_notice"
+    ]
+    SQLModel.metadata.create_all(engine, tables=tables)
+    un._notice_table_ready = False
+
+    with Session(engine) as session:
+        # Holding the sole pooled connection — this used to hang.
+        ensure_notice_table(session)
+        session.commit()
+        row = session.exec(select(AppUpdateNotice).limit(1)).first()
+        assert row is None  # table exists, empty
+    assert un._notice_table_ready is True
+    engine.dispose()
+
+
 def test_humanize_commit_easy_language():
     title, body = humanize_commit("feat(inventory): pick/pack workflow (#302)")
     assert title.startswith("New:")
