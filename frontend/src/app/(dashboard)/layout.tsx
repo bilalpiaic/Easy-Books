@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { CheckCircle } from "lucide-react"
 import TopNav from "@/components/TopNav"
@@ -22,6 +22,7 @@ import { resolveTitle } from "@/lib/navTitles"
 import { apiFetch } from "@/lib/api"
 import GlobalSearch from "@/components/GlobalSearch"
 import UpdateAvailablePopup from "@/components/UpdateAvailablePopup"
+import UpdateNoticePopup, { type UpdateNoticeItem } from "@/components/UpdateNoticePopup"
 import UpdateProgressScreen from "@/components/UpdateProgressScreen"
 import AIChatButton from "@/components/AIChatButton"
 import CalculatorButton from "@/components/CalculatorButton"
@@ -30,6 +31,7 @@ import QuotaBanner from "@/components/QuotaBanner"
 
 const SKIP_KEY = "eb.update-skip"     // persisted per remote SHA
 const SESSION_LATER_KEY = "eb.update-later-session" // session-only dismiss
+const NOTICE_POLL_MS = 90_000 // mid-session catch-up while logged in
 
 interface UpdateStatus {
   status: "up_to_date" | "update_available" | "unknown"
@@ -51,6 +53,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showProgress,  setShowProgress]  = useState(false)
   const [justUpdated,   setJustUpdated]   = useState<JustUpdated | null>(null)
   const [showToast,     setShowToast]     = useState(false)
+  const [whatsNew,      setWhatsNew]      = useState<UpdateNoticeItem[]>([])
+  const [showWhatsNew,  setShowWhatsNew]  = useState(false)
   const checkedRef = useRef(false)
 
   // Check for post-update greeting (set before the page reload)
@@ -68,7 +72,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [])
 
-  // Auto-check on every mount (= every login/page load for admin/owner)
+  // What's-new for EVERY user: on login + while the session stays open.
+  // Covers updates that landed while they were logged out, and mid-session deploys.
+  const pullWhatsNew = useCallback(() => {
+    if (!isAuthenticated()) return
+    apiFetch<{ items: UpdateNoticeItem[] }>("/api/system/update/notices")
+      .then((r) => {
+        const items = Array.isArray(r.items) ? r.items : []
+        if (items.length > 0) {
+          setWhatsNew(items)
+          setShowWhatsNew(true)
+          // Refresh bell badge
+          window.dispatchEvent(new CustomEvent("alerts:refresh"))
+        }
+      })
+      .catch(() => { /* never block the app */ })
+  }, [])
+
+  useEffect(() => {
+    pullWhatsNew()
+    const t = setInterval(pullWhatsNew, NOTICE_POLL_MS)
+    return () => clearInterval(t)
+  }, [pullWhatsNew])
+
+  const dismissWhatsNew = async () => {
+    const ids = whatsNew.map((i) => i.id)
+    setShowWhatsNew(false)
+    setWhatsNew([])
+    try {
+      await apiFetch("/api/system/update/notices/ack", {
+        method: "POST",
+        body: JSON.stringify({ alert_ids: ids }),
+      })
+      window.dispatchEvent(new CustomEvent("alerts:refresh"))
+    } catch { /* ignore */ }
+  }
+
+  // Auto-check installable update on every mount (admin/owner only)
   useEffect(() => {
     if (checkedRef.current) return
     checkedRef.current = true
@@ -173,8 +213,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <GlobalSearch />
                 </div>
 
-                {/* Update available popup (shown after login check) */}
-                {showPopup && updateStatus?.remote && (
+                {/* What's-new for all users (login + mid-session) */}
+                {showWhatsNew && whatsNew.length > 0 && !showProgress && (
+                  <UpdateNoticePopup items={whatsNew} onDismiss={dismissWhatsNew} />
+                )}
+
+                {/* Update available popup (admin/owner — apply install) */}
+                {showPopup && updateStatus?.remote && !showWhatsNew && (
                   <UpdateAvailablePopup
                     local={updateStatus.local}
                     remote={updateStatus.remote}

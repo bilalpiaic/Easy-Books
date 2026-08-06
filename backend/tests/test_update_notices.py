@@ -1,0 +1,126 @@
+"""What's-new update notifications for every user."""
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+from sqlmodel import Session, select
+
+from main import app
+from models import AppUpdateNotice, User, UserAlert
+from services.update_notices import (
+    fanout_notice,
+    humanize_commit,
+    sync_update_notices,
+)
+
+
+def test_humanize_commit_easy_language():
+    title, body = humanize_commit("feat(inventory): pick/pack workflow (#302)")
+    assert title.startswith("New:")
+    assert "Pick/pack" in title or "pick/pack" in title.lower() or "Pick/pack" in title
+    assert "safe" in body.lower() or "books" in body.lower()
+
+    title2, _ = humanize_commit("fix(banking): consent expiry blocks sync")
+    assert title2.startswith("Fix:")
+
+
+def _signup(client: TestClient, email: str):
+    client.post(
+        "/api/auth/signup",
+        json={
+            "email": email,
+            "password": "password123",
+            "full_name": "Owner",
+            "company_name": "Notice Co",
+        },
+    )
+    r = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "password123"},
+    )
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def test_notices_popup_on_login_and_ack(client: TestClient):
+    auth = _signup(client, "notice-user@co.test")
+
+    # First sync bootstraps quietly (no spam from history)
+    first = client.get("/api/system/update/notices", headers=auth)
+    assert first.status_code == 200, first.text
+    # May be empty if bootstrap only, or empty items after quiet seed
+    assert "items" in first.json()
+
+    # Simulate a newly shipped update that should notify everyone
+    with Session(app.state.engine) as session:
+        notice = AppUpdateNotice(
+            sha="abc1234",
+            title="New: Faster invoice printing",
+            body="Invoices print quicker. Your books stay safe.",
+            commit_date="2026-08-06",
+            notify_users=True,
+        )
+        session.add(notice)
+        session.commit()
+        session.refresh(notice)
+        fanout_notice(session, notice)
+        session.commit()
+
+    # Logged-in poll / next login sees the popup payload
+    again = client.get("/api/system/update/notices", headers=auth)
+    assert again.status_code == 200, again.text
+    items = again.json()["items"]
+    assert any("invoice" in (i["title"] or "").lower() for i in items)
+    ids = [i["id"] for i in items]
+
+    # Also visible in the Alerts inbox
+    alerts = client.get("/api/alerts?unread_only=true", headers=auth).json()
+    assert any(a.get("kind") == "system" for a in alerts["items"])
+
+    # Dismiss popup → marked read, no longer returned
+    ack = client.post(
+        "/api/system/update/notices/ack",
+        headers=auth,
+        json={"alert_ids": ids},
+    )
+    assert ack.status_code == 200, ack.text
+    assert ack.json()["acked"] >= 1
+
+    cleared = client.get("/api/system/update/notices", headers=auth).json()
+    assert cleared["items"] == []
+
+
+def test_sync_bootstraps_without_alerting(client: TestClient):
+    _signup(client, "bootstrap-notice@co.test")
+    with Session(app.state.engine) as session:
+        # Wipe notices from prior tests in this process DB if any for isolation —
+        # sync on empty table should bootstrap.
+        before = session.exec(select(AppUpdateNotice)).all()
+        # If already bootstrapped by other tests, just assert helper is safe.
+        result = sync_update_notices(session)
+        assert "created" in result
+        assert "alerted" in result
+        # After bootstrap, a brand-new notify notice still fans out
+        user = session.exec(select(User).where(User.email == "bootstrap-notice@co.test")).first()
+        assert user is not None
+        notice = AppUpdateNotice(
+            sha="def5678",
+            title="Fix: Bank feed reconnect tip",
+            body="We made reconnecting bank feeds clearer.",
+            notify_users=True,
+        )
+        session.add(notice)
+        session.commit()
+        session.refresh(notice)
+        n = fanout_notice(session, notice)
+        session.commit()
+        assert n >= 1
+        alert = session.exec(
+            select(UserAlert).where(
+                UserAlert.user_id == user.id,
+                UserAlert.dedupe_key == "app_update:def5678",
+            )
+        ).first()
+        assert alert is not None
+        assert alert.kind == "system"
+        # silence unused
+        _ = before

@@ -321,6 +321,22 @@ class UserAlert(SQLModel, table=True):
     read_at: Optional[datetime] = None
 
 
+class AppUpdateNotice(SQLModel, table=True):
+    """Global what's-new notice for a shipped commit — fans out to UserAlert (#update-notices)."""
+    __tablename__ = "app_update_notice"
+    __table_args__ = (
+        UniqueConstraint("sha", name="uq_app_update_notice_sha"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sha: str = Field(index=True)  # short or full commit hash
+    title: str  # easy-language headline
+    body: Optional[str] = None  # short plain-language description
+    commit_date: Optional[str] = None  # YYYY-MM-DD
+    # False for first-run seed so we don't spam historical commits.
+    notify_users: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Account(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", name="unique_account_code_per_tenant"),
