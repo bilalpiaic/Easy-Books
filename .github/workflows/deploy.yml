@@ -43,6 +43,7 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_easy_books
           OVERDUE_SWEEP_ENABLED: "false"
           WEBHOOKS_ENABLED: "false"
+          PYTHONPATH: .
         run: |
           uv sync
           uv run pytest -q --tb=line

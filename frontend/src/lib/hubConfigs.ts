@@ -5,6 +5,7 @@ import {
   Truck, Undo2, CalendarCheck, ShoppingCart, Package,
   BookOpen, PieChart, Landmark, Upload, CheckCheck, Wallet,
   Briefcase, UserCog, CalendarDays, Settings2, Scale, DoorOpen, PackageMinus,
+  RefreshCw,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import type { HubConfig, HubRawData } from "@/components/hub/HubPage"
@@ -307,6 +308,7 @@ export const BANKING_CONFIG: HubConfig = {
   }),
   actions: [
     { label: "Import CSV",      href: "/bank-imports",    icon: Upload,      primary: true },
+    { label: "Bank Feeds",      href: "/banking/feeds",   icon: RefreshCw                 },
     { label: "Bank Accounts",   href: "/bank-accounts",   icon: Landmark                  },
     { label: "Reconciliations", href: "/reconciliations", icon: CheckCheck                },
     { label: "Cash Book",       href: "/cash-book",       icon: Wallet                    },

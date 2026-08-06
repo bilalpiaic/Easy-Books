@@ -2786,14 +2786,27 @@ class ApprovalDecision(SQLModel, table=True):
 
 
 class PlaidConnection(SQLModel, table=True):
+    """Bank feed connection (#121 / #301).
+
+    Historically Plaid-only; ``provider`` now selects the adapter
+    (``plaid`` | ``mock`` | future EU/UK Open Banking). Sync health lives on
+    ``sync_status`` / ``last_error`` / ``consent_expires_at`` so the UI can
+    distinguish expired AIS consent from a broken pull.
+    """
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     bank_account_id: Optional[int] = Field(default=None, foreign_key="bankaccount.id")
-    access_token: str  # encrypted
+    access_token: str  # encrypted (or opaque mock token)
     item_id: str = Field(index=True)
     institution_name: str = ""
     last_sync: Optional[datetime] = None
     is_active: bool = Field(default=True)
+    # #301 — multi-provider sync status
+    provider: str = Field(default="plaid", index=True)  # plaid | mock | …
+    last_error: Optional[str] = None
+    sync_status: str = Field(default="never")  # never | ok | error | consent_expired
+    consent_expires_at: Optional[datetime] = None
+
 
 
 class CategorizationRule(SQLModel, table=True):

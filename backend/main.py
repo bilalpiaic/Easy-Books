@@ -153,6 +153,35 @@ async def _revoked_token_prune_loop() -> None:
         await asyncio.sleep(6 * 3600)
 
 
+def _run_bank_sync_once() -> None:
+    """Pull-only bank feed sync (#301). EU/UK Open Banking has no bank-side
+    webhooks — schedule + on-demand sync are the real path. Lazy db import
+    matches the overdue sweep pattern."""
+    import db as _db
+    from sqlmodel import Session as _Session
+    from services.bank_sync import sync_all_active_connections
+    with _Session(_db.engine) as session:
+        counts = sync_all_active_connections(session)
+        if counts.get("ok") or counts.get("error"):
+            print(
+                f"[bank-sync] ok={counts.get('ok', 0)} error={counts.get('error', 0)} "
+                f"skipped={counts.get('skipped', 0)}",
+                flush=True,
+            )
+
+
+async def _bank_sync_scheduler_loop() -> None:
+    """Once at startup, then every BANK_SYNC_INTERVAL_HOURS (default 24)."""
+    interval_seconds = float(os.environ.get("BANK_SYNC_INTERVAL_HOURS", "24")) * 3600
+    while True:
+        try:
+            await asyncio.to_thread(_run_bank_sync_once)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        await asyncio.sleep(interval_seconds)
+
+
 def _env_flag(name: str, default: str = "true") -> bool:
     return os.environ.get(name, default).lower() not in ("0", "false", "no", "off")
 
@@ -184,6 +213,9 @@ async def lifespan(_app: FastAPI):
         tasks.append(asyncio.create_task(_revoked_token_prune_loop()))
     if _env_flag("WEBHOOKS_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_webhook_delivery_loop()))
+    # Bank feeds: pull-only schedule (#301). Off on Vercel unless explicitly enabled.
+    if _env_flag("BANK_SYNC_ENABLED", _bg_default):
+        tasks.append(asyncio.create_task(_bank_sync_scheduler_loop()))
 
     yield
 
