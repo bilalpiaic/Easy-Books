@@ -1811,17 +1811,18 @@ type DemoStatusRow = {
   tenant_id: number | null
 }
 
-/** Fixed catalog order — always render these rows even if /demo/status is older or missing. */
+/** Fixed catalog order — always render these rows even if /demo/status is older or missing.
+ *  Light tenants first so cloud Load succeeds early if a later specialty pack times out. */
 const DEMO_CATALOG: { email: string; screen: string }[] = [
-  { email: "demo.spinning@easy-books.app", screen: "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports" },
-  { email: "demo.processing@easy-books.app", screen: "Textile Processing — grey lots, mending, kachi/pakki, PPC, dispatch, settlements" },
-  { email: "demo.hospital@easy-books.app", screen: "HC Store (Healthcare pharmacy)" },
-  { email: "demo.telecom@easy-books.app", screen: "Telecom — Mobile Money, Devices, Postpaid" },
-  { email: "demo.manufacturing@easy-books.app", screen: "Store Issues, Purchases chain, Weaving" },
-  { email: "demo.pra@easy-books.app", screen: "PRA Logs" },
   { email: "demo.simple@easy-books.app", screen: "Simple books (shared AR/AP baseline)" },
   { email: "demo.services@easy-books.app", screen: "Services + deferred revenue" },
   { email: "demo.trader@easy-books.app", screen: "Trader + inventory" },
+  { email: "demo.pra@easy-books.app", screen: "PRA Logs" },
+  { email: "demo.telecom@easy-books.app", screen: "Telecom — Mobile Money, Devices, Postpaid" },
+  { email: "demo.manufacturing@easy-books.app", screen: "Store Issues, Purchases chain, Weaving" },
+  { email: "demo.hospital@easy-books.app", screen: "HC Store (Healthcare pharmacy)" },
+  { email: "demo.processing@easy-books.app", screen: "Textile Processing — grey lots, mending, kachi/pakki, PPC, dispatch, settlements" },
+  { email: "demo.spinning@easy-books.app", screen: "Spinning — setup, lots, bale receipt, all 6 stages, cones, dispatch, reports" },
 ]
 
 function DemoSampleDataSection() {
@@ -1851,22 +1852,24 @@ function DemoSampleDataSection() {
     if (busy) return
     setBusy(true)
     try {
-      // Prefer live status order; always include catalog emails the API omits
-      let emails = rows.map(r => r.email)
-      if (emails.length === 0) {
+      // Prefer DEMO_CATALOG order (light → heavy) so cloud Load succeeds early.
+      // Append any status-only emails the catalog does not list yet.
+      let statusEmails: string[] = rows.map(r => r.email)
+      if (statusEmails.length === 0) {
         try {
           const data = await apiFetch<{ tenants: DemoStatusRow[] }>("/api/admin/demo/status")
-          emails = data.tenants.map(t => t.email)
+          statusEmails = data.tenants.map(t => t.email)
           setRows(data.tenants)
         } catch {
-          emails = []
+          statusEmails = []
         }
       }
-      const known = new Set(emails)
-      for (const { email } of DEMO_CATALOG) {
-        if (!known.has(email)) emails.push(email)
+      const emails = DEMO_CATALOG.map(c => c.email)
+      for (const email of statusEmails) {
+        if (!emails.some(e => e.toLowerCase() === email.toLowerCase())) {
+          emails.push(email)
+        }
       }
-      if (emails.length === 0) emails = DEMO_CATALOG.map(c => c.email)
 
       const total = emails.length
       for (let i = 0; i < total; i++) {

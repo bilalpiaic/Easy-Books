@@ -54,10 +54,21 @@ def seed_demo(
 
     Idempotent. Pass `email` to seed one DEMO_TENANTS entry (preferred on
     serverless). Omit `email` to run `seed_all_demos()` (local / tests).
+
+    On Vercel the engine uses pool_size=1. The seeder opens its own
+    Session(engine), so we must release the request-scoped connection first
+    or QueuePool deadlocks until the 30s checkout timeout.
     """
+    from sqlmodel import Session as _Session
+
+    from db import engine
+
     sd = _import_seed_demo()
+    audit_user_id = user.id
+    audit_tenant_id = user.tenant_id
 
     target = (body.email if body else None) or None
+    match = None
     if target:
         target = target.strip().lower()
         match = next(
@@ -70,18 +81,34 @@ def seed_demo(
                 f"Unknown demo email. Expected one of: "
                 f"{', '.join(e for e, _, _ in sd.DEMO_TENANTS)}",
             )
+
+    # Return the request connection before the seeder checks out its own.
+    session.close()
+
+    if match:
         email, company, model = match
         try:
             report = sd.seed_one_tenant(email, company, model)
         except Exception as exc:
             raise HTTPException(500, f"Seed failed for {email}: {exc}") from exc
-        log_audit(session, user, "demo_seed", "system", None, {"email": email, "count": 1})
-        session.commit()
+        with _Session(engine) as s:
+            actor = s.get(User, audit_user_id)
+            if actor is None or actor.tenant_id != audit_tenant_id:
+                raise HTTPException(401, "Could not validate credentials")
+            log_audit(s, actor, "demo_seed", "system", None, {"email": email, "count": 1})
+            s.commit()
         return {"tenants": [report]}
 
-    reports = sd.seed_all_demos()
-    log_audit(session, user, "demo_seed", "system", None, {"count": len(reports)})
-    session.commit()
+    try:
+        reports = sd.seed_all_demos()
+    except Exception as exc:
+        raise HTTPException(500, f"Seed failed: {exc}") from exc
+    with _Session(engine) as s:
+        actor = s.get(User, audit_user_id)
+        if actor is None or actor.tenant_id != audit_tenant_id:
+            raise HTTPException(401, "Could not validate credentials")
+        log_audit(s, actor, "demo_seed", "system", None, {"count": len(reports)})
+        s.commit()
     return {"tenants": reports}
 
 
