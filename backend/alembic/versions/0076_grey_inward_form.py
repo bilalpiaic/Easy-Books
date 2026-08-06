@@ -1,7 +1,7 @@
 """GREY IN form fields on grey lot / than (# textile processing UX)
 
-Revision ID: 0074_grey_inward_form
-Revises: 0073_pos_module
+Revision ID: 0076_grey_inward_form
+Revises: 0075_leave_module
 Create Date: 2026-08-06
 """
 from typing import Sequence, Union
@@ -9,8 +9,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = "0074_grey_inward_form"
-down_revision: Union[str, Sequence[str], None] = "0073_pos_module"
+revision: str = "0076_grey_inward_form"
+down_revision: Union[str, Sequence[str], None] = "0075_leave_module"
 branch_labels = None
 depends_on = None
 
