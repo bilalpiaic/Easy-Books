@@ -51,6 +51,10 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "pos.register":           {"label": "POS Registers",           "category": "POS"},
     "pos.shift":              {"label": "POS Shifts",              "category": "POS"},
     "pos.sale":               {"label": "POS Sales",               "category": "POS"},
+    # eCommerce (#305)
+    "ecommerce.connections":  {"label": "Store Connections",       "category": "eCommerce"},
+    "ecommerce.products":     {"label": "Store Product Maps",      "category": "eCommerce"},
+    "ecommerce.orders":       {"label": "Store Order Import",      "category": "eCommerce"},
     "grn":                    {"label": "Goods Receipt Notes",     "category": "Manufacturing"},
     "production_orders":      {"label": "Production Orders",       "category": "Manufacturing"},
     "stock_locations":        {"label": "Stock Locations",         "category": "Manufacturing"},

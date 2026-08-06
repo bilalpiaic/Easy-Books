@@ -85,6 +85,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/banking/feeds":          ["bank feeds", "open banking", "plaid sync", "statement sync"],
   "/pos":                    ["pos", "point of sale", "register", "checkout", "counter sale"],
   "/pos/shifts":             ["pos shifts", "cash up", "shift close", "till variance"],
+  "/ecommerce":              ["ecommerce", "shopify", "woocommerce", "daraz", "store connector", "online orders"],
   "/leave":                  ["leave", "annual leave", "sick leave", "unpaid leave", "lop"],
   "/inventory/transfers":    ["stock transfer", "warehouse transfer", "in transit", "wms"],
   "/inventory/transfer-register": ["transfer register", "warehouse transfer log"],

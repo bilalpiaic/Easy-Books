@@ -2980,3 +2980,6 @@ from models_textile_processing import (  # noqa: E402,F401
     TpDispatch, TpGreySettlement, TpLaborBill, TpInspection,
 )
 from models_pos import PosRegister, PosShift, PosSale  # noqa: E402,F401
+from models_ecommerce import (  # noqa: E402,F401
+    EcommerceConnection, EcommerceProductMap, EcommerceOrderImport,
+)
