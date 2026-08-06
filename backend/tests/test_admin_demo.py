@@ -4,9 +4,27 @@ GET   /api/admin/demo/status — catalog + loaded flags, admin+ only
 POST  /api/admin/demo/seed  — full or per-email seeder, admin+ only
 DELETE /api/admin/demo/seed  — purge demo tenants, admin+ only
 """
+from pathlib import Path
+
 from scripts.seed_demo import DEMO_TENANTS
 
-DEMO_N = len(DEMO_TENANTS)  # 8 (incl. spinning)
+DEMO_N = len(DEMO_TENANTS)  # 9 (incl. spinning + processing)
+
+
+def test_vercel_bundle_includes_seed_scripts():
+    """Regression: cloud demos stay empty if scripts/ is excluded from Vercel."""
+    root = Path(__file__).resolve().parents[1]
+    ignore = (root / ".vercelignore").read_text()
+    # A bare `scripts/` (or `scripts/**`) line would omit seed_demo.py from the
+    # serverless bundle. Comments mentioning scripts/ are fine.
+    for line in ignore.splitlines():
+        stripped = line.split("#", 1)[0].strip()
+        assert stripped not in {"scripts", "scripts/", "scripts/**"}, (
+            f".vercelignore must not exclude scripts/ (found {stripped!r})"
+        )
+    vercel_json = (root / "vercel.json").read_text()
+    assert "scripts/**" not in vercel_json
+
 
 
 def test_demo_status_and_per_email_seed(client, admin_headers):

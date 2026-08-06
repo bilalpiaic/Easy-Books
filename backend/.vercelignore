@@ -19,7 +19,9 @@ htmlcov/
 database.db
 database.db.bak
 tests/
-scripts/
+# Keep scripts/ (seed_demo.py) in the serverless bundle — Settings →
+# Sample/Demo Data and module sample seeding import it at runtime.
+# Excluding it left demo logins as empty CoA shells on Vercel.
 *.spec
 .env
 .env.*

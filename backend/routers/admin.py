@@ -23,12 +23,25 @@ class DemoSeedBody(BaseModel):
     email: Optional[str] = None
 
 
+def _import_seed_demo():
+    """Lazy-import the rich seeder; surface a clear error if the deploy bundle omitted it."""
+    try:
+        from scripts import seed_demo as mod  # lazy: avoids import cycle
+        return mod
+    except ImportError as exc:
+        raise HTTPException(
+            503,
+            "Demo seeder is not available in this deployment "
+            "(scripts/seed_demo missing from the server bundle). "
+            "Redeploy the backend without excluding scripts/.",
+        ) from exc
+
+
 @router.get("/demo/status")
 def demo_status(session: SessionDep, user: AdminUserDep):
     """Catalog of QA demo companies + whether each has rich seed data."""
-    from scripts.seed_demo import demo_tenant_status  # lazy: avoids import cycle
-
-    return {"tenants": demo_tenant_status(session)}
+    sd = _import_seed_demo()
+    return {"tenants": sd.demo_tenant_status(session)}
 
 
 @router.post("/demo/seed")
@@ -42,35 +55,31 @@ def seed_demo(
     Idempotent. Pass `email` to seed one DEMO_TENANTS entry (preferred on
     serverless). Omit `email` to run `seed_all_demos()` (local / tests).
     """
-    from scripts.seed_demo import (  # lazy: avoids import cycle
-        DEMO_TENANTS,
-        seed_all_demos,
-        seed_one_tenant,
-    )
+    sd = _import_seed_demo()
 
     target = (body.email if body else None) or None
     if target:
         target = target.strip().lower()
         match = next(
-            ((e, c, m) for e, c, m in DEMO_TENANTS if e.lower() == target),
+            ((e, c, m) for e, c, m in sd.DEMO_TENANTS if e.lower() == target),
             None,
         )
         if not match:
             raise HTTPException(
                 400,
                 f"Unknown demo email. Expected one of: "
-                f"{', '.join(e for e, _, _ in DEMO_TENANTS)}",
+                f"{', '.join(e for e, _, _ in sd.DEMO_TENANTS)}",
             )
         email, company, model = match
         try:
-            report = seed_one_tenant(email, company, model)
+            report = sd.seed_one_tenant(email, company, model)
         except Exception as exc:
             raise HTTPException(500, f"Seed failed for {email}: {exc}") from exc
         log_audit(session, user, "demo_seed", "system", None, {"email": email, "count": 1})
         session.commit()
         return {"tenants": [report]}
 
-    reports = seed_all_demos()
+    reports = sd.seed_all_demos()
     log_audit(session, user, "demo_seed", "system", None, {"count": len(reports)})
     session.commit()
     return {"tenants": reports}
@@ -85,11 +94,11 @@ def purge_demo(session: SessionDep, user: AdminUserDep):
     The caller's own tenant is never touched. The email list is derived from
     the seeder's DEMO_TENANTS so seed and purge can never drift apart.
     """
-    from scripts.seed_demo import DEMO_TENANTS  # lazy: avoids import cycle
+    sd = _import_seed_demo()
     from models import ComparativeStatement, Reconciliation, ReconciliationLine
     from models_healthcare import HcBed
 
-    demo_emails = [email for email, _, _ in DEMO_TENANTS]
+    demo_emails = [email for email, _, _ in sd.DEMO_TENANTS]
     demo_users = session.exec(select(User).where(User.email.in_(demo_emails))).all()
     tenant_ids = sorted({u.tenant_id for u in demo_users})
     removed = 0
