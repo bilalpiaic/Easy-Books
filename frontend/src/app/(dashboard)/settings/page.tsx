@@ -2030,13 +2030,20 @@ type AiKeyStatus = {
 }
 type AiProviderId = keyof AiKeyStatus
 
-const AI_PROVIDERS: { id: AiProviderId; label: string; settingsKey: string; models: string[] }[] = [
-  { id: "anthropic", label: "Anthropic (Claude)", settingsKey: "ai_api_key_anthropic", models: ["claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"] },
-  { id: "openai",    label: "OpenAI (GPT)",       settingsKey: "ai_api_key_openai",    models: ["gpt-4o-mini", "gpt-4o"] },
-  { id: "gemini",    label: "Google (Gemini)",    settingsKey: "ai_api_key_gemini",    models: ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"] },
+const AI_PROVIDERS: {
+  id: AiProviderId
+  label: string
+  short: string
+  settingsKey: string
+  models: string[]
+}[] = [
+  { id: "anthropic", label: "Anthropic (Claude)", short: "Claude", settingsKey: "ai_api_key_anthropic", models: ["claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"] },
+  { id: "openai",    label: "OpenAI (GPT)",       short: "OpenAI", settingsKey: "ai_api_key_openai",    models: ["gpt-4o-mini", "gpt-4o"] },
+  { id: "gemini",    label: "Google (Gemini)",    short: "Gemini", settingsKey: "ai_api_key_gemini",    models: ["gemini-flash-latest", "gemini-pro-latest", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"] },
   {
     id: "xai",
     label: "xAI / Cursor Grok",
+    short: "Grok",
     settingsKey: "ai_api_key_xai",
     models: [
       "grok-4.5",
@@ -2059,6 +2066,9 @@ function AiAssistantSection() {
   })
   const [defaultModel, setDefaultModel] = useState("")
   const [rateLimit, setRateLimit] = useState("")
+  // Provider insertion tab — default to xAI / Cursor Grok so the new
+  // key field is immediately visible instead of buried under other rows.
+  const [providerTab, setProviderTab] = useState<AiProviderId>("xai")
   // Ollama (self-hosted): no secret key -- gated by a tenant-tagged model
   // list instead. ollamaModels/ollamaBaseUrl round-trip through the plain
   // (non-secret) GET/PATCH /api/settings, unlike the cloud provider keys
@@ -2070,6 +2080,8 @@ function AiAssistantSection() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
+  const activeProvider = AI_PROVIDERS.find((p) => p.id === providerTab) ?? AI_PROVIDERS[0]
+  const activeStatus = keyStatus?.[activeProvider.id] ?? null
 
   const loadKeyStatus = () => {
     setStatusLoading(true)
@@ -2174,37 +2186,66 @@ function AiAssistantSection() {
       )}
 
       <div className="space-y-4">
-        {AI_PROVIDERS.map(p => {
-          const status = keyStatus?.[p.id] ?? null
-          return (
-            <div key={p.id} className="grid grid-cols-1 sm:grid-cols-[160px_1fr_auto] gap-3 items-end">
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">{p.label}</label>
-                <span className="text-xs font-mono text-[var(--text-primary)]/70">
-                  {statusLoading ? "…" : (status || "Not set")}
-                </span>
-              </div>
-              <div>
-                <input
-                  type="password"
-                  autoComplete="off"
-                  placeholder="Paste new API key…"
-                  value={newKeys[p.id]}
-                  onChange={e => setNewKeys(prev => ({ ...prev, [p.id]: e.target.value }))}
-                  className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
+        {/* Provider insertion tabs — Claude / OpenAI / Gemini / Grok */}
+        <div className="flex flex-wrap gap-1.5">
+          {AI_PROVIDERS.map((p) => {
+            const active = p.id === providerTab
+            const set = Boolean(keyStatus?.[p.id])
+            return (
               <button
+                key={p.id}
                 type="button"
-                onClick={() => handleClearKey(p.id, p.label)}
-                disabled={!status}
-                className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 whitespace-nowrap"
+                onClick={() => setProviderTab(p.id)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                  active
+                    ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                    : "bg-white text-[var(--text-primary)]/70 border-[var(--border)] hover:border-[var(--primary)]/40"
+                }`}
               >
-                Clear
+                {p.short}
+                {set ? " · ✓" : ""}
               </button>
+            )
+          })}
+        </div>
+
+        <div className="rounded-xl border border-[var(--border)] p-4 space-y-3 bg-[var(--bg-page)]/40">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-primary)]">
+                {activeProvider.label}
+              </label>
+              <span className="text-xs font-mono text-[var(--text-primary)]/60">
+                {statusLoading ? "…" : (activeStatus || "Not set")}
+              </span>
             </div>
-          )
-        })}
+            <button
+              type="button"
+              onClick={() => handleClearKey(activeProvider.id, activeProvider.label)}
+              disabled={!activeStatus}
+              className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 whitespace-nowrap"
+            >
+              Clear
+            </button>
+          </div>
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder={`Paste ${activeProvider.short} API key…`}
+            value={newKeys[activeProvider.id]}
+            onChange={e => setNewKeys(prev => ({ ...prev, [activeProvider.id]: e.target.value }))}
+            className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-white"
+          />
+          {activeProvider.id === "xai" && (
+            <p className="text-xs text-[var(--text-primary)]/50">
+              xAI / Cursor Grok key from{" "}
+              <a href="https://console.x.ai/" target="_blank" rel="noreferrer" className="text-[var(--primary)] hover:underline">
+                console.x.ai
+              </a>
+              . Unlocks grok-4.5 and related models in the chat picker.
+            </p>
+          )}
+        </div>
 
         <div className="pt-4 border-t border-[var(--border)] space-y-2">
           <label className="block text-xs font-medium text-[var(--text-primary)]/60">
