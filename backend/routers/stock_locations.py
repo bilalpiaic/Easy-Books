@@ -19,7 +19,7 @@ from services.permissions import perm_dep, apply_own_filter
 
 router = APIRouter(prefix="/api/stock-locations", tags=["stock-locations"], dependencies=[perm_dep("stock_locations")])
 
-_VALID_TYPES = {"own", "customer_custodial", "wip"}
+_VALID_TYPES = {"own", "customer_custodial", "wip", "in_transit"}
 
 
 class LocationCreate(BaseModel):

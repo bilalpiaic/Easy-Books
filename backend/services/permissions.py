@@ -54,6 +54,8 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "grn":                    {"label": "Goods Receipt Notes",     "category": "Manufacturing"},
     "production_orders":      {"label": "Production Orders",       "category": "Manufacturing"},
     "stock_locations":        {"label": "Stock Locations",         "category": "Manufacturing"},
+    "inventory.transfer":     {"label": "Stock Transfers",         "category": "Inventory"},
+    "report.stock_by_warehouse": {"label": "Stock by Warehouse",   "category": "Reports"},
     # Banking
     "bank_accounts":          {"label": "Bank Accounts",           "category": "Banking"},
     "exchange_rates":         {"label": "Exchange Rates",          "category": "Banking"},
