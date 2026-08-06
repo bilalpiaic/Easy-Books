@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Bell, CheckCheck, AlertTriangle, Package, ClipboardCheck, Info, MessageSquareWarning,
+  Bell, CheckCheck, AlertTriangle, Package, ClipboardCheck, Info, MessageSquareWarning, Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
@@ -32,6 +32,7 @@ function KindIcon({ kind, severity }: { kind: string; severity: string }) {
   if (kind === "approval_needed") return <ClipboardCheck className={cn("w-4 h-4", cls)} />
   if (kind === "overdue_invoice") return <AlertTriangle className={cn("w-4 h-4", cls)} />
   if (kind === "invoice_dispute") return <MessageSquareWarning className={cn("w-4 h-4", cls)} />
+  if (kind === "system") return <Sparkles className={cn("w-4 h-4", cls)} />
   return <Info className={cn("w-4 h-4", cls)} />
 }
 
@@ -80,7 +81,9 @@ export default function AlertsPage() {
 
   const openAlert = async (a: AlertRow) => {
     if (a.unread) await markRead(a.id)
-    if (a.href) router.push(a.href)
+    // System / app-update notices: reading acks them; body stays on this page.
+    if (a.kind === "system" || !a.href || a.href === "/alerts") return
+    router.push(a.href)
   }
 
   if (!enabled) {
@@ -102,7 +105,7 @@ export default function AlertsPage() {
             <Bell className="w-5 h-5 text-[var(--primary)]" /> Alerts
           </h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            Operational alerts for your account — overdue invoices, low stock, pending approvals.
+            Overdue invoices, low stock, pending approvals, and app updates for your account.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

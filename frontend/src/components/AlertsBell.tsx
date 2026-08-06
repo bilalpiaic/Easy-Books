@@ -75,24 +75,37 @@ export default function AlertsBell() {
       .finally(() => setLoading(false))
   }, [enabled])
 
-  useEffect(() => {
+  // Sync shipped app updates into this user's Alerts inbox (no popup).
+  // Covers login + mid-session deploys; mark-as-read in the bell is the ack.
+  const syncUpdateNotices = useCallback(() => {
     if (!enabled) return
-    fetchCount()
-    const t = setInterval(fetchCount, 60_000)
-    const onRefresh = () => fetchCount()
-    window.addEventListener("alerts:refresh", onRefresh)
-    return () => {
-      clearInterval(t)
-      window.removeEventListener("alerts:refresh", onRefresh)
-    }
+    apiFetch<{ items?: unknown[] }>("/api/system/update/notices")
+      .then(() => fetchCount())
+      .catch(() => { /* never block the app */ })
   }, [enabled, fetchCount])
 
   useEffect(() => {
+    if (!enabled) return
+    syncUpdateNotices()
+    fetchCount()
+    const countTimer = setInterval(fetchCount, 60_000)
+    const noticeTimer = setInterval(syncUpdateNotices, 180_000)
+    const onRefresh = () => fetchCount()
+    window.addEventListener("alerts:refresh", onRefresh)
+    return () => {
+      clearInterval(countTimer)
+      clearInterval(noticeTimer)
+      window.removeEventListener("alerts:refresh", onRefresh)
+    }
+  }, [enabled, fetchCount, syncUpdateNotices])
+
+  useEffect(() => {
     if (open) {
+      syncUpdateNotices()
       fetchList()
       fetchCount()
     }
-  }, [open, fetchList, fetchCount])
+  }, [open, fetchList, fetchCount, syncUpdateNotices])
 
   useEffect(() => {
     if (!open) return
@@ -123,8 +136,10 @@ export default function AlertsBell() {
 
   const openAlert = async (a: AlertRow) => {
     if (a.unread) await markRead(a.id)
+    // App-update / system notices: body is already in the row — reading acks them.
+    if (a.kind === "system" || !a.href || a.href === "/alerts") return
     setOpen(false)
-    if (a.href) router.push(a.href)
+    router.push(a.href)
   }
 
   const badge = count > 9 ? "9+" : count > 0 ? String(count) : null
@@ -207,7 +222,12 @@ export default function AlertsBell() {
                     )}
                   </div>
                   {a.body && (
-                    <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">{a.body}</div>
+                    <div className={cn(
+                      "text-[11px] text-[var(--text-muted)] mt-0.5",
+                      a.kind === "system" ? "whitespace-normal line-clamp-3" : "truncate",
+                    )}>
+                      {a.body}
+                    </div>
                   )}
                   <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{relativeTime(a.created_at)}</div>
                 </div>
