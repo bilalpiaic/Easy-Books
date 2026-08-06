@@ -102,6 +102,7 @@ export const TITLE_MAP: Record<string, string> = {
   "/period-close":     "Period Close",
   "/inventory/performance": "Inventory Performance",
   "/inventory":             "Inventory",
+  "/ecommerce":             "eCommerce Stores",
   "/customer-performance":  "Customer Performance",
   "/reports/builder":       "Report Builder",
   "/telecom":                   "Telecom",

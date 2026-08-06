@@ -614,6 +614,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["POS"],
     },
+    "ecommerce": {
+        "label":       "eCommerce Connectors",
+        "description": "Connect Shopify / WooCommerce stores: map products by SKU, import orders as draft invoices, optional stock sync.",
+        "category":    "Operations",
+        "icon":        "ShoppingBag",
+        "deps":        ["inventory"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["eCommerce"],
+    },
     "weaving": {
         "label":       "Weaving",
         "description": "Weaving unit control: contracts, yarn inward, sizing, production, dispatch, and operational dashboards (Kg/Lbs/Bags). Memo/ops in v1 — no GL posting.",
