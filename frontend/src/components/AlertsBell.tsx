@@ -161,7 +161,16 @@ export default function AlertsBell() {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-1 w-[360px] max-w-[calc(100vw-24px)] bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl z-[100] overflow-hidden">
+        <div
+          className={cn(
+            "bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl z-[100] overflow-hidden",
+            // SM: pin to viewport under the header so a near-full-width sheet
+            // doesn't overflow left of the bell (theme + avatar sit to its right).
+            "fixed left-3 right-3 top-[56px] w-auto max-w-none",
+            // md+: classic dropdown anchored to the bell's right edge
+            "md:absolute md:left-auto md:right-0 md:top-full md:mt-1 md:w-[360px] md:max-w-[calc(100vw-24px)]",
+          )}
+        >
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--border)]">
             <div className="text-[13px] font-semibold text-[var(--text-primary)]">Alerts</div>
             <div className="flex items-center gap-1">
