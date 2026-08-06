@@ -1,11 +1,13 @@
 """Ship what's-new notices into every user's Alerts inbox.
 
 When Easy-Books updates (new git commits on the running install), we store an
-``AppUpdateNotice`` with an easy-language title/body and fan it out as
-``UserAlert(kind='system')`` so:
+``AppUpdateNotice`` with an easy-language title/body and deliver it as
+``UserAlert(kind='system')`` so the Alerts bell is the only surface:
 
-* logged-in users see a popup + bell badge during the session (poll), and
+* logged-in users get a bell badge during the session (poll), and
 * users who were logged out see the same on their next login.
+
+Marking the alert read (bell or /alerts) is the ack — no separate update popup.
 """
 from __future__ import annotations
 
@@ -285,7 +287,7 @@ def fanout_notice(session: Session, notice: AppUpdateNotice) -> int:
             severity="info",
             title=notice.title,
             body=notice.body,
-            href="/alerts",
+            href=None,  # Alerts bell is the surface — no separate update UI
             entity_type=ENTITY_TYPE,
             entity_id=notice.id,
             dedupe_key=key,
@@ -443,7 +445,7 @@ def ensure_user_notices(
             severity="info",
             title=notice.title,
             body=notice.body,
-            href="/alerts",
+            href=None,  # Alerts bell is the surface — no separate update UI
             entity_type=ENTITY_TYPE,
             entity_id=notice.id,
             dedupe_key=f"{DEDUPE_PREFIX}{notice.sha}",
