@@ -71,6 +71,7 @@ Credentials:
 """
 from __future__ import annotations
 
+import os
 import random
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -81,6 +82,50 @@ from sqlmodel import Session, select
 from auth import get_password_hash
 from db import MODULE_REGISTRY, MODULES_BY_MODEL, _coa_for, engine, seed_data
 import json as _json
+
+
+def _demo_seed_lite() -> bool:
+    """True on Vercel (or when DEMO_SEED_LITE=true): smaller volumes so one
+    tenant fits in a serverless function budget (~300s on Fluid).
+    Local/dev/installers keep the full rich dataset.
+    """
+    if os.environ.get("DEMO_SEED_LITE", "").lower() in ("1", "true", "yes"):
+        return True
+    if os.environ.get("DEMO_SEED_LITE", "").lower() in ("0", "false", "no"):
+        return False
+    return os.environ.get("VERCEL", "").lower() in ("1", "true")
+
+
+def _demo_seed_counts() -> dict[str, int]:
+    if _demo_seed_lite():
+        return {
+            "bills": 12,
+            "invoices": 12,
+            "payments_received": 8,
+            "bill_payments": 8,
+            "manual_jvs": 10,
+            "credit_notes": 2,
+            "sales_returns": 2,
+            "purchase_returns": 2,
+            "customer_advances": 2,
+            "vendor_advances": 2,
+            "purchase_orders": 3,
+            "deferred_revenue": 2,
+        }
+    return {
+        "bills": 100,
+        "invoices": 100,
+        "payments_received": 70,
+        "bill_payments": 70,
+        "manual_jvs": 60,
+        "credit_notes": 6,
+        "sales_returns": 4,
+        "purchase_returns": 3,
+        "customer_advances": 4,
+        "vendor_advances": 4,
+        "purchase_orders": 8,
+        "deferred_revenue": 4,
+    }
 
 from models import (
     Account, AccountingPeriod, AnalyticAccount, AnalyticDimension, AssetImpairment,
@@ -6734,6 +6779,8 @@ def _seed_dashboard_layouts(s: Session, tenant_id: int, user: User, enabled: lis
 def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
     """Create or update one demo tenant. Returns a small report dict."""
     random.seed(hash(email) & 0xFFFFFFFF)
+    counts = _demo_seed_counts()
+    lite = _demo_seed_lite()
     with Session(engine) as s:
         existing_user = s.exec(select(User).where(User.email == email)).first()
         if existing_user:
@@ -6811,15 +6858,15 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
 
         bills    = _seed_bills(s, accountant, vendors, all_products, business_model,
-                               payment_terms)
+                               payment_terms, count=counts["bills"])
         s.commit()
         invoices = _seed_invoices(s, user, customers, all_products, business_model,
-                                  payment_terms)
+                                  payment_terms, count=counts["invoices"])
         s.commit()
-        _seed_payments_received(s, user, invoices)
-        _seed_bill_payments(s, accountant, bills)
+        _seed_payments_received(s, user, invoices, count=counts["payments_received"])
+        _seed_bill_payments(s, accountant, bills, count=counts["bill_payments"])
         s.commit()
-        _seed_manual_jvs(s, user)
+        _seed_manual_jvs(s, user, count=counts["manual_jvs"])
         s.commit()
         _seed_recurring_templates(s, tenant_id)
         s.commit()
@@ -6833,25 +6880,27 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
         _seed_analytic_dimensions_260(s, tenant_id)
         s.commit()
-        _seed_asset_components_258(s, user)
+        if not lite:
+            _seed_asset_components_258(s, user)
+            s.commit()
+        _seed_credit_notes(s, clerk, invoices, count=counts["credit_notes"])
         s.commit()
-        _seed_credit_notes(s, clerk, invoices)
-        s.commit()
-        _seed_purchase_orders(s, user, vendors, all_products)
+        _seed_purchase_orders(s, user, vendors, all_products, count=counts["purchase_orders"])
         s.commit()
         if business_model == "services":
-            _seed_deferred_revenue(s, user, invoices)
+            _seed_deferred_revenue(s, user, invoices, count=counts["deferred_revenue"])
             s.commit()
-            _seed_ifrs15_259(s, user, customers, invoices)
-            s.commit()
+            if not lite:
+                _seed_ifrs15_259(s, user, customers, invoices)
+                s.commit()
 
         # ── Returns & Advances (Sprint 13) ──
-        _seed_sales_returns(s, clerk, invoices)
+        _seed_sales_returns(s, clerk, invoices, count=counts["sales_returns"])
         s.commit()
-        _seed_purchase_returns(s, user, bills)
+        _seed_purchase_returns(s, user, bills, count=counts["purchase_returns"])
         s.commit()
-        _seed_customer_advances(s, user, customers, invoices)
-        _seed_vendor_advances(s, user, vendors, bills)
+        _seed_customer_advances(s, user, customers, invoices, count=counts["customer_advances"])
+        _seed_vendor_advances(s, user, vendors, bills, count=counts["vendor_advances"])
         s.commit()
 
         # ── Sales incentives + close/reconcile (gap-fill batch) ──
@@ -6865,32 +6914,35 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
         _seed_tax_rate_history(s, tenant_id)
         s.commit()
-        _seed_reconciliations(s, tenant_id)
-        _seed_bank_imports(s, tenant_id)
-        s.commit()
+        # Bank recon / statement import are GL-heavy — skip on serverless lite.
+        if not lite:
+            _seed_reconciliations(s, tenant_id)
+            _seed_bank_imports(s, tenant_id)
+            s.commit()
         _seed_wht_cit_267(s, user, vendors)
         s.commit()
         _seed_localization_demo(s, user, email, business_model)
         s.commit()
 
-        if business_model in ("services", "manufacturing"):
+        if business_model in ("services", "manufacturing") and not lite:
             _seed_leases(s, user)
             s.commit()
 
-        if business_model in ("trader", "manufacturing"):
+        if business_model in ("trader", "manufacturing") and not lite:
             _seed_inventory_depth(s, user, stock)
             s.commit()
 
         if business_model == "manufacturing":
             _seed_manufacturing(s, user, customers, stock, custom_supp)
             s.commit()
-            _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
-            s.commit()
-            # Own guard — backfills Issue Register when the PD chain already existed.
-            _seed_store_issues(s, owner, clerk, all_products)
-            s.commit()
-            _seed_weaving(s, user, customers, vendors)
-            s.commit()
+            if not lite:
+                _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
+                s.commit()
+                # Own guard — backfills Issue Register when the PD chain already existed.
+                _seed_store_issues(s, owner, clerk, all_products)
+                s.commit()
+                _seed_weaving(s, user, customers, vendors)
+                s.commit()
 
         if business_model == "telecom_franchise":
             _seed_telecom_franchise(s, user)
@@ -6901,22 +6953,25 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             s.commit()
             _seed_healthcare_store(s, user)
             s.commit()
-            _seed_lab_serial_history(s, user)
-            s.commit()
-            _seed_dialysis(s, user)
-            s.commit()
+            if not lite:
+                _seed_lab_serial_history(s, user)
+                s.commit()
+                _seed_dialysis(s, user)
+                s.commit()
 
         if business_model == "yarn_spinning":
             _seed_spinning_settings(s, tenant_id)
             s.commit()
-            _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
-            s.commit()
+            if not lite:
+                _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
+                s.commit()
             _seed_spinning(s, user, customers, vendors, stock)
             s.commit()
 
         if business_model == "textile_processing":
-            _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
-            s.commit()
+            if not lite:
+                _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
+                s.commit()
             _seed_textile_processing(s, user, customers, vendors)
             s.commit()
 
@@ -6943,15 +6998,18 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         s.commit()
 
         # ── HRM: Employees, Payroll, Attendance ───────────────────────────────
+        # Payroll/attendance loops are expensive on Neon — keep a thin HRM
+        # sample on serverless lite so the tenant still shows Payroll screens.
         employees_hrm = _seed_employees(s, tenant_id, business_model)
         components_hrm = _seed_salary_components(s, tenant_id)
         s.commit()
         _seed_salary_structures(s, employees_hrm, components_hrm)
         s.commit()
-        _seed_payroll_runs(s, tenant_id, user, employees_hrm, components_hrm)
-        s.commit()
-        _seed_attendance(s, tenant_id, employees_hrm)
-        s.commit()
+        if not lite:
+            _seed_payroll_runs(s, tenant_id, user, employees_hrm, components_hrm)
+            s.commit()
+            _seed_attendance(s, tenant_id, employees_hrm)
+            s.commit()
 
         # ── Dual-home dashboard layouts (Financial + Operations) ──────────────
         try:
@@ -6967,6 +7025,7 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             "tenant":       company_name,
             "email":        email,
             "business_model": business_model,
+            "lite":         lite,
             "tenant_id":    tenant_id,
             "customers":    len(s.exec(select(Customer).where(Customer.tenant_id == tenant_id)).all()),
             "vendors":      len(s.exec(select(Vendor).where(Vendor.tenant_id == tenant_id)).all()),
