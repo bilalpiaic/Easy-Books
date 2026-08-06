@@ -166,12 +166,47 @@ def _compute_lines(
     session: Session, tenant_id: int, run_id: int
 ) -> List[PayrollLine]:
     """Compute PayrollLine + PayrollLineDetail rows for all active employees."""
+    from datetime import date as DateType
+    from routers.leave import unpaid_leave_days
+
+    run = session.get(PayrollRun, run_id)
+    if not run:
+        return []
+
     employees = session.exec(
         select(Employee).where(
             Employee.tenant_id == tenant_id,
             Employee.is_active == True,  # noqa: E712
         )
     ).all()
+
+    # Ensure LOP salary component exists for unpaid-leave deductions (#303)
+    lop = session.exec(
+        select(SalaryComponent).where(
+            SalaryComponent.tenant_id == tenant_id,
+            SalaryComponent.code == "LOP",
+        )
+    ).first()
+    if not lop:
+        lop = SalaryComponent(
+            tenant_id=tenant_id,
+            name="Loss of Pay",
+            code="LOP",
+            component_type="deductions",
+            is_taxable=False,
+            is_fixed=True,
+            is_active=True,
+        )
+        session.add(lop)
+        session.flush()
+
+    # Calendar days in pay period for daily-rate LOP (simple /30-style if needed)
+    try:
+        ps = DateType.fromisoformat(run.period_start)
+        pe = DateType.fromisoformat(run.period_end)
+        period_days = max(1, (pe - ps).days + 1)
+    except ValueError:
+        period_days = 30
 
     lines: List[PayrollLine] = []
     for emp in employees:
@@ -207,6 +242,17 @@ def _compute_lines(
                 gross += amt
             elif comp.component_type in ("deductions", "statutory"):
                 deductions += amt
+
+        # Unpaid leave → LOP deduction (#303)
+        unpaid_days = unpaid_leave_days(
+            session, tenant_id, emp.id, run.period_start, run.period_end
+        )
+        if unpaid_days > 0 and basic_amount > 0:
+            daily = basic_amount / float(period_days)
+            lop_amt = round(daily * unpaid_days, 2)
+            if lop_amt > 0:
+                detail_rows.append((lop.id, lop_amt, "deductions"))
+                deductions += lop_amt
 
         net = gross - deductions
 
@@ -901,6 +947,34 @@ def get_payslip(run_id: int, emp_id: int, user: CurrentUserDep, session: Session
         for d, c in details if c.component_type in ("deductions", "statutory")
     ]
 
+    from routers.leave import unpaid_leave_days
+    from models import LeaveRequest, LeaveType
+    leave_rows = session.exec(
+        select(LeaveRequest, LeaveType)
+        .join(LeaveType, LeaveRequest.leave_type_id == LeaveType.id)  # type: ignore[arg-type]
+        .where(
+            LeaveRequest.tenant_id == user.tenant_id,
+            LeaveRequest.employee_id == emp_id,
+            LeaveRequest.status == "approved",
+            LeaveRequest.from_date <= run.period_end,
+            LeaveRequest.to_date >= run.period_start,
+        )
+    ).all()
+    leave_summary = [
+        {
+            "leave_type": lt.name,
+            "code": lt.code,
+            "is_paid": lt.is_paid,
+            "from_date": req.from_date,
+            "to_date": req.to_date,
+            "days": req.days,
+        }
+        for req, lt in leave_rows
+    ]
+    unpaid_days = unpaid_leave_days(
+        session, user.tenant_id, emp_id, run.period_start, run.period_end
+    )
+
     return {
         "run": {
             "id": run.id,
@@ -921,6 +995,8 @@ def get_payslip(run_id: int, emp_id: int, user: CurrentUserDep, session: Session
         },
         "earnings": earnings,
         "deductions": deductions,
+        "leave": leave_summary,
+        "unpaid_leave_days": unpaid_days,
         "gross_earnings": line.gross_earnings,
         "total_deductions": line.total_deductions,
         "net_pay": line.net_pay,

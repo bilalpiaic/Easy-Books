@@ -30,6 +30,8 @@ interface PayslipData {
   }
   earnings: { name: string; code: string; amount: number }[]
   deductions: { name: string; code: string; amount: number }[]
+  leave?: { leave_type: string; code: string; is_paid: boolean; from_date: string; to_date: string; days: number }[]
+  unpaid_leave_days?: number
   gross_earnings: number
   total_deductions: number
   net_pay: number

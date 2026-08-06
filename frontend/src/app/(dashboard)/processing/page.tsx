@@ -26,7 +26,7 @@ type Dash = {
 const LINKS = [
   { href: "/processing/setup", label: "Setup", icon: Settings2 },
   { href: "/processing/sales-orders", label: "Sales Orders", icon: FileSignature },
-  { href: "/processing/lots", label: "Grey Lots", icon: Package },
+  { href: "/processing/lots", label: "Grey Inward", icon: Package },
   { href: "/processing/mending", label: "Mending", icon: Scissors },
   { href: "/processing/kachi-parchi", label: "Kachi Parchi", icon: ScrollText },
   { href: "/processing/pakki-parchi", label: "Pakki Parchi", icon: FileCheck },

@@ -103,6 +103,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "payroll":                {"label": "Payroll Runs",           "category": "Payroll"},
     "payroll.components":     {"label": "Salary Components",      "category": "Payroll"},
     "attendance":             {"label": "Attendance Register",    "category": "Payroll"},
+    "leave":                  {"label": "Leave",                   "category": "Payroll"},
     # Healthcare
     "healthcare.patients":    {"label": "Patients",              "category": "Healthcare"},
     "healthcare.opd":         {"label": "OPD / Outpatient",      "category": "Healthcare"},

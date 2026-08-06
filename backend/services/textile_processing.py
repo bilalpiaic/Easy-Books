@@ -36,11 +36,13 @@ def format_quality_code(
 def than_safi_mtr(
     meters: Decimal | float | str,
     rejection_mtr: Decimal | float | str = ZERO,
+    g_kami_mtr: Decimal | float | str = ZERO,
+    cp_mtr: Decimal | float | str = ZERO,
 ) -> Decimal:
-    """Per-than Safi = meters − Rej (non-negative)."""
-    safi = D(meters) - D(rejection_mtr)
+    """Per-than Safi = Greigh − G.Kami − Reject − CP (non-negative)."""
+    safi = D(meters) - D(g_kami_mtr) - D(rejection_mtr) - D(cp_mtr)
     if safi < ZERO:
-        raise ValueError("than rejection cannot exceed meters")
+        raise ValueError("than deductions (G.Kami+Reject+CP) cannot exceed Greigh meters")
     return money(safi)
 
 

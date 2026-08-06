@@ -2732,6 +2732,60 @@ class AttendanceRecord(SQLModel, table=True):
     created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
+class LeaveType(SQLModel, table=True):
+    """Leave catalogue (#303) — annual entitlement + paid/unpaid flag."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="unique_leave_type_code"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    code: str = Field(index=True)  # AL, SL, UL…
+    name: str
+    is_paid: bool = Field(default=True)
+    annual_entitlement: float = Field(default=0)  # days per year
+    is_active: bool = Field(default=True)
+
+
+class LeaveBalance(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "employee_id", "leave_type_id", "year",
+            name="unique_leave_balance",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    leave_type_id: int = Field(foreign_key="leavetype.id", index=True)
+    year: int
+    entitled: float = Field(default=0)
+    used: float = Field(default=0)
+    pending: float = Field(default=0)
+
+
+class LeaveRequest(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending','approved','rejected','cancelled')",
+            name="ck_leave_request_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    leave_type_id: int = Field(foreign_key="leavetype.id", index=True)
+    from_date: str
+    to_date: str
+    days: float = Field(default=1)
+    status: str = Field(default="pending", index=True)
+    reason: Optional[str] = None
+    created_by_id: int = Field(foreign_key="user.id")
+    approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    approved_at: Optional[datetime] = None
+    reject_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 # ── Wave B–D cloud / parity / AI models (#118–#125) ──────────────────────────
 
 class PortalToken(SQLModel, table=True):

@@ -11,7 +11,7 @@ import {
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
   AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
-  Store, ArrowLeftRight,
+  Store, ArrowLeftRight, Palmtree,
 } from "lucide-react"
 
 export type NavItem = {
@@ -161,6 +161,7 @@ export const NAV: NavItem[] = [
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll",   forModule: "hrm" },
   { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll",   forModule: "hrm" },
   { label: "Attendance",       href: "/attendance",        icon: CalendarDays,     section: "Payroll",   forModule: "hrm" },
+  { label: "Leave",            href: "/leave",             icon: Palmtree,         section: "Payroll",   forModule: "hrm" },
   { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll",   forModule: "hrm" },
   // Healthcare
   { label: "HC Overview",       href: "/healthcare",              icon: Stethoscope,  section: "Healthcare", forModule: "healthcare" },
@@ -207,7 +208,7 @@ export const NAV: NavItem[] = [
   { label: "Processing Overview", href: "/processing",                 icon: Layers,          section: "Processing", forModule: "textile_processing" },
   { label: "Processing Setup",    href: "/processing/setup",           icon: Settings2,       section: "Processing", forModule: "textile_processing" },
   { label: "Sales Orders",        href: "/processing/sales-orders",    icon: FileSignature,   section: "Processing", forModule: "textile_processing" },
-  { label: "Grey Lots",           href: "/processing/lots",            icon: Package,         section: "Processing", forModule: "textile_processing" },
+  { label: "Grey Inward",         href: "/processing/lots",            icon: Package,         section: "Processing", forModule: "textile_processing" },
   { label: "Mending",             href: "/processing/mending",         icon: Scissors,        section: "Processing", forModule: "textile_processing" },
   { label: "Kachi Parchi",        href: "/processing/kachi-parchi",    icon: ScrollText,      section: "Processing", forModule: "textile_processing" },
   { label: "Pakki Parchi",        href: "/processing/pakki-parchi",    icon: FileCheck,       section: "Processing", forModule: "textile_processing" },
@@ -505,6 +506,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Payroll Runs",      href: "/payroll",            icon: Briefcase,    section: "payroll", forModule: "hrm" },
     { label: "Employees",         href: "/employees",          icon: UserCog,      section: "payroll", forModule: "hrm" },
     { label: "Attendance",        href: "/attendance",         icon: CalendarDays, section: "payroll", forModule: "hrm" },
+    { label: "Leave",             href: "/leave",              icon: Palmtree,     section: "payroll", forModule: "hrm" },
     { label: "Salary Components", href: "/payroll/components", icon: Settings2,    section: "payroll", forModule: "hrm" },
   ],
   healthcare: [
@@ -555,7 +557,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Overview",          href: "/processing",                    icon: Layers,         section: "processing", forModule: "textile_processing" },
     { label: "Setup",             href: "/processing/setup",              icon: Settings2,      section: "processing", forModule: "textile_processing" },
     { label: "Sales Orders",      href: "/processing/sales-orders",       icon: FileSignature,  section: "processing", forModule: "textile_processing" },
-    { label: "Grey Lots",         href: "/processing/lots",               icon: Package,        section: "processing", forModule: "textile_processing" },
+    { label: "Grey Inward",       href: "/processing/lots",               icon: Package,        section: "processing", forModule: "textile_processing" },
     { label: "Mending",           href: "/processing/mending",            icon: Scissors,       section: "processing", forModule: "textile_processing" },
     { label: "Kachi Parchi",      href: "/processing/kachi-parchi",       icon: ScrollText,     section: "processing", forModule: "textile_processing" },
     { label: "Pakki Parchi",      href: "/processing/pakki-parchi",       icon: FileCheck,      section: "processing", forModule: "textile_processing" },
