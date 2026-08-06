@@ -27,25 +27,62 @@ def test_no_keys_no_env_means_no_providers(client, monkeypatch):
         assert configured_providers(s, tid) == []
 
 
-def test_env_fallback_applies_to_anthropic_only(client, monkeypatch):
+def test_env_fallback_applies_to_anthropic_and_xai(client, monkeypatch):
     from services.ai_providers import configured_providers, resolve_api_key
     tid = _tenant(monkeypatch)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-env")
+    monkeypatch.setenv("XAI_API_KEY", "xai-env-key")
     with Session(_db.engine) as s:
         provs = configured_providers(s, tid)
-        assert [p["provider"] for p in provs] == ["anthropic"]
+        assert [p["provider"] for p in provs] == ["anthropic", "xai"]
         assert resolve_api_key(s, tid, "anthropic") == "sk-ant-env"
+        assert resolve_api_key(s, tid, "xai") == "xai-env-key"
         assert resolve_api_key(s, tid, "openai") is None
         assert resolve_api_key(s, tid, "gemini") is None
+
+
+def test_xai_cursor_grok_provider_models_and_cheap_tier(client, monkeypatch):
+    """xAI / Cursor Grok is a first-class cloud provider alongside Claude/GPT/Gemini."""
+    from services.ai_providers import (
+        CHEAP_TIER, PROVIDERS, configured_providers, resolve_cheap_tier, validate_model,
+    )
+    assert "xai" in PROVIDERS
+    assert "grok-4.5" in PROVIDERS["xai"]["models"]
+    assert CHEAP_TIER["xai"] == "grok-4-1-fast-non-reasoning"
+
+    tid = _tenant(monkeypatch)
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    _set_key(tid, "ai_api_key_xai", "xai-tenant-key-abc1")
+    with Session(_db.engine) as s:
+        litellm_model, key, api_base = validate_model(s, tid, "xai/grok-4.5")
+        assert litellm_model == "xai/grok-4.5"
+        assert key == "xai-tenant-key-abc1"
+        assert api_base is None
+
+        cheap_model, cheap_key, _ = resolve_cheap_tier(
+            s, tid, litellm_model, key, api_base,
+        )
+        assert cheap_model == "xai/grok-4-1-fast-non-reasoning"
+        assert cheap_key == "xai-tenant-key-abc1"
+
+        provs = configured_providers(s, tid)
+        assert any(p["provider"] == "xai" for p in provs)
+        xai = next(p for p in provs if p["provider"] == "xai")
+        assert xai["label"] == "xAI / Cursor Grok"
+        assert "xai/grok-4.5" in xai["models"]
+        assert "xai/grok-code-fast" in xai["models"]
 
 
 def test_tenant_key_wins_over_env(client, monkeypatch):
     from services.ai_providers import resolve_api_key
     tid = _tenant(monkeypatch)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-env")
+    monkeypatch.setenv("XAI_API_KEY", "xai-env")
     _set_key(tid, "ai_api_key_anthropic", "sk-ant-tenant")
+    _set_key(tid, "ai_api_key_xai", "xai-tenant")
     with Session(_db.engine) as s:
         assert resolve_api_key(s, tid, "anthropic") == "sk-ant-tenant"
+        assert resolve_api_key(s, tid, "xai") == "xai-tenant"
 
 
 def test_validate_model_happy_and_sad_paths(client, monkeypatch):
@@ -156,6 +193,7 @@ def test_models_endpoint_lists_only_configured_providers(client, monkeypatch):
 
 def test_key_status_masked_and_admin_only(client, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
     auth = _signup(client, "prov3@t.com")
     _install_ai(client, auth)
     client.patch("/api/settings", headers=auth, json={"ai_api_key_openai": "sk-openai-secret-x9Zq"})
@@ -163,6 +201,7 @@ def test_key_status_masked_and_admin_only(client, monkeypatch):
     status = client.get("/api/ai/key-status", headers=auth).json()
     assert status["openai"] == "••••x9Zq"
     assert status["anthropic"] is None
+    assert status["xai"] is None
     assert "secret" not in str(status)
 
     # viewer-role user cannot read key status
@@ -173,6 +212,30 @@ def test_key_status_masked_and_admin_only(client, monkeypatch):
     r = client.post("/api/auth/login", data={"username": "prov3v@t.com", "password": "password123"})
     viewer = {"Authorization": f"Bearer {r.json()['access_token']}"}
     assert client.get("/api/ai/key-status", headers=viewer).status_code == 403
+
+
+def test_xai_key_round_trip_via_settings_and_models(client, monkeypatch):
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    auth = _signup(client, "prov-xai@t.com")
+    _install_ai(client, auth)
+    r = client.patch("/api/settings", headers=auth, json={
+        "ai_api_key_xai": "xai-live-secret-9Zq1",
+        "ai_default_model": "xai/grok-4.5",
+    })
+    assert r.status_code == 200, r.text
+
+    settings = client.get("/api/settings", headers=auth).json()
+    assert "ai_api_key_xai" not in settings
+    assert settings["ai_default_model"] == "xai/grok-4.5"
+
+    status = client.get("/api/ai/key-status", headers=auth).json()
+    assert status["xai"] == "••••9Zq1"
+
+    data = client.get("/api/ai/models", headers=auth).json()
+    assert any(p["provider"] == "xai" for p in data["providers"])
+    xai = next(p for p in data["providers"] if p["provider"] == "xai")
+    assert "xai/grok-4.5" in xai["models"]
+    assert data["default_model"] == "xai/grok-4.5"
 
 
 def test_ai_key_write_requires_admin(client, monkeypatch):

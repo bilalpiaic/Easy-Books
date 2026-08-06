@@ -9,13 +9,14 @@ import { getCurrentUser } from "@/lib/auth"
 import type { ModelsPayload } from "./ChatCore"
 import { useMessages } from "@/context/MessageContext"
 
-type AiProviderId = "anthropic" | "openai" | "gemini"
+type AiProviderId = "anthropic" | "openai" | "gemini" | "xai"
 type AiKeyStatus = Record<AiProviderId, string | null>
 
 const CLOUD_PROVIDERS: { id: AiProviderId; label: string; settingsKey: string }[] = [
   { id: "anthropic", label: "Anthropic (Claude)", settingsKey: "ai_api_key_anthropic" },
   { id: "openai", label: "OpenAI (GPT)", settingsKey: "ai_api_key_openai" },
   { id: "gemini", label: "Google (Gemini)", settingsKey: "ai_api_key_gemini" },
+  { id: "xai", label: "xAI / Cursor Grok", settingsKey: "ai_api_key_xai" },
 ]
 
 interface AiModelKeyPanelProps {
@@ -40,7 +41,9 @@ export default function AiModelKeyPanel({
   const { confirm } = useMessages()
   const [keyStatus, setKeyStatus] = useState<AiKeyStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(isAdmin)
-  const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({ anthropic: "", openai: "", gemini: "" })
+  const [newKeys, setNewKeys] = useState<Record<AiProviderId, string>>({
+    anthropic: "", openai: "", gemini: "", xai: "",
+  })
   const [savingProvider, setSavingProvider] = useState<AiProviderId | null>(null)
   const [error, setError] = useState("")
 
