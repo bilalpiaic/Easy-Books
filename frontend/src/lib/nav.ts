@@ -11,7 +11,7 @@ import {
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
   AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
-  Store, ArrowLeftRight, Palmtree, ShoppingBag,
+  Store, ArrowLeftRight, Palmtree, ShoppingBag, PackageCheck,
 } from "lucide-react"
 
 export type NavItem = {
@@ -81,6 +81,7 @@ export const NAV: NavItem[] = [
   { label: "Inventory Report",  href: "/inventory/performance", icon: PieChart,      section: "Inventory",      forModule: "inventory" },
   { label: "Valuation",         href: "/inventory/valuation",   icon: Scale,         section: "Inventory",      forModule: "inventory" },
   { label: "Stock Transfers",   href: "/inventory/transfers",   icon: ArrowLeftRight, section: "Inventory",     forModule: "inventory" },
+  { label: "Pick / Pack",       href: "/inventory/pick-lists",  icon: PackageCheck,   section: "Inventory",     forModule: "inventory" },
   { label: "Transfer Register", href: "/inventory/transfer-register", icon: ScrollText, section: "Inventory", forModule: "inventory" },
   { label: "Stock by Warehouse", href: "/inventory/stock-by-warehouse", icon: Warehouse, section: "Inventory", forModule: "inventory" },
   { label: "Stock Locations",  href: "/manufacturing/stock-locations", icon: Warehouse, section: "Inventory", forModule: "inventory" },
@@ -163,6 +164,7 @@ export const NAV: NavItem[] = [
   { label: "Employees",        href: "/employees",         icon: UserCog,          section: "Payroll",   forModule: "hrm" },
   { label: "Attendance",       href: "/attendance",        icon: CalendarDays,     section: "Payroll",   forModule: "hrm" },
   { label: "Leave",            href: "/leave",             icon: Palmtree,         section: "Payroll",   forModule: "hrm" },
+  { label: "Expense Claims",   href: "/expense-claims",    icon: Receipt,          section: "Payroll",   forModule: "hrm" },
   { label: "Salary Components",href: "/payroll/components",icon: Settings2,        section: "Payroll",   forModule: "hrm" },
   // Healthcare
   { label: "HC Overview",       href: "/healthcare",              icon: Stethoscope,  section: "Healthcare", forModule: "healthcare" },
@@ -505,6 +507,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Inventory Report",   href: "/inventory/performance", icon: PieChart, section: "inventory", forModule: "inventory" },
     { label: "Valuation",          href: "/inventory/valuation",   icon: Scale,    section: "inventory", forModule: "inventory" },
     { label: "Stock Transfers",    href: "/inventory/transfers",   icon: ArrowLeftRight, section: "inventory", forModule: "inventory" },
+    { label: "Pick / Pack",        href: "/inventory/pick-lists",  icon: PackageCheck,   section: "inventory", forModule: "inventory" },
     { label: "Transfer Register",  href: "/inventory/transfer-register", icon: ScrollText, section: "inventory", forModule: "inventory" },
     { label: "Stock by Warehouse", href: "/inventory/stock-by-warehouse", icon: Warehouse, section: "inventory", forModule: "inventory" },
     { label: "Stock Locations",    href: "/manufacturing/stock-locations", icon: Warehouse, section: "inventory", forModule: "inventory" },
@@ -515,6 +518,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Employees",         href: "/employees",          icon: UserCog,      section: "payroll", forModule: "hrm" },
     { label: "Attendance",        href: "/attendance",         icon: CalendarDays, section: "payroll", forModule: "hrm" },
     { label: "Leave",             href: "/leave",              icon: Palmtree,     section: "payroll", forModule: "hrm" },
+    { label: "Expense Claims",    href: "/expense-claims",     icon: Receipt,      section: "payroll", forModule: "hrm" },
     { label: "Salary Components", href: "/payroll/components", icon: Settings2,    section: "payroll", forModule: "hrm" },
   ],
   healthcare: [

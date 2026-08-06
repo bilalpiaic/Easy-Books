@@ -32,6 +32,7 @@ interface PayslipData {
   deductions: { name: string; code: string; amount: number }[]
   leave?: { leave_type: string; code: string; is_paid: boolean; from_date: string; to_date: string; days: number }[]
   unpaid_leave_days?: number
+  expense_claims?: { number: string; claim_date: string; description?: string | null; total: number; bill_id?: number | null }[]
   gross_earnings: number
   total_deductions: number
   net_pay: number
@@ -127,6 +128,37 @@ export default function PayslipPage() {
             }
           </div>
         </div>
+
+        {(data.leave && data.leave.length > 0) && (
+          <div className="mt-4">
+            <h4 className="font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 mb-2">Leave</h4>
+            {data.leave.map((l, i) => (
+              <ScreenRow
+                key={i}
+                label={`${l.code} ${l.leave_type}${l.is_paid ? "" : " (unpaid)"}`}
+                value={`${l.days}d · ${fmtDate(l.from_date)}–${fmtDate(l.to_date)}`}
+              />
+            ))}
+            {(data.unpaid_leave_days || 0) > 0 && (
+              <ScreenRow label="Unpaid leave (LOP days)" value={String(data.unpaid_leave_days)} />
+            )}
+          </div>
+        )}
+
+        {(data.expense_claims && data.expense_claims.length > 0) && (
+          <div className="mt-4">
+            <h4 className="font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 mb-2">
+              Expense claims (reimbursed via AP)
+            </h4>
+            {data.expense_claims.map((c, i) => (
+              <ScreenRow
+                key={i}
+                label={`${c.number} · ${fmtDate(c.claim_date)}${c.description ? ` — ${c.description}` : ""}`}
+                value={fmt(c.total)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Print-only document — pure dot-matrix article ─────────── */}

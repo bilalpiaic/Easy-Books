@@ -65,7 +65,10 @@ export default function EcommercePage() {
         method: "POST",
         body: JSON.stringify({
           ...form,
-          shop_domain: form.provider === "mock" ? (form.shop_domain || "mock.local") : form.shop_domain,
+          shop_domain: form.provider === "mock" || form.provider === "daraz"
+            ? (form.shop_domain || (form.provider === "daraz" ? "api.daraz.pk" : "mock.local"))
+            : form.shop_domain,
+          access_token: form.provider === "daraz" && !form.access_token ? "sandbox" : form.access_token,
         }),
       })
       setShow(false)
@@ -100,7 +103,7 @@ export default function EcommercePage() {
   if (!has) {
     return (
       <div className="p-6 max-w-lg mx-auto text-sm text-[var(--text-muted)]">
-        Install the <Link href="/apps" className="text-[var(--primary)]">eCommerce Connectors</Link> module to connect Shopify or WooCommerce.
+        Install the <Link href="/apps" className="text-[var(--primary)]">eCommerce Connectors</Link> module to connect Shopify, WooCommerce, or Daraz.
       </div>
     )
   }
@@ -111,7 +114,7 @@ export default function EcommercePage() {
         <div>
           <h1 className="text-xl font-semibold">eCommerce Stores</h1>
           <p className="text-xs text-[var(--text-muted)]">
-            Connect Shopify / WooCommerce · map SKUs · import orders as draft invoices
+            Connect Shopify / WooCommerce / Daraz · map SKUs · import orders as draft invoices
           </p>
         </div>
         <button
@@ -133,13 +136,14 @@ export default function EcommercePage() {
               <option value="mock">Mock Store (demo)</option>
               <option value="shopify">Shopify</option>
               <option value="woocommerce">WooCommerce</option>
+              <option value="daraz">Daraz (sandbox token OK)</option>
             </select>
             <input className={input} placeholder="Shop name" value={form.shop_name}
               onChange={e => setForm({ ...form, shop_name: e.target.value })} />
             <input className={input} placeholder="Shop domain (mystore.myshopify.com)"
               value={form.shop_domain}
               onChange={e => setForm({ ...form, shop_domain: e.target.value })}
-              required={form.provider !== "mock"} />
+              required={form.provider !== "mock" && form.provider !== "daraz"} />
             <select className={input} value={form.stock_sync_direction}
               onChange={e => setForm({ ...form, stock_sync_direction: e.target.value })}>
               <option value="off">Stock sync: off</option>
@@ -148,10 +152,14 @@ export default function EcommercePage() {
             </select>
             {form.provider !== "mock" && (
               <>
-                <input className={input} placeholder={form.provider === "shopify" ? "Access token" : "Consumer key"}
+                <input className={input} placeholder={
+                  form.provider === "shopify" ? "Access token"
+                    : form.provider === "daraz" ? "Access token (or sandbox)"
+                    : "Consumer key"
+                }
                   value={form.access_token}
                   onChange={e => setForm({ ...form, access_token: e.target.value })}
-                  required />
+                  required={form.provider !== "daraz"} />
                 {form.provider === "woocommerce" && (
                   <input className={input} placeholder="Consumer secret" type="password"
                     value={form.api_secret}

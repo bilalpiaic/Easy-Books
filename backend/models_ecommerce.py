@@ -19,7 +19,7 @@ class EcommerceConnection(SQLModel, table=True):
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
-    provider: str = Field(index=True)  # shopify | woocommerce | mock
+    provider: str = Field(index=True)  # shopify | woocommerce | daraz | mock
     shop_domain: str = Field(default="", index=True)
     shop_name: str = Field(default="")
     # API key / access token (opaque; never returned raw from GET)

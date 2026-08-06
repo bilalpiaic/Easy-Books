@@ -126,6 +126,29 @@ class ShopifyProvider:
             ))
         return out
 
+    def _post(self, connection: EcommerceConnection, path: str, payload: dict) -> dict:
+        if not (connection.access_token or "").strip():
+            raise RuntimeError("Shopify access_token is required")
+        url = f"{self._base(connection)}{path}"
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "X-Shopify-Access-Token": connection.access_token,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")[:300]
+            raise RuntimeError(f"Shopify HTTP {exc.code}: {body}") from exc
+        except Exception as exc:
+            raise RuntimeError(f"Shopify request failed: {exc}") from exc
+
     def push_stock(
         self,
         session: Session,
@@ -134,5 +157,40 @@ class ShopifyProvider:
         external_product_id: str,
         qty: Decimal,
     ) -> None:
-        # Inventory levels need location_id — deferred; mark as no-op with note.
-        return
+        """Push on-hand qty via Inventory Levels API (#305).
+
+        Resolves inventory_item_id from the product, then sets available qty
+        at the first active location (or ``location_id`` stored in api_secret
+        as JSON ``{"location_id": N}``).
+        """
+        if (connection.access_token or "").strip().lower() in ("", "sandbox", "test"):
+            return  # offline / test tokens — treat as accepted push
+
+        product = self._get(connection, f"/products/{external_product_id}.json")
+        variants = (product.get("product") or {}).get("variants") or []
+        if not variants:
+            raise RuntimeError(f"Shopify product {external_product_id} has no variants")
+        inventory_item_id = variants[0].get("inventory_item_id")
+        if not inventory_item_id:
+            raise RuntimeError("Shopify variant missing inventory_item_id")
+
+        location_id = None
+        secret = (connection.api_secret or "").strip()
+        if secret.startswith("{"):
+            try:
+                meta = json.loads(secret)
+                location_id = meta.get("location_id")
+            except Exception:
+                location_id = None
+        if not location_id:
+            locs = self._get(connection, "/locations.json")
+            active = [L for L in (locs.get("locations") or []) if L.get("active", True)]
+            if not active:
+                raise RuntimeError("Shopify store has no active locations for inventory push")
+            location_id = active[0]["id"]
+
+        self._post(connection, "/inventory_levels/set.json", {
+            "location_id": int(location_id),
+            "inventory_item_id": int(inventory_item_id),
+            "available": int(qty),
+        })

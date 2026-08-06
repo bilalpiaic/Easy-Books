@@ -138,4 +138,30 @@ class WooCommerceProvider:
         external_product_id: str,
         qty: Decimal,
     ) -> None:
-        return
+        if (connection.access_token or "").strip().lower() in ("", "sandbox", "test"):
+            return
+        # WooCommerce: PUT product stock_quantity
+        domain = (connection.shop_domain or "").strip().rstrip("/")
+        if not domain.startswith("http"):
+            domain = f"https://{domain}"
+        url = f"{domain}/wp-json/wc/v3/products/{external_product_id}"
+        creds = f"{connection.access_token}:{connection.api_secret or ''}"
+        token = base64.b64encode(creds.encode()).decode()
+        body = json.dumps({
+            "manage_stock": True,
+            "stock_quantity": int(qty),
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={
+                "Authorization": f"Basic {token}",
+                "Content-Type": "application/json",
+            },
+            method="PUT",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp.read()
+        except Exception as exc:
+            raise RuntimeError(f"WooCommerce stock push failed: {exc}") from exc

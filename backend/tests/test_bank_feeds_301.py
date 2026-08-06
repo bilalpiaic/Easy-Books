@@ -134,3 +134,55 @@ def test_plaid_list_includes_sync_status_fields(client: TestClient):
     assert "sync_status" in rows[0]
     assert "provider" in rows[0]
     assert "last_error" in rows[0]
+
+
+def test_openbanking_connect_and_sync(client: TestClient):
+    auth = _auth(client, "ob301@co.test")
+    ba = _bank(client, auth)
+    r = client.post(
+        "/api/banking/feeds/openbanking/connect",
+        headers=auth,
+        json={"bank_account_id": ba, "institution_name": "OBIE Sandbox"},
+    )
+    assert r.status_code == 201, r.text
+    conn = r.json()
+    assert conn["provider"] == "openbanking"
+    sync = client.post(f"/api/banking/feeds/{conn['id']}/sync", headers=auth)
+    assert sync.status_code == 200, sync.text
+    assert sync.json()["imported"] == 3
+    assert sync.json()["provider"] == "openbanking"
+
+
+def test_recurring_merchant_match_boost():
+    from decimal import Decimal
+
+    from models import StatementLine
+    from services.bank_match import score_candidate
+
+    # Same-day exact amount + weak description keeps headroom under 100
+    # so the recurring boost is observable.
+    line = StatementLine(
+        tenant_id=1,
+        import_id=1,
+        date="2026-08-01",
+        description="BRITISH GAS ENERGY DD MONTHLY",
+        debit=86.40,
+        credit=0,
+    )
+    base = score_candidate(
+        line,
+        txn_date="2026-08-02",  # +1 day → less date points
+        txn_total=Decimal("86.40"),
+        txn_description="Gas bill",
+        recurring_boost=0,
+    )
+    boosted = score_candidate(
+        line,
+        txn_date="2026-08-02",
+        txn_total=Decimal("86.40"),
+        txn_description="Gas bill",
+        recurring_boost=12,
+    )
+    assert boosted > base
+    assert boosted <= 100.0
+

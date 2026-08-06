@@ -37,6 +37,7 @@ def score_candidate(
     txn_date: str,
     txn_total: Decimal,
     txn_description: str = "",
+    recurring_boost: float = 0.0,
 ) -> float:
     amount = line_amount(line)
     if amount <= ZERO or abs(float(txn_total - amount)) > 0.005:
@@ -65,7 +66,44 @@ def score_candidate(
     # suggestions even when the JV narration is abbreviated.
     overlap = _desc_overlap(line.description or "", txn_description)
     score += min(20.0, overlap * 20.0)
+
+    # Recurring merchant fingerprint: prior accepted matches with the same
+    # remittance tokens boost confidence for monthly DD / subscription strings.
+    if recurring_boost > 0:
+        score += min(15.0, recurring_boost)
+
+    # Keyword hints common on OB remittance (DIRECT DEBIT / MONTHLY / SUB).
+    desc = (line.description or "").lower()
+    if any(k in desc for k in ("monthly", "direct debit", " dd ", "subscription", "salary")):
+        if overlap >= 0.25:
+            score += 5.0
+
     return min(100.0, round(score, 1))
+
+
+def _recurring_merchant_boost(
+    session: Session,
+    *,
+    tenant_id: int,
+    line: StatementLine,
+) -> float:
+    """Boost when previously accepted lines share remittance tokens."""
+    tokens = {t for t in re_split((line.description or "").lower()) if len(t) > 2}
+    if len(tokens) < 2:
+        return 0.0
+    prior = session.exec(
+        select(StatementLine).where(
+            StatementLine.tenant_id == tenant_id,
+            StatementLine.is_matched == True,  # noqa: E712
+            StatementLine.id != line.id,
+        ).limit(80)
+    ).all()
+    best = 0.0
+    for p in prior:
+        ov = _desc_overlap(line.description or "", p.description or "")
+        if ov > best:
+            best = ov
+    return best * 15.0
 
 
 def find_candidates(
@@ -85,6 +123,7 @@ def find_candidates(
     date_lo = (line_date - timedelta(days=DATE_WINDOW_DAYS)).isoformat()
     date_hi = (line_date + timedelta(days=DATE_WINDOW_DAYS)).isoformat()
     exclude = exclude_txn_ids or set()
+    recurring = _recurring_merchant_boost(session, tenant_id=tenant_id, line=line)
 
     rows = session.exec(
         select(
@@ -119,6 +158,7 @@ def find_candidates(
             txn_date=row.date,
             txn_total=D(row.total_debit),
             txn_description=row.description or "",
+            recurring_boost=recurring,
         )
         if conf <= 0:
             continue

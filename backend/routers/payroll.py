@@ -12,7 +12,7 @@ from models import (
     Account, AttendanceRecord, Employee, EmployeeSalaryStructure, PayrollLine,
     PayrollLineDetail, PayrollRun, SalaryComponent,
 )
-from routers.common import CurrentUserDep, SessionDep, next_number
+from routers.common import CurrentUserDep, SessionDep, WriteUserDep, next_number
 from services.events import emit
 from services.permissions import perm_dep
 from services.posting import EntryInput, post_transaction
@@ -535,7 +535,51 @@ def create_component(body: ComponentCreate, user: CurrentUserDep, session: Sessi
     session.add(comp)
     session.commit()
     session.refresh(comp)
-    return {"id": comp.id}
+    return {
+        "id": comp.id,
+        "name": comp.name,
+        "code": comp.code,
+        "component_type": comp.component_type,
+        "is_taxable": comp.is_taxable,
+        "is_fixed": comp.is_fixed,
+        "gl_account_id": comp.gl_account_id,
+        "is_active": comp.is_active,
+    }
+
+
+@payroll_router.post("/components/seed-statutory-pk", dependencies=[perm_dep("payroll.components", "edit")])
+def seed_statutory_pk(user: WriteUserDep, session: SessionDep):
+    """Idempotent Pakistan statutory pack — EOBI + SESSTI (#303)."""
+    pack = [
+        ("EOBI", "EOBI Contribution", "statutory", False, True),
+        ("SESSTI", "SESSTI / Provincial Social Security", "statutory", False, True),
+    ]
+    created = []
+    for code, name, ctype, taxable, fixed in pack:
+        exists = session.exec(
+            select(SalaryComponent).where(
+                SalaryComponent.tenant_id == user.tenant_id,
+                SalaryComponent.code == code,
+            )
+        ).first()
+        if exists:
+            # Upgrade legacy EOBI deduction → statutory when already present.
+            if exists.component_type != "statutory":
+                exists.component_type = "statutory"
+                session.add(exists)
+            continue
+        session.add(SalaryComponent(
+            tenant_id=user.tenant_id,
+            code=code,
+            name=name,
+            component_type=ctype,
+            is_taxable=taxable,
+            is_fixed=fixed,
+            is_active=True,
+        ))
+        created.append(code)
+    session.commit()
+    return {"created": created}
 
 
 @payroll_router.put("/components/{comp_id}", dependencies=[perm_dep("payroll.components", "edit")])
@@ -975,6 +1019,27 @@ def get_payslip(run_id: int, emp_id: int, user: CurrentUserDep, session: Session
         session, user.tenant_id, emp_id, run.period_start, run.period_end
     )
 
+    from models import ExpenseClaim
+    expense_rows = session.exec(
+        select(ExpenseClaim).where(
+            ExpenseClaim.tenant_id == user.tenant_id,
+            ExpenseClaim.employee_id == emp_id,
+            ExpenseClaim.status == "approved",
+            ExpenseClaim.claim_date >= run.period_start,
+            ExpenseClaim.claim_date <= run.period_end,
+        )
+    ).all()
+    expense_summary = [
+        {
+            "number": c.number,
+            "claim_date": c.claim_date,
+            "description": c.description,
+            "total": float(c.total),
+            "bill_id": c.bill_id,
+        }
+        for c in expense_rows
+    ]
+
     return {
         "run": {
             "id": run.id,
@@ -997,6 +1062,7 @@ def get_payslip(run_id: int, emp_id: int, user: CurrentUserDep, session: Session
         "deductions": deductions,
         "leave": leave_summary,
         "unpaid_leave_days": unpaid_days,
+        "expense_claims": expense_summary,
         "gross_earnings": line.gross_earnings,
         "total_deductions": line.total_deductions,
         "net_pay": line.net_pay,

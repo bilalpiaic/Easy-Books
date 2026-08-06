@@ -1153,6 +1153,60 @@ class StockTransferLine(SQLModel, table=True):
     unit_cost: Money = money_col(default=Decimal("0"))  # filled on ship
 
 
+class StockReservation(SQLModel, table=True):
+    """Location-level stock hold (#302). Blocks oversell when settings.stock_reservation_enabled."""
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_stock_reservation_qty"),
+        CheckConstraint(
+            "status IN ('open','released','consumed')",
+            name="ck_stock_reservation_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id", index=True)
+    qty: Money = money_col()
+    source_doc_type: str = Field(default="manual", index=True)  # invoice|pick_list|manual
+    source_doc_id: Optional[int] = Field(default=None, index=True)
+    status: str = Field(default="open", index=True)
+    notes: Optional[str] = None
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    released_at: Optional[datetime] = None
+
+
+class PickList(SQLModel, table=True):
+    """Pick/pack worksheet against an invoice (#302)."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="uq_pick_list_number"),
+        CheckConstraint(
+            "status IN ('draft','picking','picked','packed','cancelled')",
+            name="ck_pick_list_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)
+    invoice_id: int = Field(foreign_key="invoice.id", index=True)
+    location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    status: str = Field(default="draft", index=True)
+    notes: Optional[str] = None
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    packed_at: Optional[datetime] = None
+
+
+class PickListLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pick_list_id: int = Field(foreign_key="picklist.id", ondelete="CASCADE", index=True)
+    product_id: int = Field(foreign_key="product.id")
+    qty_ordered: Money = money_col()
+    qty_picked: Money = money_col(default=Decimal("0"))
+    location_id: Optional[int] = Field(default=None, foreign_key="stocklocation.id")
+    reservation_id: Optional[int] = Field(default=None, foreign_key="stockreservation.id")
+
+
 class GoodsReceiptNote(SQLModel, table=True):
     """Receipt of customer-supplied material into the godown.
 
@@ -2784,6 +2838,43 @@ class LeaveRequest(SQLModel, table=True):
     approved_at: Optional[datetime] = None
     reject_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ExpenseClaim(SQLModel, table=True):
+    """Employee expense claim → AP reimbursement bill on approve (#303)."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "number", name="uq_expense_claim_number"),
+        CheckConstraint(
+            "status IN ('draft','submitted','approved','rejected','cancelled')",
+            name="ck_expense_claim_status",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    number: str = Field(index=True)  # EC-YYYY-seq
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    claim_date: str
+    description: Optional[str] = None
+    status: str = Field(default="draft", index=True)
+    total: Money = money_col(default=Decimal("0"))
+    bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    vendor_id: Optional[int] = Field(default=None, foreign_key="vendor.id")
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    approved_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    approved_at: Optional[datetime] = None
+    reject_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ExpenseClaimLine(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_expense_claim_line_amount"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    claim_id: int = Field(foreign_key="expenseclaim.id", ondelete="CASCADE", index=True)
+    description: str
+    amount: Money = money_col()
+    expense_account_id: Optional[int] = Field(default=None, foreign_key="account.id")
 
 
 # ── Wave B–D cloud / parity / AI models (#118–#125) ──────────────────────────

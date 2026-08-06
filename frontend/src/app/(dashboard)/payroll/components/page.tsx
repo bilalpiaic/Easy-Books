@@ -254,6 +254,20 @@ export default function SalaryComponentsPage() {
             <Download className="w-4 h-4" /> Export CSV
           </button>
           <button
+            onClick={async () => {
+              setError("")
+              try {
+                await apiFetch("/api/payroll/components/seed-statutory-pk", { method: "POST" })
+                loadData()
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Seed failed")
+              }
+            }}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm"
+          >
+            Seed PK statutory
+          </button>
+          <button
             onClick={startNew}
             disabled={editingId !== null}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-90 text-sm font-medium disabled:opacity-50"

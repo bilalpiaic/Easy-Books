@@ -89,6 +89,135 @@ def location_on_hand(
     return D(total)
 
 
+def reserved_qty(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    location_id: Optional[int] = None,
+) -> Decimal:
+    """Sum of open StockReservation qty for a product (optionally at a location)."""
+    from sqlalchemy import func as sa_func
+    from models import StockReservation
+
+    q = select(sa_func.coalesce(sa_func.sum(StockReservation.qty), 0)).where(
+        StockReservation.tenant_id == tenant_id,
+        StockReservation.product_id == product_id,
+        StockReservation.status == "open",
+    )
+    if location_id is not None:
+        q = q.where(StockReservation.location_id == location_id)
+    total = session.exec(q).one()
+    return D(total)
+
+
+def available_qty(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    location_id: Optional[int] = None,
+) -> Decimal:
+    """On-hand minus open reservations — ATP for oversell checks (#302)."""
+    if location_id is not None:
+        on_hand = location_on_hand(
+            session,
+            tenant_id=tenant_id,
+            product_id=product_id,
+            location_id=location_id,
+        )
+    else:
+        prod = session.get(Product, product_id)
+        on_hand = D(prod.stock_qty) if prod and prod.tenant_id == tenant_id else ZERO
+    return money(on_hand - reserved_qty(
+        session,
+        tenant_id=tenant_id,
+        product_id=product_id,
+        location_id=location_id,
+    ))
+
+
+def reservation_enabled(session: Session, tenant_id: int) -> bool:
+    from models import Settings
+
+    row = session.exec(
+        select(Settings).where(
+            Settings.tenant_id == tenant_id,
+            Settings.key == "stock_reservation_enabled",
+        )
+    ).first()
+    return bool(row and (row.value or "").lower() == "true")
+
+
+def create_reservation(
+    session: Session,
+    *,
+    tenant_id: int,
+    product_id: int,
+    qty: Decimal,
+    location_id: Optional[int] = None,
+    source_doc_type: str = "manual",
+    source_doc_id: Optional[int] = None,
+    notes: Optional[str] = None,
+    created_by_id: Optional[int] = None,
+    enforce_available: bool = True,
+):
+    """Hold qty at a location. Raises InventoryError if ATP insufficient."""
+    from datetime import datetime
+    from models import StockReservation
+
+    qty = D(qty)
+    if qty <= 0:
+        raise InventoryError("Reservation qty must be > 0")
+    if enforce_available:
+        avail = available_qty(
+            session,
+            tenant_id=tenant_id,
+            product_id=product_id,
+            location_id=location_id,
+        )
+        if avail < qty:
+            raise InventoryError(
+                f"Insufficient available stock to reserve: "
+                f"available {money(avail)}, reserve {money(qty)}"
+            )
+    row = StockReservation(
+        tenant_id=tenant_id,
+        product_id=product_id,
+        location_id=location_id,
+        qty=qty,
+        source_doc_type=source_doc_type,
+        source_doc_id=source_doc_id,
+        status="open",
+        notes=notes,
+        created_by_id=created_by_id,
+        created_at=datetime.utcnow(),
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
+def release_reservation(session: Session, reservation) -> None:
+    from datetime import datetime
+
+    if reservation.status != "open":
+        return
+    reservation.status = "released"
+    reservation.released_at = datetime.utcnow()
+    session.add(reservation)
+
+
+def consume_reservation(session: Session, reservation) -> None:
+    from datetime import datetime
+
+    if reservation.status != "open":
+        return
+    reservation.status = "consumed"
+    reservation.released_at = datetime.utcnow()
+    session.add(reservation)
+
+
 def transfer_stock(
     session: Session,
     *,
@@ -405,6 +534,36 @@ def consume_stock(
             f"sale {money(qty)}"
         )
 
+    # Location-level ATP when reservation setting is on (#302) — open holds
+    # reduce sellable qty even if Product.stock_qty still looks sufficient.
+    if reservation_enabled(session, tenant_id):
+        avail = available_qty(
+            session, tenant_id=tenant_id, product_id=product_id, location_id=None
+        )
+        # Allow consume when the sale itself holds an open reservation that
+        # covers this qty (pick/pack / invoice reserve path).
+        held_for_doc = ZERO
+        if source_doc_id is not None:
+            from models import StockReservation
+            from sqlalchemy import func as sa_func
+
+            held_for_doc = D(session.exec(
+                select(sa_func.coalesce(sa_func.sum(StockReservation.qty), 0)).where(
+                    StockReservation.tenant_id == tenant_id,
+                    StockReservation.product_id == product_id,
+                    StockReservation.status == "open",
+                    StockReservation.source_doc_type == source_doc_type,
+                    StockReservation.source_doc_id == source_doc_id,
+                )
+            ).one())
+        sellable = money(avail + held_for_doc)
+        if sellable < qty:
+            raise InventoryError(
+                f"Insufficient available stock for {prod.name}: "
+                f"available {money(sellable)}, sale {money(qty)} "
+                f"(including open reservations)"
+            )
+
     if getattr(prod, "track_lot", False) and not (lot_no or "").strip():
         raise InventoryError(f"Lot number required when selling {prod.name}")
     serials = [s.strip() for s in (serials or []) if s and str(s).strip()]
@@ -521,6 +680,21 @@ def consume_stock(
             source_doc_id=source_doc_id,
             posted_to_gl=True,
         )
+
+    # Release open holds tied to this document so ATP stays consistent.
+    if source_doc_id is not None:
+        from models import StockReservation
+
+        for res in session.exec(
+            select(StockReservation).where(
+                StockReservation.tenant_id == tenant_id,
+                StockReservation.product_id == product_id,
+                StockReservation.status == "open",
+                StockReservation.source_doc_type == source_doc_type,
+                StockReservation.source_doc_id == source_doc_id,
+            )
+        ).all():
+            consume_reservation(session, res)
 
     return cogs
 

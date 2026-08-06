@@ -255,9 +255,45 @@ def connect_mock_feed(body: MockConnectBody, session: SessionDep, user: WriteUse
     return connection_status_payload(conn)
 
 
+class OpenBankingConnectBody(BaseModel):
+    bank_account_id: int
+    institution_name: str = "Open Banking (EU/UK)"
+    consent_days: int = Field(default=90, ge=1, le=180)
+    # Optional AIS JSON dump (Berlin Group / OBIE transactions array).
+    transactions_json: Optional[str] = None
+
+
+@feeds_router.post("/openbanking/connect", status_code=201)
+def connect_openbanking_feed(body: OpenBankingConnectBody, session: SessionDep, user: WriteUserDep):
+    """Attach an EU/UK Open Banking AIS connection (sandbox or JSON dump)."""
+    acct = session.get(BankAccount, body.bank_account_id)
+    if not acct or acct.tenant_id != user.tenant_id:
+        raise HTTPException(400, "Invalid bank account for this tenant")
+    secret = body.transactions_json.strip() if body.transactions_json else f"ob-{secrets.token_hex(8)}"
+    token = encrypt_secret(secret)
+    conn = PlaidConnection(
+        tenant_id=user.tenant_id,
+        bank_account_id=body.bank_account_id,
+        access_token=token,
+        item_id=f"ob-item-{secrets.token_hex(6)}",
+        institution_name=body.institution_name,
+        provider="openbanking",
+        sync_status="never",
+        consent_expires_at=datetime.utcnow() + timedelta(days=body.consent_days),
+    )
+    session.add(conn)
+    session.commit()
+    session.refresh(conn)
+    log_audit(session, user, "CREATE", "bank_feed_connection", conn.id, {
+        "provider": "openbanking", "bank_account_id": body.bank_account_id,
+    })
+    session.commit()
+    return connection_status_payload(conn)
+
+
 @feeds_router.post("/{connection_id}/sync")
 def sync_feed_connection(connection_id: int, session: SessionDep, user: WriteUserDep):
-    """On-demand pull for any provider (mock / future OB). Plaid uses legacy path."""
+    """On-demand pull for any provider (mock / openbanking). Plaid uses legacy path."""
     conn = session.get(PlaidConnection, connection_id)
     if not conn or conn.tenant_id != user.tenant_id or not conn.is_active:
         raise HTTPException(404, "Connection not found")

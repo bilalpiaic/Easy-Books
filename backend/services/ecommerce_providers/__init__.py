@@ -4,6 +4,7 @@ from __future__ import annotations
 from services.ecommerce_providers.base import (
     EcommerceProvider, NormalizedLine, NormalizedOrder, NormalizedProduct,
 )
+from services.ecommerce_providers.daraz import DarazProvider
 from services.ecommerce_providers.mock import MockEcommerceProvider
 from services.ecommerce_providers.shopify import ShopifyProvider
 from services.ecommerce_providers.woocommerce import WooCommerceProvider
@@ -12,6 +13,7 @@ PROVIDERS: dict[str, EcommerceProvider] = {
     "mock": MockEcommerceProvider(),
     "shopify": ShopifyProvider(),
     "woocommerce": WooCommerceProvider(),
+    "daraz": DarazProvider(),
 }
 
 

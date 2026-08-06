@@ -72,6 +72,7 @@ class SettingsUpdate(BaseModel):
     cost_method: Optional[str] = None
     # Inventory: block sales that would drive stock negative ("true"/"false")
     block_negative_stock: Optional[str] = None
+    stock_reservation_enabled: Optional[str] = None  # ATP / pick-pack oversell guard (#302)
     # Inventory depth (#257)
     inventory_landed_cost_enabled: Optional[str] = None  # "true" | "false"
     inventory_lot_tracking_enabled: Optional[str] = None
