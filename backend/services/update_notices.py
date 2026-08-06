@@ -87,6 +87,7 @@ def humanize_commit(message: str) -> tuple[str, str]:
 def _git_log(limit: int = 8) -> list[dict]:
     import os
     import time
+    from datetime import date
 
     global _commits_cache, _commits_cache_at
     now = time.time()
@@ -94,6 +95,25 @@ def _git_log(limit: int = 8) -> list[dict]:
         return _commits_cache[:limit]
 
     out: list[dict] = []
+
+    # Vercel injects the deploying commit — never call GitHub from a
+    # request path (egress / DNS can burn the whole 60s budget).
+    on_vercel = os.environ.get("VERCEL", "").lower() in ("1", "true")
+    vercel_sha = (os.environ.get("VERCEL_GIT_COMMIT_SHA") or "").strip()
+    if on_vercel and vercel_sha:
+        msg = (
+            os.environ.get("VERCEL_GIT_COMMIT_MESSAGE")
+            or "Easy-Books was updated with the latest improvements"
+        ).split("\n", 1)[0].strip()
+        out = [{
+            "sha": vercel_sha[:7],
+            "message": msg,
+            "date": date.today().isoformat(),
+        }]
+        _commits_cache = out
+        _commits_cache_at = now
+        return out[:limit]
+
     try:
         raw = subprocess.run(
             [
@@ -113,10 +133,12 @@ def _git_log(limit: int = 8) -> list[dict]:
                 "date": parts[2] if len(parts) > 2 else "",
             })
 
-    # Cloud / packaged installs often have no .git — fall back to GitHub
-    # with a hard short timeout so serverless never burns the whole request.
-    if not out and os.environ.get("UPDATE_NOTICES_GITHUB", "true").lower() not in (
-        "0", "false", "no", "off",
+    # Opt-in GitHub fallback for non-Vercel installs without .git.
+    if (
+        not out
+        and not on_vercel
+        and os.environ.get("UPDATE_NOTICES_GITHUB", "false").lower()
+        in ("1", "true", "yes", "on")
     ):
         out = _github_log(limit=limit)
 

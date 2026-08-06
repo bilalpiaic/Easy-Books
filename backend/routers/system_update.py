@@ -200,13 +200,30 @@ def list_update_notices(session: SessionDep, current_user: CurrentUserDep):
         unread_update_alerts,
     )
 
+    sync: dict = {}
     try:
         ensure_notice_table(session)
+    except Exception as exc:
+        return {"sync": {"error": f"schema:{str(exc)[:160]}"}, "items": []}
+
+    try:
         sync = sync_update_notices(session)
+    except Exception as exc:
+        sync = {"error": str(exc)[:200]}
+        try:
+            session.rollback()
+        except Exception:
+            pass
+
+    try:
         rows = unread_update_alerts(session, current_user)
     except Exception as exc:
-        # Never break the dashboard for a what's-new failure.
-        return {"sync": {"error": str(exc)[:200]}, "items": []}
+        try:
+            session.rollback()
+        except Exception:
+            pass
+        return {"sync": {**sync, "unread_error": str(exc)[:160]}, "items": []}
+
     return {
         "sync": sync,
         "items": [
