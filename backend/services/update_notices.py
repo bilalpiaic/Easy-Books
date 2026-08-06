@@ -128,10 +128,33 @@ def _github_log(limit: int = 8) -> list[dict]:
     return out
 
 
+def ensure_notice_table(session: Session) -> None:
+    """Create ``app_update_notice`` if missing (Vercel often skips Alembic)."""
+    from sqlalchemy import inspect
+
+    bind = session.get_bind()
+    try:
+        if inspect(bind).has_table("app_update_notice"):
+            return
+    except Exception:
+        pass
+    try:
+        AppUpdateNotice.__table__.create(bind, checkfirst=True)
+    except Exception:
+        # Concurrent cold starts may race; subsequent selects will succeed.
+        pass
+
+
 def _is_bootstrapped(session: Session) -> bool:
     # Any tenant setting or any notice counts as bootstrapped.
-    if session.exec(select(AppUpdateNotice).limit(1)).first():
-        return True
+    try:
+        if session.exec(select(AppUpdateNotice).limit(1)).first():
+            return True
+    except Exception:
+        session.rollback()
+        ensure_notice_table(session)
+        if session.exec(select(AppUpdateNotice).limit(1)).first():
+            return True
     row = session.exec(
         select(Settings).where(Settings.key == BOOTSTRAP_KEY).limit(1)
     ).first()
@@ -196,6 +219,8 @@ def sync_update_notices(
     First run after this feature ships records the current HEAD history
     without spamming everyone. Later new commits create alerts.
     """
+    ensure_notice_table(session)
+
     commits = _git_log(limit=limit)
     if not commits:
         return {"created": 0, "alerted": 0, "bootstrapped": _is_bootstrapped(session)}
