@@ -5175,10 +5175,13 @@ def _seed_healthcare(s: Session, user: User) -> None:
                 visit_counter += 1
 
     # ── IPD Admissions (20: 15 discharged, 5 active) ─────────────────────────
+    # Serverless lite skips IPD: post_discharge_bill returns a Transaction id,
+    # but discharge_invoice_id FKs Invoice — and the full IPD+GL loop is too
+    # heavy for the 300s budget. Patients + OPD are enough for demo.loaded.
+    n_admissions = 0 if lite else 20
+    n_discharged = 0 if lite else 15
     available_beds = list(all_beds)
     random.shuffle(available_beds)
-    n_admissions = 4 if lite else 20
-    n_discharged = 3 if lite else 15
     for i in range(n_admissions):
         pat    = random.choice(patients)
         doc    = random.choice(doctors[:3])
@@ -5213,7 +5216,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
         adm.deposit_transaction_id = dep_txn.id
         s.add(adm)
 
-        stay_days = random.randint(2, 4 if lite else 7) if discharged else min(days_ago, 3 if lite else days_ago)
+        stay_days = random.randint(2, 7) if discharged else days_ago
         total_charges = Decimal("0")
         for d in range(stay_days):
             charge_date = (today - timedelta(days=days_ago - d)).isoformat()
@@ -5222,7 +5225,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
                 charge_type="bed", description="Ward bed charge", amount=Decimal("500"),
             ))
             total_charges += Decimal("500")
-        for _ in range(random.randint(0, 1 if lite else 2)):
+        for _ in range(random.randint(0, 2)):
             proc = random.choice(procedures[:6])
             s.add(HcAdmissionCharge(
                 tenant_id=tid, admission_id=adm.id, charge_date=adm_date,
@@ -5239,8 +5242,12 @@ def _seed_healthcare(s: Session, user: User) -> None:
                 customer_id=pat.customer_id,
                 charge_breakdown={"bed": str(total_charges)},
             )
-            adm.discharge_invoice_id = dis_txn.id
-            s.add(adm)
+            # post_discharge_bill returns a Transaction; only set the FK when
+            # an Invoice id is actually produced (never assign txn.id here).
+            inv_id = getattr(dis_txn, "invoice_id", None)
+            if inv_id:
+                adm.discharge_invoice_id = inv_id
+                s.add(adm)
 
     # ── Lab Orders (80) ───────────────────────────────────────────────────────
     SOURCES   = ["walkin", "opd", "opd", "opd", "collection_centre"]
