@@ -4962,8 +4962,10 @@ def _seed_healthcare(s: Session, user: User) -> None:
     Idempotent — skips if HcDoctor rows already exist for this tenant."""
     tid = user.tenant_id
     today = date.today()
+    lite = _demo_seed_lite()
 
-    if s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tid)).first():
+    # Fully seeded when patients exist (doctors alone may remain from a timed-out run).
+    if s.exec(select(HcPatient).where(HcPatient.tenant_id == tid)).first():
         return
 
     # ── Doctors ───────────────────────────────────────────────────────────────
@@ -4974,11 +4976,13 @@ def _seed_healthcare(s: Session, user: User) -> None:
         ("Dr. Nadia Farooq",   "Pediatrics",      "MBBS, DCH",   "0300-1111004",  800),
         ("Dr. Khalid Hussain", "ENT",             "MBBS, DLO",   "0300-1111005",  700),
     ]
-    doctors = []
-    for nm, spec, qual, ph, fee in DOCTOR_DATA:
-        doc = HcDoctor(tenant_id=tid, name=nm, specialization=spec,
-                       qualification=qual, phone=ph, opd_fee=Decimal(fee))
-        s.add(doc); s.flush(); doctors.append(doc)
+    doctors = list(s.exec(select(HcDoctor).where(HcDoctor.tenant_id == tid)).all())
+    if not doctors:
+        for nm, spec, qual, ph, fee in DOCTOR_DATA:
+            doc = HcDoctor(tenant_id=tid, name=nm, specialization=spec,
+                           qualification=qual, phone=ph, opd_fee=Decimal(fee))
+            s.add(doc); s.flush(); doctors.append(doc)
+        s.commit()
 
     # ── Wards + Beds ──────────────────────────────────────────────────────────
     WARD_DATA = [
@@ -4987,16 +4991,18 @@ def _seed_healthcare(s: Session, user: User) -> None:
         ("Private Suite",       "private",   8, Decimal("3000")),
         ("ICU",                 "icu",       6, Decimal("5000")),
     ]
-    all_beds: list[HcBed] = []
-    for wname, wtype, nbed, dcharge in WARD_DATA:
-        ward = HcWard(tenant_id=tid, name=wname, ward_type=wtype,
-                      total_beds=nbed, daily_charge=dcharge)
-        s.add(ward); s.flush()
-        for b in range(1, nbed + 1):
-            bed = HcBed(tenant_id=tid, ward_id=ward.id,
-                        bed_number=f"{wname[0]}{b:02d}", status="available")
-            s.add(bed); s.flush()
-            all_beds.append(bed)
+    all_beds: list[HcBed] = list(s.exec(select(HcBed).where(HcBed.tenant_id == tid)).all())
+    if not all_beds:
+        for wname, wtype, nbed, dcharge in WARD_DATA:
+            ward = HcWard(tenant_id=tid, name=wname, ward_type=wtype,
+                          total_beds=nbed, daily_charge=dcharge)
+            s.add(ward); s.flush()
+            for b in range(1, nbed + 1):
+                bed = HcBed(tenant_id=tid, ward_id=ward.id,
+                            bed_number=f"{wname[0]}{b:02d}", status="available")
+                s.add(bed); s.flush()
+                all_beds.append(bed)
+        s.commit()
 
     # ── Procedure Catalogue ───────────────────────────────────────────────────
     PROC_DATA = [
@@ -5011,11 +5017,12 @@ def _seed_healthcare(s: Session, user: User) -> None:
         ("PROC-009", "X-Ray Chest PA",     "diagnostic", Decimal("700")),
         ("PROC-010", "Tonsillectomy",      "surgery",    Decimal("18000")),
     ]
-    procedures = []
-    for code, nm, cat, fee in PROC_DATA:
-        p = HcProcedureCatalog(tenant_id=tid, code=code, name=nm, category=cat,
-                               standard_fee=fee)
-        s.add(p); s.flush(); procedures.append(p)
+    procedures = list(s.exec(select(HcProcedureCatalog).where(HcProcedureCatalog.tenant_id == tid)).all())
+    if not procedures:
+        for code, nm, cat, fee in PROC_DATA:
+            p = HcProcedureCatalog(tenant_id=tid, code=code, name=nm, category=cat,
+                                   standard_fee=fee)
+            s.add(p); s.flush(); procedures.append(p)
 
     # ── Lab Tests (20) ────────────────────────────────────────────────────────
     LAB_DATA = [
@@ -5040,11 +5047,13 @@ def _seed_healthcare(s: Session, user: User) -> None:
         ("USG-ABD",  "Ultrasound Abdomen",            "radiology",    "normal",   "",          Decimal("1500")),
         ("ECG-LAB",  "Electrocardiogram",             "radiology",    "normal",   "",          Decimal("500")),
     ]
-    lab_tests = []
-    for code, nm, cat, rng, unit, fee in LAB_DATA:
-        t = HcLabTest(tenant_id=tid, code=code, name=nm, category=cat,
-                      normal_range=rng, unit=unit, standard_fee=fee)
-        s.add(t); s.flush(); lab_tests.append(t)
+    lab_tests = list(s.exec(select(HcLabTest).where(HcLabTest.tenant_id == tid)).all())
+    if not lab_tests:
+        for code, nm, cat, rng, unit, fee in LAB_DATA:
+            t = HcLabTest(tenant_id=tid, code=code, name=nm, category=cat,
+                          normal_range=rng, unit=unit, standard_fee=fee)
+            s.add(t); s.flush(); lab_tests.append(t)
+        s.commit()
 
     # ── Patients (50 Pakistani names) ─────────────────────────────────────────
     PAK_NAMES_M = [
@@ -5063,8 +5072,9 @@ def _seed_healthcare(s: Session, user: User) -> None:
     ]
     BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
     patients = []
-    for idx, nm in enumerate(PAK_NAMES_M + PAK_NAMES_F):
-        gender = "male" if idx < 25 else "female"
+    name_pool = (PAK_NAMES_M + PAK_NAMES_F)[:8] if lite else (PAK_NAMES_M + PAK_NAMES_F)
+    for idx, nm in enumerate(name_pool):
+        gender = "male" if idx < (4 if lite else 25) else "female"
         dob = (today - timedelta(days=random.randint(365 * 18, 365 * 75))).isoformat()
         cust = Customer(tenant_id=tid, name=nm,
                         phone=f"03{random.randint(10,49):02d}-{random.randint(1000000,9999999)}",
@@ -5099,16 +5109,20 @@ def _seed_healthcare(s: Session, user: User) -> None:
     span = _seed_span_days(today)
     # Dense recent band (last ≤90 days) keeps the live OPD queue; extra sample
     # days stretch the rest of the 2-year window so hospital reports have history.
-    recent = list(range(min(90, span), -1, -1))
+    recent_days = 14 if lite else min(90, span)
+    recent = list(range(recent_days, -1, -1))
     historical: list[int] = []
-    if span > 90:
+    if not lite and span > 90:
         for i in range(60):
             historical.append(90 + int((span - 90) * (i + 1) / 61))
     day_offsets = sorted(set(recent + historical), reverse=True)
+    max_visits = 12 if lite else 160
     for day_offset in day_offsets:
         visit_date = (today - timedelta(days=day_offset)).isoformat()
         # Fewer tokens today (3–5 waiting), more on past days
-        n_tokens = random.randint(3, 5) if day_offset == 0 else random.randint(1, 4)
+        n_tokens = random.randint(2, 3) if lite else (
+            random.randint(3, 5) if day_offset == 0 else random.randint(1, 4)
+        )
         for token_idx in range(n_tokens):
             doc = random.choice(doctors)
             pat = random.choice(patients)
@@ -5125,7 +5139,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
                 visit_date=visit_date, status=tok_status,
             )
             s.add(tok); s.flush()
-            if day_offset > 0 and visit_counter < 160:
+            if day_offset > 0 and visit_counter < max_visits:
                 visit = HcOpdVisit(
                     tenant_id=tid, token_id=tok.id, patient_id=pat.id,
                     doctor_id=doc.id, visit_date=visit_date,
@@ -5163,15 +5177,17 @@ def _seed_healthcare(s: Session, user: User) -> None:
     # ── IPD Admissions (20: 15 discharged, 5 active) ─────────────────────────
     available_beds = list(all_beds)
     random.shuffle(available_beds)
-    for i in range(20):
+    n_admissions = 4 if lite else 20
+    n_discharged = 3 if lite else 15
+    for i in range(n_admissions):
         pat    = random.choice(patients)
         doc    = random.choice(doctors[:3])
-        days_ago = max(5, int(span * (i + 1) / 22))
+        days_ago = max(5, int(span * (i + 1) / (n_admissions + 2)))
         adm_date = (today - timedelta(days=days_ago)).isoformat()
         adm_num  = f"ADM-{today.year}{i + 1:04d}"
         bed      = available_beds[i % len(available_beds)]
         deposit  = Decimal(random.choice([5000, 10000, 15000, 20000]))
-        discharged = i < 15
+        discharged = i < n_discharged
         dis_date = (today - timedelta(days=random.randint(1, days_ago - 1))).isoformat() if discharged else None
         adm = HcAdmission(
             tenant_id=tid, admission_number=adm_num,
@@ -5197,7 +5213,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
         adm.deposit_transaction_id = dep_txn.id
         s.add(adm)
 
-        stay_days = random.randint(2, 7) if discharged else days_ago
+        stay_days = random.randint(2, 4 if lite else 7) if discharged else min(days_ago, 3 if lite else days_ago)
         total_charges = Decimal("0")
         for d in range(stay_days):
             charge_date = (today - timedelta(days=days_ago - d)).isoformat()
@@ -5206,7 +5222,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
                 charge_type="bed", description="Ward bed charge", amount=Decimal("500"),
             ))
             total_charges += Decimal("500")
-        for _ in range(random.randint(0, 2)):
+        for _ in range(random.randint(0, 1 if lite else 2)):
             proc = random.choice(procedures[:6])
             s.add(HcAdmissionCharge(
                 tenant_id=tid, admission_id=adm.id, charge_date=adm_date,
@@ -5229,7 +5245,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
     # ── Lab Orders (80) ───────────────────────────────────────────────────────
     SOURCES   = ["walkin", "opd", "opd", "opd", "collection_centre"]
     STATUSES  = ["delivered", "delivered", "delivered", "resulted", "sample_collected"]
-    for _ in range(80):
+    for _ in range(8 if lite else 80):
         order_date = _past_days(random.randint(1, max(1, span - 1)), today=today)
         pat    = random.choice(patients)
         source = random.choice(SOURCES)
@@ -5275,7 +5291,7 @@ def _seed_healthcare(s: Session, user: User) -> None:
             s.add(order)
 
     # ── Procedure Orders (25) ─────────────────────────────────────────────────
-    for _ in range(25):
+    for _ in range(4 if lite else 25):
         order_date = _past_days(random.randint(1, max(1, span - 1)), today=today)
         pat  = random.choice(patients)
         proc = random.choice(procedures)
@@ -5292,7 +5308,9 @@ def _seed_healthcare(s: Session, user: User) -> None:
 
     # ── Sync SequenceCounters so API calls after seeding don't collide ─────────
     # 50 patients → next MR is 51; 20 admissions → next ADM is 21
-    for seq_name, next_val in [("hc_mr", 51), ("hc_adm", 21)]:
+    mr_next = len(patients) + 1
+    adm_next = n_admissions + 1
+    for seq_name, next_val in [("hc_mr", mr_next), ("hc_adm", adm_next)]:
         row = s.exec(
             select(SequenceCounter).where(
                 SequenceCounter.tenant_id == tid,
@@ -5918,6 +5936,7 @@ def _seed_spinning(
 
     sp_post.ensure_spinning_locations(s, tid)
     today = date.today()
+    lite = _demo_seed_lite()
 
     cotton = s.exec(
         select(Product).where(Product.tenant_id == tid, Product.code == "COTTON-BALE")
@@ -6002,6 +6021,8 @@ def _seed_spinning(
     for row in [*fiber_grades, shift_a, shift_b, shift_c, *machines, *ops, *waste_types]:
         s.add(row)
     s.flush()
+    # Masters first — serverless retries skip when SpSpinLot exists after lots land.
+    s.commit()
 
     if not customers:
         return
@@ -6013,10 +6034,13 @@ def _seed_spinning(
         select(Bill).where(Bill.tenant_id == tid, Bill.status == "posted").limit(5)
     ).all()
 
-    plans: list[SpProductionPlan] = []
-    for i, (status, spec) in enumerate([
+    plan_defs = [
         ("draft", specs[0]), ("approved", specs[1]), ("closed", specs[2]), ("approved", specs[3]),
-    ]):
+    ]
+    if lite:
+        plan_defs = plan_defs[:2]
+    plans: list[SpProductionPlan] = []
+    for i, (status, spec) in enumerate(plan_defs):
         p = SpProductionPlan(
             tenant_id=tid,
             number=next_number(s, tid, "sp_production_plan", "PP", fmt="{prefix}-{YYYY}-{seq:04d}"),
@@ -6033,6 +6057,8 @@ def _seed_spinning(
     lot_targets = [
         "draft", "in_process", "in_process", "completed", "completed", "closed", "closed", "in_process",
     ]
+    if lite:
+        lot_targets = ["draft", "in_process", "completed"]
     lots: list[SpSpinLot] = []
     for i, target in enumerate(lot_targets):
         spec = specs[i % len(specs)]
@@ -6040,7 +6066,7 @@ def _seed_spinning(
             tenant_id=tid,
             number=next_number(s, tid, "sp_spin_lot", "SL", fmt="{prefix}-{YYYY}-{seq:04d}"),
             yarn_spec_id=spec.id,
-            plan_id=plans[min(i, len(plans) - 1)].id if i < 4 else None,
+            plan_id=plans[min(i, len(plans) - 1)].id if i < len(plans) else None,
             start_date=_past_days(75 - i * 6, today=today),
             target_output_kg=Decimal("4200") + i * Decimal("250"),
             status="draft",
@@ -6051,10 +6077,12 @@ def _seed_spinning(
         if target != "draft":
             sp_post.start_spin_lot(s, lot)
         lots.append(lot)
+    s.commit()
 
     # Bale receipts before stages (material cost for GL)
-    for i in range(48):
-        lot = lots[1 + (i % 7)]
+    n_bales = 4 if lite else 48
+    for i in range(n_bales):
+        lot = lots[min(1 + (i % max(1, len(lots) - 1)), len(lots) - 1)]
         if lot.status == "draft":
             continue
         gross = Decimal("220") + Decimal(str(i % 7))
@@ -6090,6 +6118,11 @@ def _seed_spinning(
         (lots[6], frozenset(STAGE_ORDER), frozenset(), 18, Decimal("4700")),
         (lots[7], frozenset(("opening", "carding", "drawing")), frozenset(("roving",)), 12, Decimal("4600")),
     ]
+    if lite:
+        stage_plan = [
+            (lots[1], frozenset(("opening", "carding")), frozenset(("drawing",)), 20, Decimal("2000")),
+            (lots[2], frozenset(("opening", "carding", "drawing")), frozenset(), 12, Decimal("1800")),
+        ]
     for lot, posted, draft_only, day_base, input_kg in stage_plan:
         _spinning_seed_stages(
             s, user, lot, machines=machines, shift=shift_a, operator=ops[0],
@@ -6097,8 +6130,9 @@ def _seed_spinning(
             post_stages=posted, draft_stages=draft_only,
         )
 
-    for i, wt in enumerate(waste_types * 4):
-        lot = lots[1 + (i % 5)]
+    waste_iters = waste_types if lite else waste_types * 4
+    for i, wt in enumerate(waste_iters):
+        lot = lots[min(1 + (i % max(1, len(lots) - 1)), len(lots) - 1)]
         wl = SpWasteLog(
             tenant_id=tid,
             number=next_number(s, tid, "sp_waste_log", "WL", fmt="{prefix}-{YYYY}-{seq:04d}"),
@@ -6113,8 +6147,9 @@ def _seed_spinning(
         if i % 7 != 0:
             sp_post.post_waste_log(s, user, wl)
 
-    for i in range(58):
-        lot = lots[2 + (i % 5)]
+    n_cones = 4 if lite else 58
+    for i in range(n_cones):
+        lot = lots[min(2 + (i % max(1, len(lots) - 2)), len(lots) - 1)] if len(lots) > 2 else lots[-1]
         if lot.status == "draft":
             continue
         co = SpConeOutput(
@@ -6952,9 +6987,9 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
         if business_model == "hospital":
             _seed_healthcare(s, user)
             s.commit()
-            _seed_healthcare_store(s, user)
-            s.commit()
             if not lite:
+                _seed_healthcare_store(s, user)
+                s.commit()
                 _seed_lab_serial_history(s, user)
                 s.commit()
                 _seed_dialysis(s, user)
