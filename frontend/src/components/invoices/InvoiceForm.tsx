@@ -8,6 +8,7 @@ import CurrencyRatePicker from '@/components/fx/CurrencyRatePicker'
 import { useFmt, useSettings } from '@/context/SettingsContext'
 import { usePRAPortal } from '@/hooks/usePRAPortal'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
+import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
 
 export interface InvoiceFull {
   id: number
@@ -33,6 +34,7 @@ export interface InvoiceFull {
   buyer_cnic?: string | null
   is_intercompany?: boolean
   ic_counterparty_tenant_id?: number | null
+  custom_fields?: CustomFieldValues
   lines: (LineItem & { tax_code_id?: number | null })[]
 }
 
@@ -107,6 +109,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [applyingPromos, setApplyingPromos] = useState(false)
   const [promoMsg, setPromoMsg] = useState("")
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({})
   const currencyTouched = useRef(false)
 
   // Sync default currency to tenant base once settings load (create mode only)
@@ -166,6 +169,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         ic_counterparty_tenant_id: invoice.ic_counterparty_tenant_id
           ? String(invoice.ic_counterparty_tenant_id) : '',
       })
+      setCustomFields(invoice.custom_fields ?? {})
       setAnalyticSlots({
         0: invoice.analytic_account_id ? String(invoice.analytic_account_id) : "",
         1: (invoice as { analytic_2_id?: number | null }).analytic_2_id
@@ -311,6 +315,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
       is_intercompany: form.is_intercompany,
       ic_counterparty_tenant_id: form.is_intercompany && form.ic_counterparty_tenant_id
         ? parseInt(form.ic_counterparty_tenant_id) : null,
+      custom_fields: customFields,
     }
     try {
       if (mode === 'edit' && invoice) {
@@ -589,6 +594,8 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-none" />
           </div>
         </div>
+
+        <CustomFieldsInputs entity="invoice" values={customFields} onChange={setCustomFields} />
 
         <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
 

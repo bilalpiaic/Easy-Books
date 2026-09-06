@@ -561,6 +561,8 @@ class Customer(SQLModel, table=True):
     # India GST (#265)
     gstin: Optional[str] = None       # 15-char GSTIN
     state_code: Optional[str] = None  # 2-digit place-of-supply state code
+    # Studio-lite custom fields (#372) — JSON map of x.* keys; never posted to GL
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class Vendor(SQLModel, table=True):
@@ -579,6 +581,7 @@ class Vendor(SQLModel, table=True):
     # Withholding tax (#267)
     wht_tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
     wht_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 4)))
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class Invoice(SQLModel, table=True):
@@ -643,6 +646,7 @@ class Invoice(SQLModel, table=True):
     is_intercompany: bool = Field(default=False, index=True)
     ic_counterparty_tenant_id: Optional[int] = Field(default=None, index=True)
     ic_mirror_bill_id: Optional[int] = Field(default=None)
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class Bill(SQLModel, table=True):
@@ -677,6 +681,7 @@ class Bill(SQLModel, table=True):
     is_intercompany: bool = Field(default=False, index=True)
     ic_counterparty_tenant_id: Optional[int] = Field(default=None, index=True)
     ic_mirror_invoice_id: Optional[int] = Field(default=None)
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class PaymentReceived(SQLModel, table=True):
@@ -804,6 +809,32 @@ class Product(SQLModel, table=True):
     standalone_selling_price: Optional[Decimal] = Field(
         default=None, sa_column=Column(Numeric(18, 4), nullable=True)
     )
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+
+
+class CustomFieldDef(SQLModel, table=True):
+    """Tenant-defined extra document fields (`x.*`). Values live on the
+    document JSON column; this row is the definition. Soft-delete via
+    ``archived_at`` so historical values stay readable (#372)."""
+    __tablename__ = "custom_field_def"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "entity", "key", name="uq_custom_field_def_tenant_entity_key"),
+        Index("ix_custom_field_def_tenant_entity", "tenant_id", "entity"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    entity: str  # invoice | bill | customer | product | vendor
+    key: str  # x.gate_pass_no
+    label: str
+    type: str = Field(default="text")  # text | number | date | enum | bool
+    enum_values: Optional[list] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    required: bool = Field(default=False)
+    show_on_form: bool = Field(default=True)
+    show_on_print: bool = Field(default=False)
+    show_on_list: bool = Field(default=False)
+    sort_order: int = Field(default=0)
+    archived_at: Optional[datetime] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class StockSerial(SQLModel, table=True):

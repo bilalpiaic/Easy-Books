@@ -36,6 +36,7 @@ from services.india_gst import (
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
 from services.permissions import perm_dep, apply_own_filter
+from services.custom_fields import apply_incoming as apply_custom_fields
 from services.pra import get_pra_config, submit_to_pra
 from db import engine as _db_engine
 from sqlmodel import Session as _Session
@@ -130,6 +131,7 @@ class InvoiceCreate(BaseModel):
     # Intercompany (#261)
     is_intercompany: bool = False
     ic_counterparty_tenant_id: Optional[int] = None
+    custom_fields: Optional[dict] = None
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -150,7 +152,9 @@ def _auto_overdue(session: Session, invoices: list) -> None:
     if changed:
         for inv in changed:
             session.add(inv)
-        session.commit()
+        # Flush, don't commit: commit expires instances and SQLModel
+        # model_dump() then returns {} (list endpoints lose id/status).
+        session.flush()
 
 
 _SORTABLE = {
@@ -415,6 +419,9 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         is_intercompany=bool(body.is_intercompany),
         ic_counterparty_tenant_id=(
             body.ic_counterparty_tenant_id if body.is_intercompany else None
+        ),
+        custom_fields=apply_custom_fields(
+            session, user.tenant_id, "invoice", body.custom_fields
         ),
     )
     session.add(invoice)
@@ -902,6 +909,9 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.payment_mode = body.payment_mode
     inv.buyer_ntn = body.buyer_ntn
     inv.buyer_cnic = body.buyer_cnic
+    inv.custom_fields = apply_custom_fields(
+        session, user.tenant_id, "invoice", body.custom_fields, existing=inv.custom_fields
+    )
     session.add(inv)
     session.flush()
 

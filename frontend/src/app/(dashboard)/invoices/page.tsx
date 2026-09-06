@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next"
 import { usePRAPortal } from "@/hooks/usePRAPortal"
 import StatusBadge from "@/components/StatusBadge"
 import { useMessages } from "@/context/MessageContext"
+import { fetchStudioFields, formatCustomValue, type CustomFieldDef } from "@/components/studio/CustomFieldsInputs"
 
 interface Invoice {
   id: number
@@ -38,6 +39,7 @@ interface Invoice {
   internal_memo: string | null
   pra_status: string | null
   pra_fiscal_number: string | null
+  custom_fields?: Record<string, unknown>
 }
 
 interface AgingBuckets {
@@ -69,6 +71,7 @@ function InvoicesContent() {
   const [loading, setLoading] = useState(true)
   const [aging, setAging] = useState<AgingBuckets | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [listDefs, setListDefs] = useState<CustomFieldDef[]>([])
 
   const load = () => {
     setLoading(true)
@@ -110,6 +113,11 @@ function InvoicesContent() {
   }, [])
   useEffect(() => { setPage(1) }, [search, status, dateFrom, dateTo, customerFilter])
   useEffect(load, [page, search, status, dateFrom, dateTo, sortBy, sortDir, customerFilter])
+  useEffect(() => {
+    fetchStudioFields("invoice")
+      .then(rows => setListDefs(rows.filter(d => d.show_on_list)))
+      .catch(() => setListDefs([]))
+  }, [])
   useEffect(() => {
     apiFetch<AgingBuckets>('/api/invoices/aging').then(setAging).catch(() => {})
   }, [])
@@ -279,6 +287,11 @@ function InvoicesContent() {
                 <SortableHeader label="Due Date"   field="due_date"      sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-left" />
                 <SortableHeader label="Total"      field="total"         sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-right" />
                 <SortableHeader label="Status"     field="status"        sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="text-center" />
+                {listDefs.map(def => (
+                  <th key={def.key} className="px-4 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">
+                    {def.label}
+                  </th>
+                ))}
                 {isPortal && (
                   <th className="px-4 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]/55">PRA</th>
                 )}
@@ -287,10 +300,10 @@ function InvoicesContent() {
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
               {loading ? (
-                <SkeletonRow cols={isPortal ? 9 : 8} />
+                <SkeletonRow cols={(isPortal ? 9 : 8) + listDefs.length} />
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={isPortal ? 9 : 8} className="px-6 py-16 text-center">
+                  <td colSpan={(isPortal ? 9 : 8) + listDefs.length} className="px-6 py-16 text-center">
                     <div className="inline-flex flex-col items-center gap-3">
                       <FileSignature className="w-10 h-10 text-[var(--border)]" />
                       <p className="text-sm text-[var(--text-muted)] font-medium">No invoices yet</p>
@@ -332,6 +345,11 @@ function InvoicesContent() {
                   <td className="ui-td text-center">
                     <StatusBadge status={inv.status} />
                   </td>
+                  {listDefs.map(def => (
+                    <td key={def.key} className="ui-td text-[var(--text-muted)]">
+                      {formatCustomValue(def, inv.custom_fields)}
+                    </td>
+                  ))}
                   {isPortal && (
                     <td className="ui-td text-xs">
                       {inv.pra_status === "submitted" && (
