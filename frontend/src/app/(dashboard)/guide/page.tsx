@@ -1399,8 +1399,13 @@ function SpinningPanel() {
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The yarn-spinning track is enabled when you pick <CodeBadge>yarn_spinning</CodeBadge> as
         your business model at signup (or install the <CodeBadge>spinning</CodeBadge> module from
-        System → Add-ons). It tracks cotton bale intake through multi-stage mill production to
+        System → Add-ons → Recommended). It tracks cotton bale intake through multi-stage mill production to
         finished yarn dispatch — with <b>full double-entry GL</b> on every approve/post.
+      </p>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed mt-2">
+        Demo login: <CodeBadge>demo.spinning@easy-books.app</CodeBadge> / <CodeBadge>demo1234</CodeBadge>.
+        Open the <b>Spinning</b> top-nav tab (or <b>More</b> on a narrow window), or press Ctrl+K and type
+        spinning. Marketplace Weighbridge is only invoice Gate pass fields — not this mill workspace.
       </p>
 
       <SectionHeading>The production cycle</SectionHeading>

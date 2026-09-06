@@ -164,12 +164,56 @@ def create_db_and_tables():
         # Existing mill demo tenants pre-date the Weighbridge grant; converge
         # every boot so Marketplace shows the card after a code-only deploy.
         _ensure_mill_weighbridge_grants(session)
+        # yarn_spinning tenants created before the spinning module (or after a
+        # plan-entitlements deploy that left enabled_modules stale) get the
+        # first-party spinning workspace back without a re-seed.
+        _ensure_yarn_spinning_module(session)
 
         # Convergent backfill: tag any product left without a category against
         # its tenant's sub-categories. Handles products created before the
         # category feature (or by an older seeder). One-time-effective and a
         # cheap no-op once every product is tagged.
         _backfill_untagged_products(session)
+
+def _ensure_yarn_spinning_module(session: Session) -> None:
+    """Idempotent: ``yarn_spinning`` tenants have the spinning module installed.
+
+    Nav, Ctrl+K, and ``/spinning/*`` all gate on ``enabled_modules`` containing
+    ``spinning``. A code-only deploy must not leave mill demo tenants as
+    Base Accounting only (same idea as ``_ensure_mill_weighbridge_grants``).
+    """
+    from models import Tenant
+    from routers.modules import _get_enabled, install_module_for_tenant
+    from services.entitlements import entitled_ids, set_entitled
+
+    mills = session.exec(
+        select(Tenant).where(Tenant.business_model == "yarn_spinning")
+    ).all()
+    restored = 0
+    for tenant in mills:
+        try:
+            ids = entitled_ids(tenant)
+            if "spinning" not in ids:
+                set_entitled(tenant, [*ids, "spinning"])
+                session.add(tenant)
+                session.commit()
+                session.refresh(tenant)
+            if "spinning" not in _get_enabled(tenant):
+                install_module_for_tenant(
+                    session, tenant, None, "spinning", check_entitlement=False,
+                )
+                restored += 1
+        except Exception as exc:
+            print(
+                f"[seed] spinning backfill failed for tenant {tenant.id}: {exc}",
+                flush=True,
+            )
+    if restored:
+        print(
+            f"[seed] restored Yarn Spinning module on {restored} yarn_spinning tenant(s)",
+            flush=True,
+        )
+
 
 def _ensure_mill_weighbridge_grants(session: Session) -> None:
     """Idempotent: mill tenants may see Weighbridge without re-running seed_demo."""

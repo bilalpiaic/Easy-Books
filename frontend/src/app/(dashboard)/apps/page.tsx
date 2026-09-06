@@ -323,8 +323,16 @@ function AppsPageInner() {
     if (welcome) return
     if (tabParam === "default" || tabParam === "recommended" || tabParam === "optional" || tabParam === "marketplace") return
     if (bucket !== "default") return
-    if (catalog.some(e => e.for_you)) setBucket("marketplace")
-  }, [catalog, welcome, tabParam, bucket])
+    const millForYou = catalog.some(e => e.for_you)
+    if (!millForYou) return
+    // Yarn Spinning is a first-party pack on Recommended. Don't hide it behind
+    // Marketplace (Weighbridge) until the spinning module is actually installed.
+    if (!installedModules.has("spinning")) {
+      setBucket("recommended")
+      return
+    }
+    setBucket("marketplace")
+  }, [catalog, welcome, tabParam, bucket, installedModules])
 
   const setViewPersist = (mode: ViewMode) => {
     setView(mode)

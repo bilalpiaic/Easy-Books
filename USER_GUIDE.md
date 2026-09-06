@@ -1772,7 +1772,7 @@ Each first-party card shows name, description, category (Core / Operations / HR 
 
 **Uninstalling** is blocked if another installed module depends on the one you want to remove (you must remove the dependent first). The Base module cannot be uninstalled.
 
-If your company is a mill (manufacturing or yarn spinning), Add-ons opens **Marketplace** when a **For you** listing such as Weighbridge is available. You can also go to `/apps?tab=marketplace` or press **Ctrl+K** and type `weighbridge`. See [§41 Weighbridge](#41-weighbridge-mill-marketplace-listing).
+If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. After Spinning is installed, mill Add-ons opens **Marketplace** when a **For you** listing such as Weighbridge is available. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge`. See [§30A Yarn Spinning](#30a-yarn-spinning-module) and [§41 Weighbridge](#41-weighbridge-mill-marketplace-listing).
 
 ### 29.3 First-time onboarding
 
@@ -1939,6 +1939,13 @@ Pre-seeded data:
 > Demo tenant: `demo.spinning@easy-books.app` / `demo1234`
 
 The Yarn Spinning module tracks cotton/fiber intake through multi-stage mill production to finished yarn dispatch — with **full double-entry GL** on every approve/post (unlike the Weaving module, which is memo-only).
+
+**How to open it**
+
+1. Log in as `demo.spinning@easy-books.app` / `demo1234` (not the hospital / simple / manufacturing demos).
+2. Use the **Spinning** top-nav tab (next to Store). On a narrow window it may sit under **More**.
+3. Or press **Ctrl+K** and type `spinning`.
+4. To install on another company: **System → Add-ons → Recommended** → **Yarn Spinning** pack (Optional tab also lists the `spinning` module). Marketplace **Weighbridge** is a different product (invoice Gate pass fields only).
 
 ### 30A.1 Setup (`/spinning/setup`)
 

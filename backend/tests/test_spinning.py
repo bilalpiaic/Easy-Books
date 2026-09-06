@@ -76,3 +76,58 @@ def test_spinning_calc_helpers():
     assert t["kg"] == 100.0
     assert float(net_kg(110, 10)) == 100.0
     assert stage_yield_pct(100, 85) == 85.0
+
+
+def test_yarn_spinning_backfill_restores_module(client):
+    """Existing yarn_spinning tenants missing spinning get it back on boot backfill."""
+    from sqlmodel import Session
+    import db as db_mod
+    from models import Tenant
+    from routers.modules import _get_enabled
+
+    auth = _signup(client, "spin-restore@test.com")
+    me = client.get("/api/auth/me", headers=auth)
+    assert me.status_code == 200, me.text
+    tid = me.json()["tenant"]["id"]
+
+    with Session(db_mod.engine) as s:
+        mill = s.get(Tenant, tid)
+        mill.business_model = "yarn_spinning"
+        mill.enabled_modules = '["base"]'
+        s.add(mill)
+        s.commit()
+
+    blocked = client.get("/api/spinning/lots", headers=auth)
+    assert blocked.status_code == 403
+
+    with Session(db_mod.engine) as s:
+        db_mod._ensure_yarn_spinning_module(s)
+        mill = s.get(Tenant, tid)
+        assert "spinning" in _get_enabled(mill)
+
+    ok = client.get("/api/spinning/lots", headers=auth)
+    assert ok.status_code == 200, ok.text
+    listed = client.get("/api/modules", headers=auth)
+    spinning = next(m for m in listed.json() if m["id"] == "spinning")
+    assert spinning["installed"] is True
+
+
+def test_yarn_spinning_backfill_skips_other_models(client):
+    from sqlmodel import Session
+    import db as db_mod
+    from models import Tenant
+    from routers.modules import _get_enabled
+
+    auth = _signup(client, "spin-skip@test.com")
+    me = client.get("/api/auth/me", headers=auth)
+    tid = me.json()["tenant"]["id"]
+
+    with Session(db_mod.engine) as s:
+        t = s.get(Tenant, tid)
+        assert t.business_model != "yarn_spinning"
+        db_mod._ensure_yarn_spinning_module(s)
+        t = s.get(Tenant, tid)
+        assert "spinning" not in _get_enabled(t)
+
+    r = client.get("/api/spinning/lots", headers=auth)
+    assert r.status_code == 403
