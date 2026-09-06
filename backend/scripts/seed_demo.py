@@ -168,6 +168,7 @@ from models_weaving import (
     WvFabricQuality, WvLoom, WvYarnType, WvShift, WvOperator,
     WvContract, WvYarnInward, WvSizing, WvProduction, WvDispatch,
 )
+from models_weighbridge import WbTicket
 from models_spinning import (
     STAGE_ORDER,
     SpYarnSpec, SpFiberGrade, SpMachine, SpShift, SpOperator, SpWasteType,
@@ -5887,6 +5888,74 @@ def _seed_weaving(s: Session, user: User, customers: list[Customer], vendors: li
     s.flush()
 
 
+def _seed_weighbridge(
+    s: Session, user: User, customers: list[Customer], vendors: list[Vendor],
+) -> None:
+    """Weighbridge mill tickets (#391). Idempotent — skips if tickets exist."""
+    tid = user.tenant_id
+    if s.exec(select(WbTicket).where(WbTicket.tenant_id == tid)).first():
+        return
+
+    from services import weaving_calc as calc
+
+    today = date.today()
+    vendor = vendors[0] if vendors else None
+    customer = customers[0] if customers else None
+    now = datetime.utcnow()
+
+    # Completed inbound (gross then tare) — register + print slip have net Kg.
+    g, t = Decimal("1020"), Decimal("20")
+    completed = WbTicket(
+        tenant_id=tid,
+        number=next_number(s, tid, "wb_ticket", "WB", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        ticket_date=today.isoformat(),
+        direction="inbound",
+        vehicle_no="LES-2142",
+        driver_name="Rashid Khan",
+        party_type="vendor" if vendor else "other",
+        party_id=vendor.id if vendor else None,
+        party_name=vendor.name if vendor else "Walk-in mill truck",
+        commodity="Raw cotton",
+        lot_ref="LOT-WB-01",
+        gross_kg=g,
+        tare_kg=t,
+        net_kg=money(abs(calc.net_kg(g, t))),
+        first_weigh_kind="gross",
+        first_weigh_at=now,
+        second_weigh_at=now,
+        status="completed",
+        operator_id=user.id,
+        notes="Seeded completed inbound ticket",
+        created_by_id=user.id,
+    )
+    s.add(completed)
+
+    # On-site (weighed in, tare first) — hub "vehicles on site".
+    tare = Decimal("18.5")
+    on_site = WbTicket(
+        tenant_id=tid,
+        number=next_number(s, tid, "wb_ticket", "WB", fmt="{prefix}-{YYYY}-{seq:04d}"),
+        ticket_date=today.isoformat(),
+        direction="inbound",
+        vehicle_no="LHR-9081",
+        driver_name="Imtiaz Ali",
+        party_type="customer" if customer else "other",
+        party_id=customer.id if customer else None,
+        party_name=customer.name if customer else "Mill dispatch",
+        commodity="Yarn cones",
+        lot_ref="LOT-WB-02",
+        tare_kg=tare,
+        first_weigh_kind="tare",
+        first_weigh_at=now,
+        status="weighed_in",
+        operator_id=user.id,
+        notes="Seeded on-site ticket awaiting second weigh",
+        created_by_id=user.id,
+    )
+    s.add(on_site)
+    s.flush()
+
+
 def _spinning_stage_yields() -> dict[str, Decimal]:
     return {
         "opening": Decimal("0.98"), "carding": Decimal("0.97"), "drawing": Decimal("0.96"),
@@ -6699,7 +6768,7 @@ def _seed_consolidation_graph(s: Session) -> None:
 
 # Modules that light the Operations home tab (mirrors frontend PURPOSE_MODULES).
 _PURPOSE_MODULES = (
-    "production", "spinning", "weaving", "textile_processing",
+    "production", "spinning", "weaving", "weighbridge", "textile_processing",
     "healthcare", "telecom", "purchase_store",
 )
 _OPS_DEFAULT_MODELS = {
@@ -7000,6 +7069,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 s.commit()
                 _seed_weaving(s, user, customers, vendors)
                 s.commit()
+                _seed_weighbridge(s, user, customers, vendors)
+                s.commit()
                 # Lot-track after consumption so store issues/sales don't
                 # require lot numbers that the memo seed never collected.
                 _seed_inventory_depth(s, user, stock)
@@ -7027,6 +7098,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 _seed_purchase_store_chain(s, owner, accountant, clerk, vendors, all_products, invoices)
                 s.commit()
             _seed_spinning(s, user, customers, vendors, stock)
+            s.commit()
+            _seed_weighbridge(s, user, customers, vendors)
             s.commit()
 
         if business_model == "textile_processing":

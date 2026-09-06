@@ -28,8 +28,10 @@ from sqlmodel import select
 
 from models import (
     Account, Bill, BillPayment, CreditNote, Customer, DebitNote, Employee,
-    Invoice, JournalEntry, PaymentReceived, Product, Transaction, Vendor,
+    Invoice, JournalEntry, PaymentReceived, Product, Tenant, Transaction, Vendor,
 )
+from models_weighbridge import WbTicket
+from routers.modules import _get_enabled
 from .common import CurrentUserDep, SessionDep
 
 router = APIRouter()
@@ -438,5 +440,34 @@ def global_search(
                  status=r.voucher_type)
             for r in rows
         ]
+
+    # ── Weighbridge tickets (module-gated) ──────────────────────────────────
+    if _include("weighbridge"):
+        tenant = session.get(Tenant, tid)
+        if tenant is not None and "weighbridge" in _get_enabled(tenant):
+            rows = session.exec(
+                select(WbTicket)
+                .where(WbTicket.tenant_id == tid)
+                .where(or_(
+                    WbTicket.number.ilike(p),
+                    WbTicket.vehicle_no.ilike(p),
+                    WbTicket.driver_name.ilike(p),
+                    WbTicket.party_name.ilike(p),
+                    WbTicket.commodity.ilike(p),
+                    WbTicket.lot_ref.ilike(p),
+                ))
+                .order_by(WbTicket.id.desc())
+                .limit(limit)
+            ).all()
+            result["weighbridge"] = [
+                _row(
+                    r, r.number,
+                    " · ".join(filter(None, [r.vehicle_no, r.party_name, r.commodity])) or r.direction,
+                    f"/weighbridge/tickets/{r.id}",
+                    date=r.ticket_date,
+                    status=r.status,
+                )
+                for r in rows
+            ]
 
     return result

@@ -843,39 +843,38 @@ function WeighbridgeFlow() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
-        Weighbridge is a <b>private Marketplace listing</b> (not a first-party module). It installs a
-        Studio overlay on <b>sales invoices</b>: required Gate pass + optional Lot ref. Values stay on
-        the invoice JSON and <b>never post to the GL</b>.
+        First-party <b>Weighbridge</b> workspace (top nav) records mill tickets — first/second weigh,
+        net Kg/Lbs/Bags, printable slip. <b>No GL</b> in v1. The Marketplace listing stays the optional
+        invoice Gate pass overlay.
       </p>
       <HFlow>
         <StepBox
-          title="Add-ons → Marketplace"
+          title="Weighbridge → New ticket"
           accent="blue"
-          impact="System → Add-ons, or Ctrl+K → weighbridge. Mills auto-open Marketplace when For you listings exist."
+          impact="Ctrl+K → weighbridge. Inbound/outbound, vehicle, party, commodity. Optional first weigh."
         />
         <Arrow />
         <StepBox
-          title="Install Weighbridge"
+          title="First weigh"
           accent="gold"
-          impact="Studio bundle writes Gate pass (x.gate_pass_no) and Lot ref (x.lot_ref). No partner code runs."
+          impact="Gross or tare → weighed in. Vehicle is on site until the second reading."
         />
         <Arrow />
         <StepBox
-          title="New Invoice"
+          title="Second weigh"
           accent="orange"
-          impact="Gate pass required; Lot ref optional (form-only)."
-          gl="custom_fields JSON — ∑Dr = ∑Cr unchanged"
+          impact="Other side → net = |gross − tare|. Number WB-YYYY-seq. Print slip."
+          gl="memo/ops — no posting.py"
         />
         <Arrow />
         <StepBox
-          title="Print"
+          title="Copy Gate pass"
           accent="green"
-          impact="Gate pass on the invoice. Tweak labels in Settings → Studio. Uninstall archives defs; old values remain."
+          impact="Completed inbound can write the ticket # onto invoice x.gate_pass_no. Overlay still optional via Marketplace."
         />
       </HFlow>
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">
-        Overlay is for <span className="font-bold">sales invoices</span> only — not spinning bale receipts
-        or gate inward. Hospital and other ungranted tenants never see the card (install returns 404).
+        Hospital and other non-mill tenants do not get the module (API 403, nav hidden).
         Step-by-step: User Guide → Weighbridge tab.
       </div>
     </div>
@@ -1218,8 +1217,8 @@ export default function WorkflowPage() {
       {(isManufacturing || isYarnSpinning) && (
         <SectionCard
           icon={Scale}
-          title="Mill Weighbridge overlay"
-          subtitle="Marketplace install → invoice Gate pass / Lot ref → print (no extra GL)"
+          title="Mill Weighbridge"
+          subtitle="Tickets → first/second weigh → print slip; optional invoice Gate pass (no extra GL)"
           iconColor="text-stone-600"
         >
           <WeighbridgeFlow />

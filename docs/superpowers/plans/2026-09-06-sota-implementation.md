@@ -227,16 +227,12 @@ Do this on **production Vercel + Neon** while PRs 1–2 merge. Code already read
 
 ---
 
-## PR 4 — Weighbridge workspace (#391) — after Ops + PR 1
+## PR 4 — Weighbridge workspace (#391) — shipped with this work
 
-Do **not** start until a mill actually needs a scale desk. Spec is the GitHub issue (hub, ticket, first/second weigh, `WB-YYYY-seq`, memo/ops, no extra GL).
-
-Sketch only (full design stays in #391):
-
-- Module id `weighbridge` in `MODULE_REGISTRY`; mill models may pre-install like spinning.
-- Tables `wb_ticket` + lines; router `routers/weighbridge.py`; nav section next to Store/Spinning.
-- Optional write-through to Marketplace `x.gate_pass_no` on linked invoice.
-- v1 **no** live scale/ANPR.
+Module id `weighbridge` in `MODULE_REGISTRY`; mill models pre-install like spinning.
+Tables `wb_ticket`; router `routers/weighbridge.py`; nav section next to Store/Spinning.
+Optional write-through to Marketplace `x.gate_pass_no` on linked invoice.
+v1 **no** live scale/ANPR and **no** extra GL.
 
 Keep Marketplace listing `partner.easybooks.weighbridge` as the Studio overlay; the module is the workspace users expected.
 

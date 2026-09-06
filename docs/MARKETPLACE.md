@@ -79,6 +79,8 @@ Hospital (and any ungranted tenant) `GET /api/marketplace/catalog` JSON **does n
 
 **Weighbridge** is the bundled private mill listing (`partner.easybooks.weighbridge`). It ships a `studio` bundle: invoice **Gate pass** (`x.gate_pass_no`, required, printed) and **Lot ref** (`x.lot_ref`, optional, form-only). Install writes `CustomFieldDef` rows; uninstall archives them. Values never post to the GL. No partner code runs.
 
+Mills also have a first-party **Weighbridge** module (`weighbridge`) — ticket workspace under its own nav section (#391). The listing is the invoice overlay; the module is the scale desk. See [USER_GUIDE.md §41](../USER_GUIDE.md#41-weighbridge-mill-workspace).
+
 **User path**
 
 1. Log in as a mill (`demo.manufacturing@easy-books.app` or `demo.spinning@easy-books.app` / `demo1234`).

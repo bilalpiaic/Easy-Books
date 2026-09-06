@@ -31,6 +31,7 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: Reac
   payroll:       { href: "/hrm",            label: "Payroll Overview",    icon: LayoutGrid      },
   healthcare:    { href: "/healthcare",     label: "HC Overview",         icon: Stethoscope     },
   weaving:       { href: "/weaving",         label: "Weaving Overview",     icon: Scissors        },
+  weighbridge:   { href: "/weighbridge",     label: "Weighbridge Overview", icon: Scale           },
   spinning:      { href: "/spinning",        label: "Spinning Overview",    icon: CircleDot       },
   processing:    { href: "/processing",      label: "Processing Overview",  icon: Layers          },
   manufacturing: { href: "/manufacturing",  label: "Production Overview", icon: Factory         },

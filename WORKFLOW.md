@@ -25,7 +25,7 @@
    - 6.9 [Healthcare / Hospital (V3.0)](#49-healthcare--hospital-v30)
    - 6.10 [Weaving Unit Control (#140)](#410-weaving-unit-control-140)
    - 6.11 [Yarn Spinning Unit (#319)](#411-yarn-spinning-unit-319)
-   - 6.12 [Mill Weighbridge overlay](#412-mill-weighbridge-overlay)
+   - 6.12 [Mill Weighbridge](#412-mill-weighbridge)
 7. [Cross-Cutting Features](#5-cross-cutting-features)
    - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 7.2 [Tax Codes](#52-tax-codes)
@@ -1118,29 +1118,25 @@ Setup → Production Plan → Spin Lot → Bale Receipt → Stage Entries → Co
 
 **Calculators (`/api/spinning/calculators/`):** `yield`, `blend`, `spindle`.
 
-### 4.12 MILL WEIGHBRIDGE OVERLAY
+### 4.12 MILL WEIGHBRIDGE
 
-Private Marketplace listing `partner.easybooks.weighbridge` (PRs #384 / #387). **No partner code, no extra GL.**
+First-party module `weighbridge` (#391): mill ticket workspace. **Memo/ops, no extra GL.** Marketplace listing `partner.easybooks.weighbridge` remains the optional invoice overlay.
 
 ```
-Mill login → System → Add-ons → Marketplace (For you)
-    → Install Weighbridge (Studio bundle)
-    → New Invoice: Gate pass (required) + Lot ref (optional)
-    → Post: same AR/Revenue as any sale; custom_fields JSON only
-    → Print: Gate pass on the invoice
+Mill login → Weighbridge (top nav) / Ctrl+K
+    → New ticket (inbound/outbound, vehicle, party)
+    → First weigh (gross or tare) → weighed_in
+    → Second weigh → net = |gross − tare|, WB-YYYY-seq
+    → Print slip (Kg / Lbs / Bags)
+    → Optional: Copy Gate pass onto invoice custom_fields
 ```
 
-| Who | Catalog |
+| Who | Workspace |
 |-----|---------|
-| `manufacturing` / `yarn_spinning` (and spinning module installed) | Card visible, **For you** |
-| Hospital / simple / ungranted | Id omitted; install 404 |
+| `manufacturing` / `yarn_spinning` (and entitled install) | Module pre-installed / Optional card |
+| Hospital / simple / ungranted | Nav hidden; API 403 |
 
-| Field | Key | Required | Form | Print | List |
-|-------|-----|----------|------|-------|------|
-| Gate pass | `x.gate_pass_no` | yes | yes | yes | yes |
-| Lot ref | `x.lot_ref` | no | yes | no | no |
-
-Uninstall **archives** definitions; historical invoice values remain. Operators grant extra tenants with `PUT /api/ops/tenants/{id}/marketplace-private`. End-user steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
+Private Marketplace listing still installs Studio Gate pass (`x.gate_pass_no`) + Lot ref (`x.lot_ref`) on invoices. Uninstall archives definitions. End-user steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-workspace).
 
 ---
 

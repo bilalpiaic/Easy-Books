@@ -45,6 +45,7 @@ INDUSTRY_PACKS: frozenset[str] = frozenset(
         "spinning",
         "healthcare",
         "weaving",
+        "weighbridge",
         "telecom",
         "textile_processing",
         "pra",

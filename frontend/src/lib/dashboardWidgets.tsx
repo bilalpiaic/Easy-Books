@@ -155,6 +155,7 @@ export const ALL_QUICK_ACTIONS: QuickActionDef[] = [
   { id: "gate_inward",     label: "Gate Inward",         href: "/purchases/gate-inward",              icon: DoorOpen,       color: "text-teal-700",  requiredModule: "purchase_store" },
   { id: "new_production",  label: "Production Orders",   href: "/manufacturing/production-orders",    icon: Factory,        color: "text-blue-700",  requiredModule: "production" },
   { id: "new_spin_lot",    label: "Spin Lots",           href: "/spinning/lots",                      icon: CircleDot,      color: "text-indigo-700", requiredModule: "spinning" },
+  { id: "new_weighbridge_ticket", label: "Weighbridge Ticket", href: "/weighbridge/tickets/new",       icon: Scale,          color: "text-amber-800", requiredModule: "weighbridge" },
   { id: "new_grey_lot",    label: "Grey Inward",         href: "/processing/lots/new",                icon: Layers,         color: "text-teal-700",   requiredModule: "textile_processing" },
   { id: "new_opd",         label: "OPD",                 href: "/healthcare/opd",                     icon: Activity,       color: "text-rose-600",  requiredModule: "healthcare" },
   { id: "telecom_tracker", label: "Tracker & Load",      href: "/telecom/tracker",                    icon: Radio,          color: "text-cyan-700",  requiredModule: "telecom" },

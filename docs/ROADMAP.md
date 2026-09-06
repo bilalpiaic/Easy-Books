@@ -1,6 +1,6 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-09-06 (forgot-password #390 on `main`; next: [SOTA implementation plan](superpowers/plans/2026-09-06-sota-implementation.md))._
+_Last reviewed: 2026-09-06 (SOTA PRs #394–#397 on `main`; Weighbridge workspace #391)._
 
 ## Status summary
 
@@ -40,7 +40,7 @@ _Last reviewed: 2026-09-06 (forgot-password #390 on `main`; next: [SOTA implemen
 | **#370–#376** | Entitlements, catalog audience, Studio-lite | **Shipped** PRs #377–#383 |
 | **#118** remainder | Require TOTP for `owner` + hide/block demo logins | **Shipped in code** — set `REQUIRE_OWNER_TOTP=true` and `ALLOW_DEMO_LOGIN=false` on production |
 | **#390** | Self-service forgot-password from login | **Shipped** PR #393 |
-| **#391** | First-party mill Weighbridge workspace | **Open** — after ops + SQL hot paths; see [SOTA plan](superpowers/plans/2026-09-06-sota-implementation.md) |
+| **#391** | First-party mill Weighbridge workspace | **This PR** — hub, tickets, first/second weigh, register, print slip; memo/ops, no extra GL |
 | **Weighbridge** | Private mill Marketplace listing + Studio bundle | **Shipped** #384 listing, #387 mill visibility / Add-ons discovery |
 
 ### Shipped foundations (not v6 — do not reopen)
