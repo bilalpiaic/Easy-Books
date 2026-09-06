@@ -4,7 +4,7 @@ _Last reviewed: 2026-09-06 (production launch plan; Studio epic #369)._
 
 ## Status summary
 
-**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370/#371) and Studio (#372–#376) are on `main`. Remaining: Stripe/Neon/S3 **ops**, Wave 0 GitHub issue closes, CI lint/packaging debt. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
+**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370/#371) and Studio (#372–#376) are on `main`; P7.3 private mill **Weighbridge** listing is in this PR. Remaining: Stripe/Neon/S3 **ops**, Wave 0 GitHub issue closes (issues API 403), CI lint + Alembic-upgrade debt. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
 
 **v6 Growth Track [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):** A + B largely **landed on `main`** (PRs #323–#351). Do not treat the table below as a build queue until Wave 0 closes shipped issues. C (platforms/GTM) is now #369, not more modules.
 

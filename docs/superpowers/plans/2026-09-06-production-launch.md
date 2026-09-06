@@ -1,7 +1,7 @@
 # Easy-Books production launch plan
 
 **Date:** 2026-09-06  
-**Status:** Draft for review  
+**Status:** Wave 1 product (#370–#376 + P7.3 Weighbridge) is on `main` / this PR. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR), **Wave 0 GitHub closes** (issues API 403), and **CI debt** (frontend lint, Alembic upgrade-over-create_all).  
 **Audience:** ship paying tenants on the existing Vercel + Neon stack  
 **Companion:** Studio/customization spec `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`
 
@@ -54,13 +54,10 @@ Launch as **one SaaS**: one `main`, one Vercel frontend, one Vercel FastAPI, one
 
 | Issue | Why it matters for launch | Wave |
 |-------|---------------------------|------|
-| **#370** entitlements | Owners can install every module today | **1** (blocker) |
-| **#371** Marketplace audience | Private mill listings would leak to all tenants | **1** |
-| **#369** epic | GTM control plane | 1–3 |
-| **#372** custom fields | First-client form differences without forks | **2** |
-| **#373–#376** schema / print / rights / Studio | Odoo/QB-shaped overlays | **3** |
+| **#370–#376** entitlements / audience / Studio | Shipped PRs #377–#383; P7.3 Weighbridge private listing | Close on GitHub |
+| **#369** epic | Tick shipped children; remaining is GTM/ops | Hygiene + ops |
 | **#119 remainder** | Stripe Checkout in **test** vs **live**; suspend on failed payment | **1** ops |
-| **#116 remainder** | Postgres in CI; S3 for uploads on Vercel; backups | **1** ops |
+| **#116 remainder** | Postgres CI job added; S3 + Neon PITR still host secrets | **1** ops |
 | **#121** Plaid-class feeds | Code exists; production bank connections | **2** if a client needs it |
 | **#122** AI L2 OCR | Differentiator, not launch blocker | **4** |
 | **#124 / #125** AI L3–5 | After L2 | **4+** |
@@ -229,14 +226,10 @@ No `client-acme` branch. No second Neon “for that mill.”
 
 | Order | PR / issue | Blocks launch? |
 |-------|------------|----------------|
-| 0 | Hygiene comments/closes on shipped #299–#305 | No, but unblocks thinking |
-| 1 | **#370** entitlements | **Yes** |
-| 2 | **#371** catalog audience | **Yes** if any private listing |
-| 3 | Secrets + S3 + Neon PITR + Stripe live (no issue; ops) | **Yes** |
-| 4 | Postgres job in `.github/workflows/ci.yml` | Strong yes |
-| 5 | Require TOTP for owner | Strong yes |
-| 6 | **#372** custom fields | First vertical only |
-| 7 | **#373–#376** | Second vertical / partners |
+| 0 | Hygiene comments/closes on shipped #299–#305 / #370–#376 (needs issues write) | No, but unblocks thinking |
+| 1 | Secrets + S3 + Neon PITR + Stripe live (no issue; ops) | **Yes** |
+| 2 | Postgres CI job (this PR; schema wipe vs `drop_all`) | Strong yes |
+| 3 | Require TOTP for owner | Strong yes |
 
 Do not start #122 or #307 until Wave 1 is green.
 

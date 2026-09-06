@@ -63,7 +63,7 @@ Rules enforced at validation time:
 |------------|-------------------|
 | `public` (default) | Every signed-in tenant |
 | `entitled` | Tenants that have `entitled_module` entitled **or** installed |
-| `private` | Only `visible_to_tenant_ids` |
+| `private` | Granted tenants (`visible_to_tenant_ids`, ops `module_meta._marketplace_private`, or `MARKETPLACE_PRIVATE_AUDIENCE`) |
 
 Private mill listings use topical tags (`spinning`, `private`) plus badge **For you**. Do **not** tag with tenant slugs or `customized-tenant`. Marketplace lists **products**, never tenants.
 
