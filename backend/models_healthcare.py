@@ -111,7 +111,13 @@ class HcBed(SQLModel, table=True):
     current_admission_id: Optional[int] = Field(
         default=None,
         sa_column=sa.Column(
-            "current_admission_id", sa.Integer, sa.ForeignKey("hc_admission.id", use_alter=True)
+            "current_admission_id",
+            sa.Integer,
+            sa.ForeignKey(
+                "hc_admission.id",
+                use_alter=True,
+                name="fk_hc_bed_current_admission",
+            ),
         ),
     )
     is_active: bool = Field(default=True)

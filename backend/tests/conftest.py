@@ -7,6 +7,7 @@ import db as _db_module
 from db import get_session
 from main import app
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -75,7 +76,13 @@ def client_fixture(monkeypatch):
     )
     if use_pg:
         engine = create_engine(pg_url, pool_pre_ping=True)
-        SQLModel.metadata.drop_all(engine)
+        # Named circular FKs (hc_bed / comparativestatement) still trip
+        # metadata.drop_all on Postgres; wipe the schema instead.
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+            conn.execute(text("CREATE SCHEMA public"))
+            conn.execute(text("GRANT ALL ON SCHEMA public TO CURRENT_USER"))
+            conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
     else:
         engine = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
@@ -99,7 +106,9 @@ def client_fixture(monkeypatch):
     if hasattr(app.state, "engine"):
         delattr(app.state, "engine")
     if use_pg:
-        SQLModel.metadata.drop_all(engine)
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+            conn.execute(text("CREATE SCHEMA public"))
     engine.dispose()
 
 
