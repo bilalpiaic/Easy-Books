@@ -207,7 +207,11 @@ def apply_to_payload(
     """
     if schema is None:
         schema, _src = resolve_schema(session, user, entity)
-    hidden = hidden_keys(schema)
+    from services.permissions import field_access_map
+
+    access = field_access_map(session, user, entity)
+    overlay_hidden = {k for k, lvl in access.items() if lvl in ("none", "view")}
+    hidden = hidden_keys(schema) | overlay_hidden
     required = required_keys(schema)
     dump = dict(payload)
     original_keys = set(payload)
@@ -241,6 +245,8 @@ def apply_to_payload(
         dump.pop("custom_fields", None)
 
     for key in required:
+        if key in overlay_hidden:
+            continue
         if key.startswith("x."):
             val = (dump.get("custom_fields") or {}).get(key)
         elif key == "discount_pct":
@@ -285,6 +291,7 @@ def fmt_schema(
     *,
     role: str,
     source_role: str,
+    field_access: Optional[dict[str, str]] = None,
 ) -> dict:
     return {
         "entity": entity,
@@ -295,6 +302,7 @@ def fmt_schema(
             "fields": _fields_of(schema),
         },
         "locked": sorted(LOCKED_FIELDS.get(entity, ())),
+        "field_access": field_access or {},
     }
 
 

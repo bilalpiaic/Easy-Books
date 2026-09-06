@@ -111,7 +111,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [promoMsg, setPromoMsg] = useState("")
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldValues>({})
-  const { fields: schemaFields, visible: vis, required: req } = useFormSchema('invoice')
+  const { fields: schemaFields, fieldAccess, visible: vis, required: req } = useFormSchema('invoice')
   const currencyTouched = useRef(false)
 
   // Sync default currency to tenant base once settings load (create mode only)
@@ -637,7 +637,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
         </div>
         )}
 
-        <CustomFieldsInputs entity="invoice" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} />
+        <CustomFieldsInputs entity="invoice" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} fieldAccess={fieldAccess} />
 
         {(vis('analytic_account_id') || vis('analytic_2_id') || vis('analytic_3_id')) && (
           <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />

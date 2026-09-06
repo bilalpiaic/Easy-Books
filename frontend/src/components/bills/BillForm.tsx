@@ -93,7 +93,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldValues>({})
-  const { fields: schemaFields, visible: vis, required: req } = useFormSchema('bill')
+  const { fields: schemaFields, fieldAccess, visible: vis, required: req } = useFormSchema('bill')
   const currencyTouched = useRef(false)
 
   // Sync default currency to tenant base once settings load (create mode only)
@@ -431,7 +431,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
         </div>
         )}
 
-        <CustomFieldsInputs entity="bill" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} />
+        <CustomFieldsInputs entity="bill" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} fieldAccess={fieldAccess} />
 
         {(vis('analytic_account_id') || vis('analytic_2_id') || vis('analytic_3_id')) && (
           <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />

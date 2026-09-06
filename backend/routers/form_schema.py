@@ -14,7 +14,7 @@ from services.form_schema import (
     resolve_schema,
     upsert_schema,
 )
-from services.permissions import perm_dep
+from services.permissions import field_access_map, perm_dep
 
 router = APIRouter(
     prefix="/api/studio/forms",
@@ -39,7 +39,10 @@ def get_form_schema(
     entity = assert_entity(entity)
     want = assert_role(role) if role is not None else (user.role or "*")
     schema, source = resolve_schema(session, user, entity, role=want)
-    return fmt_schema(entity, schema, role=want, source_role=source)
+    return fmt_schema(
+        entity, schema, role=want, source_role=source,
+        field_access=field_access_map(session, user, entity),
+    )
 
 
 @router.put("/{entity}", dependencies=[perm_dep("studio.forms", "edit")])
@@ -54,4 +57,7 @@ def put_form_schema(entity: str, body: FormSchemaPut, user: AdminUserDep, sessio
     )
     session.commit()
     session.refresh(row)
-    return fmt_schema(entity, row.payload_json, role=role, source_role=role)
+    return fmt_schema(
+        entity, row.payload_json, role=role, source_role=role,
+        field_access=field_access_map(session, user, entity),
+    )
