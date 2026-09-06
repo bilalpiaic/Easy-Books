@@ -186,3 +186,24 @@ def test_empty_ops_emails_fail_closed(client, monkeypatch, enforce_plans):
     _tid, auth = _signup(client, "ops-empty@easy-books.test")
     r = client.get("/api/ops/tenants", headers=auth)
     assert r.status_code == 403
+
+
+def test_ops_grants_weighbridge_private_listing(client, monkeypatch):
+    monkeypatch.setenv("OPS_ADMIN_EMAILS", "ops-wb@easy-books.test")
+    mill_id, mill_auth = _signup(client, "ops-mill@test.com", company="Ops Mill")
+    _ops_tid, ops_auth = _signup(client, "ops-wb@easy-books.test", company="Ops")
+
+    before = client.get("/api/marketplace/catalog", headers=mill_auth).json()["entries"]
+    assert all(e["id"] != "partner.easybooks.weighbridge" for e in before)
+
+    put = client.put(
+        f"/api/ops/tenants/{mill_id}/marketplace-private",
+        headers=ops_auth,
+        json={"extension_ids": ["partner.easybooks.weighbridge"]},
+    )
+    assert put.status_code == 200, put.text
+    assert "partner.easybooks.weighbridge" in put.json()["marketplace_private"]
+
+    after = client.get("/api/marketplace/catalog", headers=mill_auth).json()["entries"]
+    row = next(e for e in after if e["id"] == "partner.easybooks.weighbridge")
+    assert row["for_you"] is True

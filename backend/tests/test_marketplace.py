@@ -158,11 +158,86 @@ def test_public_listings_default_audience(client, admin_headers):
 
 
 def test_bundled_catalog_validates():
+    bundled_catalog.cache_clear()
     entries = bundled_catalog()
     assert len(entries) >= 2
     ids = {e.manifest.id for e in entries}
     assert "partner.easybooks.invoice-csv-export" in ids
     assert all(e.manifest.id.startswith("partner.") for e in entries)
+    wb = next(e for e in entries if e.manifest.id == "partner.easybooks.weighbridge")
+    assert wb.audience == "private"
+    assert wb.visible_to_tenant_ids == []
+    assert "spinning" in wb.tags and "private" in wb.tags
+    assert not any("client-" in t or t == "customized-tenant" for t in wb.tags)
+    assert wb.studio is not None
+    keys = {f.key for f in wb.studio.custom_fields}
+    assert "x.gate_pass_no" in keys
+
+
+def test_weighbridge_hidden_from_ungranted_tenant(client, admin_headers):
+    cat = client.get("/api/marketplace/catalog", headers=admin_headers)
+    assert cat.status_code == 200, cat.text
+    ids = {e["id"] for e in cat.json()["entries"]}
+    assert "partner.easybooks.weighbridge" not in ids
+    leak = client.post(
+        "/api/marketplace/extensions/partner.easybooks.weighbridge/install",
+        headers=admin_headers,
+    )
+    assert leak.status_code == 404, leak.text
+
+
+def test_weighbridge_for_you_on_granted_mill_not_hospital(client, monkeypatch):
+    from sqlmodel import Session
+    import db as db_mod
+    from models import Tenant
+    from services.marketplace.catalog import WEIGHBRIDGE_ID, grant_private_listing
+
+    mill_id, mill_auth = _signup(client, "mill-wb@mp.test", "Mill Weigh")
+    hosp_id, hosp_auth = _signup(client, "hosp-wb@mp.test", "Hospital Weigh")
+
+    with Session(db_mod.engine) as s:
+        mill = s.get(Tenant, mill_id)
+        grant_private_listing(mill, WEIGHBRIDGE_ID)
+        s.add(mill)
+        s.commit()
+
+    cat_m = client.get("/api/marketplace/catalog", headers=mill_auth)
+    assert cat_m.status_code == 200, cat_m.text
+    ids_m = {e["id"] for e in cat_m.json()["entries"]}
+    assert WEIGHBRIDGE_ID in ids_m
+    row = next(e for e in cat_m.json()["entries"] if e["id"] == WEIGHBRIDGE_ID)
+    assert row["for_you"] is True
+    assert row["audience"] == "private"
+    assert row["name"] == "Weighbridge"
+    assert "spinning" in row["tags"]
+
+    cat_h = client.get("/api/marketplace/catalog", headers=hosp_auth)
+    assert cat_h.status_code == 200, cat_h.text
+    ids_h = {e["id"] for e in cat_h.json()["entries"]}
+    assert WEIGHBRIDGE_ID not in ids_h
+
+    leak = client.post(
+        f"/api/marketplace/extensions/{WEIGHBRIDGE_ID}/install",
+        headers=hosp_auth,
+    )
+    assert leak.status_code == 404, leak.text
+
+    inst = client.post(
+        f"/api/marketplace/extensions/{WEIGHBRIDGE_ID}/install",
+        headers=mill_auth,
+    )
+    assert inst.status_code == 200, inst.text
+    assert "no partner code was executed" in inst.json()["message"].lower()
+
+    fields = client.get("/api/studio/fields?entity=invoice", headers=mill_auth)
+    assert fields.status_code == 200, fields.text
+    keys = {f["key"] for f in fields.json()}
+    assert "x.gate_pass_no" in keys
+    assert "x.lot_ref" in keys
+
+    hosp_fields = client.get("/api/studio/fields?entity=invoice", headers=hosp_auth)
+    assert hosp_fields.status_code == 200, hosp_fields.text
+    assert "x.gate_pass_no" not in {f["key"] for f in hosp_fields.json()}
 
 
 def test_manifest_rejects_bad_id():

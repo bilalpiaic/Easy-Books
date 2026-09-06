@@ -717,6 +717,7 @@ def test_soft_close_locks_without_zeroing_pl():
     app.dependency_overrides[get_session] = _get_session_override(engine)
     client = TestClient(app)
     auth = _signup_and_login(client, "pc-soft@co.test", "PCsoft")
+    client.patch("/api/settings", headers=auth, json={"period_close_require_checklist": "false"})
 
     cash = _acct(client, auth, "1000")
     rev = _acct(client, auth, "4000")
@@ -747,6 +748,7 @@ def test_year_end_close_zeros_pl_to_retained_earnings():
     app.dependency_overrides[get_session] = _get_session_override(engine)
     client = TestClient(app)
     auth = _signup_and_login(client, "pc-ye@co.test", "PCye")
+    client.patch("/api/settings", headers=auth, json={"period_close_require_checklist": "false"})
 
     cash = _acct(client, auth, "1000")
     rev = _acct(client, auth, "4000")

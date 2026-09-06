@@ -1,12 +1,25 @@
 """Shared pytest fixtures."""
+import os
+
 import pytest
 
 import db as _db_module
 from db import get_session
 from main import app
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
+
+
+def disable_period_close_checklist(client, headers):
+    """#262 defaults require_checklist on; older close tests must opt out."""
+    r = client.patch(
+        "/api/settings",
+        headers=headers,
+        json={"period_close_require_checklist": "false"},
+    )
+    assert r.status_code == 200, r.text
 
 
 @pytest.fixture(autouse=True)
@@ -55,12 +68,25 @@ def _clear_global_rate_limit():
 
 @pytest.fixture(name="client")
 def client_fixture(monkeypatch):
-    """In-memory SQLite engine; overrides the FastAPI session dep AND the
-    module-level `db.engine` + `scripts.seed_demo.engine` so the demo seeder
-    deterministically targets the test DB regardless of import order."""
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
+    """Per-test engine. SQLite in-memory by default; set PYTEST_POSTGRES=1 and
+    TEST_DATABASE_URL to run the shared fixture against Postgres (#116 leftover)."""
+    pg_url = (os.environ.get("TEST_DATABASE_URL") or "").strip()
+    use_pg = pg_url and os.environ.get("PYTEST_POSTGRES", "").lower() in (
+        "1", "true", "yes",
     )
+    if use_pg:
+        engine = create_engine(pg_url, pool_pre_ping=True)
+        # Named circular FKs (hc_bed / comparativestatement) still trip
+        # metadata.drop_all on Postgres; wipe the schema instead.
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+            conn.execute(text("CREATE SCHEMA public"))
+            conn.execute(text("GRANT ALL ON SCHEMA public TO CURRENT_USER"))
+            conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
+    else:
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool,
+        )
     SQLModel.metadata.create_all(engine)
 
     def _override():
@@ -79,6 +105,10 @@ def client_fixture(monkeypatch):
     app.dependency_overrides.clear()
     if hasattr(app.state, "engine"):
         delattr(app.state, "engine")
+    if use_pg:
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+            conn.execute(text("CREATE SCHEMA public"))
     engine.dispose()
 
 

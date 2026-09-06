@@ -1823,7 +1823,11 @@ class ComparativeStatement(SQLModel, table=True):
     # demo purge nulls this column before bulk deletes (routers/admin.py).
     po_id: Optional[int] = Field(
         default=None,
-        sa_column=Column("po_id", Integer, ForeignKey("purchaseorder.id", use_alter=True)),
+        sa_column=Column(
+            "po_id",
+            Integer,
+            ForeignKey("purchaseorder.id", use_alter=True, name="fk_cs_po_id"),
+        ),
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

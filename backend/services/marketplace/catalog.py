@@ -17,6 +17,75 @@ import httpx
 from models import Tenant
 from services.marketplace.manifest import CatalogEntry, ExtensionManifest
 
+WEIGHBRIDGE_ID = "partner.easybooks.weighbridge"
+_PRIVATE_META_KEY = "_marketplace_private"
+
+
+def private_listing_ids(tenant: Tenant) -> set[str]:
+    """Ops/seed grants stored on tenant.module_meta (not owner-writable)."""
+    try:
+        meta = json.loads(tenant.module_meta or "{}")
+    except Exception:
+        return set()
+    if not isinstance(meta, dict):
+        return set()
+    raw = meta.get(_PRIVATE_META_KEY) or []
+    if not isinstance(raw, list):
+        return set()
+    return {str(x) for x in raw if x}
+
+
+def grant_private_listing(tenant: Tenant, extension_id: str) -> None:
+    """Record that this tenant may see a private catalog row. Idempotent."""
+    try:
+        meta = json.loads(tenant.module_meta or "{}")
+    except Exception:
+        meta = {}
+    if not isinstance(meta, dict):
+        meta = {}
+    ids = [str(x) for x in (meta.get(_PRIVATE_META_KEY) or []) if x]
+    if extension_id not in ids:
+        ids.append(extension_id)
+    meta[_PRIVATE_META_KEY] = ids
+    tenant.module_meta = json.dumps(meta)
+
+
+def set_private_listings(tenant: Tenant, extension_ids: list[str]) -> list[str]:
+    """Replace the private-listing grant set (ops)."""
+    try:
+        meta = json.loads(tenant.module_meta or "{}")
+    except Exception:
+        meta = {}
+    if not isinstance(meta, dict):
+        meta = {}
+    cleaned = sorted({str(x) for x in extension_ids if x})
+    if cleaned:
+        meta[_PRIVATE_META_KEY] = cleaned
+    else:
+        meta.pop(_PRIVATE_META_KEY, None)
+    tenant.module_meta = json.dumps(meta)
+    return cleaned
+
+
+def _env_private_tenant_ids(extension_id: str) -> set[int]:
+    raw = (os.environ.get("MARKETPLACE_PRIVATE_AUDIENCE") or "").strip()
+    if not raw:
+        return set()
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return set()
+    if not isinstance(data, dict):
+        return set()
+    ids = data.get(extension_id) or []
+    out: set[int] = set()
+    for i in ids:
+        try:
+            out.add(int(i))
+        except (TypeError, ValueError):
+            continue
+    return out
+
 
 def visible_to(entry: CatalogEntry, tenant: Tenant) -> bool:
     """Server-side catalog gate (#371). Never rely on the React tab alone."""
@@ -27,7 +96,11 @@ def visible_to(entry: CatalogEntry, tenant: Tenant) -> bool:
         tid = tenant.id
         if tid is None:
             return False
-        return int(tid) in {int(i) for i in (entry.visible_to_tenant_ids or [])}
+        allowed = {int(i) for i in (entry.visible_to_tenant_ids or [])}
+        allowed |= _env_private_tenant_ids(entry.manifest.id)
+        if int(tid) in allowed:
+            return True
+        return entry.manifest.id in private_listing_ids(tenant)
     if audience == "entitled":
         mid = entry.entitled_module
         if not mid:
@@ -174,6 +247,66 @@ _CURATED: list[dict[str, Any]] = [
             "requires_modules": ["eu_peppol"],
             "requested_permissions": ["read_invoices"],
             "settings_keys": [],
+            "curated": True,
+        },
+    },
+    {
+        "summary": "Mill weighbridge overlay: gate-pass + lot on invoices. Declarative Studio bundle; no partner code.",
+        "tags": ["spinning", "private"],
+        "audience": "private",
+        "visible_to_tenant_ids": [],
+        "studio": {
+            "custom_fields": [
+                {
+                    "entity": "invoice",
+                    "key": "x.gate_pass_no",
+                    "label": "Gate pass",
+                    "type": "text",
+                    "required": True,
+                    "show_on_form": True,
+                    "show_on_print": True,
+                    "show_on_list": True,
+                    "sort_order": 10,
+                },
+                {
+                    "entity": "invoice",
+                    "key": "x.lot_ref",
+                    "label": "Lot ref",
+                    "type": "text",
+                    "show_on_form": True,
+                    "show_on_print": False,
+                    "show_on_list": False,
+                    "sort_order": 20,
+                },
+            ],
+            "form_schema_patch": {
+                "invoice": {
+                    "fields": {
+                        "x.gate_pass_no": {"visible": True, "required": True},
+                        "x.lot_ref": {"visible": True, "required": False},
+                    }
+                }
+            },
+            "print_template_key": "standard",
+        },
+        "manifest": {
+            "id": "partner.easybooks.weighbridge",
+            "name": "Weighbridge",
+            "version": "1.0.0",
+            "description": (
+                "Private mill listing: installs invoice custom fields "
+                "(gate pass, lot ref) via a Studio bundle. Install never "
+                "executes partner code."
+            ),
+            "publisher": "Easy-Books Partners",
+            "category": "Industry",
+            "icon": "Scale",
+            "homepage": "https://github.com/bilalpiaic/Easy-Books",
+            "docs_url": "https://github.com/bilalpiaic/Easy-Books/blob/main/docs/MARKETPLACE.md",
+            "requires_modules": ["base"],
+            "requested_permissions": ["read_invoices"],
+            "settings_keys": ["ext.weighbridge.note"],
+            "webhook_events": [],
             "curated": True,
         },
     },

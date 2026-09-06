@@ -47,6 +47,10 @@ def _signup_and_auth(client: TestClient, email: str = "p3@p3.test") -> dict:
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
+def _disable_checklist(client, auth):
+    client.patch("/api/settings", headers=auth, json={"period_close_require_checklist": "false"})
+
+
 def _sum_decimal(rows, key: str) -> Decimal:
     total = Decimal("0")
     for r in rows:
@@ -156,6 +160,7 @@ def test_allocation_exceeding_payment_amount_rejected(client: TestClient):
 
 def test_period_close_zeroes_revenue_and_expense(client: TestClient):
     auth = _signup_and_auth(client)
+    _disable_checklist(client, auth)
     accounts = client.get("/api/accounts", headers=auth).json()["items"]
     tenant_id = accounts[0]["tenant_id"]
 

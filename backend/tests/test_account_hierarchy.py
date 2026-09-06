@@ -188,15 +188,15 @@ def test_cannot_create_child_under_posted_account(client, admin_headers):
     """Creating a child under an account that already has JE postings → 400."""
     h = admin_headers
     # Create two leaf accounts and post a JV to the first one
-    dr_acct = _acct(client, h, "5100", "DR Account")
-    cr_acct = _acct(client, h, "5101", "CR Account")
+    dr_acct = _acct(client, h, "9100", "DR Account")
+    cr_acct = _acct(client, h, "9101", "CR Account")
 
     jv_r = _post_jv(client, h, dr_acct["id"], cr_acct["id"])
     assert jv_r.status_code in (200, 201), f"JV post failed: {jv_r.text}"
 
     # Now try to create a child under dr_acct (which has postings)
     r = client.post("/api/accounts", headers=h, json={
-        "code": "5102",
+            "code": "9102",
         "name": "Child of Posted",
         "type": "Asset",
         "parent_id": dr_acct["id"],
@@ -208,8 +208,8 @@ def test_cannot_create_child_under_posted_account(client, admin_headers):
 def test_cannot_move_account_under_posted_account(client, admin_headers):
     """Moving (updating parent_id) an account under a posted account → 400."""
     h = admin_headers
-    dr_acct = _acct(client, h, "5200", "DR Acct2")
-    cr_acct = _acct(client, h, "5201", "CR Acct2")
+    dr_acct = _acct(client, h, "9200", "DR Acct2")
+    cr_acct = _acct(client, h, "9201", "CR Acct2")
     to_move = _acct(client, h, "5202", "Move Me")
 
     # Post a JV to dr_acct
