@@ -14,7 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, Integer, JSON, Numeric
+from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, Integer, JSON, Numeric, Text
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from services.money import Money, ZERO
@@ -850,6 +850,27 @@ class FormSchema(SQLModel, table=True):
     payload_json: dict = Field(default_factory=dict, sa_column=Column("schema_json", JSON, nullable=False))
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     updated_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class PrintTemplate(SQLModel, table=True):
+    """Tenant print-template clone or default picker (#374). Built-in
+    ``standard`` keeps using ``backend/templates/{entity}.html`` unless a
+    clone is marked default and stores HTML here."""
+    __tablename__ = "print_template"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "entity", "key", name="uq_print_template_tenant_entity_key"),
+        Index("ix_print_template_tenant_entity", "tenant_id", "entity"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    entity: str  # invoice | bill
+    key: str  # standard | x.mill_packing
+    label: str
+    html: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    is_builtin_override: bool = Field(default=False)
+    is_default: bool = Field(default=False)
+    source_extension_id: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class StockSerial(SQLModel, table=True):
