@@ -1341,12 +1341,19 @@ def download_invoice_pdf(session: SessionDep, user: CurrentUserDep, invoice_id: 
     settings_map = {s.key: s.value for s in settings_rows}
 
     from services.pdf import PdfEngineError, PdfRenderError, pdf_http, render_invoice_pdf
+    from services.print_templates import html_for_pdf, print_fields_for
+
+    dump = inv.model_dump()
+    cf = dump.get("custom_fields") or {}
     try:
         pdf_bytes = render_invoice_pdf(
-            invoice=inv.model_dump(),
+            invoice=dump,
             lines=[ln.model_dump() for ln in lines],
             company_name=settings_map.get("company_name", ""),
             tagline=settings_map.get("business_tagline", ""),
+            html=html_for_pdf(session, user.tenant_id, "invoice"),
+            print_fields=print_fields_for(session, user.tenant_id, "invoice", cf),
+            custom_fields=cf,
         )
     except (PdfEngineError, PdfRenderError) as e:
         raise pdf_http(e) from e

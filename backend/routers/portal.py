@@ -164,11 +164,18 @@ def portal_invoice_pdf(token: str, invoice_id: int, session: SessionDep):
         for s in session.exec(select(Settings).where(Settings.tenant_id == pt.tenant_id)).all()
     }
     from services.pdf import PdfEngineError, PdfRenderError, pdf_http, render_invoice_pdf
+    from services.print_templates import html_for_pdf, print_fields_for
+
+    dump = inv.model_dump()
+    cf = dump.get("custom_fields") or {}
     try:
         pdf = render_invoice_pdf(
-            inv.model_dump(), [ln.model_dump() for ln in lines],
+            dump, [ln.model_dump() for ln in lines],
             settings.get("company_name", ""), settings.get("business_tagline", ""),
             logo_url=settings.get("logo_url") or "",
+            html=html_for_pdf(session, pt.tenant_id, "invoice"),
+            print_fields=print_fields_for(session, pt.tenant_id, "invoice", cf),
+            custom_fields=cf,
         )
     except (PdfEngineError, PdfRenderError) as e:
         raise pdf_http(e) from e
