@@ -203,3 +203,34 @@ def test_forgot_rate_limit_per_email(client, monkeypatch):
     for _ in range(6):
         last = client.post("/api/auth/forgot-password", json={"email": email})
     assert last.status_code == 429
+
+
+def test_reset_email_uses_first_frontend_origin(client, monkeypatch):
+    """Comma-separated FRONTEND_ORIGIN must not leak into the reset URL."""
+    monkeypatch.setenv(
+        "FRONTEND_ORIGIN",
+        "https://app.example.com,http://localhost:3000",
+    )
+    email, _ = _signup(client, email="orig@co.test")
+    sent = {}
+    monkeypatch.setattr(
+        "routers.auth.send_email",
+        lambda to, subject, html_body: sent.update(html=html_body),
+    )
+    assert client.post("/api/auth/forgot-password", json={"email": email}).status_code == 200
+    assert "https://app.example.com/reset-password?token=" in sent["html"]
+    assert "localhost:3000" not in sent["html"]
+    assert "," not in sent["html"]
+
+
+def test_forgot_password_cors_preflight_allows_loopback(client):
+    r = client.options(
+        "/api/auth/forgot-password",
+        headers={
+            "Origin": "http://127.0.0.1:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert r.status_code in (200, 204)
+    assert r.headers.get("access-control-allow-origin") == "http://127.0.0.1:3000"

@@ -14,19 +14,12 @@ declare const self: ServiceWorkerGlobalScope
 
 const runtimeCaching: RuntimeCaching[] = [
   {
-    // Never cache API traffic. Same-origin /api/* (proxied) AND the local
-    // FastAPI host the installer opens (127.0.0.1:8000 / localhost:8000) —
-    // otherwise Serwist's default cross-origin NetworkFirst can turn a brief
-    // backend blip into a confusing "Failed to fetch" on login.
-    matcher: ({ sameOrigin, url }) => {
-      if (sameOrigin && url.pathname.startsWith("/api/")) return true
-      if (!url.pathname.startsWith("/api/")) return false
-      const host = url.hostname
-      return (
-        (host === "127.0.0.1" || host === "localhost" || host === "[::1]") &&
-        (url.port === "8000" || url.port === "")
-      )
-    },
+    // Never cache API traffic, on any host. Serwist's defaultCache otherwise
+    // applies NetworkFirst (10s timeout) to cross-origin /api/* — that is the
+    // Vercel split (frontend.app → backend.vercel.app) and JSON POSTs such as
+    // forgot-password. A cold start or SMTP send longer than 10s then surfaces
+    // in the UI as a raw "Failed to fetch".
+    matcher: ({ url }) => url.pathname.startsWith("/api/"),
     handler: new NetworkOnly(),
   },
   ...defaultCache,
