@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { PenTool, Plus, Trash2, Save, Copy, Star } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 
@@ -91,7 +92,11 @@ export default function StudioPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Studio</h1>
           <p className="text-sm text-[var(--text-primary)]/60">
-            Custom fields, form layout, and print templates. Marketplace listings may apply a
+            Custom fields, form layout, and print templates. Mill tenants: install{" "}
+            <Link href="/apps?tab=marketplace" className="text-[var(--primary)] underline">
+              Weighbridge
+            </Link>{" "}
+            from Add-ons → Marketplace (gate pass + lot on invoices). Marketplace listings apply a
             declarative bundle on Install — no partner code runs in-process.
           </p>
         </div>

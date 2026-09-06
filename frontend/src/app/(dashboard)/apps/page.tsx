@@ -279,6 +279,7 @@ function AppsPageInner() {
   const router = useRouter()
   const search = useSearchParams()
   const welcome = search.get("welcome") === "1"
+  const tabParam = search.get("tab")
 
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -311,11 +312,19 @@ function AppsPageInner() {
 
   useEffect(() => { setView(readView()) }, [])
   useEffect(() => {
-    if (welcome) setBucket("recommended")
-  }, [welcome])
+    if (tabParam === "default" || tabParam === "recommended" || tabParam === "optional" || tabParam === "marketplace") {
+      setBucket(tabParam)
+    } else if (welcome) {
+      setBucket("recommended")
+    }
+  }, [welcome, tabParam])
+  useEffect(() => { void loadCatalog() }, [loadCatalog])
   useEffect(() => {
-    if (bucket === "marketplace" || view === "list") void loadCatalog()
-  }, [bucket, view, loadCatalog])
+    if (welcome) return
+    if (tabParam === "default" || tabParam === "recommended" || tabParam === "optional" || tabParam === "marketplace") return
+    if (bucket !== "default") return
+    if (catalog.some(e => e.for_you)) setBucket("marketplace")
+  }, [catalog, welcome, tabParam, bucket])
 
   const setViewPersist = (mode: ViewMode) => {
     setView(mode)
@@ -711,6 +720,21 @@ function AppsPageInner() {
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           {success}
         </div>
+      )}
+
+      {view === "tabs" && bucket !== "marketplace" && catalog.some(e => e.for_you) && (
+        <button
+          type="button"
+          onClick={() => setBucket("marketplace")}
+          className="w-full text-left rounded-xl border border-[var(--primary)]/35 bg-[var(--primary)]/5 px-4 py-3"
+        >
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            For you: {catalog.filter(e => e.for_you).map(e => e.name).join(", ")}
+          </p>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+            Open Marketplace to install mill listings such as Weighbridge (gate pass + lot on invoices).
+          </p>
+        </button>
       )}
 
       {modules.length === 0 ? (
