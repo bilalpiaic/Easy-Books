@@ -7,6 +7,8 @@ export type CustomFieldEntity = 'invoice' | 'bill' | 'customer' | 'product' | 'v
 
 export type CustomFieldType = 'text' | 'number' | 'date' | 'enum' | 'bool'
 
+export type FieldAccessLevel = 'edit' | 'view' | 'none'
+
 export type CustomFieldDef = {
   id: number
   entity: CustomFieldEntity
@@ -41,24 +43,33 @@ export function CustomFieldsInputs({
   values,
   onChange,
   schemaFields = {},
+  fieldAccess = {},
 }: {
   entity: CustomFieldEntity
   values: CustomFieldValues
   onChange: (next: CustomFieldValues) => void
   schemaFields?: Record<string, { visible?: boolean; required?: boolean; order?: number }>
+  fieldAccess?: Record<string, FieldAccessLevel>
 }) {
   const [defs, setDefs] = useState<CustomFieldDef[]>([])
+  const [fetchedAccess, setFetchedAccess] = useState<Record<string, FieldAccessLevel>>({})
 
   useEffect(() => {
     fetchStudioFields(entity)
       .then(rows => setDefs(rows.filter(d => d.show_on_form)))
       .catch(() => setDefs([]))
+    apiFetch<{ field_access?: Record<string, FieldAccessLevel> }>(`/api/studio/forms/${entity}`)
+      .then(res => setFetchedAccess(res.field_access || {}))
+      .catch(() => setFetchedAccess({}))
   }, [entity])
+
+  const accessMap: Record<string, FieldAccessLevel> = { ...fetchedAccess, ...fieldAccess }
 
   if (defs.length === 0) return null
 
   const visibleDefs = defs
     .filter(d => schemaFields[d.key]?.visible !== false)
+    .filter(d => (accessMap[d.key] || 'edit') !== 'none')
     .slice()
     .sort((a, b) => {
       const ao = schemaFields[a.key]?.order
@@ -71,6 +82,7 @@ export function CustomFieldsInputs({
   if (visibleDefs.length === 0) return null
 
   const setKey = (key: string, value: unknown) => {
+    if ((accessMap[key] || 'edit') === 'view') return
     const next = { ...values }
     if (value === '' || value === undefined) delete next[key]
     else next[key] = value
@@ -80,8 +92,10 @@ export function CustomFieldsInputs({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {visibleDefs.map(def => {
+        const access = accessMap[def.key] || 'edit'
+        const readOnly = access === 'view'
+        const required = !readOnly && Boolean(def.required || schemaFields[def.key]?.required)
         const raw = values[def.key]
-        const required = Boolean(def.required || schemaFields[def.key]?.required)
         const label = (
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
             {def.label}
@@ -97,6 +111,7 @@ export function CustomFieldsInputs({
                 id={def.key}
                 type="checkbox"
                 checked={Boolean(raw)}
+                disabled={readOnly}
                 onChange={e => setKey(def.key, e.target.checked)}
                 className="rounded border-[var(--border)] accent-[var(--primary)]"
               />
@@ -114,6 +129,7 @@ export function CustomFieldsInputs({
               <select
                 value={raw == null ? '' : String(raw)}
                 required={required}
+                disabled={readOnly}
                 onChange={e => setKey(def.key, e.target.value)}
                 className={fieldClass}
               >
@@ -133,6 +149,7 @@ export function CustomFieldsInputs({
                 type="number"
                 step="any"
                 required={required}
+                disabled={readOnly}
                 value={raw == null ? '' : String(raw)}
                 onChange={e => setKey(def.key, e.target.value === '' ? '' : Number(e.target.value))}
                 className={fieldClass}
@@ -146,6 +163,7 @@ export function CustomFieldsInputs({
             <input
               type={def.type === 'date' ? 'date' : 'text'}
               required={required}
+              disabled={readOnly}
               value={raw == null ? '' : String(raw)}
               onChange={e => setKey(def.key, e.target.value)}
               className={fieldClass}

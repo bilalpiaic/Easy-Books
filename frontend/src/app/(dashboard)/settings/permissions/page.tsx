@@ -53,16 +53,19 @@ export default function PermissionsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [moduleEnabled, setModuleEnabled] = useState(false)
+  const [studioFields, setStudioFields] = useState<{ entity: string; key: string; label: string }[]>([])
 
   useEffect(() => {
     Promise.all([
       apiFetch<ResourceInfo[]>("/api/permissions/resources"),
       apiFetch<{ items: TeamMember[] }>("/api/users"),
       apiFetch<Record<string, string>>("/api/settings"),
-    ]).then(([res, team, settings]) => {
+      apiFetch<{ entity: string; key: string; label: string }[]>("/api/studio/fields").catch(() => []),
+    ]).then(([res, team, settings, fields]) => {
       setResources(res)
       setMembers(team.items ?? [])
       setModuleEnabled(settings["user_rights_enabled"] === "true")
+      setStudioFields(fields || [])
       if ((team.items ?? []).length > 0) {
         setSelectedUserId((team.items ?? [])[0].id)
       }
@@ -267,6 +270,68 @@ export default function PermissionsPage() {
               </div>
             )
           })}
+
+          {studioFields.length > 0 && (() => {
+            const isOpen = expanded["Fields"] === true
+            const parentOf: Record<string, string> = {
+              invoice: "invoices", bill: "bills", customer: "customers",
+              vendor: "vendors", product: "products",
+            }
+            return (
+              <div className="bg-white rounded-xl border border-[var(--border)] shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setExpanded(prev => ({ ...prev, Fields: !isOpen }))}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Database className="w-4 h-4 text-[var(--primary)]" />
+                    <span className="font-semibold text-sm text-[var(--text-primary)]">Fields</span>
+                    <span className="text-xs text-[var(--text-primary)]/40">({studioFields.length})</span>
+                  </div>
+                  {isOpen ? (
+                    <ChevronDown className="w-4 h-4 text-[var(--text-primary)]/40" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-[var(--text-primary)]/40" />
+                  )}
+                </button>
+                {isOpen && (
+                  <div className="border-t border-[var(--border)]">
+                    {studioFields.map((f, i) => {
+                      const resKey = `${parentOf[f.entity] || f.entity}.field.${f.key}`
+                      const current = drafts[resKey] ?? "default"
+                      const effective = getEffective(resKey)
+                      return (
+                        <div
+                          key={resKey}
+                          className={`flex items-center justify-between px-4 py-2.5 ${
+                            i < studioFields.length - 1 ? "border-b border-[var(--border)]" : ""
+                          }`}
+                        >
+                          <div>
+                            <span className="text-sm text-[var(--text-primary)]">{f.label}</span>
+                            <span className="ml-2 text-xs text-[var(--text-primary)]/40">{f.entity} · {f.key}</span>
+                            <span className={`ml-2 text-xs font-medium ${LEVEL_COLORS[effective] || LEVEL_COLORS.default}`}>
+                              ({effective})
+                            </span>
+                          </div>
+                          <select
+                            value={current}
+                            onChange={e => handleChange(resKey, e.target.value as AccessLevel)}
+                            className="text-xs px-2 py-1 border border-[var(--border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--primary)] bg-white text-[var(--text-primary)]"
+                          >
+                            <option value="default">Inherit parent</option>
+                            <option value="edit">Edit</option>
+                            <option value="view">View</option>
+                            <option value="none">No Access</option>
+                          </select>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
     </div>
