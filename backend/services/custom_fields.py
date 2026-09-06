@@ -68,11 +68,19 @@ def apply_incoming(
     incoming: Optional[dict],
     *,
     existing: Optional[dict] = None,
+    skip_required: Optional[set[str]] = None,
 ) -> dict:
     """Create: validate incoming (default {}). Update: omit keeps existing."""
     if incoming is None and existing is not None:
         return dict(existing or {})
-    return validate_payload(session, tenant_id, entity, incoming or {})
+    out = validate_payload(
+        session, tenant_id, entity, incoming or {}, skip_required=skip_required,
+    )
+    if existing and skip_required:
+        for key in skip_required:
+            if key in existing:
+                out[key] = existing[key]
+    return out
 
 
 def validate_payload(
@@ -80,6 +88,8 @@ def validate_payload(
     tenant_id: int,
     entity: str,
     data: Optional[dict],
+    *,
+    skip_required: Optional[set[str]] = None,
 ) -> dict:
     """Strip unknown keys; 400 on type / required / archived writes."""
     assert_entity(entity)
@@ -115,8 +125,9 @@ def validate_payload(
             continue
         out[key] = coerced
 
+    skip = skip_required or set()
     for defn in active.values():
-        if defn.required and defn.key not in out:
+        if defn.required and defn.key not in out and defn.key not in skip:
             raise HTTPException(400, f"Custom field '{defn.label}' ({defn.key}) is required")
 
     return out

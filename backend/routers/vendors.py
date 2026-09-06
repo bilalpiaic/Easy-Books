@@ -12,6 +12,7 @@ from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit
 from services.events import emit
 from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_payload, skip_custom_required
 
 router = APIRouter(prefix="/api/vendors", tags=["vendors"], dependencies=[perm_dep("vendors")])
 
@@ -104,8 +105,10 @@ def _validate_wht_tax_code(session, tenant_id: int, tax_code_id: Optional[int]) 
 def create_vendor(session: SessionDep, user: WriteUserDep, body: VendorCreate):
     _validate_wht_tax_code(session, user.tenant_id, body.wht_tax_code_id)
     data = body.model_dump()
+    data, hidden = apply_to_payload(session, user, "vendor", data)
     data["custom_fields"] = apply_custom_fields(
-        session, user.tenant_id, "vendor", data.get("custom_fields")
+        session, user.tenant_id, "vendor", data.get("custom_fields"),
+        skip_required=skip_custom_required(hidden),
     )
     v = Vendor(**data, tenant_id=user.tenant_id)
     session.add(v)
@@ -129,11 +132,14 @@ def update_vendor(
     if not v:
         raise HTTPException(404, "Vendor not found")
     payload = body.model_dump(exclude_unset=True)
+    payload, hidden = apply_to_payload(session, user, "vendor", payload, existing=v.model_dump())
     if "wht_tax_code_id" in payload:
         _validate_wht_tax_code(session, user.tenant_id, payload["wht_tax_code_id"])
     if "custom_fields" in payload:
         payload["custom_fields"] = apply_custom_fields(
-            session, user.tenant_id, "vendor", payload["custom_fields"]
+            session, user.tenant_id, "vendor", payload["custom_fields"],
+            existing=v.custom_fields,
+            skip_required=skip_custom_required(hidden),
         )
     for k, val in payload.items():
         setattr(v, k, val)

@@ -9,6 +9,7 @@ import { useFmt, useSettings } from '@/context/SettingsContext'
 import { usePRAPortal } from '@/hooks/usePRAPortal'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
 import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
+import { useFormSchema } from '@/components/studio/formSchema'
 
 export interface InvoiceFull {
   id: number
@@ -110,6 +111,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
   const [promoMsg, setPromoMsg] = useState("")
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldValues>({})
+  const { fields: schemaFields, visible: vis, required: req } = useFormSchema('invoice')
   const currencyTouched = useRef(false)
 
   // Sync default currency to tenant base once settings load (create mode only)
@@ -367,14 +369,20 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               <p className="text-xs text-amber-700 mt-1 font-medium">Outstanding balance: {fmt(customerBalance)}</p>
             )}
           </div>
+          {vis('customer_name') && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Customer Name</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              Customer Name
+              {req('customer_name') ? <span className="text-red-600"> *</span> : null}
+            </label>
             <input value={form.customer_name} onChange={e => setForm(p => ({ ...p, customer_name: e.target.value }))}
               placeholder="or type manually"
+              required={req('customer_name')}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
+          )}
         </div>
-        {icCounterparties.length > 0 && (
+        {vis('is_intercompany') && icCounterparties.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-page)] border border-[var(--border)]">
             <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
               <input
@@ -408,30 +416,38 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             )}
           </div>
         )}
-        {(isPRAEnabled || form.buyer_ntn || form.buyer_cnic) && (
+        {(vis('buyer_ntn') || vis('buyer_cnic')) && (isPRAEnabled || form.buyer_ntn || form.buyer_cnic) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {vis('buyer_ntn') && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
                 Buyer NTN <span className="font-normal normal-case text-[var(--text-primary)]/40">(7-digit business)</span>
+                {req('buyer_ntn') ? <span className="text-red-600"> *</span> : null}
               </label>
               <input
                 value={form.buyer_ntn}
                 onChange={e => setForm(p => ({ ...p, buyer_ntn: e.target.value }))}
                 placeholder="1234567-8"
+                required={req('buyer_ntn')}
                 className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm font-mono"
               />
             </div>
+            )}
+            {vis('buyer_cnic') && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
                 Buyer CNIC <span className="font-normal normal-case text-[var(--text-primary)]/40">(13-digit consumer)</span>
+                {req('buyer_cnic') ? <span className="text-red-600"> *</span> : null}
               </label>
               <input
                 value={form.buyer_cnic}
                 onChange={e => setForm(p => ({ ...p, buyer_cnic: e.target.value }))}
                 placeholder="3520212345678"
+                required={req('buyer_cnic')}
                 className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm font-mono"
               />
             </div>
+            )}
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -440,6 +456,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             <input type="date" value={form.issue_date} onChange={e => setForm(p => ({ ...p, issue_date: e.target.value }))}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
+          {vis('payment_term_id') && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Payment Term</label>
             <select
@@ -462,13 +479,14 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               ))}
             </select>
           </div>
+          )}
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Due Date</label>
             <input type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
-        {isPortal && (
+        {vis('payment_mode') && isPortal && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
@@ -486,13 +504,21 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             </div>
           </div>
         )}
+        {(vis('description') || vis('assigned_to_id')) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {vis('description') && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Description</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              Description
+              {req('description') ? <span className="text-red-600"> *</span> : null}
+            </label>
             <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               placeholder="e.g. Consulting services — May 2026"
+              required={req('description')}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
+          )}
+          {vis('assigned_to_id') && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Sales Person <span className="font-normal normal-case text-[var(--text-primary)]/40">(optional)</span></label>
             <select value={form.assigned_to_id} onChange={e => setForm(p => ({ ...p, assigned_to_id: e.target.value }))}
@@ -501,8 +527,10 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               {staff.map(s => <option key={s.id} value={s.id}>{s.name} — {s.email.split("@")[0]}</option>)}
             </select>
           </div>
+          )}
         </div>
-        {!isPortal && (
+        )}
+        {vis('payment_mode') && !isPortal && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
@@ -521,6 +549,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           </div>
         )}
 
+        {vis('currency') && (
         <CurrencyRatePicker
           currency={form.currency}
           exchangeRate={form.exchange_rate}
@@ -532,6 +561,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           }}
           onRateChange={rate => setForm(p => ({ ...p, exchange_rate: rate }))}
         />
+        )}
 
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -544,7 +574,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
               </button>
             </div>
           </div>
-          <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes.filter(t => t.type === 'output')} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" />
+          <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes.filter(t => t.type === 'output')} showTax showStockHint warnOversell customerId={form.customer_id ? Number(form.customer_id) : null} priceKind="sale" hideDiscount={!vis('discount_pct')} />
         </div>
 
         <div className="bg-[var(--bg-page)] rounded-xl p-4 space-y-1 text-sm">
@@ -556,7 +586,7 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
             <span className="text-[var(--text-muted)]">Tax</span>
             {usePerLineTax ? (
               <span className="font-mono text-xs text-[var(--text-muted)]">(per-line) {fmt(gstAmount)}</span>
-            ) : (
+            ) : vis('gst_rate') ? (
               <div className="flex items-center gap-2">
                 <input type="number" min="0" max="100" step="0.5"
                   value={form.gst_rate}
@@ -566,6 +596,8 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
                 <span className="text-[var(--text-muted)] text-xs">%</span>
                 <span className="font-mono">{fmt(gstAmount)}</span>
               </div>
+            ) : (
+              <span className="font-mono">{fmt(gstAmount)}</span>
             )}
           </div>
           <div className="flex justify-between border-t border-[var(--border)] pt-2 font-bold">
@@ -580,24 +612,36 @@ export default function InvoiceForm({ mode, invoice, initialCustomerId, onSaved,
           )}
         </div>
 
+        {(vis('notes') || vis('internal_memo')) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {vis('notes') && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Notes (printed)</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              Notes (printed)
+              {req('notes') ? <span className="text-red-600"> *</span> : null}
+            </label>
             <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Printed on the invoice for the customer"
+              required={req('notes')}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm resize-none" />
           </div>
+          )}
+          {vis('internal_memo') && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</label>
             <textarea rows={2} value={form.internal_memo} onChange={e => setForm(p => ({ ...p, internal_memo: e.target.value }))}
               placeholder="Staff-only note, not printed"
               className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-none" />
           </div>
+          )}
         </div>
+        )}
 
-        <CustomFieldsInputs entity="invoice" values={customFields} onChange={setCustomFields} />
+        <CustomFieldsInputs entity="invoice" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} />
 
-        <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
+        {(vis('analytic_account_id') || vis('analytic_2_id') || vis('analytic_3_id')) && (
+          <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
+        )}
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         {confirmPostedEdit && (

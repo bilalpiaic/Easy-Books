@@ -14,6 +14,7 @@ from services.posting import EntryInput, post_transaction
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
 from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_payload, skip_custom_required
 
 router = APIRouter(prefix="/api/products", tags=["products"], dependencies=[perm_dep("products")])
 
@@ -194,8 +195,10 @@ def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate)
         raise HTTPException(400, "cost_method must be 'wavg', 'fifo', or null")
     _bootstrap = {"opening_qty", "opening_cost"}
     data = body.model_dump(exclude=_bootstrap)
+    data, hidden = apply_to_payload(session, user, "product", data)
     data["custom_fields"] = apply_custom_fields(
-        session, user.tenant_id, "product", data.get("custom_fields")
+        session, user.tenant_id, "product", data.get("custom_fields"),
+        skip_required=skip_custom_required(hidden),
     )
     p = Product(tenant_id=user.tenant_id, **data)
     session.add(p)
@@ -228,8 +231,10 @@ def update_product(
     if not p:
         raise HTTPException(404, "Product not found")
     data = body.model_dump(exclude={"opening_qty", "opening_cost"})
+    data, hidden = apply_to_payload(session, user, "product", data, existing=p.model_dump())
     data["custom_fields"] = apply_custom_fields(
-        session, user.tenant_id, "product", data.get("custom_fields"), existing=p.custom_fields
+        session, user.tenant_id, "product", data.get("custom_fields"), existing=p.custom_fields,
+        skip_required=skip_custom_required(hidden),
     )
     for k, v in data.items():
         setattr(p, k, v)
