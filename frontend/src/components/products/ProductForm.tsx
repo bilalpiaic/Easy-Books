@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useModules } from '@/context/ModuleContext'
+import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
 
 export interface ProductFull {
   id: number
@@ -24,6 +25,7 @@ export interface ProductFull {
   hsn_sac: string | null
   cost_method: string | null
   standalone_selling_price: number | null
+  custom_fields?: CustomFieldValues
 }
 
 interface Cat { id: number; name: string; parent_id: number | null; is_active: boolean; children?: Cat[] }
@@ -81,6 +83,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
   const [formError, setFormError] = useState('')
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Cat[]>([])
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({})
 
   useEffect(() => {
     apiFetch<{ items: Account[] }>('/api/accounts?limit=500')
@@ -136,6 +139,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
       standalone_selling_price: product.standalone_selling_price != null
         ? String(product.standalone_selling_price) : '',
     })
+    setCustomFields(product.custom_fields ?? {})
   }, [mode, product, categories])
 
   const handleSave = async () => {
@@ -161,6 +165,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
         cost_method: form.cost_method || null,
         standalone_selling_price: form.standalone_selling_price.trim()
           ? parseFloat(form.standalone_selling_price) : null,
+        custom_fields: customFields,
       }
       if (mode === 'edit' && product) {
         await apiFetch(`/api/products/${product.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -377,6 +382,7 @@ export default function ProductForm({ mode, product, onSaved, onCancel }: Props)
             ))}
           </div>
         )}
+        <CustomFieldsInputs entity="product" values={customFields} onChange={setCustomFields} />
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>

@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from fastapi import HTTPException
-from jinja2 import Environment, FileSystemLoader, TemplateError
+from jinja2 import Environment, FileSystemLoader, TemplateError, TemplateNotFound
 
 _TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
@@ -161,17 +161,8 @@ def render_template_html(template_name: str, context: dict) -> str:
     return env.get_template(template_name).render(**context)
 
 
-def render_html_pdf(template_name: str, context: dict) -> bytes:
-    """Render any Jinja2 template under templates/ to PDF bytes."""
+def _html_to_pdf(html_str: str) -> bytes:
     HTML = _import_weasyprint_html()
-
-    try:
-        html_str = render_template_html(template_name, context)
-    except TemplateError as e:
-        raise PdfRenderError(
-            f"PDF template error ({template_name}): {type(e).__name__}: {e}"
-        ) from e
-
     try:
         return HTML(string=html_str).write_pdf()
     except Exception as e:
@@ -181,24 +172,57 @@ def render_html_pdf(template_name: str, context: dict) -> bytes:
         raise PdfEngineError(f"{_PDF_UNAVAILABLE} ({detail})") from e
 
 
+def render_html_pdf(template_name: str, context: dict) -> bytes:
+    """Render any Jinja2 template under templates/ to PDF bytes."""
+    try:
+        html_str = render_template_html(template_name, context)
+    except TemplateError as e:
+        raise PdfRenderError(
+            f"PDF template error ({template_name}): {type(e).__name__}: {e}"
+        ) from e
+    return _html_to_pdf(html_str)
+
+
+def render_html_string_pdf(html_source: str, context: dict) -> bytes:
+    """Render a tenant clone string through the sandboxed Jinja env, then PDF."""
+    from services.print_templates import render_sandboxed_html
+
+    try:
+        html_str = render_sandboxed_html(html_source, context)
+    except TemplateNotFound as e:
+        raise PdfRenderError(
+            f"PDF template include is not allowed: {type(e).__name__}: {e}"
+        ) from e
+    except TemplateError as e:
+        raise PdfRenderError(
+            f"PDF template error: {type(e).__name__}: {e}"
+        ) from e
+    return _html_to_pdf(html_str)
+
+
 def render_invoice_pdf(
     invoice: dict,
     lines: list,
     company_name: str,
     tagline: str = "",
     logo_url: str = "",
+    html: str | None = None,
+    print_fields: list | None = None,
+    custom_fields: dict | None = None,
 ) -> bytes:
     """Render an invoice as PDF bytes (back-compat wrapper)."""
-    return render_html_pdf(
-        "invoice.html",
-        {
-            "invoice": invoice,
-            "lines": lines,
-            "company_name": company_name,
-            "tagline": tagline,
-            "logo_url": logo_url,
-        },
-    )
+    ctx = {
+        "invoice": invoice,
+        "lines": lines,
+        "company_name": company_name,
+        "tagline": tagline,
+        "logo_url": logo_url,
+        "print_fields": print_fields or [],
+        "custom_fields": custom_fields if custom_fields is not None else (invoice.get("custom_fields") or {}),
+    }
+    if html:
+        return render_html_string_pdf(html, ctx)
+    return render_html_pdf("invoice.html", ctx)
 
 
 def render_lab_report_pdf(report: dict, company_name: str, tagline: str = "") -> bytes:
@@ -213,14 +237,24 @@ def render_lab_report_pdf(report: dict, company_name: str, tagline: str = "") ->
     )
 
 
-def render_bill_pdf(bill: dict, lines: list, company_name: str, tagline: str = "") -> bytes:
+def render_bill_pdf(
+    bill: dict,
+    lines: list,
+    company_name: str,
+    tagline: str = "",
+    html: str | None = None,
+    print_fields: list | None = None,
+    custom_fields: dict | None = None,
+) -> bytes:
     """Render a vendor bill as PDF bytes."""
-    return render_html_pdf(
-        "bill.html",
-        {
-            "bill": bill,
-            "lines": lines,
-            "company_name": company_name,
-            "tagline": tagline,
-        },
-    )
+    ctx = {
+        "bill": bill,
+        "lines": lines,
+        "company_name": company_name,
+        "tagline": tagline,
+        "print_fields": print_fields or [],
+        "custom_fields": custom_fields if custom_fields is not None else (bill.get("custom_fields") or {}),
+    }
+    if html:
+        return render_html_string_pdf(html, ctx)
+    return render_html_pdf("bill.html", ctx)

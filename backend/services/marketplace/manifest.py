@@ -93,6 +93,29 @@ class ExtensionManifest(BaseModel):
         return v
 
 
+class StudioFieldSpec(BaseModel):
+    """Declarative custom-field row written on Marketplace install (#376)."""
+
+    entity: str
+    key: str
+    label: str
+    type: str = "text"
+    enum_values: list[str] | None = None
+    required: bool = False
+    show_on_form: bool = True
+    show_on_print: bool = False
+    show_on_list: bool = False
+    sort_order: int = 0
+
+
+class StudioBundle(BaseModel):
+    """Optional overlay applied on install. Never carries executable code."""
+
+    custom_fields: list[StudioFieldSpec] = Field(default_factory=list)
+    form_schema_patch: dict[str, dict] = Field(default_factory=dict)
+    print_template_key: str | None = None
+
+
 class CatalogEntry(BaseModel):
     """One row in the curated marketplace catalog."""
 
@@ -107,6 +130,7 @@ class CatalogEntry(BaseModel):
     # Used when audience == "entitled" — MODULE_REGISTRY id the tenant must
     # have entitled or installed (see services.entitlements).
     entitled_module: str | None = None
+    studio: StudioBundle | None = None
 
     @field_validator("tags")
     @classmethod

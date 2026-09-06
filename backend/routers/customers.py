@@ -11,6 +11,8 @@ from models import Customer, Invoice, InvoiceLine, PaymentAllocation, PaymentRec
 from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit, mark_onboarding_step
 from services.events import emit
 from services.permissions import perm_dep, apply_own_filter
+from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_payload, skip_custom_required
 
 router = APIRouter(prefix="/api/customers", tags=["customers"], dependencies=[perm_dep("customers")])
 
@@ -26,6 +28,7 @@ class CustomerCreate(BaseModel):
     cnic: Optional[str] = None  # PRA BuyerCNIC (13 digits)
     gstin: Optional[str] = None
     state_code: Optional[str] = None
+    custom_fields: Optional[dict] = None
 
 
 class CustomerUpdate(BaseModel):
@@ -40,6 +43,7 @@ class CustomerUpdate(BaseModel):
     cnic: Optional[str] = None
     gstin: Optional[str] = None
     state_code: Optional[str] = None
+    custom_fields: Optional[dict] = None
 
 
 @router.get("")
@@ -88,7 +92,13 @@ def get_customer(session: SessionDep, user: CurrentUserDep, customer_id: int):
 
 @router.post("", status_code=201)
 def create_customer(session: SessionDep, user: WriteUserDep, body: CustomerCreate):
-    c = Customer(**body.model_dump(), tenant_id=user.tenant_id)
+    data = body.model_dump()
+    data, hidden = apply_to_payload(session, user, "customer", data)
+    data["custom_fields"] = apply_custom_fields(
+        session, user.tenant_id, "customer", data.get("custom_fields"),
+        skip_required=skip_custom_required(hidden),
+    )
+    c = Customer(**data, tenant_id=user.tenant_id)
     session.add(c)
     session.flush()
     log_audit(session, user, "CREATE", "customer", c.id, {"name": c.name})
@@ -110,7 +120,15 @@ def update_customer(
     ).first()
     if not c:
         raise HTTPException(404, "Customer not found")
-    for k, v in body.model_dump(exclude_none=True).items():
+    data = body.model_dump(exclude_none=True)
+    data, hidden = apply_to_payload(session, user, "customer", data, existing=c.model_dump())
+    if "custom_fields" in data:
+        data["custom_fields"] = apply_custom_fields(
+            session, user.tenant_id, "customer", data["custom_fields"],
+            existing=c.custom_fields,
+            skip_required=skip_custom_required(hidden),
+        )
+    for k, v in data.items():
         setattr(c, k, v)
     session.add(c)
     log_audit(session, user, "UPDATE", "customer", c.id, {"name": c.name})

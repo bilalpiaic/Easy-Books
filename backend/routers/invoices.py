@@ -36,6 +36,8 @@ from services.india_gst import (
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
 from services.permissions import perm_dep, apply_own_filter
+from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_model, skip_custom_required
 from services.pra import get_pra_config, submit_to_pra
 from db import engine as _db_engine
 from sqlmodel import Session as _Session
@@ -130,6 +132,7 @@ class InvoiceCreate(BaseModel):
     # Intercompany (#261)
     is_intercompany: bool = False
     ic_counterparty_tenant_id: Optional[int] = None
+    custom_fields: Optional[dict] = None
 
 
 def _next_invoice_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -150,7 +153,9 @@ def _auto_overdue(session: Session, invoices: list) -> None:
     if changed:
         for inv in changed:
             session.add(inv)
-        session.commit()
+        # Flush, don't commit: commit expires instances and SQLModel
+        # model_dump() then returns {} (list endpoints lose id/status).
+        session.flush()
 
 
 _SORTABLE = {
@@ -314,6 +319,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
                    background_tasks: BackgroundTasks, mirror: bool = True):
     from services.saas import check_document_quota
     check_document_quota(session, user.tenant_id)
+    _schema_hidden = apply_to_model(session, user, "invoice", body)
 
     if body.is_intercompany:
         if not body.ic_counterparty_tenant_id:
@@ -415,6 +421,10 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
         is_intercompany=bool(body.is_intercompany),
         ic_counterparty_tenant_id=(
             body.ic_counterparty_tenant_id if body.is_intercompany else None
+        ),
+        custom_fields=apply_custom_fields(
+            session, user.tenant_id, "invoice", body.custom_fields,
+            skip_required=skip_custom_required(_schema_hidden),
         ),
     )
     session.add(invoice)
@@ -681,6 +691,13 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         raise HTTPException(404, "Invoice not found")
     from routers._edit_guards import assert_doc_editable
     assert_doc_editable(session, tenant_id=user.tenant_id, doc=inv, kind="invoice")
+    existing_lines = [
+        ln.model_dump()
+        for ln in session.exec(select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)).all()
+    ]
+    _schema_hidden = apply_to_model(
+        session, user, "invoice", body, existing=inv, existing_lines=existing_lines,
+    )
 
     if has_any_recognition(session, user.tenant_id, inv.id):
         raise HTTPException(
@@ -902,6 +919,10 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.payment_mode = body.payment_mode
     inv.buyer_ntn = body.buyer_ntn
     inv.buyer_cnic = body.buyer_cnic
+    inv.custom_fields = apply_custom_fields(
+        session, user.tenant_id, "invoice", body.custom_fields, existing=inv.custom_fields,
+        skip_required=skip_custom_required(_schema_hidden),
+    )
     session.add(inv)
     session.flush()
 
@@ -1322,12 +1343,19 @@ def download_invoice_pdf(session: SessionDep, user: CurrentUserDep, invoice_id: 
     settings_map = {s.key: s.value for s in settings_rows}
 
     from services.pdf import PdfEngineError, PdfRenderError, pdf_http, render_invoice_pdf
+    from services.print_templates import html_for_pdf, print_fields_for
+
+    dump = inv.model_dump()
+    cf = dump.get("custom_fields") or {}
     try:
         pdf_bytes = render_invoice_pdf(
-            invoice=inv.model_dump(),
+            invoice=dump,
             lines=[ln.model_dump() for ln in lines],
             company_name=settings_map.get("company_name", ""),
             tagline=settings_map.get("business_tagline", ""),
+            html=html_for_pdf(session, user.tenant_id, "invoice"),
+            print_fields=print_fields_for(session, user.tenant_id, "invoice", cf),
+            custom_fields=cf,
         )
     except (PdfEngineError, PdfRenderError) as e:
         raise pdf_http(e) from e

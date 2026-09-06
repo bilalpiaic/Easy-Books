@@ -1,0 +1,176 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { apiFetch } from '@/lib/api'
+
+export type CustomFieldEntity = 'invoice' | 'bill' | 'customer' | 'product' | 'vendor'
+
+export type CustomFieldType = 'text' | 'number' | 'date' | 'enum' | 'bool'
+
+export type FieldAccessLevel = 'edit' | 'view' | 'none'
+
+export type CustomFieldDef = {
+  id: number
+  entity: CustomFieldEntity
+  key: string
+  label: string
+  type: CustomFieldType
+  enum_values: string[] | null
+  required: boolean
+  show_on_form: boolean
+  show_on_print: boolean
+  show_on_list: boolean
+  sort_order: number
+  archived_at: string | null
+}
+
+export type CustomFieldValues = Record<string, unknown>
+
+export async function fetchStudioFields(entity: CustomFieldEntity): Promise<CustomFieldDef[]> {
+  const rows = await apiFetch<CustomFieldDef[]>(`/api/studio/fields?entity=${entity}`)
+  return (rows || []).filter(d => !d.archived_at)
+}
+
+export function formatCustomValue(def: CustomFieldDef, values: CustomFieldValues | undefined): string {
+  const raw = values?.[def.key]
+  if (raw == null || raw === '') return '—'
+  if (def.type === 'bool') return raw ? 'Yes' : 'No'
+  return String(raw)
+}
+
+export function CustomFieldsInputs({
+  entity,
+  values,
+  onChange,
+  schemaFields = {},
+  fieldAccess = {},
+}: {
+  entity: CustomFieldEntity
+  values: CustomFieldValues
+  onChange: (next: CustomFieldValues) => void
+  schemaFields?: Record<string, { visible?: boolean; required?: boolean; order?: number }>
+  fieldAccess?: Record<string, FieldAccessLevel>
+}) {
+  const [defs, setDefs] = useState<CustomFieldDef[]>([])
+  const [fetchedAccess, setFetchedAccess] = useState<Record<string, FieldAccessLevel>>({})
+
+  useEffect(() => {
+    fetchStudioFields(entity)
+      .then(rows => setDefs(rows.filter(d => d.show_on_form)))
+      .catch(() => setDefs([]))
+    apiFetch<{ field_access?: Record<string, FieldAccessLevel> }>(`/api/studio/forms/${entity}`)
+      .then(res => setFetchedAccess(res.field_access || {}))
+      .catch(() => setFetchedAccess({}))
+  }, [entity])
+
+  const accessMap: Record<string, FieldAccessLevel> = { ...fetchedAccess, ...fieldAccess }
+
+  if (defs.length === 0) return null
+
+  const visibleDefs = defs
+    .filter(d => schemaFields[d.key]?.visible !== false)
+    .filter(d => (accessMap[d.key] || 'edit') !== 'none')
+    .slice()
+    .sort((a, b) => {
+      const ao = schemaFields[a.key]?.order
+      const bo = schemaFields[b.key]?.order
+      if (ao != null && bo != null && ao !== bo) return ao - bo
+      if (ao != null) return -1
+      if (bo != null) return 1
+      return (a.sort_order || 0) - (b.sort_order || 0)
+    })
+  if (visibleDefs.length === 0) return null
+
+  const setKey = (key: string, value: unknown) => {
+    if ((accessMap[key] || 'edit') === 'view') return
+    const next = { ...values }
+    if (value === '' || value === undefined) delete next[key]
+    else next[key] = value
+    onChange(next)
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {visibleDefs.map(def => {
+        const access = accessMap[def.key] || 'edit'
+        const readOnly = access === 'view'
+        const required = !readOnly && Boolean(def.required || schemaFields[def.key]?.required)
+        const raw = values[def.key]
+        const label = (
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+            {def.label}
+            {required ? <span className="text-red-600"> *</span> : null}
+          </label>
+        )
+        const fieldClass =
+          'w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm'
+        if (def.type === 'bool') {
+          return (
+            <div key={def.key} className="flex items-center gap-2 pt-5">
+              <input
+                id={def.key}
+                type="checkbox"
+                checked={Boolean(raw)}
+                disabled={readOnly}
+                onChange={e => setKey(def.key, e.target.checked)}
+                className="rounded border-[var(--border)] accent-[var(--primary)]"
+              />
+              <label htmlFor={def.key} className="text-sm text-[var(--text-primary)]">
+                {def.label}
+                {required ? <span className="text-red-600"> *</span> : null}
+              </label>
+            </div>
+          )
+        }
+        if (def.type === 'enum') {
+          return (
+            <div key={def.key}>
+              {label}
+              <select
+                value={raw == null ? '' : String(raw)}
+                required={required}
+                disabled={readOnly}
+                onChange={e => setKey(def.key, e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">—</option>
+                {(def.enum_values || []).map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+          )
+        }
+        if (def.type === 'number') {
+          return (
+            <div key={def.key}>
+              {label}
+              <input
+                type="number"
+                step="any"
+                required={required}
+                disabled={readOnly}
+                value={raw == null ? '' : String(raw)}
+                onChange={e => setKey(def.key, e.target.value === '' ? '' : Number(e.target.value))}
+                className={fieldClass}
+              />
+            </div>
+          )
+        }
+        return (
+          <div key={def.key}>
+            {label}
+            <input
+              type={def.type === 'date' ? 'date' : 'text'}
+              required={required}
+              disabled={readOnly}
+              value={raw == null ? '' : String(raw)}
+              onChange={e => setKey(def.key, e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+}

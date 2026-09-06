@@ -193,6 +193,7 @@ def _parse_entries(raw: list[dict[str, Any]]) -> list[CatalogEntry]:
                 audience=row.get("audience") or "public",
                 visible_to_tenant_ids=list(row.get("visible_to_tenant_ids") or []),
                 entitled_module=row.get("entitled_module"),
+                studio=row.get("studio"),
             )
         )
     return out

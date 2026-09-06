@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useModules } from '@/context/ModuleContext'
+import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
 
 export interface CustomerFull {
   id: number
@@ -17,6 +18,7 @@ export interface CustomerFull {
   cnic?: string | null
   gstin?: string | null
   state_code?: string | null
+  custom_fields?: CustomFieldValues
 }
 
 interface PaymentTerm { id: number; code: string; name: string; days: number }
@@ -53,6 +55,7 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
   const [terms, setTerms]       = useState<PaymentTerm[]>([])
   const [saving, setSaving]     = useState(false)
   const [formError, setFormError] = useState('')
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({})
 
   useEffect(() => {
     apiFetch<PaymentTerm[]>('/api/payment-terms').then(setTerms).catch(() => {})
@@ -72,6 +75,7 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         gstin: customer.gstin ?? '',
         state_code: customer.state_code ?? '',
       })
+      setCustomFields(customer.custom_fields ?? {})
     }
   }, [mode, customer])
 
@@ -90,6 +94,7 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
         cnic: form.cnic || null,
         gstin: form.gstin || null,
         state_code: form.state_code || null,
+        custom_fields: customFields,
       }
       if (mode === 'edit' && customer) {
         await apiFetch(`/api/customers/${customer.id}`, {
@@ -212,6 +217,7 @@ export default function CustomerForm({ mode, customer, onSaved, onCancel }: Prop
             </div>
           </div>
         )}
+        <CustomFieldsInputs entity="customer" values={customFields} onChange={setCustomFields} />
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>

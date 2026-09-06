@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from services.report_sources import FieldDef, FieldType, OPS_BY_TYPE, REGISTRY, ReportSource
+from services.report_sources import FieldDef, FieldType, OPS_BY_TYPE, REGISTRY, ReportSource, resolve_source
 
 
 class FilterClause(BaseModel):
@@ -182,7 +182,7 @@ def _collect_joins(source: ReportSource, fields: list[FieldDef]):
 
 def run_report(session: Session, *, tenant_id: int, source_key: str,
                config: ReportConfig, page: int, page_size: int) -> ReportResult:
-    source = REGISTRY.get(source_key)
+    source = resolve_source(session, tenant_id, source_key)
     if source is None:
         raise ReportError(f"unknown source {source_key!r}")
 

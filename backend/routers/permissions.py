@@ -10,7 +10,9 @@ from routers.common import AdminUserDep, CurrentUserDep, SessionDep, log_audit
 from services.permissions import (
     PERMISSION_RESOURCES,
     _rights_enabled,
+    extra_field_permissions,
     get_effective_permission,
+    is_known_resource_key,
 )
 
 router = APIRouter(prefix="/api/permissions", tags=["permissions"])
@@ -32,6 +34,7 @@ def my_permissions(user: CurrentUserDep, session: SessionDep):
     """Full permission map for the calling user. Frontend fetches this at login."""
     module_on = _rights_enabled(user.tenant_id, session)
     perms = {key: get_effective_permission(user, key, session) for key in PERMISSION_RESOURCES}
+    perms.update(extra_field_permissions(session, user))
     return PermissionSet(permissions=perms, my_data_only=user.my_data_only, module_enabled=module_on)
 
 
@@ -51,6 +54,7 @@ def get_user_permissions(user_id: int, admin: AdminUserDep, session: SessionDep)
         raise HTTPException(404, "User not found")
     module_on = _rights_enabled(admin.tenant_id, session)
     perms = {key: get_effective_permission(target, key, session) for key in PERMISSION_RESOURCES}
+    perms.update(extra_field_permissions(session, target))
     return PermissionSet(permissions=perms, my_data_only=target.my_data_only, module_enabled=module_on)
 
 
@@ -69,7 +73,7 @@ def set_user_permissions(
         raise HTTPException(403, "Cannot modify owner permissions")
 
     for upd in updates:
-        if upd.resource_key not in PERMISSION_RESOURCES:
+        if not is_known_resource_key(upd.resource_key):
             raise HTTPException(400, f"Unknown resource key: {upd.resource_key}")
         if upd.access_level not in ("none", "view", "edit", "default"):
             raise HTTPException(400, f"Invalid access_level: {upd.access_level}")

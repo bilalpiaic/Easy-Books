@@ -112,3 +112,13 @@ Installed partner snapshots are stored on the tenant under
 **Add-ons → Marketplace** lists catalog cards with Install / Uninstall, topical
 tag chips, and a **For you** pill when `audience` is not `public`.
 A short sandbox callout is rendered from `/api/marketplace/boundary`.
+
+## Planned: audience + Studio bundles
+
+Catalog rows are currently the same for every tenant. Private / entitled
+listings, a **For you** badge, and optional declarative `studio` overlays
+(custom fields + form schema + print template, still no partner code) are
+specified in:
+
+- `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`
+- `docs/github-issues/tenant-customization-studio.md` (epic + child issues A–G)
