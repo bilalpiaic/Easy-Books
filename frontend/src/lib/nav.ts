@@ -1,3 +1,4 @@
+import { PURPOSE_MODULES } from "@/lib/dashboardHome"
 import {
   LayoutDashboard, LayoutGrid, PlusCircle, ClipboardList, BookOpen, TableProperties,
   Scale, FileText, PieChart, TrendingUp, FileSignature, Users,
@@ -21,6 +22,8 @@ export type NavItem = {
   section: string
   /** Module ID — item is hidden when this module is not installed. */
   forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing" | "pos" | "ecommerce"
+  /** Visible when *any* of these modules is installed (Operations home). */
+  forAnyModule?: readonly string[]
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -30,12 +33,31 @@ export type NavItem = {
 /** Single visibility predicate — use everywhere instead of ad-hoc forModule checks. */
 export function navVisible(item: NavItem, installed: Set<string>): boolean {
   if (item.forModule && !installed.has(item.forModule)) return false
+  if (item.forAnyModule?.length && !item.forAnyModule.some(m => installed.has(m))) return false
   if (item.notForModule && installed.has(item.notForModule)) return false
   return true
 }
 
+/** Pathname portion of a nav href (query string ignored). */
+export function navHrefPath(href: string): string {
+  const q = href.indexOf("?")
+  return q === -1 ? href : href.slice(0, q)
+}
+
+/**
+ * Whether `pathname` is the active location for a nav href.
+ * `/dashboard` is exact-only so `/dashboard/operations` is not treated as a child.
+ */
+export function navItemActive(pathname: string, href: string): boolean {
+  const path = navHrefPath(href)
+  if (pathname === path) return true
+  if (path === "/dashboard") return false
+  return pathname.startsWith(path + "/")
+}
+
 export const NAV: NavItem[] = [
   { label: "Dashboard",        href: "/dashboard",         icon: LayoutDashboard,  section: "Overview" },
+  { label: "Operations",       href: "/dashboard/operations", icon: Factory,       section: "Overview", forAnyModule: PURPOSE_MODULES },
   { label: "New Entry",        href: "/entry",             icon: PlusCircle,       section: "Ledger" },
   { label: "Journal",          href: "/journal",           icon: ClipboardList,    section: "Ledger" },
   { label: "Recurring",        href: "/recurring",         icon: RefreshCw,        section: "Ledger" },
@@ -386,7 +408,7 @@ export function getActiveSection(pathname: string, installed?: Set<string>): str
 /** Default landing href when a top-nav section is clicked — points to the hub/overview page */
 export function getSectionHref(key: string): string {
   const map: Record<string, string> = {
-    dashboard:     "/dashboard",
+    dashboard:     "/dashboard?view=financial",
     banking:       "/banking",
     sales:         "/receivable",
     purchases:     "/purchases",
@@ -416,7 +438,8 @@ export function getSectionHref(key: string): string {
 /** Sub-navigation items grouped by top-nav section key */
 export const SUB_NAV: Record<string, NavItem[]> = {
   dashboard: [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "dashboard" },
+    { label: "Financial",  href: "/dashboard?view=financial", icon: LayoutDashboard, section: "dashboard" },
+    { label: "Operations", href: "/dashboard/operations",     icon: Factory,         section: "dashboard", forAnyModule: PURPOSE_MODULES },
   ],
   banking: [
     { label: "Bank Accounts",   href: "/bank-accounts",   icon: Landmark,   section: "banking" },

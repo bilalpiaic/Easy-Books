@@ -14,12 +14,14 @@ import { getCurrentUser, removeAuthToken } from "@/lib/auth"
 import { useSettings } from "@/context/SettingsContext"
 import { useModules } from "@/context/ModuleContext"
 import { useTheme } from "@/context/ThemeContext"
-import { TOP_NAV, SUB_NAV, getActiveSection, navVisible } from "@/lib/nav"
+import { TOP_NAV, SUB_NAV, getActiveSection, navVisible, navHrefPath, navItemActive } from "@/lib/nav"
+import { PURPOSE_MODULES } from "@/lib/dashboardHome"
 import type { TopNavSection } from "@/lib/nav"
 import AlertsBell from "@/components/AlertsBell"
 import ClientSwitcher from "@/components/ClientSwitcher"
 
 const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: React.ElementType }> = {
+  dashboard:     { href: "/dashboard?view=financial", label: "Financial Dashboard", icon: LayoutDashboard },
   banking:       { href: "/banking",        label: "Banking Overview",    icon: LayoutGrid      },
   sales:         { href: "/receivable",     label: "Sales Overview",      icon: LayoutGrid      },
   purchases:     { href: "/purchases",      label: "Purchases Overview",  icon: LayoutGrid      },
@@ -251,7 +253,7 @@ export default function TopNav() {
     const items = (SUB_NAV[sectionKey] ?? []).filter(item => {
       if (!navVisible(item, installedModules)) return false
       if (item.adminOnly && !isAdmin) return false
-      if (ov && item.href === ov.href) return false
+      if (ov && navHrefPath(item.href) === navHrefPath(ov.href)) return false
       return true
     })
     return (
@@ -260,7 +262,7 @@ export default function TopNav() {
           <Link key={item.href} href={item.href} onClick={closePanel}
             className={cn(
               "flex items-center gap-2.5 px-4 py-[7px] text-[13px] transition-colors",
-              pathname === item.href || pathname.startsWith(item.href + "/")
+              navItemActive(pathname, item.href)
                 ? "text-[var(--primary)] font-semibold bg-[var(--primary-light)]"
                 : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
             )}>
@@ -387,11 +389,15 @@ export default function TopNav() {
     )
 
     if (section.key === "dashboard") {
-      return (
-        <Link key={section.key} href="/dashboard" className={cls}>
-          {label}
-        </Link>
-      )
+      const opsOn = PURPOSE_MODULES.some(m => installedModules.has(m))
+      if (!opsOn) {
+        return (
+          <Link key={section.key} href="/dashboard" className={cls}>
+            {label}
+          </Link>
+        )
+      }
+      // Mill / industry tenants: Dashboard is a menu so Operations is a click away.
     }
 
     return (

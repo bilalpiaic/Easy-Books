@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { ChevronDown, X } from "lucide-react"
-import { mobileMoreSections, MOBILE_MORE_SECTION_ORDER, SUB_NAV, navVisible, getActiveSection, getSectionHref } from "@/lib/nav"
+import { mobileMoreSections, MOBILE_MORE_SECTION_ORDER, SUB_NAV, navVisible, navItemActive, navHrefPath, getActiveSection, getSectionHref } from "@/lib/nav"
 import { cn } from "@/lib/utils"
 import { useModules } from "@/context/ModuleContext"
 import { getCurrentUser } from "@/lib/auth"
@@ -143,14 +143,13 @@ export default function MoreDrawer({ open, onClose }: Props) {
               )
             }
 
+            const overviewHref = getSectionHref(section.key)
             const items = (SUB_NAV[section.key] ?? []).filter(item => {
               if (!navVisible(item, installedModules)) return false
               if (item.adminOnly && !isAdmin) return false
+              if (navHrefPath(item.href) === navHrefPath(overviewHref)) return false
               return true
             })
-            if (!items.length) return null
-
-            const overviewHref = getSectionHref(section.key)
 
             return (
               <div key={section.key} className="mb-0.5">
@@ -206,7 +205,7 @@ export default function MoreDrawer({ open, onClose }: Props) {
                           onClick={onClose}
                           className={cn(
                             "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors min-h-11",
-                            pathname === item.href || pathname.startsWith(item.href + "/")
+                            navItemActive(pathname, item.href)
                               ? "bg-[var(--primary-light)] text-[var(--primary)] font-semibold"
                               : "text-[var(--text-primary)] hover:bg-[var(--bg-row-hover)]"
                           )}

@@ -2011,20 +2011,22 @@ function DashboardCustomizationPanel() {
   return (
     <div>
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
-        Easy-Books has <b>two home dashboards</b> you can switch between on{" "}
-        <CodeBadge>/dashboard</CodeBadge>: <b>Financial</b> (P&amp;L, cash, AR/AP) and{" "}
-        <b>Operations</b> (purpose-built KPIs for Manufacturing, Spinning, Healthcare,
-        Telecom, Purchases, and other installed industry packs). Each home has its own
-        customizable layout, saved per user.
+        Easy-Books has <b>two home dashboards</b>. Open them from the <b>Dashboard</b> top-nav
+        menu (Financial Dashboard / Operations), the SubNav rail, or Ctrl+K:
+        <CodeBadge>/dashboard</CodeBadge> (Financial) and{" "}
+        <CodeBadge>/dashboard/operations</CodeBadge> (Operations).
+        <b>Financial</b> is P&amp;L, cash, AR/AP; <b>Operations</b> is purpose-built KPIs for
+        Manufacturing, Spinning, Healthcare, Telecom, Purchases, and other installed industry packs.
+        Each home has its own customizable layout, saved per user.
       </p>
 
       <SectionHeading>Financial vs Operations</SectionHeading>
       <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Financial</b> — revenue, expenses, net profit, cash &amp; bank, AR/AP aging, trends, day book</li>
         <li><b>Operations</b> — throughput KPIs (open lots, WIP, bed occupancy, tracker floats, purchase pipeline…) with deep-links into module dashboards</li>
-        <li>The <b>Financial | Operations</b> toggle appears when any purpose module is installed; pure Base/Services tenants stay Financial-only</li>
-        <li>Industry tenants (manufacturing, spinning, hospital, telecom, textile processing) default to Operations on first visit</li>
-        <li>Set your login home under <b>Settings → Advanced → Home dashboard</b>, or use the toggle on the Dashboard page</li>
+        <li>The <b>Dashboard → Operations</b> nav item (and the <b>Financial | Operations</b> toggle) appear when any purpose module is installed; pure Base/Services tenants stay Financial-only</li>
+        <li>Industry tenants (manufacturing, spinning, hospital, telecom, textile processing) default to Operations on first visit — login lands on <CodeBadge>/dashboard/operations</CodeBadge></li>
+        <li>Set your login home under <b>Settings → Advanced → Home dashboard</b>, or use the toggle / SubNav on the Dashboard page</li>
       </ul>
 
       <SectionHeading>Entering customize mode</SectionHeading>

@@ -20,7 +20,8 @@ export interface NavResult {
 
 /** Extra aliases keyed by href — merged into NAV_ITEMS keywords. */
 const NAV_ALIASES: Record<string, string[]> = {
-  "/dashboard":              ["home", "kpi", "overview", "main", "financial", "operations", "ops dashboard", "purpose dashboard"],
+  "/dashboard":              ["home", "kpi", "overview", "main", "financial dashboard"],
+  "/dashboard/operations":   ["operations dashboard", "ops home", "operational dashboard", "purpose dashboard", "ops kpi"],
   "/entry":                  ["voucher", "jv", "payment voucher", "receipt voucher", "new entry", "manual entry"],
   "/journal":                ["journal list", "vouchers", "jv list"],
   "/recurring":              ["recurring journal", "standing entry", "auto post"],

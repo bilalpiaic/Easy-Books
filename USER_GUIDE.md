@@ -579,14 +579,20 @@ All reports are **live from the GL** — always current, no batch jobs.
 
 ### 9.1 Dual Home Dashboards (Financial | Operations)
 
-The home page at `/dashboard` supports **two separately maintained dashboards**:
+The home page supports **two separately maintained dashboards**:
 
-| Home | Audience | Contents |
-|------|----------|----------|
-| **Financial** | Financial managers & management P&amp;L review | Revenue, expenses, net profit, cash &amp; bank, AR/AP, aging, trends, day book |
-| **Operations** | Operations & production visibility | Module-aware KPIs — spinning lots/yield, manufacturing WIP, weaving efficiency, healthcare census, telecom tracker floats, purchase pipeline, textile processing |
+| Home | Route | Audience | Contents |
+|------|-------|----------|----------|
+| **Financial** | `/dashboard` (or `/dashboard?view=financial`) | Financial managers & management P&amp;L review | Revenue, expenses, net profit, cash &amp; bank, AR/AP, aging, trends, day book |
+| **Operations** | `/dashboard/operations` | Operations & production visibility | Module-aware KPIs — spinning lots/yield, manufacturing WIP, weaving efficiency, healthcare census, telecom tracker floats, purchase pipeline, textile processing |
 
-Use the **Financial | Operations** segmented control under the page title to switch. The toggle appears only when a purpose module is installed (production, spinning, weaving, healthcare, telecom, purchase_store, textile_processing). Pure Base / Services tenants stay Financial-only.
+**How to open Operations**
+
+1. Log in as a mill / industry tenant (e.g. `demo.spinning@easy-books.app` / `demo1234`, or manufacturing, hospital, telecom).
+2. Click **Dashboard** in the top nav — the tab becomes a menu when a purpose module is installed — then **Operations**.
+3. Or use the **Operations** item in the Dashboard SubNav rail, or press Ctrl+K and type `operations dashboard`.
+
+The **Financial | Operations** segmented control under the page title also switches homes. Both the nav item and the toggle appear only when a purpose module is installed (production, spinning, weaving, healthcare, telecom, purchase_store, textile_processing). Pure Base / Services tenants stay Financial-only.
 
 **Default landing by tenant segment**
 

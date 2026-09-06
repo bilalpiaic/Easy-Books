@@ -8,6 +8,7 @@
  */
 export const TITLE_MAP: Record<string, string> = {
   "/dashboard":        "Dashboard",
+  "/dashboard/operations": "Operations Dashboard",
   "/entry":            "New Entry",
   "/journal":          "Journal",
   "/journal/new":      "New Voucher",

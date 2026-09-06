@@ -2859,6 +2859,13 @@ function HomeDashboardSettingsCard({
         Choose which home opens after login. Financial is the P&amp;L / cash overview;
         Operations shows purpose-built KPIs for installed industry modules.
         Preference is stored in this browser (<code className="text-xs">eb.home_dashboard</code>).
+        {opsAvailable && (
+          <> Open it anytime via Dashboard → Operations or{" "}
+            <Link href="/dashboard/operations" className="text-[var(--primary)] font-semibold hover:underline">
+              /dashboard/operations
+            </Link>.
+          </>
+        )}
       </p>
       <div className="flex flex-wrap gap-2">
         <button

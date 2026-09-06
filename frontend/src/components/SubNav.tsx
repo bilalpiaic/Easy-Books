@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { SUB_NAV, getActiveSection, navVisible } from "@/lib/nav"
+import { SUB_NAV, getActiveSection, navVisible, navItemActive } from "@/lib/nav"
 import { useModules } from "@/context/ModuleContext"
 import { getCurrentUser } from "@/lib/auth"
 
@@ -71,7 +71,7 @@ export default function SubNav() {
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden pb-2">
         {items.map(item => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/")
+          const active = navItemActive(pathname, item.href)
           const Icon   = item.icon
           return (
             <Link
