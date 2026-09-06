@@ -3,7 +3,7 @@ from datetime import date as DateType
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
@@ -177,27 +177,38 @@ def open_invoices_for_allocation(
     user: CurrentUserDep,
     ar_account_id: Optional[int] = None,
     customer_id: Optional[int] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(500, ge=1, le=500),
 ):
     """Return open/partial/overdue invoices with balance_due for the allocation panel."""
-    q = select(Invoice).where(
-        Invoice.tenant_id == user.tenant_id,
-        Invoice.status.in_(["open", "partial", "overdue", "sent"]),  # type: ignore[attr-defined]
+    alloc_sum = (
+        select(
+            PaymentAllocation.invoice_id.label("invoice_id"),
+            func.coalesce(func.sum(PaymentAllocation.amount), 0).label("allocated"),
+        )
+        .group_by(PaymentAllocation.invoice_id)
+        .subquery()
+    )
+    q = (
+        select(Invoice, func.coalesce(alloc_sum.c.allocated, 0).label("allocated"))
+        .outerjoin(alloc_sum, alloc_sum.c.invoice_id == Invoice.id)
+        .where(
+            Invoice.tenant_id == user.tenant_id,
+            Invoice.status.in_(["open", "partial", "overdue", "sent"]),  # type: ignore[attr-defined]
+            Invoice.total - func.coalesce(alloc_sum.c.allocated, 0) > 0,
+        )
     )
     if ar_account_id:
         q = q.where(Invoice.ar_account_id == ar_account_id)
     if customer_id:
         q = q.where(Invoice.customer_id == customer_id)
-    invoices = session.exec(q.order_by(Invoice.issue_date)).all()
+    rows = session.exec(
+        q.order_by(Invoice.issue_date).offset(skip).limit(limit)
+    ).all()
 
     result = []
-    for inv in invoices:
-        allocated = session.exec(
-            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
-            .where(PaymentAllocation.invoice_id == inv.id)
-        ).one()
+    for inv, allocated in rows:
         balance_due = float(D(inv.total) - D(allocated))
-        if balance_due <= 0:
-            continue
         result.append({
             "id": inv.id,
             "number": inv.number,
@@ -243,15 +254,19 @@ def list_invoices(
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(q.offset(skip).limit(limit)).all()
     _auto_overdue(session, list(items))
+    lines_by_invoice: dict[int, list] = {inv.id: [] for inv in items if inv.id is not None}
+    ids = list(lines_by_invoice)
+    if ids:
+        for line in session.exec(
+            select(InvoiceLine)
+            .where(InvoiceLine.invoice_id.in_(ids))  # type: ignore[attr-defined]
+            .order_by(InvoiceLine.id)
+        ).all():
+            lines_by_invoice.setdefault(line.invoice_id, []).append(line.model_dump())
     result_items = []
     for inv in items:
         d = inv.model_dump()
-        d["lines"] = [
-            l.model_dump()
-            for l in session.exec(
-                select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)
-            ).all()
-        ]
+        d["lines"] = lines_by_invoice.get(inv.id, [])
         result_items.append(d)
     return {"total": total, "items": result_items}
 

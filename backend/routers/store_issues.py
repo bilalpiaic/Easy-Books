@@ -4,9 +4,9 @@ raw-material consumption path. Posts GL and relieves stock immediately on
 create — no draft/approve gate; block_negative_stock is the control."""
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlmodel import select
+from sqlmodel import func, select
 
 from models import Account, AnalyticAccount, Product, Settings, StockLocation, StoreIssue, StoreIssueLine
 from routers.common import SessionDep, WriteUserDep, get_or_create_account, log_audit, next_number
@@ -50,20 +50,63 @@ def _get_si(session, user, si_id: int) -> StoreIssue:
     return si
 
 
+def _serialize_many(session, rows: list[StoreIssue]) -> list[dict]:
+    if not rows:
+        return []
+    ids = [si.id for si in rows if si.id is not None]
+    loc_ids = {si.from_location_id for si in rows if si.from_location_id}
+    acct_ids = {si.debit_account_id for si in rows if si.debit_account_id}
+    aa_ids = {si.analytic_account_id for si in rows if si.analytic_account_id}
+
+    lines_by: dict[int, list] = {i: [] for i in ids}
+    if ids:
+        for line in session.exec(
+            select(StoreIssueLine)
+            .where(StoreIssueLine.store_issue_id.in_(ids))  # type: ignore[attr-defined]
+            .order_by(StoreIssueLine.id)
+        ).all():
+            lines_by.setdefault(line.store_issue_id, []).append(line.model_dump())
+
+    locs = {}
+    if loc_ids:
+        locs = {
+            loc.id: loc.name
+            for loc in session.exec(
+                select(StockLocation).where(StockLocation.id.in_(loc_ids))  # type: ignore[attr-defined]
+            ).all()
+        }
+    accts = {}
+    if acct_ids:
+        accts = {
+            a.id: a.name
+            for a in session.exec(
+                select(Account).where(Account.id.in_(acct_ids))  # type: ignore[attr-defined]
+            ).all()
+        }
+    aas = {}
+    if aa_ids:
+        aas = {
+            a.id: a.name
+            for a in session.exec(
+                select(AnalyticAccount).where(AnalyticAccount.id.in_(aa_ids))  # type: ignore[attr-defined]
+            ).all()
+        }
+
+    result = []
+    for si in rows:
+        out = si.model_dump()
+        out["lines"] = lines_by.get(si.id, [])
+        out["location_name"] = locs.get(si.from_location_id)
+        out["debit_account_name"] = accts.get(si.debit_account_id)
+        out["analytic_account_name"] = (
+            aas.get(si.analytic_account_id) if si.analytic_account_id else None
+        )
+        result.append(out)
+    return result
+
+
 def _serialize(session, si: StoreIssue) -> dict:
-    lines = session.exec(
-        select(StoreIssueLine).where(StoreIssueLine.store_issue_id == si.id)
-    ).all()
-    out = si.model_dump()
-    out["lines"] = [l.model_dump() for l in lines]
-    loc = session.get(StockLocation, si.from_location_id)
-    out["location_name"] = loc.name if loc else None
-    acct = session.get(Account, si.debit_account_id)
-    out["debit_account_name"] = acct.name if acct else None
-    if si.analytic_account_id:
-        aa = session.get(AnalyticAccount, si.analytic_account_id)
-        out["analytic_account_name"] = aa.name if aa else None
-    return out
+    return _serialize_many(session, [si])[0]
 
 
 def _block_negative_stock(session, tenant_id: int) -> bool:
@@ -80,6 +123,8 @@ def list_store_issues(
     session: SessionDep, user: WriteUserDep,
     from_location_id: Optional[int] = None, analytic_account_id: Optional[int] = None,
     start: Optional[str] = None, end: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
 ):
     q = select(StoreIssue).where(StoreIssue.tenant_id == user.tenant_id)
     if from_location_id:
@@ -91,8 +136,11 @@ def list_store_issues(
     if end:
         q = q.where(StoreIssue.issue_date <= end)
     q = apply_own_filter(q, StoreIssue, user, session)
-    rows = session.exec(q.order_by(StoreIssue.id.desc())).all()
-    return [_serialize(session, si) for si in rows]
+    total = session.exec(select(func.count()).select_from(q.subquery())).one()
+    rows = session.exec(
+        q.order_by(StoreIssue.id.desc()).offset(skip).limit(limit)
+    ).all()
+    return {"total": total, "items": _serialize_many(session, list(rows))}
 
 
 @router.get("/{si_id}")

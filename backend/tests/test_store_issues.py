@@ -270,7 +270,7 @@ def test_store_issue_multi_line_failure_rolls_back_first_line(client: TestClient
     assert Decimal(str(prod_short["stock_qty"])) == Decimal("2")
 
     # And no Store Issue row was persisted
-    rows = client.get("/api/store-issues", headers=auth).json()
+    rows = client.get("/api/store-issues", headers=auth).json()["items"]
     assert rows == []
 
 
