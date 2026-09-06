@@ -162,6 +162,7 @@ def _parse_entries(raw: list[dict[str, Any]]) -> list[CatalogEntry]:
                 first_party_module=row.get("first_party_module"),
                 summary=row.get("summary"),
                 tags=list(row.get("tags") or []),
+                studio=row.get("studio"),
             )
         )
     return out

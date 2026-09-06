@@ -170,6 +170,10 @@ def install_extension(extension_id: str, user: CurrentUserDep, session: SessionD
             session.refresh(tenant)
 
     installed = record_install(session, tenant, entry.manifest, source="curated")
+    if entry.studio:
+        from services.studio_bundle import apply_studio_bundle
+
+        apply_studio_bundle(session, user, entry.manifest.id, entry.studio)
     return {
         "extension": installed.model_dump(),
         "message": (
@@ -205,4 +209,7 @@ def uninstall_extension(extension_id: str, user: CurrentUserDep, session: Sessio
     ok = record_uninstall(session, tenant, extension_id)
     if not ok and not (entry and entry.first_party_module):
         raise HTTPException(404, f"Extension not installed: {extension_id!r}")
+    from services.studio_bundle import archive_studio_bundle
+
+    archive_studio_bundle(session, user.tenant_id, extension_id)
     return {"uninstalled": extension_id}

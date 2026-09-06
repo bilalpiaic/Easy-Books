@@ -834,6 +834,7 @@ class CustomFieldDef(SQLModel, table=True):
     show_on_list: bool = Field(default=False)
     sort_order: int = Field(default=0)
     archived_at: Optional[datetime] = Field(default=None, index=True)
+    source_extension_id: Optional[str] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
