@@ -232,6 +232,7 @@ No `client-acme` branch. No second Neon “for that mill.”
 | 1 | Secrets + S3 + Neon PITR + Stripe live (no issue; ops) | **Yes** |
 | 2 | Postgres CI job | Shipped #386 |
 | 3 | Require TOTP for owner + demo-login gate | **Shipped in code** — flip env on Vercel |
+| 4 | [#390](https://github.com/bilalpiaic/Easy-Books/issues/390) forgot-password | No — paying tenants without an admin nearby |
 
 Do not start #122 or #307 until Wave 1 is green.
 

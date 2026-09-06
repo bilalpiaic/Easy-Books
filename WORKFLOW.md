@@ -1483,6 +1483,9 @@ Every route is mounted twice: at `/api/*` (legacy) and `/api/v1/*` (versioned al
 |---|---|---|
 | POST | `/api/auth/signup` | Create tenant + seed CoA + `owner` user (password ≥ 8) |
 | POST | `/api/auth/login` | OAuth2 password → JWT + HttpOnly cookie + CSRF cookie + body `{access_token, role, csrf_token, must_change_password}`. Rejects inactive users (403); stamps `last_login_at` |
+| POST | `/api/auth/forgot-password` | Public — `{email}` always 200 with generic copy; emails a 1h hashed reset link when SMTP is set and the user is active/non-demo |
+| GET | `/api/auth/reset-password/{token}` | Public — `{valid: true}` or 400 (expired/used/unknown); never leaks the email |
+| POST | `/api/auth/reset-password` | Public — `{token, new_password}` (≥ 8); consumes token; does not disable TOTP |
 | POST | `/api/auth/logout` | Clears both cookies |
 | GET | `/api/auth/me` | Current user (id, email, full_name, phone, avatar_url, role, must_change_password, created_at, last_login_at, tenant) |
 | PATCH | `/api/auth/me` | Update own `full_name` / `phone` |
@@ -1730,7 +1733,7 @@ Browser SPA flow:
 Bearer SDK flow:
   No CSRF — the Authorization header proves intent.
 
-Exempt endpoints: /api/auth/signup · /api/auth/login · /api/auth/logout
+Exempt endpoints: /api/auth/signup · /api/auth/login · /api/auth/logout · /api/auth/forgot-password · /api/auth/reset-password
 (They mint the tokens; can't require them.)
 ```
 

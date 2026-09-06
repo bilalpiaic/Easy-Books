@@ -237,6 +237,8 @@ function LoginForm() {
               </div>
             )}
             <p className="text-center text-xs text-[#1a1814]/50">
+              <Link href="/forgot-password" className="underline">Forgot password?</Link>
+              {" · "}
               No account? <Link href="/signup" className="underline">Sign up</Link>
             </p>
           </form>
