@@ -1,4 +1,5 @@
 import { apiFetch } from "./api"
+import type { ModuleInfo } from "@/context/ModuleContext"
 
 export type BootstrapMe = {
   id: number
@@ -15,7 +16,7 @@ export type BootstrapPermissions = {
 export type BootstrapPayload = {
   me: BootstrapMe
   settings: Record<string, string>
-  modules: Array<{ id: string; installed: boolean } & Record<string, unknown>>
+  modules: ModuleInfo[]
   permissions: BootstrapPermissions
 }
 
