@@ -54,10 +54,13 @@ def get_journal_report(
         q = q.where(Transaction.voucher_type == voucher_type)
     if voucher_number:
         q = q.where(Transaction.jv_number.ilike(f"%{voucher_number}%"))
-    q = q.order_by(Transaction.date.desc(), Transaction.id.desc())
-    rows = session.exec(q).all()
+    q = q.order_by(Transaction.date.desc(), Transaction.id.desc(), JournalEntry.id.desc())
+    total = session.exec(
+        select(func.count()).select_from(q.order_by(None).subquery())
+    ).one()
+    rows = session.exec(q.offset(skip).limit(limit)).all()
     return {
-        "total": len(rows),
+        "total": total,
         "items": [
             {
                 "id": tx.id,
@@ -72,7 +75,7 @@ def get_journal_report(
                 "credit": je.credit,
                 "is_reversed": tx.is_reversed,
             }
-            for tx, je, acc in rows[skip : skip + limit]
+            for tx, je, acc in rows
         ],
     }
 
@@ -138,24 +141,31 @@ def get_dashboard_data(
         select(func.count()).select_from(tx_base.subquery())
     ).one()
 
-    je_q = (
-        select(JournalEntry, Account)
+    agg_q = (
+        select(
+            Account.type,
+            func.coalesce(func.sum(JournalEntry.credit), 0),
+            func.coalesce(func.sum(JournalEntry.debit), 0),
+        )
         .join(Account, Account.id == JournalEntry.account_id)
         .join(Transaction, Transaction.id == JournalEntry.transaction_id)
-        .where(Transaction.tenant_id == user.tenant_id)
+        .where(
+            Transaction.tenant_id == user.tenant_id,
+            Account.type.in_(["Revenue", "Expense"]),  # type: ignore[attr-defined]
+        )
     )
     if start:
-        je_q = je_q.where(Transaction.date >= start)
+        agg_q = agg_q.where(Transaction.date >= start)
     if end:
-        je_q = je_q.where(Transaction.date <= end)
+        agg_q = agg_q.where(Transaction.date <= end)
 
     total_revenue = ZERO
     total_expense = ZERO
-    for entry, account in session.exec(je_q).all():
-        if account.type == "Revenue":
-            total_revenue += D(entry.credit) - D(entry.debit)
-        elif account.type == "Expense":
-            total_expense += D(entry.debit) - D(entry.credit)
+    for acc_type, sum_credit, sum_debit in session.exec(agg_q.group_by(Account.type)).all():
+        if acc_type == "Revenue":
+            total_revenue = D(sum_credit) - D(sum_debit)
+        elif acc_type == "Expense":
+            total_expense = D(sum_debit) - D(sum_credit)
 
     # Outstanding = gross total MINUS sum(PaymentAllocation.amount) per doc,
     # then sum across docs that aren't fully paid. Includes 'partial' so a

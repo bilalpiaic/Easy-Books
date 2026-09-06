@@ -6,6 +6,7 @@ import { Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { fmtDate } from "@/lib/utils"
 import { useFmt } from "@/context/SettingsContext"
+import Pagination from "@/components/Pagination"
 
 type SILine = { id: number; product_id: number; qty: number; unit_cost: number }
 
@@ -15,13 +16,23 @@ type StoreIssue = {
   lines: SILine[]
 }
 
+const PAGE_SIZE = 50
+
 export default function StoreIssueListPage() {
   const fmt = useFmt()
   const [rows, setRows] = useState<StoreIssue[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
-    apiFetch<StoreIssue[]>("/api/store-issues").then(setRows).catch(() => setRows([]))
-  }, [])
+    const params = new URLSearchParams({
+      skip: String((page - 1) * PAGE_SIZE),
+      limit: String(PAGE_SIZE),
+    })
+    apiFetch<{ total: number; items: StoreIssue[] }>(`/api/store-issues?${params}`)
+      .then(d => { setRows(d.items); setTotal(d.total) })
+      .catch(() => { setRows([]); setTotal(0) })
+  }, [page])
 
   const cost = (si: StoreIssue) => si.lines.reduce((sum, l) => sum + Number(l.qty) * Number(l.unit_cost), 0)
 
@@ -67,6 +78,7 @@ export default function StoreIssueListPage() {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
     </div>
   )
 }

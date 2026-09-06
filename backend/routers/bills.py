@@ -3,7 +3,7 @@ from datetime import date as DateType, timedelta
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import Session, asc, desc, func, select
@@ -99,27 +99,38 @@ def open_bills_for_allocation(
     user: CurrentUserDep,
     ap_account_id: Optional[int] = None,
     vendor_id: Optional[int] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(500, ge=1, le=500),
 ):
     """Return open/partial bills with balance_due for the allocation panel."""
-    q = select(Bill).where(
-        Bill.tenant_id == user.tenant_id,
-        Bill.status.in_(["open", "partial", "received"]),  # type: ignore[attr-defined]
+    alloc_sum = (
+        select(
+            PaymentAllocation.bill_id.label("bill_id"),
+            func.coalesce(func.sum(PaymentAllocation.amount), 0).label("allocated"),
+        )
+        .group_by(PaymentAllocation.bill_id)
+        .subquery()
+    )
+    q = (
+        select(Bill, func.coalesce(alloc_sum.c.allocated, 0).label("allocated"))
+        .outerjoin(alloc_sum, alloc_sum.c.bill_id == Bill.id)
+        .where(
+            Bill.tenant_id == user.tenant_id,
+            Bill.status.in_(["open", "partial", "received"]),  # type: ignore[attr-defined]
+            Bill.total - func.coalesce(alloc_sum.c.allocated, 0) > 0,
+        )
     )
     if ap_account_id:
         q = q.where(Bill.ap_account_id == ap_account_id)
     if vendor_id:
         q = q.where(Bill.vendor_id == vendor_id)
-    bills = session.exec(q.order_by(Bill.bill_date)).all()
+    rows = session.exec(
+        q.order_by(Bill.bill_date).offset(skip).limit(limit)
+    ).all()
 
     result = []
-    for bill in bills:
-        allocated = session.exec(
-            select(func.coalesce(func.sum(PaymentAllocation.amount), 0))
-            .where(PaymentAllocation.bill_id == bill.id)
-        ).one()
+    for bill, allocated in rows:
         balance_due = float(D(bill.total) - D(allocated))
-        if balance_due <= 0:
-            continue
         result.append({
             "id": bill.id,
             "number": bill.number,
@@ -162,15 +173,19 @@ def list_bills(
     total = session.exec(select(func.count()).select_from(q.subquery())).one()
     items = session.exec(q.offset(skip).limit(limit)).all()
     _auto_overdue(session, list(items))
+    lines_by_bill: dict[int, list] = {bill.id: [] for bill in items if bill.id is not None}
+    ids = list(lines_by_bill)
+    if ids:
+        for line in session.exec(
+            select(BillLine)
+            .where(BillLine.bill_id.in_(ids))  # type: ignore[attr-defined]
+            .order_by(BillLine.id)
+        ).all():
+            lines_by_bill.setdefault(line.bill_id, []).append(line.model_dump())
     result_items = []
     for bill in items:
         d = bill.model_dump()
-        d["lines"] = [
-            l.model_dump()
-            for l in session.exec(
-                select(BillLine).where(BillLine.bill_id == bill.id)
-            ).all()
-        ]
+        d["lines"] = lines_by_bill.get(bill.id, [])
         result_items.append(d)
     return {"total": total, "items": result_items}
 
