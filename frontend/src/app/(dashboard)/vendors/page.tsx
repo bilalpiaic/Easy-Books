@@ -36,7 +36,6 @@ export default function Vendors() {
   const { t } = useTranslation()
 
   const { can } = usePermission()
-  if (!can("vendors")) return <NoAccessBanner resource="vendors" />
   const fmt = useFmt()
   const router = useRouter()
   const [vendors, setVendors] = useState<Vendor[]>([])
@@ -106,6 +105,8 @@ export default function Vendors() {
   }
 
   const bal = (v: Vendor) => v.closing_balance ?? v.opening_balance
+
+  if (!can("vendors")) return <NoAccessBanner resource="vendors" />
 
   return (
     <div className="space-y-6">
