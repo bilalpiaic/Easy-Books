@@ -455,6 +455,8 @@ uv run alembic upgrade head
 | `ANTHROPIC_API_KEY` | Dev/demo fallback for the AI assistant (anthropic only); per-tenant keys in Settings → AI take priority | — |
 | `ENFORCE_MODULE_PLANS` | Gate `POST /api/modules/{id}/install` by plan allowlist + ops entitle flags. `false` = unrestricted install | `true` |
 | `OPS_ADMIN_EMAILS` | Comma-separated staff emails for `/api/ops/tenants` entitle API. Empty list fail-closes | unset |
+| `REQUIRE_OWNER_TOTP` | Owners must enable authenticator 2FA before mutating APIs (invoice/bill/etc.). Login still works so they can enroll. Demo `demo.*@easy-books.app` users are exempt | `false` |
+| `ALLOW_DEMO_LOGIN` | When `false`, `demo.*@easy-books.app` password login returns 403 and the login page hides **Try demo**. Use with `SEED_DEMO=false` in production | `true` |
 
 Frontend: set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`.
 

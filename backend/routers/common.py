@@ -95,6 +95,9 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
 
+    if payload.get("totp_pending"):
+        raise credentials_exception
+
     # Logout inserts the token's jti into RevokedToken (#113) — reject a
     # revoked token on every request, not just at natural expiry. Tokens
     # minted before jti existed carry none and skip the check (no forced

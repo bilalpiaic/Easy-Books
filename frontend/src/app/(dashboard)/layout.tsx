@@ -8,7 +8,7 @@ import BottomNav from "@/components/BottomNav"
 import MoreDrawer from "@/components/MoreDrawer"
 import FAB from "@/components/FAB"
 import TabBar from "@/components/TabBar"
-import { isAuthenticated, getMustChangePwd, reconcileAuthOnLoad } from "@/lib/auth"
+import { isAuthenticated, getMustChangePwd, getMustSetupTotp, reconcileAuthOnLoad } from "@/lib/auth"
 import { SettingsProvider } from "@/context/SettingsContext"
 import { PermissionProvider } from "@/context/PermissionContext"
 import { ModuleProvider } from "@/context/ModuleContext"
@@ -35,6 +35,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isAuthenticated()) { router.replace("/login"); return }
     if (getMustChangePwd() && !pathname.startsWith("/profile")) {
       router.replace("/profile?changePassword=1")
+      return
+    }
+    if (getMustSetupTotp() && !pathname.startsWith("/profile")) {
+      router.replace("/profile?setup2fa=1")
     }
   }, [router, pathname])
 

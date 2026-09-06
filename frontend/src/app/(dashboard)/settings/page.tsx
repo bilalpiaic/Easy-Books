@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/api'
 import { fmtDate } from '@/lib/utils'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
 import { useModules } from '@/context/ModuleContext'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, setMustSetupTotp } from '@/lib/auth'
 import {
   HOME_PREF_KEY,
   hasOperationsHome,
@@ -2773,6 +2773,16 @@ function Security2FACard() {
   const [code, setCode] = useState("")
   const [status, setStatus] = useState("")
   const [enabled, setEnabled] = useState(false)
+  const [canDisable, setCanDisable] = useState(true)
+
+  useEffect(() => {
+    apiFetch<{ totp_enabled?: boolean; totp_can_disable?: boolean }>("/api/auth/me")
+      .then((me) => {
+        setEnabled(!!me.totp_enabled)
+        setCanDisable(me.totp_can_disable !== false)
+      })
+      .catch(() => {})
+  }, [])
 
   const setup = async () => {
     const r = await apiFetch<{ secret: string; otpauth_url: string }>(
@@ -2786,6 +2796,7 @@ function Security2FACard() {
   const enable = async () => {
     await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code }) })
     setEnabled(true)
+    setMustSetupTotp(false)
     setStatus("2FA enabled.")
   }
   const disable = async () => {
@@ -2800,11 +2811,14 @@ function Security2FACard() {
       <h2 className="text-lg font-bold text-[var(--text-primary)]">Security · 2FA</h2>
       <p className="text-sm text-[var(--text-primary)]/60">
         Protect your account with an authenticator app (TOTP).
+        {enabled && !canDisable ? " Owners cannot turn this off on this server." : ""}
       </p>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={setup} className="px-3 py-1.5 border rounded-lg text-sm">Set up 2FA</button>
         <button type="button" onClick={enable} className="px-3 py-1.5 bg-[#b8943f] rounded-lg text-sm">Enable</button>
-        <button type="button" onClick={disable} className="px-3 py-1.5 border rounded-lg text-sm">Disable</button>
+        {canDisable && (
+          <button type="button" onClick={disable} className="px-3 py-1.5 border rounded-lg text-sm">Disable</button>
+        )}
       </div>
       {secret && (
         <div className="text-xs break-all space-y-1">

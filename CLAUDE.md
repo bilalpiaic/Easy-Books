@@ -282,6 +282,10 @@ SEED_COMPANY_NAME=
 ANTHROPIC_API_KEY=         # AI Financial Assistant (#117): dev/demo fallback for the anthropic provider ONLY, used when a tenant has no key of its own in Settings → AI. Per-tenant keys (any of anthropic/openai/gemini) set via the UI take priority; endpoint returns 503 only when no provider is configured at all (neither this env var nor any tenant key).
 OVERDUE_SWEEP_ENABLED=     # default true; set "false" to disable the background overdue-invoice sweep + reminder scheduler (services/overdue.py, wired in main.py's lifespan)
 OVERDUE_SWEEP_INTERVAL_HOURS=  # default 24; how often the scheduler tick runs (it also fires once immediately on boot)
+REQUIRE_OWNER_TOTP=        # default false; "true" on production so owners must enable TOTP before mutating APIs (demo.*@easy-books.app exempt)
+ALLOW_DEMO_LOGIN=          # default true; "false" on production to 403 demo.* logins and hide Try demo
+SEED_DEMO=                 # default true in installers; "false" on production so demo tenants are not created
+ENFORCE_MODULE_PLANS=      # default true; "false" unrestricts module install (pytest autouse)
 ```
 
 **Frontend** (`frontend/.env.local`):

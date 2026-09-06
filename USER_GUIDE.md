@@ -775,6 +775,7 @@ Go to **Profile** (`/profile`):
 - **Avatar** — upload PNG/JPEG/GIF/WebP ≤ 5 MB
 - **Personal details** — full name, phone
 - **Change password** — current password required
+- **Authenticator 2FA** — set up TOTP; on production (`REQUIRE_OWNER_TOTP=true`) owners are sent here after login until 2FA is on, and they cannot disable it
 - **Account info** — role, organisation, join date, last login
 
 ---
