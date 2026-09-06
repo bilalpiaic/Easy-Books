@@ -176,15 +176,19 @@ def create_db_and_tables():
         _backfill_untagged_products(session)
 
 def _ensure_yarn_spinning_module(session: Session) -> None:
-    """Idempotent: ``yarn_spinning`` tenants have the spinning module installed.
+    """Restore spinning on ``yarn_spinning`` tenants that may already install it.
 
-    Nav, Ctrl+K, and ``/spinning/*`` all gate on ``enabled_modules`` containing
-    ``spinning``. A code-only deploy must not leave mill demo tenants as
-    Base Accounting only (same idea as ``_ensure_mill_weighbridge_grants``).
+    Nav / Ctrl+K / ``/spinning/*`` gate on ``enabled_modules``. A code-only
+    deploy must not leave an already-allowed mill tenant as Base-only.
+
+    Does **not** mint ``module_meta.spinning.entitled`` (ops-only via
+    ``PUT /api/ops/tenants/{id}/entitled``). ``business_model`` is tenant-
+    writable, so treating it as a commercial grant would let a free/pro
+    admin PATCH to ``yarn_spinning`` and pick up the industry pack on reboot.
     """
     from models import Tenant
     from routers.modules import _get_enabled, install_module_for_tenant
-    from services.entitlements import entitled_ids, set_entitled
+    from services.entitlements import can_install
 
     mills = session.exec(
         select(Tenant).where(Tenant.business_model == "yarn_spinning")
@@ -192,17 +196,12 @@ def _ensure_yarn_spinning_module(session: Session) -> None:
     restored = 0
     for tenant in mills:
         try:
-            ids = entitled_ids(tenant)
-            if "spinning" not in ids:
-                set_entitled(tenant, [*ids, "spinning"])
-                session.add(tenant)
-                session.commit()
-                session.refresh(tenant)
-            if "spinning" not in _get_enabled(tenant):
-                install_module_for_tenant(
-                    session, tenant, None, "spinning", check_entitlement=False,
-                )
-                restored += 1
+            if "spinning" in _get_enabled(tenant):
+                continue
+            if not can_install(tenant, "spinning"):
+                continue
+            install_module_for_tenant(session, tenant, None, "spinning")
+            restored += 1
         except Exception as exc:
             print(
                 f"[seed] spinning backfill failed for tenant {tenant.id}: {exc}",
