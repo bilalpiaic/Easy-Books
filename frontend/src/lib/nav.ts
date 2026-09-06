@@ -11,7 +11,7 @@ import {
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
   AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
-  Store, ArrowLeftRight, Palmtree, ShoppingBag, PackageCheck,
+  Store, ArrowLeftRight, Palmtree, ShoppingBag, PackageCheck, PenTool,
 } from "lucide-react"
 
 export type NavItem = {
@@ -142,6 +142,7 @@ export const NAV: NavItem[] = [
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Practice clients", href: "/practice",          icon: Building2,        section: "System" },
   { label: "Permissions",      href: "/settings/permissions", icon: ShieldCheck,   section: "System", adminOnly: true },
+  { label: "Studio",           href: "/settings/studio",      icon: PenTool,       section: "System", adminOnly: true },
   { label: "Audit Log",        href: "/audit",             icon: ScrollText,       section: "System", adminOnly: true },
   { label: "Approvals",        href: "/approvals",         icon: CheckCheck,       section: "System" },
   { label: "Approval Workflows", href: "/approvals/workflows", icon: GitBranch,   section: "System", adminOnly: true },
@@ -632,6 +633,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Team",          href: "/team",                 icon: UsersRound,  section: "system", adminOnly: true },
     { label: "Practice clients", href: "/practice",          icon: Building2,   section: "system" },
     { label: "Permissions",   href: "/settings/permissions", icon: ShieldCheck, section: "system", adminOnly: true },
+    { label: "Studio",        href: "/settings/studio",      icon: PenTool,     section: "system", adminOnly: true },
     { label: "My Profile",    href: "/profile",              icon: UserCircle,  section: "system" },
     { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "system" },
     { label: "Payment Terms", href: "/payment-terms",        icon: Clock,       section: "system", adminOnly: true },

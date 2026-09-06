@@ -194,5 +194,6 @@ def fmt_def(row: CustomFieldDef) -> dict:
         "show_on_list": bool(row.show_on_list),
         "sort_order": int(row.sort_order or 0),
         "archived_at": row.archived_at.isoformat() if row.archived_at else None,
+        "source_extension_id": row.source_extension_id,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
