@@ -128,7 +128,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/guide":                  ["help", "user guide", "docs", "manual"],
   "/agent":                  ["ai chat", "assistant", "ask books", "ai agent"],
   "/settings":               ["preferences", "configuration", "company settings"],
-  "/apps":                   ["add-ons", "modules", "install module", "extensions"],
+  "/apps":                   ["add-ons", "modules", "install module", "extensions", "marketplace", "weighbridge", "weighbridge slip", "gate pass", "for you"],
   "/pra-logs":               ["pra logs", "fiscal submission", "einvoice log"],
   "/zatca/logs":             ["zatca logs", "fatoora", "saudi einvoice", "ksa"],
   "/peppol/logs":            ["peppol logs", "ubl", "eu einvoice", "access point"],
@@ -555,7 +555,12 @@ const ACTIONS: NavResult[] = [
   {
     id: "qa:apps", type: "action", label: "Add-ons",
     sub: "Install industry packs and modules", href: "/apps",
-    keywords: ["install module", "addons store"],
+    keywords: ["install module", "addons store", "marketplace"],
+  },
+  {
+    id: "qa:weighbridge", type: "action", label: "Weighbridge",
+    sub: "Mill Marketplace listing — gate pass + lot on invoices", href: "/apps?tab=marketplace",
+    keywords: ["weighbridge", "weighbridge slip", "gate pass", "lot ref", "mill scale", "for you", "marketplace"],
   },
   {
     id: "qa:settings", type: "action", label: "Settings",

@@ -161,11 +161,39 @@ def create_db_and_tables():
                 flush=True,
             )
 
+        # Existing mill demo tenants pre-date the Weighbridge grant; converge
+        # every boot so Marketplace shows the card after a code-only deploy.
+        _ensure_mill_weighbridge_grants(session)
+
         # Convergent backfill: tag any product left without a category against
         # its tenant's sub-categories. Handles products created before the
         # category feature (or by an older seeder). One-time-effective and a
         # cheap no-op once every product is tagged.
         _backfill_untagged_products(session)
+
+def _ensure_mill_weighbridge_grants(session: Session) -> None:
+    """Idempotent: mill tenants may see Weighbridge without re-running seed_demo."""
+    from models import Tenant
+    from services.marketplace.catalog import (
+        MILL_WEIGHBRIDGE_MODELS,
+        WEIGHBRIDGE_ID,
+        grant_private_listing,
+        private_listing_ids,
+    )
+
+    mills = session.exec(
+        select(Tenant).where(Tenant.business_model.in_(list(MILL_WEIGHBRIDGE_MODELS)))
+    ).all()
+    dirty = False
+    for tenant in mills:
+        if WEIGHBRIDGE_ID in private_listing_ids(tenant):
+            continue
+        grant_private_listing(tenant, WEIGHBRIDGE_ID)
+        session.add(tenant)
+        dirty = True
+    if dirty:
+        session.commit()
+
 
 def _backfill_untagged_products(session: Session):
     """Assign every product with no category_id to a sub-category of its tenant
