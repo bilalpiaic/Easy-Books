@@ -50,9 +50,24 @@ Rules enforced at validation time:
   "summary": "Short card blurb",
   "tags": ["csv", "bank"],
   "first_party_module": null,
+  "audience": "public",
+  "visible_to_tenant_ids": [],
+  "entitled_module": null,
   "manifest": { "...": "ExtensionManifest" }
 }
 ```
+
+`audience` is filtered on **`GET /api/marketplace/catalog`** (never only in React):
+
+| `audience` | Who sees the card |
+|------------|-------------------|
+| `public` (default) | Every signed-in tenant |
+| `entitled` | Tenants that have `entitled_module` entitled **or** installed |
+| `private` | Only `visible_to_tenant_ids` |
+
+Private mill listings use topical tags (`spinning`, `private`) plus badge **For you**. Do **not** tag with tenant slugs or `customized-tenant`. Marketplace lists **products**, never tenants.
+
+Install of a hidden listing returns 404 for other tenants (same `visible_to` gate as the catalog).
 
 When `first_party_module` is set (e.g. `"pra"`), **Install** calls the existing
 `/api/modules/{id}/install` path — the marketplace is a discovery surface for
@@ -69,7 +84,7 @@ bundles, no `eval`, and no process spawn from a manifest.
 | Settings | Partner keys must live under `ext.*` |
 | Permissions | `requested_permissions` are **recorded** on install for audit / future partner API gates — they do **not** silently widen JWT scopes in v1 |
 | Modules | `requires_modules` may only reference `MODULE_REGISTRY` ids |
-| Catalog | Bundled curated list, optionally extended by `MARKETPLACE_CATALOG_URL` env or tenant setting `marketplace_catalog_url` (HTTPS JSON). Whoever hosts that URL is responsible for curation. |
+| Catalog | Bundled curated list, optionally extended by `MARKETPLACE_CATALOG_URL` env or tenant setting `marketplace_catalog_url` (HTTPS JSON). Rows are filtered per tenant by `audience`. Whoever hosts that URL is responsible for curation. |
 | Upload | No public submit endpoint |
 
 Installed partner snapshots are stored on the tenant under
@@ -94,7 +109,8 @@ Installed partner snapshots are stored on the tenant under
 
 ## UI
 
-**Add-ons → Marketplace** lists catalog cards with Install / Uninstall.
+**Add-ons → Marketplace** lists catalog cards with Install / Uninstall, topical
+tag chips, and a **For you** pill when `audience` is not `public`.
 A short sandbox callout is rendered from `/api/marketplace/boundary`.
 
 ## Planned: audience + Studio bundles

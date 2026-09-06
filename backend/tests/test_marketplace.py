@@ -5,7 +5,156 @@ import pytest
 from pydantic import ValidationError
 
 from services.marketplace.catalog import bundled_catalog, resolve_catalog
-from services.marketplace.manifest import ExtensionManifest
+from services.marketplace.manifest import CatalogEntry, ExtensionManifest
+
+def test_forbidden_tag_rejected():
+    with pytest.raises(ValidationError):
+        CatalogEntry(
+            manifest=ExtensionManifest(
+                id="partner.acme.mill-pack",
+                name="X",
+                version="1.0.0",
+                description="d",
+                publisher="p",
+            ),
+            tags=["customized-tenant"],
+        )
+
+
+def test_client_tag_rejected():
+    with pytest.raises(ValidationError):
+        CatalogEntry(
+            manifest=ExtensionManifest(
+                id="partner.acme.mill-pack",
+                name="X",
+                version="1.0.0",
+                description="d",
+                publisher="p",
+            ),
+            tags=["client-acme"],
+        )
+
+
+def _signup(client, email, company="Co"):
+    r = client.post("/api/auth/signup", json={
+        "email": email, "password": "password123",
+        "full_name": "Owner", "company_name": company, "business_model": "simple",
+    })
+    assert r.status_code == 200, r.text
+    tenant_id = r.json()["tenant_id"]
+    tok = client.post("/api/auth/login", data={
+        "username": email, "password": "password123",
+    })
+    assert tok.status_code == 200, tok.text
+    client.cookies.clear()
+    return tenant_id, {"Authorization": f"Bearer {tok.json()['access_token']}"}
+
+
+def _extra_entries(mill_tid: int) -> list[CatalogEntry]:
+    mill = ExtensionManifest(
+        id="partner.easybooks.mill-private",
+        name="Mill private listing",
+        version="1.0.0",
+        description="Private spinning overlay for one mill.",
+        publisher="Easy-Books",
+        requires_modules=["base"],
+    )
+    spin = ExtensionManifest(
+        id="partner.easybooks.spinning-entitled",
+        name="Spinning mill pack",
+        version="1.0.0",
+        description="Shown when spinning is entitled or installed.",
+        publisher="Easy-Books",
+        requires_modules=["spinning"],
+    )
+    return [
+        CatalogEntry(
+            manifest=mill,
+            summary="Private mill card",
+            tags=["spinning", "private"],
+            audience="private",
+            visible_to_tenant_ids=[mill_tid],
+        ),
+        CatalogEntry(
+            manifest=spin,
+            summary="Entitled spinning card",
+            tags=["spinning", "first-party"],
+            audience="entitled",
+            entitled_module="spinning",
+            first_party_module="spinning",
+        ),
+    ]
+
+
+def test_private_listing_isolated_between_tenants(client, monkeypatch):
+    a_id, a_auth = _signup(client, "mill-a@mp.test", "Mill A")
+    _b_id, b_auth = _signup(client, "hosp-b@mp.test", "Hospital B")
+
+    extras = _extra_entries(a_id)
+
+    def fake_resolve(*, remote_url=None, allow_env=True):
+        return list(bundled_catalog()) + extras
+
+    monkeypatch.setattr("services.marketplace.catalog.resolve_catalog", fake_resolve)
+
+    cat_a = client.get("/api/marketplace/catalog", headers=a_auth)
+    assert cat_a.status_code == 200, cat_a.text
+    ids_a = {e["id"] for e in cat_a.json()["entries"]}
+    assert "partner.easybooks.mill-private" in ids_a
+    row = next(e for e in cat_a.json()["entries"] if e["id"] == "partner.easybooks.mill-private")
+    assert row["for_you"] is True
+    assert row["audience"] == "private"
+    assert "spinning" in row["tags"]
+
+    cat_b = client.get("/api/marketplace/catalog", headers=b_auth)
+    assert cat_b.status_code == 200, cat_b.text
+    ids_b = {e["id"] for e in cat_b.json()["entries"]}
+    assert "partner.easybooks.mill-private" not in ids_b
+    assert "partner.easybooks.invoice-csv-export" in ids_b
+
+    leak = client.post(
+        "/api/marketplace/extensions/partner.easybooks.mill-private/install",
+        headers=b_auth,
+    )
+    assert leak.status_code == 404, leak.text
+
+
+def test_entitled_listing_hidden_until_entitled(client, monkeypatch):
+    from services.entitlements import set_entitled
+    from sqlmodel import Session
+    import db as db_mod
+    from models import Tenant
+
+    a_id, a_auth = _signup(client, "spin-a@mp.test", "Spin Co")
+    extras = _extra_entries(a_id)
+
+    def fake_resolve(*, remote_url=None, allow_env=True):
+        return list(bundled_catalog()) + extras
+
+    monkeypatch.setattr("services.marketplace.catalog.resolve_catalog", fake_resolve)
+
+    before = client.get("/api/marketplace/catalog", headers=a_auth).json()["entries"]
+    assert all(e["id"] != "partner.easybooks.spinning-entitled" for e in before)
+
+    with Session(db_mod.engine) as s:
+        tenant = s.get(Tenant, a_id)
+        set_entitled(tenant, ["spinning"])
+        s.add(tenant)
+        s.commit()
+
+    after = client.get("/api/marketplace/catalog", headers=a_auth).json()["entries"]
+    row = next(e for e in after if e["id"] == "partner.easybooks.spinning-entitled")
+    assert row["for_you"] is True
+    assert row["audience"] == "entitled"
+
+
+def test_public_listings_default_audience(client, admin_headers):
+    cat = client.get("/api/marketplace/catalog", headers=admin_headers)
+    assert cat.status_code == 200, cat.text
+    for e in cat.json()["entries"]:
+        assert e["audience"] == "public"
+        assert e["for_you"] is False
+        assert "tags" in e
 
 
 def test_bundled_catalog_validates():

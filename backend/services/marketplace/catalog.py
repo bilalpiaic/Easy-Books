@@ -14,7 +14,35 @@ from typing import Any
 
 import httpx
 
+from models import Tenant
 from services.marketplace.manifest import CatalogEntry, ExtensionManifest
+
+
+def visible_to(entry: CatalogEntry, tenant: Tenant) -> bool:
+    """Server-side catalog gate (#371). Never rely on the React tab alone."""
+    audience = entry.audience or "public"
+    if audience == "public":
+        return True
+    if audience == "private":
+        tid = tenant.id
+        if tid is None:
+            return False
+        return int(tid) in {int(i) for i in (entry.visible_to_tenant_ids or [])}
+    if audience == "entitled":
+        mid = entry.entitled_module
+        if not mid:
+            return False
+        return _entitled_or_installed(tenant, mid)
+    return False
+
+
+def _entitled_or_installed(tenant: Tenant, module_id: str) -> bool:
+    from routers.modules import _get_enabled
+    from services.entitlements import is_allowed, is_entitled
+
+    if module_id in _get_enabled(tenant):
+        return True
+    return is_entitled(tenant, module_id) or is_allowed(tenant, module_id)
 
 # ── shipped curated listings ──────────────────────────────────────────────────
 
@@ -162,6 +190,9 @@ def _parse_entries(raw: list[dict[str, Any]]) -> list[CatalogEntry]:
                 first_party_module=row.get("first_party_module"),
                 summary=row.get("summary"),
                 tags=list(row.get("tags") or []),
+                audience=row.get("audience") or "public",
+                visible_to_tenant_ids=list(row.get("visible_to_tenant_ids") or []),
+                entitled_module=row.get("entitled_module"),
                 studio=row.get("studio"),
             )
         )
@@ -183,6 +214,19 @@ def fetch_remote_catalog(url: str, *, timeout: float = 8.0) -> list[CatalogEntry
     if not isinstance(data, list):
         raise ValueError("catalog JSON must be a list or {entries: [...]}")
     return _parse_entries(data)
+
+
+def catalog_for_tenant(
+    tenant: Tenant,
+    *,
+    remote_url: str | None = None,
+    allow_env: bool = True,
+) -> list[CatalogEntry]:
+    """Resolved catalog rows this tenant is allowed to see (#371)."""
+    return [
+        e for e in resolve_catalog(remote_url=remote_url, allow_env=allow_env)
+        if visible_to(e, tenant)
+    ]
 
 
 def resolve_catalog(
@@ -215,6 +259,9 @@ def catalog_as_json() -> str:
                 "summary": e.summary,
                 "tags": e.tags,
                 "first_party_module": e.first_party_module,
+                "audience": e.audience,
+                "visible_to_tenant_ids": e.visible_to_tenant_ids,
+                "entitled_module": e.entitled_module,
                 "manifest": e.manifest.model_dump(),
             }
             for e in bundled_catalog()

@@ -56,6 +56,9 @@ type CatalogEntry = {
   first_party_module: string | null
   curated: boolean
   installed: boolean
+  audience?: "public" | "entitled" | "private"
+  entitled_module?: string | null
+  for_you?: boolean
 }
 
 type BoundaryDoc = {
@@ -546,6 +549,11 @@ function AppsPageInner() {
                         First-party
                       </span>
                     )}
+                    {entry.for_you && (
+                      <span className="text-[10px] uppercase tracking-wide text-[var(--primary)] font-semibold">
+                        For you
+                      </span>
+                    )}
                     {entry.installed && (
                       <span className="inline-flex items-center gap-1 text-[11px] text-[var(--primary)] font-medium">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Installed
@@ -553,6 +561,18 @@ function AppsPageInner() {
                     )}
                   </div>
                   <p className="text-xs text-[var(--text-muted)]">{entry.summary}</p>
+                  {entry.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {entry.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="text-[10px] rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[var(--text-muted)]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-[10px] text-[var(--text-muted)]">
                     {entry.publisher}
                     {entry.requested_permissions.length > 0 && (

@@ -8,8 +8,8 @@ from typing import Any
 from sqlmodel import Session, select
 
 from models import Settings, Tenant
-from services.marketplace.catalog import CatalogEntry, resolve_catalog
-from services.marketplace.manifest import ExtensionManifest, InstalledExtension
+from services.marketplace.catalog import catalog_for_tenant
+from services.marketplace.manifest import CatalogEntry, ExtensionManifest, InstalledExtension
 
 _EXT_META_KEY = "_extensions"
 
@@ -64,8 +64,11 @@ def installed_extensions(tenant: Tenant) -> list[InstalledExtension]:
 def find_catalog_entry(
     session: Session, tenant_id: int, extension_id: str
 ) -> CatalogEntry | None:
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        return None
     remote = _get_setting(session, tenant_id, "marketplace_catalog_url")
-    for entry in resolve_catalog(remote_url=remote or None):
+    for entry in catalog_for_tenant(tenant, remote_url=remote or None):
         if entry.manifest.id == extension_id:
             return entry
     return None

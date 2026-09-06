@@ -14,7 +14,7 @@ from sqlmodel import select
 from db import MODULE_REGISTRY
 from models import Settings, Tenant
 from routers.common import CurrentUserDep, SessionDep
-from services.marketplace.catalog import resolve_catalog
+from services.marketplace.catalog import catalog_for_tenant
 from services.marketplace.install import (
     find_catalog_entry,
     installed_extensions,
@@ -36,6 +36,7 @@ BOUNDARY_DOC = {
         "requested_permissions are recorded for audit; they do not grant silent API access in v1.",
         "requires_modules may install first-party MODULE_REGISTRY packs only.",
         "Remote catalogs are allowlisted via MARKETPLACE_CATALOG_URL or Settings → marketplace_catalog_url (curated JSON only).",
+        "Catalog rows are filtered server-side by audience (public | entitled | private). Private listings never leak to other tenants.",
         "No public unvetted upload path and no payments in v1.",
     ],
     "docs_path": "docs/MARKETPLACE.md",
@@ -77,7 +78,7 @@ def get_catalog(user: CurrentUserDep, session: SessionDep):
 
     entries = []
     try:
-        catalog = resolve_catalog(remote_url=_remote_url(session, user.tenant_id))
+        catalog = catalog_for_tenant(tenant, remote_url=_remote_url(session, user.tenant_id))
     except Exception as exc:
         raise HTTPException(502, f"Remote catalog failed: {exc}") from exc
 
@@ -88,6 +89,7 @@ def get_catalog(user: CurrentUserDep, session: SessionDep):
             is_installed = fp in enabled
         else:
             is_installed = m.id in installed
+        audience = entry.audience or "public"
         entries.append(
             {
                 "id": m.id,
@@ -106,6 +108,9 @@ def get_catalog(user: CurrentUserDep, session: SessionDep):
                 "first_party_module": fp,
                 "curated": m.curated,
                 "installed": is_installed,
+                "audience": audience,
+                "entitled_module": entry.entitled_module,
+                "for_you": audience != "public",
             }
         )
     return {"boundary": BOUNDARY_DOC, "entries": entries}
