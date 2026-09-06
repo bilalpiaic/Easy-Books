@@ -1,10 +1,10 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-09-06 (Weighbridge findable on `main`; Studio #369 shipped)._
+_Last reviewed: 2026-09-06 (Weighbridge docs on `main`; #118 owner TOTP / demo-login gates in progress)._
 
 ## Status summary
 
-**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370/#371), Studio (#372–#376), mill **Weighbridge** (#384, findable #387), and CI debt (#385–#386) are on `main`. Remaining: Stripe/Neon/S3 **ops secrets**, Wave 0 GitHub issue closes (issues API 403). Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
+**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370–#376), mill **Weighbridge** (#384 / #387), CI debt (#385–#386), and owner TOTP / demo-login gates (#118 remainder) are on `main` once this PR lands. Remaining: Stripe/Neon/S3 **ops secrets** (host env), Wave 0 GitHub issue closes (issues API 403). Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
 
 **v6 Growth Track [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):** A + B largely **landed on `main`** (PRs #323–#351). Do not treat the table below as a build queue until Wave 0 closes shipped issues. C (platforms/GTM) is now #369, not more modules.
 
@@ -38,6 +38,7 @@ _Last reviewed: 2026-09-06 (Weighbridge findable on `main`; Studio #369 shipped)
 | **#308** | Marketplace partner code execution / signed extensions | **Wontfix for production** — keep #227 declarative + #376 bundles |
 | **#309** | SOC 2–oriented evidence pack | **Defer** until an enterprise RFP |
 | **#370–#376** | Entitlements, catalog audience, Studio-lite | **Shipped** PRs #377–#383 |
+| **#118** remainder | Require TOTP for `owner` + hide/block demo logins | **Shipped in code** — set `REQUIRE_OWNER_TOTP=true` and `ALLOW_DEMO_LOGIN=false` on production |
 | **Weighbridge** | Private mill Marketplace listing + Studio bundle | **Shipped** #384 listing, #387 mill visibility / Add-ons discovery |
 
 ### Shipped foundations (not v6 — do not reopen)

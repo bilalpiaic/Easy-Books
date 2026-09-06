@@ -289,6 +289,52 @@ async def check_tenant_suspension(request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def check_owner_totp_setup(request, call_next):
+    """Owners must enroll TOTP before mutating APIs (#118 remainder)."""
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return await call_next(request)
+    path = request.url.path
+    if (
+        path.startswith("/api/auth")
+        or path.startswith("/api/health")
+        or path.startswith("/api/version")
+        or path.startswith("/api/stripe")
+        or path == "/docs"
+        or path == "/openapi.json"
+    ):
+        return await call_next(request)
+    auth = request.headers.get("authorization") or ""
+    token = auth[7:] if auth.lower().startswith("bearer ") else request.cookies.get("eb_access")
+    if token:
+        try:
+            from jose import jwt as _jwt
+            from auth import SECRET_KEY, ALGORITHM
+            from db import engine
+            from sqlmodel import Session, select
+            from models import User
+            from services.security_policy import owner_must_setup_totp
+            payload = _jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            if payload.get("totp_pending"):
+                return await call_next(request)
+            email = payload.get("sub")
+            if email:
+                with Session(engine) as s:
+                    user = s.exec(select(User).where(User.email == email)).first()
+                    if user and owner_must_setup_totp(user):
+                        from fastapi.responses import JSONResponse
+                        return JSONResponse(
+                            {
+                                "error": "Owner must enable authenticator 2FA before continuing.",
+                                "code": "totp_setup_required",
+                            },
+                            status_code=403,
+                        )
+        except Exception:
+            pass
+    return await call_next(request)
+
+
 # Routers are listed roughly in the order the UI exercises them so the
 # /docs page renders predictably. Each router is mounted twice: at its
 # original /api/* path (legacy) and at /api/v1/* (versioned). Future

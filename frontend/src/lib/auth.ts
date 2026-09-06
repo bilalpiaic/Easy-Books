@@ -1,5 +1,6 @@
 const TOKEN_KEY = "access_token"
 const MUST_CHANGE_KEY = "eb.must_change_pwd"
+const MUST_SETUP_TOTP_KEY = "eb.must_setup_totp"
 /** Tab/window session marker — cleared when the browser session ends. */
 const SESSION_KEY = "eb.auth_session"
 
@@ -18,6 +19,7 @@ export const setAuthToken = (token: string) => {
 export const removeAuthToken = () => {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(MUST_CHANGE_KEY)
+  localStorage.removeItem(MUST_SETUP_TOTP_KEY)
   clearAuthSession()
 }
 
@@ -28,6 +30,14 @@ export const setMustChangePwd = (v: boolean) => {
 
 export const getMustChangePwd = (): boolean =>
   typeof window !== "undefined" && localStorage.getItem(MUST_CHANGE_KEY) === "1"
+
+export const setMustSetupTotp = (v: boolean) => {
+  if (v) localStorage.setItem(MUST_SETUP_TOTP_KEY, "1")
+  else localStorage.removeItem(MUST_SETUP_TOTP_KEY)
+}
+
+export const getMustSetupTotp = (): boolean =>
+  typeof window !== "undefined" && localStorage.getItem(MUST_SETUP_TOTP_KEY) === "1"
 
 export function markAuthSession() {
   if (typeof window === "undefined") return
@@ -61,6 +71,7 @@ export function reconcileAuthOnLoad() {
   if (localStorage.getItem(TOKEN_KEY) && !hasAuthSession()) {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(MUST_CHANGE_KEY)
+    localStorage.removeItem(MUST_SETUP_TOTP_KEY)
   }
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { setAuthToken, setMustChangePwd, isAuthenticated, reconcileAuthOnLoad } from "@/lib/auth"
+import { setAuthToken, setMustChangePwd, setMustSetupTotp, isAuthenticated, reconcileAuthOnLoad } from "@/lib/auth"
 import { apiBase, networkErrorMessage } from "@/lib/api"
 
 const DEMO_EMAIL = "demo.simple@easy-books.app"
@@ -16,7 +16,7 @@ function LoginForm() {
   const [otp, setOtp] = useState("")
   const [partialToken, setPartialToken] = useState("")
   const [needsTotp, setNeedsTotp] = useState(false)
-  const [providers, setProviders] = useState<{ google?: boolean; microsoft?: boolean }>({})
+  const [providers, setProviders] = useState<{ google?: boolean; microsoft?: boolean; demo_login?: boolean }>({})
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
@@ -49,11 +49,18 @@ function LoginForm() {
       .catch(() => {})
   }, [search, router])
 
-  const finishLogin = (data: { access_token: string; must_change_password?: boolean }) => {
+  const finishLogin = (data: {
+    access_token: string
+    must_change_password?: boolean
+    totp_setup_required?: boolean
+  }) => {
     setAuthToken(data.access_token)
     setMustChangePwd(!!data.must_change_password)
+    setMustSetupTotp(!!data.totp_setup_required)
     if (data.must_change_password) {
       router.push("/profile?changePassword=1")
+    } else if (data.totp_setup_required) {
+      router.push("/profile?setup2fa=1")
     } else {
       router.push("/dashboard")
     }
@@ -72,7 +79,15 @@ function LoginForm() {
     } catch (err) {
       throw new Error(networkErrorMessage(err, "Login failed"))
     }
-    if (!response.ok) throw new Error("Invalid email or password")
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      // Keep 401 copy stable (form is email, API says "username"). Other
+      // statuses still surface API detail (demo-disabled, deactivated, throttle).
+      if (response.status === 401) {
+        throw new Error("Invalid email or password")
+      }
+      throw new Error(typeof body.detail === "string" ? body.detail : "Invalid email or password")
+    }
     const data = await response.json()
     if (data.requires_totp) {
       setPartialToken(data.partial_token)
@@ -191,14 +206,16 @@ function LoginForm() {
             >
               {isLoading ? "Signing in…" : "Sign in"}
             </button>
-            <button
-              type="button"
-              onClick={tryDemo}
-              disabled={demoLoading}
-              className="w-full border border-[#1a1814]/20 rounded-lg py-2 text-sm"
-            >
-              {demoLoading ? "Opening demo…" : "Try demo"}
-            </button>
+            {providers.demo_login !== false && (
+              <button
+                type="button"
+                onClick={tryDemo}
+                disabled={demoLoading}
+                className="w-full border border-[#1a1814]/20 rounded-lg py-2 text-sm"
+              >
+                {demoLoading ? "Opening demo…" : "Try demo"}
+              </button>
+            )}
             {(providers.google || providers.microsoft) && (
               <div className="pt-2 space-y-2 border-t border-[#1a1814]/10">
                 {providers.google && (

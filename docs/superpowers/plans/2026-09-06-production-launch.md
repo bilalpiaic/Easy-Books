@@ -1,7 +1,7 @@
 # Easy-Books production launch plan
 
 **Date:** 2026-09-06  
-**Status:** Wave 1 product (#370–#376), mill Weighbridge (#384 + #387), GitGuardian CI (#385), and CI debt (#386) are on `main`. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and **Wave 0 GitHub closes** (issues API 403).  
+**Status:** Wave 1 product (#370–#376), mill Weighbridge (#384 + #387), GitGuardian CI (#385), CI debt (#386), and **#118 remainder** (owner TOTP enroll + demo-login gate) are in repo. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and flipping `REQUIRE_OWNER_TOTP=true` / `ALLOW_DEMO_LOGIN=false` / `SEED_DEMO=false` on Vercel. Wave 0 GitHub closes still need issues write (API 403).  
 **Audience:** ship paying tenants on the existing Vercel + Neon stack  
 **Companion:** Studio/customization spec `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`  
 **End-user Weighbridge:** [USER_GUIDE.md §41](../../../USER_GUIDE.md#41-weighbridge-mill-marketplace-listing)
@@ -153,8 +153,8 @@ Do **not** rebuild #119. Wire production secrets and one test charge + one faile
 
 | Check | Action |
 |-------|--------|
-| TOTP | Encourage in onboarding; **require for `owner`** before go-live (small follow-up on #118) |
-| Demo passwords | Disable or isolate demo tenants on production (`SEED_DEMO=false`) |
+| TOTP | **Code:** `REQUIRE_OWNER_TOTP=true` forces owners to enroll (Profile) before mutating APIs; they cannot disable 2FA. Demo emails exempt. **Ops:** turn the env on in production. |
+| Demo passwords | **Code:** `ALLOW_DEMO_LOGIN=false` 403s `demo.*@easy-books.app` and hides **Try demo**. **Ops:** also `SEED_DEMO=false` so demo tenants are not created. |
 | Rate limits | Confirm login lockout + `ai_rate_limit_per_hour` |
 | Suspended tenants | 402 on accounting writes (`main.py` + `saas.py`) — verify with a live flag |
 
@@ -230,8 +230,8 @@ No `client-acme` branch. No second Neon “for that mill.”
 |-------|------------|----------------|
 | 0 | Hygiene comments/closes on shipped #299–#305 / #370–#376 (needs issues write) | No, but unblocks thinking |
 | 1 | Secrets + S3 + Neon PITR + Stripe live (no issue; ops) | **Yes** |
-| 2 | Postgres CI job (this PR; schema wipe vs `drop_all`) | Strong yes |
-| 3 | Require TOTP for owner | Strong yes |
+| 2 | Postgres CI job | Shipped #386 |
+| 3 | Require TOTP for owner + demo-login gate | **Shipped in code** — flip env on Vercel |
 
 Do not start #122 or #307 until Wave 1 is green.
 

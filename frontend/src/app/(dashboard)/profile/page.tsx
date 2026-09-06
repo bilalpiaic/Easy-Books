@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { User as UserIcon, Save, KeyRound, Camera, Trash2, Loader2, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react"
 import { apiFetch, apiBase } from "@/lib/api"
-import { getAuthHeader, setMustChangePwd } from "@/lib/auth"
+import { getAuthHeader, setMustChangePwd, setMustSetupTotp } from "@/lib/auth"
 
 interface Me {
   id: number
@@ -14,6 +14,9 @@ interface Me {
   avatar_url: string | null
   role: string
   must_change_password: boolean
+  totp_enabled?: boolean
+  totp_setup_required?: boolean
+  totp_can_disable?: boolean
   created_at: string | null
   last_login_at: string | null
   tenant: { name: string; business_model: string }
@@ -49,6 +52,7 @@ function useAuthedImage(path: string | null | undefined): string | null {
 function ProfilePageInner() {
   const params = useSearchParams()
   const forcePwd = params.get("changePassword") === "1"
+  const forceTotp = params.get("setup2fa") === "1"
 
   const [me, setMe] = useState<Me | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -75,12 +79,19 @@ function ProfilePageInner() {
         </div>
       )}
 
+      {forceTotp && me?.totp_setup_required && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4" /> This server requires authenticator 2FA for owners. Enable it below before posting invoices or bills.
+        </div>
+      )}
+
       {me && (
         <>
           <AvatarCard me={me} onChange={reload} />
           <ProfileCard me={me} onSaved={reload} />
           <OooSubstituteCard me={me} />
           <PasswordCard highlight={forcePwd && me.must_change_password} />
+          <TotpEnrollCard me={me} highlight={forceTotp && !!me.totp_setup_required} onEnabled={reload} />
           <AccountInfoCard me={me} />
         </>
       )}
@@ -383,6 +394,108 @@ function PasswordCard({ highlight }: { highlight: boolean }) {
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />} Update password
         </button>
       </form>
+    </section>
+  )
+}
+
+function TotpEnrollCard({
+  me,
+  highlight,
+  onEnabled,
+}: {
+  me: Me
+  highlight: boolean
+  onEnabled: () => void
+}) {
+  const [secret, setSecret] = useState<string | null>(null)
+  const [otpauth, setOtpauth] = useState<string | null>(null)
+  const [code, setCode] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [ok, setOk] = useState(false)
+
+  async function setup() {
+    setErr(null); setOk(false); setBusy(true)
+    try {
+      const r = await apiFetch<{ secret: string; otpauth_url: string }>("/api/auth/totp/setup", { method: "POST" })
+      setSecret(r.secret)
+      setOtpauth(r.otpauth_url)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Setup failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function enable(e: React.FormEvent) {
+    e.preventDefault()
+    setErr(null); setBusy(true)
+    try {
+      await apiFetch("/api/auth/totp/enable", { method: "POST", body: JSON.stringify({ code }) })
+      setMustSetupTotp(false)
+      setOk(true)
+      setCode("")
+      onEnabled()
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : "Invalid code")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className={`bg-white border rounded-2xl p-5 space-y-4 ${highlight ? "border-amber-300 ring-1 ring-amber-200" : "border-[var(--border)]"}`}>
+      <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+        <ShieldCheck className="w-4 h-4 text-[var(--primary)]" /> Authenticator 2FA
+      </h2>
+      {me.totp_enabled ? (
+        <p className="text-sm text-emerald-800">
+          2FA is enabled{me.totp_can_disable === false ? " and required for owners on this server." : "."}
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-[var(--text-primary)]/60">
+            Scan the secret with an authenticator app, then enter a 6-digit code to enable 2FA.
+          </p>
+          <button
+            type="button"
+            onClick={setup}
+            disabled={busy}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--bg-page)] disabled:opacity-60"
+          >
+            {busy && !secret ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            Set up 2FA
+          </button>
+          {secret && (
+            <div className="text-xs break-all space-y-1 bg-[var(--bg-page)] rounded-lg p-3">
+              <div>Secret: <code>{secret}</code></div>
+              {otpauth && <div>URI: <code>{otpauth}</code></div>}
+            </div>
+          )}
+          <form onSubmit={enable} className="flex flex-wrap items-end gap-2">
+            <Field label="6-digit code">
+              <input
+                className={inputCls}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                required
+              />
+            </Field>
+            <button
+              type="submit"
+              disabled={busy || code.length < 6}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-black text-sm font-bold hover:bg-[#d4af60] transition disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Enable
+            </button>
+          </form>
+        </>
+      )}
+      {err && <p className="text-sm text-red-700">{err}</p>}
+      {ok && <p className="flex items-center gap-1.5 text-sm text-emerald-700"><CheckCircle2 className="w-4 h-4" /> 2FA enabled.</p>}
     </section>
   )
 }

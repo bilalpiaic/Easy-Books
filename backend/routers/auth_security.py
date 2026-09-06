@@ -22,6 +22,7 @@ from auth import (
 )
 from models import Tenant, User
 from services.crypto_secrets import decrypt_secret, encrypt_secret
+from services.security_policy import demo_login_allowed, owner_must_setup_totp, owner_totp_locked
 
 from .common import CurrentUserDep, SessionDep
 from .auth import (
@@ -66,6 +67,8 @@ def _issue_full_token(user: User, response: Response) -> dict:
         "must_change_password": user.must_change_password,
         "onboarding_required": False,
         "addons_suggested": False,
+        "totp_enabled": bool(getattr(user, "totp_enabled", False)),
+        "totp_setup_required": owner_must_setup_totp(user),
     }
 
 
@@ -96,6 +99,11 @@ def totp_enable(body: TotpCode, session: SessionDep, user: CurrentUserDep):
 
 @auth_router.post("/totp/disable")
 def totp_disable(body: TotpCode, session: SessionDep, user: CurrentUserDep):
+    if owner_totp_locked(user):
+        raise HTTPException(
+            400,
+            "Owners must keep authenticator 2FA enabled on this server.",
+        )
     if not user.totp_enabled or not user.totp_secret:
         user.totp_enabled = False
         user.totp_secret = None
@@ -141,6 +149,7 @@ def oauth_providers():
         "microsoft": bool(
             os.environ.get("MICROSOFT_CLIENT_ID") and os.environ.get("MICROSOFT_CLIENT_SECRET")
         ),
+        "demo_login": demo_login_allowed(),
     }
 
 

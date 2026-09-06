@@ -238,6 +238,12 @@ def login(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    from services.security_policy import demo_login_allowed, is_demo_email, owner_must_setup_totp
+    if is_demo_email(user.email) and not demo_login_allowed():
+        raise HTTPException(
+            status_code=403,
+            detail="Demo logins are disabled on this server.",
+        )
     if not user.is_active:
         raise HTTPException(
             status_code=403,
@@ -291,11 +297,14 @@ def login(
         _mods, _meta = [], {}
     # Soft nudge only — never force a package wall. Add-ons live at /apps.
     addons_suggested = (set(_mods) == {"base"} or not _mods) and not _meta
+    totp_setup_required = owner_must_setup_totp(user)
     return {
         "access_token": token, "token_type": "bearer", "role": user.role,
         "csrf_token": csrf, "must_change_password": user.must_change_password,
         "onboarding_required": False,
         "addons_suggested": addons_suggested,
+        "totp_enabled": bool(getattr(user, "totp_enabled", False)),
+        "totp_setup_required": totp_setup_required,
     }
 
 
@@ -346,6 +355,7 @@ def get_me(session: SessionDep, user: CurrentUserDep):
     memberships = list_user_memberships(session, user.id)
     for m in memberships:
         m["is_active"] = m["tenant_id"] == user.tenant_id
+    from services.security_policy import owner_must_setup_totp, owner_totp_locked
     return {
         "id": user.id,
         "email": user.email,
@@ -357,6 +367,9 @@ def get_me(session: SessionDep, user: CurrentUserDep):
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
         "memberships_count": len(memberships),
+        "totp_enabled": bool(getattr(user, "totp_enabled", False)),
+        "totp_setup_required": owner_must_setup_totp(user),
+        "totp_can_disable": not owner_totp_locked(user),
         "tenant": {
             "id": tenant.id if tenant else user.tenant_id,
             "name": tenant.name if tenant else "",
