@@ -14,6 +14,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
+# Optional OneDrive/Google Drive portable mode (easy-books-portable.env or
+# .easy-books-portable). Leaves EB_DATA_DIR at ~/.easy-books when unset.
+# shellcheck disable=SC1091
+. "$ROOT/portable/apply-env.sh"
 NODE_VERSION="20.18.1"
 
 log()  { printf "\n\033[1;33m▶ %s\033[0m\n" "$*"; }

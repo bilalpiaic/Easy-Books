@@ -193,6 +193,17 @@ def _is_serverless() -> bool:
     return os.environ.get("VERCEL", "").lower() in ("1", "true")
 
 
+async def _instance_lock_heartbeat() -> None:
+    """Keep `.instance.lock` mtime fresh so a crashed peer expires, not us."""
+    from local_config import refresh_instance_lock
+    while True:
+        await asyncio.sleep(60)
+        try:
+            refresh_instance_lock()
+        except Exception:
+            pass
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # `lifespan` replaces the deprecated @app.on_event("startup") hook.
@@ -203,11 +214,24 @@ async def lifespan(_app: FastAPI):
     if os.environ.get("SCHEMA_BOOTSTRAP", "create_all") == "create_all":
         create_db_and_tables()
 
+    from local_config import (
+        acquire_instance_lock,
+        instance_lock_enabled,
+        release_instance_lock,
+    )
+
+    locked = False
+    if instance_lock_enabled():
+        acquire_instance_lock()
+        locked = True
+
     # On Vercel, long-lived asyncio loops do nothing useful (the function
     # freezes between requests). Opt in explicitly if you wire an external
     # cron to hit a sweep endpoint instead.
     _bg_default = "false" if _is_serverless() else "true"
     tasks = []
+    if locked:
+        tasks.append(asyncio.create_task(_instance_lock_heartbeat()))
     if _env_flag("OVERDUE_SWEEP_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_overdue_scheduler_loop()))
     if _env_flag("REVOKED_TOKEN_PRUNE_ENABLED", _bg_default):
@@ -218,12 +242,15 @@ async def lifespan(_app: FastAPI):
     if _env_flag("BANK_SYNC_ENABLED", _bg_default):
         tasks.append(asyncio.create_task(_bank_sync_scheduler_loop()))
 
-    yield
-
-    for task in tasks:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
+    try:
+        yield
+    finally:
+        for task in tasks:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        if locked:
+            release_instance_lock()
 
 
 app = FastAPI(title="Easy-Books API", lifespan=lifespan)

@@ -33,6 +33,12 @@ frontend/.env.local
 *.log
 .node/
 
+# Portable / cloud-folder install (OneDrive, Google Drive, …)
+/data/
+/.run/
+easy-books-portable.env
+.easy-books-portable
+
 # Per-install JWT secret — generated per machine, never commit
 .secret.key
 backend/.secret.key
