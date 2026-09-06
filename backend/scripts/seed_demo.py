@@ -6564,7 +6564,7 @@ def _seed_inventory_depth(s: Session, user: User, stock: list[Product]) -> None:
     tid = user.tenant_id
     if not stock:
         return
-    prod = stock[0]
+    prod = next((p for p in stock if (p.name or "") == "Premium Cotton Shirt"), stock[0])
     if not prod.track_lot:
         prod.track_lot = True
         if D(prod.avg_cost or 0) > ZERO and prod.nrv_unit is None:

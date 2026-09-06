@@ -178,6 +178,7 @@ def test_routes_to_sales_agent_with_its_tool_subset(client: TestClient, monkeypa
     assert tool_names == {
         "get_customer_performance", "get_top_customers", "find_customer",
         "get_customer_statement", "get_customer_ledger", "get_dashboard_summary",
+        "create_draft_invoice",
     }
     stage_labels = [
         json.loads(l[len("data: "):])["label"]
