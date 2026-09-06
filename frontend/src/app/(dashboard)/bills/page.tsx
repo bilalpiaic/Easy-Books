@@ -47,7 +47,6 @@ function BillsContent() {
   const { confirm, toast } = useMessages()
   const { t } = useTranslation()
   const { can } = usePermission()
-  if (!can("bills")) return <NoAccessBanner resource="bills" />
   const fmt = useFmt()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -152,6 +151,8 @@ function BillsContent() {
 
   const payable = bills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.total, 0)
   const paid    = bills.filter(b => b.status === 'paid').reduce((s, b) => s + b.total, 0)
+
+  if (!can("bills")) return <NoAccessBanner resource="bills" />
 
   return (
     <div className="space-y-6">

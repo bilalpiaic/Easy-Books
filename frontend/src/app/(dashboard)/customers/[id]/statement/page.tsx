@@ -46,6 +46,7 @@ function defaultRange() {
 }
 
 function CustomerStatementPageInner({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useTranslation()
   const fmt = useFmt()
   const { id } = use(params)
   const searchParams = useSearchParams()
@@ -73,7 +74,6 @@ function CustomerStatementPageInner({ params }: { params: Promise<{ id: string }
   const c = data.customer
   const closingNum = Number(data.closing_balance)
 
-  const { t } = useTranslation()
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <PrintHeader title={`Statement — ${c.name}`} subtitle={`Period: ${fmtDate(data.period.from)} to ${fmtDate(data.period.to)}`} />

@@ -13,11 +13,12 @@ def test_upgrade_over_create_all_db_is_safe(tmp_path, monkeypatch):
 
     # 1. Simulate an old install: schema via create_all, a row of real data, NO alembic_version.
     db.SQLModel.metadata.create_all(db.engine)
-    with db.engine.begin() as conn:
-        conn.execute(text(
-            "INSERT INTO tenant (name, base_currency, business_model, enabled_modules, cost_method, created_at) "
-            "VALUES ('Acme', 'USD', 'simple', '[]', 'wavg', datetime('now'))"
-        ))
+    from models import Tenant
+    from sqlmodel import Session as SMSession
+
+    with SMSession(db.engine) as session:
+        session.add(Tenant(name="Acme", base_currency="USD", business_model="simple"))
+        session.commit()
     assert "alembic_version" not in set(inspect(db.engine).get_table_names())
 
     # 2. Run the same upgrade the installer will run.

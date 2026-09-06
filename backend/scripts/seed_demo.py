@@ -2148,7 +2148,10 @@ def _seed_store_issues(
     tid = owner.tenant_id
     if s.exec(select(StoreIssue).where(StoreIssue.tenant_id == tid)).first():
         return
-    stock_products = [p for p in products if p.product_type == "stock"]
+    stock_products = [
+        p for p in products
+        if p.product_type == "stock" and not getattr(p, "track_lot", False)
+    ]
     if not stock_products:
         return
     own_location = s.exec(
@@ -6982,7 +6985,7 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 _seed_leases(s, user)
                 s.commit()
 
-            if business_model in ("trader", "manufacturing"):
+            if business_model == "trader":
                 _seed_inventory_depth(s, user, stock)
                 s.commit()
 
@@ -6996,6 +6999,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 _seed_store_issues(s, owner, clerk, all_products)
                 s.commit()
                 _seed_weaving(s, user, customers, vendors)
+                s.commit()
+                # Lot-track after consumption so store issues/sales don't
+                # require lot numbers that the memo seed never collected.
+                _seed_inventory_depth(s, user, stock)
                 s.commit()
 
         if business_model == "telecom_franchise":

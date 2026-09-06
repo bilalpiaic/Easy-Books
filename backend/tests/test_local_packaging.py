@@ -57,33 +57,18 @@ def test_seed_demo_off_creates_no_demo_users(tmp_path, monkeypatch):
     _restore_baseline()
 
 
-def test_backup_download_returns_zip(monkeypatch):
-    from fastapi.testclient import TestClient
-    from main import app
-    from tests.test_improvements import _mk_engine, _get_session_override, _signup_and_login
-    from db import get_session
-    engine = _mk_engine()
-    app.dependency_overrides[get_session] = _get_session_override(engine)
-    c = TestClient(app)
-    auth = _signup_and_login(c, "owner@bk.test", "BkCo")  # first signup = owner
-    r = c.get("/api/backup/download", headers=auth)
+def test_backup_download_returns_zip(client, admin_headers):
+    r = client.get("/api/backup/download", headers=admin_headers)
     assert r.status_code == 200, r.text
     assert r.headers["content-type"] == "application/zip"
     assert r.content[:2] == b"PK"  # zip magic
-    app.dependency_overrides.clear()
 
 
-def test_restore_rejects_zip_slip(monkeypatch):
+def test_restore_rejects_zip_slip(client, admin_headers):
     """A backup containing a traversal path must be rejected (Zip Slip guard)."""
     import io, zipfile
-    from fastapi.testclient import TestClient
-    from main import app
-    from tests.test_improvements import _mk_engine, _get_session_override, _signup_and_login
-    from db import get_session
-    engine = _mk_engine()
-    app.dependency_overrides[get_session] = _get_session_override(engine)
-    c = TestClient(app)
-    auth = _signup_and_login(c, "owner@slip.test", "SlipCo")
+    c = client
+    auth = admin_headers
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         z.writestr("database.db", b"x")
@@ -93,4 +78,3 @@ def test_restore_rejects_zip_slip(monkeypatch):
                files={"file": ("backup.zip", buf.read(), "application/zip")})
     assert r.status_code == 400, r.text
     assert "unsafe path" in r.json()["detail"].lower()
-    app.dependency_overrides.clear()

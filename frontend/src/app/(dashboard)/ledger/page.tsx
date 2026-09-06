@@ -69,7 +69,6 @@ type ControlType = "ar" | "ap"
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function defaultRange() {
-  const { t } = useTranslation()
   const to = new Date()
   const from = new Date(to.getFullYear(), 0, 1)
   return { start: from.toISOString().split("T")[0], end: to.toISOString().split("T")[0] }

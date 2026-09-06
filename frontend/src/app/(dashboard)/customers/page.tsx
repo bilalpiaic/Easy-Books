@@ -36,7 +36,6 @@ export default function Customers() {
   const { t } = useTranslation()
 
   const { can } = usePermission()
-  if (!can("customers")) return <NoAccessBanner resource="customers" />
   const fmt = useFmt()
   const router = useRouter()
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -106,6 +105,8 @@ export default function Customers() {
   }
 
   const bal = (c: Customer) => c.closing_balance ?? c.opening_balance
+
+  if (!can("customers")) return <NoAccessBanner resource="customers" />
 
   return (
     <div className="space-y-6">

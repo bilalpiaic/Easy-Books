@@ -15,25 +15,39 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade() -> None:
-    with op.batch_alter_table("tp_grey_lot") as batch:
-        batch.add_column(sa.Column("mending_date", sa.String(), nullable=True))
-        batch.add_column(sa.Column("contractor_id", sa.Integer(), nullable=True))
-        batch.add_column(sa.Column("category", sa.String(), nullable=True))
-        batch.add_column(sa.Column("process_name", sa.String(), nullable=True))
-        batch.add_column(sa.Column("rate", sa.Numeric(18, 4), nullable=False, server_default="0"))
-        batch.add_column(sa.Column("lot_no", sa.String(), nullable=True))
-        batch.add_column(sa.Column("lot_remarks", sa.String(), nullable=True))
-        batch.add_column(sa.Column("l_kami_mtr", sa.Numeric(18, 4), nullable=False, server_default="0"))
-        batch.add_column(sa.Column("manual_rejection_mtr", sa.Numeric(18, 4), nullable=True))
-        batch.add_column(sa.Column("rej_driver_name", sa.String(), nullable=True))
-        batch.add_column(sa.Column("rej_mobile", sa.String(), nullable=True))
-        batch.add_column(sa.Column("rej_vehicle", sa.String(), nullable=True))
+def _add_missing(table: str, columns: list[tuple[str, sa.Column]]) -> None:
+    bind = op.get_bind()
+    if not bind.dialect.has_table(bind, table):
+        return
+    existing = {c["name"] for c in sa.inspect(bind).get_columns(table)}
+    missing = [col for name, col in columns if name not in existing]
+    if not missing:
+        return
+    with op.batch_alter_table(table) as batch:
+        for col in missing:
+            batch.add_column(col)
 
-    with op.batch_alter_table("tp_grey_than") as batch:
-        batch.add_column(sa.Column("g_kami_mtr", sa.Numeric(18, 4), nullable=False, server_default="0"))
-        batch.add_column(sa.Column("cp_mtr", sa.Numeric(18, 4), nullable=False, server_default="0"))
-        batch.add_column(sa.Column("des_date", sa.String(), nullable=True))
+
+def upgrade() -> None:
+    _add_missing("tp_grey_lot", [
+        ("mending_date", sa.Column("mending_date", sa.String(), nullable=True)),
+        ("contractor_id", sa.Column("contractor_id", sa.Integer(), nullable=True)),
+        ("category", sa.Column("category", sa.String(), nullable=True)),
+        ("process_name", sa.Column("process_name", sa.String(), nullable=True)),
+        ("rate", sa.Column("rate", sa.Numeric(18, 4), nullable=False, server_default="0")),
+        ("lot_no", sa.Column("lot_no", sa.String(), nullable=True)),
+        ("lot_remarks", sa.Column("lot_remarks", sa.String(), nullable=True)),
+        ("l_kami_mtr", sa.Column("l_kami_mtr", sa.Numeric(18, 4), nullable=False, server_default="0")),
+        ("manual_rejection_mtr", sa.Column("manual_rejection_mtr", sa.Numeric(18, 4), nullable=True)),
+        ("rej_driver_name", sa.Column("rej_driver_name", sa.String(), nullable=True)),
+        ("rej_mobile", sa.Column("rej_mobile", sa.String(), nullable=True)),
+        ("rej_vehicle", sa.Column("rej_vehicle", sa.String(), nullable=True)),
+    ])
+    _add_missing("tp_grey_than", [
+        ("g_kami_mtr", sa.Column("g_kami_mtr", sa.Numeric(18, 4), nullable=False, server_default="0")),
+        ("cp_mtr", sa.Column("cp_mtr", sa.Numeric(18, 4), nullable=False, server_default="0")),
+        ("des_date", sa.Column("des_date", sa.String(), nullable=True)),
+    ])
 
 
 def downgrade() -> None:

@@ -17,10 +17,11 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    # Recreate CHECKs where the dialect supports it (Postgres). SQLite
-    # create_all / app-level validation cover new envs; batch recreate for SQLite.
     dialect = bind.dialect.name
-    if dialect == "postgresql":
+    if not bind.dialect.has_table(bind, "stocklocation"):
+        # Stub DBs used by 0068 repair tests have no locations table.
+        pass
+    elif dialect == "postgresql":
         op.execute("ALTER TABLE stocklocation DROP CONSTRAINT IF EXISTS ck_stock_location_type")
         op.execute(
             "ALTER TABLE stocklocation ADD CONSTRAINT ck_stock_location_type "
