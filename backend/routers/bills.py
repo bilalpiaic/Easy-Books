@@ -20,6 +20,7 @@ from services.tax_engine import prepare_line_taxes
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_account, get_or_create_account, log_audit, mark_onboarding_step, next_number
 
 from services.permissions import perm_dep, apply_own_filter
+from services.custom_fields import apply_incoming as apply_custom_fields
 router = APIRouter(tags=["bills"], dependencies=[perm_dep("bills")])
 
 
@@ -55,6 +56,7 @@ class BillCreate(BaseModel):
     # Intercompany (#261)
     is_intercompany: bool = False
     ic_counterparty_tenant_id: Optional[int] = None
+    custom_fields: Optional[dict] = None
 
 
 def _next_bill_number(session: Session, tenant_id: int, prefix: str, fmt: Optional[str] = None) -> str:
@@ -338,6 +340,9 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate, mirro
         ic_counterparty_tenant_id=(
             body.ic_counterparty_tenant_id if body.is_intercompany else None
         ),
+        custom_fields=apply_custom_fields(
+            session, user.tenant_id, "bill", body.custom_fields
+        ),
     )
     session.add(bill)
     session.flush()
@@ -611,6 +616,9 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     bill.analytic_account_id = body.analytic_account_id
     bill.analytic_2_id = getattr(body, "analytic_2_id", None)
     bill.analytic_3_id = getattr(body, "analytic_3_id", None)
+    bill.custom_fields = apply_custom_fields(
+        session, user.tenant_id, "bill", body.custom_fields, existing=bill.custom_fields
+    )
     session.add(bill)
     session.flush()
 

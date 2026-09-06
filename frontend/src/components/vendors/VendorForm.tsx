@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useModules } from '@/context/ModuleContext'
+import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
 
 export interface VendorFull {
   id: number
@@ -17,6 +18,7 @@ export interface VendorFull {
   state_code?: string | null
   wht_tax_code_id?: number | null
   wht_rate?: number | null
+  custom_fields?: CustomFieldValues
 }
 
 interface PaymentTerm { id: number; code: string; name: string; days: number }
@@ -56,6 +58,7 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
   const [taxCodes, setTaxCodes]   = useState<TaxCodeOpt[]>([])
   const [saving, setSaving]       = useState(false)
   const [formError, setFormError] = useState('')
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({})
 
   useEffect(() => {
     apiFetch<PaymentTerm[]>('/api/payment-terms').then(setTerms).catch(() => {})
@@ -82,6 +85,7 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
         wht_tax_code_id: vendor.wht_tax_code_id ? String(vendor.wht_tax_code_id) : '',
         wht_rate: vendor.wht_rate != null ? String(vendor.wht_rate) : '',
       })
+      setCustomFields(vendor.custom_fields ?? {})
     }
   }, [mode, vendor])
 
@@ -100,6 +104,7 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
         state_code: form.state_code || null,
         wht_tax_code_id: form.wht_tax_code_id ? parseInt(form.wht_tax_code_id) : null,
         wht_rate: form.wht_rate !== '' ? parseFloat(form.wht_rate) : null,
+        custom_fields: customFields,
       }
       if (mode === 'edit' && vendor) {
         await apiFetch(`/api/vendors/${vendor.id}`, {
@@ -242,6 +247,7 @@ export default function VendorForm({ mode, vendor, onSaved, onCancel }: Props) {
             </p>
           </div>
         </div>
+        <CustomFieldsInputs entity="vendor" values={customFields} onChange={setCustomFields} />
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <button onClick={onCancel} className="px-6 py-3 border border-[var(--text-primary)]/10 rounded-xl font-bold hover:bg-[var(--bg-page)]">Cancel</button>
