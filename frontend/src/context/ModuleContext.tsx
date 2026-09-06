@@ -45,7 +45,7 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const data = await loadBootstrap(true)
-      if (Array.isArray(data.modules)) setModules(data.modules as ModuleInfo[])
+      if (Array.isArray(data.modules)) setModules(data.modules)
     } catch {
       // unauthenticated — keep defaults
     } finally {
@@ -56,7 +56,7 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadBootstrap()
       .then(data => {
-        if (Array.isArray(data.modules)) setModules(data.modules as ModuleInfo[])
+        if (Array.isArray(data.modules)) setModules(data.modules)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
