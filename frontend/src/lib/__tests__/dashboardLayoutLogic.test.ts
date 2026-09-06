@@ -158,3 +158,19 @@ describe("Operations dashboard nav findability", () => {
     expect(hits[0]?.href).toBe("/dashboard/operations")
   })
 })
+
+describe("Studio nav findability", () => {
+  it("lists Studio on /settings/studio for admin-only System nav", () => {
+    const item = NAV.find(i => i.href === "/settings/studio")
+    const sub = SUB_NAV.system.find(i => i.href === "/settings/studio")
+    expect(item?.label).toBe("Studio")
+    expect(item?.adminOnly).toBe(true)
+    expect(sub?.label).toBe("Studio")
+    expect(SUB_NAV.system[1]?.href).toBe("/settings/studio")
+  })
+
+  it("Ctrl+K 'studio' ranks Settings Studio first", () => {
+    const hits = searchNav("studio", 8)
+    expect(hits[0]?.href).toBe("/settings/studio")
+  })
+})

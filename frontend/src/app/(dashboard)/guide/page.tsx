@@ -9,7 +9,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot, Scale,
+  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot, Scale, PenTool,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -60,6 +60,7 @@ const TABS: Tab[] = [
   { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom",  forModels: ["telecom_franchise"] },
   { id: "spinning",         label: "Yarn Spinning",           icon: CircleDot,      shortLabel: "Spinning", forModels: ["yarn_spinning"] },
   { id: "weighbridge",      label: "Weighbridge",             icon: Scale,          shortLabel: "Weigh",    forModels: ["manufacturing", "yarn_spinning"] },
+  { id: "studio",           label: "Settings Studio",         icon: PenTool,        shortLabel: "Studio"   },
   { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
   { id: "tips-shortcuts",   label: "Tips & Shortcuts",        icon: Keyboard,       shortLabel: "Tips"     },
 ]
@@ -1545,6 +1546,43 @@ function WeighbridgePanel() {
   )
 }
 
+function StudioPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        <b>Settings Studio</b> lets an admin/owner add extra <CodeBadge>x.*</CodeBadge> fields,
+        hide or require form fields, and pick print templates — without forking the app.
+        Marketplace listings (for example mill Weighbridge) can apply a declarative bundle
+        here. Custom values live on the document JSON and <b>never post to the GL</b>.
+      </p>
+
+      <SectionHeading>How to open Studio</SectionHeading>
+      <StepList steps={[
+        "Log in as admin or owner (demo owners work: demo.spinning@easy-books.app / demo1234).",
+        "System ▾ → Studio (first item after Settings), or Settings → Studio tab, or Settings → Advanced → Open Studio.",
+        "Press Ctrl+K and type studio, or go to /settings/studio.",
+      ]} />
+
+      <SectionHeading>Three tabs</SectionHeading>
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Fields</b> — extra columns on invoice, bill, customer, product, or vendor (cap 12 per entity)</li>
+        <li><b>Form layout</b> — hide / require / show core and custom fields on the shipped forms</li>
+        <li><b>Print</b> — clone or pick a print template</li>
+      </ul>
+
+      <TipCallout>
+        Clerk and viewer roles do not see Studio in the nav. Field-level rights for staff are
+        configured under <CodeBadge>Settings → Permissions</CodeBadge>.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Looking for Studio on the Settings Company tab — it is a Settings tab of its own, also under System ▾.</p>
+        <p>Expecting custom fields to post journal lines — they never enter posting.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
 function TelecomFranchisePanel() {
   const { t } = useTranslation()
   return (
@@ -2126,6 +2164,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "telecom":         <TelecomFranchisePanel />,
   "spinning":        <SpinningPanel />,
   "weighbridge":     <WeighbridgePanel />,
+  "studio":          <StudioPanel />,
   "bulk-statements": <BulkStatementsPanel />,
   "tips-shortcuts":  <TipsShortcutsPanel />,
 }

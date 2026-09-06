@@ -1814,7 +1814,13 @@ Full sandbox rules: [docs/MARKETPLACE.md](docs/MARKETPLACE.md).
 | **Form layout** | Hide / require / show core and custom fields on the shipped forms |
 | **Print** | Clone or pick a print template |
 
-Custom field values live on the document JSON. They **never post to the General Ledger** — Dr/Cr still balance the same way. Marketplace listings such as Weighbridge can fill Studio for you; you can still edit the resulting fields here.
+**How to open Studio**
+
+1. Log in as admin or owner (demo: `demo.spinning@easy-books.app` / `demo1234`).
+2. **System ▾ → Studio** (immediately under Settings), or the **Studio** tab on the Settings page, or **Settings → Advanced → Open Studio**.
+3. Ctrl+K → `studio`, or go to `/settings/studio`.
+
+Clerk / viewer roles do not see the nav item. Custom field values live on the document JSON. They **never post to the General Ledger** — Dr/Cr still balance the same way. Marketplace listings such as Weighbridge can fill Studio for you; you can still edit the resulting fields here.
 
 ---
 
