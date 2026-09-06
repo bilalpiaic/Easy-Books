@@ -1,10 +1,10 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-09-06 (owner TOTP / mill findability on `main`; #390 forgot-password in progress)._
+_Last reviewed: 2026-09-06 (forgot-password #390 on `main`; next: [SOTA implementation plan](superpowers/plans/2026-09-06-sota-implementation.md))._
 
 ## Status summary
 
-**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370–#376), mill **Weighbridge** (#384 / #387), CI debt (#385–#386), and owner TOTP / demo-login gates (#118 remainder) are on `main`. Remaining: Stripe/Neon/S3 **ops secrets** (host env). Next product leftover: **[#390](https://github.com/bilalpiaic/Easy-Books/issues/390)** self-service forgot-password. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
+**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 **product** is on `main`. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and production env flags. **Engineering next:** [SOTA plan](superpowers/plans/2026-09-06-sota-implementation.md) — SQL hot paths, session bootstrap, then optional #391 Weighbridge workspace. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)** leftover is GTM/ops (children shipped).
 
 **v6 Growth Track [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):** A + B largely **landed on `main`** (PRs #323–#351). Do not treat the table below as a build queue until Wave 0 closes shipped issues. C (platforms/GTM) is now #369, not more modules.
 
@@ -39,7 +39,8 @@ _Last reviewed: 2026-09-06 (owner TOTP / mill findability on `main`; #390 forgot
 | **#309** | SOC 2–oriented evidence pack | **Defer** until an enterprise RFP |
 | **#370–#376** | Entitlements, catalog audience, Studio-lite | **Shipped** PRs #377–#383 |
 | **#118** remainder | Require TOTP for `owner` + hide/block demo logins | **Shipped in code** — set `REQUIRE_OWNER_TOTP=true` and `ALLOW_DEMO_LOGIN=false` on production |
-| **#390** | Self-service forgot-password from login | **In progress** — email reset link; not a Wave 1 launch blocker |
+| **#390** | Self-service forgot-password from login | **Shipped** PR #393 |
+| **#391** | First-party mill Weighbridge workspace | **Open** — after ops + SQL hot paths; see [SOTA plan](superpowers/plans/2026-09-06-sota-implementation.md) |
 | **Weighbridge** | Private mill Marketplace listing + Studio bundle | **Shipped** #384 listing, #387 mill visibility / Add-ons discovery |
 
 ### Shipped foundations (not v6 — do not reopen)

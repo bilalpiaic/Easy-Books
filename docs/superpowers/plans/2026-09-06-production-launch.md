@@ -1,7 +1,7 @@
 # Easy-Books production launch plan
 
 **Date:** 2026-09-06  
-**Status:** Wave 1 product (#370–#376), mill Weighbridge (#384 + #387), GitGuardian CI (#385), CI debt (#386), and **#118 remainder** (owner TOTP enroll + demo-login gate) are in repo. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and flipping `REQUIRE_OWNER_TOTP=true` / `ALLOW_DEMO_LOGIN=false` / `SEED_DEMO=false` on Vercel. Wave 0 GitHub closes still need issues write (API 403).  
+**Status:** Wave 1 product is on `main` (incl. #118 remainder, mill findability, #390 forgot-password). Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and flipping `REQUIRE_OWNER_TOTP=true` / `ALLOW_DEMO_LOGIN=false` / `SEED_DEMO=false` on Vercel. Next **code** programme: [SOTA implementation plan](2026-09-06-sota-implementation.md).  
 **Audience:** ship paying tenants on the existing Vercel + Neon stack  
 **Companion:** Studio/customization spec `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`  
 **End-user Weighbridge:** [USER_GUIDE.md §41](../../../USER_GUIDE.md#41-weighbridge-mill-marketplace-listing)
@@ -232,7 +232,9 @@ No `client-acme` branch. No second Neon “for that mill.”
 | 1 | Secrets + S3 + Neon PITR + Stripe live (no issue; ops) | **Yes** |
 | 2 | Postgres CI job | Shipped #386 |
 | 3 | Require TOTP for owner + demo-login gate | **Shipped in code** — flip env on Vercel |
-| 4 | [#390](https://github.com/bilalpiaic/Easy-Books/issues/390) forgot-password | No — paying tenants without an admin nearby |
+| 4 | [#390](https://github.com/bilalpiaic/Easy-Books/issues/390) forgot-password | **Shipped** PR #393 |
+| 5 | [SOTA plan](2026-09-06-sota-implementation.md) — SQL hot paths, then session bootstrap | No — feel-slow / mill GL |
+| 6 | [#391](https://github.com/bilalpiaic/Easy-Books/issues/391) Weighbridge workspace | No — only if mill contract needs a scale desk |
 
 Do not start #122 or #307 until Wave 1 is green.
 
