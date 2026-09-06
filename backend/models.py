@@ -491,7 +491,10 @@ class TransactionBase(SQLModel):
 
 
 class Transaction(TransactionBase, table=True):
-    __table_args__ = (UniqueConstraint("tenant_id", "jv_number", name="unique_jv_number_per_tenant"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "jv_number", name="unique_jv_number_per_tenant"),
+        Index("ix_transaction_tenant_date", "tenant_id", "date"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     jv_number: str = Field(index=True)
     voucher_type: str = Field(default="JV", index=True)
@@ -507,7 +510,7 @@ class Transaction(TransactionBase, table=True):
 
 class JournalEntryBase(SQLModel):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
-    account_id: int = Field(foreign_key="account.id")
+    account_id: int = Field(foreign_key="account.id", index=True)
     debit: Money = money_col()
     credit: Money = money_col()
     # Optional cost-center / project tag for segment P&L (IAS 1 management commentary).
@@ -530,7 +533,7 @@ class JournalEntry(JournalEntryBase, table=True):
         ),
     )
     id: Optional[int] = Field(default=None, primary_key=True)
-    transaction_id: int = Field(foreign_key="transaction.id", ondelete="CASCADE")
+    transaction_id: int = Field(foreign_key="transaction.id", ondelete="CASCADE", index=True)
 
     transaction: Transaction = Relationship(back_populates="journal_entries")
     account: Account = Relationship(back_populates="journal_entries")
@@ -585,6 +588,9 @@ class Vendor(SQLModel, table=True):
 
 
 class Invoice(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_invoice_tenant_issue_date", "tenant_id", "issue_date"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     number: str = Field(index=True)
@@ -1452,7 +1458,7 @@ class PromoRule(SQLModel, table=True):
 
 class InvoiceLine(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    invoice_id: int = Field(foreign_key="invoice.id", ondelete="CASCADE")
+    invoice_id: int = Field(foreign_key="invoice.id", ondelete="CASCADE", index=True)
     product_id: Optional[int] = Field(default=None, foreign_key="product.id")
     description: str
     qty: Money = money_col(default=Decimal("1"))
@@ -1475,7 +1481,7 @@ class InvoiceLine(SQLModel, table=True):
 
 class BillLine(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    bill_id: int = Field(foreign_key="bill.id", ondelete="CASCADE")
+    bill_id: int = Field(foreign_key="bill.id", ondelete="CASCADE", index=True)
     product_id: Optional[int] = Field(default=None, foreign_key="product.id")
     description: str
     qty: Money = money_col(default=Decimal("1"))
@@ -1562,8 +1568,8 @@ class PaymentAllocation(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     payment_received_id: Optional[int] = Field(default=None, foreign_key="paymentreceived.id")
     bill_payment_id: Optional[int] = Field(default=None, foreign_key="billpayment.id")
-    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id")
-    bill_id: Optional[int] = Field(default=None, foreign_key="bill.id")
+    invoice_id: Optional[int] = Field(default=None, foreign_key="invoice.id", index=True)
+    bill_id: Optional[int] = Field(default=None, foreign_key="bill.id", index=True)
     amount: Money = money_col()
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
