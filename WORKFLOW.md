@@ -25,6 +25,7 @@
    - 6.9 [Healthcare / Hospital (V3.0)](#49-healthcare--hospital-v30)
    - 6.10 [Weaving Unit Control (#140)](#410-weaving-unit-control-140)
    - 6.11 [Yarn Spinning Unit (#319)](#411-yarn-spinning-unit-319)
+   - 6.12 [Mill Weighbridge overlay](#412-mill-weighbridge-overlay)
 7. [Cross-Cutting Features](#5-cross-cutting-features)
    - 7.1 [Multi-Currency & FX](#51-multi-currency--fx)
    - 7.2 [Tax Codes](#52-tax-codes)
@@ -56,7 +57,7 @@
 |---|---|
 | Purpose | Multi-tenant double-entry accounting — GL, invoicing, billing, inventory, banking, multi-currency, tax, period close |
 | Accounting compliance | **∑Dr = ∑Cr exact** (Decimal NUMERIC(18,4)), **IAS 2 / ASC 330** inventory at WAvg cost, **IAS 21** multi-currency with FX-rate snapshots, **GST output/input** separated, **period-lock** enforced at posting service, **IAS 1** audit-trail traceability via hyperlinked GL |
-| Demo tenants | 8 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital/yarn_spinning (email: `demo.{model}@easy-books.app` — spinning uses `demo.spinning@easy-books.app`; password: `demo1234`) — each populated with 100 invoices, 100 bills, 70 payments, 25 customers, 25 vendors, 3 bank accounts, 4 payment terms, 6 recurring templates; hospital tenant additionally has 5 doctors, 4 wards, 50 patients, 200 OPD tokens, 20 admissions, 80 lab orders; spinning tenant additionally has yarn specs, spin lots, bale receipts, stage entries, cone output, waste, and dispatches |
+| Demo tenants | 9 pre-seeded: simple/services/trader/manufacturing/telecom_franchise/pra_einvoice/hospital/yarn_spinning/textile_processing (emails `demo.{model}@easy-books.app` — spinning uses `demo.spinning@easy-books.app`, processing uses `demo.processing@easy-books.app`; password `demo1234`). Manufacturing and spinning mills see Marketplace **Weighbridge** (gate pass + lot on invoices; no GL). |
 | Customization | Business tagline + company branding per tenant via `/dashboard/settings`; **dual-home dashboard (v4)** — Financial \| Operations toggle on `/dashboard`, each home drag/resize/add/remove independently, per-breakpoint (desktop/tablet/phone), saved per user via `/api/dashboard/layout`; home preference in Settings → Advanced (`eb.home_dashboard`); ops aggregate `GET /api/dashboard/operations-summary`; staff rights `dashboard.financial` / `dashboard.operations`; **Section Hub Pages** (`/receivable`, `/payable`, `/inventory`, `/banking`) — command-centre views with aging/stock/balance bands (v2.7+); **Dark Mode + 5 color themes** (v2.7+); **multi-language** EN/UR/ZH with RTL support (v2.7+); **PRA portal mode** — admin/owner can toggle between Full Accounting view and a clean 7-item PRA-focused sidebar; non-admin users always land in portal mode (v2.8.1+); **Ctrl+K universal search** — 3-tier command palette (open tabs → nav index → API, 8 entity types, prefix filter syntax, recent searches) (v3.0+); **in-app auto-update** — `UpdateAvailablePopup` + `UpdateProgressScreen` with 4-phase progress and changelog (v3.0+); **mobile navigation** — `BottomNav`, `FAB`, `MoreDrawer` (v3.0+); **QB token system** — all 155+ pages migrated to CSS custom properties, dark mode entirely token-driven (v3.0+) |
 | Multi-tenancy | One `Tenant` per business; every record carries `tenant_id`; queries scope to it; central posting service double-checks account ownership |
 | Auth | JWT bearer **and** HttpOnly cookie; CSRF on cookie path; bcrypt password hashing |
@@ -450,7 +451,8 @@ Easy-Books implements the following international accounting standards and best 
 | Demo Telecom Co. | `demo.telecom@easy-books.app` | Telecom Franchise | Operator franchise — Tracker, RSO chain, FCA targets |
 | Demo PRA Co. | `demo.pra@easy-books.app` | PRA e-Invoice | Pakistani retail — PRA eIMS, PKR, NTN/CNIC, PCT codes |
 | City General Hospital | `demo.hospital@easy-books.app` | Healthcare / Hospital | OPD/IPD, Lab, Procedures, Pharmacy store |
-| Demo Yarn Spinning Mill | `demo.spinning@easy-books.app` | Yarn Spinning | Bale receipt → multi-stage lots → cone output → dispatch (full GL) |
+| Demo Yarn Spinning Mill | `demo.spinning@easy-books.app` | Yarn Spinning | Bale receipt → multi-stage lots → cone output → dispatch (full GL). Marketplace **Weighbridge** (For you). |
+| Demo Textile Processing | `demo.processing@easy-books.app` | Textile Processing | Grey inward / processing floor |
 
 **Password (all):** `demo1234`
 
@@ -1115,6 +1117,30 @@ Setup → Production Plan → Spin Lot → Bale Receipt → Stage Entries → Co
 **Reports (`/api/spinning/reports/`):** `dashboard`, `daily`, `lot-control/{lot_id}`, `waste`, `cost-per-kg`, `dispatch`.
 
 **Calculators (`/api/spinning/calculators/`):** `yield`, `blend`, `spindle`.
+
+### 4.12 MILL WEIGHBRIDGE OVERLAY
+
+Private Marketplace listing `partner.easybooks.weighbridge` (PRs #384 / #387). **No partner code, no extra GL.**
+
+```
+Mill login → System → Add-ons → Marketplace (For you)
+    → Install Weighbridge (Studio bundle)
+    → New Invoice: Gate pass (required) + Lot ref (optional)
+    → Post: same AR/Revenue as any sale; custom_fields JSON only
+    → Print: Gate pass on the invoice
+```
+
+| Who | Catalog |
+|-----|---------|
+| `manufacturing` / `yarn_spinning` (and spinning module installed) | Card visible, **For you** |
+| Hospital / simple / ungranted | Id omitted; install 404 |
+
+| Field | Key | Required | Form | Print | List |
+|-------|-----|----------|------|-------|------|
+| Gate pass | `x.gate_pass_no` | yes | yes | yes | yes |
+| Lot ref | `x.lot_ref` | no | yes | no | no |
+
+Uninstall **archives** definitions; historical invoice values remain. Operators grant extra tenants with `PUT /api/ops/tenants/{id}/marketplace-private`. End-user steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
 
 ---
 

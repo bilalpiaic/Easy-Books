@@ -183,10 +183,10 @@ Keep unique `(tenant_id, user_id, resource_key)` — field keys are just more `r
 - Modify: `backend/services/marketplace/install.py` (apply/remove bundle)
 - Test: `backend/tests/test_studio_bundle.py`
 
-- [ ] **P7.1** Studio page: tabs Fields / Form / Print. Uses existing APIs.
-- [ ] **P7.2** `studio` on catalog entry; install writes defs with `source_extension_id`; uninstall deletes those defs (400 if values exist? **Choice: archive defs, keep values**).
-- [ ] **P7.3** Private listing + studio bundle = mill “Weighbridge” card **For you**.
-- [ ] **P7.4** Tests: install bundle creates `x.gate_pass_no`; uninstall archives it; `#227` boundary text unchanged (no code execution).
+- [x] **P7.1** Studio page: tabs Fields / Form / Print. Uses existing APIs.
+- [x] **P7.2** `studio` on catalog entry; install writes defs with `source_extension_id`; uninstall archives defs, keeps values.
+- [x] **P7.3** Private listing + studio bundle = mill “Weighbridge” card **For you** (PRs #384, #387).
+- [x] **P7.4** Tests: install bundle creates `x.gate_pass_no`; uninstall archives it; `#227` boundary text unchanged (no code execution).
 
 **Done when:** a partner can ship a mill overlay as a private Marketplace listing without a git branch.
 

@@ -8,7 +8,7 @@ adds a curated catalog of *third-party* listings with a hard sandbox boundary.
 | Requirement | Where |
 |-------------|--------|
 | Extension point / manifest format | `backend/services/marketplace/manifest.py` → `ExtensionManifest` |
-| Install UI listing remote catalog | Apps → **Marketplace** tab; `GET /api/marketplace/catalog` |
+| Install UI listing remote catalog | Add-ons → **Marketplace** tab; `GET /api/marketplace/catalog` |
 | Sandbox / permission boundary documented | This file + `GET /api/marketplace/boundary` |
 
 **Out of scope (still):** public unvetted uploads, payments, arbitrary code execution.
@@ -75,7 +75,19 @@ MARKETPLACE_PRIVATE_AUDIENCE={"partner.easybooks.weighbridge":[12]}
 
 Hospital (and any ungranted tenant) `GET /api/marketplace/catalog` JSON **does not include** that listing id. Install by another tenant returns 404.
 
-**Weighbridge** ships a `studio` bundle (gate pass + lot ref on invoices). Install writes `CustomFieldDef` rows; uninstall archives them. No partner code runs.
+## Weighbridge — how a mill user uses it
+
+**Weighbridge** is the bundled private mill listing (`partner.easybooks.weighbridge`). It ships a `studio` bundle: invoice **Gate pass** (`x.gate_pass_no`, required, printed) and **Lot ref** (`x.lot_ref`, optional, form-only). Install writes `CustomFieldDef` rows; uninstall archives them. Values never post to the GL. No partner code runs.
+
+**User path**
+
+1. Log in as a mill (`demo.manufacturing@easy-books.app` or `demo.spinning@easy-books.app` / `demo1234`).
+2. **System → Add-ons** (Marketplace auto-opens when **For you** listings exist), or Ctrl+K → `weighbridge`, or `/apps?tab=marketplace`.
+3. **Install** Weighbridge.
+4. **Sales → New Invoice** — enter Gate pass (required) and Lot ref (optional); save/post as usual.
+5. Print the invoice to see Gate pass. Tweak labels/visibility in **Settings → Studio**.
+
+Manufacturing and yarn-spinning tenants pass `visible_to` even without a seed grant (boot-time backfill still writes `_marketplace_private`). See [USER_GUIDE.md §41](../USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
 
 Install of a hidden listing returns 404 for other tenants (same `visible_to` gate as the catalog).
 
@@ -123,12 +135,9 @@ Installed partner snapshots are stored on the tenant under
 tag chips, and a **For you** pill when `audience` is not `public`.
 A short sandbox callout is rendered from `/api/marketplace/boundary`.
 
-## Planned: audience + Studio bundles
+## Shipped: audience + Studio bundles
 
-Catalog rows are currently the same for every tenant. Private / entitled
-listings, a **For you** badge, and optional declarative `studio` overlays
-(custom fields + form schema + print template, still no partner code) are
-specified in:
+Catalog rows are filtered per tenant (`public` / `entitled` / `private`). **For you** appears on non-public cards. Declarative `studio` overlays (custom fields + form schema + print template, still no partner code) apply on Marketplace install. Spec:
 
 - `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`
-- `docs/github-issues/tenant-customization-studio.md` (epic + child issues A–G)
+- Shipped PRs **#377–#383** (entitlements through Studio), **#384** (Weighbridge listing), **#387** (mill tenants find the card without a re-seed).

@@ -10,7 +10,7 @@
 > - [`WORKFLOW.md`](./WORKFLOW.md) — narrative walkthroughs of each cycle.
 > - In-app `/guide` and `/workflow` — interactive equivalents.
 >
-> **Last updated:** 2026-06-28 · **Branch:** `main`
+> **Last updated:** 2026-09-06 · **Branch:** `main`
 
 ---
 
@@ -30,6 +30,7 @@
 10B. [PRA e-Invoice Track (Pakistan)](#10b-pra-e-invoice-track-pakistan)
 10C. [Healthcare / Hospital Track (V4)](#10c-healthcare--hospital-track-v4)
 10D. [Yarn Spinning Track](#10d-yarn-spinning-track)
+10E. [Marketplace, Studio & Weighbridge](#10e-marketplace-studio--weighbridge)
 11. [Reports](#11-reports)
 12. [Security Model](#12-security-model)
 13. [Cross-Cutting Concerns](#13-cross-cutting-concerns)
@@ -74,9 +75,9 @@ The system is designed so every financial number on every screen is **derived li
 |---|---|---|
 | Backend framework | **FastAPI** | Async-friendly, OpenAPI for free, dependency-injection ergonomics |
 | ORM | **SQLModel** (Pydantic + SQLAlchemy) | Same model is the wire schema and the table |
-| DB (dev) | **SQLite** | Zero-setup local dev; honoured by `SCHEMA_BOOTSTRAP=create_all` |
+| DB (dev) | **SQLite** | Zero-setup local dev; `SCHEMA_BOOTSTRAP=create_all` still boots a fresh file, then Alembic is the schema source of truth |
 | DB (prod) | **PostgreSQL** | Row-level locks (`SELECT FOR UPDATE`) for atomic numbering and avg-cost updates |
-| Migrations | **None (create_all)** | `SQLModel.metadata.create_all()` on startup; manual `ALTER TABLE` for existing DBs |
+| Migrations | **Alembic** | `backend/alembic/versions/`; installers run `alembic upgrade head` on launch. New tables need `has_table` guards (coexist with `create_all()`). SQLite cannot `ADD CONSTRAINT` — strip auto-generated FK lines on ALTER |
 | Auth | **JWT (HS256) + bcrypt + HttpOnly cookie + CSRF** | Same backend supports SDK Bearer clients and browser cookie clients |
 | Frontend | **Next.js 16 (App Router)** + React 19 | Server components for the shell, client components for forms |
 | Styling | **Tailwind v4** (+ `tailwind-merge`) | Per-token theming; brand palette `#f6f3ee / #b8943f / #1a1814` |
@@ -1313,7 +1314,42 @@ Auto-created by `ensure_spinning_locations()`: `RAW` (raw cotton store), `WIP-CA
 
 ### 10D.4 Demo seed
 
-The `demo.spinning@easy-books.app` tenant is seeded with yarn specs, fiber grades, machines, shifts, operators, waste types, recipes, open and completed spin lots, approved bale receipts, posted stage entries, cone output, waste logs, and yarn dispatches with real GL postings.
+The `demo.spinning@easy-books.app` tenant is seeded with yarn specs, fiber grades, machines, shifts, operators, waste types, recipes, open and completed spin lots, approved bale receipts, posted stage entries, cone output, waste logs, and yarn dispatches with real GL postings. The mill also sees Marketplace **Weighbridge** (see §10E).
+
+---
+
+## 10E. MARKETPLACE, STUDIO & WEIGHBRIDGE
+
+Shipped on `main` (PRs #377–#383 Studio epic #369; mill listing #384; mill visibility / Add-ons discovery #387). Companion: [`docs/MARKETPLACE.md`](./docs/MARKETPLACE.md), [`USER_GUIDE.md` §41](./USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
+
+### 10E.1 Marketplace (products, not tenants)
+
+`GET /api/marketplace/catalog` filters curated listings **on the server**:
+
+| `audience` | Who sees the card |
+|---|---|
+| `public` | Every signed-in tenant |
+| `entitled` | Tenants that have `entitled_module` entitled **or** installed |
+| `private` | `visible_to_tenant_ids`, ops `module_meta._marketplace_private`, mill `business_model`, spinning module, or `MARKETPLACE_PRIVATE_AUDIENCE` env |
+
+UI: **System → Add-ons** (`/apps`) tab **Marketplace** (`?tab=marketplace`). Install **never executes partner code** (declarative manifest + optional Studio bundle). Uninstall archives bundle field defs; document JSON values remain.
+
+### 10E.2 Settings Studio
+
+`/settings/studio` (admin/owner): extra `x.*` columns (cap 12 per entity), form hide/require, print templates. Values live on document `custom_fields` JSON. **`x.*` is never imported in `services/posting.py`** — ∑Dr = ∑Cr is unchanged.
+
+### 10E.3 Weighbridge (private mill listing)
+
+Listing id `partner.easybooks.weighbridge`. **Not** a truck-scale module, Optional first-party pack, or GL writer.
+
+| Field | Key | Required | Form | Print | List |
+|---|---|---|---|---|---|
+| Gate pass | `x.gate_pass_no` | yes | yes | yes | yes |
+| Lot ref | `x.lot_ref` | no | yes | no | no |
+
+**Who sees the card:** `business_model` in `{manufacturing, yarn_spinning}` (catalog `visible_to` without a seed grant), any tenant with the `spinning` module, ops `PUT /api/ops/tenants/{id}/marketplace-private`, boot backfill `_ensure_mill_weighbridge_grants`. Hospital / simple / ungranted: catalog omits the id; install returns 404.
+
+**User path:** mill login → Add-ons → Marketplace (For you auto-opens) → Install → Sales → New Invoice (Gate pass required, Lot ref optional) → Print shows Gate pass. Overlay is on **sales invoices** only, not spinning bale receipts or gate inward.
 
 ---
 
@@ -1419,9 +1455,11 @@ The `demo.spinning@easy-books.app` tenant is seeded with yarn specs, fiber grade
 - `entity_type` values: `account, customer, vendor, invoice, bill, payment, transaction, period, grn, production_order, rate_plan, bom, ...`.
 - `detail` is a JSON blob — caller decides what context to record.
 
-### 13.4 Idempotent migrations
-- Schema bootstrapped via `SQLModel.metadata.create_all()`. No Alembic. New columns require manual `ALTER TABLE` or DB reset.
-- V2.2's `0011_stock_locations` uses `op.execute("ALTER TABLE … ADD COLUMN …")` instead of `batch_alter_table` because the legacy `SQLModel.metadata.create_all` baseline had anonymous constraints that batch-mode couldn't rename. SQLite + Postgres both support `ADD COLUMN` without table reconstruction.
+### 13.4 Schema bootstrap & Alembic
+- **Alembic is the source of truth** (`backend/alembic/versions/`). Installers and packaged entrypoints run `alembic upgrade head` on every launch.
+- A fresh dev SQLite file may still be created via `SQLModel.metadata.create_all()`; new-table migrations must guard with `bind.dialect.has_table(...)` so they coexist with that bootstrap. New columns on existing tables use `has_column` guards for the same reason.
+- SQLite cannot `ADD CONSTRAINT` via ALTER — strip auto-generated FK lines (migrations 0016/0017 pattern). App-level tenant checks still enforce integrity.
+- V2.2's `0011_stock_locations` uses `op.execute("ALTER TABLE … ADD COLUMN …")` instead of `batch_alter_table` because the legacy `create_all` baseline had anonymous constraints that batch-mode couldn't rename.
 
 ### 13.5 Guidance components
 - `HelpCallout` — expandable in-page panel, three tones (tip/warning/success). Use at the top of forms and pages to explain WHAT + WHY.
@@ -1795,6 +1833,8 @@ Stage 3 (publish):
 ---
 
 ## 19. OPEN ITEMS & ROADMAP
+
+> **2026-09-06:** Tenant Studio (#369 / PRs #377–#383) and mill Weighbridge (#384 / #387) are on `main`. Alembic is the schema source of truth. Remaining production-launch work is **ops secrets** (Stripe / Neon PITR / S3) and GitHub issue-close hygiene — not product forks. Live queue: [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 
 ### Sprint 1–6 Shipped ✅
 

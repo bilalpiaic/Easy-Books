@@ -1,9 +1,10 @@
 # Easy-Books production launch plan
 
 **Date:** 2026-09-06  
-**Status:** Wave 1 product (#370–#376 + P7.3 Weighbridge) is on `main` / this PR. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR), **Wave 0 GitHub closes** (issues API 403), and **CI debt** (frontend lint, Alembic upgrade-over-create_all).  
+**Status:** Wave 1 product (#370–#376), mill Weighbridge (#384 + #387), GitGuardian CI (#385), and CI debt (#386) are on `main`. Remaining launch work is **ops secrets** (Stripe/S3/Neon PITR) and **Wave 0 GitHub closes** (issues API 403).  
 **Audience:** ship paying tenants on the existing Vercel + Neon stack  
-**Companion:** Studio/customization spec `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`
+**Companion:** Studio/customization spec `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`  
+**End-user Weighbridge:** [USER_GUIDE.md §41](../../../USER_GUIDE.md#41-weighbridge-mill-marketplace-listing)
 
 ## How this board was read
 
@@ -54,7 +55,8 @@ Launch as **one SaaS**: one `main`, one Vercel frontend, one Vercel FastAPI, one
 
 | Issue | Why it matters for launch | Wave |
 |-------|---------------------------|------|
-| **#370–#376** entitlements / audience / Studio | Shipped PRs #377–#383; P7.3 Weighbridge private listing | Close on GitHub |
+| **#370–#376** entitlements / audience / Studio | Shipped PRs #377–#383 | Close on GitHub |
+| **Weighbridge P7.3** | #384 listing + #387 mill tenants see the card without re-seed | Close / note shipped |
 | **#369** epic | Tick shipped children; remaining is GTM/ops | Hygiene + ops |
 | **#119 remainder** | Stripe Checkout in **test** vs **live**; suspend on failed payment | **1** ops |
 | **#116 remainder** | Postgres CI job added; S3 + Neon PITR still host secrets | **1** ops |
@@ -260,4 +262,4 @@ Do not start #122 or #307 until Wave 1 is green.
 - [ ] Two tenants: data and catalog isolation proven with real accounts.  
 - [ ] `docs/ROADMAP.md` matches GitHub (Wave 0).
 
-When those boxes are ticked, **sell**. Studio (#373–#376) and AI L2+ are post-revenue.
+When those boxes are ticked, **sell**. Studio-lite and Weighbridge are already on `main`; AI L2+ remains post-revenue.

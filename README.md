@@ -142,9 +142,11 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Attendance register** — manual time-in/out entry per employee per day; hours auto-computed; status codes (Present/Absent/Half Day/Leave/Holiday/Off); monthly grid view (employees × days); bulk entry grid; biometric import endpoint (matches by employee code, stores raw device payload); CSV upload as manual fallback; ZKTeco/FingerTec device integration planned
 
 **Module system (v2.9)**
-- **Odoo-style installable modules** — **15** modules: `base` (always active), `inventory`, `production`, `hrm`, `telecom`, `pra`, `healthcare`, `ai_assistant`, `purchase_store`, `weaving`, `spinning`, plus Localization packs `sa_zatca`, `in_gst`, `eu_peppol`, `uae_vat`. Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
-- **Apps page** (`/apps`) — module store grid grouped by category (Core / Operations / HR / Industry / Intelligence / **Localization**); install/uninstall with dependency resolution and a confirmation dialog before removal; admin/owner only
+- **Odoo-style installable modules** — `base` (always active) plus Inventory, Manufacturing, Purchases/Store, POS, eCommerce, HRM, Telecom, Healthcare, Weaving, Yarn Spinning, Textile Processing, AI Assistant, PRA, and Localization packs (`sa_zatca`, `in_gst`, `eu_peppol`, `uae_vat`). Each module gates a sidebar section (or, for `ai_assistant`, the chat button); sections with no active module are hidden
+- **Add-ons page** (`/apps`, System → Add-ons, admin/owner only) — tabs **Default / Recommended / Optional / Marketplace**; first-party install/uninstall with dependency resolution and a confirmation dialog before removal
 - **Add-ons-first UX** — public signup starts with Base Accounting; industry/localization packs live on `/apps` (`?welcome=1`); demo tenants bypass onboarding and ship with model-default modules (+ localization demos where seeded)
+- **Marketplace** — curated **products** (not tenants); catalog filtered on the server (`GET /api/marketplace/catalog`) by `public` / `entitled` / `private`. Install never runs partner code. Mills (`manufacturing`, `yarn_spinning`) see private **Weighbridge** (`partner.easybooks.weighbridge`, **For you**) which installs a Studio bundle on invoices: required **Gate pass** (`x.gate_pass_no`) and optional **Lot ref** (`x.lot_ref`). Values live on `invoice.custom_fields` and **never post to the GL**. Uninstall archives field definitions; historical values remain. How-to: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-marketplace-listing)
+- **Settings Studio** (`/settings/studio`) — extra `x.*` fields, form hide/require, and print templates per tenant. Marketplace listings can apply a bundle; admins can still edit the overlay here
 - `Tenant.module_meta` JSON column records `{tier, installed_at, expires_at}` per module — billing-ready schema without a future destructive migration
 - Legacy `enabled_modules` strings auto-normalized on read — zero-downtime upgrade for existing installs
 
@@ -197,7 +199,7 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Yarn dispatch** — YD-YYYY-seq; approve posts COGS (`Dr 5010 / Cr 1204`) + stock relief
 - **Reports & calculators** — dashboard KPIs, daily register, lot-control panel, waste summary, cost-per-kg, dispatch register; yield/blend/spindle calculators
 - **Full GL integration** — unlike Weaving (memo-only), every approve/post hits the central posting service
-- **Demo tenant** — `demo.spinning@easy-books.app` / `demo1234` — pre-loaded masters, open/completed lots, bale receipts, stage entries, cone output, waste, and dispatches
+- **Demo tenant** — `demo.spinning@easy-books.app` / `demo1234` — pre-loaded masters, open/completed lots, bale receipts, stage entries, cone output, waste, and dispatches. Marketplace **Weighbridge** is listed **For you** (install from System → Add-ons → Marketplace)
 
 **Multi-tenant SaaS**
 - RBAC: `owner | admin | accountant | viewer`; team management with invite links
@@ -212,6 +214,8 @@ Stack: FastAPI + SQLModel (backend) · Next.js 16 + React 19 + Tailwind v4 (fron
 - **Telecom Franchise (V3):** 56-account franchise CoA, Tracker wallet & load orders, MSR→RSO→Retail chain, SIM inventory, FCA targets, Mobile Money agency, Postpaid billing, Commission reconciliation, 9 telecom reports
 - **PRA e-Invoice (Pakistan):** real-time invoice submission to Punjab Revenue Authority (PRA eIMS); FIN (Fiscal Invoice Number) returned and printed on invoices; `pra_status` badge (pending/submitted/failed) with retry; Payment Mode field; customer NTN/CNIC fields; product PCT codes; Settings card with Test Connection; non-blocking `BackgroundTasks` submission so invoice save is never delayed
 - **Yarn Spinning:** cotton bale receipt → multi-stage lot tracking (carding/drawing/roving/spinning/winding) → cone output → yarn dispatch with full GL costing (`1200`–`1204` WIP chain, waste accounts `5901`–`5904`, COGS at dispatch)
+- **Textile Processing:** grey inward → mending → kachi/pakki parchi → PPC stages → dispatch (`demo.processing@easy-books.app`)
+- **Mill Weighbridge overlay:** manufacturing and spinning tenants install a private Marketplace listing that adds Gate pass + Lot ref on **sales invoices** (Studio data, no extra GL)
 
 ---
 
@@ -238,7 +242,7 @@ Your data lives **outside** the app folder:
 | macOS / Linux | `~/.easy-books` (override: `EB_DATA_DIR`) |
 | Windows | `%USERPROFILE%\.easy-books` (override: `%EB_DATA_DIR%`) |
 
-On first install the 8 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
+On first install the 9 demo companies are loaded automatically (takes ~20–30 s). Log in immediately with `demo1234` — no signup needed. Set `SEED_DEMO=false` before running the installer for a clean start. See [§ Demo / sample data](#demo--sample-data) for details.
 
 Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a source update.
 
@@ -299,7 +303,7 @@ npm install
 npm run dev
 ```
 
-`dev.sh` auto-seeds eight demo tenants with rich mock data on each run (idempotent).
+`dev.sh` auto-seeds nine demo tenants with rich mock data on each run (idempotent).
 
 ---
 
@@ -307,22 +311,23 @@ npm run dev
 
 **Public path:** Login → **Try the live demo** signs into one Base Accounting company (`demo.simple@easy-books.app` / `demo1234`). Install industry packs from **System → Add-ons** (optional “Include sample data”). There is no pre-login multi-company picker.
 
-**QA / admin:** Standalone installs and `dev.sh` still seed eight fully-populated demo companies for regression testing. They are not advertised on the login page; use Settings → Sample / Demo Data or the emails below with password `demo1234`:
+**QA / admin:** Standalone installs and `dev.sh` still seed nine fully-populated demo companies for regression testing. They are not advertised on the login page; use Settings → Sample / Demo Data or the emails below with password `demo1234`:
 
 | Email | Pre-loaded pack (QA) |
 |---|---|
 | `demo.simple@easy-books.app` | Base (public demo) |
 | `demo.services@easy-books.app` | Services / deferred revenue |
 | `demo.trader@easy-books.app` | Inventory |
-| `demo.manufacturing@easy-books.app` | Manufacturing + Purchases/Store + Weaving |
+| `demo.manufacturing@easy-books.app` | Manufacturing + Purchases/Store + Weaving; Marketplace **Weighbridge** (For you) |
 | `demo.telecom@easy-books.app` | Telecom Franchise |
 | `demo.pra@easy-books.app` | PRA e-Invoice |
 | `demo.hospital@easy-books.app` | Healthcare |
-| `demo.spinning@easy-books.app` | Yarn Spinning (full GL production chain) |
+| `demo.spinning@easy-books.app` | Yarn Spinning (full GL production chain); Marketplace **Weighbridge** (For you) |
+| `demo.processing@easy-books.app` | Textile Processing (grey inward / processing floor) |
 
 The first install takes an extra ~20–30 seconds while the seeder runs; subsequent starts are fast (the seeder is guarded — skips if any user already exists, so updating an existing install is migrate-only and no demo data is added). To opt out and start with a clean slate, set `SEED_DEMO=false` before running the installer.
 
-The **desktop (Electron) app** also auto-loads the 8 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
+The **desktop (Electron) app** also auto-loads the 9 demo companies on first install (`SEED_DEMO=true` default; a startup splash is shown during the one-time seed). Set `SEED_DEMO=false` for a clean desktop install.
 
 The **Settings → Sample / Demo Data** card loads or removes the demo companies on demand at any time.
 
