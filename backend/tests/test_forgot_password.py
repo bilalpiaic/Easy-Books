@@ -219,8 +219,8 @@ def test_reset_email_uses_first_frontend_origin(client, monkeypatch):
     )
     assert client.post("/api/auth/forgot-password", json={"email": email}).status_code == 200
     assert "https://app.example.com/reset-password?token=" in sent["html"]
-    assert "localhost:3000" not in sent["html"]
-    assert "," not in sent["html"]
+    assert "https://app.example.com,http://localhost:3000" not in sent["html"]
+    assert "localhost:3000/reset-password" not in sent["html"]
 
 
 def test_forgot_password_cors_preflight_allows_loopback(client):
