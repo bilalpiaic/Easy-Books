@@ -1320,7 +1320,7 @@ The `demo.spinning@easy-books.app` tenant is seeded with yarn specs, fiber grade
 
 ## 10E. MARKETPLACE, STUDIO & WEIGHBRIDGE
 
-Shipped on `main` (PRs #377–#383 Studio epic #369; mill listing #384; mill visibility / Add-ons discovery #387). Companion: [`docs/MARKETPLACE.md`](./docs/MARKETPLACE.md), [`USER_GUIDE.md` §41](./USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
+Shipped on `main` (PRs #377–#383 Studio epic #369; mill listing #384; mill visibility / Add-ons discovery #387; first-party workspace #391). Companion: [`docs/MARKETPLACE.md`](./docs/MARKETPLACE.md), [`USER_GUIDE.md` §41](./USER_GUIDE.md#41-weighbridge-mill-workspace).
 
 ### 10E.1 Marketplace (products, not tenants)
 
@@ -1338,18 +1338,22 @@ UI: **System → Add-ons** (`/apps`) tab **Marketplace** (`?tab=marketplace`). I
 
 `/settings/studio` (admin/owner): extra `x.*` columns (cap 12 per entity), form hide/require, print templates. Values live on document `custom_fields` JSON. **`x.*` is never imported in `services/posting.py`** — ∑Dr = ∑Cr is unchanged.
 
-### 10E.3 Weighbridge (private mill listing)
+### 10E.3 Weighbridge (first-party workspace + private mill listing)
 
-Listing id `partner.easybooks.weighbridge`. **Not** a truck-scale module, Optional first-party pack, or GL writer.
+Module id `weighbridge` (Industry, icon Scale, `nav_sections: ["Weighbridge"]`). Pre-installed on `manufacturing` and `yarn_spinning`. v1 table `wb_ticket`: inbound/outbound tickets, first/second weigh, `net_kg = |gross − tare|`, number `WB-YYYY-seq`. **No GL** — `routers/weighbridge.py` must not import `services.posting`. Hub `/weighbridge`, tickets `/weighbridge/tickets`, print slip, optional copy to `invoice.custom_fields["x.gate_pass_no"]`.
+
+Listing id `partner.easybooks.weighbridge` remains the optional Studio overlay on invoices (not a replacement for the workspace).
 
 | Field | Key | Required | Form | Print | List |
 |---|---|---|---|---|---|
 | Gate pass | `x.gate_pass_no` | yes | yes | yes | yes |
 | Lot ref | `x.lot_ref` | no | yes | no | no |
 
-**Who sees the card:** `business_model` in `{manufacturing, yarn_spinning}` (catalog `visible_to` without a seed grant), any tenant with the `spinning` module, ops `PUT /api/ops/tenants/{id}/marketplace-private`, boot backfill `_ensure_mill_weighbridge_grants`. Hospital / simple / ungranted: catalog omits the id; install returns 404.
+**Who sees the workspace:** mill models and entitled installs. Hospital / simple: nav hidden, API 403.
 
-**User path:** mill login → Add-ons → Marketplace (For you auto-opens) → Install → Sales → New Invoice (Gate pass required, Lot ref optional) → Print shows Gate pass. Overlay is on **sales invoices** only, not spinning bale receipts or gate inward.
+**Who sees the Marketplace card:** `business_model` in `{manufacturing, yarn_spinning}`, spinning module, ops grant, boot backfill `_ensure_mill_weighbridge_grants`. Hospital / ungranted: catalog omits the id.
+
+**User path:** mill login → Weighbridge → New ticket → weigh → print. Overlay: Add-ons → Marketplace → Install → Sales → New Invoice (Gate pass), or Copy Gate pass from a completed inbound ticket.
 
 ---
 

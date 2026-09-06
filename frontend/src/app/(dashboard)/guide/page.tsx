@@ -1490,28 +1490,38 @@ function WeighbridgePanel() {
   return (
     <div>
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
-        Weighbridge is <b>not</b> a truck-scale module and <b>not</b> an Optional first-party pack.
-        It is a <b>private Marketplace listing</b> (<CodeBadge>partner.easybooks.weighbridge</CodeBadge>)
-        that installs a Studio bundle on <b>sales invoices</b>: a required <b>Gate pass</b> and an
-        optional <b>Lot ref</b>. Those values live on the invoice JSON; they <b>do not</b> change
-        the General Ledger (∑Dr = ∑Cr stays the same).
+        Mills get a first-party <b>Weighbridge</b> workspace under its own top-nav section:
+        tickets, first/second weigh, net Kg/Lbs/Bags, and a printable slip.
+        v1 is <b>memo/ops</b> — it does <b>not</b> post to the General Ledger.
+        The private Marketplace listing (<CodeBadge>partner.easybooks.weighbridge</CodeBadge>)
+        remains the optional Studio overlay for Gate pass / Lot ref on <b>sales invoices</b>.
       </p>
 
-      <SectionHeading>Who sees the card</SectionHeading>
+      <SectionHeading>Day-to-day: weighbridge desk</SectionHeading>
+      <StepList steps={[
+        "Open Weighbridge in the top nav (or Ctrl+K → weighbridge). Hub shows tickets today, vehicles on site, and net kg today.",
+        "New ticket: inbound or outbound, vehicle, party, commodity, optional lot and document ids (PO / GI / invoice / bale receipt).",
+        "Record first weigh (tare or gross) → status weighed in. Vehicle is on site.",
+        "Record the other weigh → net = |gross − tare|. Number is WB-YYYY-seq. Print the slip (Kg, Lbs, Bags).",
+        "Completed inbound: Copy Gate pass onto a linked invoice (writes x.gate_pass_no on invoice JSON; still no GL).",
+        "Cancel with a reason while the ticket is not completed.",
+      ]} />
+
+      <SectionHeading>Who has the module</SectionHeading>
       <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
               <th className="px-4 py-2.5 text-left">Company</th>
-              <th className="px-4 py-2.5 text-left">Weighbridge</th>
+              <th className="px-4 py-2.5 text-left">Weighbridge workspace</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
             {[
-              ["Yarn spinning mill (this demo)", "Yes — For you"],
-              ["Manufacturing mill", "Yes — For you"],
-              ["Yarn Spinning module installed", "Yes"],
-              ["Hospital / simple / ungranted", "No — catalog omits the id"],
+              ["Yarn spinning mill (this demo)", "Yes — pre-installed"],
+              ["Manufacturing mill", "Yes — pre-installed"],
+              ["Install from Add-ons → Optional (entitled / enterprise)", "Yes"],
+              ["Hospital / simple / ungranted", "No — nav hidden, API 403"],
             ].map(([who, sees]) => (
               <tr key={who} className="hover:bg-[#faf8f4]">
                 <td className="px-4 py-2.5 text-[var(--text-primary)]">{who}</td>
@@ -1522,35 +1532,24 @@ function WeighbridgePanel() {
         </table>
       </div>
 
-      <SectionHeading>Install (admin / owner)</SectionHeading>
+      <SectionHeading>Invoice overlay (Marketplace, optional)</SectionHeading>
       <StepList steps={[
-        "Open System → Add-ons, or press Ctrl+K and type weighbridge, or go to /apps?tab=marketplace.",
-        "On the Marketplace tab, find Weighbridge (scale icon, tags spinning + private, badge For you).",
-        "Click Install. Confirm the sandbox note: install never downloads or executes partner code.",
-        "Settings → Studio → Fields now lists Gate pass (x.gate_pass_no) and Lot ref (x.lot_ref) on invoice.",
-      ]} />
-
-      <SectionHeading>Day-to-day: mill sales invoice</SectionHeading>
-      <StepList steps={[
-        "Sales → Invoices → New (or Ctrl+K → new invoice).",
-        "Fill customer, lines, and dates as usual.",
-        "Fill Gate pass (required) — the slip number from the mill weighbridge, e.g. GP-2026-0142.",
-        "Optionally fill Lot ref (yarn/lot number). Form-only; it does not print by default.",
-        "Save / post. The invoice GL is unchanged (typically Dr AR / Cr Revenue). Gate pass and lot stay on custom_fields.",
-        "Print: Gate pass appears on the document. Invoice lists can show Gate pass (show_on_list).",
+        "Open System → Add-ons → Marketplace (or /apps?tab=marketplace) if you still want Gate pass on printed invoices.",
+        "Install the Weighbridge listing. Settings → Studio → Fields lists Gate pass (x.gate_pass_no) and Lot ref (x.lot_ref).",
+        "Sales → Invoices → New: fill Gate pass, optionally Lot ref. GL is unchanged.",
+        "Or copy the ticket number from a completed inbound ticket onto the invoice (Copy Gate pass).",
       ]} />
 
       <TipCallout>
-        This overlay is for <b>sales invoices</b> only — not spinning bale receipts or gate inward.
-        Production still uses Spinning / Purchases &amp; Store screens. Tweak labels in{" "}
-        <CodeBadge>Settings → Studio</CodeBadge>. Uninstall archives field definitions; values already
-        saved on old invoices remain readable.
+        Gate clerks can run the weighbridge desk with <CodeBadge>weighbridge.tickets</CodeBadge> rights
+        — they do not need invoice or PO edit rights. Weights are Kg; Lbs and 100-lb Bags follow the
+        same mill conversion as Weaving.
       </TipCallout>
 
       <MistakeCallout>
-        <p>Looking for Weighbridge under Optional / Recommended — it is a Marketplace product, not a first-party module.</p>
-        <p>Expecting Gate pass to post a journal line — custom fields never enter <CodeBadge>services/posting.py</CodeBadge>.</p>
-        <p>Using Weighbridge as a truck in/out register — there is no ticket log or live scale integration in this listing.</p>
+        <p>Expecting a live truck scale or ANPR — v1 is a ticket register only.</p>
+        <p>Expecting the weigh to post a journal line — tickets never enter <CodeBadge>services/posting.py</CodeBadge>.</p>
+        <p>Looking only under Marketplace — the workspace is a first-party Optional / mill module with its own nav section.</p>
       </MistakeCallout>
     </div>
   )

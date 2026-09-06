@@ -168,6 +168,9 @@ def create_db_and_tables():
         # plan-entitlements deploy that left enabled_modules stale) get the
         # first-party spinning workspace back without a re-seed.
         _ensure_yarn_spinning_module(session)
+        # Existing mill demos pre-date the first-party Weighbridge workspace;
+        # install the module when the tenant is already allowed to have it.
+        _ensure_mill_weighbridge_module(session)
 
         # Convergent backfill: tag any product left without a category against
         # its tenant's sub-categories. Handles products created before the
@@ -210,6 +213,45 @@ def _ensure_yarn_spinning_module(session: Session) -> None:
     if restored:
         print(
             f"[seed] restored Yarn Spinning module on {restored} yarn_spinning tenant(s)",
+            flush=True,
+        )
+
+
+def _ensure_mill_weighbridge_module(session: Session) -> None:
+    """Install first-party Weighbridge on mill tenants that may already have it.
+
+    Nav / Ctrl+K / ``/weighbridge/*`` gate on ``enabled_modules``. A code-only
+    deploy must not leave an entitled mill tenant without the workspace.
+
+    Does **not** mint ``module_meta.weighbridge.entitled`` (ops-only).
+    ``business_model`` is tenant-writable, so treating it as a commercial grant
+    would let a free/pro admin PATCH to manufacturing and pick up the pack.
+    """
+    from models import Tenant
+    from routers.modules import _get_enabled, install_module_for_tenant
+    from services.entitlements import can_install
+    from services.marketplace.catalog import MILL_WEIGHBRIDGE_MODELS
+
+    mills = session.exec(
+        select(Tenant).where(Tenant.business_model.in_(list(MILL_WEIGHBRIDGE_MODELS)))
+    ).all()
+    restored = 0
+    for tenant in mills:
+        try:
+            if "weighbridge" in _get_enabled(tenant):
+                continue
+            if not can_install(tenant, "weighbridge"):
+                continue
+            install_module_for_tenant(session, tenant, None, "weighbridge")
+            restored += 1
+        except Exception as exc:
+            print(
+                f"[seed] weighbridge backfill failed for tenant {tenant.id}: {exc}",
+                flush=True,
+            )
+    if restored:
+        print(
+            f"[seed] restored Weighbridge module on {restored} mill tenant(s)",
             flush=True,
         )
 
@@ -720,6 +762,17 @@ MODULE_REGISTRY: dict[str, dict] = {
         "tier":        "free",
         "nav_sections": ["Spinning"],
     },
+    "weighbridge": {
+        "label":       "Weighbridge",
+        "description": "Mill weighbridge tickets: vehicle in/out, first and second weigh, net Kg/Lbs/Bags, printable slip. Memo/ops in v1 — no GL posting.",
+        "category":    "Industry",
+        "icon":        "Scale",
+        "deps":        ["base"],
+        "always":      False,
+        "default":     False,
+        "tier":        "free",
+        "nav_sections": ["Weighbridge"],
+    },
     "textile_processing": {
         "label":       "Textile Processing",
         "description": "Ballor/jobber printing unit: customer-owned grey lots, mending, PPC stages, process billing, contractor labor, and grey settlement.",
@@ -740,11 +793,11 @@ MODULES_BY_MODEL: dict[str, list[str]] = {
     "simple":            ["base"],
     "services":          ["base"],
     "trader":            ["base", "inventory", "pos"],
-    "manufacturing":     ["base", "inventory", "production", "purchase_store", "weaving"],
+    "manufacturing":     ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge"],
     "telecom_franchise": ["base", "inventory", "telecom"],
     "pra_einvoice":      ["base", "pra"],
     "hospital":          ["base", "hrm", "inventory", "healthcare"],
-    "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning"],
+    "yarn_spinning":     ["base", "inventory", "purchase_store", "spinning", "weighbridge"],
     "textile_processing": ["base", "inventory", "purchase_store", "textile_processing"],
 }
 

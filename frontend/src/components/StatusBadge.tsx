@@ -18,6 +18,7 @@ const BADGE: Record<string, { bg: string; fg: string }> = {
   reversed:   { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
   rejected:   { bg: "var(--badge-red-bg)",    fg: "var(--danger)" },
   draft:      { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
+  weighed_in: { bg: "var(--badge-yellow-bg)", fg: "#D97706" },
   inactive:   { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
   cancelled:  { bg: "var(--badge-gray-bg)",   fg: "var(--text-muted)" },
   processing: { bg: "var(--badge-blue-bg)",   fg: "var(--text-link)" },

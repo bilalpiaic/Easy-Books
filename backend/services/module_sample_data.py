@@ -111,6 +111,9 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
         elif module_id == "weaving":
             customers, vendors = _ensure_party(session, tid)
             sd._seed_weaving(session, user, customers, vendors)
+        elif module_id == "weighbridge":
+            customers, vendors = _ensure_party(session, tid)
+            sd._seed_weighbridge(session, user, customers, vendors)
         elif module_id == "spinning":
             customers, vendors = _ensure_party(session, tid)
             sd._seed_spinning(session, user, customers, vendors, stock_products=[])

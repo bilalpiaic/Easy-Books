@@ -61,7 +61,7 @@ Layout save remains a personal preference for any authenticated user.
 | `demo.pra@easy-books.app` | trader + PRA | PRA portal or Financial |
 | `demo.processing@easy-books.app` | textile_processing | Processing Operations |
 
-Mills install Weighbridge from **System → Add-ons → Marketplace**, then enter **Gate pass** (required) and **Lot ref** (optional) on **Sales → New Invoice**. Values do not post to the GL. Full steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
+Mills use **Weighbridge** in the top nav (`/weighbridge`) to record tickets and print slips (no GL). The optional Marketplace overlay still puts **Gate pass** / **Lot ref** on **Sales → New Invoice**. Full steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-workspace).
 
 Demo seed writes v4 dual-home layouts for owner/accountant users so Operations widgets appear on first login.
 

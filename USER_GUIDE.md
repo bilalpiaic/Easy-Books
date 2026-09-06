@@ -59,7 +59,7 @@
 38a. [Intercompany Documents](#38a-intercompany-documents)
 39. [Inventory Valuation Depth](#39-inventory-valuation-depth)
 40. [Save PDF troubleshooting](#40-save-pdf-troubleshooting)
-41. [Weighbridge (mill Marketplace listing)](#41-weighbridge-mill-marketplace-listing)
+41. [Weighbridge (mill workspace)](#41-weighbridge-mill-workspace)
 
 ---
 
@@ -1785,7 +1785,7 @@ Each first-party card shows name, description, category (Core / Operations / HR 
 
 **Uninstalling** is blocked if another installed module depends on the one you want to remove (you must remove the dependent first). The Base module cannot be uninstalled.
 
-If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. After Spinning is installed, mill Add-ons opens **Marketplace** when a **For you** listing such as Weighbridge is available. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge`. See [§30A Yarn Spinning](#30a-yarn-spinning-module) and [§41 Weighbridge](#41-weighbridge-mill-marketplace-listing).
+If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. After Spinning is installed, mill Add-ons opens **Marketplace** when a **For you** listing such as the Weighbridge invoice overlay is available. The first-party Weighbridge **workspace** is already in the top nav when the module is installed. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge`. See [§30A Yarn Spinning](#30a-yarn-spinning-module) and [§41 Weighbridge](#41-weighbridge-mill-workspace).
 
 ### 29.3 First-time onboarding
 
@@ -2577,57 +2577,65 @@ The UI surfaces the server `detail` when available instead of a bare browser “
 
 ---
 
-## 41. WEIGHBRIDGE (MILL MARKETPLACE LISTING)
+## 41. WEIGHBRIDGE (MILL WORKSPACE)
 
-Weighbridge is **not** a separate truck-scale module and **not** an Optional first-party pack. It is a **private Marketplace listing** (`partner.easybooks.weighbridge`) that installs a Studio bundle on **invoices**: a required **Gate pass** and an optional **Lot ref**. Those values are stored on the invoice; they **do not** change the GL (∑Dr = ∑Cr is unchanged).
+Manufacturing and yarn-spinning mills get a first-party **Weighbridge** module (`weighbridge`) with its own top-nav section. v1 is a **ticket register** (memo/ops): record the vehicle, first weigh, second weigh, print a slip. **It does not post to the GL** (`services/posting.py` is never called).
 
-Hospital, simple, trader, and other non-mill tenants **do not** see this card.
+The private Marketplace listing (`partner.easybooks.weighbridge`) is still available as an optional **Studio overlay** on sales invoices (Gate pass + Lot ref). Use **Copy Gate pass** on a completed inbound ticket to write the ticket number onto `invoice.custom_fields["x.gate_pass_no"]` without needing invoice edit rights.
 
-### 41.1 Who can see it
+Hospital, simple, trader, and other non-mill tenants do **not** get the module by default (nav hidden; API 403).
 
-| Company | Sees Weighbridge? |
+### 41.1 Who has the workspace
+
+| Company | Weighbridge module |
 |---------|-------------------|
-| Yarn spinning mill (`demo.spinning@easy-books.app`) | Yes — **For you** |
-| Manufacturing mill (`demo.manufacturing@easy-books.app`) | Yes — **For you** |
-| Any tenant with the **Yarn Spinning** module installed | Yes |
+| Yarn spinning mill (`demo.spinning@easy-books.app`) | Yes — pre-installed |
+| Manufacturing mill (`demo.manufacturing@easy-books.app`) | Yes — pre-installed |
+| Entitled / enterprise tenant installing Optional **Weighbridge** | Yes |
 | Hospital / clinic demo | No |
-| New public signup (Base Accounting only) | No until the company is a mill or ops grants the listing |
+| New public signup (Base Accounting only) | No until mill model or ops entitle + install |
 
 Password for every demo: `demo1234`.
 
-### 41.2 Install (admin / owner)
+### 41.2 Day-to-day: weighbridge desk
+
+1. Open **Weighbridge** in the top nav, or press **Ctrl+K** and type `weighbridge`.
+2. Hub (`/weighbridge`) shows tickets today, vehicles on site (`weighed_in`), and net kg today.
+3. **New ticket** (`/weighbridge/tickets/new`): inbound or outbound, vehicle, party (vendor / customer / other), commodity, optional lot, optional PO / Gate Inward / invoice / bale-receipt ids. You may record the first weigh here.
+4. **First weigh** (tare or gross) → status `weighed_in`.
+5. **Second weigh** (the other side) → `net_kg = |gross − tare|`, status `completed`. Number is `WB-YYYY-seq`.
+6. **Print slip** (portrait): ticket #, vehicle, times, Gross / Tare / Net in Kg, Lbs, and Bags (`Kg × 2.2046226218`, bags = lbs / 100 — same as Weaving).
+7. Register (`/weighbridge/tickets` or `/weighbridge/reports/register`): search, date range, freeze panes, `fmtDate`.
+8. Cancel with a reason while the ticket is not completed.
+9. Completed **inbound**: **Copy Gate pass** onto a linked invoice.
+
+Gate clerks need `weighbridge.tickets` (view/edit). The register report also has `weighbridge.reports`. They do **not** need invoice or PO rights to run the desk.
+
+### 41.3 Invoice overlay (Marketplace, optional)
+
+Weighbridge as a **private Marketplace listing** installs a Studio bundle on **invoices**: a required **Gate pass** and an optional **Lot ref**. Those values are stored on the invoice; they **do not** change the GL (∑Dr = ∑Cr is unchanged).
 
 1. Log in as a mill user.
-2. Open **System → Add-ons**, or press **Ctrl+K** and type `weighbridge`, or go to `/apps?tab=marketplace`.
-3. On the **Marketplace** tab, find **Weighbridge** (scale icon, tags `spinning` + `private`, badge **For you**).
-4. Click **Install**. Confirm the sandbox note: install never downloads or executes partner code.
-5. The card switches to **Installed**. Settings → Studio → Fields now lists **Gate pass** (`x.gate_pass_no`) and **Lot ref** (`x.lot_ref`) on **invoice**.
+2. Open **System → Add-ons** → **Marketplace**, or go to `/apps?tab=marketplace`.
+3. Find **Weighbridge** (scale icon, tags `spinning` + `private`, badge **For you**).
+4. Click **Install**. Settings → Studio → Fields lists **Gate pass** (`x.gate_pass_no`) and **Lot ref** (`x.lot_ref`) on **invoice**.
+5. **Sales → Invoices → New**: fill Gate pass (or copy it from a completed ticket). Optionally fill Lot ref.
+6. Save / post. The invoice GL is unchanged. Print shows Gate pass when the overlay is installed.
 
-### 41.3 Day-to-day: mill sales invoice
-
-1. **Sales → Invoices → New** (or Ctrl+K → new invoice).
-2. Fill customer, lines, dates as usual.
-3. Fill **Gate pass** (required). Example: the slip number from the mill weighbridge, `GP-2026-0142`.
-4. Optionally fill **Lot ref** (yarn/lot number). This field is form-only — it does not print by default.
-5. Save / post. The invoice GL is the same as before (typically Dr AR / Cr Revenue ± tax/COGS). Gate pass and lot stay on `custom_fields`.
-6. **Print** the invoice: **Gate pass** appears on the document (`show_on_print`). **Lot ref** does not unless you turn print on in Studio.
-7. Invoice **lists** can show Gate pass (`show_on_list`).
-
-This overlay is for **sales invoices**, not spinning bale receipts or gate inward. Production still uses Spinning / Purchases & Store screens; Weighbridge only annotates the customer invoice.
-
-### 41.4 Change or remove the overlay
+### 41.4 Change or remove
 
 | Goal | Where |
 |------|--------|
-| Rename labels, make Lot ref required, or print Lot ref | **Settings → Studio** → Fields / Form layout / Print |
-| Stop using the overlay | Add-ons → Marketplace → **Uninstall**. Field **definitions** are archived; values already saved on old invoices remain readable |
-| Grant the card to a non-mill tenant | Ops: `PUT /api/ops/tenants/{id}/marketplace-private` with `extension_ids: ["partner.easybooks.weighbridge"]` |
+| Stop using the ticket workspace | Add-ons → Optional → uninstall **Weighbridge** (historical tickets remain) |
+| Rename overlay labels or print Lot ref | **Settings → Studio** |
+| Stop using the overlay | Add-ons → Marketplace → **Uninstall**. Field **definitions** are archived; values already saved remain readable |
+| Grant the Marketplace card to a non-mill tenant | Ops: `PUT /api/ops/tenants/{id}/marketplace-private` with `extension_ids: ["partner.easybooks.weighbridge"]` |
+| Entitle the first-party module for a non-mill | Ops: `PUT /api/ops/tenants/{id}/entitled` with `weighbridge` |
 
 ### 41.5 What Weighbridge is not
 
-- Not a weighbridge ticket register, truck in/out log, or live scale integration.
+- Not a live truck scale, ANPR, or auto-created GI / bale / invoice.
 - Not a GL account or inventory movement.
-- Not visible under Optional / Recommended as a first-party module.
-- Not shown to hospital or other ungranted tenants (catalog JSON omits the id; install returns 404).
+- Not shown to hospital or other ungranted tenants (module 403; Marketplace catalog omits the listing id).
 
-Visual mill cycle (install → invoice → print) is also on **System → Workflow** for manufacturing and spinning companies, and on **System → User Guide** (Weighbridge tab).
+Visual mill cycle is also on **System → Workflow** for manufacturing and spinning companies, and on **System → User Guide** (Weighbridge tab).

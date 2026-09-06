@@ -173,6 +173,11 @@ export const TITLE_MAP: Record<string, string> = {
   "/weaving/reports/contract-control": "Contract Control Panel",
   "/weaving/reports/customer-kpi": "Customer & Contract KPI",
   "/weaving/dashboard":            "Weaving Dashboard",
+  "/weighbridge":                  "Weighbridge Overview",
+  "/weighbridge/tickets":          "Weighbridge Tickets",
+  "/weighbridge/tickets/new":      "New Weighbridge Ticket",
+  "/weighbridge/tickets/":         "Weighbridge Ticket",
+  "/weighbridge/reports/register": "Weighbridge Register",
   // Yarn Spinning
   "/spinning":                     "Spinning Overview",
   "/spinning/setup":               "Spinning Setup",

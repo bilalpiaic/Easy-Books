@@ -29,6 +29,7 @@ OPS_MODULES = (
     "production",
     "spinning",
     "weaving",
+    "weighbridge",
     "textile_processing",
     "healthcare",
     "telecom",
@@ -122,6 +123,16 @@ def operations_summary(session: SessionDep, user: CurrentUserDep):
         data = _safe_call(weaving_dashboard, user, session)
         if data is not None:
             out["weaving"] = data
+
+    if "weighbridge" in enabled:
+        from routers.weighbridge import hub_summary as wb_summary
+        data = _safe_call(wb_summary, user, session)
+        if data is not None:
+            out["weighbridge"] = {
+                "today_count": data.get("today_count"),
+                "on_site": data.get("on_site"),
+                "net_kg_today": data.get("net_kg_today"),
+            }
 
     if "textile_processing" in enabled:
         from routers.textile_processing import dashboard as tp_dashboard

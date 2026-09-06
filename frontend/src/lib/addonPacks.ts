@@ -19,8 +19,8 @@ export const ADDON_PACKS: AddonPack[] = [
     id: "manufacturing",
     label: "Manufacturing",
     tagline: "Value-addition",
-    modules: ["inventory", "production", "purchase_store", "weaving"],
-    features: ["BoM & production orders", "Purchases & Store", "Weaving unit control"],
+    modules: ["inventory", "production", "purchase_store", "weaving", "weighbridge"],
+    features: ["BoM & production orders", "Purchases & Store", "Weaving unit control", "Weighbridge tickets"],
   },
   {
     id: "telecom",
@@ -75,8 +75,8 @@ export const ADDON_PACKS: AddonPack[] = [
     id: "yarn_spinning",
     label: "Yarn Spinning",
     tagline: "Spinning mill",
-    modules: ["inventory", "purchase_store", "spinning"],
-    features: ["Bale receipt & lots", "Multi-stage tracking", "Cone output & GL costing"],
+    modules: ["inventory", "purchase_store", "spinning", "weighbridge"],
+    features: ["Bale receipt & lots", "Multi-stage tracking", "Cone output & GL costing", "Weighbridge tickets"],
   },
   {
     id: "textile_processing",

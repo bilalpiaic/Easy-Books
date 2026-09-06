@@ -21,7 +21,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing" | "pos" | "ecommerce"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
   /** Visible when *any* of these modules is installed (Operations home). */
   forAnyModule?: readonly string[]
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
@@ -215,6 +215,11 @@ export const NAV: NavItem[] = [
   { label: "Contract Control",  href: "/weaving/reports/contract-control", icon: ClipboardList, section: "Weaving", forModule: "weaving" },
   { label: "Customer KPI",      href: "/weaving/reports/customer-kpi", icon: PieChart, section: "Weaving", forModule: "weaving" },
   { label: "Weaving Dashboard", href: "/weaving/dashboard",       icon: LayoutDashboard, section: "Weaving", forModule: "weaving" },
+  // Weighbridge
+  { label: "Weighbridge Overview", href: "/weighbridge",                 icon: Scale,          section: "Weighbridge", forModule: "weighbridge" },
+  { label: "New Ticket",           href: "/weighbridge/tickets/new",     icon: PlusCircle,     section: "Weighbridge", forModule: "weighbridge" },
+  { label: "Tickets",              href: "/weighbridge/tickets",         icon: ClipboardList,  section: "Weighbridge", forModule: "weighbridge" },
+  { label: "Ticket Register",      href: "/weighbridge/reports/register", icon: Table2,        section: "Weighbridge", forModule: "weighbridge" },
   // Spinning
   { label: "Spinning Overview", href: "/spinning",                     icon: CircleDot,       section: "Spinning", forModule: "spinning" },
   { label: "Spinning Setup",    href: "/spinning/setup",               icon: Settings2,       section: "Spinning", forModule: "spinning" },
@@ -252,7 +257,7 @@ export const NAV: NavItem[] = [
 
 export const ALL_SECTIONS = [
   "Overview", "Ledger", "Reports", "Banking", "Receivable", "Payable", "Purchases",
-  "Store", "Spinning", "Weaving", "Processing", "POS", "eCommerce", "Manufacturing", "Inventory", "Payroll",
+  "Store", "Weighbridge", "Spinning", "Weaving", "Processing", "POS", "eCommerce", "Manufacturing", "Inventory", "Payroll",
   "Healthcare", "Telecom", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
   "System",
 ]
@@ -286,7 +291,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing" | "pos" | "ecommerce"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -298,6 +303,7 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "sales",         label: "Sales"         },
   { key: "purchases",     label: "Purchases"     },
   { key: "store",         label: "Store",         forModule: "purchase_store" },
+  { key: "weighbridge",   label: "Weighbridge",   forModule: "weighbridge" },
   { key: "spinning",      label: "Spinning",      forModule: "spinning"    },
   { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
   { key: "processing",    label: "Processing",    forModule: "textile_processing" },
@@ -328,6 +334,7 @@ export const NAV_SECTION_ORDER: string[] = [
   "sales",
   "purchases",
   "store",
+  "weighbridge",
   "spinning",
   "weaving",
   "processing",
@@ -366,6 +373,7 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   sales:         ["/receivable", "/invoices", "/customers", "/payments-received", "/credit-notes", "/advances", "/commissions", "/promo-discounts", "/aging/receivable"],
   purchases:     ["/payable", "/bills", "/vendors", "/bill-payments", "/debit-notes", "/aging/payable", "/purchases"],
   store:         ["/store"],
+  weighbridge:   ["/weighbridge"],
   pos:           ["/pos"],
   ecommerce:     ["/ecommerce"],
   accounting:    ["/entry", "/journal", "/recurring", "/ledger", "/coa", "/analytic-accounts", "/period-close", "/deferred-revenue", "/contract-balances", "/assets", "/leases", "/intercompany"],
@@ -413,6 +421,7 @@ export function getSectionHref(key: string): string {
     sales:         "/receivable",
     purchases:     "/purchases",
     store:         "/store/gate-outward",
+    weighbridge:   "/weighbridge",
     accounting:    "/entry",
     reports:       "/trial-balance",
     inventory:     "/inventory",
@@ -490,6 +499,12 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Store Issues",     href: "/store/issues",                  icon: PackageMinus, section: "store", forModule: "purchase_store" },
     { label: "Issue Register",   href: "/store/issue-register",          icon: ScrollText, section: "store", forModule: "purchase_store" },
     { label: "Stock Tie-Out",    href: "/store/stock-tie-out",           icon: CheckCheck, section: "store", forModule: "purchase_store" },
+  ],
+  weighbridge: [
+    { label: "Overview",        href: "/weighbridge",                  icon: Scale,         section: "weighbridge", forModule: "weighbridge" },
+    { label: "New Ticket",      href: "/weighbridge/tickets/new",      icon: PlusCircle,    section: "weighbridge", forModule: "weighbridge" },
+    { label: "Tickets",         href: "/weighbridge/tickets",          icon: ClipboardList, section: "weighbridge", forModule: "weighbridge" },
+    { label: "Ticket Register", href: "/weighbridge/reports/register", icon: Table2,        section: "weighbridge", forModule: "weighbridge" },
   ],
   accounting: [
     { label: "New Entry",         href: "/entry",             icon: PlusCircle,      section: "accounting" },
