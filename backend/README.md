@@ -155,6 +155,8 @@ Domain report routers add more: `healthcare_reports.py` (7 endpoints under `/api
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `FROM_EMAIL` | — | Outbound email (invoice delivery, invites) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | Invoice pay-links + payment webhook |
 | `ANTHROPIC_API_KEY` | — | Enables the AI Financial Assistant (`POST /api/ai/chat`); unset → 503 with a clear message |
+| `ENFORCE_MODULE_PLANS` | `true` | Set `false` to allow any tenant to install any `MODULE_REGISTRY` id (rollback). Pytest sets this off automatically. |
+| `OPS_ADMIN_EMAILS` | empty (fail-closed) | Comma-separated Easy-Books staff emails for `GET/PUT /api/ops/tenants*`. Tenant `role=owner` is not enough. |
 
 ## API conventions
 

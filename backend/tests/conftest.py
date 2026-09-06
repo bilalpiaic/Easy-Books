@@ -10,6 +10,14 @@ from sqlmodel import Session, SQLModel, create_engine
 
 
 @pytest.fixture(autouse=True)
+def _disable_module_plan_enforcement(monkeypatch):
+    """Existing tests POST /api/modules/*/install on free signup tenants.
+    Production default is ENFORCE_MODULE_PLANS=true; entitlement tests turn
+    it back on themselves."""
+    monkeypatch.setenv("ENFORCE_MODULE_PLANS", "false")
+
+
+@pytest.fixture(autouse=True)
 def _clear_login_throttle():
     """Login throttle is process-global; reset before every test so tests
     don't poison each other's IP counters."""

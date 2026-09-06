@@ -15,6 +15,8 @@ export interface ModuleInfo {
   installed: boolean
   installed_at: string | null
   expires_at: string | null
+  entitled?: boolean
+  installable?: boolean
 }
 
 interface ModuleContextValue {

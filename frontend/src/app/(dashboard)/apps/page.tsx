@@ -96,6 +96,13 @@ function StatusPill({ mod }: { mod: ModuleInfo }) {
       </span>
     )
   }
+  if (mod.installable === false) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] bg-[var(--border)]/40 rounded px-2 py-0.5 font-medium">
+        <Lock className="w-3 h-3" /> Not in plan
+      </span>
+    )
+  }
   return null
 }
 
@@ -123,14 +130,16 @@ function InstallControls({
       </div>
     )
   }
+  const blocked = mod.installable === false
   return (
     <button
       type="button"
       onClick={() => onInstall(mod.id)}
-      disabled={busy}
+      disabled={busy || blocked}
+      title={blocked ? "Not included in this plan. Contact Easy-Books." : undefined}
       className="text-[11px] bg-[var(--primary)] text-white rounded-md px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
     >
-      {busy ? "Installing…" : "Install"}
+      {blocked ? "Not in plan" : busy ? "Installing…" : "Install"}
     </button>
   )
 }
@@ -179,12 +188,13 @@ function ModuleTile({
 }
 
 function PackTile({
-  pack, busy, onInstall, detail,
+  pack, busy, onInstall, detail, blocked,
 }: {
   pack: AddonPack & { fullyInstalled: boolean }
   busy: boolean
   onInstall: (id: string) => void
   detail?: boolean
+  blocked?: boolean
 }) {
   return (
     <div className={`flex gap-3 rounded-xl border bg-[var(--bg-card)] p-3.5 ${
@@ -225,11 +235,12 @@ function PackTile({
         ) : (
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || blocked}
+            title={blocked ? "Not included in this plan. Contact Easy-Books." : undefined}
             onClick={() => onInstall(pack.id)}
             className="text-[11px] bg-[var(--primary)] text-white rounded-md px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
           >
-            {busy ? "Installing…" : "Install pack"}
+            {blocked ? "Not in plan" : busy ? "Installing…" : "Install pack"}
           </button>
         )}
       </div>
@@ -320,7 +331,12 @@ function AppsPageInner() {
   const packsWithStatus = useMemo(() => ADDON_PACKS.map(p => ({
     ...p,
     fullyInstalled: p.modules.every(m => installedModules.has(m)),
-  })), [installedModules])
+    installBlocked: p.modules.some(mid => {
+      if (installedModules.has(mid)) return false
+      const mod = modules.find(m => m.id === mid)
+      return mod?.installable === false
+    }),
+  })), [installedModules, modules])
 
   const handleInstall = useCallback(async (id: string) => {
     setBusyId(id); setError(null); setSuccess(null)
@@ -457,6 +473,7 @@ function AppsPageInner() {
           busy={busyId === pack.id || (busyId !== null && pack.modules.includes(busyId))}
           onInstall={handlePack}
           detail={detail}
+          blocked={pack.installBlocked}
         />
       ))}
     </div>

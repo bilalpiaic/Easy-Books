@@ -6847,6 +6847,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
                 {m for m in current if m in MODULE_REGISTRY} | defaults
             )
             tenant.enabled_modules = _json.dumps(merged)
+            from services.saas import apply_plan_defaults
+            apply_plan_defaults(tenant, "enterprise")
             s.add(tenant); s.commit()
         else:
             modules = list(MODULES_BY_MODEL.get(business_model, ["base"]))
@@ -6855,6 +6857,8 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             tenant = Tenant(name=company_name, business_model=business_model,
                             base_currency="USD",
                             enabled_modules=_json.dumps(modules))
+            from services.saas import apply_plan_defaults
+            apply_plan_defaults(tenant, "enterprise")
             s.add(tenant); s.commit(); s.refresh(tenant)
             tenant_id = tenant.id
             seed_data(tenant_id, session=s)

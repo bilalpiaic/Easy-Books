@@ -448,6 +448,8 @@ uv run alembic upgrade head
 | `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | Bank feeds (Plaid). Sync upserts `StatementLine` rows when credentials + a linked bank account are present | — |
 | `REDIS_URL` | When set, background jobs go to Redis via ARQ; when unset, tasks run **inline** in-process (Electron / script install / local pytest) | unset (inline) |
 | `ANTHROPIC_API_KEY` | Dev/demo fallback for the AI assistant (anthropic only); per-tenant keys in Settings → AI take priority | — |
+| `ENFORCE_MODULE_PLANS` | Gate `POST /api/modules/{id}/install` by plan allowlist + ops entitle flags. `false` = unrestricted install | `true` |
+| `OPS_ADMIN_EMAILS` | Comma-separated staff emails for `/api/ops/tenants` entitle API. Empty list fail-closes | unset |
 
 Frontend: set `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`.
 

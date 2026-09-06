@@ -44,8 +44,8 @@ class Tenant(SQLModel, table=True):
     # JSON list of enabled module IDs. Set from MODULES_BY_MODEL at signup;
     # managed independently via POST /api/modules/{id}/install|uninstall after that.
     enabled_modules: str = Field(default='["base"]')
-    # JSON dict: {module_id: {tier, installed_at, expires_at}} — billing metadata.
-    # tier is "free" | "pro" | "enterprise". expires_at null = perpetual.
+    # JSON dict: {module_id: {tier, installed_at, expires_at, entitled, entitled_at}}
+    # — billing + ops-entitle metadata. Uninstall must not clear ``entitled``.
     # Shape is intentionally flexible so billing logic can be added without schema changes.
     module_meta: str = Field(default="{}")
     # IAS 2.25: FIFO or weighted-average; applied consistently to all products.
