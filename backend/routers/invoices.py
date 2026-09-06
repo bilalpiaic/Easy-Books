@@ -37,6 +37,7 @@ from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_accoun
 
 from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_model, skip_custom_required
 from services.pra import get_pra_config, submit_to_pra
 from db import engine as _db_engine
 from sqlmodel import Session as _Session
@@ -316,6 +317,7 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
                    background_tasks: BackgroundTasks, mirror: bool = True):
     from services.saas import check_document_quota
     check_document_quota(session, user.tenant_id)
+    _schema_hidden = apply_to_model(session, user, "invoice", body)
 
     if body.is_intercompany:
         if not body.ic_counterparty_tenant_id:
@@ -419,7 +421,8 @@ def create_invoice(session: SessionDep, user: WriteUserDep, body: InvoiceCreate,
             body.ic_counterparty_tenant_id if body.is_intercompany else None
         ),
         custom_fields=apply_custom_fields(
-            session, user.tenant_id, "invoice", body.custom_fields
+            session, user.tenant_id, "invoice", body.custom_fields,
+            skip_required=skip_custom_required(_schema_hidden),
         ),
     )
     session.add(invoice)
@@ -686,6 +689,13 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
         raise HTTPException(404, "Invoice not found")
     from routers._edit_guards import assert_doc_editable
     assert_doc_editable(session, tenant_id=user.tenant_id, doc=inv, kind="invoice")
+    existing_lines = [
+        ln.model_dump()
+        for ln in session.exec(select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id)).all()
+    ]
+    _schema_hidden = apply_to_model(
+        session, user, "invoice", body, existing=inv, existing_lines=existing_lines,
+    )
 
     if has_any_recognition(session, user.tenant_id, inv.id):
         raise HTTPException(
@@ -908,7 +918,8 @@ def update_invoice(session: SessionDep, user: WriteUserDep, invoice_id: int, bod
     inv.buyer_ntn = body.buyer_ntn
     inv.buyer_cnic = body.buyer_cnic
     inv.custom_fields = apply_custom_fields(
-        session, user.tenant_id, "invoice", body.custom_fields, existing=inv.custom_fields
+        session, user.tenant_id, "invoice", body.custom_fields, existing=inv.custom_fields,
+        skip_required=skip_custom_required(_schema_hidden),
     )
     session.add(inv)
     session.flush()

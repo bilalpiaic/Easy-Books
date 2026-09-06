@@ -837,6 +837,21 @@ class CustomFieldDef(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class FormSchema(SQLModel, table=True):
+    """Tenant (or role) overlay for hide/show/required on a document form (#373).
+
+    ``role='*'`` is the tenant default. A matching role row replaces ``*``
+    for that user. Missing field keys keep the shipped default (visible).
+    """
+    __tablename__ = "form_schema"
+    tenant_id: int = Field(foreign_key="tenant.id", primary_key=True)
+    entity: str = Field(primary_key=True)
+    role: str = Field(default="*", primary_key=True)
+    payload_json: dict = Field(default_factory=dict, sa_column=Column("schema_json", JSON, nullable=False))
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
 class StockSerial(SQLModel, table=True):
     """Per-unit serial number for track_serial products (#257)."""
     __tablename__ = "stockserial"

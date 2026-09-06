@@ -40,10 +40,12 @@ export function CustomFieldsInputs({
   entity,
   values,
   onChange,
+  schemaFields = {},
 }: {
   entity: CustomFieldEntity
   values: CustomFieldValues
   onChange: (next: CustomFieldValues) => void
+  schemaFields?: Record<string, { visible?: boolean; required?: boolean; order?: number }>
 }) {
   const [defs, setDefs] = useState<CustomFieldDef[]>([])
 
@@ -55,6 +57,19 @@ export function CustomFieldsInputs({
 
   if (defs.length === 0) return null
 
+  const visibleDefs = defs
+    .filter(d => schemaFields[d.key]?.visible !== false)
+    .slice()
+    .sort((a, b) => {
+      const ao = schemaFields[a.key]?.order
+      const bo = schemaFields[b.key]?.order
+      if (ao != null && bo != null && ao !== bo) return ao - bo
+      if (ao != null) return -1
+      if (bo != null) return 1
+      return (a.sort_order || 0) - (b.sort_order || 0)
+    })
+  if (visibleDefs.length === 0) return null
+
   const setKey = (key: string, value: unknown) => {
     const next = { ...values }
     if (value === '' || value === undefined) delete next[key]
@@ -64,12 +79,13 @@ export function CustomFieldsInputs({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {defs.map(def => {
+      {visibleDefs.map(def => {
         const raw = values[def.key]
+        const required = Boolean(def.required || schemaFields[def.key]?.required)
         const label = (
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
             {def.label}
-            {def.required ? <span className="text-red-600"> *</span> : null}
+            {required ? <span className="text-red-600"> *</span> : null}
           </label>
         )
         const fieldClass =
@@ -86,7 +102,7 @@ export function CustomFieldsInputs({
               />
               <label htmlFor={def.key} className="text-sm text-[var(--text-primary)]">
                 {def.label}
-                {def.required ? <span className="text-red-600"> *</span> : null}
+                {required ? <span className="text-red-600"> *</span> : null}
               </label>
             </div>
           )
@@ -97,7 +113,7 @@ export function CustomFieldsInputs({
               {label}
               <select
                 value={raw == null ? '' : String(raw)}
-                required={def.required}
+                required={required}
                 onChange={e => setKey(def.key, e.target.value)}
                 className={fieldClass}
               >
@@ -116,7 +132,7 @@ export function CustomFieldsInputs({
               <input
                 type="number"
                 step="any"
-                required={def.required}
+                required={required}
                 value={raw == null ? '' : String(raw)}
                 onChange={e => setKey(def.key, e.target.value === '' ? '' : Number(e.target.value))}
                 className={fieldClass}
@@ -129,7 +145,7 @@ export function CustomFieldsInputs({
             {label}
             <input
               type={def.type === 'date' ? 'date' : 'text'}
-              required={def.required}
+              required={required}
               value={raw == null ? '' : String(raw)}
               onChange={e => setKey(def.key, e.target.value)}
               className={fieldClass}

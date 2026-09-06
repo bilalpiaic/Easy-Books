@@ -79,6 +79,7 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "approvals.workflows":    {"label": "Approval Workflows",      "category": "System"},
     "webhooks":               {"label": "Webhooks",                "category": "System"},
     "studio.fields":          {"label": "Custom Fields",           "category": "System"},
+    "studio.forms":           {"label": "Form Layout",             "category": "System"},
     "audit_log":              {"label": "Audit Log",               "category": "System"},
     "csv_import":             {"label": "CSV Import",              "category": "System"},
     "report_builder":         {"label": "Report Builder",          "category": "Reports"},

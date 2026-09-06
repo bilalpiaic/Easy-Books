@@ -12,6 +12,7 @@ from .common import CurrentUserDep, SessionDep, WriteUserDep, log_audit, mark_on
 from services.events import emit
 from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_payload, skip_custom_required
 
 router = APIRouter(prefix="/api/customers", tags=["customers"], dependencies=[perm_dep("customers")])
 
@@ -92,8 +93,10 @@ def get_customer(session: SessionDep, user: CurrentUserDep, customer_id: int):
 @router.post("", status_code=201)
 def create_customer(session: SessionDep, user: WriteUserDep, body: CustomerCreate):
     data = body.model_dump()
+    data, hidden = apply_to_payload(session, user, "customer", data)
     data["custom_fields"] = apply_custom_fields(
-        session, user.tenant_id, "customer", data.get("custom_fields")
+        session, user.tenant_id, "customer", data.get("custom_fields"),
+        skip_required=skip_custom_required(hidden),
     )
     c = Customer(**data, tenant_id=user.tenant_id)
     session.add(c)
@@ -118,9 +121,12 @@ def update_customer(
     if not c:
         raise HTTPException(404, "Customer not found")
     data = body.model_dump(exclude_none=True)
+    data, hidden = apply_to_payload(session, user, "customer", data, existing=c.model_dump())
     if "custom_fields" in data:
         data["custom_fields"] = apply_custom_fields(
-            session, user.tenant_id, "customer", data["custom_fields"]
+            session, user.tenant_id, "customer", data["custom_fields"],
+            existing=c.custom_fields,
+            skip_required=skip_custom_required(hidden),
         )
     for k, v in data.items():
         setattr(c, k, v)

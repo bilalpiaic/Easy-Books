@@ -21,6 +21,7 @@ from .common import CurrentUserDep, SessionDep, WriteUserDep, get_default_accoun
 
 from services.permissions import perm_dep, apply_own_filter
 from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_model, skip_custom_required
 router = APIRouter(tags=["bills"], dependencies=[perm_dep("bills")])
 
 
@@ -232,6 +233,7 @@ def download_bill_pdf(session: SessionDep, user: CurrentUserDep, bill_id: int):
 def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate, mirror: bool = True):
     from services.saas import check_document_quota
     check_document_quota(session, user.tenant_id)
+    _schema_hidden = apply_to_model(session, user, "bill", body)
 
     if body.is_intercompany:
         if not body.ic_counterparty_tenant_id:
@@ -341,7 +343,8 @@ def create_bill(session: SessionDep, user: WriteUserDep, body: BillCreate, mirro
             body.ic_counterparty_tenant_id if body.is_intercompany else None
         ),
         custom_fields=apply_custom_fields(
-            session, user.tenant_id, "bill", body.custom_fields
+            session, user.tenant_id, "bill", body.custom_fields,
+            skip_required=skip_custom_required(_schema_hidden),
         ),
     )
     session.add(bill)
@@ -485,6 +488,13 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
         raise HTTPException(404, "Bill not found")
     from routers._edit_guards import assert_doc_editable
     assert_doc_editable(session, tenant_id=user.tenant_id, doc=bill, kind="bill")
+    existing_lines = [
+        ln.model_dump()
+        for ln in session.exec(select(BillLine).where(BillLine.bill_id == bill.id)).all()
+    ]
+    _schema_hidden = apply_to_model(
+        session, user, "bill", body, existing=bill, existing_lines=existing_lines,
+    )
 
     # Snapshot prior header + totals for audit diff (before any mutations).
     # Normalize monetary values via money() so before/after use the same format.
@@ -617,7 +627,8 @@ def update_bill(session: SessionDep, user: WriteUserDep, bill_id: int, body: Bil
     bill.analytic_2_id = getattr(body, "analytic_2_id", None)
     bill.analytic_3_id = getattr(body, "analytic_3_id", None)
     bill.custom_fields = apply_custom_fields(
-        session, user.tenant_id, "bill", body.custom_fields, existing=bill.custom_fields
+        session, user.tenant_id, "bill", body.custom_fields, existing=bill.custom_fields,
+        skip_required=skip_custom_required(_schema_hidden),
     )
     session.add(bill)
     session.flush()
