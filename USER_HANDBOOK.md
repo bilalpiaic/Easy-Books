@@ -5,14 +5,14 @@ For the full product guide see [USER_GUIDE.md](./USER_GUIDE.md) (§9.1 Dual Home
 
 ---
 
-## Two homes on `/dashboard`
+## Two homes: Financial and Operations
 
-| Home | Who it serves | What you see |
-|------|---------------|--------------|
-| **Financial** | Financial manager / management P&amp;L | Revenue, expenses, cash, AR/AP, aging, trends |
-| **Operations** | Operations / production / clinic / franchise | Module KPIs (lots, WIP, beds, tracker floats, purchase pipeline…) |
+| Home | Route | Who it serves | What you see |
+|------|-------|---------------|--------------|
+| **Financial** | `/dashboard` | Financial manager / management P&amp;L | Revenue, expenses, cash, AR/AP, aging, trends |
+| **Operations** | `/dashboard/operations` | Operations / production / clinic / franchise | Module KPIs (lots, WIP, beds, tracker floats, purchase pipeline…) |
 
-Toggle **Financial | Operations** under the page title. Pure Base/Services tenants do not see Operations until an industry pack is installed (System → Add-ons).
+Open **Dashboard → Operations** in the top-nav menu (or Ctrl+K `operations dashboard`). The **Financial | Operations** toggle under the page title also switches homes. Pure Base/Services tenants do not see Operations until an industry pack is installed (System → Add-ons).
 
 ### Default home by tenant segment
 

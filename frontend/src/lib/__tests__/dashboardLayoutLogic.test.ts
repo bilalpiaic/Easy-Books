@@ -11,6 +11,8 @@ import {
   hasOperationsHome,
   operationsSubtitle,
 } from "@/lib/dashboardHome"
+import { NAV, SUB_NAV, navItemActive, navVisible } from "@/lib/nav"
+import { searchNav } from "@/lib/navIndex"
 
 const baseMeta = (mods: string[], model?: string): Meta => ({
   model,
@@ -116,5 +118,59 @@ describe("migrateToV4", () => {
     const v4 = migrateToV4(null, meta)
     expect(v4.financial.layouts.lg.length).toBeGreaterThan(0)
     expect(v4.operations.layouts.lg.some(i => i.id === "ops_primary_kpis")).toBe(true)
+  })
+})
+
+describe("Operations dashboard nav findability", () => {
+  const opsItem = NAV.find(i => i.href === "/dashboard/operations")
+  const subOps = SUB_NAV.dashboard.find(i => i.href === "/dashboard/operations")
+
+  it("registers Operations on /dashboard/operations", () => {
+    expect(opsItem?.label).toBe("Operations")
+    expect(opsItem?.forAnyModule?.length).toBeGreaterThan(0)
+    expect(subOps?.label).toBe("Operations")
+  })
+
+  it("hides Operations without a purpose module", () => {
+    expect(opsItem).toBeTruthy()
+    expect(navVisible(opsItem!, new Set(["base"]))).toBe(false)
+    expect(navVisible(opsItem!, new Set(["base", "hrm"]))).toBe(false)
+    expect(navVisible(subOps!, new Set(["base"]))).toBe(false)
+  })
+
+  it("shows Operations when spinning, healthcare, or purchase_store is installed", () => {
+    expect(navVisible(opsItem!, new Set(["base", "spinning"]))).toBe(true)
+    expect(navVisible(opsItem!, new Set(["base", "healthcare"]))).toBe(true)
+    expect(navVisible(opsItem!, new Set(["base", "purchase_store"]))).toBe(true)
+  })
+
+  it("does not treat /dashboard/operations as a child of Financial", () => {
+    expect(navItemActive("/dashboard", "/dashboard")).toBe(true)
+    expect(navItemActive("/dashboard", "/dashboard?view=financial")).toBe(true)
+    expect(navItemActive("/dashboard/operations", "/dashboard")).toBe(false)
+    expect(navItemActive("/dashboard/operations", "/dashboard?view=financial")).toBe(false)
+    expect(navItemActive("/dashboard/operations", "/dashboard/operations")).toBe(true)
+    expect(navItemActive("/dashboard", "/dashboard/operations")).toBe(false)
+  })
+
+  it("Ctrl+K 'operations dashboard' ranks the Operations home first", () => {
+    const hits = searchNav("operations dashboard", 8)
+    expect(hits[0]?.href).toBe("/dashboard/operations")
+  })
+})
+
+describe("Studio nav findability", () => {
+  it("lists Studio on /settings/studio for admin-only System nav", () => {
+    const item = NAV.find(i => i.href === "/settings/studio")
+    const sub = SUB_NAV.system.find(i => i.href === "/settings/studio")
+    expect(item?.label).toBe("Studio")
+    expect(item?.adminOnly).toBe(true)
+    expect(sub?.label).toBe("Studio")
+    expect(SUB_NAV.system[1]?.href).toBe("/settings/studio")
+  })
+
+  it("Ctrl+K 'studio' ranks Settings Studio first", () => {
+    const hits = searchNav("studio", 8)
+    expect(hits[0]?.href).toBe("/settings/studio")
   })
 })

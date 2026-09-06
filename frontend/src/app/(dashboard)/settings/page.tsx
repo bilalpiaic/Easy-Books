@@ -1,8 +1,9 @@
 'use client'
 
-import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check, MessageCircle, LayoutDashboard } from 'lucide-react'
+import { Save, Bell, Globe, Lock, Unlock, Trash2, Plus, Building2, Upload, CalendarDays, BookOpen, RefreshCw, Layers, Sun, Moon, Monitor, Palette, Sparkles, X, KeyRound, Copy, Check, MessageCircle, LayoutDashboard, PenTool } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
 import { fmtDate } from '@/lib/utils'
 import { useSettings, AppSettings } from '@/context/SettingsContext'
@@ -46,6 +47,7 @@ interface AccountingPeriod {
 export default function SettingsPage() {
   const { confirm, toast } = useMessages()
   const { t } = useTranslation()
+  const router = useRouter()
 
   const { settings: ctxSettings, reload } = useSettings()
   const { installedModules } = useModules()
@@ -233,17 +235,22 @@ export default function SettingsPage() {
   // Read ?tab= from URL on mount (avoids useSearchParams Suspense requirement)
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab")
+    if (t === "studio") {
+      router.replace("/settings/studio")
+      return
+    }
     if (t) setTab(t)
-  }, [])
+  }, [router])
 
   const isAdminOrOwner =
     getCurrentUser()?.role === "admin" || getCurrentUser()?.role === "owner"
 
-  const TABS = [
+  const TABS: { id: string; label: string; href?: string }[] = [
     { id: "company",     label: "Company"     },
     { id: "accounting",  label: "Accounting"  },
     { id: "preferences", label: "Preferences" },
     { id: "advanced",    label: "Advanced"    },
+    ...(isAdminOrOwner ? [{ id: "studio", label: "Studio", href: "/settings/studio" }] : []),
     // Machine-to-machine keys are admin/owner territory (matches the
     // backend's AdminUserDep gate) — hide the tab entirely for others
     // rather than showing content that would just 403.
@@ -265,7 +272,7 @@ export default function SettingsPage() {
       <div className="overflow-x-auto scrollbar-hide -mx-1 px-1 border-b border-[var(--border)]">
         <div className="flex gap-1 min-w-max">
           {TABS.map(t => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)}
+            <button key={t.id} type="button" onClick={() => t.href ? router.push(t.href) : setTab(t.id)}
               className={`shrink-0 whitespace-nowrap px-3 sm:px-5 py-2 text-[13px] font-medium rounded-t-lg transition-colors ${
                 tab === t.id
                   ? "bg-white border border-b-white border-[var(--border)] text-[var(--primary)] -mb-px"
@@ -1150,6 +1157,26 @@ export default function SettingsPage() {
           Open Add-ons
         </Link>
       </div>
+
+      {isAdminOrOwner && (
+      <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
+        <h2 className="text-xl font-semibold mb-2 flex items-center gap-3 text-black">
+          <PenTool className="w-5 h-5 text-[var(--primary)]" />
+          Studio
+        </h2>
+        <p className="text-sm text-[var(--text-muted)] mb-4">
+          Extra fields, form layout, and print templates for invoices, bills, customers,
+          products, and vendors. Marketplace listings (for example mill Weighbridge) can
+          apply a bundle here; you can still edit the overlay. Values never post to the GL.
+        </p>
+        <Link
+          href="/settings/studio"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:bg-[var(--primary-dark)] transition-colors"
+        >
+          Open Studio
+        </Link>
+      </div>
+      )}
 
       {/* Dual-home dashboard preference (browser-local, mirrors /dashboard toggle) */}
       <HomeDashboardSettingsCard opsAvailable={hasOperationsHome(installedModules)} praInstalled={installedModules.has("pra")} />
@@ -2873,6 +2900,13 @@ function HomeDashboardSettingsCard({
         Choose which home opens after login. Financial is the P&amp;L / cash overview;
         Operations shows purpose-built KPIs for installed industry modules.
         Preference is stored in this browser (<code className="text-xs">eb.home_dashboard</code>).
+        {opsAvailable && (
+          <> Open it anytime via Dashboard → Operations or{" "}
+            <Link href="/dashboard/operations" className="text-[var(--primary)] font-semibold hover:underline">
+              /dashboard/operations
+            </Link>.
+          </>
+        )}
       </p>
       <div className="flex flex-wrap gap-2">
         <button

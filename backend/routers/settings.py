@@ -326,7 +326,12 @@ def update_business_model(
                 by_code[code].parent_id = parent.id
 
     tenant.business_model = model
-    tenant.enabled_modules = _json.dumps(MODULES_BY_MODEL.get(model, []))
+    desired = MODULES_BY_MODEL.get(model, ["base"])
+    from services.entitlements import can_install
+    allowed = [m for m in desired if m == "base" or can_install(tenant, m)]
+    if "base" not in allowed:
+        allowed = ["base", *allowed]
+    tenant.enabled_modules = _json.dumps(allowed)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)

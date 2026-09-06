@@ -1,3 +1,4 @@
+import { PURPOSE_MODULES } from "@/lib/dashboardHome"
 import {
   LayoutDashboard, LayoutGrid, PlusCircle, ClipboardList, BookOpen, TableProperties,
   Scale, FileText, PieChart, TrendingUp, FileSignature, Users,
@@ -21,6 +22,8 @@ export type NavItem = {
   section: string
   /** Module ID — item is hidden when this module is not installed. */
   forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "textile_processing" | "pos" | "ecommerce"
+  /** Visible when *any* of these modules is installed (Operations home). */
+  forAnyModule?: readonly string[]
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
   notForModule?: "purchase_store"
   /** Only shown to admin+ (admin or owner). */
@@ -30,12 +33,31 @@ export type NavItem = {
 /** Single visibility predicate — use everywhere instead of ad-hoc forModule checks. */
 export function navVisible(item: NavItem, installed: Set<string>): boolean {
   if (item.forModule && !installed.has(item.forModule)) return false
+  if (item.forAnyModule?.length && !item.forAnyModule.some(m => installed.has(m))) return false
   if (item.notForModule && installed.has(item.notForModule)) return false
   return true
 }
 
+/** Pathname portion of a nav href (query string ignored). */
+export function navHrefPath(href: string): string {
+  const q = href.indexOf("?")
+  return q === -1 ? href : href.slice(0, q)
+}
+
+/**
+ * Whether `pathname` is the active location for a nav href.
+ * `/dashboard` is exact-only so `/dashboard/operations` is not treated as a child.
+ */
+export function navItemActive(pathname: string, href: string): boolean {
+  const path = navHrefPath(href)
+  if (pathname === path) return true
+  if (path === "/dashboard") return false
+  return pathname.startsWith(path + "/")
+}
+
 export const NAV: NavItem[] = [
   { label: "Dashboard",        href: "/dashboard",         icon: LayoutDashboard,  section: "Overview" },
+  { label: "Operations",       href: "/dashboard/operations", icon: Factory,       section: "Overview", forAnyModule: PURPOSE_MODULES },
   { label: "New Entry",        href: "/entry",             icon: PlusCircle,       section: "Ledger" },
   { label: "Journal",          href: "/journal",           icon: ClipboardList,    section: "Ledger" },
   { label: "Recurring",        href: "/recurring",         icon: RefreshCw,        section: "Ledger" },
@@ -142,13 +164,13 @@ export const NAV: NavItem[] = [
   { label: "Team",             href: "/team",              icon: UsersRound,       section: "System", adminOnly: true },
   { label: "Practice clients", href: "/practice",          icon: Building2,        section: "System" },
   { label: "Permissions",      href: "/settings/permissions", icon: ShieldCheck,   section: "System", adminOnly: true },
-  { label: "Studio",           href: "/settings/studio",      icon: PenTool,       section: "System", adminOnly: true },
   { label: "Audit Log",        href: "/audit",             icon: ScrollText,       section: "System", adminOnly: true },
   { label: "Approvals",        href: "/approvals",         icon: CheckCheck,       section: "System" },
   { label: "Approval Workflows", href: "/approvals/workflows", icon: GitBranch,   section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
   { label: "AI Assistant",     href: "/agent",             icon: Sparkles,         section: "System",    forModule: "ai_assistant" },
+  { label: "Studio",           href: "/settings/studio",      icon: PenTool,       section: "System", adminOnly: true },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
   { label: "Add-ons",          href: "/apps",              icon: AppWindow,        section: "System",    adminOnly: true },
   { label: "PRA Dashboard",    href: "/pra-dashboard",     icon: LayoutDashboard,  section: "PRA",       forModule: "pra" },
@@ -230,8 +252,8 @@ export const NAV: NavItem[] = [
 
 export const ALL_SECTIONS = [
   "Overview", "Ledger", "Reports", "Banking", "Receivable", "Payable", "Purchases",
-  "Store", "POS", "eCommerce", "Manufacturing", "Inventory", "Payroll",
-  "Healthcare", "Telecom", "Weaving", "Spinning", "Processing", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
+  "Store", "Spinning", "Weaving", "Processing", "POS", "eCommerce", "Manufacturing", "Inventory", "Payroll",
+  "Healthcare", "Telecom", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
   "System",
 ]
 
@@ -276,6 +298,9 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "sales",         label: "Sales"         },
   { key: "purchases",     label: "Purchases"     },
   { key: "store",         label: "Store",         forModule: "purchase_store" },
+  { key: "spinning",      label: "Spinning",      forModule: "spinning"    },
+  { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
+  { key: "processing",    label: "Processing",    forModule: "textile_processing" },
   { key: "pos",           label: "POS",           forModule: "pos" },
   { key: "ecommerce",     label: "eCommerce",     forModule: "ecommerce" },
   { key: "manufacturing", label: "Manufacturing", forModule: "production"  },
@@ -283,9 +308,6 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "payroll",       label: "Payroll",       forModule: "hrm"         },
   { key: "healthcare",    label: "Healthcare",    forModule: "healthcare"  },
   { key: "telecom",       label: "Telecom",       forModule: "telecom"     },
-  { key: "weaving",       label: "Weaving",       forModule: "weaving"     },
-  { key: "spinning",      label: "Spinning",      forModule: "spinning"    },
-  { key: "processing",    label: "Processing",    forModule: "textile_processing" },
   { key: "pra",           label: "PRA e-Invoice", shortLabel: "PRA", forModule: "pra" },
   { key: "uae",           label: "UAE VAT",       shortLabel: "UAE", forModule: "uae_vat" },
   { key: "zatca",         label: "ZATCA",         shortLabel: "ZATCA", forModule: "sa_zatca" },
@@ -306,6 +328,9 @@ export const NAV_SECTION_ORDER: string[] = [
   "sales",
   "purchases",
   "store",
+  "spinning",
+  "weaving",
+  "processing",
   "pos",
   "ecommerce",
   "manufacturing",
@@ -313,9 +338,6 @@ export const NAV_SECTION_ORDER: string[] = [
   "payroll",
   "healthcare",
   "telecom",
-  "weaving",
-  "spinning",
-  "processing",
   "pra",
   "uae",
   "zatca",
@@ -386,7 +408,7 @@ export function getActiveSection(pathname: string, installed?: Set<string>): str
 /** Default landing href when a top-nav section is clicked — points to the hub/overview page */
 export function getSectionHref(key: string): string {
   const map: Record<string, string> = {
-    dashboard:     "/dashboard",
+    dashboard:     "/dashboard?view=financial",
     banking:       "/banking",
     sales:         "/receivable",
     purchases:     "/purchases",
@@ -416,7 +438,8 @@ export function getSectionHref(key: string): string {
 /** Sub-navigation items grouped by top-nav section key */
 export const SUB_NAV: Record<string, NavItem[]> = {
   dashboard: [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "dashboard" },
+    { label: "Financial",  href: "/dashboard?view=financial", icon: LayoutDashboard, section: "dashboard" },
+    { label: "Operations", href: "/dashboard/operations",     icon: Factory,         section: "dashboard", forAnyModule: PURPOSE_MODULES },
   ],
   banking: [
     { label: "Bank Accounts",   href: "/bank-accounts",   icon: Landmark,   section: "banking" },
@@ -630,10 +653,10 @@ export const SUB_NAV: Record<string, NavItem[]> = {
   ],
   system: [
     { label: "Settings",      href: "/settings",             icon: Settings,    section: "system" },
+    { label: "Studio",        href: "/settings/studio",      icon: PenTool,     section: "system", adminOnly: true },
     { label: "Team",          href: "/team",                 icon: UsersRound,  section: "system", adminOnly: true },
     { label: "Practice clients", href: "/practice",          icon: Building2,   section: "system" },
     { label: "Permissions",   href: "/settings/permissions", icon: ShieldCheck, section: "system", adminOnly: true },
-    { label: "Studio",        href: "/settings/studio",      icon: PenTool,     section: "system", adminOnly: true },
     { label: "My Profile",    href: "/profile",              icon: UserCircle,  section: "system" },
     { label: "CSV Import",    href: "/imports",              icon: Upload,      section: "system" },
     { label: "Payment Terms", href: "/payment-terms",        icon: Clock,       section: "system", adminOnly: true },

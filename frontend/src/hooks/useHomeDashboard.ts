@@ -13,9 +13,16 @@ import {
   operationsSubtitle,
 } from "@/lib/dashboardHome"
 
+const OPS_PATH = "/dashboard/operations"
+
+function isOpsPath(pathname: string): boolean {
+  return pathname === OPS_PATH || pathname.startsWith(`${OPS_PATH}/`)
+}
+
 /**
  * Dual-home preference: Financial | Operations (+ PRA via usePRAPortal).
- * Syncs `?view=` on /dashboard with localStorage `eb.home_dashboard`.
+ * Operations is a real route (`/dashboard/operations`) so it appears in
+ * SubNav / sidebar / Ctrl+K — not only a tiny toggle on `/dashboard`.
  */
 export function useHomeDashboard(): {
   view: DashboardView
@@ -44,35 +51,59 @@ export function useHomeDashboard(): {
   useEffect(() => {
     if (modulesLoading) return
 
+    const onOpsPath = isOpsPath(pathname)
+    const onDashHome = pathname === "/dashboard" || onOpsPath
     const q = searchParams.get("view")
-    const stored = localStorage.getItem(HOME_PREF_KEY) as HomePreference | null
+    const stored = typeof window !== "undefined"
+      ? (localStorage.getItem(HOME_PREF_KEY) as HomePreference | null)
+      : null
 
     let next: DashboardView = "financial"
-    if (q === "operations" || q === "financial") {
+    let explicit = false
+    if (onOpsPath) {
+      next = "operations"
+      explicit = true
+    } else if (q === "operations" || q === "financial") {
       next = q
+      explicit = true
     } else if (stored === "operations" || stored === "financial") {
       next = stored
     } else if (stored === "accounting" || stored === "pra") {
-      // PRA / legacy accounting → financial home (portal handled separately)
       next = "financial"
     } else {
       next = defaultViewForModel(businessModel)
     }
 
-    if (next === "operations" && !opsAvailable) next = "financial"
+    if (next === "operations" && !opsAvailable) {
+      next = "financial"
+      explicit = false
+    }
     setViewState(next)
     setSettled(true)
-  }, [modulesLoading, searchParams, opsAvailable, businessModel])
+
+    if (explicit && typeof window !== "undefined") {
+      localStorage.setItem(HOME_PREF_KEY, next)
+    }
+
+    if (!onDashHome) return
+
+    if (next === "operations" && opsAvailable && !onOpsPath) {
+      router.replace(OPS_PATH)
+    } else if (next === "financial" && onOpsPath) {
+      router.replace("/dashboard?view=financial")
+    }
+  }, [modulesLoading, searchParams, opsAvailable, businessModel, pathname, router])
 
   const setView = useCallback((v: DashboardView) => {
     const next = v === "operations" && !opsAvailable ? "financial" : v
     setViewState(next)
     localStorage.setItem(HOME_PREF_KEY, next)
-    // Keep PRA legacy key coherent when leaving ops/financial (don't clear pra)
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("view", next)
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }, [opsAvailable, searchParams, router, pathname])
+    if (next === "operations") {
+      router.replace(OPS_PATH)
+    } else {
+      router.replace("/dashboard?view=financial")
+    }
+  }, [opsAvailable, router])
 
   const subtitle = view === "operations"
     ? operationsSubtitle(installedModules, businessModel)

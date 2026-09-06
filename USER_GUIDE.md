@@ -579,14 +579,20 @@ All reports are **live from the GL** — always current, no batch jobs.
 
 ### 9.1 Dual Home Dashboards (Financial | Operations)
 
-The home page at `/dashboard` supports **two separately maintained dashboards**:
+The home page supports **two separately maintained dashboards**:
 
-| Home | Audience | Contents |
-|------|----------|----------|
-| **Financial** | Financial managers & management P&amp;L review | Revenue, expenses, net profit, cash &amp; bank, AR/AP, aging, trends, day book |
-| **Operations** | Operations & production visibility | Module-aware KPIs — spinning lots/yield, manufacturing WIP, weaving efficiency, healthcare census, telecom tracker floats, purchase pipeline, textile processing |
+| Home | Route | Audience | Contents |
+|------|-------|----------|----------|
+| **Financial** | `/dashboard` (or `/dashboard?view=financial`) | Financial managers & management P&amp;L review | Revenue, expenses, net profit, cash &amp; bank, AR/AP, aging, trends, day book |
+| **Operations** | `/dashboard/operations` | Operations & production visibility | Module-aware KPIs — spinning lots/yield, manufacturing WIP, weaving efficiency, healthcare census, telecom tracker floats, purchase pipeline, textile processing |
 
-Use the **Financial | Operations** segmented control under the page title to switch. The toggle appears only when a purpose module is installed (production, spinning, weaving, healthcare, telecom, purchase_store, textile_processing). Pure Base / Services tenants stay Financial-only.
+**How to open Operations**
+
+1. Log in as a mill / industry tenant (e.g. `demo.spinning@easy-books.app` / `demo1234`, or manufacturing, hospital, telecom).
+2. Click **Dashboard** in the top nav — the tab becomes a menu when a purpose module is installed — then **Operations**.
+3. Or use the **Operations** item in the Dashboard SubNav rail, or press Ctrl+K and type `operations dashboard`.
+
+The **Financial | Operations** segmented control under the page title also switches homes. Both the nav item and the toggle appear only when a purpose module is installed (production, spinning, weaving, healthcare, telecom, purchase_store, textile_processing). Pure Base / Services tenants stay Financial-only.
 
 **Default landing by tenant segment**
 
@@ -1773,7 +1779,7 @@ Each first-party card shows name, description, category (Core / Operations / HR 
 
 **Uninstalling** is blocked if another installed module depends on the one you want to remove (you must remove the dependent first). The Base module cannot be uninstalled.
 
-If your company is a mill (manufacturing or yarn spinning), Add-ons opens **Marketplace** when a **For you** listing such as Weighbridge is available. You can also go to `/apps?tab=marketplace` or press **Ctrl+K** and type `weighbridge`. See [§41 Weighbridge](#41-weighbridge-mill-marketplace-listing).
+If your company is a mill (manufacturing or yarn spinning) **and Yarn Spinning is not installed**, Add-ons opens **Recommended** so the Yarn Spinning pack is visible. After Spinning is installed, mill Add-ons opens **Marketplace** when a **For you** listing such as Weighbridge is available. You can also go to `/apps?tab=recommended` or `/apps?tab=marketplace`, or press **Ctrl+K** and type `spinning` / `weighbridge`. See [§30A Yarn Spinning](#30a-yarn-spinning-module) and [§41 Weighbridge](#41-weighbridge-mill-marketplace-listing).
 
 ### 29.3 First-time onboarding
 
@@ -1809,7 +1815,13 @@ Full sandbox rules: [docs/MARKETPLACE.md](docs/MARKETPLACE.md).
 | **Form layout** | Hide / require / show core and custom fields on the shipped forms |
 | **Print** | Clone or pick a print template |
 
-Custom field values live on the document JSON. They **never post to the General Ledger** — Dr/Cr still balance the same way. Marketplace listings such as Weighbridge can fill Studio for you; you can still edit the resulting fields here.
+**How to open Studio**
+
+1. Log in as admin or owner (demo: `demo.spinning@easy-books.app` / `demo1234`).
+2. **System ▾ → Studio** (immediately under Settings), or the **Studio** tab on the Settings page, or **Settings → Advanced → Open Studio**.
+3. Ctrl+K → `studio`, or go to `/settings/studio`.
+
+Clerk / viewer roles do not see the nav item. Custom field values live on the document JSON. They **never post to the General Ledger** — Dr/Cr still balance the same way. Marketplace listings such as Weighbridge can fill Studio for you; you can still edit the resulting fields here.
 
 ---
 
@@ -1940,6 +1952,13 @@ Pre-seeded data:
 > Demo tenant: `demo.spinning@easy-books.app` / `demo1234`
 
 The Yarn Spinning module tracks cotton/fiber intake through multi-stage mill production to finished yarn dispatch — with **full double-entry GL** on every approve/post (unlike the Weaving module, which is memo-only).
+
+**How to open it**
+
+1. Log in as `demo.spinning@easy-books.app` / `demo1234` (not the hospital / simple / manufacturing demos).
+2. Use the **Spinning** top-nav tab (next to Store). On a narrow window it may sit under **More**.
+3. Or press **Ctrl+K** and type `spinning`.
+4. To install on another company: **System → Add-ons → Recommended** → **Yarn Spinning** pack (Optional tab also lists the `spinning` module). Marketplace **Weighbridge** is a different product (invoice Gate pass fields only).
 
 ### 30A.1 Setup (`/spinning/setup`)
 

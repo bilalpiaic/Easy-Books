@@ -90,6 +90,12 @@ export default function StudioPage() {
           <PenTool className="w-6 h-6 text-[var(--primary)]" />
         </div>
         <div>
+          <p className="text-xs text-[var(--text-primary)]/50 mb-1">
+            <Link href="/settings?tab=advanced" className="hover:text-[var(--primary)] hover:underline">
+              Settings
+            </Link>
+            {" → "}Studio
+          </p>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Studio</h1>
           <p className="text-sm text-[var(--text-primary)]/60">
             Custom fields, form layout, and print templates. Mill tenants: install{" "}

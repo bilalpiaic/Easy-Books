@@ -20,7 +20,8 @@ export interface NavResult {
 
 /** Extra aliases keyed by href — merged into NAV_ITEMS keywords. */
 const NAV_ALIASES: Record<string, string[]> = {
-  "/dashboard":              ["home", "kpi", "overview", "main", "financial", "operations", "ops dashboard", "purpose dashboard"],
+  "/dashboard":              ["home", "kpi", "overview", "main", "financial dashboard"],
+  "/dashboard/operations":   ["operations dashboard", "ops home", "operational dashboard", "purpose dashboard", "ops kpi"],
   "/entry":                  ["voucher", "jv", "payment voucher", "receipt voucher", "new entry", "manual entry"],
   "/journal":                ["journal list", "vouchers", "jv list"],
   "/recurring":              ["recurring journal", "standing entry", "auto post"],
@@ -121,14 +122,14 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/team":                   ["users", "invite", "staff accounts"],
   "/practice":               ["practice", "clients", "switch company", "multi client", "accountant"],
   "/settings/permissions":   ["permissions", "user rights", "access matrix"],
-  "/settings/studio":        ["studio", "custom fields", "form layout", "print templates"],
+  "/settings/studio":        ["studio", "settings studio", "custom fields", "form layout", "print templates", "customisation", "customization"],
   "/audit":                  ["audit log", "activity trail", "who changed"],
   "/alerts":                 ["alerts", "inbox", "notifications", "bell"],
   "/workflow":               ["approvals", "workflow"],
   "/guide":                  ["help", "user guide", "docs", "manual"],
   "/agent":                  ["ai chat", "assistant", "ask books", "ai agent"],
   "/settings":               ["preferences", "configuration", "company settings"],
-  "/apps":                   ["add-ons", "modules", "install module", "extensions", "marketplace", "weighbridge", "weighbridge slip", "gate pass", "for you"],
+  "/apps":                   ["add-ons", "modules", "install module", "extensions", "marketplace", "weighbridge", "weighbridge slip", "gate pass", "for you", "yarn spinning", "spinning module", "spinning mill"],
   "/pra-logs":               ["pra logs", "fiscal submission", "einvoice log"],
   "/zatca/logs":             ["zatca logs", "fatoora", "saudi einvoice", "ksa"],
   "/peppol/logs":            ["peppol logs", "ubl", "eu einvoice", "access point"],
@@ -161,7 +162,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/weaving/reports/contract-control": ["contract control", "yarn balance", "progress"],
   "/weaving/reports/customer-kpi": ["weaving kpi", "customer weaving"],
   "/weaving/dashboard":      ["weaving dashboard", "weaving kpis"],
-  "/spinning":               ["spinning hub", "yarn spinning", "spin mill"],
+  "/spinning":               ["spinning hub", "yarn spinning", "spin mill", "spinning module", "cotton mill", "bale receipt"],
   "/spinning/setup":         ["yarn spec", "fiber grade", "spinning machine", "waste type"],
   "/spinning/plans":         ["production plan", "spinning plan"],
   "/spinning/lots":          ["spin lot", "spinning lot"],
@@ -895,7 +896,7 @@ const REPORTS: NavResult[] = [
   {
     id: "sys:studio", type: "nav", label: "Studio",
     sub: "Custom fields, form layout, and print templates", href: "/settings/studio",
-    keywords: ["studio", "custom fields", "form layout", "print templates", "x.gate_pass"],
+    keywords: ["studio", "settings studio", "custom fields", "form layout", "print templates", "customisation", "customization", "x.gate_pass"],
   },
   {
     id: "sys:imports", type: "nav", label: "CSV Import",

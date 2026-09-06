@@ -9,7 +9,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot, Scale,
+  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot, Scale, PenTool,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -60,6 +60,7 @@ const TABS: Tab[] = [
   { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom",  forModels: ["telecom_franchise"] },
   { id: "spinning",         label: "Yarn Spinning",           icon: CircleDot,      shortLabel: "Spinning", forModels: ["yarn_spinning"] },
   { id: "weighbridge",      label: "Weighbridge",             icon: Scale,          shortLabel: "Weigh",    forModels: ["manufacturing", "yarn_spinning"] },
+  { id: "studio",           label: "Settings Studio",         icon: PenTool,        shortLabel: "Studio"   },
   { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
   { id: "tips-shortcuts",   label: "Tips & Shortcuts",        icon: Keyboard,       shortLabel: "Tips"     },
 ]
@@ -1408,8 +1409,13 @@ function SpinningPanel() {
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         The yarn-spinning track is enabled when you pick <CodeBadge>yarn_spinning</CodeBadge> as
         your business model at signup (or install the <CodeBadge>spinning</CodeBadge> module from
-        System → Add-ons). It tracks cotton bale intake through multi-stage mill production to
+        System → Add-ons → Recommended). It tracks cotton bale intake through multi-stage mill production to
         finished yarn dispatch — with <b>full double-entry GL</b> on every approve/post.
+      </p>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed mt-2">
+        Demo login: <CodeBadge>demo.spinning@easy-books.app</CodeBadge> / <CodeBadge>demo1234</CodeBadge>.
+        Open the <b>Spinning</b> top-nav tab (or <b>More</b> on a narrow window), or press Ctrl+K and type
+        spinning. Marketplace Weighbridge is only invoice Gate pass fields — not this mill workspace.
       </p>
 
       <SectionHeading>The production cycle</SectionHeading>
@@ -1544,6 +1550,43 @@ function WeighbridgePanel() {
         <p>Looking for Weighbridge under Optional / Recommended — it is a Marketplace product, not a first-party module.</p>
         <p>Expecting Gate pass to post a journal line — custom fields never enter <CodeBadge>services/posting.py</CodeBadge>.</p>
         <p>Using Weighbridge as a truck in/out register — there is no ticket log or live scale integration in this listing.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function StudioPanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        <b>Settings Studio</b> lets an admin/owner add extra <CodeBadge>x.*</CodeBadge> fields,
+        hide or require form fields, and pick print templates — without forking the app.
+        Marketplace listings (for example mill Weighbridge) can apply a declarative bundle
+        here. Custom values live on the document JSON and <b>never post to the GL</b>.
+      </p>
+
+      <SectionHeading>How to open Studio</SectionHeading>
+      <StepList steps={[
+        "Log in as admin or owner (demo owners work: demo.spinning@easy-books.app / demo1234).",
+        "System ▾ → Studio (first item after Settings), or Settings → Studio tab, or Settings → Advanced → Open Studio.",
+        "Press Ctrl+K and type studio, or go to /settings/studio.",
+      ]} />
+
+      <SectionHeading>Three tabs</SectionHeading>
+      <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
+        <li><b>Fields</b> — extra columns on invoice, bill, customer, product, or vendor (cap 12 per entity)</li>
+        <li><b>Form layout</b> — hide / require / show core and custom fields on the shipped forms</li>
+        <li><b>Print</b> — clone or pick a print template</li>
+      </ul>
+
+      <TipCallout>
+        Clerk and viewer roles do not see Studio in the nav. Field-level rights for staff are
+        configured under <CodeBadge>Settings → Permissions</CodeBadge>.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Looking for Studio on the Settings Company tab — it is a Settings tab of its own, also under System ▾.</p>
+        <p>Expecting custom fields to post journal lines — they never enter posting.</p>
       </MistakeCallout>
     </div>
   )
@@ -2015,20 +2058,22 @@ function DashboardCustomizationPanel() {
   return (
     <div>
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
-        Easy-Books has <b>two home dashboards</b> you can switch between on{" "}
-        <CodeBadge>/dashboard</CodeBadge>: <b>Financial</b> (P&amp;L, cash, AR/AP) and{" "}
-        <b>Operations</b> (purpose-built KPIs for Manufacturing, Spinning, Healthcare,
-        Telecom, Purchases, and other installed industry packs). Each home has its own
-        customizable layout, saved per user.
+        Easy-Books has <b>two home dashboards</b>. Open them from the <b>Dashboard</b> top-nav
+        menu (Financial Dashboard / Operations), the SubNav rail, or Ctrl+K:
+        <CodeBadge>/dashboard</CodeBadge> (Financial) and{" "}
+        <CodeBadge>/dashboard/operations</CodeBadge> (Operations).
+        <b>Financial</b> is P&amp;L, cash, AR/AP; <b>Operations</b> is purpose-built KPIs for
+        Manufacturing, Spinning, Healthcare, Telecom, Purchases, and other installed industry packs.
+        Each home has its own customizable layout, saved per user.
       </p>
 
       <SectionHeading>Financial vs Operations</SectionHeading>
       <ul className="text-xs text-[var(--text-primary)]/70 leading-relaxed space-y-1 mt-2 list-disc pl-5">
         <li><b>Financial</b> — revenue, expenses, net profit, cash &amp; bank, AR/AP aging, trends, day book</li>
         <li><b>Operations</b> — throughput KPIs (open lots, WIP, bed occupancy, tracker floats, purchase pipeline…) with deep-links into module dashboards</li>
-        <li>The <b>Financial | Operations</b> toggle appears when any purpose module is installed; pure Base/Services tenants stay Financial-only</li>
-        <li>Industry tenants (manufacturing, spinning, hospital, telecom, textile processing) default to Operations on first visit</li>
-        <li>Set your login home under <b>Settings → Advanced → Home dashboard</b>, or use the toggle on the Dashboard page</li>
+        <li>The <b>Dashboard → Operations</b> nav item (and the <b>Financial | Operations</b> toggle) appear when any purpose module is installed; pure Base/Services tenants stay Financial-only</li>
+        <li>Industry tenants (manufacturing, spinning, hospital, telecom, textile processing) default to Operations on first visit — login lands on <CodeBadge>/dashboard/operations</CodeBadge></li>
+        <li>Set your login home under <b>Settings → Advanced → Home dashboard</b>, or use the toggle / SubNav on the Dashboard page</li>
       </ul>
 
       <SectionHeading>Entering customize mode</SectionHeading>
@@ -2128,6 +2173,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "telecom":         <TelecomFranchisePanel />,
   "spinning":        <SpinningPanel />,
   "weighbridge":     <WeighbridgePanel />,
+  "studio":          <StudioPanel />,
   "bulk-statements": <BulkStatementsPanel />,
   "tips-shortcuts":  <TipsShortcutsPanel />,
 }
