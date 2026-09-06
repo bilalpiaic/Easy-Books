@@ -171,11 +171,17 @@ def log_audit(
     entity_type: str,
     entity_id: Optional[int] = None,
     detail: Optional[dict] = None,
+    tenant_id: Optional[int] = None,
 ) -> None:
-    """Append a single AuditLog row. Caller is responsible for commit."""
+    """Append a single AuditLog row. Caller is responsible for commit.
+
+    ``tenant_id`` defaults to the actor's tenant. Platform-ops actions that
+    change another company must pass the *target* tenant so the trail lands
+    on the company that was entitled/revoked, not the ops user's books.
+    """
     session.add(
         AuditLog(
-            tenant_id=user.tenant_id,
+            tenant_id=user.tenant_id if tenant_id is None else tenant_id,
             user_id=user.id,
             action=action,
             entity_type=entity_type,

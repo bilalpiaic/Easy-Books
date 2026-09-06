@@ -119,6 +119,8 @@ def create_db_and_tables():
                         business_model=model,
                         enabled_modules=json.dumps(MODULES_BY_MODEL.get(model, ["base"])),
                     )
+                    from services.saas import apply_plan_defaults
+                    apply_plan_defaults(demo_tenant, "enterprise")
                     session.add(demo_tenant)
                     session.commit()
                     session.refresh(demo_tenant)

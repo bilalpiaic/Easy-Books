@@ -18,6 +18,7 @@ from sqlmodel import Session
 
 from db import get_session, MODULE_REGISTRY
 from routers.common import CurrentUserDep
+from services.entitlements import PLAN_DENIED, can_install, is_allowed
 
 router = APIRouter(tags=["modules"])
 
@@ -148,12 +149,99 @@ def list_modules(current_user: CurrentUserDep, session: SessionDep):
             "installed":    installed,
             "installed_at": mod_meta.get("installed_at"),
             "expires_at":   mod_meta.get("expires_at"),
+            "entitled":     is_allowed(tenant, mod_id),
+            "installable":  can_install(tenant, mod_id),
         })
 
     # Stable order: Core first, then alphabetical within category
     cat_order = {"Core": 0, "Accounting": 1, "Operations": 2, "HR": 3, "Industry": 4, "Localization": 5, "Intelligence": 6}
     result.sort(key=lambda m: (cat_order.get(m["category"], 99), m["label"]))
     return result
+
+
+def install_module_for_tenant(
+    session: Session,
+    tenant,
+    user,
+    module_id: str,
+    *,
+    seed_sample: bool = False,
+    check_entitlement: bool = True,
+) -> dict:
+    """Install ``module_id`` (and transitive deps) on ``tenant``.
+
+    Entitlement is checked only on the *requested* id. Deps ride along so
+    entitling ``spinning`` can install ``inventory`` + ``purchase_store``
+    even when those ids are not themselves on the tenant's plan.
+    """
+    if module_id not in MODULE_REGISTRY:
+        raise HTTPException(404, f"Unknown module: {module_id!r}")
+
+    enabled = _get_enabled(tenant)
+    if module_id in enabled:
+        return {"enabled_modules": enabled, "message": f"{module_id} is already installed"}
+
+    if check_entitlement and not can_install(tenant, module_id):
+        raise HTTPException(403, PLAN_DENIED)
+
+    meta = _get_meta(tenant)
+    to_install = [d for d in _all_deps(module_id) if d not in enabled]
+    to_install.append(module_id)
+
+    now = datetime.now(timezone.utc).isoformat()
+    for mid in to_install:
+        if mid not in enabled:
+            enabled.append(mid)
+        prev = dict(meta.get(mid) or {})
+        prev["tier"] = MODULE_REGISTRY[mid].get("tier", "free")
+        prev["installed_at"] = prev.get("installed_at", now)
+        prev.pop("expires_at", None)
+        if user is not None and getattr(user, "id", None) is not None:
+            prev["installed_by"] = user.id
+        meta[mid] = prev
+
+    _set_enabled(tenant, enabled, session)
+    _set_meta(tenant, meta, session)
+
+    from services.module_integration import ensure_module_integration
+    integration_results: list[dict] = []
+    for mid in to_install:
+        integration_results.append(
+            ensure_module_integration(session, tenant.id, mid)
+        )
+    session.commit()
+
+    sample_results: list[dict] = []
+    if "pra" in to_install:
+        from services.module_sample_data import enable_pra_settings
+        enable_pra_settings(session, tenant.id)
+
+    if "uae_vat" in to_install:
+        from services.module_sample_data import enable_uae_vat_settings
+        enable_uae_vat_settings(session, tenant.id)
+
+    if "sa_zatca" in to_install:
+        from services.module_sample_data import enable_zatca_settings
+        enable_zatca_settings(session, tenant.id)
+
+    if "in_gst" in to_install:
+        from services.module_sample_data import enable_india_gst_settings
+        enable_india_gst_settings(session, tenant.id)
+
+    # Sample seeders key off ``user.tenant_id``; skip when the actor is ops
+    # installing onto a different company.
+    if seed_sample and user is not None and user.tenant_id == tenant.id:
+        from services.module_sample_data import seed_module_sample
+        for mid in to_install:
+            sample_results.append(seed_module_sample(session, user, mid))
+
+    return {
+        "enabled_modules": sorted(set(enabled)),
+        "installed": to_install,
+        "message": f"Installed: {', '.join(to_install)}",
+        "integration": integration_results,
+        "sample_data": sample_results,
+    }
 
 
 @router.post("/api/modules/{module_id}/install")
@@ -179,66 +267,9 @@ def install_module(
     if not tenant:
         raise HTTPException(404, "Tenant not found")
 
-    enabled = _get_enabled(tenant)
-    meta = _get_meta(tenant)
-
-    if module_id in enabled:
-        return {"enabled_modules": enabled, "message": f"{module_id} is already installed"}
-
-    # Install all transitive deps first (deepest → shallowest → module itself)
-    to_install = [d for d in _all_deps(module_id) if d not in enabled]
-    to_install.append(module_id)
-
-    now = datetime.now(timezone.utc).isoformat()
-    for mid in to_install:
-        if mid not in enabled:
-            enabled.append(mid)
-        meta.setdefault(mid, {})
-        meta[mid]["tier"] = MODULE_REGISTRY[mid].get("tier", "free")
-        meta[mid]["installed_at"] = meta[mid].get("installed_at", now)
-        meta[mid].pop("expires_at", None)
-
-    _set_enabled(tenant, enabled, session)
-    _set_meta(tenant, meta, session)
-
-    # Uniform CoA + stock locations for every newly installed pack (idempotent).
-    from services.module_integration import ensure_module_integration
-    integration_results: list[dict] = []
-    for mid in to_install:
-        integration_results.append(
-            ensure_module_integration(session, current_user.tenant_id, mid)
-        )
-    session.commit()
-
-    sample_results: list[dict] = []
-    if "pra" in to_install:
-        from services.module_sample_data import enable_pra_settings
-        enable_pra_settings(session, current_user.tenant_id)
-
-    if "uae_vat" in to_install:
-        from services.module_sample_data import enable_uae_vat_settings
-        enable_uae_vat_settings(session, current_user.tenant_id)
-
-    if "sa_zatca" in to_install:
-        from services.module_sample_data import enable_zatca_settings
-        enable_zatca_settings(session, current_user.tenant_id)
-
-    if "in_gst" in to_install:
-        from services.module_sample_data import enable_india_gst_settings
-        enable_india_gst_settings(session, current_user.tenant_id)
-
-    if seed_sample:
-        from services.module_sample_data import seed_module_sample
-        for mid in to_install:
-            sample_results.append(seed_module_sample(session, current_user, mid))
-
-    return {
-        "enabled_modules": sorted(set(enabled)),
-        "installed": to_install,
-        "message": f"Installed: {', '.join(to_install)}",
-        "integration": integration_results,
-        "sample_data": sample_results,
-    }
+    return install_module_for_tenant(
+        session, tenant, current_user, module_id, seed_sample=seed_sample,
+    )
 
 
 @router.get("/api/modules/integration-status")
@@ -305,7 +336,7 @@ def uninstall_module(module_id: str, current_user: CurrentUserDep, session: Sess
 
     guard = MODULE_UNINSTALL_GUARDS.get(module_id)
     if guard:
-        blocking_docs = guard(session, current_user.tenant_id)
+        blocking_docs = guard(session, tenant.id)
         if blocking_docs:
             detail = ", ".join(f"{n} {label}" for label, n in blocking_docs.items())
             raise HTTPException(
@@ -317,7 +348,16 @@ def uninstall_module(module_id: str, current_user: CurrentUserDep, session: Sess
 
     enabled = [m for m in enabled if m != module_id]
     meta = _get_meta(tenant)
-    meta.pop(module_id, None)
+    prev = dict(meta.get(module_id) or {})
+    keep: dict = {}
+    if prev.get("entitled") is True:
+        keep["entitled"] = True
+        if prev.get("entitled_at"):
+            keep["entitled_at"] = prev["entitled_at"]
+    if keep:
+        meta[module_id] = keep
+    else:
+        meta.pop(module_id, None)
 
     _set_enabled(tenant, enabled, session)
     _set_meta(tenant, meta, session)
