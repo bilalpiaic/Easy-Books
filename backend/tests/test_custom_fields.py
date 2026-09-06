@@ -167,3 +167,27 @@ def test_archive_keeps_historical_values(client, admin_headers):
         json={"custom_fields": {"x.mrn": "MR-2"}},
     )
     assert write_archived.status_code == 400, write_archived.text
+
+
+def test_list_bills_keeps_id_when_auto_marked_overdue(client, admin_headers):
+    """GET /api/bills used to commit() overdue flips, which expired the
+    SQLModel instance so model_dump() returned {} and list items had no id."""
+    from datetime import date, timedelta
+
+    past = (date.today() - timedelta(days=10)).isoformat()
+    created = client.post("/api/bills", headers=admin_headers, json={
+        "vendor_name": "Overdue Vendor",
+        "bill_date": past,
+        "due_date": past,
+        "gst_rate": 0,
+        "lines": [{"description": "Widget", "qty": 1, "rate": 25}],
+    })
+    assert created.status_code in (200, 201), created.text
+    bill_id = created.json()["id"]
+    listed = client.get("/api/bills", headers=admin_headers)
+    assert listed.status_code == 200, listed.text
+    items = listed.json()["items"]
+    assert all("id" in row for row in items), items
+    row = next(b for b in items if b["id"] == bill_id)
+    assert row["status"] == "overdue"
+    assert row["vendor_name"] == "Overdue Vendor"

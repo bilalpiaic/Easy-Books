@@ -77,7 +77,9 @@ def _auto_overdue(session: Session, bills: list) -> None:
     if changed:
         for bill in changed:
             session.add(bill)
-        session.commit()
+        # Flush, don't commit: commit expires instances and SQLModel
+        # model_dump() then returns {} (list endpoints lose id/status).
+        session.flush()
 
 
 _SORTABLE = {
