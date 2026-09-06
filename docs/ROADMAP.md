@@ -1,11 +1,12 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-08-04 (v6 epic opened; v5 #254 closed complete)._
+_Last reviewed: 2026-09-06 (production launch plan; Studio epic #369)._
 
 ## Status summary
 
-**Active:** **v6 Growth Track** — umbrella [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):
-practice/money UX (A) + vertical ops (B) + platforms/GTM (C).
+**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 0 hygiene, Wave 1 entitlements **#370** + catalog **#371** + Stripe/Neon/S3 ops, then Studio **#372–#376**. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
+
+**v6 Growth Track [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):** A + B largely **landed on `main`** (PRs #323–#351). Do not treat the table below as a build queue until Wave 0 closes shipped issues. C (platforms/GTM) is now #369, not more modules.
 
 **Complete:** **v5 Competitive Track** — [#254](https://github.com/bilalpiaic/Easy-Books/issues/254) (IFRS + tax packs + SaaS harden). All children #255–#271 shipped.
 
@@ -15,27 +16,28 @@ practice/money UX (A) + vertical ops (B) + platforms/GTM (C).
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| **#299** | Accountant practice depth — firm dashboard, onboarding, cross-client permissions | Open |
-| **#300** | Multi-currency document/payment UX polish | Open |
-| **#301** | Bank feeds — Open Banking / statement sync depth | Open |
+| **#299** | Accountant practice depth — firm dashboard, onboarding, cross-client permissions | **Shipped** PR #324 — close on GitHub |
+| **#300** | Multi-currency document/payment UX polish | **Shipped** PR #323 — close on GitHub |
+| **#301** | Bank feeds — Open Banking / statement sync depth | **Shipped** PR #344 — close on GitHub |
 
 ### B — Vertical operations
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| **#302** | Multi-warehouse WMS — transfers, pick/pack, reservation | Open |
-| **#303** | Payroll depth — leave, expenses, statutory packs | Open |
-| **#304** | POS module — counter sales → invoice/stock/cash | Open |
-| **#305** | eCommerce connectors — Shopify / WooCommerce / Daraz | Open |
+| **#302** | Multi-warehouse WMS — transfers, pick/pack, reservation | **Shipped** PRs #346 / #351 — close on GitHub |
+| **#303** | Payroll depth — leave, expenses, statutory packs | **Shipped** leave PR #347 — close v1; statutory packs later |
+| **#304** | POS module — counter sales → invoice/stock/cash | **Shipped** PR #345 — close on GitHub |
+| **#305** | eCommerce connectors — Shopify / WooCommerce / Daraz | **Shipped** PR #350 — close v1 |
 
 ### C — Platforms & GTM
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| **#306** | Additional country localization packs | Open |
-| **#307** | Native mobile shell (iOS/Android) on the PWA | Open |
-| **#308** | Marketplace partner code execution / signed extensions | Open |
-| **#309** | SOC 2–oriented evidence pack | Open |
+| **#306** | Additional country localization packs | After entitlements (#370); not a launch blocker |
+| **#307** | Native mobile shell (iOS/Android) on the PWA | **Defer** — PWA is enough for go-live |
+| **#308** | Marketplace partner code execution / signed extensions | **Wontfix for production** — keep #227 declarative + #376 bundles |
+| **#309** | SOC 2–oriented evidence pack | **Defer** until an enterprise RFP |
+| **#370–#376** | Entitlements, catalog audience, Studio-lite | **Build next** — see production plan |
 
 ### Shipped foundations (not v6 — do not reopen)
 
