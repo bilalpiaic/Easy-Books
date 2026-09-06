@@ -28,7 +28,7 @@ def test_0068_repairs_tenant_saas_columns(tmp_path, monkeypatch):
     backend = Path(__file__).resolve().parents[1]
     env = {"PYTHONPATH": ".", "DATABASE_URL": f"sqlite:///{db}"}
     result = subprocess.run(
-        ["uv", "run", "alembic", "upgrade", "head"],
+        ["uv", "run", "alembic", "upgrade", "0068_tenant_saas_repair"],
         cwd=backend,
         env={**dict(__import__("os").environ), **env},
         capture_output=True,
