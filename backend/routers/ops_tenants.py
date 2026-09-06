@@ -17,6 +17,7 @@ from models import Tenant, User
 from routers.common import CurrentUserDep, SessionDep, log_audit
 from routers.modules import _get_enabled, install_module_for_tenant
 from services.entitlements import entitled_ids, is_platform_ops, set_entitled
+from services.marketplace.catalog import private_listing_ids, set_private_listings
 
 router = APIRouter(prefix="/api/ops", tags=["ops"])
 
@@ -32,6 +33,10 @@ class EntitleBody(BaseModel):
     install: bool = False
 
 
+class PrivateListingsBody(BaseModel):
+    extension_ids: List[str] = Field(default_factory=list)
+
+
 def _tenant_row(session, tenant: Tenant) -> dict:
     owner = session.exec(
         select(User).where(User.tenant_id == tenant.id, User.role == "owner")
@@ -43,6 +48,7 @@ def _tenant_row(session, tenant: Tenant) -> dict:
         "business_model": tenant.business_model,
         "enabled_modules": _get_enabled(tenant),
         "entitled_modules": entitled_ids(tenant),
+        "marketplace_private": sorted(private_listing_ids(tenant)),
         "owner_email": owner.email if owner else None,
     }
 
@@ -135,3 +141,38 @@ def put_entitled(
     row["removed"] = removed
     row["installed"] = installed
     return row
+
+
+@router.put("/tenants/{tenant_id}/marketplace-private")
+def put_marketplace_private(
+    tenant_id: int,
+    body: PrivateListingsBody,
+    session: SessionDep,
+    user: CurrentUserDep,
+):
+    """Grant private catalog listings (e.g. Weighbridge) to one tenant."""
+    require_platform_ops(user)
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+    before = private_listing_ids(tenant)
+    granted = set_private_listings(tenant, body.extension_ids)
+    session.add(tenant)
+    session.commit()
+    session.refresh(tenant)
+    after = set(granted)
+    log_audit(
+        session,
+        user,
+        action="UPDATE",
+        entity_type="ops.marketplace_private",
+        entity_id=tenant.id,
+        detail={
+            "extension_ids": granted,
+            "added": sorted(after - before),
+            "removed": sorted(before - after),
+        },
+        tenant_id=tenant.id,
+    )
+    session.commit()
+    return _tenant_row(session, tenant)

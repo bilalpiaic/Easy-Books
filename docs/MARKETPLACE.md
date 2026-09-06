@@ -67,6 +67,16 @@ Rules enforced at validation time:
 
 Private mill listings use topical tags (`spinning`, `private`) plus badge **For you**. Do **not** tag with tenant slugs or `customized-tenant`. Marketplace lists **products**, never tenants.
 
+Empty `visible_to_tenant_ids` on a bundled private row is **fail-closed**. Ops grant the listing with `PUT /api/ops/tenants/{id}/marketplace-private` (`extension_ids`), which stores ids on `tenant.module_meta._marketplace_private`. Demo seed grants **Weighbridge** (`partner.easybooks.weighbridge`) to manufacturing and yarn-spinning demo tenants. Optional env overlay:
+
+```
+MARKETPLACE_PRIVATE_AUDIENCE={"partner.easybooks.weighbridge":[12]}
+```
+
+Hospital (and any ungranted tenant) `GET /api/marketplace/catalog` JSON **does not include** that listing id. Install by another tenant returns 404.
+
+**Weighbridge** ships a `studio` bundle (gate pass + lot ref on invoices). Install writes `CustomFieldDef` rows; uninstall archives them. No partner code runs.
+
 Install of a hidden listing returns 404 for other tenants (same `visible_to` gate as the catalog).
 
 When `first_party_module` is set (e.g. `"pra"`), **Install** calls the existing

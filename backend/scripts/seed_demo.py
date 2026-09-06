@@ -6849,6 +6849,9 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             tenant.enabled_modules = _json.dumps(merged)
             from services.saas import apply_plan_defaults
             apply_plan_defaults(tenant, "enterprise")
+            if business_model in ("manufacturing", "yarn_spinning"):
+                from services.marketplace.catalog import WEIGHBRIDGE_ID, grant_private_listing
+                grant_private_listing(tenant, WEIGHBRIDGE_ID)
             s.add(tenant); s.commit()
         else:
             modules = list(MODULES_BY_MODEL.get(business_model, ["base"]))
@@ -6861,6 +6864,10 @@ def seed_one_tenant(email: str, company_name: str, business_model: str) -> dict:
             apply_plan_defaults(tenant, "enterprise")
             s.add(tenant); s.commit(); s.refresh(tenant)
             tenant_id = tenant.id
+            if business_model in ("manufacturing", "yarn_spinning"):
+                from services.marketplace.catalog import WEIGHBRIDGE_ID, grant_private_listing
+                grant_private_listing(tenant, WEIGHBRIDGE_ID)
+                s.add(tenant); s.commit()
             seed_data(tenant_id, session=s)
 
         # Top up any CoA accounts this tenant is missing (newer backbone
