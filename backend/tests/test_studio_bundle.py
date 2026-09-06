@@ -39,8 +39,6 @@ def test_install_bundle_creates_field_uninstall_archives(client, admin_headers, 
         return [entry]
 
     monkeypatch.setattr("services.marketplace.catalog.resolve_catalog", _catalog)
-    monkeypatch.setattr("services.marketplace.install.resolve_catalog", _catalog)
-    monkeypatch.setattr("routers.marketplace.resolve_catalog", _catalog)
 
     inst = client.post(
         "/api/marketplace/extensions/partner.test.mill-pack/install",
