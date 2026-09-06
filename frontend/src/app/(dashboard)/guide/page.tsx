@@ -9,7 +9,7 @@ import {
   Receipt, Package, PenLine, TrendingUp, Upload,
   AlertTriangle, CheckCircle, Info,
   Globe, Shield, Lock, Repeat, Landmark, Percent, Calendar, Users,
-  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot,
+  Factory, Link2, Radio, Keyboard, ListChecks, LayoutDashboard, CircleDot, Scale,
 } from "lucide-react"
 
 // ── Tab definition ────────────────────────────────────────────────────────────
@@ -59,6 +59,7 @@ const TABS: Tab[] = [
   { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg",      forModels: ["manufacturing"] },
   { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom",  forModels: ["telecom_franchise"] },
   { id: "spinning",         label: "Yarn Spinning",           icon: CircleDot,      shortLabel: "Spinning", forModels: ["yarn_spinning"] },
+  { id: "weighbridge",      label: "Weighbridge",             icon: Scale,          shortLabel: "Weigh",    forModels: ["manufacturing", "yarn_spinning"] },
   { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
   { id: "tips-shortcuts",   label: "Tips & Shortcuts",        icon: Keyboard,       shortLabel: "Tips"     },
 ]
@@ -1456,12 +1457,84 @@ function SpinningPanel() {
       <TipCallout>
         <b>Demo tenant:</b> log in as <CodeBadge>demo.spinning@easy-books.app</CodeBadge> /{" "}
         <CodeBadge>demo1234</CodeBadge> — every Spinning screen and report is pre-populated.
+        Mills also see Marketplace <b>Weighbridge</b> (this guide&apos;s Weighbridge tab): install from
+        System → Add-ons, then enter Gate pass on sales invoices. It does not post to the GL.
       </TipCallout>
 
       <MistakeCallout>
         <p>Approving a bale receipt without linking it to a spin lot — costs won&apos;t roll up into lot cost-per-kg until the receipt carries a <CodeBadge>spin_lot_id</CodeBadge>.</p>
         <p>Posting stage entries out of sequence — WIP transfers assume the prior stage account has balance; follow opening → carding → drawing → roving → spinning → winding.</p>
         <p>Confusing Spinning with Weaving — Weaving is memo/ops-only with no GL; Spinning posts every approve to the central GL via <CodeBadge>services/spinning_posting.py</CodeBadge>.</p>
+      </MistakeCallout>
+    </div>
+  )
+}
+
+function WeighbridgePanel() {
+  return (
+    <div>
+      <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
+        Weighbridge is <b>not</b> a truck-scale module and <b>not</b> an Optional first-party pack.
+        It is a <b>private Marketplace listing</b> (<CodeBadge>partner.easybooks.weighbridge</CodeBadge>)
+        that installs a Studio bundle on <b>sales invoices</b>: a required <b>Gate pass</b> and an
+        optional <b>Lot ref</b>. Those values live on the invoice JSON; they <b>do not</b> change
+        the General Ledger (∑Dr = ∑Cr stays the same).
+      </p>
+
+      <SectionHeading>Who sees the card</SectionHeading>
+      <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)]">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-[var(--bg-page)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]/60">
+              <th className="px-4 py-2.5 text-left">Company</th>
+              <th className="px-4 py-2.5 text-left">Weighbridge</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--border)]">
+            {[
+              ["Yarn spinning mill (this demo)", "Yes — For you"],
+              ["Manufacturing mill", "Yes — For you"],
+              ["Yarn Spinning module installed", "Yes"],
+              ["Hospital / simple / ungranted", "No — catalog omits the id"],
+            ].map(([who, sees]) => (
+              <tr key={who} className="hover:bg-[#faf8f4]">
+                <td className="px-4 py-2.5 text-[var(--text-primary)]">{who}</td>
+                <td className="px-4 py-2.5 text-[var(--text-primary)]/70">{sees}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <SectionHeading>Install (admin / owner)</SectionHeading>
+      <StepList steps={[
+        "Open System → Add-ons, or press Ctrl+K and type weighbridge, or go to /apps?tab=marketplace.",
+        "On the Marketplace tab, find Weighbridge (scale icon, tags spinning + private, badge For you).",
+        "Click Install. Confirm the sandbox note: install never downloads or executes partner code.",
+        "Settings → Studio → Fields now lists Gate pass (x.gate_pass_no) and Lot ref (x.lot_ref) on invoice.",
+      ]} />
+
+      <SectionHeading>Day-to-day: mill sales invoice</SectionHeading>
+      <StepList steps={[
+        "Sales → Invoices → New (or Ctrl+K → new invoice).",
+        "Fill customer, lines, and dates as usual.",
+        "Fill Gate pass (required) — the slip number from the mill weighbridge, e.g. GP-2026-0142.",
+        "Optionally fill Lot ref (yarn/lot number). Form-only; it does not print by default.",
+        "Save / post. The invoice GL is unchanged (typically Dr AR / Cr Revenue). Gate pass and lot stay on custom_fields.",
+        "Print: Gate pass appears on the document. Invoice lists can show Gate pass (show_on_list).",
+      ]} />
+
+      <TipCallout>
+        This overlay is for <b>sales invoices</b> only — not spinning bale receipts or gate inward.
+        Production still uses Spinning / Purchases &amp; Store screens. Tweak labels in{" "}
+        <CodeBadge>Settings → Studio</CodeBadge>. Uninstall archives field definitions; values already
+        saved on old invoices remain readable.
+      </TipCallout>
+
+      <MistakeCallout>
+        <p>Looking for Weighbridge under Optional / Recommended — it is a Marketplace product, not a first-party module.</p>
+        <p>Expecting Gate pass to post a journal line — custom fields never enter <CodeBadge>services/posting.py</CodeBadge>.</p>
+        <p>Using Weighbridge as a truck in/out register — there is no ticket log or live scale integration in this listing.</p>
       </MistakeCallout>
     </div>
   )
@@ -2045,6 +2118,7 @@ const PANEL_MAP: Record<string, React.ReactNode> = {
   "manufacturing":   <ManufacturingPanel />,
   "telecom":         <TelecomFranchisePanel />,
   "spinning":        <SpinningPanel />,
+  "weighbridge":     <WeighbridgePanel />,
   "bulk-statements": <BulkStatementsPanel />,
   "tips-shortcuts":  <TipsShortcutsPanel />,
 }

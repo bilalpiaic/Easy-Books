@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard, CircleDot } from "lucide-react"
+import { Printer, ChevronRight, GitBranch, BookOpen, BarChart3, RefreshCw, Package, CheckCircle, Globe, Calendar, RotateCcw, Factory, Link2, Radio, Undo2, Wallet, LayoutDashboard, CircleDot, Scale } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useTranslation } from "react-i18next"
 
@@ -839,6 +839,49 @@ function SpinningFlow() {
   )
 }
 
+function WeighbridgeFlow() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
+        Weighbridge is a <b>private Marketplace listing</b> (not a first-party module). It installs a
+        Studio overlay on <b>sales invoices</b>: required Gate pass + optional Lot ref. Values stay on
+        the invoice JSON and <b>never post to the GL</b>.
+      </p>
+      <HFlow>
+        <StepBox
+          title="Add-ons → Marketplace"
+          accent="blue"
+          impact="System → Add-ons, or Ctrl+K → weighbridge. Mills auto-open Marketplace when For you listings exist."
+        />
+        <Arrow />
+        <StepBox
+          title="Install Weighbridge"
+          accent="gold"
+          impact="Studio bundle writes Gate pass (x.gate_pass_no) and Lot ref (x.lot_ref). No partner code runs."
+        />
+        <Arrow />
+        <StepBox
+          title="New Invoice"
+          accent="orange"
+          impact="Gate pass required; Lot ref optional (form-only)."
+          gl="custom_fields JSON — ∑Dr = ∑Cr unchanged"
+        />
+        <Arrow />
+        <StepBox
+          title="Print"
+          accent="green"
+          impact="Gate pass on the invoice. Tweak labels in Settings → Studio. Uninstall archives defs; old values remain."
+        />
+      </HFlow>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">
+        Overlay is for <span className="font-bold">sales invoices</span> only — not spinning bale receipts
+        or gate inward. Hospital and other ungranted tenants never see the card (install returns 404).
+        Step-by-step: User Guide → Weighbridge tab.
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 // ── New-module flows (Sprint 7–12 improvement roadmap) ───────────────────────
@@ -1169,6 +1212,17 @@ export default function WorkflowPage() {
           iconColor="text-amber-600"
         >
           <SpinningFlow />
+        </SectionCard>
+      )}
+
+      {(isManufacturing || isYarnSpinning) && (
+        <SectionCard
+          icon={Scale}
+          title="Mill Weighbridge overlay"
+          subtitle="Marketplace install → invoice Gate pass / Lot ref → print (no extra GL)"
+          iconColor="text-stone-600"
+        >
+          <WeighbridgeFlow />
         </SectionCard>
       )}
 

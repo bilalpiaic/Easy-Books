@@ -1,5 +1,7 @@
 # GitHub issue pack — Tenant customization / Studio-lite
 
+**Status (2026-09-06):** Children A–G (#370–#376) **shipped on `main`** (PRs #377–#383). Mill **Weighbridge** private listing + Studio bundle **shipped** (#384, findable #387). GitHub issue checkboxes may still show Open (issues API 403). End-user path: [`USER_GUIDE.md` §41](../../USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
+
 **Filed 2026-09-06** on `bilalpiaic/Easy-Books`. Implement **one child per PR** in order A → G (B may start once A’s `entitled` flag exists).
 
 | Key | Issue |

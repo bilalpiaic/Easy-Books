@@ -2,7 +2,7 @@
 
 > A comprehensive guide to using Easy-Books for double-entry accounting, compliant with **IAS/IFRS standards**.
 
-**Last updated:** 2026-08-04 · **Version:** 5.1.0
+**Last updated:** 2026-09-06 · **Version:** 5.2.0
 
 ---
 
@@ -44,7 +44,9 @@
 28b. [Peppol / EU VAT e-Invoice](#28b-peppol--eu-vat-e-invoice)
 28c. [India GST](#28c-india-gst)
 28d. [Withholding Tax & CIT Worksheet](#28d-withholding-tax--cit-worksheet)
-29. [Modules & the Apps Page](#29-modules--the-apps-page)
+29. [Modules & the Add-ons Page](#29-modules--the-add-ons-page)
+    - 29.5 [Marketplace](#295-marketplace)
+    - 29.6 [Settings Studio](#296-settings-studio)
 30. [Healthcare Module](#30-healthcare-module)
 31. [Universal Search (Ctrl+K)](#31-universal-search-ctrlk)
 32. [In-app Update Notifications](#32-in-app-update-notifications)
@@ -57,6 +59,7 @@
 38a. [Intercompany Documents](#38a-intercompany-documents)
 39. [Inventory Valuation Depth](#39-inventory-valuation-depth)
 40. [Save PDF troubleshooting](#40-save-pdf-troubleshooting)
+41. [Weighbridge (mill Marketplace listing)](#41-weighbridge-mill-marketplace-listing)
 
 ---
 
@@ -64,18 +67,19 @@
 
 ### 1.1 First-Time Login
 
-Easy-Books provides **8 pre-seeded demo tenants** for immediate exploration:
+Easy-Books provides **9 pre-seeded demo tenants** for immediate exploration:
 
 | Email | Password | Business Model |
 |-------|----------|---|
 | `demo.simple@easy-books.app` | `demo1234` | Simple invoicing + billing |
 | `demo.services@easy-books.app` | `demo1234` | Services (recurring revenue, time-based billing) |
 | `demo.trader@easy-books.app` | `demo1234` | Trading company (buy/resell, inventory) |
-| `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing (BoMs, production orders) |
+| `demo.manufacturing@easy-books.app` | `demo1234` | Manufacturing (BoMs, production orders; Marketplace **Weighbridge**) |
 | `demo.telecom@easy-books.app` | `demo1234` | Telecom Franchise (Tracker, RSO chain, FCA, SIM) |
 | `demo.pra@easy-books.app` | `demo1234` | PRA e-Invoice — Pakistani retail (PKR, NTN/CNIC, PCT codes, FINs) |
 | `demo.hospital@easy-books.app` | `demo1234` | Healthcare — hospital/clinic (OPD, IPD, Lab, Procedures, Store) |
-| `demo.spinning@easy-books.app` | `demo1234` | Yarn Spinning Mill (bale receipt, lots, stages, cones, dispatch) |
+| `demo.spinning@easy-books.app` | `demo1234` | Yarn Spinning Mill (bale receipt, lots, stages, cones, dispatch; Marketplace **Weighbridge**) |
+| `demo.processing@easy-books.app` | `demo1234` | Textile Processing Unit (grey inward / processing floor) |
 
 **Rich mock data included (full year coverage):**
 - Each tenant has **100 invoices, 100 bills, 70 payments received, 70 bill payments**
@@ -91,7 +95,7 @@ Easy-Books provides **8 pre-seeded demo tenants** for immediate exploration:
 
 ### 1.2 Sample / Demo Data (standalone and desktop installs)
 
-**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 8 demo companies on first install** — log straight in with password `demo1234`, no setup required:
+**Both standalone script installs** (`install-and-run.bat` / `.sh`) **and the desktop (Electron) app** come **pre-loaded with the 9 demo companies on first install** — log straight in with password `demo1234`, no setup required:
 
 | Email | Business Model |
 |-------|---------------|
@@ -103,6 +107,7 @@ Easy-Books provides **8 pre-seeded demo tenants** for immediate exploration:
 | `demo.pra@easy-books.app` | PRA e-Invoice |
 | `demo.hospital@easy-books.app` | Healthcare / Hospital |
 | `demo.spinning@easy-books.app` | Yarn Spinning Mill |
+| `demo.processing@easy-books.app` | Textile Processing |
 
 The first install takes an extra ~20–30 seconds while the demo data loads; subsequent starts are fast. **Updating an existing install does not add demo data** — the database is migrated forward in place and your data is left untouched. To install without demo data (clean slate), set `SEED_DEMO=false` before running the installer or launching the desktop app.
 
@@ -1632,7 +1637,7 @@ Drill into any invoice from the table to retry a failed submission or view the F
 
 ## 28a. Saudi ZATCA e-Invoice
 
-> Requires: **Saudi ZATCA e-Invoice** module from **System → Apps** (category Localization).
+> Requires: **Saudi ZATCA e-Invoice** module from **System → Add-ons** (category Localization).
 
 ### Setup
 
@@ -1652,7 +1657,7 @@ Open any sales invoice → **Submit to ZATCA**. The badge shows `cleared` (B2B w
 
 ## 28b. Peppol / EU VAT e-Invoice
 
-> Requires: **Peppol / EU VAT e-Invoice** module from **System → Apps** (category Localization).
+> Requires: **Peppol / EU VAT e-Invoice** module from **System → Add-ons** (category Localization).
 
 ### Access Point (AP) credentials setup
 
@@ -1683,7 +1688,7 @@ VAT category mapping: standard rate → `S`, zero rate → `Z`, cross-border B2B
 
 ## 28c. India GST
 
-> Requires: **India GST** module from **System → Apps** (category Localization).
+> Requires: **India GST** module from **System → Add-ons** (category Localization).
 
 ### Setup
 
@@ -1724,7 +1729,7 @@ The **Demo Trading Co.** tenant (`demo.trader@easy-books.app`) ships with `in_gs
 
 ---
 
-## 29. MODULES & THE APPS PAGE
+## 29. MODULES & THE ADD-ONS PAGE
 
 Easy-Books uses an installable module system — similar to Odoo — so every tenant only sees the features they actually need.
 
@@ -1750,26 +1755,60 @@ A module is a bundle of related features and sidebar sections. The installable s
 | **Peppol / EU VAT e-Invoice** | BIS Billing 3.0 UBL export, Access Point submit, submission logs | No |
 | **UAE VAT e-Invoice** | UAE 5% VAT codes, CoA leaves, FTA sandbox stub | No |
 
-### 29.2 The Apps page
+### 29.2 The Add-ons page
 
-Go to **System → Apps** (admin and owner only) to browse all modules. Each card shows:
-- Name and description
-- Category (Core / Operations / Human Resources / Industry / Intelligence / **Localization**)
-- Which other modules it depends on
-- Whether it is currently installed
-- An **Install** or **Uninstall** button
+Go to **System → Add-ons** (`/apps`, admin and owner only) to browse modules. Tabs:
+
+| Tab | What it shows |
+|-----|----------------|
+| **Default** | Always-on Base Accounting |
+| **Recommended** | Industry packs for a quick start |
+| **Optional** | First-party modules one at a time |
+| **Marketplace** | Curated partner listings (declarative manifests; no partner code) |
+
+Each first-party card shows name, description, category (Core / Operations / HR / Industry / Intelligence / **Localization**), dependencies, install state, and **Install** / **Uninstall**.
 
 **Installing** a module also installs its dependencies automatically. For example, installing Manufacturing also installs Inventory if it is not already active.
 
 **Uninstalling** is blocked if another installed module depends on the one you want to remove (you must remove the dependent first). The Base module cannot be uninstalled.
 
+If your company is a mill (manufacturing or yarn spinning), Add-ons opens **Marketplace** when a **For you** listing such as Weighbridge is available. You can also go to `/apps?tab=marketplace` or press **Ctrl+K** and type `weighbridge`. See [§41 Weighbridge](#41-weighbridge-mill-marketplace-listing).
+
 ### 29.3 First-time onboarding
 
-Public signup starts with **Base Accounting** only. Industry and localization packs are installed later from **System → Apps** (or via the welcome Add-ons page). Demo tenants already have their model-default modules (and localization demos where seeded).
+Public signup starts with **Base Accounting** only. Industry and localization packs are installed later from **System → Add-ons** (or via the welcome Add-ons page). Demo tenants already have their model-default modules (and localization demos where seeded).
 
 ### 29.4 After changing modules
 
 Sidebar sections appear and disappear immediately when modules are installed or uninstalled — no page reload is required. Reports and data that were created while a module was active remain in the database even after the module is uninstalled; reinstalling the module makes them visible again.
+
+### 29.5 Marketplace
+
+Marketplace is a **catalog of products**, not tenants. Cards are filtered **on the server** (`GET /api/marketplace/catalog`):
+
+| Audience | Who sees the card |
+|----------|-------------------|
+| **public** | Every signed-in tenant |
+| **entitled** | Tenants that have that module entitled or installed |
+| **private** | Mill models (manufacturing / yarn spinning), ops grants, or an env overlay |
+
+Private mill cards show a **For you** badge and topical tags (for example `spinning`, `private`). Hospital and simple companies never receive mill-only listing ids.
+
+**Install never runs partner code.** A listing may apply a **Studio bundle** (custom fields + form ticks). Uninstall archives those fields; values already saved on documents stay readable.
+
+Full sandbox rules: [docs/MARKETPLACE.md](docs/MARKETPLACE.md).
+
+### 29.6 Settings Studio
+
+**Settings → Studio** (`/settings/studio`, admin/owner) has three tabs:
+
+| Tab | Purpose |
+|-----|---------|
+| **Fields** | Define extra `x.*` columns on invoice, bill, customer, product, or vendor (cap 12 per entity) |
+| **Form layout** | Hide / require / show core and custom fields on the shipped forms |
+| **Print** | Clone or pick a print template |
+
+Custom field values live on the document JSON. They **never post to the General Ledger** — Dr/Cr still balance the same way. Marketplace listings such as Weighbridge can fill Studio for you; you can still edit the resulting fields here.
 
 ---
 
@@ -2353,7 +2392,7 @@ Two ways in, both showing the same conversation history:
 - **Sparkles button** — bottom-right on every page (once the module is installed). Opens a small chat popup you can drag anywhere and minimize, the same way as the Calculator.
 - **Full page** — the **AI Assistant** entry, or go directly to `/agent`, for a two-column view with a session sidebar (new chat, rename, delete).
 
-If you don't see the Sparkles button at all, the module isn't installed yet — go to **System → Apps** and install **AI Financial Assistant** (admin/owner only).
+If you don't see the Sparkles button at all, the module isn't installed yet — go to **System → Add-ons** and install **AI Financial Assistant** (admin/owner only).
 
 ### 35.2 Asking a Question
 
@@ -2509,3 +2548,60 @@ IAS 2 depth beyond average cost — landed cost, lot/serial, and NRV write-downs
 | Generic **PDF download failed** with HTTP detail | Auth expired, document missing, or permission | Re-login; confirm the document exists and you have view rights |
 
 The UI surfaces the server `detail` when available instead of a bare browser “Failed to fetch”.
+
+---
+
+## 41. WEIGHBRIDGE (MILL MARKETPLACE LISTING)
+
+Weighbridge is **not** a separate truck-scale module and **not** an Optional first-party pack. It is a **private Marketplace listing** (`partner.easybooks.weighbridge`) that installs a Studio bundle on **invoices**: a required **Gate pass** and an optional **Lot ref**. Those values are stored on the invoice; they **do not** change the GL (∑Dr = ∑Cr is unchanged).
+
+Hospital, simple, trader, and other non-mill tenants **do not** see this card.
+
+### 41.1 Who can see it
+
+| Company | Sees Weighbridge? |
+|---------|-------------------|
+| Yarn spinning mill (`demo.spinning@easy-books.app`) | Yes — **For you** |
+| Manufacturing mill (`demo.manufacturing@easy-books.app`) | Yes — **For you** |
+| Any tenant with the **Yarn Spinning** module installed | Yes |
+| Hospital / clinic demo | No |
+| New public signup (Base Accounting only) | No until the company is a mill or ops grants the listing |
+
+Password for every demo: `demo1234`.
+
+### 41.2 Install (admin / owner)
+
+1. Log in as a mill user.
+2. Open **System → Add-ons**, or press **Ctrl+K** and type `weighbridge`, or go to `/apps?tab=marketplace`.
+3. On the **Marketplace** tab, find **Weighbridge** (scale icon, tags `spinning` + `private`, badge **For you**).
+4. Click **Install**. Confirm the sandbox note: install never downloads or executes partner code.
+5. The card switches to **Installed**. Settings → Studio → Fields now lists **Gate pass** (`x.gate_pass_no`) and **Lot ref** (`x.lot_ref`) on **invoice**.
+
+### 41.3 Day-to-day: mill sales invoice
+
+1. **Sales → Invoices → New** (or Ctrl+K → new invoice).
+2. Fill customer, lines, dates as usual.
+3. Fill **Gate pass** (required). Example: the slip number from the mill weighbridge, `GP-2026-0142`.
+4. Optionally fill **Lot ref** (yarn/lot number). This field is form-only — it does not print by default.
+5. Save / post. The invoice GL is the same as before (typically Dr AR / Cr Revenue ± tax/COGS). Gate pass and lot stay on `custom_fields`.
+6. **Print** the invoice: **Gate pass** appears on the document (`show_on_print`). **Lot ref** does not unless you turn print on in Studio.
+7. Invoice **lists** can show Gate pass (`show_on_list`).
+
+This overlay is for **sales invoices**, not spinning bale receipts or gate inward. Production still uses Spinning / Purchases & Store screens; Weighbridge only annotates the customer invoice.
+
+### 41.4 Change or remove the overlay
+
+| Goal | Where |
+|------|--------|
+| Rename labels, make Lot ref required, or print Lot ref | **Settings → Studio** → Fields / Form layout / Print |
+| Stop using the overlay | Add-ons → Marketplace → **Uninstall**. Field **definitions** are archived; values already saved on old invoices remain readable |
+| Grant the card to a non-mill tenant | Ops: `PUT /api/ops/tenants/{id}/marketplace-private` with `extension_ids: ["partner.easybooks.weighbridge"]` |
+
+### 41.5 What Weighbridge is not
+
+- Not a weighbridge ticket register, truck in/out log, or live scale integration.
+- Not a GL account or inventory movement.
+- Not visible under Optional / Recommended as a first-party module.
+- Not shown to hospital or other ungranted tenants (catalog JSON omits the id; install returns 404).
+
+Visual mill cycle (install → invoice → print) is also on **System → Workflow** for manufacturing and spinning companies, and on **System → User Guide** (Weighbridge tab).

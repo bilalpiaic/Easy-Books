@@ -12,7 +12,7 @@ For the full product guide see [USER_GUIDE.md](./USER_GUIDE.md) (§9.1 Dual Home
 | **Financial** | Financial manager / management P&amp;L | Revenue, expenses, cash, AR/AP, aging, trends |
 | **Operations** | Operations / production / clinic / franchise | Module KPIs (lots, WIP, beds, tracker floats, purchase pipeline…) |
 
-Toggle **Financial | Operations** under the page title. Pure Base/Services tenants do not see Operations until an industry pack is installed (System → Apps).
+Toggle **Financial | Operations** under the page title. Pure Base/Services tenants do not see Operations until an industry pack is installed (System → Add-ons).
 
 ### Default home by tenant segment
 
@@ -54,11 +54,14 @@ Layout save remains a personal preference for any authenticated user.
 | Email | Segment | Expect |
 |-------|---------|--------|
 | `demo.simple@easy-books.app` | simple | Financial only |
-| `demo.manufacturing@easy-books.app` | manufacturing | Toggle; Operations default |
-| `demo.spinning@easy-books.app` | yarn_spinning | Spinning Operations |
+| `demo.manufacturing@easy-books.app` | manufacturing | Toggle; Operations default. Marketplace **Weighbridge** (For you) |
+| `demo.spinning@easy-books.app` | yarn_spinning | Spinning Operations. Marketplace **Weighbridge** (For you) |
 | `demo.hospital@easy-books.app` | hospital | Healthcare Operations |
 | `demo.telecom@easy-books.app` | telecom_franchise | Telecom Operations |
 | `demo.pra@easy-books.app` | trader + PRA | PRA portal or Financial |
+| `demo.processing@easy-books.app` | textile_processing | Processing Operations |
+
+Mills install Weighbridge from **System → Add-ons → Marketplace**, then enter **Gate pass** (required) and **Lot ref** (optional) on **Sales → New Invoice**. Values do not post to the GL. Full steps: [USER_GUIDE.md §41](./USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
 
 Demo seed writes v4 dual-home layouts for owner/accountant users so Operations widgets appear on first login.
 
