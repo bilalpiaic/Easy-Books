@@ -1,10 +1,19 @@
 """#261 Intercompany invoices/bills + IC reconciliation."""
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import jwt
 from fastapi.testclient import TestClient
 
 from auth import ALGORITHM, SECRET_KEY
+
+
+def _doc_dates():
+    """Keep due dates in the future so list _auto_overdue does not flip draft mirrors."""
+    issue = date.today().isoformat()
+    due = (date.today() + timedelta(days=30)).isoformat()
+    return issue, due
 
 
 def _signup(client: TestClient, email: str, company: str) -> dict:
@@ -76,10 +85,11 @@ def test_ic_invoice_creates_mirror_draft_bill(client: TestClient):
     assert any(c["tenant_id"] == sub_tid for c in cps.json())
 
     # IC invoice Hold → Sub (posts GL on Hold; mirrors draft bill on Sub)
+    issue, due = _doc_dates()
     r = client.post("/api/invoices", headers=_hdr(hold_tok), json={
         "customer_name": "SubCo IC",
-        "issue_date": "2026-07-15",
-        "due_date": "2026-08-15",
+        "issue_date": issue,
+        "due_date": due,
         "gst_rate": 0,
         "is_intercompany": True,
         "ic_counterparty_tenant_id": sub_tid,
@@ -112,10 +122,11 @@ def test_ic_invoice_creates_mirror_draft_bill(client: TestClient):
 def test_recon_shows_break_when_only_ar_posted(client: TestClient):
     hold_tok, sub_tok, hold_tid, sub_tid = _setup_group(client)
 
+    issue, due = _doc_dates()
     r = client.post("/api/invoices", headers=_hdr(hold_tok), json={
         "customer_name": "SubCo IC",
-        "issue_date": "2026-07-20",
-        "due_date": "2026-08-20",
+        "issue_date": issue,
+        "due_date": due,
         "gst_rate": 0,
         "is_intercompany": True,
         "ic_counterparty_tenant_id": sub_tid,
