@@ -403,6 +403,22 @@ def get_me(session: SessionDep, user: CurrentUserDep):
     }
 
 
+@router.get("/bootstrap")
+def bootstrap(session: SessionDep, user: CurrentUserDep):
+    """One round-trip for the SPA shell: me + settings + modules + permissions."""
+    from routers.modules import list_modules
+    from routers.permissions import my_permissions
+    from routers.settings import get_settings
+
+    perms = my_permissions(user, session)
+    return {
+        "me": get_me(session, user),
+        "settings": get_settings(session, user),
+        "modules": list_modules(user, session),
+        "permissions": perms.model_dump() if hasattr(perms, "model_dump") else perms,
+    }
+
+
 class SwitchTenantBody(BaseModel):
     tenant_id: int
 

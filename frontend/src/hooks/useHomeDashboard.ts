@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { useModules } from "@/context/ModuleContext"
-import { apiFetch } from "@/lib/api"
+import { useSettings } from "@/context/SettingsContext"
 import {
   HOME_PREF_KEY,
   type DashboardView,
@@ -33,20 +33,15 @@ export function useHomeDashboard(): {
   businessModel: string | undefined
 } {
   const { installedModules, loading: modulesLoading } = useModules()
+  const { settings } = useSettings()
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const [businessModel, setBusinessModel] = useState<string | undefined>(undefined)
+  const businessModel = settings.business_model || undefined
   const [view, setViewState] = useState<DashboardView>("financial")
   const [settled, setSettled] = useState(false)
 
   const opsAvailable = hasOperationsHome(installedModules)
-
-  useEffect(() => {
-    apiFetch<{ tenant?: { business_model?: string } }>("/api/auth/me")
-      .then(me => setBusinessModel(me?.tenant?.business_model))
-      .catch(() => {})
-  }, [])
 
   useEffect(() => {
     if (modulesLoading) return

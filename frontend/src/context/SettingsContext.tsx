@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
 import { apiFetch } from "@/lib/api"
+import { loadBootstrap, peekBootstrap } from "@/lib/bootstrap"
 
 export interface AppSettings {
   company_name: string
@@ -193,11 +194,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const reload = () => {
     apiFetch<Record<string, string>>("/api/settings")
-      .then(data => setSettings({ ...defaults, ...data }))
+      .then(data => {
+        setSettings({ ...defaults, ...data })
+        const boot = peekBootstrap()
+        if (boot) boot.settings = data
+      })
       .catch(() => {})
   }
 
-  useEffect(reload, [])
+  useEffect(() => {
+    loadBootstrap()
+      .then(b => setSettings({ ...defaults, ...b.settings }))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     document.documentElement.dataset.density =
