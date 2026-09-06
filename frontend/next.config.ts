@@ -15,9 +15,10 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_GIT_COMMIT:  process.env.NEXT_PUBLIC_GIT_COMMIT  ?? "",
     NEXT_PUBLIC_BUILD_DATE:  process.env.NEXT_PUBLIC_BUILD_DATE  ?? new Date().toISOString(),
   },
-  // Allow HMR from the WSL2 network IP so the app works when accessed
-  // from a Windows browser via the WSL2 VM address (e.g. 172.28.52.3).
-  allowedDevOrigins: ["172.28.52.3"],
+  // Allow HMR from loopback aliases and the WSL2 network IP so the app
+  // hydrates when opened at 127.0.0.1 (installer / Electron) or the VM IP
+  // (Windows browser → WSL2), not only http://localhost:3000.
+  allowedDevOrigins: ["127.0.0.1", "localhost", "172.28.52.3"],
   turbopack: {
     root: __dirname,
   },
