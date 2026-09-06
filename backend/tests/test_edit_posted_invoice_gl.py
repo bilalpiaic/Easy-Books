@@ -136,6 +136,7 @@ def test_multi_edit_stock_consistent(client, admin_headers):
 def test_edit_blocked_locked_period(client, admin_headers):
     """Locking the period covering the invoice date blocks the edit (400)."""
     h = admin_headers
+    client.patch("/api/settings", headers=h, json={"period_close_require_checklist": "false"})
     c, p = _setup_stocked(client, h, receive_qty=100, cost=5)
     inv = _post_invoice(client, h, c, p, qty=10, date="2026-03-15")
     period = client.post("/api/periods", headers=h, json={

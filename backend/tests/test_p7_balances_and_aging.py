@@ -71,6 +71,7 @@ def _invoice(client: TestClient, auth, cust_id: int, total: int, days_overdue: i
 def test_period_close_writes_materialised_balances(client):
     c, engine = client
     auth = _auth(c)
+    c.patch("/api/settings", headers=auth, json={"period_close_require_checklist": "false"})
     cust = c.post("/api/customers", headers=auth, json={"name": "C"}).json()
     # An invoice inside the period (use today() for simplicity)
     c.post(
@@ -108,6 +109,7 @@ def test_period_close_writes_materialised_balances(client):
 def test_reopen_period_invalidates_materialised_balances(client):
     c, engine = client
     auth = _auth(c)
+    c.patch("/api/settings", headers=auth, json={"period_close_require_checklist": "false"})
     cust = c.post("/api/customers", headers=auth, json={"name": "C"}).json()
     c.post(
         "/api/invoices",

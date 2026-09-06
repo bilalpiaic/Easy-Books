@@ -4,7 +4,7 @@ _Last reviewed: 2026-09-06 (production launch plan; Studio epic #369)._
 
 ## Status summary
 
-**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 0 hygiene, Wave 1 entitlements **#370** + catalog **#371** + Stripe/Neon/S3 ops, then Studio **#372–#376**. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
+**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370/#371) and Studio (#372–#376) are on `main`. Remaining: Stripe/Neon/S3 **ops**, Wave 0 GitHub issue closes, CI lint/packaging debt. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
 
 **v6 Growth Track [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):** A + B largely **landed on `main`** (PRs #323–#351). Do not treat the table below as a build queue until Wave 0 closes shipped issues. C (platforms/GTM) is now #369, not more modules.
 
@@ -37,7 +37,7 @@ _Last reviewed: 2026-09-06 (production launch plan; Studio epic #369)._
 | **#307** | Native mobile shell (iOS/Android) on the PWA | **Defer** — PWA is enough for go-live |
 | **#308** | Marketplace partner code execution / signed extensions | **Wontfix for production** — keep #227 declarative + #376 bundles |
 | **#309** | SOC 2–oriented evidence pack | **Defer** until an enterprise RFP |
-| **#370–#376** | Entitlements, catalog audience, Studio-lite | **Build next** — see production plan |
+| **#370–#376** | Entitlements, catalog audience, Studio-lite | **Shipped** PRs #377–#383; P7.3 Weighbridge private listing |
 
 ### Shipped foundations (not v6 — do not reopen)
 

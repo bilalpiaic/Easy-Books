@@ -206,6 +206,17 @@ def test_threshold_routing_and_advance(client: TestClient):
 
 def test_substitute_in_range_can_approve(client: TestClient):
     owner = _auth(client, "sub-o@co.test", "SubCo")
+    from sqlmodel import Session, select
+    import db as db_mod
+    from models import Tenant, User
+    from services.saas import apply_plan_defaults
+
+    with Session(db_mod.engine) as s:
+        u = s.exec(select(User).where(User.email == "sub-o@co.test")).first()
+        t = s.get(Tenant, u.tenant_id)
+        apply_plan_defaults(t, "enterprise")
+        s.add(t)
+        s.commit()
     admin_id = _add_user(client, owner, "sub-a@co.test", "admin")
     cover_id = _add_user(client, owner, "sub-cover@co.test", "accountant")
     _add_user(client, owner, "sub-c-submit@co.test", "accountant")
