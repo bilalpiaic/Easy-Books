@@ -11,6 +11,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+Audience = Literal["public", "entitled", "private"]
+_TAG = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
+_FORBIDDEN_TAGS = frozenset({"customized-tenant"})
+
 # partner.<publisher>.<slug> — mirrors reverse-DNS extension IDs
 _EXT_ID = re.compile(r"^partner\.[a-z0-9][a-z0-9_-]*\.[a-z0-9][a-z0-9_-]*$")
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+([.-][A-Za-z0-9._-]+)?$")
@@ -97,6 +101,42 @@ class CatalogEntry(BaseModel):
     first_party_module: str | None = None
     summary: str | None = None
     tags: list[str] = Field(default_factory=list)
+    audience: Audience = "public"
+    # Used when audience == "private" (fail-closed if empty).
+    visible_to_tenant_ids: list[int] = Field(default_factory=list)
+    # Used when audience == "entitled" — MODULE_REGISTRY id the tenant must
+    # have entitled or installed (see services.entitlements).
+    entitled_module: str | None = None
+
+    @field_validator("tags")
+    @classmethod
+    def _topical_tags(cls, tags: list[str]) -> list[str]:
+        out: list[str] = []
+        for raw in tags:
+            t = (raw or "").strip().lower()
+            if not t:
+                continue
+            if (
+                t in _FORBIDDEN_TAGS
+                or t.startswith("client-")
+                or t.startswith("tenant-")
+            ):
+                raise ValueError(
+                    f"forbidden tag {t!r} — tags are topical "
+                    "(tax, spinning, private), never tenant or client names"
+                )
+            if not _TAG.match(t):
+                raise ValueError(
+                    f"tag {t!r} must be lowercase topical slug "
+                    "(letters, digits, hyphen, underscore)"
+                )
+            out.append(t)
+        return out
+
+    @field_validator("visible_to_tenant_ids")
+    @classmethod
+    def _int_ids(cls, ids: list[int]) -> list[int]:
+        return [int(i) for i in ids]
 
 
 class InstalledExtension(BaseModel):
