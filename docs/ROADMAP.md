@@ -1,10 +1,10 @@
 # Easy-Books — Development Roadmap
 
-_Last reviewed: 2026-09-06 (Weighbridge docs on `main`; #118 owner TOTP / demo-login gates in progress)._
+_Last reviewed: 2026-09-06 (owner TOTP / mill findability on `main`; #390 forgot-password in progress)._
 
 ## Status summary
 
-**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370–#376), mill **Weighbridge** (#384 / #387), CI debt (#385–#386), and owner TOTP / demo-login gates (#118 remainder) are on `main` once this PR lands. Remaining: Stripe/Neon/S3 **ops secrets** (host env), Wave 0 GitHub issue closes (issues API 403). Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
+**Active — production launch:** [Production plan](superpowers/plans/2026-09-06-production-launch.md) — Wave 1 product (#370–#376), mill **Weighbridge** (#384 / #387), CI debt (#385–#386), and owner TOTP / demo-login gates (#118 remainder) are on `main`. Remaining: Stripe/Neon/S3 **ops secrets** (host env). Next product leftover: **[#390](https://github.com/bilalpiaic/Easy-Books/issues/390)** self-service forgot-password. Epic **[#369](https://github.com/bilalpiaic/Easy-Books/issues/369)**.
 
 **v6 Growth Track [#298](https://github.com/bilalpiaic/Easy-Books/issues/298):** A + B largely **landed on `main`** (PRs #323–#351). Do not treat the table below as a build queue until Wave 0 closes shipped issues. C (platforms/GTM) is now #369, not more modules.
 
@@ -39,6 +39,7 @@ _Last reviewed: 2026-09-06 (Weighbridge docs on `main`; #118 owner TOTP / demo-l
 | **#309** | SOC 2–oriented evidence pack | **Defer** until an enterprise RFP |
 | **#370–#376** | Entitlements, catalog audience, Studio-lite | **Shipped** PRs #377–#383 |
 | **#118** remainder | Require TOTP for `owner` + hide/block demo logins | **Shipped in code** — set `REQUIRE_OWNER_TOTP=true` and `ALLOW_DEMO_LOGIN=false` on production |
+| **#390** | Self-service forgot-password from login | **In progress** — email reset link; not a Wave 1 launch blocker |
 | **Weighbridge** | Private mill Marketplace listing + Studio bundle | **Shipped** #384 listing, #387 mill visibility / Add-ons discovery |
 
 ### Shipped foundations (not v6 — do not reopen)

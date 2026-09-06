@@ -24,6 +24,8 @@ _EXEMPT_PATHS = {
     "/api/auth/signup", "/api/v1/auth/signup",
     "/api/auth/login", "/api/v1/auth/login",
     "/api/auth/logout", "/api/v1/auth/logout",
+    "/api/auth/forgot-password", "/api/v1/auth/forgot-password",
+    "/api/auth/reset-password", "/api/v1/auth/reset-password",
 }
 
 # Magic-link portal is authenticated by the URL token, not cookies. Staff

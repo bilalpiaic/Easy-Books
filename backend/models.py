@@ -2239,6 +2239,26 @@ class LoginAttempt(SQLModel, table=True):
     attempted_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class PasswordResetToken(SQLModel, table=True):
+    """Self-service forgot-password (#390). Raw token lives only in the
+    emailed URL; we store SHA-256 hex. One-hour TTL, single-use."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    token_hash: str = Field(unique=True, index=True)
+    expires_at: datetime = Field(index=True)
+    used_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PasswordResetAttempt(SQLModel, table=True):
+    """DB-backed throttle for POST /api/auth/forgot-password (per IP + email)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ip: str = Field(index=True)
+    email_key: str = Field(default="", index=True)
+    attempted_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
 class RevokedToken(SQLModel, table=True):
     """JWT denylist (#113). Logout inserts the token's jti here; every
     authenticated request checks it, so a logged-out token dies immediately

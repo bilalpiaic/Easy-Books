@@ -9,6 +9,8 @@ is shared across uvicorn workers. The accompanying CSRF cookie is set on
 successful login; cookie-authenticated mutations are checked against it by
 services.csrf middleware.
 """
+import hashlib
+import html as _html
 import json as _json
 import os
 import secrets
@@ -34,8 +36,18 @@ from auth import (
     verify_password,
 )
 from db import MODULES_BY_MODEL, seed_data
-from models import LoginAttempt, RevokedToken, Tenant, User, UserInvite
+from models import (
+    LoginAttempt,
+    PasswordResetAttempt,
+    PasswordResetToken,
+    RevokedToken,
+    Tenant,
+    User,
+    UserInvite,
+)
+from services.email import send_email
 from services.memberships import ensure_membership, get_membership, list_user_memberships
+from services.security_policy import is_demo_email
 
 from .common import CurrentUserDep, SessionDep
 
@@ -56,6 +68,16 @@ _LOGIN_ATTEMPT_WINDOW_SEC = 60
 _LOGIN_ATTEMPT_MAX = 10
 # Kept as an alias for tests that still clear the legacy in-memory dict.
 _login_attempts: dict[str, deque] = {}
+
+_RESET_TTL = timedelta(hours=1)
+_RESET_WINDOW_SEC = 15 * 60
+_RESET_MAX_PER_IP = 8
+_RESET_MAX_PER_EMAIL = 5
+_RESET_GENERIC = "If that account exists, we sent a reset link."
+
+
+def _hash_reset_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _mint_user_token(user: User) -> str:
@@ -472,6 +494,151 @@ def change_password(data: PasswordChange, session: SessionDep, user: CurrentUser
     user.hashed_password = get_password_hash(data.new_password)
     user.must_change_password = False
     session.add(user)
+    session.commit()
+    return {"success": True}
+
+
+# ── Forgot / reset password (public, #390) ────────────────────────────────────
+
+
+class ForgotPasswordIn(BaseModel):
+    email: str
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
+def _throttle_reset(session: Session, request: Request, email_key: str) -> None:
+    ip = request.client.host if request.client else "unknown"
+    cutoff = datetime.utcnow() - timedelta(seconds=_RESET_WINDOW_SEC)
+    old = session.exec(
+        select(PasswordResetAttempt).where(PasswordResetAttempt.attempted_at < cutoff)
+    ).all()
+    for row in old:
+        session.delete(row)
+    if old:
+        session.flush()
+    ip_count = session.exec(
+        select(func.count(PasswordResetAttempt.id)).where(
+            PasswordResetAttempt.ip == ip,
+            PasswordResetAttempt.attempted_at >= cutoff,
+        )
+    ).one()
+    email_count = 0
+    if email_key:
+        email_count = session.exec(
+            select(func.count(PasswordResetAttempt.id)).where(
+                PasswordResetAttempt.email_key == email_key,
+                PasswordResetAttempt.attempted_at >= cutoff,
+            )
+        ).one()
+    if ip_count >= _RESET_MAX_PER_IP or email_count >= _RESET_MAX_PER_EMAIL:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many reset requests. Wait a few minutes and try again.",
+        )
+    session.add(PasswordResetAttempt(ip=ip, email_key=email_key))
+    session.commit()
+
+
+def _lookup_reset_token(session: Session, raw: str) -> PasswordResetToken | None:
+    if not raw:
+        return None
+    return session.exec(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == _hash_reset_token(raw)
+        )
+    ).first()
+
+
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordIn, session: SessionDep, request: Request):
+    """Always 200 with generic copy — do not leak whether the email exists."""
+    email_key = (data.email or "").strip().lower()
+    _throttle_reset(session, request, email_key)
+
+    user = None
+    if email_key:
+        user = session.exec(
+            select(User).where(func.lower(User.email) == email_key)
+        ).first()
+    if (
+        user is not None
+        and user.is_active
+        and not is_demo_email(user.email)
+        and not (user.oauth_provider or "").strip()
+    ):
+        pending = session.exec(
+            select(PasswordResetToken).where(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.used_at == None,  # noqa: E711
+            )
+        ).all()
+        for row in pending:
+            session.delete(row)
+        raw = secrets.token_urlsafe(32)
+        session.add(PasswordResetToken(
+            user_id=user.id,
+            tenant_id=user.tenant_id,
+            token_hash=_hash_reset_token(raw),
+            expires_at=datetime.utcnow() + _RESET_TTL,
+        ))
+        session.commit()
+        front = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").rstrip("/")
+        reset_url = f"{front}/reset-password?token={raw}"
+        url_s = _html.escape(reset_url, quote=True)
+        send_email(
+            to=user.email,
+            subject="Reset your Easy-Books password",
+            html_body=(
+                "<p>We received a request to reset your Easy-Books password.</p>"
+                f"<p><a href='{url_s}'>Choose a new password</a></p>"
+                "<p>This link expires in 1 hour. If you did not request it, you can ignore this email.</p>"
+            ),
+        )
+    return {"message": _RESET_GENERIC}
+
+
+@router.get("/reset-password/{token}")
+def inspect_reset_token(token: str, session: SessionDep):
+    row = _lookup_reset_token(session, token)
+    if (
+        row is None
+        or row.used_at is not None
+        or row.expires_at < datetime.utcnow()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="This reset link is invalid or has expired",
+        )
+    return {"valid": True}
+
+
+@router.post("/reset-password")
+def reset_password_with_token(data: ResetPasswordIn, session: SessionDep):
+    row = _lookup_reset_token(session, data.token)
+    if (
+        row is None
+        or row.used_at is not None
+        or row.expires_at < datetime.utcnow()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="This reset link is invalid or has expired",
+        )
+    user = session.get(User, row.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="This reset link is invalid or has expired",
+        )
+    user.hashed_password = get_password_hash(data.new_password)
+    user.must_change_password = False
+    row.used_at = datetime.utcnow()
+    session.add(user)
+    session.add(row)
     session.commit()
     return {"success": True}
 

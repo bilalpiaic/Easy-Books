@@ -172,6 +172,7 @@ function GettingStartedPanel() {
         "Step 2 of signup is your email + password (≥ 8 chars) + full name + company name.",
         "On submit the system creates your tenant, seeds the CoA + stock locations + sequence counters, and logs you in as owner.",
         "Your session token is stored in localStorage AND set as an HttpOnly cookie. Both work side-by-side.",
+        "Forgot password? on /login opens /forgot-password. The confirmation is always generic. SMTP_HOST is required for the email to send; demo and inactive accounts never receive mail.",
       ]} />
 
       <SectionHeading>Company Setup</SectionHeading>

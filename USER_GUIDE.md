@@ -130,6 +130,12 @@ The **Settings → Sample / Demo Data** card lets you **Load** or **Remove** the
 
 Easy-Books creates your isolated tenant, seeds the COA, and logs you in as `owner`.
 
+### 1.3a Forgot password
+
+On `/login`, use **Forgot password?** and enter your email. Easy-Books always shows the same confirmation (*If that account exists, we sent a reset link*) so accounts cannot be enumerated. When SMTP is configured (`SMTP_HOST`), an active non-demo user receives a one-hour, single-use link to `/reset-password?token=…`. Demo accounts (`demo.*@easy-books.app`) and inactive users get the generic message and no mail. Password reset does not turn off authenticator 2FA.
+
+Local/dev without SMTP still accepts the request; the email simply is not sent. Production needs SMTP (or the ARQ `send_email_task`) for the link to arrive.
+
 ### 1.4 Keeping Easy-Books Up to Date
 
 Your accounting data is never deleted during an update — migrations run automatically and add new columns/tables while leaving existing data in place.
