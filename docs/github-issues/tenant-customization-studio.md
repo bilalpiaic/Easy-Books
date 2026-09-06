@@ -1,16 +1,20 @@
 # GitHub issue pack — Tenant customization / Studio-lite
 
-**GitHub Issues API is not available to the agent that drafted this pack** (`repository.issues` permission missing). File these from the GitHub UI or:
+**Filed 2026-09-06** on `bilalpiaic/Easy-Books`. Implement **one child per PR** in order A → G (B may start once A’s `entitled` flag exists).
 
-```bash
-# From repo root, after labels exist (enhancement, epic)
-gh issue create --title "…" --body-file /tmp/body.md
-```
+| Key | Issue |
+|-----|--------|
+| Epic | [#369](https://github.com/bilalpiaic/Easy-Books/issues/369) |
+| A Entitlements | [#370](https://github.com/bilalpiaic/Easy-Books/issues/370) |
+| B Marketplace audience | [#371](https://github.com/bilalpiaic/Easy-Books/issues/371) |
+| C Custom fields | [#372](https://github.com/bilalpiaic/Easy-Books/issues/372) |
+| D Form schema | [#373](https://github.com/bilalpiaic/Easy-Books/issues/373) |
+| E Print + reports | [#374](https://github.com/bilalpiaic/Easy-Books/issues/374) |
+| F Field rights | [#375](https://github.com/bilalpiaic/Easy-Books/issues/375) |
+| G Studio + bundle | [#376](https://github.com/bilalpiaic/Easy-Books/issues/376) |
 
 **Spec:** `docs/superpowers/specs/2026-09-06-tenant-customization-studio-design.md`  
 **Plan:** `docs/superpowers/plans/2026-09-06-tenant-customization-studio.md`
-
-File **Issue 0 (epic)** first, then A–G with `Fixes` / `Part of #<epic>`. Implement **one child per PR** in order A → G (B may start once A’s `entitled` flag exists).
 
 Suggested labels: `enhancement`, `saas`, `marketplace`, `studio`.
 
