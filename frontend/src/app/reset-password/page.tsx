@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { apiBase, networkErrorMessage } from "@/lib/api"
+import { apiBase, apiFetch, networkErrorMessage } from "@/lib/api"
 
 function ResetPasswordForm() {
   const params = useSearchParams()
@@ -26,9 +26,14 @@ function ResetPasswordForm() {
         if (!r.ok) throw new Error("invalid")
         setTokenOk(true)
       })
-      .catch(() => {
+      .catch((err) => {
         setTokenOk(false)
-        setError("This reset link is invalid or has expired")
+        const raw = err instanceof Error ? err.message : ""
+        setError(
+          /failed to fetch|networkerror|load failed/i.test(raw)
+            ? networkErrorMessage(err, "Could not reach the server")
+            : "This reset link is invalid or has expired",
+        )
       })
   }, [token])
 
@@ -45,22 +50,13 @@ function ResetPasswordForm() {
     }
     setIsLoading(true)
     try {
-      const response = await fetch(`${apiBase}/api/auth/reset-password`, {
+      await apiFetch("/api/auth/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, new_password: password }),
       })
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}))
-        throw new Error(
-          typeof body.detail === "string"
-            ? body.detail
-            : "This reset link is invalid or has expired",
-        )
-      }
       router.push("/login")
     } catch (err) {
-      setError(err instanceof Error ? err.message : networkErrorMessage(err, "Reset failed"))
+      setError(networkErrorMessage(err, "This reset link is invalid or has expired"))
     } finally {
       setIsLoading(false)
     }

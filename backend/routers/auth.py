@@ -46,6 +46,7 @@ from models import (
     UserInvite,
 )
 from services.email import send_email
+from services.frontend_origin import frontend_public_origin
 from services.memberships import ensure_membership, get_membership, list_user_memberships
 from services.security_policy import is_demo_email
 
@@ -586,7 +587,7 @@ def forgot_password(data: ForgotPasswordIn, session: SessionDep, request: Reques
             expires_at=datetime.utcnow() + _RESET_TTL,
         ))
         session.commit()
-        front = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").rstrip("/")
+        front = frontend_public_origin()
         reset_url = f"{front}/reset-password?token={raw}"
         url_s = _html.escape(reset_url, quote=True)
         send_email(

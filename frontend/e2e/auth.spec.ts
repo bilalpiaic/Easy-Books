@@ -24,4 +24,14 @@ test.describe("auth", () => {
     await expect(page).toHaveURL(/\/forgot-password/)
     await expect(page.getByRole("button", { name: /send reset link/i })).toBeVisible()
   })
+
+  test("forgot password submit is not Failed to fetch", async ({ page }) => {
+    await page.goto("/forgot-password")
+    await page.locator('input[type="email"]').fill("nobody@example.com")
+    await page.getByRole("button", { name: /send reset link/i }).click()
+    await expect(page.getByText(/failed to fetch/i)).toHaveCount(0)
+    await expect(
+      page.getByText(/if that account exists, we sent a reset link/i),
+    ).toBeVisible({ timeout: 15_000 })
+  })
 })

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { apiBase, networkErrorMessage } from "@/lib/api"
+import { ApiError, apiFetch, networkErrorMessage } from "@/lib/api"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -15,20 +15,17 @@ export default function ForgotPasswordPage() {
     setError("")
     setIsLoading(true)
     try {
-      const response = await fetch(`${apiBase}/api/auth/forgot-password`, {
+      await apiFetch("/api/auth/forgot-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       })
-      if (!response.ok && response.status === 429) {
-        throw new Error("Too many reset requests. Wait a few minutes and try again.")
-      }
-      if (!response.ok) {
-        throw new Error("Could not submit that request. Try again shortly.")
-      }
       setSent(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : networkErrorMessage(err, "Request failed"))
+      if (err instanceof ApiError && err.status === 429) {
+        setError("Too many reset requests. Wait a few minutes and try again.")
+      } else {
+        setError(networkErrorMessage(err, "Could not submit that request. Try again shortly."))
+      }
     } finally {
       setIsLoading(false)
     }

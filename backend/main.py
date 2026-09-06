@@ -45,6 +45,7 @@ from routers import textile_processing, textile_processing_reports
 # Side-effect import: registers TOTP/OAuth routes on auth.router (#118)
 import routers.auth_security  # noqa: F401
 from services.csrf import CsrfMiddleware
+from services.frontend_origin import parse_frontend_origins
 from services.idempotency import IdempotencyMiddleware
 from services.rate_limit import RateLimitMiddleware
 
@@ -237,7 +238,7 @@ app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(CsrfMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
-_allowed_origins = [o.strip() for o in os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").split(",")]
+_allowed_origins = parse_frontend_origins()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,

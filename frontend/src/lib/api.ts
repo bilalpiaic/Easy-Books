@@ -11,7 +11,13 @@ export const apiBase = BASE
 export function networkErrorMessage(err: unknown, fallback = "Request failed"): string {
   const raw = err instanceof Error ? err.message : String(err ?? "")
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
-    return `Can't reach the API at ${BASE}. The backend may still be starting — wait a few seconds and try again. If it keeps failing, check the Easy-Books backend log (backend.err.log in your .easy-books data folder).`
+    const httpsPage =
+      typeof window !== "undefined" && window.location.protocol === "https:"
+    if (httpsPage && /^http:\/\//i.test(BASE)) {
+      return `Can't reach the API at ${BASE} from this HTTPS page (mixed content). Set NEXT_PUBLIC_API_URL to the HTTPS backend URL and rebuild the frontend.`
+    }
+    const where = BASE || "this origin"
+    return `Can't reach the API at ${where}. The backend may still be starting — wait a few seconds and try again. If it keeps failing, confirm FRONTEND_ORIGIN includes this page's origin and check the Easy-Books backend log (backend.err.log in your .easy-books data folder).`
   }
   return raw || fallback
 }
