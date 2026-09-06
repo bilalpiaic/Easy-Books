@@ -10,6 +10,12 @@ export const apiBase = BASE
 /** Human-readable message when fetch itself fails (backend down / wrong host). */
 export function networkErrorMessage(err: unknown, fallback = "Request failed"): string {
   const raw = err instanceof Error ? err.message : String(err ?? "")
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return `The API at ${BASE} timed out. Try again; if it keeps failing, check the Easy-Books backend log.`
+  }
+  if (err instanceof Error && err.name === "AbortError") {
+    return `The API at ${BASE} timed out. Try again; if it keeps failing, check the Easy-Books backend log.`
+  }
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
     const httpsPage =
       typeof window !== "undefined" && window.location.protocol === "https:"
@@ -67,14 +73,23 @@ function detailMessage(detail: unknown, status: number): string {
   return `HTTP ${status}`
 }
 
+const API_TIMEOUT_MS = 30_000
+
 export async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
   let res: Response
+  const timeout = new AbortController()
+  const timer = setTimeout(() => timeout.abort(), API_TIMEOUT_MS)
+  if (options.signal) {
+    if (options.signal.aborted) timeout.abort()
+    else options.signal.addEventListener("abort", () => timeout.abort(), { once: true })
+  }
   try {
     res = await fetch(`${BASE}${path}`, {
       ...options,
+      signal: timeout.signal,
       headers: {
         // Automatically set Content-Type for JSON bodies so FastAPI parses them correctly.
         ...(options.body && typeof options.body === "string"
@@ -86,6 +101,8 @@ export async function apiFetch<T = unknown>(
     })
   } catch (err) {
     throw new Error(networkErrorMessage(err))
+  } finally {
+    clearTimeout(timer)
   }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))

@@ -1,6 +1,7 @@
 "use client"
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
+import { loadBootstrap } from "@/lib/bootstrap"
 
 export interface ModuleInfo {
   id: string
@@ -43,8 +44,8 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const data = await apiFetch<ModuleInfo[]>("/api/modules")
-      if (Array.isArray(data)) setModules(data)
+      const data = await loadBootstrap(true)
+      if (Array.isArray(data.modules)) setModules(data.modules as ModuleInfo[])
     } catch {
       // unauthenticated — keep defaults
     } finally {
@@ -52,7 +53,14 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => {
+    loadBootstrap()
+      .then(data => {
+        if (Array.isArray(data.modules)) setModules(data.modules as ModuleInfo[])
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
 
   const install = useCallback(async (id: string, opts?: { seedSample?: boolean }) => {
     const q = opts?.seedSample ? "?seed_sample=true" : ""

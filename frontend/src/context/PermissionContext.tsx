@@ -1,6 +1,6 @@
 "use client"
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react"
-import { apiFetch } from "@/lib/api"
+import { loadBootstrap } from "@/lib/bootstrap"
 
 interface PermissionData {
   permissions: Record<string, string>  // resource_key → "none" | "view" | "edit"
@@ -38,16 +38,16 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<PermissionData | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const load = useCallback(() => {
+  const load = useCallback((force = false) => {
     if (!isAuthenticated()) return
     setLoading(true)
-    apiFetch<PermissionData>("/api/permissions/me")
-      .then(setData)
+    loadBootstrap(force)
+      .then(b => setData(b.permissions as PermissionData))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(false) }, [load])
 
   const can = useCallback((resource: string, level: "view" | "edit" = "view"): boolean => {
     if (!data || !data.module_enabled) return true  // module off → full access
@@ -62,7 +62,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       myDataOnly: data?.my_data_only ?? false,
       moduleEnabled: data?.module_enabled ?? false,
       loading,
-      refresh: load,
+      refresh: () => load(true),
     }}>
       {children}
     </PermissionContext.Provider>

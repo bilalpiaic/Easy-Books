@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
+import { loadBootstrap } from "@/lib/bootstrap"
 import { getCurrentUser } from "@/lib/auth"
 import { useModules } from "@/context/ModuleContext"
 import type { DashboardView } from "@/lib/dashboardHome"
@@ -68,10 +69,9 @@ export function useDashboardLayout(view: DashboardView = "financial"): UseDashbo
   useEffect(() => {
     Promise.all([
       apiFetch<{ layout: SavedAny }>("/api/dashboard/layout").catch(() => ({ layout: null })),
-      apiFetch<{ role?: string; tenant?: { business_model?: string } }>("/api/auth/me").catch(
-        () => ({} as { role?: string; tenant?: { business_model?: string } }),
-      ),
-    ]).then(([lay, me]) => {
+      loadBootstrap().catch(() => null),
+    ]).then(([lay, boot]) => {
+      const me = boot?.me
       const m: Meta = {
         model: me?.tenant?.business_model,
         role: me?.role ?? getCurrentUser()?.role ?? "viewer",

@@ -21,6 +21,7 @@ export const removeAuthToken = () => {
   localStorage.removeItem(MUST_CHANGE_KEY)
   localStorage.removeItem(MUST_SETUP_TOTP_KEY)
   clearAuthSession()
+  void import("./bootstrap").then(m => m.clearBootstrapCache()).catch(() => {})
 }
 
 export const setMustChangePwd = (v: boolean) => {
