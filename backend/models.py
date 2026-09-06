@@ -14,7 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, Integer, JSON, Numeric
+from sqlalchemy import CheckConstraint, Column, ForeignKey, Index, Integer, JSON, Numeric, Text
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from services.money import Money, ZERO
@@ -561,6 +561,8 @@ class Customer(SQLModel, table=True):
     # India GST (#265)
     gstin: Optional[str] = None       # 15-char GSTIN
     state_code: Optional[str] = None  # 2-digit place-of-supply state code
+    # Studio-lite custom fields (#372) — JSON map of x.* keys; never posted to GL
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class Vendor(SQLModel, table=True):
@@ -579,6 +581,7 @@ class Vendor(SQLModel, table=True):
     # Withholding tax (#267)
     wht_tax_code_id: Optional[int] = Field(default=None, foreign_key="taxcode.id")
     wht_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 4)))
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class Invoice(SQLModel, table=True):
@@ -643,6 +646,7 @@ class Invoice(SQLModel, table=True):
     is_intercompany: bool = Field(default=False, index=True)
     ic_counterparty_tenant_id: Optional[int] = Field(default=None, index=True)
     ic_mirror_bill_id: Optional[int] = Field(default=None)
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class Bill(SQLModel, table=True):
@@ -677,6 +681,7 @@ class Bill(SQLModel, table=True):
     is_intercompany: bool = Field(default=False, index=True)
     ic_counterparty_tenant_id: Optional[int] = Field(default=None, index=True)
     ic_mirror_invoice_id: Optional[int] = Field(default=None)
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
 
 
 class PaymentReceived(SQLModel, table=True):
@@ -804,6 +809,69 @@ class Product(SQLModel, table=True):
     standalone_selling_price: Optional[Decimal] = Field(
         default=None, sa_column=Column(Numeric(18, 4), nullable=True)
     )
+    custom_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+
+
+class CustomFieldDef(SQLModel, table=True):
+    """Tenant-defined extra document fields (`x.*`). Values live on the
+    document JSON column; this row is the definition. Soft-delete via
+    ``archived_at`` so historical values stay readable (#372)."""
+    __tablename__ = "custom_field_def"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "entity", "key", name="uq_custom_field_def_tenant_entity_key"),
+        Index("ix_custom_field_def_tenant_entity", "tenant_id", "entity"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    entity: str  # invoice | bill | customer | product | vendor
+    key: str  # x.gate_pass_no
+    label: str
+    type: str = Field(default="text")  # text | number | date | enum | bool
+    enum_values: Optional[list] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    required: bool = Field(default=False)
+    show_on_form: bool = Field(default=True)
+    show_on_print: bool = Field(default=False)
+    show_on_list: bool = Field(default=False)
+    sort_order: int = Field(default=0)
+    archived_at: Optional[datetime] = Field(default=None, index=True)
+    source_extension_id: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class FormSchema(SQLModel, table=True):
+    """Tenant (or role) overlay for hide/show/required on a document form (#373).
+
+    ``role='*'`` is the tenant default. A matching role row replaces ``*``
+    for that user. Missing field keys keep the shipped default (visible).
+    """
+    __tablename__ = "form_schema"
+    tenant_id: int = Field(foreign_key="tenant.id", primary_key=True)
+    entity: str = Field(primary_key=True)
+    role: str = Field(default="*", primary_key=True)
+    payload_json: dict = Field(default_factory=dict, sa_column=Column("schema_json", JSON, nullable=False))
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class PrintTemplate(SQLModel, table=True):
+    """Tenant print-template clone or default picker (#374). Built-in
+    ``standard`` keeps using ``backend/templates/{entity}.html`` unless a
+    clone is marked default and stores HTML here."""
+    __tablename__ = "print_template"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "entity", "key", name="uq_print_template_tenant_entity_key"),
+        Index("ix_print_template_tenant_entity", "tenant_id", "entity"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    entity: str  # invoice | bill
+    key: str  # standard | x.mill_packing
+    label: str
+    html: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    is_builtin_override: bool = Field(default=False)
+    is_default: bool = Field(default=False)
+    source_extension_id: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class StockSerial(SQLModel, table=True):

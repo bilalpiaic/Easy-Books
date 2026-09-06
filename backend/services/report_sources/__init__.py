@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from models import (Account, AttendanceRecord, Bill, BillLine, BillPayment,
@@ -50,7 +51,7 @@ class FieldDef:
     key: str
     label: str
     type: FieldType
-    column: InstrumentedAttribute
+    column: Any
     join: Optional[JoinPath] = None
     enum_values: Optional[list[str]] = None
     aggregatable: bool = False
@@ -344,3 +345,67 @@ REGISTRY: dict[str, ReportSource] = {s.key: s for s in (
     ACCOUNTS, PURCHASE_ORDERS,
     EMPLOYEES, PAYROLL_RUNS, PAYROLL_LINES, ATTENDANCE,
 )}
+
+
+# Sources whose model has a `custom_fields` JSON column — virtual x.* FieldDefs.
+_CUSTOM_FIELD_SOURCES: dict[str, tuple[str, Any]] = {
+    "invoices": ("invoice", Invoice.custom_fields),
+    "bills": ("bill", Bill.custom_fields),
+    "customers": ("customer", Customer.custom_fields),
+    "vendors": ("vendor", Vendor.custom_fields),
+    "products": ("product", Product.custom_fields),
+}
+
+_CF_TYPE: dict[str, FieldType] = {
+    "text": FieldType.TEXT,
+    "number": FieldType.NUMBER,
+    "date": FieldType.DATE,
+    "enum": FieldType.ENUM,
+    "bool": FieldType.BOOL,
+}
+
+
+def _json_key_expr(column: Any, key: str, dialect: str):
+    """Literal JSON object key (e.g. ``x.gate_pass_no``), not a nested path."""
+    if dialect.startswith("postgres"):
+        return column.op("->>")(key)
+    path = '$."' + key.replace('"', "") + '"'
+    return func.json_extract(column, path)
+
+
+def resolve_source(session, tenant_id: int, source_key: str) -> Optional[ReportSource]:
+    """Registry row plus tenant custom-field virtual columns when present."""
+    src = REGISTRY.get(source_key)
+    if src is None:
+        return None
+    mapped = _CUSTOM_FIELD_SOURCES.get(source_key)
+    if mapped is None:
+        return src
+    entity, json_col = mapped
+    from services.custom_fields import active_defs
+
+    defs = active_defs(session, tenant_id, entity)
+    if not defs:
+        return src
+    dialect = session.get_bind().dialect.name
+    extra: dict[str, FieldDef] = {}
+    for d in defs:
+        ftype = _CF_TYPE.get(d.type, FieldType.TEXT)
+        extra[d.key] = FieldDef(
+            key=d.key,
+            label=d.label,
+            type=ftype,
+            column=_json_key_expr(json_col, d.key, dialect),
+            enum_values=list(d.enum_values) if d.enum_values else None,
+            aggregatable=ftype in (FieldType.NUMBER, FieldType.MONEY),
+            groupable=True,
+        )
+    return ReportSource(
+        key=src.key,
+        label=src.label,
+        model=src.model,
+        fields={**src.fields, **extra},
+        default_columns=src.default_columns,
+        date_field=src.date_field,
+    )
+

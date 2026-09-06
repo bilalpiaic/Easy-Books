@@ -52,6 +52,8 @@ interface Props {
   customerId?: number | null
   /** 'sale' uses invoices, 'purchase' uses bills */
   priceKind?: 'sale' | 'purchase'
+  /** Hide the line discount % column (form schema overlay). */
+  hideDiscount?: boolean
 }
 
 const UNITS = ["pcs", "kg", "mtr", "hrs", "ltr", "box", "doz"]
@@ -64,7 +66,7 @@ function calcAmount(qty: number, rate: number, discountPct = 0) {
   return Math.round(qty * rate * (1 - discountPct / 100) * 100) / 100
 }
 
-export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false, customerId = null, priceKind = 'sale' }: Props) {
+export default function LineItemsTable({ lines, onChange, products = [], taxCodes = [], showTax = false, readOnly = false, showStockHint = false, warnOversell = false, customerId = null, priceKind = 'sale', hideDiscount = false }: Props) {
   const fmt      = useFmt()
   const currency = useCurrency()
   const [hints, setHints] = useState<Record<number, { rate: number; date: string; scope: string; party_name: string | null } | null>>({})
@@ -123,7 +125,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
   // Extra columns: product, tax — affects colspan calculations
   const hasProducts = products.length > 0
   const hasTax = showTax
-  const baseCols = 5 // description, qty, unit, rate, discount
+  const baseCols = hideDiscount ? 4 : 5 // description, qty, unit, rate, discount?
   const extraCols = (hasProducts ? 1 : 0) + (hasTax ? 1 : 0)
   const totalDataCols = baseCols + extraCols + 1 // +1 for amount
   const actionCol = readOnly ? 0 : 1
@@ -146,7 +148,9 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
               <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-28">Qty</th>
               <th className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-20">Unit</th>
               <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-32">Rate ({currency})</th>
-              <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-20">Disc %</th>
+              {!hideDiscount && (
+                <th className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-20">Disc %</th>
+              )}
               {hasTax && (
                 <th className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] w-40">Tax</th>
               )}
@@ -256,6 +260,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                     </>
                   )}
                 </td>
+                {!hideDiscount && (
                 <td className="px-3 py-2">
                   {readOnly ? (
                     <span className="block text-right font-mono text-xs">
@@ -270,6 +275,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                     />
                   )}
                 </td>
+                )}
                 {hasTax && (
                   <td className="px-3 py-2">
                     {readOnly ? (
@@ -422,6 +428,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                   />
                 )}
               </div>
+              {!hideDiscount && (
               <div>
                 <label className={labelCls}>Disc %</label>
                 {readOnly ? (
@@ -435,6 +442,7 @@ export default function LineItemsTable({ lines, onChange, products = [], taxCode
                   />
                 )}
               </div>
+              )}
             </div>
             {hasTax && (
               <div>

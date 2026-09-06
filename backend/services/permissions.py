@@ -4,6 +4,8 @@ When user_rights_enabled = "true" in Settings, every request to a protected
 route is checked against UserPermission overrides + role defaults.
 When the module is off, all perm_dep calls are no-ops (zero behaviour change).
 """
+import re
+
 from fastapi import Depends, HTTPException, status
 from sqlmodel import Session, select
 
@@ -78,6 +80,9 @@ PERMISSION_RESOURCES: dict[str, dict] = {
     "approvals":              {"label": "Approvals Inbox",         "category": "System"},
     "approvals.workflows":    {"label": "Approval Workflows",      "category": "System"},
     "webhooks":               {"label": "Webhooks",                "category": "System"},
+    "studio.fields":          {"label": "Custom Fields",           "category": "System"},
+    "studio.forms":           {"label": "Form Layout",             "category": "System"},
+    "studio.print":           {"label": "Print Templates",         "category": "System"},
     "audit_log":              {"label": "Audit Log",               "category": "System"},
     "csv_import":             {"label": "CSV Import",              "category": "System"},
     "report_builder":         {"label": "Report Builder",          "category": "Reports"},
@@ -161,6 +166,29 @@ _ROLE_DEFAULT: dict[str, str] = {
     "viewer":      "view",
 }
 
+# Sparse field overlay (#375). Do not pre-register N×M keys in PERMISSION_RESOURCES.
+FIELD_PARENTS: dict[str, str] = {
+    "invoice": "invoices",
+    "bill": "bills",
+    "customer": "customers",
+    "vendor": "vendors",
+    "product": "products",
+}
+FIELD_KEY_RE = re.compile(
+    r"^(invoices|bills|customers|vendors|products)\.field\.(x\.[a-z][a-z0-9_]*)$"
+)
+
+
+def is_known_resource_key(key: str) -> bool:
+    return key in PERMISSION_RESOURCES or bool(FIELD_KEY_RE.match(key or ""))
+
+
+def field_resource_key(entity: str, field_key: str) -> str:
+    parent = FIELD_PARENTS.get(entity)
+    if not parent:
+        raise ValueError(f"no parent resource for entity {entity!r}")
+    return f"{parent}.field.{field_key}"
+
 
 def _rights_enabled(tenant_id: int, session: Session) -> bool:
     row = session.exec(
@@ -187,7 +215,37 @@ def get_effective_permission(user: User, resource_key: str, session: Session) ->
     ).first()
     if override:
         return override.access_level
+    m = FIELD_KEY_RE.match(resource_key or "")
+    if m:
+        return get_effective_permission(user, m.group(1), session)
     return _ROLE_DEFAULT.get(user.role, "view")
+
+
+def field_access_map(session: Session, user: User, entity: str) -> dict[str, str]:
+    """Map ``x.*`` keys → none|view|edit. Rights-off → all edit (no overlay)."""
+    from services.custom_fields import active_defs
+
+    defs = active_defs(session, user.tenant_id, entity)
+    if not defs:
+        return {}
+    if not _rights_enabled(user.tenant_id, session):
+        return {d.key: "edit" for d in defs}
+    return {
+        d.key: get_effective_permission(user, field_resource_key(entity, d.key), session)
+        for d in defs
+    }
+
+
+def extra_field_permissions(session: Session, user: User) -> dict[str, str]:
+    """Effective access for every active tenant custom-field resource key."""
+    from services.custom_fields import active_defs
+
+    out: dict[str, str] = {}
+    for entity, parent in FIELD_PARENTS.items():
+        for d in active_defs(session, user.tenant_id, entity):
+            key = f"{parent}.field.{d.key}"
+            out[key] = get_effective_permission(user, key, session)
+    return out
 
 
 def perm_dep(resource_key: str, level: str = "view"):

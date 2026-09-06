@@ -7,6 +7,8 @@ import { DimensionPickers, slotsToPayload, type AnalyticSlots } from '@/componen
 import CurrencyRatePicker from '@/components/fx/CurrencyRatePicker'
 import { useFmt, useSettings } from '@/context/SettingsContext'
 import LineItemsTable, { LineItem, TaxCodeOption } from '@/components/LineItemsTable'
+import { CustomFieldsInputs, type CustomFieldValues } from '@/components/studio/CustomFieldsInputs'
+import { useFormSchema } from '@/components/studio/formSchema'
 
 export interface BillFull {
   id: number
@@ -28,6 +30,7 @@ export interface BillFull {
   exchange_rate: number
   is_intercompany?: boolean
   ic_counterparty_tenant_id?: number | null
+  custom_fields?: CustomFieldValues
   lines: (LineItem & { tax_code_id?: number | null })[]
 }
 
@@ -89,6 +92,8 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
   const [analyticSlots, setAnalyticSlots] = useState<AnalyticSlots>({})
   const [confirmPostedEdit, setConfirmPostedEdit] = useState(false)
   const [icCounterparties, setIcCounterparties] = useState<IcCounterparty[]>([])
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({})
+  const { fields: schemaFields, fieldAccess, visible: vis, required: req } = useFormSchema('bill')
   const currencyTouched = useRef(false)
 
   // Sync default currency to tenant base once settings load (create mode only)
@@ -141,6 +146,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
         ic_counterparty_tenant_id: bill.ic_counterparty_tenant_id
           ? String(bill.ic_counterparty_tenant_id) : '',
       })
+      setCustomFields(bill.custom_fields ?? {})
       setAnalyticSlots({
         0: bill.analytic_account_id ? String(bill.analytic_account_id) : "",
         1: (bill as { analytic_2_id?: number | null }).analytic_2_id
@@ -216,6 +222,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
       is_intercompany: form.is_intercompany,
       ic_counterparty_tenant_id: form.is_intercompany && form.ic_counterparty_tenant_id
         ? parseInt(form.ic_counterparty_tenant_id) : null,
+      custom_fields: customFields,
     }
     try {
       if (mode === 'edit' && bill) {
@@ -249,14 +256,20 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
           </div>
+          {vis('vendor_name') && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Vendor Name</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              Vendor Name
+              {req('vendor_name') ? <span className="text-red-600"> *</span> : null}
+            </label>
             <input value={form.vendor_name} onChange={e => setForm(p => ({ ...p, vendor_name: e.target.value }))}
               placeholder="or type manually"
+              required={req('vendor_name')}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
+          )}
         </div>
-        {icCounterparties.length > 0 && (
+        {vis('is_intercompany') && icCounterparties.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-page)] border border-[var(--border)]">
             <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
               <input
@@ -296,6 +309,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             <input type="date" value={form.bill_date} onChange={e => setForm(p => ({ ...p, bill_date: e.target.value }))}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
+          {vis('payment_term_id') && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Payment Term</label>
             <select
@@ -318,19 +332,27 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
               ))}
             </select>
           </div>
+          )}
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Due Date</label>
             <input type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
           </div>
         </div>
+        {vis('description') && (
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Description</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+            Description
+            {req('description') ? <span className="text-red-600"> *</span> : null}
+          </label>
           <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
             placeholder="e.g. Office supplies — May 2026"
+            required={req('description')}
             className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm" />
         </div>
+        )}
 
+        {vis('currency') && (
         <CurrencyRatePicker
           currency={form.currency}
           exchangeRate={form.exchange_rate}
@@ -342,10 +364,11 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           }}
           onRateChange={rate => setForm(p => ({ ...p, exchange_rate: rate }))}
         />
+        )}
 
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-2">Line Items</label>
-          <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes.filter(t => t.type === 'input')} showTax showStockHint customerId={form.vendor_id ? Number(form.vendor_id) : null} priceKind="purchase" />
+          <LineItemsTable lines={lines} onChange={setLines} products={products} taxCodes={taxCodes.filter(t => t.type === 'input')} showTax showStockHint customerId={form.vendor_id ? Number(form.vendor_id) : null} priceKind="purchase" hideDiscount={!vis('discount_pct')} />
         </div>
 
         <div className="bg-[var(--bg-page)] rounded-xl p-4 space-y-1 text-sm">
@@ -357,7 +380,7 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
             <span className="text-[var(--text-muted)]">Tax</span>
             {usePerLineTax ? (
               <span className="font-mono text-xs text-[var(--text-muted)]">(per-line) {fmt(gstAmount)}</span>
-            ) : (
+            ) : vis('gst_rate') ? (
               <div className="flex items-center gap-2">
                 <input type="number" min="0" max="100" step="0.5"
                   value={form.gst_rate}
@@ -367,6 +390,8 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
                 <span className="text-[var(--text-muted)] text-xs">%</span>
                 <span className="font-mono">{fmt(gstAmount)}</span>
               </div>
+            ) : (
+              <span className="font-mono">{fmt(gstAmount)}</span>
             )}
           </div>
           <div className="flex justify-between border-t border-[var(--border)] pt-2 font-bold">
@@ -381,22 +406,36 @@ export default function BillForm({ mode, bill, initialVendorId, onSaved, onCance
           )}
         </div>
 
+        {(vis('notes') || vis('internal_memo')) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {vis('notes') && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">Notes (printed)</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-primary)]/75 mb-1">
+              Notes (printed)
+              {req('notes') ? <span className="text-red-600"> *</span> : null}
+            </label>
             <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Printed on the bill for the vendor"
+              required={req('notes')}
               className="w-full px-3 py-2 bg-[var(--bg-page)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--primary)] text-sm resize-none" />
           </div>
+          )}
+          {vis('internal_memo') && (
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-amber-700/70 mb-1">Internal Memo</label>
             <textarea rows={2} value={form.internal_memo} onChange={e => setForm(p => ({ ...p, internal_memo: e.target.value }))}
               placeholder="Staff-only note, not printed"
               className="w-full px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 text-sm resize-none" />
           </div>
+          )}
         </div>
+        )}
 
-        <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
+        <CustomFieldsInputs entity="bill" values={customFields} onChange={setCustomFields} schemaFields={schemaFields} fieldAccess={fieldAccess} />
+
+        {(vis('analytic_account_id') || vis('analytic_2_id') || vis('analytic_3_id')) && (
+          <DimensionPickers slots={analyticSlots} onChange={setAnalyticSlots} />
+        )}
 
         {formError && <p className="text-red-600 text-sm">{formError}</p>}
         {confirmPostedEdit && (

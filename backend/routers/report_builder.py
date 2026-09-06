@@ -13,16 +13,19 @@ from models import ReportDefinition
 from routers.common import CurrentUserDep, SessionDep
 from services.export_utils import safe_cell as _safe_cell
 from services.report_engine import MAX_EXPORT_ROWS, ReportConfig, ReportError, run_report
-from services.report_sources import REGISTRY
+from services.report_sources import REGISTRY, resolve_source
 from services.permissions import perm_dep, apply_own_filter
 
 router = APIRouter(prefix="/api/report-builder", tags=["report-builder"], dependencies=[perm_dep("report_builder")])
 
 
 @router.get("/sources")
-def list_sources(user: CurrentUserDep):
+def list_sources(user: CurrentUserDep, session: SessionDep):
     out = []
-    for s in REGISTRY.values():
+    for key in REGISTRY:
+        s = resolve_source(session, user.tenant_id, key)
+        if s is None:
+            continue
         out.append({
             "key": s.key, "label": s.label, "date_field": s.date_field,
             "default_columns": s.default_columns,
@@ -58,9 +61,9 @@ def run(body: RunBody, session: SessionDep, user: CurrentUserDep):
 # Saved-report CRUD
 # ---------------------------------------------------------------------------
 
-def _validate_config(source_key: str, config: ReportConfig):
+def _validate_config(source_key: str, config: ReportConfig, session: SessionDep, tenant_id: int):
     from services.report_engine import _AGG_FN, build_predicate, coerce_value
-    src = REGISTRY.get(source_key)
+    src = resolve_source(session, tenant_id, source_key)
     if src is None:
         raise HTTPException(400, f"unknown source {source_key!r}")
     try:
@@ -112,7 +115,7 @@ def get_report(rid: int, session: SessionDep, user: CurrentUserDep):
 
 @router.post("/reports")
 def save_report(body: SaveBody, session: SessionDep, user: CurrentUserDep):
-    _validate_config(body.source_key, body.config)
+    _validate_config(body.source_key, body.config, session, user.tenant_id)
     rd = ReportDefinition(tenant_id=user.tenant_id, name=body.name, source_key=body.source_key,
                           config=body.config.model_dump_json(), visibility=body.visibility,
                           owner_id=user.id, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
@@ -127,7 +130,7 @@ def update_report(rid: int, body: SaveBody, session: SessionDep, user: CurrentUs
         raise HTTPException(404, "not found")
     if rd.owner_id != user.id:
         raise HTTPException(403, "owner only")
-    _validate_config(body.source_key, body.config)
+    _validate_config(body.source_key, body.config, session, user.tenant_id)
     rd.name, rd.source_key = body.name, body.source_key
     rd.config, rd.visibility = body.config.model_dump_json(), body.visibility
     rd.updated_at = datetime.utcnow()

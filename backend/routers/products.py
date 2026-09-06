@@ -13,6 +13,8 @@ from services.posting import EntryInput, post_transaction
 
 from .common import CurrentUserDep, SessionDep, WriteUserDep, get_or_create_account, log_audit
 from services.permissions import perm_dep, apply_own_filter
+from services.custom_fields import apply_incoming as apply_custom_fields
+from services.form_schema import apply_to_payload, skip_custom_required
 
 router = APIRouter(prefix="/api/products", tags=["products"], dependencies=[perm_dep("products")])
 
@@ -38,6 +40,7 @@ class ProductCreate(BaseModel):
     track_serial: bool = False
     nrv_unit: Optional[Decimal] = None
     standalone_selling_price: Optional[Decimal] = None
+    custom_fields: Optional[dict] = None
     opening_qty: Decimal = Decimal("0")
     opening_cost: Decimal = Decimal("0")
 
@@ -191,7 +194,13 @@ def create_product(session: SessionDep, user: WriteUserDep, body: ProductCreate)
     if body.cost_method and body.cost_method not in ("wavg", "fifo"):
         raise HTTPException(400, "cost_method must be 'wavg', 'fifo', or null")
     _bootstrap = {"opening_qty", "opening_cost"}
-    p = Product(tenant_id=user.tenant_id, **body.model_dump(exclude=_bootstrap))
+    data = body.model_dump(exclude=_bootstrap)
+    data, hidden = apply_to_payload(session, user, "product", data)
+    data["custom_fields"] = apply_custom_fields(
+        session, user.tenant_id, "product", data.get("custom_fields"),
+        skip_required=skip_custom_required(hidden),
+    )
+    p = Product(tenant_id=user.tenant_id, **data)
     session.add(p)
     if body.product_type == "stock" and body.opening_qty > 0:
         # Route the opening balance through record_purchase so it leaves a
@@ -221,7 +230,13 @@ def update_product(
     ).first()
     if not p:
         raise HTTPException(404, "Product not found")
-    for k, v in body.model_dump(exclude={"opening_qty", "opening_cost"}).items():
+    data = body.model_dump(exclude={"opening_qty", "opening_cost"})
+    data, hidden = apply_to_payload(session, user, "product", data, existing=p.model_dump())
+    data["custom_fields"] = apply_custom_fields(
+        session, user.tenant_id, "product", data.get("custom_fields"), existing=p.custom_fields,
+        skip_required=skip_custom_required(hidden),
+    )
+    for k, v in data.items():
         setattr(p, k, v)
     session.add(p)
     log_audit(session, user, "UPDATE", "product", p.id, {"name": p.name})
