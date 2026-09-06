@@ -67,7 +67,7 @@ Rules enforced at validation time:
 
 Private mill listings use topical tags (`spinning`, `private`) plus badge **For you**. Do **not** tag with tenant slugs or `customized-tenant`. Marketplace lists **products**, never tenants.
 
-Empty `visible_to_tenant_ids` on a bundled private row is **fail-closed**. Ops grant the listing with `PUT /api/ops/tenants/{id}/marketplace-private` (`extension_ids`), which stores ids on `tenant.module_meta._marketplace_private`. Demo seed grants **Weighbridge** (`partner.easybooks.weighbridge`) to manufacturing and yarn-spinning demo tenants. Optional env overlay:
+Empty `visible_to_tenant_ids` on a bundled private row is **fail-closed**. Ops grant the listing with `PUT /api/ops/tenants/{id}/marketplace-private` (`extension_ids`), which stores ids on `tenant.module_meta._marketplace_private`. Demo seed and boot-time backfill grant **Weighbridge** (`partner.easybooks.weighbridge`) to manufacturing and yarn-spinning tenants. Those mill models also pass the catalog `visible_to` check without a grant, so an existing demo DB shows the card after deploy (no re-seed). Hospital and other models stay fail-closed. Optional env overlay:
 
 ```
 MARKETPLACE_PRIVATE_AUDIENCE={"partner.easybooks.weighbridge":[12]}

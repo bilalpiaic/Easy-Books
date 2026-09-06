@@ -35,10 +35,10 @@ def test_client_tag_rejected():
         )
 
 
-def _signup(client, email, company="Co"):
+def _signup(client, email, company="Co", business_model="simple"):
     r = client.post("/api/auth/signup", json={
         "email": email, "password": "password123",
-        "full_name": "Owner", "company_name": company, "business_model": "simple",
+        "full_name": "Owner", "company_name": company, "business_model": business_model,
     })
     assert r.status_code == 200, r.text
     tenant_id = r.json()["tenant_id"]
@@ -186,20 +186,46 @@ def test_weighbridge_hidden_from_ungranted_tenant(client, admin_headers):
     assert leak.status_code == 404, leak.text
 
 
-def test_weighbridge_for_you_on_granted_mill_not_hospital(client, monkeypatch):
+def test_weighbridge_visible_to_mill_model_without_grant(client):
+    """Manufacturing mill tenants see Weighbridge without ops/seed grant."""
+    from services.marketplace.catalog import WEIGHBRIDGE_ID
+
+    _tid, mill_auth = _signup(
+        client, "mill-model@mp.test", "Spinning Mill Co", "manufacturing",
+    )
+    cat = client.get("/api/marketplace/catalog", headers=mill_auth)
+    assert cat.status_code == 200, cat.text
+    row = next(e for e in cat.json()["entries"] if e["id"] == WEIGHBRIDGE_ID)
+    assert row["for_you"] is True
+    assert row["name"] == "Weighbridge"
+
+
+def test_weighbridge_visible_to_yarn_spinning_model(client):
+    """Demo spinning mill is yarn_spinning — not a public signup model."""
     from sqlmodel import Session
     import db as db_mod
     from models import Tenant
-    from services.marketplace.catalog import WEIGHBRIDGE_ID, grant_private_listing
+    from services.marketplace.catalog import WEIGHBRIDGE_ID
 
-    mill_id, mill_auth = _signup(client, "mill-wb@mp.test", "Mill Weigh")
-    hosp_id, hosp_auth = _signup(client, "hosp-wb@mp.test", "Hospital Weigh")
-
+    tid, auth = _signup(client, "spin-wb@mp.test", "Yarn Mill")
     with Session(db_mod.engine) as s:
-        mill = s.get(Tenant, mill_id)
-        grant_private_listing(mill, WEIGHBRIDGE_ID)
+        mill = s.get(Tenant, tid)
+        mill.business_model = "yarn_spinning"
         s.add(mill)
         s.commit()
+    cat = client.get("/api/marketplace/catalog", headers=auth)
+    assert cat.status_code == 200, cat.text
+    ids = {e["id"] for e in cat.json()["entries"]}
+    assert WEIGHBRIDGE_ID in ids
+
+
+def test_weighbridge_for_you_on_granted_mill_not_hospital(client, monkeypatch):
+    from services.marketplace.catalog import WEIGHBRIDGE_ID
+
+    _mill_id, mill_auth = _signup(
+        client, "mill-wb@mp.test", "Mill Weigh", "manufacturing",
+    )
+    _hosp_id, hosp_auth = _signup(client, "hosp-wb@mp.test", "Hospital Weigh")
 
     cat_m = client.get("/api/marketplace/catalog", headers=mill_auth)
     assert cat_m.status_code == 200, cat_m.text
