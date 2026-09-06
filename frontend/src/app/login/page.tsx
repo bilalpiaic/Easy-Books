@@ -81,6 +81,11 @@ function LoginForm() {
     }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}))
+      // Keep 401 copy stable (form is email, API says "username"). Other
+      // statuses still surface API detail (demo-disabled, deactivated, throttle).
+      if (response.status === 401) {
+        throw new Error("Invalid email or password")
+      }
       throw new Error(typeof body.detail === "string" ? body.detail : "Invalid email or password")
     }
     const data = await response.json()
