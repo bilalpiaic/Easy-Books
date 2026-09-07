@@ -1338,22 +1338,22 @@ UI: **System → Add-ons** (`/apps`) tab **Marketplace** (`?tab=marketplace`). I
 
 `/settings/studio` (admin/owner): extra `x.*` columns (cap 12 per entity), form hide/require, print templates. Values live on document `custom_fields` JSON. **`x.*` is never imported in `services/posting.py`** — ∑Dr = ∑Cr is unchanged.
 
-### 10E.3 Weighbridge (first-party workspace + private mill listing)
+### 10E.3 Weighbridge (first-party workspace + public Marketplace listing)
 
-Module id `weighbridge` (Industry, icon Scale, `nav_sections: ["Weighbridge"]`). Pre-installed on `manufacturing` and `yarn_spinning`. v1 table `wb_ticket`: inbound/outbound tickets, first/second weigh, `net_kg = |gross − tare|`, number `WB-YYYY-seq`. **No GL** — `routers/weighbridge.py` must not import `services.posting`. Hub `/weighbridge`, tickets `/weighbridge/tickets`, print slip, optional copy to `invoice.custom_fields["x.gate_pass_no"]`.
+Module id `weighbridge` (Operations, icon Scale, `nav_sections: ["Weighbridge"]`). Pre-installed on `manufacturing` and `yarn_spinning`; installable on starter/pro for other segments. v1 table `wb_ticket`: inbound/outbound tickets, first/second weigh, `net_kg = |gross − tare|`, number `WB-YYYY-seq`. **No GL** — `routers/weighbridge.py` must not import `services.posting`. Hub `/weighbridge`, tickets `/weighbridge/tickets`, print slip, optional copy to `invoice.custom_fields["x.gate_pass_no"]`.
 
-Listing id `partner.easybooks.weighbridge` remains the optional Studio overlay on invoices (not a replacement for the workspace).
+Listing id `partner.easybooks.weighbridge` is the optional **public** Studio overlay on invoices (not a replacement for the workspace).
 
 | Field | Key | Required | Form | Print | List |
 |---|---|---|---|---|---|
 | Gate pass | `x.gate_pass_no` | yes | yes | yes | yes |
 | Lot ref | `x.lot_ref` | no | yes | no | no |
 
-**Who sees the workspace:** mill models and entitled installs. Hospital / simple: nav hidden, API 403.
+**Who sees the workspace:** mill pre-install, or Optional install on starter/pro/enterprise. Until installed: nav hidden, API 403.
 
-**Who sees the Marketplace card:** `business_model` in `{manufacturing, yarn_spinning}`, spinning module, ops grant, boot backfill `_ensure_mill_weighbridge_grants`. Hospital / ungranted: catalog omits the id.
+**Who sees the Marketplace card:** every tenant (`audience: public`).
 
-**User path:** mill login → Weighbridge → New ticket → weigh → print. Overlay: Add-ons → Marketplace → Install → Sales → New Invoice (Gate pass), or Copy Gate pass from a completed inbound ticket.
+**User path:** Add-ons → Marketplace → Install overlay, or Optional → Weighbridge workspace → New ticket → weigh → print. Overlay: Sales → New Invoice (Gate pass), or Copy Gate pass from a completed inbound ticket. Studio Add Field is a catalog LOV of `x.*` keys (cap 12).
 
 ---
 
