@@ -191,3 +191,48 @@ def test_list_bills_keeps_id_when_auto_marked_overdue(client, admin_headers):
     row = next(b for b in items if b["id"] == bill_id)
     assert row["status"] == "overdue"
     assert row["vendor_name"] == "Overdue Vendor"
+
+
+def test_field_catalog_lov_type_hints(client, admin_headers):
+    r = client.get("/api/studio/fields/catalog?entity=invoice", headers=admin_headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["entity"] == "invoice"
+    assert body["cap"] == 12
+    assert body["used"] == 0
+    keys = {s["key"] for s in body["suggestions"]}
+    assert "x.gate_pass_no" in keys
+    assert "x.lot_ref" in keys
+    gp = next(s for s in body["suggestions"] if s["key"] == "x.gate_pass_no")
+    assert gp["type"] == "text"
+    assert gp["added"] is False
+    assert gp["hint"]
+    form_keys = {f["key"] for f in body["form_fields"]}
+    assert "notes" in form_keys
+    assert "issue_date" in form_keys
+    issue = next(f for f in body["form_fields"] if f["key"] == "issue_date")
+    assert issue["locked"] is True
+    assert issue["kind"] == "core"
+
+    created = client.post("/api/studio/fields", headers=admin_headers, json={
+        "entity": "invoice",
+        "key": "x.gate_pass_no",
+        "label": "Gate pass",
+        "type": "text",
+    })
+    assert created.status_code == 201, created.text
+    after = client.get("/api/studio/fields/catalog?entity=invoice", headers=admin_headers).json()
+    assert after["used"] == 1
+    gp2 = next(s for s in after["suggestions"] if s["key"] == "x.gate_pass_no")
+    assert gp2["added"] is True
+    custom = next(f for f in after["form_fields"] if f["key"] == "x.gate_pass_no")
+    assert custom["kind"] == "custom"
+
+
+def test_field_catalog_vendor_and_unknown_entity(client, admin_headers):
+    ok = client.get("/api/studio/fields/catalog?entity=vendor", headers=admin_headers)
+    assert ok.status_code == 200, ok.text
+    keys = {s["key"] for s in ok.json()["suggestions"]}
+    assert "x.bank_iban" in keys
+    bad = client.get("/api/studio/fields/catalog?entity=journal", headers=admin_headers)
+    assert bad.status_code == 400

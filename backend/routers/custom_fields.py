@@ -19,6 +19,7 @@ from services.custom_fields import (
     fmt_def,
 )
 from services.permissions import perm_dep
+from services.studio_catalog import field_catalog
 
 router = APIRouter(
     prefix="/api/studio/fields",
@@ -58,6 +59,16 @@ def _validate_enum(type_name: str, enum_values: Optional[list[str]]) -> Optional
             raise HTTPException(400, "enum fields need at least two enum_values")
         return vals
     return None
+
+
+@router.get("/catalog")
+def get_field_catalog(
+    user: CurrentUserDep,
+    session: SessionDep,
+    entity: str,
+):
+    """Type hints + core form fields for Studio Add Field LOV / layout."""
+    return field_catalog(session, user.tenant_id, entity)
 
 
 @router.get("")
