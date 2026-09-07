@@ -241,6 +241,35 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+# ── Stage 2b: Mobile signed-build scaffolding (#307) ──────────────────────────
+# Does NOT fail the Electron release when store signing secrets are absent.
+  mobile-android:
+    name: Mobile Android AAB (optional signing)
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Capacitor sync + optional signed bundle
+        working-directory: mobile
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash scripts/ci-signed-build.sh
+      - name: Upload AAB if produced
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-android
+          path: mobile/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: ignore
+          retention-days: 14
+
 # ── Stage 3: Publish (single job — no race on latest.yml) ─────────────────────
   publish:
     name: Publish GitHub release
