@@ -1149,6 +1149,35 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {isAdminOrOwner && (
+      <div className="bg-white border border-[var(--border)] rounded-2xl p-6 space-y-3">
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">SOC 2 evidence pack</h2>
+        <p className="text-xs text-[var(--text-primary)]/60">
+          Download a tenant-scoped ZIP of control mappings, users (no passwords), access matrix,
+          redacted settings, and a recent audit sample. This is evidence assistance for an auditor
+          — not a certified SOC 2 Type I/II report. See the runbook in the ZIP.
+        </p>
+        <button
+          type="button"
+          onClick={async () => {
+            const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
+            const res = await fetch(`${base}/api/compliance/evidence-pack`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+            })
+            if (!res.ok) { toast("Could not download the evidence pack.", "error"); return }
+            const blob = await res.blob()
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url; a.download = "soc2-evidence-pack.zip"; a.click()
+            URL.revokeObjectURL(url)
+          }}
+          className="px-4 py-2 bg-[var(--text-primary)] text-white rounded-xl text-sm font-bold hover:bg-[var(--primary)] hover:text-black transition-all"
+        >
+          Download SOC 2 evidence pack
+        </button>
+      </div>
+      )}
+
       {/* Capabilities — Add-ons (replaces pre-login business-model picker) */}
       <div className="bg-white rounded-xl border border-[var(--border)] p-4 sm:p-6 md:p-8 shadow-sm">
         <h2 className="text-xl font-semibold mb-2 flex items-center gap-3 text-black">
