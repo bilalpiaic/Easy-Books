@@ -225,11 +225,15 @@ def test_weighbridge_copy_gate_pass_rejects_outbound(client):
     assert r.status_code == 400
 
 
-def test_plan_blocks_weighbridge_on_pro():
+def test_plan_allows_weighbridge_on_pro_and_starter():
     from models import Tenant
     from services.entitlements import plan_allows
 
+    starter = Tenant(name="s", plan="starter")
+    assert plan_allows(starter, "weighbridge")
     pro = Tenant(name="p", plan="pro")
-    assert not plan_allows(pro, "weighbridge")
+    assert plan_allows(pro, "weighbridge")
+    free = Tenant(name="f", plan="free")
+    assert not plan_allows(free, "weighbridge")
     ent = Tenant(name="e", plan="enterprise")
     assert plan_allows(ent, "weighbridge")

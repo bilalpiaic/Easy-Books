@@ -740,7 +740,7 @@ function AppsPageInner() {
             For you: {catalog.filter(e => e.for_you).map(e => e.name).join(", ")}
           </p>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Open Marketplace to install mill listings such as Weighbridge (gate pass + lot on invoices).
+            Open Marketplace to install listings such as Weighbridge (gate pass + lot on invoices — all tenants).
           </p>
         </button>
       )}

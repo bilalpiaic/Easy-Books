@@ -60,8 +60,12 @@ def test_plan_allows_free_and_pro():
     assert plan_allows(pro, "inventory")
     assert plan_allows(pro, "hrm")
     assert plan_allows(pro, "ai_assistant")
+    assert plan_allows(pro, "weighbridge")
     assert not plan_allows(pro, "spinning")
     assert not plan_allows(pro, "healthcare")
+    starter = Tenant(name="s", plan="starter")
+    assert plan_allows(starter, "weighbridge")
+    assert not plan_allows(starter, "spinning")
 
 
 def test_entitle_flag_overrides_plan(enforce_plans):
@@ -177,6 +181,8 @@ def test_pro_plan_installs_hrm_not_industry(client, enforce_plans):
     assert checkout.status_code == 200, checkout.text
     hrm = client.post("/api/modules/hrm/install", headers=auth)
     assert hrm.status_code == 200, hrm.text
+    wb = client.post("/api/modules/weighbridge/install", headers=auth)
+    assert wb.status_code == 200, wb.text
     spinning = client.post("/api/modules/spinning/install", headers=auth)
     assert spinning.status_code == 403
 
@@ -194,7 +200,7 @@ def test_ops_grants_weighbridge_private_listing(client, monkeypatch):
     _ops_tid, ops_auth = _signup(client, "ops-wb@easy-books.test", company="Ops")
 
     before = client.get("/api/marketplace/catalog", headers=mill_auth).json()["entries"]
-    assert all(e["id"] != "partner.easybooks.weighbridge" for e in before)
+    assert any(e["id"] == "partner.easybooks.weighbridge" for e in before)
 
     put = client.put(
         f"/api/ops/tenants/{mill_id}/marketplace-private",
@@ -206,4 +212,5 @@ def test_ops_grants_weighbridge_private_listing(client, monkeypatch):
 
     after = client.get("/api/marketplace/catalog", headers=mill_auth).json()["entries"]
     row = next(e for e in after if e["id"] == "partner.easybooks.weighbridge")
-    assert row["for_you"] is True
+    assert row["audience"] == "public"
+    assert row["for_you"] is False
