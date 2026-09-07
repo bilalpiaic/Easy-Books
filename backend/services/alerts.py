@@ -92,6 +92,20 @@ def emit_alert(
         entity_id=entity_id,
         dedupe_key=dedupe_key,
     ))
+    if kind in ("overdue_invoice", "approval_needed"):
+        try:
+            from services.push import fanout_push
+            fanout_push(
+                session,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                kind=kind,
+                title=title,
+                body=body or title,
+                href=href,
+            )
+        except Exception as exc:
+            print(f"[push] fanout failed: {exc}")
     return True
 
 

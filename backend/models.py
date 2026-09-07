@@ -321,6 +321,27 @@ class UserAlert(SQLModel, table=True):
     read_at: Optional[datetime] = None
 
 
+class DeviceToken(SQLModel, table=True):
+    """Native (Capacitor) push token for overdue / approval fan-out (#307)."""
+    __tablename__ = "device_token"
+    __table_args__ = (
+        UniqueConstraint("token", name="uq_device_token_token"),
+        CheckConstraint(
+            "platform IN ('ios','android','web')",
+            name="ck_device_token_platform",
+        ),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    platform: str
+    token: str
+    device_name: Optional[str] = None
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_seen_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class AppUpdateNotice(SQLModel, table=True):
     """Global what's-new notice for a shipped commit — fans out to UserAlert (#update-notices)."""
     __tablename__ = "app_update_notice"

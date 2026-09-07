@@ -30,6 +30,8 @@ def test_comma_list_strips_and_uses_first_for_emails():
     assert "https://127.0.0.1" not in "".join(origins)
 
 
-def test_production_origin_unchanged():
+def test_production_origin_keeps_https_first():
     origins = parse_frontend_origins("https://books.example.com")
-    assert origins == ["https://books.example.com"]
+    assert origins[0] == "https://books.example.com"
+    assert "capacitor://localhost" in origins
+    assert "https://localhost" in origins

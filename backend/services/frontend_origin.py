@@ -11,6 +11,16 @@ import os
 
 _DEFAULT = "http://localhost:3000,http://127.0.0.1:3000"
 
+# Capacitor WebView origins when the shell loads local www/ (not a remote
+# server.url). Harmless extras when the PWA is hosted — CORS still keys off
+# the page origin for a remote URL wrapper.
+_CAPACITOR_ORIGINS = (
+    "capacitor://localhost",
+    "ionic://localhost",
+    "https://localhost",
+    "http://localhost",
+)
+
 
 def parse_frontend_origins(raw: str | None = None) -> list[str]:
     value = (raw if raw is not None else os.environ.get("FRONTEND_ORIGIN", "")).strip()
@@ -26,6 +36,9 @@ def parse_frontend_origins(raw: str | None = None) -> list[str]:
         twin = _localhost_twin(origin)
         if twin and twin not in origins and twin not in extras:
             extras.append(twin)
+    for cap in _CAPACITOR_ORIGINS:
+        if cap not in origins and cap not in extras:
+            extras.append(cap)
     return origins + extras
 
 

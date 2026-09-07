@@ -22,6 +22,7 @@ import GlobalSearch from "@/components/GlobalSearch"
 import AIChatButton from "@/components/AIChatButton"
 import CalculatorButton from "@/components/CalculatorButton"
 import OfflineBanner from "@/components/OfflineBanner"
+import CapacitorPush from "@/components/CapacitorPush"
 import QuotaBanner from "@/components/QuotaBanner"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -72,6 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <TabProvider>
                 <div className="flex flex-col h-screen overflow-hidden bg-[var(--bg-page)]">
                   <OfflineBanner />
+                  <CapacitorPush />
                   <QuotaBanner />
                   <TopNav />
 

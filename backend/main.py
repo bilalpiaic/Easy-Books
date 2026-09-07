@@ -32,7 +32,7 @@ from routers import (
     billing, portal, approvals, bank_feeds, agent_ext, inventory_depth,
     consolidation, leases, contract_assets, intercompany, india_gst,
     practice, custom_fields, form_schema, print_templates, ops_tenants,
-    compliance,
+    compliance, devices,
 )
 from routers.pra import pra_router
 from routers.uae_einvoice import uae_router
@@ -433,6 +433,7 @@ _ROUTERS = [
     search.router,
     ai_chat.router,
     alerts.router,
+    devices.router,
     tasks.router,
     billing.router,
     billing.stripe_router,

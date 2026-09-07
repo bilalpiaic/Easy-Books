@@ -49,6 +49,11 @@ backend/dist/
 desktop/resources/
 desktop/dist/
 desktop/node_modules/
+mobile/node_modules/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/ios/App/Pods/
+mobile/ios/App/build/
 
 # Session tooling scratch (brainstorm server state, handoff notes)
 .superpowers/

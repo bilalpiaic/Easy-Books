@@ -106,3 +106,31 @@ jobs:
       - name: Typecheck
         working-directory: frontend
         run: npx tsc --noEmit
+
+  mobile:
+    name: Mobile (Capacitor scaffolding)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install + sync wrapper
+        working-directory: mobile
+        run: |
+          npm ci
+          test -f capacitor.config.ts
+          test -f www/index.html
+          test -f store/STORE_LISTING.md
+          npx cap --version
+          # Generate native projects if missing (Linux can add android; ios is a template copy).
+          if [ ! -d android ]; then npx cap add android; fi
+          if [ ! -d ios ]; then npx cap add ios; fi
+          npx cap sync
+          test -d android
+          test -d ios
+          echo "Capacitor iOS+Android wrapper synced. Signed Play/App Store builds need ANDROID_KEYSTORE_BASE64 / Apple secrets (see mobile/scripts/ci-signed-build.sh)."

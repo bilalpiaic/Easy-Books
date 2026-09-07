@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  transpilePackages: ["@capacitor/core", "@capacitor/push-notifications"],
   async headers() {
     return [
       {
