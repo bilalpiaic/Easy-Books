@@ -1317,7 +1317,9 @@ export default function WorkflowPage() {
         bills, or payments. Manual journal entries give you direct access to the General Ledger for adjustments,
         accruals, and corrections. See the{" "}
         <Link href="/guide" className="text-[var(--primary)] underline underline-offset-2 hover:text-[#7a5c1e]">User Guide</Link>
-        {" "}for step-by-step instructions.
+        {" "}for step-by-step instructions, or the{" "}
+        <Link href="/settings/catalog" className="text-[var(--primary)] underline underline-offset-2 hover:text-[#7a5c1e]">Workflow Catalog</Link>
+        {" "}for snapshots tagged by tenant, segment, and report.
       </div>
     </div>
   )

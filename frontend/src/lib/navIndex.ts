@@ -123,6 +123,7 @@ const NAV_ALIASES: Record<string, string[]> = {
   "/practice":               ["practice", "clients", "switch company", "multi client", "accountant"],
   "/settings/permissions":   ["permissions", "user rights", "access matrix"],
   "/settings/studio":        ["studio", "settings studio", "custom fields", "form layout", "print templates", "customisation", "customization"],
+  "/settings/catalog":       ["catalog", "workflow catalog", "tags", "snapshots", "screenshots", "help gallery"],
   "/audit":                  ["audit log", "activity trail", "who changed"],
   "/alerts":                 ["alerts", "inbox", "notifications", "bell"],
   "/workflow":               ["approvals", "workflow"],
@@ -911,6 +912,11 @@ const REPORTS: NavResult[] = [
     id: "sys:studio", type: "nav", label: "Studio",
     sub: "Custom fields, form layout, and print templates", href: "/settings/studio",
     keywords: ["studio", "settings studio", "custom fields", "form layout", "print templates", "customisation", "customization", "x.gate_pass"],
+  },
+  {
+    id: "sys:catalog", type: "nav", label: "Workflow Catalog",
+    sub: "Snapshots and tags for every tenant, workflow, and report", href: "/settings/catalog",
+    keywords: ["catalog", "workflow catalog", "tags", "snapshots", "screenshots", "gallery", "help pictures"],
   },
   {
     id: "sys:imports", type: "nav", label: "CSV Import",
