@@ -1166,8 +1166,9 @@ export default function SettingsPage() {
         </h2>
         <p className="text-sm text-[var(--text-muted)] mb-4">
           Extra fields, form layout, and print templates for invoices, bills, customers,
-          products, and vendors. Marketplace listings (for example mill Weighbridge) can
-          apply a bundle here; you can still edit the overlay. Values never post to the GL.
+          products, and vendors. Marketplace listings (for example Weighbridge, available
+          to every tenant) can apply a bundle here; you can still edit the overlay.
+          Values never post to the GL.
         </p>
         <Link
           href="/settings/studio"

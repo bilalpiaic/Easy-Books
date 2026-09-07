@@ -13,7 +13,7 @@ export const ADDON_PACKS: AddonPack[] = [
     label: "Trader",
     tagline: "Buy & resell",
     modules: ["inventory", "pos"],
-    features: ["Products & stock", "Point of Sale register", "Inventory performance"],
+    features: ["Products & stock", "Point of Sale register", "Inventory performance", "Weighbridge tickets available in Optional / Marketplace"],
   },
   {
     id: "manufacturing",

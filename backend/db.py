@@ -257,7 +257,7 @@ def _ensure_mill_weighbridge_module(session: Session) -> None:
 
 
 def _ensure_mill_weighbridge_grants(session: Session) -> None:
-    """Idempotent: mill tenants may see Weighbridge without re-running seed_demo."""
+    """Idempotent mill grant. Listing is public; grants remain for ops/history."""
     from models import Tenant
     from services.marketplace.catalog import (
         MILL_WEIGHBRIDGE_MODELS,
@@ -764,8 +764,8 @@ MODULE_REGISTRY: dict[str, dict] = {
     },
     "weighbridge": {
         "label":       "Weighbridge",
-        "description": "Mill weighbridge tickets: vehicle in/out, first and second weigh, net Kg/Lbs/Bags, printable slip. Memo/ops in v1 — no GL posting.",
-        "category":    "Industry",
+        "description": "Weighbridge tickets: vehicle in/out, first and second weigh, net Kg/Lbs/Bags, printable slip. For mills, traders, and any site that weighs inbound/outbound loads. Memo/ops in v1 — no GL posting.",
+        "category":    "Operations",
         "icon":        "Scale",
         "deps":        ["base"],
         "always":      False,

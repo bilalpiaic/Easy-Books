@@ -843,9 +843,9 @@ function WeighbridgeFlow() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-[var(--text-primary)]/65 leading-relaxed">
-        First-party <b>Weighbridge</b> workspace (top nav) records mill tickets — first/second weigh,
-        net Kg/Lbs/Bags, printable slip. <b>No GL</b> in v1. The Marketplace listing stays the optional
-        invoice Gate pass overlay.
+        First-party <b>Weighbridge</b> workspace (top nav) records tickets for any tenant —
+        first/second weigh, net Kg/Lbs/Bags, printable slip. <b>No GL</b> in v1. The Marketplace
+        listing is public and stays the optional invoice Gate pass overlay.
       </p>
       <HFlow>
         <StepBox
@@ -874,8 +874,8 @@ function WeighbridgeFlow() {
         />
       </HFlow>
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-900 leading-relaxed">
-        Hospital and other non-mill tenants do not get the module (API 403, nav hidden).
-        Step-by-step: User Guide → Weighbridge tab.
+        Weighbridge is available to every tenant (traders included) from Add-ons → Optional or Marketplace.
+        Mills still get it pre-installed. Step-by-step: User Guide → Weighbridge tab.
       </div>
     </div>
   )

@@ -59,7 +59,7 @@ const TABS: Tab[] = [
   { id: "manufacturing",    label: "Manufacturing (V2)",     icon: Factory,         shortLabel: "Mfg",      forModels: ["manufacturing"] },
   { id: "telecom",          label: "Telecom Franchise (V3)",  icon: Radio,          shortLabel: "Telecom",  forModels: ["telecom_franchise"] },
   { id: "spinning",         label: "Yarn Spinning",           icon: CircleDot,      shortLabel: "Spinning", forModels: ["yarn_spinning"] },
-  { id: "weighbridge",      label: "Weighbridge",             icon: Scale,          shortLabel: "Weigh",    forModels: ["manufacturing", "yarn_spinning"] },
+  { id: "weighbridge",      label: "Weighbridge",             icon: Scale,          shortLabel: "Weigh"    },
   { id: "studio",           label: "Settings Studio",         icon: PenTool,        shortLabel: "Studio"   },
   { id: "bulk-statements",  label: "Bulk Actions & Statements", icon: ListChecks,   shortLabel: "Bulk"     },
   { id: "tips-shortcuts",   label: "Tips & Shortcuts",        icon: Keyboard,       shortLabel: "Tips"     },
@@ -1490,11 +1490,12 @@ function WeighbridgePanel() {
   return (
     <div>
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
-        Mills get a first-party <b>Weighbridge</b> workspace under its own top-nav section:
+        Every tenant can install a first-party <b>Weighbridge</b> workspace under its own top-nav section:
         tickets, first/second weigh, net Kg/Lbs/Bags, and a printable slip.
         v1 is <b>memo/ops</b> — it does <b>not</b> post to the General Ledger.
-        The private Marketplace listing (<CodeBadge>partner.easybooks.weighbridge</CodeBadge>)
-        remains the optional Studio overlay for Gate pass / Lot ref on <b>sales invoices</b>.
+        The Marketplace listing (<CodeBadge>partner.easybooks.weighbridge</CodeBadge>) is public for
+        all segments (traders included) and applies the optional Studio overlay for Gate pass / Lot ref
+        on <b>sales invoices</b>.
       </p>
 
       <SectionHeading>Day-to-day: weighbridge desk</SectionHeading>
@@ -1520,8 +1521,8 @@ function WeighbridgePanel() {
             {[
               ["Yarn spinning mill (this demo)", "Yes — pre-installed"],
               ["Manufacturing mill", "Yes — pre-installed"],
-              ["Install from Add-ons → Optional (entitled / enterprise)", "Yes"],
-              ["Hospital / simple / ungranted", "No — nav hidden, API 403"],
+              ["Trader / other segments", "Install from Add-ons → Optional or Marketplace"],
+              ["Not installed", "Nav hidden, API 403 until you install"],
             ].map(([who, sees]) => (
               <tr key={who} className="hover:bg-[#faf8f4]">
                 <td className="px-4 py-2.5 text-[var(--text-primary)]">{who}</td>
@@ -1549,7 +1550,7 @@ function WeighbridgePanel() {
       <MistakeCallout>
         <p>Expecting a live truck scale or ANPR — v1 is a ticket register only.</p>
         <p>Expecting the weigh to post a journal line — tickets never enter <CodeBadge>services/posting.py</CodeBadge>.</p>
-        <p>Looking only under Marketplace — the workspace is a first-party Optional / mill module with its own nav section.</p>
+        <p>Looking only under Marketplace — the ticket desk is also a first-party Optional module with its own nav section.</p>
       </MistakeCallout>
     </div>
   )
@@ -1561,7 +1562,7 @@ function StudioPanel() {
       <p className="text-sm text-[var(--text-primary)]/70 leading-relaxed">
         <b>Settings Studio</b> lets an admin/owner add extra <CodeBadge>x.*</CodeBadge> fields,
         hide or require form fields, and pick print templates — without forking the app.
-        Marketplace listings (for example mill Weighbridge) can apply a declarative bundle
+        Marketplace listings (for example Weighbridge, shown to every tenant) can apply a declarative bundle
         here. Custom values live on the document JSON and <b>never post to the GL</b>.
       </p>
 

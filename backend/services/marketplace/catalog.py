@@ -19,20 +19,9 @@ from services.marketplace.manifest import CatalogEntry, ExtensionManifest
 
 WEIGHBRIDGE_ID = "partner.easybooks.weighbridge"
 _PRIVATE_META_KEY = "_marketplace_private"
-# Mill models see the bundled Weighbridge card without a seed/ops grant
-# (demo mills created by db.py never got module_meta until this backfill).
+# Mill models still pre-install the first-party workspace; the Marketplace
+# listing itself is public (traders and other segments also need weighbridge).
 MILL_WEIGHBRIDGE_MODELS = frozenset({"manufacturing", "yarn_spinning"})
-
-
-def mill_tenant_sees_weighbridge(tenant: Tenant) -> bool:
-    """True for mill companies (and anyone who installed spinning)."""
-    if (tenant.business_model or "") in MILL_WEIGHBRIDGE_MODELS:
-        return True
-    try:
-        from routers.modules import _get_enabled
-        return "spinning" in _get_enabled(tenant)
-    except Exception:
-        return False
 
 
 def private_listing_ids(tenant: Tenant) -> set[str]:
@@ -113,8 +102,6 @@ def visible_to(entry: CatalogEntry, tenant: Tenant) -> bool:
         allowed = {int(i) for i in (entry.visible_to_tenant_ids or [])}
         allowed |= _env_private_tenant_ids(entry.manifest.id)
         if int(tid) in allowed:
-            return True
-        if entry.manifest.id == WEIGHBRIDGE_ID and mill_tenant_sees_weighbridge(tenant):
             return True
         return entry.manifest.id in private_listing_ids(tenant)
     if audience == "entitled":
@@ -267,10 +254,9 @@ _CURATED: list[dict[str, Any]] = [
         },
     },
     {
-        "summary": "Mill weighbridge overlay: gate-pass + lot on invoices. Declarative Studio bundle; no partner code.",
-        "tags": ["spinning", "private"],
-        "audience": "private",
-        "visible_to_tenant_ids": [],
+        "summary": "Weighbridge overlay: gate-pass + lot on invoices. Declarative Studio bundle; no partner code.",
+        "tags": ["weighbridge", "operations"],
+        "audience": "public",
         "studio": {
             "custom_fields": [
                 {
@@ -310,12 +296,12 @@ _CURATED: list[dict[str, Any]] = [
             "name": "Weighbridge",
             "version": "1.0.0",
             "description": (
-                "Private mill listing: installs invoice custom fields "
-                "(gate pass, lot ref) via a Studio bundle. Install never "
-                "executes partner code."
+                "Installs invoice custom fields (gate pass, lot ref) via a "
+                "Studio bundle. Available to every tenant — traders, mills, "
+                "and other segments. Install never executes partner code."
             ),
             "publisher": "Easy-Books Partners",
-            "category": "Industry",
+            "category": "Operations",
             "icon": "Scale",
             "homepage": "https://github.com/bilalpiaic/Easy-Books",
             "docs_url": "https://github.com/bilalpiaic/Easy-Books/blob/main/docs/MARKETPLACE.md",

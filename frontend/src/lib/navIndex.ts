@@ -564,8 +564,8 @@ const ACTIONS: NavResult[] = [
   },
   {
     id: "qa:weighbridge", type: "action", label: "Weighbridge",
-    sub: "Mill weighbridge tickets — first/second weigh + printable slip", href: "/weighbridge",
-    keywords: ["weighbridge", "weighbridge slip", "gate pass", "lot ref", "mill scale", "tare", "gross", "ticket"],
+    sub: "Weighbridge tickets — first/second weigh + printable slip", href: "/weighbridge",
+    keywords: ["weighbridge", "weighbridge slip", "gate pass", "lot ref", "scale", "tare", "gross", "ticket"],
   },
   {
     id: "qa:weighbridge-new", type: "action", label: "New Weighbridge Ticket",
