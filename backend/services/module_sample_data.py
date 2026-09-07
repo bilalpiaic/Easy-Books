@@ -94,6 +94,24 @@ def seed_module_sample(session: Session, user: User, module_id: str) -> dict[str
                 _set_setting(session, tid, "in_state_code", "27")
             if not _get_setting_value(session, tid, "in_gstin"):
                 _set_setting(session, tid, "in_gstin", "27AAAAA0000A1Z5")
+        elif module_id == "uk_mtd":
+            _set_setting(session, tid, "uk_mtd_enabled", "true")
+            _set_setting(session, tid, "uk_mtd_sandbox_mode", "true")
+            if not _get_setting_value(session, tid, "uk_mtd_vrn"):
+                _set_setting(session, tid, "uk_mtd_vrn", "123456789")
+            if not _get_setting_value(session, tid, "currency"):
+                _set_setting(session, tid, "currency", "GBP")
+            if not _get_setting_value(session, tid, "country"):
+                _set_setting(session, tid, "country", "GB")
+        elif module_id == "my_invois":
+            _set_setting(session, tid, "my_invois_enabled", "true")
+            _set_setting(session, tid, "my_invois_sandbox_mode", "true")
+            if not _get_setting_value(session, tid, "my_invois_tin"):
+                _set_setting(session, tid, "my_invois_tin", "C12345678901")
+            if not _get_setting_value(session, tid, "currency"):
+                _set_setting(session, tid, "currency", "MYR")
+            if not _get_setting_value(session, tid, "country"):
+                _set_setting(session, tid, "country", "MY")
         elif module_id == "eu_peppol":
             _set_setting(session, tid, "peppol_enabled", "true")
             _set_setting(session, tid, "peppol_sandbox_mode", "true")
@@ -194,3 +212,17 @@ def enable_india_gst_settings(session: Session, tenant_id: int) -> None:
     from services.india_gst import enable_india_gst_settings as _enable
 
     _enable(session, tenant_id)
+
+
+def enable_uk_mtd_settings(session: Session, tenant_id: int) -> None:
+    """Turn on sandbox HMRC MTD flags when the uk_mtd module is installed."""
+    _set_setting(session, tenant_id, "uk_mtd_enabled", "true")
+    _set_setting(session, tenant_id, "uk_mtd_sandbox_mode", "true")
+    session.commit()
+
+
+def enable_my_invois_settings(session: Session, tenant_id: int) -> None:
+    """Turn on sandbox MyInvois flags when the my_invois module is installed."""
+    _set_setting(session, tenant_id, "my_invois_enabled", "true")
+    _set_setting(session, tenant_id, "my_invois_sandbox_mode", "true")
+    session.commit()

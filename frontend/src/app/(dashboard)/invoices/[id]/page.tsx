@@ -84,6 +84,13 @@ interface Invoice {
   peppol_status: string | null
   peppol_document_id: string | null
   peppol_submitted_at: string | null
+  uk_mtd_status: string | null
+  uk_mtd_period: string | null
+  uk_mtd_correlation_id: string | null
+  uk_mtd_submitted_at: string | null
+  my_invois_status: string | null
+  my_invois_uuid: string | null
+  my_invois_submitted_at: string | null
   allocation_audit?: {
     method: string
     transaction_price: number
@@ -139,6 +146,38 @@ const PEPPOL_STATUS_LABEL: Record<string, string> = {
   error:     "Peppol Error",
 }
 
+const UK_MTD_STATUS_TONE: Record<string, string> = {
+  pending:   "bg-amber-50 text-amber-800 border-amber-300",
+  submitted: "bg-blue-50 text-blue-800 border-blue-300",
+  accepted:  "bg-emerald-50 text-emerald-800 border-emerald-300",
+  rejected:  "bg-red-50 text-red-800 border-red-300",
+  error:     "bg-red-50 text-red-800 border-red-300",
+}
+
+const UK_MTD_STATUS_LABEL: Record<string, string> = {
+  pending:   "MTD Pending",
+  submitted: "MTD Submitted",
+  accepted:  "MTD Accepted",
+  rejected:  "MTD Rejected",
+  error:     "MTD Error",
+}
+
+const MY_INVOIS_STATUS_TONE: Record<string, string> = {
+  pending:   "bg-amber-50 text-amber-800 border-amber-300",
+  submitted: "bg-blue-50 text-blue-800 border-blue-300",
+  accepted:  "bg-emerald-50 text-emerald-800 border-emerald-300",
+  rejected:  "bg-red-50 text-red-800 border-red-300",
+  error:     "bg-red-50 text-red-800 border-red-300",
+}
+
+const MY_INVOIS_STATUS_LABEL: Record<string, string> = {
+  pending:   "MyInvois Pending",
+  submitted: "MyInvois Submitted",
+  accepted:  "MyInvois Accepted",
+  rejected:  "MyInvois Rejected",
+  error:     "MyInvois Error",
+}
+
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { confirm, toast } = useMessages()
   const { t } = useTranslation()
@@ -158,10 +197,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [zatcaSubmitting, setZatcaSubmitting] = useState(false)
   const [peppolSubmitting, setPeppolSubmitting] = useState(false)
   const [peppolExporting, setPeppolExporting] = useState(false)
+  const [ukMtdSubmitting, setUkMtdSubmitting] = useState(false)
+  const [myInvoisSubmitting, setMyInvoisSubmitting] = useState(false)
   const { installedModules } = useModules()
   const uaeInstalled = installedModules.has("uae_vat")
   const zatcaInstalled = installedModules.has("sa_zatca")
   const peppolInstalled = installedModules.has("eu_peppol")
+  const ukMtdInstalled = installedModules.has("uk_mtd")
+  const myInvoisInstalled = installedModules.has("my_invois")
   const [selectedAtt, setSelectedAtt] = useState<AttachmentT | null>(null)
   const [history, setHistory] = useState<AuditEntry[]>([])
   const [disputes, setDisputes] = useState<PortalDispute[]>([])
@@ -594,6 +637,102 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               </button>
               {inv.peppol_document_id && (
                 <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">Doc: {inv.peppol_document_id}</div>
+              )}
+            </div>
+          )}
+          {ukMtdInstalled && (
+            <div className="flex flex-col items-end gap-1">
+              {inv.uk_mtd_status && (
+                <span className={`inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold ${UK_MTD_STATUS_TONE[inv.uk_mtd_status] ?? ""}`}>
+                  {UK_MTD_STATUS_LABEL[inv.uk_mtd_status] ?? inv.uk_mtd_status}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  setUkMtdSubmitting(true)
+                  setError(null)
+                  try {
+                    const r = await apiFetch<{
+                      success: boolean
+                      uk_mtd_status?: string
+                      uk_mtd_period?: string
+                      uk_mtd_correlation_id?: string
+                      error_message?: string
+                    }>(`/api/uk-mtd/invoices/${inv.id}/submit`, { method: "POST" })
+                    setInv(prev => prev ? {
+                      ...prev,
+                      uk_mtd_status: r.uk_mtd_status ?? prev.uk_mtd_status,
+                      uk_mtd_period: r.uk_mtd_period ?? prev.uk_mtd_period,
+                      uk_mtd_correlation_id: r.uk_mtd_correlation_id ?? prev.uk_mtd_correlation_id,
+                    } : prev)
+                    if (!r.success && r.error_message) {
+                      setError(r.error_message)
+                    }
+                  } catch (e: unknown) {
+                    setError(String((e as Error).message ?? e))
+                  } finally {
+                    setUkMtdSubmitting(false)
+                  }
+                }}
+                disabled={ukMtdSubmitting}
+                className="text-[10px] font-semibold text-[var(--text-link)] hover:underline disabled:opacity-50 text-left"
+              >
+                {ukMtdSubmitting
+                  ? "Submitting…"
+                  : inv.uk_mtd_status === "accepted"
+                    ? "Re-submit to HMRC"
+                    : "Submit to HMRC (MTD)"}
+              </button>
+              {inv.uk_mtd_correlation_id && (
+                <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">MTD: {inv.uk_mtd_correlation_id}</div>
+              )}
+            </div>
+          )}
+          {myInvoisInstalled && (
+            <div className="flex flex-col items-end gap-1">
+              {inv.my_invois_status && (
+                <span className={`inline-block border rounded-full px-2 py-0.5 text-[10px] font-semibold ${MY_INVOIS_STATUS_TONE[inv.my_invois_status] ?? ""}`}>
+                  {MY_INVOIS_STATUS_LABEL[inv.my_invois_status] ?? inv.my_invois_status}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  setMyInvoisSubmitting(true)
+                  setError(null)
+                  try {
+                    const r = await apiFetch<{
+                      success: boolean
+                      my_invois_status?: string
+                      my_invois_uuid?: string
+                      error_message?: string
+                    }>(`/api/my-invois/invoices/${inv.id}/submit`, { method: "POST" })
+                    setInv(prev => prev ? {
+                      ...prev,
+                      my_invois_status: r.my_invois_status ?? prev.my_invois_status,
+                      my_invois_uuid: r.my_invois_uuid ?? prev.my_invois_uuid,
+                    } : prev)
+                    if (!r.success && r.error_message) {
+                      setError(r.error_message)
+                    }
+                  } catch (e: unknown) {
+                    setError(String((e as Error).message ?? e))
+                  } finally {
+                    setMyInvoisSubmitting(false)
+                  }
+                }}
+                disabled={myInvoisSubmitting}
+                className="text-[10px] font-semibold text-[var(--text-link)] hover:underline disabled:opacity-50 text-left"
+              >
+                {myInvoisSubmitting
+                  ? "Submitting…"
+                  : inv.my_invois_status === "accepted"
+                    ? "Re-submit to MyInvois"
+                    : "Submit to MyInvois"}
+              </button>
+              {inv.my_invois_uuid && (
+                <div className="text-[10px] text-[var(--text-primary)]/50 font-mono">UUID: {inv.my_invois_uuid}</div>
               )}
             </div>
           )}

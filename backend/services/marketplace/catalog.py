@@ -254,6 +254,47 @@ _CURATED: list[dict[str, Any]] = [
         },
     },
     {
+        "summary": "Surface the UK MTD VAT first-party localization pack.",
+        "tags": ["uk", "mtd", "vat", "hmrc", "first-party"],
+        "first_party_module": "uk_mtd",
+        "manifest": {
+            "id": "partner.easybooks.uk-mtd-bridge",
+            "name": "UK MTD VAT (first-party)",
+            "version": "1.0.0",
+            "description": (
+                "Installs the built-in HMRC Making Tax Digital VAT return boxes "
+                "+ sandbox submit pack."
+            ),
+            "publisher": "Easy-Books",
+            "category": "Localization",
+            "icon": "Landmark",
+            "requires_modules": ["uk_mtd"],
+            "requested_permissions": ["read_invoices"],
+            "settings_keys": [],
+            "curated": True,
+        },
+    },
+    {
+        "summary": "Surface the Malaysia MyInvois first-party localization pack.",
+        "tags": ["malaysia", "myinvois", "lhdn", "einvoice", "first-party"],
+        "first_party_module": "my_invois",
+        "manifest": {
+            "id": "partner.easybooks.my-invois-bridge",
+            "name": "Malaysia MyInvois (first-party)",
+            "version": "1.0.0",
+            "description": (
+                "Installs the built-in LHDN MyInvois e-invoice sandbox submit pack."
+            ),
+            "publisher": "Easy-Books",
+            "category": "Localization",
+            "icon": "FileCheck",
+            "requires_modules": ["my_invois"],
+            "requested_permissions": ["read_invoices"],
+            "settings_keys": [],
+            "curated": True,
+        },
+    },
+    {
         "summary": "Weighbridge overlay: gate-pass + lot on invoices. Declarative Studio bundle; no partner code.",
         "tags": ["weighbridge", "operations"],
         "audience": "public",

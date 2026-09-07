@@ -874,6 +874,16 @@ const REPORTS: NavResult[] = [
     keywords: ["peppol", "ubl", "bis billing", "eu", "access point", "einvoice log", "output"],
   },
   {
+    id: "rpt:uk-mtd-logs", type: "report", label: "UK MTD Submission Logs",
+    sub: "HMRC VAT return and invoice sandbox attempts", href: "/uk-mtd/logs",
+    keywords: ["uk mtd", "hmrc", "vat return", "making tax digital", "einvoice log", "output"],
+  },
+  {
+    id: "rpt:my-invois-logs", type: "report", label: "MyInvois Submission Logs",
+    sub: "LHDN MyInvois document submits", href: "/my-invois/logs",
+    keywords: ["myinvois", "malaysia", "lhdn", "einvoice log", "sst", "output"],
+  },
+  {
     id: "sys:settings", type: "nav", label: "Settings",
     sub: "Company, accounting & preferences", href: "/settings",
     keywords: ["settings", "preferences", "configuration", "setup", "company settings"],

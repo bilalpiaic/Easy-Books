@@ -72,6 +72,20 @@ export const ADDON_PACKS: AddonPack[] = [
     features: ["BIS Billing 3.0 UBL", "Peppol Sales dashboard", "Access Point logs"],
   },
   {
+    id: "uk_mtd",
+    label: "UK MTD VAT",
+    tagline: "UK localization",
+    modules: ["uk_mtd"],
+    features: ["VAT return boxes 1–9", "HMRC sandbox submit", "Obligation logs"],
+  },
+  {
+    id: "my_invois",
+    label: "Malaysia MyInvois",
+    tagline: "Malaysia localization",
+    modules: ["my_invois"],
+    features: ["LHDN sandbox submit", "UUID tracking", "Submission logs"],
+  },
+  {
     id: "yarn_spinning",
     label: "Yarn Spinning",
     tagline: "Spinning mill",

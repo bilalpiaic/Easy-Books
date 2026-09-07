@@ -48,7 +48,8 @@ def test_module_tools_smoke(client: TestClient):
     # deps are installed recursively by the modules router
     _install(client, auth, "inventory", "production", "hrm", "telecom",
              "healthcare", "purchase_store", "weaving", "spinning", "pra",
-             "textile_processing", "sa_zatca", "eu_peppol", "uae_vat", "in_gst")
+             "textile_processing", "sa_zatca", "eu_peppol", "uae_vat", "in_gst",
+             "uk_mtd", "my_invois")
 
     r = client.post("/api/products", headers=auth,
                     json={"name": "Widget", "product_type": "stock"})
@@ -172,6 +173,11 @@ def test_module_tools_smoke(client: TestClient):
             "get_invoice_uae_status": {"invoice_id": invoice_id},
             "get_gstr1": {"start": "2026-07-01", "end": "2026-07-31"},
             "get_gstr3b": {"start": "2026-07-01", "end": "2026-07-31"},
+            "get_uk_mtd_logs": {},
+            "get_invoice_uk_mtd_status": {"invoice_id": invoice_id},
+            "get_uk_mtd_vat_return": {"period_key": "2026-Q3"},
+            "get_my_invois_logs": {},
+            "get_invoice_my_invois_status": {"invoice_id": invoice_id},
             # pra
             "get_pra_logs": {},
             "get_invoice_pra_status": {"invoice_id": invoice_id},

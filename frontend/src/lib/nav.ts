@@ -21,7 +21,7 @@ export type NavItem = {
   icon: React.ElementType
   section: string
   /** Module ID — item is hidden when this module is not installed. */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "uk_mtd" | "my_invois" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
   /** Visible when *any* of these modules is installed (Operations home). */
   forAnyModule?: readonly string[]
   /** Module ID — item is hidden when this module IS installed (dual-home entries). */
@@ -182,6 +182,10 @@ export const NAV: NavItem[] = [
   { label: "ZATCA Logs",       href: "/zatca/logs",        icon: Landmark,         section: "ZATCA",     forModule: "sa_zatca" },
   { label: "Peppol Dashboard", href: "/peppol",            icon: LayoutDashboard,  section: "Peppol",    forModule: "eu_peppol" },
   { label: "Peppol Logs",      href: "/peppol/logs",       icon: Globe,            section: "Peppol",    forModule: "eu_peppol" },
+  { label: "UK MTD Dashboard", href: "/uk-mtd",            icon: LayoutDashboard,  section: "UK MTD",    forModule: "uk_mtd" },
+  { label: "UK MTD Logs",      href: "/uk-mtd/logs",       icon: Landmark,         section: "UK MTD",    forModule: "uk_mtd" },
+  { label: "MyInvois Dashboard", href: "/my-invois",       icon: LayoutDashboard,  section: "MyInvois",  forModule: "my_invois" },
+  { label: "MyInvois Logs",    href: "/my-invois/logs",    icon: FileCheck,        section: "MyInvois",  forModule: "my_invois" },
   // Payroll
   { label: "Overview",         href: "/hrm",               icon: LayoutGrid,       section: "Payroll",   forModule: "hrm" },
   { label: "Payroll Runs",     href: "/payroll",           icon: Briefcase,        section: "Payroll",   forModule: "hrm" },
@@ -259,7 +263,7 @@ export const NAV: NavItem[] = [
 export const ALL_SECTIONS = [
   "Overview", "Ledger", "Reports", "Banking", "Receivable", "Payable", "Purchases",
   "Store", "Weighbridge", "Spinning", "Weaving", "Processing", "POS", "eCommerce", "Manufacturing", "Inventory", "Payroll",
-  "Healthcare", "Telecom", "PRA", "UAE", "ZATCA", "Peppol", "India GST",
+  "Healthcare", "Telecom", "PRA", "UAE", "ZATCA", "Peppol", "UK MTD", "MyInvois", "India GST",
   "System",
 ]
 
@@ -292,7 +296,7 @@ export type TopNavSection = {
   /** Shorter label for the crowded top-nav strip; full `label` used in menus. */
   shortLabel?: string
   /** If present, only visible when this module is installed */
-  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
+  forModule?: "inventory" | "production" | "hrm" | "telecom" | "pra" | "uae_vat" | "sa_zatca" | "in_gst" | "eu_peppol" | "uk_mtd" | "my_invois" | "healthcare" | "purchase_store" | "ai_assistant" | "weaving" | "spinning" | "weighbridge" | "textile_processing" | "pos" | "ecommerce"
 }
 
 /** Core sections always shown + module-gated sections shown inline */
@@ -319,6 +323,8 @@ export const TOP_NAV: TopNavSection[] = [
   { key: "uae",           label: "UAE VAT",       shortLabel: "UAE", forModule: "uae_vat" },
   { key: "zatca",         label: "ZATCA",         shortLabel: "ZATCA", forModule: "sa_zatca" },
   { key: "peppol",        label: "Peppol",        shortLabel: "Peppol", forModule: "eu_peppol" },
+  { key: "uk_mtd",        label: "UK MTD",        shortLabel: "MTD", forModule: "uk_mtd" },
+  { key: "my_invois",     label: "MyInvois",      shortLabel: "MyInvois", forModule: "my_invois" },
   { key: "india_gst",     label: "India GST",     shortLabel: "GST", forModule: "in_gst" },
   { key: "system",        label: "System"        },
 ]
@@ -350,6 +356,8 @@ export const NAV_SECTION_ORDER: string[] = [
   "uae",
   "zatca",
   "peppol",
+  "uk_mtd",
+  "my_invois",
   "india_gst",
   "system",
 ]
@@ -391,6 +399,8 @@ const SECTION_PREFIXES: Record<string, string[]> = {
   uae:           ["/uae"],
   zatca:         ["/zatca"],
   peppol:        ["/peppol"],
+  uk_mtd:        ["/uk-mtd"],
+  my_invois:     ["/my-invois"],
   india_gst:     ["/india-gst"],
   system:        ["/settings", "/team", "/practice", "/profile", "/imports", "/guide", "/apps", "/payment-terms", "/tax-codes", "/audit", "/approvals", "/workflow", "/agent"],
 }
@@ -439,6 +449,8 @@ export function getSectionHref(key: string): string {
     uae:           "/uae",
     zatca:         "/zatca",
     peppol:        "/peppol",
+    uk_mtd:        "/uk-mtd",
+    my_invois:     "/my-invois",
     india_gst:     "/india-gst",
     system:        "/settings",
   }
@@ -662,6 +674,14 @@ export const SUB_NAV: Record<string, NavItem[]> = {
   peppol: [
     { label: "Peppol Dashboard", href: "/peppol",      icon: LayoutDashboard, section: "peppol", forModule: "eu_peppol" },
     { label: "Peppol Logs",      href: "/peppol/logs", icon: Globe,           section: "peppol", forModule: "eu_peppol" },
+  ],
+  uk_mtd: [
+    { label: "UK MTD Dashboard", href: "/uk-mtd",      icon: LayoutDashboard, section: "uk_mtd", forModule: "uk_mtd" },
+    { label: "UK MTD Logs",      href: "/uk-mtd/logs", icon: Landmark,        section: "uk_mtd", forModule: "uk_mtd" },
+  ],
+  my_invois: [
+    { label: "MyInvois Dashboard", href: "/my-invois",      icon: LayoutDashboard, section: "my_invois", forModule: "my_invois" },
+    { label: "MyInvois Logs",      href: "/my-invois/logs", icon: FileCheck,       section: "my_invois", forModule: "my_invois" },
   ],
   india_gst: [
     { label: "GST Dashboard", href: "/india-gst",      icon: LayoutDashboard, section: "india_gst", forModule: "in_gst" },

@@ -474,6 +474,32 @@ AGENTS: dict[str, AgentDef] = {
         tools=("get_gstr1", "get_gstr3b"),
         required_module="in_gst",
     ),
+    "uk_mtd_vat": AgentDef(
+        key="uk_mtd_vat",
+        label="UK MTD VAT Agent",
+        trigger_hint=(
+            "UK Making Tax Digital VAT: period VAT return boxes, HMRC submission logs, invoice MTD status."
+        ),
+        system_prompt_fragment=(
+            "You specialize in UK MTD VAT. Use get_uk_mtd_vat_return for boxes 1–9, "
+            "get_uk_mtd_logs and get_invoice_uk_mtd_status. Do not submit returns."
+        ),
+        tools=("get_uk_mtd_logs", "get_invoice_uk_mtd_status", "get_uk_mtd_vat_return"),
+        required_module="uk_mtd",
+    ),
+    "my_invois": AgentDef(
+        key="my_invois",
+        label="MyInvois Compliance Agent",
+        trigger_hint=(
+            "Malaysia LHDN MyInvois e-invoice compliance: submission logs and invoice UUID/status."
+        ),
+        system_prompt_fragment=(
+            "You specialize in MyInvois e-invoice compliance. Use get_my_invois_logs and "
+            "get_invoice_my_invois_status. Do not submit invoices."
+        ),
+        tools=("get_my_invois_logs", "get_invoice_my_invois_status"),
+        required_module="my_invois",
+    ),
     "general": AgentDef(
         key="general",
         label="Assistant",

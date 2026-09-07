@@ -145,6 +145,10 @@ export const TITLE_MAP: Record<string, string> = {
   "/zatca/logs":                   "ZATCA Submission Logs",
   "/peppol":                       "Peppol Dashboard",
   "/peppol/logs":                  "Peppol Submission Logs",
+  "/uk-mtd":                       "UK MTD Dashboard",
+  "/uk-mtd/logs":                  "UK MTD Submission Logs",
+  "/my-invois":                    "MyInvois Dashboard",
+  "/my-invois/logs":               "MyInvois Submission Logs",
   "/india-gst":                    "India GST Dashboard",
   // Healthcare
   "/healthcare":                   "Healthcare Overview",

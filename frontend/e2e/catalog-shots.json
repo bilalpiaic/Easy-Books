@@ -125,6 +125,16 @@
     "tenant": "services"
   },
   {
+    "id": "hospital--uk-mtd",
+    "path": "/uk-mtd",
+    "tenant": "hospital"
+  },
+  {
+    "id": "processing--my-invois",
+    "path": "/my-invois",
+    "tenant": "processing"
+  },
+  {
     "id": "trader--india-gst",
     "path": "/india-gst",
     "tenant": "trader"
@@ -753,6 +763,16 @@
     "id": "services--peppol-logs",
     "path": "/peppol/logs",
     "tenant": "services"
+  },
+  {
+    "id": "hospital--uk-mtd-logs",
+    "path": "/uk-mtd/logs",
+    "tenant": "hospital"
+  },
+  {
+    "id": "processing--my-invois-logs",
+    "path": "/my-invois/logs",
+    "tenant": "processing"
   },
   {
     "id": "hospital--employees",

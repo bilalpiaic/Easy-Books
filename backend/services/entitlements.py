@@ -36,6 +36,8 @@ PLAN_MODULES: dict[str, list[str] | None] = {
         "in_gst",
         "eu_peppol",
         "uae_vat",
+        "uk_mtd",
+        "my_invois",
     ],
     "enterprise": None,
 }
