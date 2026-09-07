@@ -35,9 +35,11 @@ else:
             "Point it at Neon Postgres (pooled connection string). "
             "SQLite fallback is not supported for serverless deployments."
         )
-    from local_config import sqlite_path
+    from sqlalchemy import event
+    from local_config import configure_sqlite_connection, sqlite_connect_args, sqlite_path
     sqlite_url = f"sqlite:///{sqlite_path()}"
-    engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
+    engine = create_engine(sqlite_url, connect_args=sqlite_connect_args())
+    event.listen(engine, "connect", lambda conn, _: configure_sqlite_connection(conn))
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

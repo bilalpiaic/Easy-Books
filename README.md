@@ -246,6 +246,17 @@ On first install the 9 demo companies are loaded automatically (takes ~20–30 s
 
 Pass `--rebuild` (sh) / `-Rebuild` (ps1) to force a fresh frontend build after a source update.
 
+#### Cloud-folder books (OneDrive / Google Drive)
+
+Consumer cloud drives **sync files**; they do not run the backend. To keep
+SQLite on a synced folder and still launch from this PC:
+
+1. Copy `easy-books-portable.env.example` → `easy-books-portable.env` (set `EB_DATA_DIR` if the books should live on a different Drive).
+2. First time: `./install-and-run.sh` / `install-and-run.bat`.
+3. Daily: double-click `launch-cloud.bat` or run `./launch-cloud.sh` (opens the UI; starts the API if it is down). `./launch-cloud.sh --open` only opens the browser.
+
+See [`DEPLOYMENT_CLOUD.md`](./DEPLOYMENT_CLOUD.md) for SQLite lock rules, “always-on” options, and why two PCs must not write the same file at once.
+
 #### Electron desktop app
 
 A bundled Electron desktop app (Phase 2) packages the FastAPI backend as a PyInstaller binary and the Next.js standalone server with a bundled Node into a signed Windows `.exe` / macOS `.dmg` installer — no terminal, no internet fetch. Releases are published automatically to GitHub Releases by the CI pipeline (`.github/workflows/release.yml`) when a `v*` tag is pushed. See [`DEPLOYMENT_LOCAL.md`](./DEPLOYMENT_LOCAL.md#phase-2--bundled-desktop-installer-build--release) for build and release details.

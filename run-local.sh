@@ -11,6 +11,8 @@
 # Data (SQLite db, uploads, per-install secret) lives under $EB_DATA_DIR.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+. "$ROOT/portable/apply-env.sh"
 
 export EB_DATA_DIR="${EB_DATA_DIR:-$HOME/.easy-books}"
 export SEED_DEMO="${SEED_DEMO:-false}"     # packaged installs boot empty

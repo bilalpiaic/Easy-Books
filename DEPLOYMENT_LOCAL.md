@@ -132,6 +132,16 @@ step-by-step setup.
 - **Cons:** requires Docker (+ Docker Compose plugin) on the server machine; not double-click friendly for end users.
 - **Best for:** small-to-medium offices sharing one accounting instance (up to ~20 concurrent users on SQLite; add `DATABASE_URL` for PostgreSQL for larger teams).
 
+### Path E — Books on OneDrive / Google Drive + local processes ✅
+
+Consumer cloud storage cannot host FastAPI. **Path E** keeps SQLite (and optionally
+the git checkout) on a synced folder while this PC runs the servers. Daily
+launcher: `launch-cloud.bat` / `./launch-cloud.sh`. Frontend-only:
+`launch-cloud --open` after `--backend` is in Login Items / Startup.
+
+See **[`DEPLOYMENT_CLOUD.md`](./DEPLOYMENT_CLOUD.md)** (layouts, SQLite lock,
+always-on alternatives).
+
 ### Path D — Bring-your-own-server install script
 A guided `curl | bash` (or script) that provisions the same app on a customer VPS/NAS. Complements
 the others rather than replacing them. **Effort:** Low.
@@ -164,6 +174,7 @@ the others rather than replacing them. **Effort:** Low.
 | **Phase 1 — Server edition (Path C)** | Docker Compose (nginx + FastAPI + Next.js) — single-command office/team deploy; SQLite default, PostgreSQL via env var; auto-migration on startup. | ✅ Complete |
 | **Phase 2 — Desktop edition (Path A)** | Electron shell + PyInstaller backend + bundled Node; Windows NSIS `.exe` + macOS `.dmg`; auto-update via GitHub Releases. | ✅ Complete |
 | **Phase 3 — polish** | License-file check; trial→paid activation; opt-in telemetry; HTTPS/TLS config guide. | 🔲 Planned |
+| **Path E — cloud-folder books** | Portable `EB_DATA_DIR` + `launch-cloud` + cloud-safe SQLite + instance lock. | ✅ Documented + shipped |
 
 ## Resolved decisions (Phase 2 complete)
 
