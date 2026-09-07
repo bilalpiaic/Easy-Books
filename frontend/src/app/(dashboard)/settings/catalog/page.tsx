@@ -140,6 +140,7 @@ export default function CatalogPage() {
           <button
             key={k.id}
             type="button"
+            data-kind={k.id}
             onClick={() => setKind(k.id)}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
               kind === k.id
