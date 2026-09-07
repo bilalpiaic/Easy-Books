@@ -65,33 +65,31 @@ Rules enforced at validation time:
 | `entitled` | Tenants that have `entitled_module` entitled **or** installed |
 | `private` | Granted tenants (`visible_to_tenant_ids`, ops `module_meta._marketplace_private`, or `MARKETPLACE_PRIVATE_AUDIENCE`) |
 
-Private mill listings use topical tags (`spinning`, `private`) plus badge **For you**. Do **not** tag with tenant slugs or `customized-tenant`. Marketplace lists **products**, never tenants.
+Private listings use topical tags (for example `spinning`, `private`) plus badge **For you**. Do **not** tag with tenant slugs or `customized-tenant`. Marketplace lists **products**, never tenants.
 
-Empty `visible_to_tenant_ids` on a bundled private row is **fail-closed**. Ops grant the listing with `PUT /api/ops/tenants/{id}/marketplace-private` (`extension_ids`), which stores ids on `tenant.module_meta._marketplace_private`. Demo seed and boot-time backfill grant **Weighbridge** (`partner.easybooks.weighbridge`) to manufacturing and yarn-spinning tenants. Those mill models also pass the catalog `visible_to` check without a grant, so an existing demo DB shows the card after deploy (no re-seed). Hospital and other models stay fail-closed. Optional env overlay:
+Empty `visible_to_tenant_ids` on a bundled private row is **fail-closed**. Ops grant a private listing with `PUT /api/ops/tenants/{id}/marketplace-private` (`extension_ids`), which stores ids on `tenant.module_meta._marketplace_private`. Optional env overlay:
 
 ```
-MARKETPLACE_PRIVATE_AUDIENCE={"partner.easybooks.weighbridge":[12]}
+MARKETPLACE_PRIVATE_AUDIENCE={"partner.acme.example":[12]}
 ```
 
-Hospital (and any ungranted tenant) `GET /api/marketplace/catalog` JSON **does not include** that listing id. Install by another tenant returns 404.
+Hospital (and any ungranted tenant) `GET /api/marketplace/catalog` JSON **does not include** private listing ids. Install of a hidden listing returns 404.
 
-## Weighbridge — how a mill user uses it
+## Weighbridge — how any tenant uses it
 
-**Weighbridge** is the bundled private mill listing (`partner.easybooks.weighbridge`). It ships a `studio` bundle: invoice **Gate pass** (`x.gate_pass_no`, required, printed) and **Lot ref** (`x.lot_ref`, optional, form-only). Install writes `CustomFieldDef` rows; uninstall archives them. Values never post to the GL. No partner code runs.
+**Weighbridge** is a **public** listing (`partner.easybooks.weighbridge`). It ships a `studio` bundle: invoice **Gate pass** (`x.gate_pass_no`, required, printed) and **Lot ref** (`x.lot_ref`, optional, form-only). Install writes `CustomFieldDef` rows; uninstall archives them. Values never post to the GL. No partner code runs.
 
-Mills also have a first-party **Weighbridge** module (`weighbridge`) — ticket workspace under its own nav section (#391). The listing is the invoice overlay; the module is the scale desk. See [USER_GUIDE.md §41](../USER_GUIDE.md#41-weighbridge-mill-workspace).
+The first-party **Weighbridge** module (`weighbridge`) is the ticket workspace under its own nav section (#391). Mills get it pre-installed; other segments install it from Add-ons → Optional. The listing is the invoice overlay; the module is the scale desk. See [USER_GUIDE.md §41](../USER_GUIDE.md#41-weighbridge-mill-workspace).
 
 **User path**
 
-1. Log in as a mill (`demo.manufacturing@easy-books.app` or `demo.spinning@easy-books.app` / `demo1234`).
-2. **System → Add-ons** (Marketplace auto-opens when **For you** listings exist), or Ctrl+K → `weighbridge`, or `/apps?tab=marketplace`.
+1. Log in as any tenant (demo trader: `demo.trader@easy-books.app` / `demo1234`, or a mill demo).
+2. **System → Add-ons** → **Marketplace**, or Ctrl+K → `weighbridge`, or `/apps?tab=marketplace`.
 3. **Install** Weighbridge.
 4. **Sales → New Invoice** — enter Gate pass (required) and Lot ref (optional); save/post as usual.
-5. Print the invoice to see Gate pass. Tweak labels/visibility in **Settings → Studio**.
+5. Print the invoice to see Gate pass. Tweak labels/visibility, or add extra `x.*` keys from the Studio Add Field LOV, in **Settings → Studio**.
 
-Manufacturing and yarn-spinning tenants pass `visible_to` even without a seed grant (boot-time backfill still writes `_marketplace_private`). See [USER_GUIDE.md §41](../USER_GUIDE.md#41-weighbridge-mill-marketplace-listing).
-
-Install of a hidden listing returns 404 for other tenants (same `visible_to` gate as the catalog).
+Install of a *private* hidden listing still returns 404 for other tenants (same `visible_to` gate as the catalog).
 
 When `first_party_module` is set (e.g. `"pra"`), **Install** calls the existing
 `/api/modules/{id}/install` path — the marketplace is a discovery surface for
