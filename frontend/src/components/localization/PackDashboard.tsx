@@ -23,6 +23,10 @@ export type PackInvoice = {
   peppol_status?: string | null
   peppol_document_id?: string | null
   zatca_uuid?: string | null
+  uk_mtd_status?: string | null
+  uk_mtd_correlation_id?: string | null
+  my_invois_status?: string | null
+  my_invois_uuid?: string | null
   pra_status?: string
   pra_fiscal_number?: string | null
   /** Enriched client-side (e.g. UAE from logs) */

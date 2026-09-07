@@ -40,6 +40,8 @@ const SECTION_OVERVIEW: Record<string, { href: string; label: string; icon: Reac
   uae:           { href: "/uae",            label: "UAE Dashboard",       icon: LayoutDashboard },
   zatca:         { href: "/zatca",          label: "ZATCA Dashboard",     icon: LayoutDashboard },
   peppol:        { href: "/peppol",         label: "Peppol Dashboard",    icon: LayoutDashboard },
+  uk_mtd:        { href: "/uk-mtd",         label: "UK MTD Dashboard",    icon: LayoutDashboard },
+  my_invois:     { href: "/my-invois",      label: "MyInvois Dashboard",  icon: LayoutDashboard },
   india_gst:     { href: "/india-gst",      label: "GST Dashboard",       icon: LayoutDashboard },
   system:        { href: "/settings",       label: "Settings",            icon: Settings        },
   store:         { href: "/store/gate-outward", label: "Store Overview",  icon: LayoutGrid      },

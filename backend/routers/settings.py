@@ -22,6 +22,8 @@ SECRET_SETTINGS_KEYS = AI_SECRET_SETTINGS_KEYS | WA_SECRET_SETTINGS_KEYS | {
     "uae_api_key",
     "zatca_csid_token",
     "peppol_api_key",
+    "uk_mtd_client_secret",
+    "my_invois_client_secret",
 }
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -127,6 +129,19 @@ class SettingsUpdate(BaseModel):
     peppol_ap_url: Optional[str] = None          # Access Point send endpoint
     peppol_api_key: Optional[str] = None         # write-only secret
     peppol_sandbox_mode: Optional[str] = None    # "true" default
+    # UK Making Tax Digital VAT (#306)
+    uk_mtd_enabled: Optional[str] = None
+    uk_mtd_vrn: Optional[str] = None             # 9-digit VAT registration number
+    uk_mtd_client_id: Optional[str] = None
+    uk_mtd_client_secret: Optional[str] = None   # write-only secret
+    uk_mtd_sandbox_mode: Optional[str] = None    # "true" default
+    # Malaysia MyInvois (#306)
+    my_invois_enabled: Optional[str] = None
+    my_invois_tin: Optional[str] = None
+    my_invois_legal_name: Optional[str] = None
+    my_invois_client_id: Optional[str] = None
+    my_invois_client_secret: Optional[str] = None  # write-only secret
+    my_invois_sandbox_mode: Optional[str] = None  # "true" default
     # Marketplace (#227) — optional curated remote catalog URL (https only)
     marketplace_catalog_url: Optional[str] = None
     # AI assistant (#117) — key values are write-only; GET redacts them

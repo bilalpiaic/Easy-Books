@@ -46,8 +46,9 @@ Data coverage (v4 — Sprint 7–12 improvement roadmap + v5 IFRS/SaaS gap-fill)
   • Analytic dimensions (#260) — 3 dimensions, values linked, multi-slot JE tags
   • Intercompany (#261) — IC invoice manufacturing→trader with draft mirror bill
   • Localization demos — uae_vat on simple, sa_zatca on manufacturing, in_gst on
-    trader, eu_peppol on services (module enable + today-dated invoices + logs
-    so pack dashboards show KPIs on first login)
+    trader, eu_peppol on services, uk_mtd on hospital, my_invois on processing
+    (module enable + today-dated invoices + logs so pack dashboards show KPIs
+    on first login)
   • WHT + CIT (#267) — withholding tax code, vendor rate, sample CIT adjustments
 
 Still deliberately unseeded: UserPermission overrides, AiChatSession,
@@ -150,6 +151,7 @@ from models import (
     StockLocation, StoreIssue,
     StoreIssueLine, TaxCode, TaxRateHistory, Tenant, Transaction, User, UserDashboardLayout,
     Vendor, VendorAdvance, VendorQuotation, VendorQuotationLine, UaeEinvoiceLog, ZatcaSubmissionLog,
+    UkMtdSubmissionLog, MyInvoisSubmissionLog,
 )
 from models_telecom import (
     AirtimeSale, AirtimeStock, CommissionLine, CommissionStatement,
@@ -3066,6 +3068,8 @@ def _seed_localization_demo(s: Session, user: User, email: str, business_model: 
       demo.services       → eu_peppol
       demo.trader         → in_gst
       demo.manufacturing  → sa_zatca
+      demo.hospital       → uk_mtd
+      demo.processing     → my_invois
 
     Also seeds a handful of **today-dated** invoices so pack dashboards
     (which filter to today) show live KPIs on first login.
@@ -3090,6 +3094,10 @@ def _seed_localization_demo(s: Session, user: User, email: str, business_model: 
         pack = "in_gst"
     elif email == "demo.manufacturing@easy-books.app":
         pack = "sa_zatca"
+    elif email == "demo.hospital@easy-books.app":
+        pack = "uk_mtd"
+    elif email == "demo.processing@easy-books.app":
+        pack = "my_invois"
 
     if not pack:
         return
@@ -3132,7 +3140,13 @@ def _seed_localization_demo(s: Session, user: User, email: str, business_model: 
         qty = D(1 + (i % 3))
         rate = D(p.default_rate) if p.default_rate and p.default_rate > 0 else D(100 + i * 25)
         subtotal = money(qty * rate)
-        gst_rate = D("5") if pack == "uae_vat" else (D("18") if pack == "in_gst" else D("15") if pack == "sa_zatca" else D("20"))
+        gst_rate = D("5") if pack == "uae_vat" else (
+            D("18") if pack == "in_gst" else (
+                D("15") if pack == "sa_zatca" else (
+                    D("8") if pack == "my_invois" else D("20")
+                )
+            )
+        )
         gst_amount = money(subtotal * gst_rate / D(100))
         total = money(subtotal + gst_amount)
         number = next_number(s, tid, "invoice", "INV", width=4)
@@ -3234,6 +3248,69 @@ def _enrich_pack_logs(s: Session, tid: int, pack: str, invoices: list[Invoice]) 
                     endpoint="https://api.peppol-sandbox.example/v1/send",
                     sandbox=True,
                     document_id=inv.peppol_document_id,
+                    error_message=None if ok else "Demo rejection for dashboard KPI",
+                ))
+
+    elif pack == "uk_mtd":
+        q = ((date.today().month - 1) // 3) + 1
+        period_key = f"{date.today().year}-Q{q}"
+        for i, inv in enumerate(invoices):
+            if inv.status == "draft":
+                inv.uk_mtd_status = "pending"
+            elif i == len(invoices) - 1:
+                inv.uk_mtd_status = "rejected"
+            else:
+                inv.uk_mtd_status = "accepted"
+                inv.uk_mtd_period = period_key
+                inv.uk_mtd_correlation_id = f"demo-mtd-{inv.id}"
+                inv.uk_mtd_submitted_at = now
+            s.add(inv)
+            if inv.uk_mtd_status in ("accepted", "rejected") and not s.exec(
+                select(UkMtdSubmissionLog).where(
+                    UkMtdSubmissionLog.tenant_id == tid,
+                    UkMtdSubmissionLog.invoice_id == inv.id,
+                )
+            ).first():
+                ok = inv.uk_mtd_status == "accepted"
+                s.add(UkMtdSubmissionLog(
+                    tenant_id=tid, invoice_id=inv.id,
+                    request_payload='{"demo":true}',
+                    response_payload='{"processingDate":"demo"}' if ok else '{"error":"demo"}',
+                    status="accepted" if ok else "rejected",
+                    http_status=201 if ok else 400,
+                    endpoint="https://test-api.service.hmrc.gov.uk/organisations/vat/demo",
+                    sandbox=True,
+                    period_key=inv.uk_mtd_period,
+                    error_message=None if ok else "Demo rejection for dashboard KPI",
+                ))
+
+    elif pack == "my_invois":
+        for i, inv in enumerate(invoices):
+            if inv.status == "draft":
+                inv.my_invois_status = "pending"
+            elif i == len(invoices) - 1:
+                inv.my_invois_status = "rejected"
+            else:
+                inv.my_invois_status = "accepted"
+                inv.my_invois_uuid = f"demo-myinvois-{inv.id}"
+                inv.my_invois_submitted_at = now
+            s.add(inv)
+            if inv.my_invois_status in ("accepted", "rejected") and not s.exec(
+                select(MyInvoisSubmissionLog).where(
+                    MyInvoisSubmissionLog.tenant_id == tid,
+                    MyInvoisSubmissionLog.invoice_id == inv.id,
+                )
+            ).first():
+                ok = inv.my_invois_status == "accepted"
+                s.add(MyInvoisSubmissionLog(
+                    tenant_id=tid, invoice_id=inv.id,
+                    request_payload='{"demo":true}',
+                    response_payload='{"submissionUid":"demo"}' if ok else '{"error":"demo"}',
+                    status="accepted" if ok else "rejected",
+                    http_status=202 if ok else 400,
+                    endpoint="https://preprod-api.myinvois.hasil.gov.my/demo",
+                    sandbox=True,
+                    uuid=inv.my_invois_uuid,
                     error_message=None if ok else "Demo rejection for dashboard KPI",
                 ))
 

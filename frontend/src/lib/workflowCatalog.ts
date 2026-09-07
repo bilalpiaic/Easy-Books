@@ -29,9 +29,9 @@ export const DEMO_TENANTS: Record<DemoTenantKey, {
   manufacturing:  { label: "Manufacturing",       email: "demo.manufacturing@easy-books.app",  model: "manufacturing",       modules: ["base", "inventory", "production", "purchase_store", "weaving", "weighbridge"] },
   telecom:        { label: "Telecom Franchise",   email: "demo.telecom@easy-books.app",        model: "telecom_franchise",   modules: ["base", "inventory", "telecom"] },
   pra:            { label: "PRA e-Invoice",       email: "demo.pra@easy-books.app",            model: "pra_einvoice",        modules: ["base", "pra"] },
-  hospital:       { label: "Hospital",            email: "demo.hospital@easy-books.app",       model: "hospital",            modules: ["base", "hrm", "inventory", "healthcare"] },
+  hospital:       { label: "Hospital",            email: "demo.hospital@easy-books.app",       model: "hospital",            modules: ["base", "hrm", "inventory", "healthcare", "uk_mtd"] },
   spinning:       { label: "Yarn Spinning",       email: "demo.spinning@easy-books.app",       model: "yarn_spinning",       modules: ["base", "inventory", "purchase_store", "spinning", "weighbridge"] },
-  processing:     { label: "Textile Processing",  email: "demo.processing@easy-books.app",     model: "textile_processing",  modules: ["base", "inventory", "purchase_store", "textile_processing"] },
+  processing:     { label: "Textile Processing",  email: "demo.processing@easy-books.app",     model: "textile_processing",  modules: ["base", "inventory", "purchase_store", "textile_processing", "my_invois"] },
 }
 
 export const CATALOG_KINDS: { id: CatalogKind | "all"; label: string }[] = [
@@ -86,6 +86,8 @@ function tenantForModule(mod?: string): DemoTenantKey {
     case "production":
     case "purchase_store":
     case "sa_zatca":            return "manufacturing"
+    case "uk_mtd":              return "hospital"
+    case "my_invois":
     case "textile_processing":  return "processing"
     case "inventory":
     case "pos":
@@ -175,9 +177,9 @@ const TENANT_ENTRIES: CatalogEntry[] = [
   },
   {
     id: "tenant-hospital", kind: "tenant", title: "Hospital / healthcare", href: "/healthcare",
-    captureTenant: "hospital", segment: "Healthcare", modules: ["base", "hrm", "inventory", "healthcare"], tenants: ["hospital"],
-    tags: ["tenant", "healthcare", "payroll", "inventory", "sales"],
-    explanation: "Hospital pack: patients (auto-linked customers), doctors, OPD tokens/visits, IPD admissions with deposit + discharge invoice, lab orders, procedures, pharmacy dispense, plus HRM payroll and attendance. OPD visits bill Dr 1100 / Cr 4100 immediately; IPD charges accumulate until discharge.",
+    captureTenant: "hospital", segment: "Healthcare", modules: ["base", "hrm", "inventory", "healthcare", "uk_mtd"], tenants: ["hospital"],
+    tags: ["tenant", "healthcare", "payroll", "inventory", "sales", "localization"],
+    explanation: "Hospital pack: patients (auto-linked customers), doctors, OPD tokens/visits, IPD admissions with deposit + discharge invoice, lab orders, procedures, pharmacy dispense, plus HRM payroll and attendance. OPD visits bill Dr 1100 / Cr 4100 immediately; IPD charges accumulate until discharge. UK MTD VAT is seeded on this demo.",
     steps: ["Register or open a patient — a Customer is created automatically.", "Issue an OPD token, record the visit (invoice posts).", "Admit to a ward, add charges, discharge to a consolidated invoice."],
     gl: "OPD: Dr 1100 AR / Cr 4100–4121 service revenue. Discharge consolidates IPD charges + settles the admission deposit.",
   },
@@ -191,9 +193,9 @@ const TENANT_ENTRIES: CatalogEntry[] = [
   },
   {
     id: "tenant-processing", kind: "tenant", title: "Textile processing unit", href: "/processing",
-    captureTenant: "processing", segment: "Processing", modules: ["base", "inventory", "purchase_store", "textile_processing"],
-    tenants: ["processing"], tags: ["tenant", "processing", "inventory", "purchases"],
-    explanation: "Grey-in / process / packed-out mill. Sales orders, grey inward lots, mending, kachi/pakki parchi, rejection outward, PPC stages, fresh dispatch, labor bills, grey settlement, and inspections. Customer-owned grey is custody stock until processed.",
+    captureTenant: "processing", segment: "Processing", modules: ["base", "inventory", "purchase_store", "textile_processing", "my_invois"],
+    tenants: ["processing"], tags: ["tenant", "processing", "inventory", "purchases", "localization"],
+    explanation: "Grey-in / process / packed-out mill. Sales orders, grey inward lots, mending, kachi/pakki parchi, rejection outward, PPC stages, fresh dispatch, labor bills, grey settlement, and inspections. Customer-owned grey is custody stock until processed. Malaysia MyInvois is seeded on this demo.",
     steps: ["Create a sales order, then grey-in a lot against it.", "Move the lot through PPC stages.", "Issue pakki parchi and dispatch; settle leftover grey."],
   },
 ]
@@ -223,6 +225,8 @@ const SEGMENT_COPY: Record<string, { title: string; explanation: string; tags: s
   uae:           { title: "UAE VAT",       href: "/uae",               captureTenant: "services",      tags: ["compliance", "tax", "localization"], explanation: "UAE VAT e-invoice dashboard and logs. Install the uae_vat pack from Add-ons to light this segment." },
   zatca:         { title: "ZATCA",         href: "/zatca",             captureTenant: "manufacturing", tags: ["compliance", "tax", "localization"], explanation: "Saudi Fatoora (ZATCA) clear/report dashboard and logs. Seeded on the manufacturing demo." },
   peppol:        { title: "Peppol",        href: "/peppol",            captureTenant: "services",      tags: ["compliance", "tax", "localization"], explanation: "EU Peppol Access Point send dashboard and logs. Seeded on the services demo." },
+  uk_mtd:        { title: "UK MTD",        href: "/uk-mtd",            captureTenant: "hospital",      tags: ["compliance", "tax", "localization"], explanation: "HMRC Making Tax Digital VAT boxes 1–9 plus sandbox return submit. Seeded on the hospital demo." },
+  my_invois:     { title: "MyInvois",      href: "/my-invois",         captureTenant: "processing",    tags: ["compliance", "tax", "localization"], explanation: "LHDN MyInvois e-invoice dashboard and logs. Seeded on the processing demo." },
   india_gst:     { title: "India GST",     href: "/india-gst",         captureTenant: "trader",        tags: ["compliance", "tax", "localization"], explanation: "GSTR home and GSTR-1 style report (CGST/SGST/IGST). Seeded on the trader demo." },
   system:        { title: "System",        href: "/settings",          captureTenant: "services",      tags: ["settings", "approvals", "ai"], explanation: "Settings (including this Catalog), Studio custom fields, team, permissions, approvals, audit, CSV import, payment terms, tax codes, workflow/user guides, Add-ons, and the AI assistant." },
 }
@@ -416,7 +420,7 @@ const WORKFLOW_ENTRIES: CatalogEntry[] = [
     id: "wf-localization", kind: "workflow", title: "E-invoice localization packs", href: "/apps",
     captureTenant: "pra", segment: "System", modules: ["pra"], tenants: ["pra", "manufacturing", "trader", "services"],
     tags: ["compliance", "workflow", "tax", "localization"],
-    explanation: "PRA (Punjab), ZATCA (KSA Fatoora), Peppol (EU), UAE VAT, and India GST are installable packs. They add a dashboard + submission log; they never rewrite posted GL. Install from Add-ons; credentials live under Settings.",
+    explanation: "PRA (Punjab), ZATCA (KSA Fatoora), Peppol (EU), UAE VAT, India GST, UK MTD VAT, and Malaysia MyInvois are installable packs. They add a dashboard + submission log; they never rewrite posted GL. Install from Add-ons; credentials live under Settings.",
     steps: ["Add-ons → install the pack for your jurisdiction.", "Complete credentials (see User Guide for Peppol AP).", "Post an invoice, submit, watch the log.", "Failures retry; the voucher stays posted."],
   },
 ]
@@ -614,6 +618,10 @@ const SCREEN_COPY: Record<string, { explanation: string; tags: string[]; gl?: st
   "/zatca/logs": { tags: ["compliance", "reports"], explanation: "ZATCA clear/report attempt log." },
   "/peppol": { tags: ["compliance", "tax"], explanation: "Peppol AP dashboard (seeded on services)." },
   "/peppol/logs": { tags: ["compliance", "reports"], explanation: "Peppol send log." },
+  "/uk-mtd": { tags: ["compliance", "tax"], explanation: "UK MTD VAT dashboard with HMRC boxes 1–9 (seeded on hospital)." },
+  "/uk-mtd/logs": { tags: ["compliance", "reports"], explanation: "HMRC VAT return and invoice sandbox attempt log." },
+  "/my-invois": { tags: ["compliance", "tax"], explanation: "MyInvois e-invoice dashboard (seeded on processing)." },
+  "/my-invois/logs": { tags: ["compliance", "reports"], explanation: "LHDN MyInvois document submit log." },
   "/hrm": { tags: ["payroll"], explanation: "HRM hub: headcount, last run, attendance shortcuts." },
   "/payroll": { tags: ["payroll", "gl"], explanation: "Payroll run list with KPI cards. Draft → approve → post → void." },
   "/employees": { tags: ["payroll"], explanation: "Employee master (search, active/all). Edit includes the salary-structure tab." },

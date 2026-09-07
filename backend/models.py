@@ -645,6 +645,15 @@ class Invoice(SQLModel, table=True):
     peppol_status: Optional[str] = Field(default=None, index=True)  # pending|submitted|accepted|rejected|error
     peppol_document_id: Optional[str] = None
     peppol_submitted_at: Optional[datetime] = None
+    # UK Making Tax Digital VAT (#306)
+    uk_mtd_status: Optional[str] = Field(default=None, index=True)  # pending|submitted|accepted|rejected|error
+    uk_mtd_period: Optional[str] = None
+    uk_mtd_correlation_id: Optional[str] = None
+    uk_mtd_submitted_at: Optional[datetime] = None
+    # Malaysia MyInvois (#306)
+    my_invois_status: Optional[str] = Field(default=None, index=True)  # pending|submitted|accepted|rejected|error
+    my_invois_uuid: Optional[str] = None
+    my_invois_submitted_at: Optional[datetime] = None
     # Approval workflow (#123) — null means no workflow engaged / legacy docs
     approval_status: Optional[str] = Field(default=None, index=True)
     # Intercompany (#261) — flag + sister-entity link; mirror bill id on counterparty
@@ -2477,6 +2486,38 @@ class PeppolSubmissionLog(SQLModel, table=True):
     error_message: Optional[str] = None
     sandbox: bool = Field(default=True)
     document_id: Optional[str] = None
+
+
+class UkMtdSubmissionLog(SQLModel, table=True):
+    """Audit trail of HMRC MTD VAT obligations / return submits (#306)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True)
+    invoice_id: int = Field(default=0, index=True)  # 0 = period return, else sourced invoice
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    request_payload: str
+    response_payload: Optional[str] = None
+    status: str = Field(default="error")  # accepted|rejected|error|submitted
+    http_status: Optional[int] = None
+    endpoint: Optional[str] = None
+    error_message: Optional[str] = None
+    sandbox: bool = Field(default=True)
+    period_key: Optional[str] = None
+
+
+class MyInvoisSubmissionLog(SQLModel, table=True):
+    """Audit trail of LHDN MyInvois document submits (#306)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True)
+    invoice_id: int = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    request_payload: str
+    response_payload: Optional[str] = None
+    status: str = Field(default="error")  # accepted|rejected|error|submitted
+    http_status: Optional[int] = None
+    endpoint: Optional[str] = None
+    error_message: Optional[str] = None
+    sandbox: bool = Field(default=True)
+    uuid: Optional[str] = None
 
 
 class Attachment(SQLModel, table=True):

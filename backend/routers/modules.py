@@ -228,6 +228,14 @@ def install_module_for_tenant(
         from services.module_sample_data import enable_india_gst_settings
         enable_india_gst_settings(session, tenant.id)
 
+    if "uk_mtd" in to_install:
+        from services.module_sample_data import enable_uk_mtd_settings
+        enable_uk_mtd_settings(session, tenant.id)
+
+    if "my_invois" in to_install:
+        from services.module_sample_data import enable_my_invois_settings
+        enable_my_invois_settings(session, tenant.id)
+
     # Sample seeders key off ``user.tenant_id``; skip when the actor is ops
     # installing onto a different company.
     if seed_sample and user is not None and user.tenant_id == tenant.id:

@@ -67,6 +67,8 @@ from routers.textile_processing_reports import (
 )
 from routers.uae_einvoice import get_invoice_uae_status, list_uae_logs
 from routers.zatca import get_invoice_zatca_status, list_zatca_logs
+from routers.uk_mtd import get_invoice_uk_mtd_status, get_vat_return as uk_mtd_vat_return, list_uk_mtd_logs
+from routers.my_invois import get_invoice_my_invois_status, list_my_invois_logs
 from routers.purchase_reports import (
     gate_register,
     three_way_match,
@@ -827,6 +829,48 @@ def _exec_peppol_logs(session, user, tool_input):
 
 def _exec_invoice_peppol_status(session, user, tool_input):
     return get_invoice_peppol_status(
+        _require_id(tool_input, "invoice_id", "run_custom_report (source invoices)"),
+        user, session,
+    )
+
+
+def _exec_uk_mtd_logs(session, user, tool_input):
+    return list_uk_mtd_logs(
+        user, session,
+        skip=int(tool_input.get("skip") or 0),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+        invoice_id=tool_input.get("invoice_id"),
+        period_key=tool_input.get("period_key"),
+    )
+
+
+def _exec_invoice_uk_mtd_status(session, user, tool_input):
+    return get_invoice_uk_mtd_status(
+        _require_id(tool_input, "invoice_id", "run_custom_report (source invoices)"),
+        user, session,
+    )
+
+
+def _exec_uk_mtd_vat_return(session, user, tool_input):
+    return uk_mtd_vat_return(
+        user, session,
+        period_key=tool_input.get("period_key"),
+        start=tool_input.get("start"),
+        end=tool_input.get("end"),
+    )
+
+
+def _exec_my_invois_logs(session, user, tool_input):
+    return list_my_invois_logs(
+        user, session,
+        skip=int(tool_input.get("skip") or 0),
+        limit=min(int(tool_input.get("limit") or 50), 100),
+        invoice_id=tool_input.get("invoice_id"),
+    )
+
+
+def _exec_invoice_my_invois_status(session, user, tool_input):
+    return get_invoice_my_invois_status(
         _require_id(tool_input, "invoice_id", "run_custom_report (source invoices)"),
         user, session,
     )
@@ -2330,6 +2374,79 @@ _TOOLS: tuple[ToolDef, ...] = (
         label="Checking invoice Peppol status…",
         executor=_exec_invoice_peppol_status,
         required_module="eu_peppol",
+    ),
+    ToolDef(
+        name="get_uk_mtd_logs",
+        description="Get recent UK MTD VAT submission logs (HMRC). Optional invoice_id or period_key filter.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "invoice_id": {"type": "integer"},
+                "period_key": {"type": "string"},
+                "limit": {"type": "integer"},
+                "skip": {"type": "integer"},
+            },
+            "required": [],
+        },
+        label="Checking UK MTD logs…",
+        executor=_exec_uk_mtd_logs,
+        required_module="uk_mtd",
+    ),
+    ToolDef(
+        name="get_invoice_uk_mtd_status",
+        description="Get one invoice's UK MTD VAT status, period key, and correlation id.",
+        input_schema={
+            "type": "object",
+            "properties": {"invoice_id": {"type": "integer"}},
+            "required": ["invoice_id"],
+        },
+        label="Checking invoice UK MTD status…",
+        executor=_exec_invoice_uk_mtd_status,
+        required_module="uk_mtd",
+    ),
+    ToolDef(
+        name="get_uk_mtd_vat_return",
+        description="Get UK MTD VAT return boxes 1–9 for a period (period_key like 2026-Q3, or start/end dates).",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "period_key": {"type": "string"},
+                "start": {"type": "string"},
+                "end": {"type": "string"},
+            },
+            "required": [],
+        },
+        label="Computing UK VAT return boxes…",
+        executor=_exec_uk_mtd_vat_return,
+        required_module="uk_mtd",
+    ),
+    ToolDef(
+        name="get_my_invois_logs",
+        description="Get recent Malaysia MyInvois e-invoice submission logs. Optional invoice_id filter.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "invoice_id": {"type": "integer"},
+                "limit": {"type": "integer"},
+                "skip": {"type": "integer"},
+            },
+            "required": [],
+        },
+        label="Checking MyInvois logs…",
+        executor=_exec_my_invois_logs,
+        required_module="my_invois",
+    ),
+    ToolDef(
+        name="get_invoice_my_invois_status",
+        description="Get one invoice's MyInvois status, UUID, and submitted_at.",
+        input_schema={
+            "type": "object",
+            "properties": {"invoice_id": {"type": "integer"}},
+            "required": ["invoice_id"],
+        },
+        label="Checking invoice MyInvois status…",
+        executor=_exec_invoice_my_invois_status,
+        required_module="my_invois",
     ),
     ToolDef(
         name="get_uae_logs",

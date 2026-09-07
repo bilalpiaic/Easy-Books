@@ -101,6 +101,19 @@ export interface AppSettings {
   peppol_ap_url: string
   peppol_api_key: string
   peppol_sandbox_mode: string
+  // UK Making Tax Digital VAT (#306)
+  uk_mtd_enabled: string
+  uk_mtd_vrn: string
+  uk_mtd_client_id: string
+  uk_mtd_client_secret: string
+  uk_mtd_sandbox_mode: string
+  // Malaysia MyInvois (#306)
+  my_invois_enabled: string
+  my_invois_tin: string
+  my_invois_legal_name: string
+  my_invois_client_id: string
+  my_invois_client_secret: string
+  my_invois_sandbox_mode: string
 }
 
 const defaults: AppSettings = {
@@ -177,6 +190,17 @@ const defaults: AppSettings = {
   peppol_ap_url: "",
   peppol_api_key: "",
   peppol_sandbox_mode: "true",
+  uk_mtd_enabled: "false",
+  uk_mtd_vrn: "",
+  uk_mtd_client_id: "",
+  uk_mtd_client_secret: "",
+  uk_mtd_sandbox_mode: "true",
+  my_invois_enabled: "false",
+  my_invois_tin: "",
+  my_invois_legal_name: "",
+  my_invois_client_id: "",
+  my_invois_client_secret: "",
+  my_invois_sandbox_mode: "true",
 }
 
 interface SettingsContextValue {

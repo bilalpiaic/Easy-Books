@@ -80,6 +80,12 @@ export default function SettingsPage() {
   const [peppolTesting, setPeppolTesting] = useState(false)
   const [peppolTestResult, setPeppolTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
   const [peppolShowKey, setPeppolShowKey] = useState(false)
+  const [ukMtdTesting, setUkMtdTesting] = useState(false)
+  const [ukMtdTestResult, setUkMtdTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [ukMtdShowSecret, setUkMtdShowSecret] = useState(false)
+  const [myInvoisTesting, setMyInvoisTesting] = useState(false)
+  const [myInvoisTestResult, setMyInvoisTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [myInvoisShowSecret, setMyInvoisShowSecret] = useState(false)
 
   useEffect(() => {
     setForm(ctxSettings)
@@ -1600,6 +1606,173 @@ export default function SettingsPage() {
           {peppolTestResult && (
             <span className={`text-sm ${peppolTestResult.ok ? "text-green-700" : "text-red-600"}`}>
               {peppolTestResult.ok ? "✓" : "✗"} {peppolTestResult.msg}
+            </span>
+          )}
+        </div>
+      </section>
+      )}
+
+      {/* ── UK MTD VAT — once the uk_mtd add-on is installed ── */}
+      {installedModules.has("uk_mtd") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">UK MTD VAT <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(HMRC sandbox)</span></h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm text-[var(--text-primary)]/70">{form.uk_mtd_enabled === "true" ? "Enabled" : "Disabled"}</span>
+            <div
+              onClick={() => handleChange("uk_mtd_enabled", form.uk_mtd_enabled === "true" ? "false" : "true")}
+              className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.uk_mtd_enabled === "true" ? "bg-[var(--primary)]" : "bg-[var(--text-primary)]/20"}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-0.5 shadow transition-transform ${form.uk_mtd_enabled === "true" ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-primary)]/50">
+          Compute VAT return boxes 1–9 from posted invoices and bills, then submit to the HMRC sandbox.
+          Logs are under <Link href="/uk-mtd/logs" className="underline text-[var(--text-link)]">UK MTD Logs</Link>.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">VAT Registration Number</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="9-digit VRN"
+              autoComplete="off"
+              value={form.uk_mtd_vrn} onChange={e => handleChange("uk_mtd_vrn", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Client ID</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="HMRC application client id"
+              autoComplete="off"
+              value={form.uk_mtd_client_id} onChange={e => handleChange("uk_mtd_client_id", e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Client secret (write-only)</label>
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+                type={ukMtdShowSecret ? "text" : "password"}
+                placeholder="OAuth client secret"
+                autoComplete="new-password"
+                value={form.uk_mtd_client_secret} onChange={e => handleChange("uk_mtd_client_secret", e.target.value)} />
+              <button type="button" onClick={() => setUkMtdShowSecret(v => !v)}
+                className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)]/60 hover:border-[var(--primary)]/40">
+                {ukMtdShowSecret ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="rounded border-[var(--border)]"
+            checked={form.uk_mtd_sandbox_mode !== "false"}
+            onChange={e => handleChange("uk_mtd_sandbox_mode", e.target.checked ? "true" : "false")} />
+          <span className="text-[var(--text-primary)]/70">Use HMRC sandbox</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setUkMtdTesting(true); setUkMtdTestResult(null)
+              try {
+                const r = await apiFetch<{ ok: boolean; message: string; sandbox: boolean }>("/api/uk-mtd/test", { method: "POST" })
+                setUkMtdTestResult({ ok: !!r.ok, msg: `${r.message}${r.sandbox ? " (sandbox)" : ""}` })
+              } catch (e: unknown) {
+                setUkMtdTestResult({ ok: false, msg: String((e as Error).message ?? e) })
+              } finally { setUkMtdTesting(false) }
+            }}
+            disabled={ukMtdTesting || !form.uk_mtd_vrn}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50 transition-colors"
+          >
+            {ukMtdTesting ? "Testing…" : "Test Connection"}
+          </button>
+          {ukMtdTestResult && (
+            <span className={`text-sm ${ukMtdTestResult.ok ? "text-green-700" : "text-red-600"}`}>
+              {ukMtdTestResult.ok ? "✓" : "✗"} {ukMtdTestResult.msg}
+            </span>
+          )}
+        </div>
+      </section>
+      )}
+
+      {/* ── Malaysia MyInvois — once the my_invois add-on is installed ── */}
+      {installedModules.has("my_invois") && (
+      <section className="bg-white border border-[var(--border)] rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Malaysia MyInvois <span className="text-sm font-sans font-normal text-[var(--text-primary)]/50">(LHDN sandbox)</span></h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-sm text-[var(--text-primary)]/70">{form.my_invois_enabled === "true" ? "Enabled" : "Disabled"}</span>
+            <div
+              onClick={() => handleChange("my_invois_enabled", form.my_invois_enabled === "true" ? "false" : "true")}
+              className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.my_invois_enabled === "true" ? "bg-[var(--primary)]" : "bg-[var(--text-primary)]/20"}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-0.5 shadow transition-transform ${form.my_invois_enabled === "true" ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+          </label>
+        </div>
+        <p className="text-xs text-[var(--text-primary)]/50">
+          Submit invoices to the LHDN MyInvois sandbox. UUID and status are stamped on the invoice.
+          Logs are under <Link href="/my-invois/logs" className="underline text-[var(--text-link)]">MyInvois Logs</Link>.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">TIN</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="C12345678901"
+              autoComplete="off"
+              value={form.my_invois_tin} onChange={e => handleChange("my_invois_tin", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Legal name</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm"
+              placeholder="Registered name"
+              autoComplete="off"
+              value={form.my_invois_legal_name} onChange={e => handleChange("my_invois_legal_name", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Client ID</label>
+            <input className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+              placeholder="MyInvois client id"
+              autoComplete="off"
+              value={form.my_invois_client_id} onChange={e => handleChange("my_invois_client_id", e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-primary)]/60 mb-1">Client secret (write-only)</label>
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono"
+                type={myInvoisShowSecret ? "text" : "password"}
+                placeholder="OAuth client secret"
+                autoComplete="new-password"
+                value={form.my_invois_client_secret} onChange={e => handleChange("my_invois_client_secret", e.target.value)} />
+              <button type="button" onClick={() => setMyInvoisShowSecret(v => !v)}
+                className="px-3 py-2 border border-[var(--border)] rounded-lg text-xs text-[var(--text-primary)]/60 hover:border-[var(--primary)]/40">
+                {myInvoisShowSecret ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="rounded border-[var(--border)]"
+            checked={form.my_invois_sandbox_mode !== "false"}
+            onChange={e => handleChange("my_invois_sandbox_mode", e.target.checked ? "true" : "false")} />
+          <span className="text-[var(--text-primary)]/70">Use MyInvois sandbox (preprod)</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setMyInvoisTesting(true); setMyInvoisTestResult(null)
+              try {
+                const r = await apiFetch<{ ok: boolean; message: string; sandbox: boolean }>("/api/my-invois/test", { method: "POST" })
+                setMyInvoisTestResult({ ok: !!r.ok, msg: `${r.message}${r.sandbox ? " (sandbox)" : ""}` })
+              } catch (e: unknown) {
+                setMyInvoisTestResult({ ok: false, msg: String((e as Error).message ?? e) })
+              } finally { setMyInvoisTesting(false) }
+            }}
+            disabled={myInvoisTesting || !form.my_invois_tin}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--text-primary)] text-white hover:bg-[var(--text-primary)]/80 disabled:opacity-50 transition-colors"
+          >
+            {myInvoisTesting ? "Testing…" : "Test Connection"}
+          </button>
+          {myInvoisTestResult && (
+            <span className={`text-sm ${myInvoisTestResult.ok ? "text-green-700" : "text-red-600"}`}>
+              {myInvoisTestResult.ok ? "✓" : "✗"} {myInvoisTestResult.msg}
             </span>
           )}
         </div>
