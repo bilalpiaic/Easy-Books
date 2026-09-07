@@ -28,7 +28,7 @@ import type { AppSettings } from "@/context/SettingsContext"
 import {
   TrendingUp, TrendingDown, Hash, Wallet, ArrowDownLeft, ArrowUpRight, Clock,
   Package, AlertTriangle, FileSignature, Receipt, Banknote, CalendarClock,
-  CalendarDays, Users, Briefcase, Truck, Landmark, Scale, HelpCircle,
+  CalendarDays, Users, Briefcase, Truck, Landmark, Scale, HelpCircle, Images,
   Factory, ClipboardCheck, DoorOpen, Radio, Activity, ShoppingCart, CircleDot, Layers,
 } from "lucide-react"
 import {
@@ -149,6 +149,7 @@ export const ALL_QUICK_ACTIONS: QuickActionDef[] = [
   { id: "trial_balance", label: "Trial Balance",     href: "/trial-balance",     icon: Scale,         color: "text-rose-600" },
   { id: "workflow",      label: "Workflow Guide",    href: "/workflow",          icon: TrendingUp,    color: "text-[#b8943f]" },
   { id: "guide",         label: "User Guide",        href: "/guide",             icon: HelpCircle,    color: "text-[#1a1814]" },
+  { id: "catalog",       label: "Workflow Catalog",  href: "/settings/catalog",  icon: Images,        color: "text-[#b8943f]" },
   // Operations / purpose quick actions
   { id: "new_demand",      label: "New Demand",          href: "/purchases/demands/new",              icon: ClipboardCheck, color: "text-amber-700", requiredModule: "purchase_store" },
   { id: "new_po",          label: "Purchase Orders",     href: "/manufacturing/purchase-orders",      icon: ShoppingCart,   color: "text-orange-600", requiredModule: "purchase_store" },

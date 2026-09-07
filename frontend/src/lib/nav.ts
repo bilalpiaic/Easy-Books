@@ -12,7 +12,7 @@ import {
   Stethoscope, FileHeart, Activity, BedDouble, FlaskConical, Syringe, UserRound,
   ClipboardCheck, DoorOpen, PackageMinus, Sparkles, Scissors, Calculator, Droplets,
   AlertTriangle, KeyRound, FileSpreadsheet, GitCompareArrows, Globe, CircleDot,
-  Store, ArrowLeftRight, Palmtree, ShoppingBag, PackageCheck, PenTool,
+  Store, ArrowLeftRight, Palmtree, ShoppingBag, PackageCheck, PenTool, Images,
 } from "lucide-react"
 
 export type NavItem = {
@@ -169,6 +169,7 @@ export const NAV: NavItem[] = [
   { label: "Approval Workflows", href: "/approvals/workflows", icon: GitBranch,   section: "System", adminOnly: true },
   { label: "Workflow",         href: "/workflow",          icon: GitBranch,        section: "System" },
   { label: "User Guide",       href: "/guide",             icon: HelpCircle,       section: "System" },
+  { label: "Catalog",          href: "/settings/catalog",  icon: Images,           section: "System" },
   { label: "AI Assistant",     href: "/agent",             icon: Sparkles,         section: "System",    forModule: "ai_assistant" },
   { label: "Studio",           href: "/settings/studio",      icon: PenTool,       section: "System", adminOnly: true },
   { label: "Settings",         href: "/settings",          icon: Settings,         section: "System" },
@@ -681,6 +682,7 @@ export const SUB_NAV: Record<string, NavItem[]> = {
     { label: "Audit Log",     href: "/audit",                icon: ScrollText,  section: "system", adminOnly: true },
     { label: "Workflow",      href: "/workflow",             icon: GitBranch,   section: "system" },
     { label: "User Guide",    href: "/guide",                icon: HelpCircle,  section: "system" },
+    { label: "Catalog",       href: "/settings/catalog",     icon: Images,      section: "system" },
     { label: "AI Assistant",  href: "/agent",                icon: Sparkles,    section: "system", forModule: "ai_assistant" },
   ],
 }

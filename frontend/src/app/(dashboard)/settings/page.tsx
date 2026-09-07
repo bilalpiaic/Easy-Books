@@ -239,6 +239,10 @@ export default function SettingsPage() {
       router.replace("/settings/studio")
       return
     }
+    if (t === "catalog") {
+      router.replace("/settings/catalog")
+      return
+    }
     if (t) setTab(t)
   }, [router])
 
@@ -250,6 +254,7 @@ export default function SettingsPage() {
     { id: "accounting",  label: "Accounting"  },
     { id: "preferences", label: "Preferences" },
     { id: "advanced",    label: "Advanced"    },
+    { id: "catalog",     label: "Catalog", href: "/settings/catalog" },
     ...(isAdminOrOwner ? [{ id: "studio", label: "Studio", href: "/settings/studio" }] : []),
     // Machine-to-machine keys are admin/owner territory (matches the
     // backend's AdminUserDep gate) — hide the tab entirely for others

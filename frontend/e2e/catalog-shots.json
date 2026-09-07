@@ -1,0 +1,1017 @@
+[
+  {
+    "id": "simple--dashboard",
+    "path": "/dashboard",
+    "tenant": "simple"
+  },
+  {
+    "id": "services--dashboard",
+    "path": "/dashboard",
+    "tenant": "services"
+  },
+  {
+    "id": "trader--dashboard",
+    "path": "/dashboard",
+    "tenant": "trader"
+  },
+  {
+    "id": "manufacturing--dashboard-operations",
+    "path": "/dashboard/operations",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "telecom--telecom",
+    "path": "/telecom",
+    "tenant": "telecom"
+  },
+  {
+    "id": "pra--pra-dashboard",
+    "path": "/pra-dashboard",
+    "tenant": "pra"
+  },
+  {
+    "id": "hospital--healthcare",
+    "path": "/healthcare",
+    "tenant": "hospital"
+  },
+  {
+    "id": "spinning--spinning",
+    "path": "/spinning",
+    "tenant": "spinning"
+  },
+  {
+    "id": "processing--processing",
+    "path": "/processing",
+    "tenant": "processing"
+  },
+  {
+    "id": "services--entry",
+    "path": "/entry",
+    "tenant": "services"
+  },
+  {
+    "id": "services--trial-balance",
+    "path": "/trial-balance",
+    "tenant": "services"
+  },
+  {
+    "id": "services--banking",
+    "path": "/banking",
+    "tenant": "services"
+  },
+  {
+    "id": "services--receivable",
+    "path": "/receivable",
+    "tenant": "services"
+  },
+  {
+    "id": "manufacturing--purchases",
+    "path": "/purchases",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-gate-outward",
+    "path": "/store/gate-outward",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weighbridge",
+    "path": "/weighbridge",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving",
+    "path": "/weaving",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "trader--pos",
+    "path": "/pos",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--ecommerce",
+    "path": "/ecommerce",
+    "tenant": "trader"
+  },
+  {
+    "id": "manufacturing--manufacturing",
+    "path": "/manufacturing",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "trader--inventory",
+    "path": "/inventory",
+    "tenant": "trader"
+  },
+  {
+    "id": "hospital--hrm",
+    "path": "/hrm",
+    "tenant": "hospital"
+  },
+  {
+    "id": "services--uae",
+    "path": "/uae",
+    "tenant": "services"
+  },
+  {
+    "id": "manufacturing--zatca",
+    "path": "/zatca",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "services--peppol",
+    "path": "/peppol",
+    "tenant": "services"
+  },
+  {
+    "id": "trader--india-gst",
+    "path": "/india-gst",
+    "tenant": "trader"
+  },
+  {
+    "id": "services--settings",
+    "path": "/settings",
+    "tenant": "services"
+  },
+  {
+    "id": "services--invoices",
+    "path": "/invoices",
+    "tenant": "services"
+  },
+  {
+    "id": "services--bills",
+    "path": "/bills",
+    "tenant": "services"
+  },
+  {
+    "id": "manufacturing--purchases-demands",
+    "path": "/purchases/demands",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-issues",
+    "path": "/store/issues",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "services--journal-new",
+    "path": "/journal/new",
+    "tenant": "services"
+  },
+  {
+    "id": "services--bank-imports",
+    "path": "/bank-imports",
+    "tenant": "services"
+  },
+  {
+    "id": "hospital--payroll",
+    "path": "/payroll",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-opd",
+    "path": "/healthcare/opd",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-ipd",
+    "path": "/healthcare/ipd",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-lab",
+    "path": "/healthcare/lab",
+    "tenant": "hospital"
+  },
+  {
+    "id": "manufacturing--manufacturing-production-orders",
+    "path": "/manufacturing/production-orders",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-contracts",
+    "path": "/weaving/contracts",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "spinning--spinning-lots",
+    "path": "/spinning/lots",
+    "tenant": "spinning"
+  },
+  {
+    "id": "processing--processing-lots",
+    "path": "/processing/lots",
+    "tenant": "processing"
+  },
+  {
+    "id": "manufacturing--weighbridge-tickets-new",
+    "path": "/weighbridge/tickets/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "telecom--telecom-tracker",
+    "path": "/telecom/tracker",
+    "tenant": "telecom"
+  },
+  {
+    "id": "services--deferred-revenue",
+    "path": "/deferred-revenue",
+    "tenant": "services"
+  },
+  {
+    "id": "services--assets",
+    "path": "/assets",
+    "tenant": "services"
+  },
+  {
+    "id": "services--period-close",
+    "path": "/period-close",
+    "tenant": "services"
+  },
+  {
+    "id": "manufacturing--approvals-workflows",
+    "path": "/approvals/workflows",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "pra--apps",
+    "path": "/apps",
+    "tenant": "pra"
+  },
+  {
+    "id": "anon--login",
+    "path": "/login",
+    "tenant": "anon"
+  },
+  {
+    "id": "services--settings-tab-company",
+    "path": "/settings?tab=company",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-tab-accounting",
+    "path": "/settings?tab=accounting",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-tab-preferences",
+    "path": "/settings?tab=preferences",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-tab-advanced",
+    "path": "/settings?tab=advanced",
+    "tenant": "services"
+  },
+  {
+    "id": "services--invoices-new",
+    "path": "/invoices/new",
+    "tenant": "services"
+  },
+  {
+    "id": "trader--bills-new",
+    "path": "/bills/new",
+    "tenant": "trader"
+  },
+  {
+    "id": "manufacturing--purchases-demands-new",
+    "path": "/purchases/demands/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "services--settings-catalog",
+    "path": "/settings/catalog",
+    "tenant": "services"
+  },
+  {
+    "id": "services--journal",
+    "path": "/journal",
+    "tenant": "services"
+  },
+  {
+    "id": "services--recurring",
+    "path": "/recurring",
+    "tenant": "services"
+  },
+  {
+    "id": "services--ledger",
+    "path": "/ledger",
+    "tenant": "services"
+  },
+  {
+    "id": "services--coa",
+    "path": "/coa",
+    "tenant": "services"
+  },
+  {
+    "id": "services--analytic-accounts",
+    "path": "/analytic-accounts",
+    "tenant": "services"
+  },
+  {
+    "id": "services--commissions",
+    "path": "/commissions",
+    "tenant": "services"
+  },
+  {
+    "id": "services--promo-discounts",
+    "path": "/promo-discounts",
+    "tenant": "services"
+  },
+  {
+    "id": "services--credit-notes",
+    "path": "/credit-notes",
+    "tenant": "services"
+  },
+  {
+    "id": "services--customers",
+    "path": "/customers",
+    "tenant": "services"
+  },
+  {
+    "id": "services--payments-received",
+    "path": "/payments-received",
+    "tenant": "services"
+  },
+  {
+    "id": "trader--pos-shifts",
+    "path": "/pos/shifts",
+    "tenant": "trader"
+  },
+  {
+    "id": "services--advances",
+    "path": "/advances",
+    "tenant": "services"
+  },
+  {
+    "id": "services--aging-receivable",
+    "path": "/aging/receivable",
+    "tenant": "services"
+  },
+  {
+    "id": "services--payable",
+    "path": "/payable",
+    "tenant": "services"
+  },
+  {
+    "id": "services--debit-notes",
+    "path": "/debit-notes",
+    "tenant": "services"
+  },
+  {
+    "id": "services--vendors",
+    "path": "/vendors",
+    "tenant": "services"
+  },
+  {
+    "id": "services--bill-payments",
+    "path": "/bill-payments",
+    "tenant": "services"
+  },
+  {
+    "id": "services--aging-payable",
+    "path": "/aging/payable",
+    "tenant": "services"
+  },
+  {
+    "id": "manufacturing--purchases-comparatives",
+    "path": "/purchases/comparatives",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--purchases-gate-inward",
+    "path": "/purchases/gate-inward",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--purchases-gate-register",
+    "path": "/purchases/gate-register",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--purchases-three-way-match",
+    "path": "/purchases/three-way-match",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--purchases-vendor-performance",
+    "path": "/purchases/vendor-performance",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-purchase-orders",
+    "path": "/manufacturing/purchase-orders",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-grn",
+    "path": "/manufacturing/grn",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-gate-outward-register",
+    "path": "/store/gate-outward-register",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-dispatch-reconciliation",
+    "path": "/store/dispatch-reconciliation",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-issue-register",
+    "path": "/store/issue-register",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-stock-tie-out",
+    "path": "/store/stock-tie-out",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "trader--products",
+    "path": "/products",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--products-categories",
+    "path": "/products/categories",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--products-ledger",
+    "path": "/products/ledger",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--inventory-performance",
+    "path": "/inventory/performance",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--inventory-valuation",
+    "path": "/inventory/valuation",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--inventory-transfers",
+    "path": "/inventory/transfers",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--inventory-pick-lists",
+    "path": "/inventory/pick-lists",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--inventory-transfer-register",
+    "path": "/inventory/transfer-register",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--inventory-stock-by-warehouse",
+    "path": "/inventory/stock-by-warehouse",
+    "tenant": "trader"
+  },
+  {
+    "id": "trader--manufacturing-stock-locations",
+    "path": "/manufacturing/stock-locations",
+    "tenant": "trader"
+  },
+  {
+    "id": "manufacturing--manufacturing-boms",
+    "path": "/manufacturing/boms",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-rate-plans",
+    "path": "/manufacturing/rate-plans",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-scrap-reasons",
+    "path": "/manufacturing/scrap-reasons",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-reports",
+    "path": "/manufacturing/reports",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "telecom--telecom-rso",
+    "path": "/telecom/rso",
+    "tenant": "telecom"
+  },
+  {
+    "id": "telecom--telecom-sim",
+    "path": "/telecom/sim",
+    "tenant": "telecom"
+  },
+  {
+    "id": "telecom--telecom-fca",
+    "path": "/telecom/fca",
+    "tenant": "telecom"
+  },
+  {
+    "id": "telecom--telecom-mobile-money",
+    "path": "/telecom/mobile-money",
+    "tenant": "telecom"
+  },
+  {
+    "id": "telecom--telecom-postpaid",
+    "path": "/telecom/postpaid",
+    "tenant": "telecom"
+  },
+  {
+    "id": "telecom--telecom-commissions",
+    "path": "/telecom/commissions",
+    "tenant": "telecom"
+  },
+  {
+    "id": "telecom--telecom-franchise",
+    "path": "/telecom/franchise",
+    "tenant": "telecom"
+  },
+  {
+    "id": "telecom--telecom-devices",
+    "path": "/telecom/devices",
+    "tenant": "telecom"
+  },
+  {
+    "id": "services--bank-accounts",
+    "path": "/bank-accounts",
+    "tenant": "services"
+  },
+  {
+    "id": "services--exchange-rates",
+    "path": "/exchange-rates",
+    "tenant": "services"
+  },
+  {
+    "id": "services--banking-feeds",
+    "path": "/banking/feeds",
+    "tenant": "services"
+  },
+  {
+    "id": "services--bank-imports-rules",
+    "path": "/bank-imports/rules",
+    "tenant": "services"
+  },
+  {
+    "id": "services--cash-book",
+    "path": "/cash-book",
+    "tenant": "services"
+  },
+  {
+    "id": "services--bank-book",
+    "path": "/bank-book",
+    "tenant": "services"
+  },
+  {
+    "id": "services--reconciliations",
+    "path": "/reconciliations",
+    "tenant": "services"
+  },
+  {
+    "id": "services--pl",
+    "path": "/pl",
+    "tenant": "services"
+  },
+  {
+    "id": "services--reports-dimensional-pl",
+    "path": "/reports/dimensional-pl",
+    "tenant": "services"
+  },
+  {
+    "id": "services--balance",
+    "path": "/balance",
+    "tenant": "services"
+  },
+  {
+    "id": "services--consolidation",
+    "path": "/consolidation",
+    "tenant": "services"
+  },
+  {
+    "id": "services--intercompany-recon",
+    "path": "/intercompany/recon",
+    "tenant": "services"
+  },
+  {
+    "id": "services--cashflow",
+    "path": "/cashflow",
+    "tenant": "services"
+  },
+  {
+    "id": "services--tax",
+    "path": "/tax",
+    "tenant": "services"
+  },
+  {
+    "id": "services--reports-wht",
+    "path": "/reports/wht",
+    "tenant": "services"
+  },
+  {
+    "id": "services--reports-cit-worksheet",
+    "path": "/reports/cit-worksheet",
+    "tenant": "services"
+  },
+  {
+    "id": "trader--india-gst-gstr",
+    "path": "/india-gst/gstr",
+    "tenant": "trader"
+  },
+  {
+    "id": "services--tax-return",
+    "path": "/tax-return",
+    "tenant": "services"
+  },
+  {
+    "id": "services--tax-codes",
+    "path": "/tax-codes",
+    "tenant": "services"
+  },
+  {
+    "id": "services--budgets",
+    "path": "/budgets",
+    "tenant": "services"
+  },
+  {
+    "id": "services--assets-rollforward",
+    "path": "/assets/rollforward",
+    "tenant": "services"
+  },
+  {
+    "id": "services--leases",
+    "path": "/leases",
+    "tenant": "services"
+  },
+  {
+    "id": "services--contract-balances",
+    "path": "/contract-balances",
+    "tenant": "services"
+  },
+  {
+    "id": "services--customer-performance",
+    "path": "/customer-performance",
+    "tenant": "services"
+  },
+  {
+    "id": "services--reports-builder",
+    "path": "/reports/builder",
+    "tenant": "services"
+  },
+  {
+    "id": "services--profile",
+    "path": "/profile",
+    "tenant": "services"
+  },
+  {
+    "id": "services--imports",
+    "path": "/imports",
+    "tenant": "services"
+  },
+  {
+    "id": "services--payment-terms",
+    "path": "/payment-terms",
+    "tenant": "services"
+  },
+  {
+    "id": "services--team",
+    "path": "/team",
+    "tenant": "services"
+  },
+  {
+    "id": "services--practice",
+    "path": "/practice",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-permissions",
+    "path": "/settings/permissions",
+    "tenant": "services"
+  },
+  {
+    "id": "services--audit",
+    "path": "/audit",
+    "tenant": "services"
+  },
+  {
+    "id": "services--approvals",
+    "path": "/approvals",
+    "tenant": "services"
+  },
+  {
+    "id": "services--approvals-workflows",
+    "path": "/approvals/workflows",
+    "tenant": "services"
+  },
+  {
+    "id": "services--workflow",
+    "path": "/workflow",
+    "tenant": "services"
+  },
+  {
+    "id": "services--guide",
+    "path": "/guide",
+    "tenant": "services"
+  },
+  {
+    "id": "services--agent",
+    "path": "/agent",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio",
+    "path": "/settings/studio",
+    "tenant": "services"
+  },
+  {
+    "id": "services--apps",
+    "path": "/apps",
+    "tenant": "services"
+  },
+  {
+    "id": "pra--pra-logs",
+    "path": "/pra-logs",
+    "tenant": "pra"
+  },
+  {
+    "id": "services--uae-logs",
+    "path": "/uae/logs",
+    "tenant": "services"
+  },
+  {
+    "id": "manufacturing--zatca-logs",
+    "path": "/zatca/logs",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "services--peppol-logs",
+    "path": "/peppol/logs",
+    "tenant": "services"
+  },
+  {
+    "id": "hospital--employees",
+    "path": "/employees",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--attendance",
+    "path": "/attendance",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--leave",
+    "path": "/leave",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--expense-claims",
+    "path": "/expense-claims",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--payroll-components",
+    "path": "/payroll/components",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-patients",
+    "path": "/healthcare/patients",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-doctors",
+    "path": "/healthcare/doctors",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-lab-tests",
+    "path": "/healthcare/lab/tests",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-procedures",
+    "path": "/healthcare/procedures",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-dialysis",
+    "path": "/healthcare/dialysis",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-store",
+    "path": "/healthcare/store",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-reports",
+    "path": "/healthcare/reports",
+    "tenant": "hospital"
+  },
+  {
+    "id": "manufacturing--weaving-setup",
+    "path": "/weaving/setup",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-yarn-inward",
+    "path": "/weaving/yarn-inward",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-sizing",
+    "path": "/weaving/sizing",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-production",
+    "path": "/weaving/production",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-dispatch",
+    "path": "/weaving/dispatch",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-calculators-weaving",
+    "path": "/weaving/calculators/weaving",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-calculators-sizing",
+    "path": "/weaving/calculators/sizing",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-reports-daily",
+    "path": "/weaving/reports/daily",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-reports-contract-control",
+    "path": "/weaving/reports/contract-control",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-reports-customer-kpi",
+    "path": "/weaving/reports/customer-kpi",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weaving-dashboard",
+    "path": "/weaving/dashboard",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weighbridge-tickets",
+    "path": "/weighbridge/tickets",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--weighbridge-reports-register",
+    "path": "/weighbridge/reports/register",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "spinning--spinning-setup",
+    "path": "/spinning/setup",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-plans",
+    "path": "/spinning/plans",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-bale-receipts",
+    "path": "/spinning/bale-receipts",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-stages",
+    "path": "/spinning/stages",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-cone-output",
+    "path": "/spinning/cone-output",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-waste",
+    "path": "/spinning/waste",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-dispatch",
+    "path": "/spinning/dispatch",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-calculators-yield",
+    "path": "/spinning/calculators/yield",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-reports-daily",
+    "path": "/spinning/reports/daily",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-reports-lot-control",
+    "path": "/spinning/reports/lot-control",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-reports-waste",
+    "path": "/spinning/reports/waste",
+    "tenant": "spinning"
+  },
+  {
+    "id": "spinning--spinning-dashboard",
+    "path": "/spinning/dashboard",
+    "tenant": "spinning"
+  },
+  {
+    "id": "processing--processing-setup",
+    "path": "/processing/setup",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-sales-orders",
+    "path": "/processing/sales-orders",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-mending",
+    "path": "/processing/mending",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-kachi-parchi",
+    "path": "/processing/kachi-parchi",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-pakki-parchi",
+    "path": "/processing/pakki-parchi",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-rejection",
+    "path": "/processing/rejection",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-production-orders",
+    "path": "/processing/production-orders",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-stages",
+    "path": "/processing/stages",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-dispatch",
+    "path": "/processing/dispatch",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-labor-bills",
+    "path": "/processing/labor-bills",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-settlements",
+    "path": "/processing/settlements",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-inspections",
+    "path": "/processing/inspections",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-reports-rejection",
+    "path": "/processing/reports/rejection",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-reports-stock-ledger",
+    "path": "/processing/reports/stock-ledger",
+    "tenant": "processing"
+  },
+  {
+    "id": "processing--processing-reports-ppc",
+    "path": "/processing/reports/ppc",
+    "tenant": "processing"
+  }
+]

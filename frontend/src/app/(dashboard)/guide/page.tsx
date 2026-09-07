@@ -2313,6 +2313,11 @@ export default function GuidePage() {
           Transaction Workflow
         </Link>
         {" "}for a visual flowchart of how each transaction type maps to GL entries.
+        {" "}The{" "}
+        <Link href="/settings/catalog" className="text-[var(--primary)] underline underline-offset-2 hover:text-[#7a5c1e]">
+          Workflow Catalog
+        </Link>
+        {" "}in Settings adds snapshots and tags for every tenant, segment, report, and screen.
       </div>
     </div>
   )
