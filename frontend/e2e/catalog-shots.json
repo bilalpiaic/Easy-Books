@@ -295,6 +295,16 @@
     "tenant": "services"
   },
   {
+    "id": "services--settings-tab-api-keys",
+    "path": "/settings?tab=api-keys",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-tab-updates",
+    "path": "/settings?tab=updates",
+    "tenant": "services"
+  },
+  {
     "id": "services--journal",
     "path": "/journal",
     "tenant": "services"
@@ -1033,5 +1043,630 @@
     "id": "processing--processing-reports-ppc",
     "path": "/processing/reports/ppc",
     "tenant": "processing"
+  },
+  {
+    "id": "services--settings-studio-tab-fields-entity-invoice",
+    "path": "/settings/studio?tab=fields&entity=invoice",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-fields-entity-bill",
+    "path": "/settings/studio?tab=fields&entity=bill",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-fields-entity-customer",
+    "path": "/settings/studio?tab=fields&entity=customer",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-fields-entity-product",
+    "path": "/settings/studio?tab=fields&entity=product",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-fields-entity-vendor",
+    "path": "/settings/studio?tab=fields&entity=vendor",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-forms-entity-invoice",
+    "path": "/settings/studio?tab=forms&entity=invoice",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-forms-entity-bill",
+    "path": "/settings/studio?tab=forms&entity=bill",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-forms-entity-customer",
+    "path": "/settings/studio?tab=forms&entity=customer",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-forms-entity-product",
+    "path": "/settings/studio?tab=forms&entity=product",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-forms-entity-vendor",
+    "path": "/settings/studio?tab=forms&entity=vendor",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-print-entity-invoice",
+    "path": "/settings/studio?tab=print&entity=invoice",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-studio-tab-print-entity-bill",
+    "path": "/settings/studio?tab=print&entity=bill",
+    "tenant": "services"
+  },
+  {
+    "id": "services--customers-new",
+    "path": "/customers/new",
+    "tenant": "services"
+  },
+  {
+    "id": "services--vendors-new",
+    "path": "/vendors/new",
+    "tenant": "services"
+  },
+  {
+    "id": "trader--products-new",
+    "path": "/products/new",
+    "tenant": "trader"
+  },
+  {
+    "id": "hospital--employees-new",
+    "path": "/employees/new",
+    "tenant": "hospital"
+  },
+  {
+    "id": "services--payments-received-new",
+    "path": "/payments-received/new",
+    "tenant": "services"
+  },
+  {
+    "id": "services--bill-payments-new",
+    "path": "/bill-payments/new",
+    "tenant": "services"
+  },
+  {
+    "id": "services--bank-imports-new",
+    "path": "/bank-imports/new",
+    "tenant": "services"
+  },
+  {
+    "id": "hospital--payroll-new",
+    "path": "/payroll/new",
+    "tenant": "hospital"
+  },
+  {
+    "id": "trader--inventory-transfers-new",
+    "path": "/inventory/transfers/new",
+    "tenant": "trader"
+  },
+  {
+    "id": "manufacturing--manufacturing-boms-new",
+    "path": "/manufacturing/boms/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-grn-new",
+    "path": "/manufacturing/grn/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-production-orders-new",
+    "path": "/manufacturing/production-orders/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-purchase-orders-new",
+    "path": "/manufacturing/purchase-orders/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--purchases-gate-inward-new",
+    "path": "/purchases/gate-inward/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-gate-outward-new",
+    "path": "/store/gate-outward/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--store-issues-new",
+    "path": "/store/issues/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "processing--processing-lots-new",
+    "path": "/processing/lots/new",
+    "tenant": "processing"
+  },
+  {
+    "id": "manufacturing--weaving-contracts-new",
+    "path": "/weaving/contracts/new",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--purchases-demands-id-quotations-new",
+    "path": "/purchases/demands/{id}/quotations/new",
+    "tenant": "manufacturing",
+    "idFrom": "/api/purchase-demands"
+  },
+  {
+    "id": "services--invoices-id",
+    "path": "/invoices/{id}",
+    "tenant": "services",
+    "idFrom": "/api/invoices"
+  },
+  {
+    "id": "services--invoices-id-edit",
+    "path": "/invoices/{id}/edit",
+    "tenant": "services",
+    "idFrom": "/api/invoices"
+  },
+  {
+    "id": "services--invoices-id-print",
+    "path": "/invoices/{id}/print",
+    "tenant": "services",
+    "idFrom": "/api/invoices"
+  },
+  {
+    "id": "services--invoices-id-receipt",
+    "path": "/invoices/{id}/receipt",
+    "tenant": "services",
+    "idFrom": "/api/invoices"
+  },
+  {
+    "id": "trader--bills-id",
+    "path": "/bills/{id}",
+    "tenant": "trader",
+    "idFrom": "/api/bills"
+  },
+  {
+    "id": "trader--bills-id-edit",
+    "path": "/bills/{id}/edit",
+    "tenant": "trader",
+    "idFrom": "/api/bills"
+  },
+  {
+    "id": "trader--bills-id-print",
+    "path": "/bills/{id}/print",
+    "tenant": "trader",
+    "idFrom": "/api/bills"
+  },
+  {
+    "id": "services--credit-notes-id",
+    "path": "/credit-notes/{id}",
+    "tenant": "services",
+    "idFrom": "/api/credit-notes"
+  },
+  {
+    "id": "services--credit-notes-id-print",
+    "path": "/credit-notes/{id}/print",
+    "tenant": "services",
+    "idFrom": "/api/credit-notes"
+  },
+  {
+    "id": "trader--debit-notes-id",
+    "path": "/debit-notes/{id}",
+    "tenant": "trader",
+    "idFrom": "/api/debit-notes"
+  },
+  {
+    "id": "trader--debit-notes-id-print",
+    "path": "/debit-notes/{id}/print",
+    "tenant": "trader",
+    "idFrom": "/api/debit-notes"
+  },
+  {
+    "id": "services--payments-received-id",
+    "path": "/payments-received/{id}",
+    "tenant": "services",
+    "idFrom": "/api/payments-received"
+  },
+  {
+    "id": "services--payments-received-id-print",
+    "path": "/payments-received/{id}/print",
+    "tenant": "services",
+    "idFrom": "/api/payments-received"
+  },
+  {
+    "id": "services--bill-payments-id",
+    "path": "/bill-payments/{id}",
+    "tenant": "services",
+    "idFrom": "/api/bill-payments"
+  },
+  {
+    "id": "services--bill-payments-id-print",
+    "path": "/bill-payments/{id}/print",
+    "tenant": "services",
+    "idFrom": "/api/bill-payments"
+  },
+  {
+    "id": "services--journal-id",
+    "path": "/journal/{id}",
+    "tenant": "services",
+    "idFrom": "/api/reports/journal?start=2020-01-01&end=2030-12-31&limit=1",
+    "idField": "transaction_id"
+  },
+  {
+    "id": "services--journal-id-print",
+    "path": "/journal/{id}/print",
+    "tenant": "services",
+    "idFrom": "/api/reports/journal?start=2020-01-01&end=2030-12-31&limit=1",
+    "idField": "transaction_id"
+  },
+  {
+    "id": "services--customers-id",
+    "path": "/customers/{id}",
+    "tenant": "services",
+    "idFrom": "/api/customers"
+  },
+  {
+    "id": "services--customers-id-edit",
+    "path": "/customers/{id}/edit",
+    "tenant": "services",
+    "idFrom": "/api/customers"
+  },
+  {
+    "id": "services--customers-id-statement",
+    "path": "/customers/{id}/statement",
+    "tenant": "services",
+    "idFrom": "/api/customers"
+  },
+  {
+    "id": "services--customers-id-ledger",
+    "path": "/customers/{id}/ledger",
+    "tenant": "services",
+    "idFrom": "/api/customers"
+  },
+  {
+    "id": "services--customers-id-products",
+    "path": "/customers/{id}/products",
+    "tenant": "services",
+    "idFrom": "/api/customers"
+  },
+  {
+    "id": "services--vendors-id",
+    "path": "/vendors/{id}",
+    "tenant": "services",
+    "idFrom": "/api/vendors"
+  },
+  {
+    "id": "services--vendors-id-edit",
+    "path": "/vendors/{id}/edit",
+    "tenant": "services",
+    "idFrom": "/api/vendors"
+  },
+  {
+    "id": "services--vendors-id-statement",
+    "path": "/vendors/{id}/statement",
+    "tenant": "services",
+    "idFrom": "/api/vendors"
+  },
+  {
+    "id": "services--vendors-id-ledger",
+    "path": "/vendors/{id}/ledger",
+    "tenant": "services",
+    "idFrom": "/api/vendors"
+  },
+  {
+    "id": "trader--products-id",
+    "path": "/products/{id}",
+    "tenant": "trader",
+    "idFrom": "/api/products"
+  },
+  {
+    "id": "trader--products-id-edit",
+    "path": "/products/{id}/edit",
+    "tenant": "trader",
+    "idFrom": "/api/products"
+  },
+  {
+    "id": "trader--products-id-stock-card",
+    "path": "/products/{id}/stock-card",
+    "tenant": "trader",
+    "idFrom": "/api/products"
+  },
+  {
+    "id": "hospital--employees-id-edit",
+    "path": "/employees/{id}/edit",
+    "tenant": "hospital",
+    "idFrom": "/api/employees"
+  },
+  {
+    "id": "hospital--payroll-id",
+    "path": "/payroll/{id}",
+    "tenant": "hospital",
+    "idFrom": "/api/payroll/runs"
+  },
+  {
+    "id": "hospital--payroll-id-payslip-eid",
+    "path": "/payroll/{id}/payslip/{eid}",
+    "tenant": "hospital",
+    "idFrom": "/api/payroll/runs",
+    "idFrom2": "/api/employees"
+  },
+  {
+    "id": "services--assets-id",
+    "path": "/assets/{id}",
+    "tenant": "services",
+    "idFrom": "/api/assets"
+  },
+  {
+    "id": "services--leases-id",
+    "path": "/leases/{id}",
+    "tenant": "services",
+    "idFrom": "/api/leases"
+  },
+  {
+    "id": "services--analytic-accounts-id",
+    "path": "/analytic-accounts/{id}",
+    "tenant": "services",
+    "idFrom": "/api/analytic-accounts"
+  },
+  {
+    "id": "services--bank-imports-id",
+    "path": "/bank-imports/{id}",
+    "tenant": "services",
+    "idFrom": "/api/bank-imports"
+  },
+  {
+    "id": "manufacturing--purchases-demands-id",
+    "path": "/purchases/demands/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/purchase-demands"
+  },
+  {
+    "id": "manufacturing--purchases-demands-id-edit",
+    "path": "/purchases/demands/{id}/edit",
+    "tenant": "manufacturing",
+    "idFrom": "/api/purchase-demands"
+  },
+  {
+    "id": "manufacturing--purchases-comparatives-id",
+    "path": "/purchases/comparatives/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/comparatives"
+  },
+  {
+    "id": "manufacturing--purchases-gate-inward-id",
+    "path": "/purchases/gate-inward/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/gate-inwards"
+  },
+  {
+    "id": "manufacturing--store-gate-outward-id",
+    "path": "/store/gate-outward/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/gate-outwards"
+  },
+  {
+    "id": "manufacturing--store-issues-id",
+    "path": "/store/issues/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/store-issues"
+  },
+  {
+    "id": "manufacturing--manufacturing-purchase-orders-id",
+    "path": "/manufacturing/purchase-orders/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/purchase-orders"
+  },
+  {
+    "id": "manufacturing--manufacturing-purchase-orders-id-print",
+    "path": "/manufacturing/purchase-orders/{id}/print",
+    "tenant": "manufacturing",
+    "idFrom": "/api/purchase-orders"
+  },
+  {
+    "id": "manufacturing--manufacturing-grn-id",
+    "path": "/manufacturing/grn/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/grn"
+  },
+  {
+    "id": "manufacturing--manufacturing-grn-id-print",
+    "path": "/manufacturing/grn/{id}/print",
+    "tenant": "manufacturing",
+    "idFrom": "/api/grn"
+  },
+  {
+    "id": "manufacturing--manufacturing-boms-id",
+    "path": "/manufacturing/boms/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/bom"
+  },
+  {
+    "id": "manufacturing--manufacturing-production-orders-id",
+    "path": "/manufacturing/production-orders/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/production-orders"
+  },
+  {
+    "id": "manufacturing--manufacturing-production-orders-id-print",
+    "path": "/manufacturing/production-orders/{id}/print",
+    "tenant": "manufacturing",
+    "idFrom": "/api/production-orders"
+  },
+  {
+    "id": "trader--inventory-transfers-id",
+    "path": "/inventory/transfers/{id}",
+    "tenant": "trader",
+    "idFrom": "/api/stock-transfers"
+  },
+  {
+    "id": "hospital--healthcare-patients-id",
+    "path": "/healthcare/patients/{id}",
+    "tenant": "hospital",
+    "idFrom": "/api/healthcare/patients"
+  },
+  {
+    "id": "hospital--healthcare-ipd-id",
+    "path": "/healthcare/ipd/{id}",
+    "tenant": "hospital",
+    "idFrom": "/api/healthcare/admissions"
+  },
+  {
+    "id": "hospital--healthcare-lab-id",
+    "path": "/healthcare/lab/{id}",
+    "tenant": "hospital",
+    "idFrom": "/api/healthcare/lab/orders"
+  },
+  {
+    "id": "spinning--spinning-lots-id",
+    "path": "/spinning/lots/{id}",
+    "tenant": "spinning",
+    "idFrom": "/api/spinning/lots"
+  },
+  {
+    "id": "manufacturing--weaving-contracts-id",
+    "path": "/weaving/contracts/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/weaving/contracts"
+  },
+  {
+    "id": "manufacturing--weighbridge-tickets-id",
+    "path": "/weighbridge/tickets/{id}",
+    "tenant": "manufacturing",
+    "idFrom": "/api/weighbridge/tickets"
+  },
+  {
+    "id": "processing--processing-lots-id",
+    "path": "/processing/lots/{id}",
+    "tenant": "processing",
+    "idFrom": "/api/textile-processing/lots"
+  },
+  {
+    "id": "processing--processing-kachi-parchi-id",
+    "path": "/processing/kachi-parchi/{id}",
+    "tenant": "processing",
+    "idFrom": "/api/textile-processing/kachi-parchis"
+  },
+  {
+    "id": "processing--processing-pakki-parchi-id",
+    "path": "/processing/pakki-parchi/{id}",
+    "tenant": "processing",
+    "idFrom": "/api/textile-processing/pakki-parchis"
+  },
+  {
+    "id": "processing--processing-rejection-ogp-id",
+    "path": "/processing/rejection/ogp/{id}",
+    "tenant": "processing",
+    "idFrom": "/api/textile-processing/rejection-ogps"
+  },
+  {
+    "id": "services--consolidation-runs-id",
+    "path": "/consolidation/runs/{id}",
+    "tenant": "services",
+    "idFrom": "/api/consolidation/runs"
+  },
+  {
+    "id": "hospital--healthcare-reports-tab-opd",
+    "path": "/healthcare/reports?tab=opd",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-reports-tab-doctors",
+    "path": "/healthcare/reports?tab=doctors",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-reports-tab-lab",
+    "path": "/healthcare/reports?tab=lab",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-reports-tab-ipd",
+    "path": "/healthcare/reports?tab=ipd",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--healthcare-reports-tab-revenue",
+    "path": "/healthcare/reports?tab=revenue",
+    "tenant": "hospital"
+  },
+  {
+    "id": "services--agent-forecast-tab-revenue",
+    "path": "/agent/forecast?tab=revenue",
+    "tenant": "services"
+  },
+  {
+    "id": "services--agent-forecast-tab-cash",
+    "path": "/agent/forecast?tab=cash",
+    "tenant": "services"
+  },
+  {
+    "id": "services--agent-forecast-tab-risk",
+    "path": "/agent/forecast?tab=risk",
+    "tenant": "services"
+  },
+  {
+    "id": "services--agent-forecast-tab-budget",
+    "path": "/agent/forecast?tab=budget",
+    "tenant": "services"
+  },
+  {
+    "id": "hospital--attendance-report",
+    "path": "/attendance/report",
+    "tenant": "hospital"
+  },
+  {
+    "id": "manufacturing--manufacturing-stock-locations-custody",
+    "path": "/manufacturing/stock-locations/custody",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "manufacturing--manufacturing-stock-locations-movements",
+    "path": "/manufacturing/stock-locations/movements",
+    "tenant": "manufacturing"
+  },
+  {
+    "id": "services--alerts",
+    "path": "/alerts",
+    "tenant": "services"
+  },
+  {
+    "id": "services--agent-forecast",
+    "path": "/agent/forecast",
+    "tenant": "services"
+  },
+  {
+    "id": "hospital--attendance-bulk",
+    "path": "/attendance/bulk",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--attendance-import",
+    "path": "/attendance/import",
+    "tenant": "hospital"
+  },
+  {
+    "id": "hospital--attendance-record",
+    "path": "/attendance/record",
+    "tenant": "hospital"
+  },
+  {
+    "id": "services--settings-billing",
+    "path": "/settings/billing",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-ops",
+    "path": "/settings/ops",
+    "tenant": "services"
+  },
+  {
+    "id": "services--settings-webhooks",
+    "path": "/settings/webhooks",
+    "tenant": "services"
   }
 ]

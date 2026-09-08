@@ -8,6 +8,17 @@ export default function ForecastPage() {
   const [data, setData] = useState<unknown>(null)
 
   useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab")
+    if (t === "revenue" || t === "cash" || t === "risk" || t === "budget") setTab(t)
+  }, [])
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    url.searchParams.set("tab", tab)
+    window.history.replaceState({}, "", url)
+  }, [tab])
+
+  useEffect(() => {
     const path = {
       revenue: "/api/agent/forecast/revenue",
       cash: "/api/agent/forecast/cash-flow",

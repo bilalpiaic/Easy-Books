@@ -75,12 +75,33 @@ export default function StudioPage() {
   const [printEntity, setPrintEntity] = useState<PrintEntity>('invoice')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [hydrated, setHydrated] = useState(false)
 
   const flash = (ok: string) => {
     setErr('')
     setMsg(ok)
     setTimeout(() => setMsg(''), 2500)
   }
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const t = sp.get('tab')
+    const ent = sp.get('entity')
+    if (t === 'fields' || t === 'forms' || t === 'print') setTab(t)
+    if (ent && (ENTITIES as string[]).includes(ent)) {
+      setEntity(ent as Entity)
+      if (ent === 'invoice' || ent === 'bill') setPrintEntity(ent)
+    }
+    setHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', tab)
+    url.searchParams.set('entity', tab === 'print' ? printEntity : entity)
+    window.history.replaceState({}, '', url)
+  }, [hydrated, tab, entity, printEntity])
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

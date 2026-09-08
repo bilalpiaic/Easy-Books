@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   BookOpen, ChevronRight, Images, Search, Tag, Building2, Layers,
   GitBranch, BarChart2, Monitor, X, ExternalLink, ListOrdered,
+  FileInput, LayoutTemplate,
 } from "lucide-react"
 import { useModules } from "@/context/ModuleContext"
 import {
@@ -22,6 +23,8 @@ const KIND_ICON: Record<CatalogKind, typeof Images> = {
   tenant: Building2,
   segment: Layers,
   workflow: GitBranch,
+  form: FileInput,
+  subform: LayoutTemplate,
   report: BarChart2,
   screen: Monitor,
 }
@@ -30,6 +33,8 @@ const KIND_TONE: Record<CatalogKind, string> = {
   tenant: "bg-slate-800 text-white",
   segment: "bg-indigo-100 text-indigo-800",
   workflow: "bg-[var(--primary)]/15 text-[#7a5c1e]",
+  form: "bg-amber-100 text-amber-900",
+  subform: "bg-violet-100 text-violet-800",
   report: "bg-emerald-100 text-emerald-800",
   screen: "bg-sky-100 text-sky-800",
 }
@@ -118,8 +123,12 @@ export default function CatalogPage() {
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">Workflow catalog</h1>
           <p className="text-xs text-[var(--text-primary)]/55 mt-0.5 leading-relaxed">
-            Snapshots and explanations for every demo tenant, nav segment, end-to-end workflow, report, and screen.
-            Filter by tag or company; open a card to read how it posts to the GL.
+            Snapshots and explanations for every demo tenant, nav segment, workflow, form, subform, report, and screen.
+            Filter by tag or company; open a card to read how it posts to the GL. A public explorer (no login) lives at{" "}
+            <a href="/catalog-advertisement.html" className="text-[var(--primary)] underline" target="_blank" rel="noreferrer">
+              /catalog-advertisement.html
+            </a>
+            .
           </p>
         </div>
       </div>

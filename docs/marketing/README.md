@@ -10,9 +10,10 @@ Narrated pictograph presentation, voiceover script, and social copy for commerci
 | [`audio/`](./audio/) | Per-slide voiceover WAV (espeak-ng) |
 | [`video/easy-books-overview.mp4`](./video/easy-books-overview.mp4) | Full narrated presentation |
 | [`VOICEOVER_SCRIPT.md`](./VOICEOVER_SCRIPT.md) | Editable narration + bullet source |
-| [`catalog-advertisement.html`](./catalog-advertisement.html) | **Standalone ad page** for Settings → Catalog (self-contained HTML, double-click to open) |
-| [`catalog-ad/`](./catalog-ad/) | Source JPEGs used by the catalog advertisement |
-| [`build_catalog_ad.py`](./build_catalog_ad.py) | Rebuilds the advertisement HTML (embeds the JPEGs) |
+| [`catalog-advertisement.html`](./catalog-advertisement.html) | **Standalone catalog explorer** — search/filter every tenant, form, Studio tab, report, and screen. Served at `/catalog-advertisement.html`. Snapshots load from `frontend/public/catalog/`. |
+| [`catalog-index.json`](./catalog-index.json) | Catalog metadata embedded into the explorer (from the frontend vitest). |
+| [`catalog-ad/`](./catalog-ad/) | Optional hero JPEGs (legacy ad stills) |
+| [`build_catalog_ad.py`](./build_catalog_ad.py) | Rebuilds the explorer HTML from `catalog-index.json` |
 | [`build_presentation.py`](./build_presentation.py) | Regenerates slides, audio, and MP4 |
 
 ## Segments covered (voiceover)
@@ -36,7 +37,8 @@ Narrated pictograph presentation, voiceover script, and social copy for commerci
 # Requires: python3-pil, espeak-ng, ffmpeg
 python3 docs/marketing/build_presentation.py
 
-# Catalog advertisement HTML (embeds JPEGs from catalog-ad/)
+# Catalog explorer HTML (embeds catalog JSON; snapshots from frontend/public/catalog/)
+cd frontend && npm test -- src/lib/__tests__/workflowCatalog.test.ts
 python3 docs/marketing/build_catalog_ad.py
 ```
 

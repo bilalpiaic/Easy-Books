@@ -3,8 +3,9 @@
  * screen. Settings → Catalog renders this list with captured snapshots.
  */
 import { NAV, TOP_NAV, type NavItem } from "@/lib/nav"
+import { DEEP_ENTRIES } from "@/lib/workflowCatalogDeep"
 
-export type CatalogKind = "tenant" | "segment" | "workflow" | "report" | "screen"
+export type CatalogKind = "tenant" | "segment" | "workflow" | "form" | "subform" | "report" | "screen"
 
 export type DemoTenantKey =
   | "simple"
@@ -39,6 +40,8 @@ export const CATALOG_KINDS: { id: CatalogKind | "all"; label: string }[] = [
   { id: "tenant",   label: "Tenants" },
   { id: "segment",  label: "Segments" },
   { id: "workflow", label: "Workflows" },
+  { id: "form",     label: "Forms" },
+  { id: "subform",  label: "Subforms" },
   { id: "report",   label: "Reports" },
   { id: "screen",   label: "Screens" },
 ]
@@ -58,6 +61,12 @@ export interface CatalogEntry {
   /** Demo tenant used when capturing the snapshot. */
   captureTenant: DemoTenantKey | "anon"
   capturePath?: string
+  /** List API used to fill `{id}` / `{eid}` in capturePath (e.g. `/api/invoices`). */
+  captureIdFrom?: string
+  /** Second list API for `{eid}` (payslip employee, etc.). */
+  captureIdFrom2?: string
+  /** Field on the list row that becomes `{id}` (default `id`). */
+  captureIdField?: string
 }
 
 export function catalogScreenshot(entry: CatalogEntry | string): string {
@@ -71,7 +80,12 @@ export function shotKey(entry: CatalogEntry): string {
 }
 
 export function slugHref(href: string): string {
-  return href.replace(/^\//, "").replace(/[/?=&]/g, "-").replace(/-+/g, "-").replace(/-$/, "") || "home"
+  return href
+    .replace(/^\//, "")
+    .replace(/\{([^}]+)\}/g, "$1")
+    .replace(/[/?=&]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/-$/, "") || "home"
 }
 
 function tenantForModule(mod?: string): DemoTenantKey {
@@ -490,6 +504,18 @@ const EXTRA_SCREENS: CatalogEntry[] = [
     tags: ["settings", "workflow"],
     explanation: "This page. Filter by tenant, segment, tag, or kind; open a snapshot and jump to the live screen. Recapture snapshots with CAPTURE_CATALOG=1 against the demo tenants.",
   },
+  {
+    id: "screen-settings-api-keys", kind: "screen", title: "Settings · API keys", href: "/settings?tab=api-keys",
+    captureTenant: "services", capturePath: "/settings?tab=api-keys", segment: "System", modules: ["base"],
+    tenants: tenantsForModules(["base"]), tags: ["settings"],
+    explanation: "Machine-to-machine API keys (admin/owner). Keys are shown once at creation; list view is masked. Same gate as the backend AdminUserDep on /api/auth/keys.",
+  },
+  {
+    id: "screen-settings-updates", kind: "screen", title: "Settings · Updates", href: "/settings?tab=updates",
+    captureTenant: "services", capturePath: "/settings?tab=updates", segment: "System", modules: ["base"],
+    tenants: tenantsForModules(["base"]), tags: ["settings"],
+    explanation: "In-app update status, commit SHA, and changelog. Script/Electron installs pull from GitHub commits; the desktop shell uses electron-updater.",
+  },
 ]
 
 // ── Copy overlays for NAV-derived screens / reports ──────────────────────────
@@ -731,6 +757,7 @@ export const CATALOG: CatalogEntry[] = [
   ...WORKFLOW_ENTRIES,
   ...EXTRA_SCREENS,
   ...NAV_ENTRIES,
+  ...DEEP_ENTRIES,
 ]
 
 export const CATALOG_BY_ID: Record<string, CatalogEntry> = Object.fromEntries(
@@ -764,20 +791,32 @@ export function filterCatalog(opts: {
   })
 }
 
-/** Unique capture jobs for the Playwright snapshot pass. */
-export function catalogCaptureJobs(): {
+export interface CatalogCaptureJob {
   id: string
   path: string
   tenant: DemoTenantKey | "anon"
-}[] {
+  idFrom?: string
+  idFrom2?: string
+  idField?: string
+}
+
+/** Unique capture jobs for the Playwright snapshot pass. */
+export function catalogCaptureJobs(): CatalogCaptureJob[] {
   const seen = new Set<string>()
-  const jobs: { id: string; path: string; tenant: DemoTenantKey | "anon" }[] = []
+  const jobs: CatalogCaptureJob[] = []
   for (const e of CATALOG) {
     const path = e.capturePath ?? e.href
     const key = `${e.captureTenant}::${path}`
     if (seen.has(key)) continue
     seen.add(key)
-    jobs.push({ id: shotKey(e), path, tenant: e.captureTenant })
+    jobs.push({
+      id: shotKey(e),
+      path,
+      tenant: e.captureTenant,
+      idFrom: e.captureIdFrom,
+      idFrom2: e.captureIdFrom2,
+      idField: e.captureIdField,
+    })
   }
   return jobs
 }

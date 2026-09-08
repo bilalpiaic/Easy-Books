@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { writeFileSync } from "node:fs"
-import { resolve } from "node:path"
+import { mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs"
+import { join, resolve } from "node:path"
 import { NAV, TOP_NAV } from "../nav"
 import {
   CATALOG,
@@ -9,7 +9,9 @@ import {
   catalogScreenshot,
   filterCatalog,
   slugHref,
+  shotKey,
 } from "../workflowCatalog"
+import { DEEP_ENTRIES } from "../workflowCatalogDeep"
 
 describe("workflow catalog", () => {
   it("has unique ids", () => {
@@ -31,15 +33,55 @@ describe("workflow catalog", () => {
 
   it("covers every unique NAV href as a screen or report", () => {
     const hrefs = new Set(
-      CATALOG.filter(e => e.kind === "screen" || e.kind === "report").map(e => e.href.split("?")[0]),
+      CATALOG.filter(e => e.kind === "screen" || e.kind === "report" || e.kind === "form" || e.kind === "subform")
+        .map(e => (e.capturePath ?? e.href).split("?")[0].replace(/\{[^}]+\}/g, "")),
     )
     const missing: string[] = []
     const seen = new Set<string>()
     for (const item of NAV) {
       if (seen.has(item.href)) continue
       seen.add(item.href)
-      if (!hrefs.has(item.href)) missing.push(item.href)
+      const base = item.href.split("?")[0]
+      if (![...hrefs].some(h => h === base || h.replace(/\/$/, "") === base)) missing.push(item.href)
     }
+    expect(missing).toEqual([])
+  })
+
+  it("includes form, subform, and Studio entries", () => {
+    expect(CATALOG.some(e => e.kind === "form")).toBe(true)
+    expect(CATALOG.some(e => e.kind === "subform")).toBe(true)
+    const studio = CATALOG.filter(e => e.href.includes("/settings/studio"))
+    expect(studio.length).toBeGreaterThanOrEqual(12)
+    expect(studio.some(e => e.href.includes("tab=fields") && e.href.includes("entity=invoice"))).toBe(true)
+    expect(studio.some(e => e.href.includes("tab=forms"))).toBe(true)
+    expect(studio.some(e => e.href.includes("tab=print"))).toBe(true)
+    expect(DEEP_ENTRIES.length).toBeGreaterThan(80)
+  })
+
+  it("covers static dashboard routes and parameterized templates", () => {
+    const skip = new Set(["/uae-logs"])
+    const catalogRoutes = new Set(
+      CATALOG.map(e => {
+        const p = (e.capturePath ?? e.href).split("?")[0]
+        return p.replace("{id}", "[id]").replace("{eid}", "[eid]")
+      }),
+    )
+    const root = resolve(__dirname, "../../app/(dashboard)")
+    const routes: string[] = []
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name)
+        if (statSync(full).isDirectory()) walk(full)
+        else if (name === "page.tsx") {
+          const rel = full.slice(root.length).replace(/\\/g, "/").replace(/\/page\.tsx$/, "")
+          routes.push(rel || "/dashboard")
+        }
+      }
+    }
+    walk(root)
+    const missing = routes
+      .map(r => (r.startsWith("/") ? r : `/${r}`.replace(/\/+/g, "/")))
+      .filter(href => !skip.has(href) && !catalogRoutes.has(href))
     expect(missing).toEqual([])
   })
 
@@ -75,6 +117,7 @@ describe("workflow catalog", () => {
   it("slugifies hrefs without empty or slash characters", () => {
     expect(slugHref("/purchases/three-way-match")).toBe("purchases-three-way-match")
     expect(slugHref("/settings?tab=advanced")).toBe("settings-tab-advanced")
+    expect(slugHref("/invoices/{id}/print")).toBe("invoices-id-print")
     expect(slugHref("/")).toBe("home")
   })
 
@@ -83,9 +126,34 @@ describe("workflow catalog", () => {
     const keys = jobs.map(j => `${j.tenant}::${j.path}`)
     expect(new Set(keys).size).toBe(keys.length)
     expect(jobs.some(j => j.tenant === "anon" && j.path === "/login")).toBe(true)
+    expect(jobs.some(j => j.path.includes("{id}"))).toBe(true)
+    expect(jobs.some(j => j.path.includes("/settings/studio?tab=fields"))).toBe(true)
     writeFileSync(
       resolve(__dirname, "../../../e2e/catalog-shots.json"),
       JSON.stringify(jobs, null, 2) + "\n",
+    )
+    const slim = CATALOG.map(e => ({
+      id: e.id,
+      title: e.title,
+      kind: e.kind,
+      href: e.href,
+      explanation: e.explanation,
+      steps: e.steps,
+      gl: e.gl,
+      tags: e.tags,
+      tenants: e.tenants,
+      modules: e.modules,
+      segment: e.segment,
+      shot: shotKey(e),
+    }))
+    mkdirSync(resolve(__dirname, "../../../public/catalog"), { recursive: true })
+    writeFileSync(
+      resolve(__dirname, "../../../public/catalog/index.json"),
+      JSON.stringify({ generated: new Date().toISOString().slice(0, 10), entries: slim }, null, 2) + "\n",
+    )
+    writeFileSync(
+      resolve(__dirname, "../../../../docs/marketing/catalog-index.json"),
+      JSON.stringify({ generated: new Date().toISOString().slice(0, 10), entries: slim }) + "\n",
     )
   })
 })

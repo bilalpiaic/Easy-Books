@@ -15,6 +15,17 @@ export default function HcReportsPage() {
   const [data, setData] = useState<unknown>(null)
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab")
+    if (t === "opd" || t === "doctors" || t === "lab" || t === "ipd" || t === "revenue") setTab(t)
+  }, [])
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    url.searchParams.set("tab", tab)
+    window.history.replaceState({}, "", url)
+  }, [tab])
+
   async function loadReport() {
     setLoading(true)
     setData(null)
