@@ -162,7 +162,7 @@ function filtered() {
     if (state.tag && !(e.tags || []).includes(state.tag)) return false;
     if (!q) return true;
     const blob = [e.title, e.explanation, (e.tags||[]).join(" "), e.segment, e.href, e.gl || ""].join(" ").toLowerCase();
-    return blob.includes(q);
+    return q.split(/\s+/).filter(Boolean).every(t => blob.includes(t));
   });
 }
 

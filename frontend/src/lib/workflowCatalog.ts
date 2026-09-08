@@ -787,7 +787,7 @@ export function filterCatalog(opts: {
     if (opts.tenant && opts.tenant !== "all" && !e.tenants.includes(opts.tenant)) return false
     if (!q) return true
     const blob = `${e.title} ${e.explanation} ${e.tags.join(" ")} ${e.segment} ${e.href}`.toLowerCase()
-    return blob.includes(q)
+    return q.split(/\s+/).filter(Boolean).every(term => blob.includes(term))
   })
 }
 

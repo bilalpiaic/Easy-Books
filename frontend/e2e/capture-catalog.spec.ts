@@ -73,8 +73,8 @@ async function firstId(
   page: import("@playwright/test").Page,
   apiPath: string,
   field = "id",
+  token: string | null,
 ): Promise<string | null> {
-  const token = await page.evaluate(() => localStorage.getItem("access_token"))
   if (!token) return null
   const url = apiPath.startsWith("http") ? apiPath : `${API}${apiPath}`
   const res = await page.request.get(url, {
@@ -91,18 +91,20 @@ async function firstId(
 async function resolvePath(
   page: import("@playwright/test").Page,
   job: Job,
-): Promise<string | null> {
+  token: string | null,
+): Promise<string> {
   let path = job.path
   if (!path.includes("{id}") && !path.includes("{eid}")) return path
-  if (!job.idFrom) return null
-  const id = await firstId(page, job.idFrom, job.idField || "id")
-  if (!id) return null
+  if (!job.idFrom) return path.replace(/\/\{[^}]+\}/g, "")
+  const id = await firstId(page, job.idFrom, job.idField || "id", token)
+  if (!id) {
+    // Fall back to the parent list so the catalog card still has a snap.
+    return path.replace(/\/\{id\}.*$/, "").replace(/\/\{eid\}.*$/, "") || "/"
+  }
   path = path.replaceAll("{id}", id)
   if (path.includes("{eid}")) {
-    const eid = job.idFrom2
-      ? await firstId(page, job.idFrom2, "id")
-      : null
-    if (!eid) return null
+    const eid = job.idFrom2 ? await firstId(page, job.idFrom2, "id", token) : null
+    if (!eid) return path.replace(/\/\{eid\}.*$/, "") || "/"
     path = path.replaceAll("{eid}", eid)
   }
   return path
@@ -131,17 +133,14 @@ test.describe("catalog snapshots", () => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const email = EMAIL[tenant as TenantKey]
       await loginAs(page, email, DEMO_PASSWORD)
+      const token = await page.evaluate(() => localStorage.getItem("access_token"))
       test.setTimeout(20 * 60_000)
       for (const job of tenantJobs) {
         const dest = resolve(OUT, `${job.id}.jpg`)
         if (existsSync(dest) && !FORCE) continue
         try {
-          const path = await resolvePath(page, job)
-          if (!path) {
-            console.warn(`skip ${tenant} ${job.path}: no id`)
-            continue
-          }
-          await page.goto(path, { waitUntil: "domcontentloaded", timeout: 25_000 })
+          const path = await resolvePath(page, job, token)
+          await page.goto(path, { waitUntil: "domcontentloaded", timeout: 60_000 })
           await page.waitForTimeout(1400)
           const later = page.getByRole("button", { name: /^Later$/ })
           if (await later.isVisible().catch(() => false)) await later.click()

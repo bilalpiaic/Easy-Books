@@ -112,6 +112,8 @@ describe("workflow catalog", () => {
     expect(mill[0].id).toBe("tenant-manufacturing")
     const q = filterCatalog({ q: "zatca" })
     expect(q.some(e => e.title.toLowerCase().includes("zatca") || e.explanation.toLowerCase().includes("zatca"))).toBe(true)
+    const studioPrint = filterCatalog({ q: "studio print invoice" })
+    expect(studioPrint.some(e => e.id.includes("studio-print-invoice"))).toBe(true)
   })
 
   it("slugifies hrefs without empty or slash characters", () => {
