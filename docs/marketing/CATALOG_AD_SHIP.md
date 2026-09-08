@@ -53,9 +53,36 @@ A single self-contained HTML with every JPEG inlined would be ~25 MB of base64. 
 
 ---
 
+## Runnable ship scripts (project + file locations)
+
+From the Easy-Books repo root (the folder that contains `frontend/` and `docs/marketing/`). Override the project folder with `EB_ROOT` if you copy the scripts.
+
+| OS | Run |
+|----|-----|
+| macOS / Linux | `./ship-catalog-ad.sh` |
+| Windows (double-click) | `ship-catalog-ad.bat` |
+| Windows (PowerShell) | `powershell -ExecutionPolicy Bypass -File ship-catalog-ad.ps1` |
+
+What they do:
+
+1. Resolve the project root (`EB_ROOT` or the script’s own folder).
+2. Print every required path (HTML, JSON, snapshots, zip, hosted URL).
+3. Rebuild `catalog-advertisement.html` (`docs/marketing/build_catalog_ad.py`).
+4. Pack the offline zip (`docs/marketing/pack_catalog_ad.py` → `docs/marketing/dist/`, gitignored).
+
+Flags: `--refresh` / `-Refresh` (regenerate `catalog-index.json` via vitest), `--open` / `-Open` (open the HTML), `--print-paths` / `-PrintPaths` (locations only), `--skip-pack` / `-SkipPack`.
+
+Hosted click-out URL printed by the scripts (override origin with `FRONTEND_ORIGIN`):
+
+```
+http://127.0.0.1:3000/catalog-advertisement.html
+```
+
+---
+
 ## Offline / sales pack (secondary ship)
 
-For a trade-show laptop, USB stick, or a prospect who cannot reach the cloud:
+For a trade-show laptop, USB stick, or a prospect who cannot reach the cloud, run a ship script above, or:
 
 ```bash
 python3 docs/marketing/pack_catalog_ad.py
