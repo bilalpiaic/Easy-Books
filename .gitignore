@@ -58,3 +58,6 @@ mobile/ios/App/build/
 # Session tooling scratch (brainstorm server state, handoff notes)
 .superpowers/
 .remember/
+
+# Generated catalog-ad zip (rebuild with pack_catalog_ad.py)
+docs/marketing/dist/

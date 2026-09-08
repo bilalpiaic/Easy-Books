@@ -20,4 +20,14 @@ test.describe("workflow catalog", () => {
     await expect(page.locator("aside").getByRole("heading", { name: "Trial Balance" })).toBeVisible()
     await expect(page.getByRole("link", { name: /open live screen/i })).toBeVisible()
   })
+
+  test("public explorer HTML is reachable without login and honors tenant deep-link", async ({ page }) => {
+    await page.goto("/catalog-advertisement.html?tenant=spinning")
+    await expect(page.locator("h1")).toContainText(/every tenant, form, and report/i)
+    await expect(page.locator("#count")).toContainText(/Spinning/)
+    await expect(page).toHaveURL(/tenant=spinning/)
+    const img = page.locator(".grid .thumb img").first()
+    await expect(img).toBeVisible()
+    await expect.poll(async () => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0)
+  })
 })

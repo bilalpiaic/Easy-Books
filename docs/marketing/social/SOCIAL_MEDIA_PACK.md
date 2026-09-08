@@ -100,6 +100,7 @@ If your team juggles QuickBooks for books and spreadsheets for production, Easy-
 
 Demo: demo.simple@easy-books.app / demo1234  
 Processing: demo.processing@easy-books.app  
+Browse every screen (no login): https://<FRONTEND_ORIGIN>/catalog-advertisement.html
 
 Happy to walk you through a 15-minute tour.
 
@@ -107,13 +108,36 @@ Happy to walk you through a 15-minute tour.
 
 ---
 
-## 6. Hashtag bank
+## 6. Catalog explorer (ship the URL, never the file)
+
+Landing page: `https://<FRONTEND_ORIGIN>/catalog-advertisement.html`  
+Rules: [`../CATALOG_AD_SHIP.md`](../CATALOG_AD_SHIP.md). Creative: `../slides/12-cta.png`. Do **not** attach `catalog-advertisement.html`.
+
+**LinkedIn / X (short)**
+
+See every mill, hospital, and books screen — snapshots, no login.  
+`https://<FRONTEND_ORIGIN>/catalog-advertisement.html`  
+Live demo: `demo.manufacturing@easy-books.app` / `demo1234`
+
+**Spinning mill variant**
+
+Yarn spinning from bale to cone, photographed.  
+`https://<FRONTEND_ORIGIN>/catalog-advertisement.html?tenant=spinning`
+
+**WhatsApp / email add-on** (append to §5)
+
+Browse the product catalog (no login):  
+`https://<FRONTEND_ORIGIN>/catalog-advertisement.html`
+
+---
+
+## 7. Hashtag bank
 
 `#EasyBooks` `#SMEAccounting` `#DoubleEntry` `#IFRS` `#TextileERP` `#YarnSpinning` `#JobWork` `#ManufacturingSoftware` `#HospitalHIS` `#TelecomFranchise` `#OpenSourceAccounting` `#AIAccounting`
 
 ---
 
-## 7. Suggested media pairing
+## 8. Suggested media pairing
 
 | Channel | Asset |
 |---------|--------|
@@ -122,6 +146,7 @@ Happy to walk you through a 15-minute tour.
 | Story / Reel cover | `../slides/12-cta.png` |
 | Processing-focused post | `../slides/05-processing.png` |
 | AI feature post | `../slides/09-ai.png` |
+| Catalog explorer click-out | Canonical `/catalog-advertisement.html` (not the HTML file) |
 
 Regenerate assets anytime:
 
