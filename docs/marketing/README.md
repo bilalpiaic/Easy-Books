@@ -10,10 +10,12 @@ Narrated pictograph presentation, voiceover script, and social copy for commerci
 | [`audio/`](./audio/) | Per-slide voiceover WAV (espeak-ng) |
 | [`video/easy-books-overview.mp4`](./video/easy-books-overview.mp4) | Full narrated presentation |
 | [`VOICEOVER_SCRIPT.md`](./VOICEOVER_SCRIPT.md) | Editable narration + bullet source |
-| [`catalog-advertisement.html`](./catalog-advertisement.html) | **Standalone catalog explorer** — search/filter every tenant, form, Studio tab, report, and screen. Served at `/catalog-advertisement.html`. Snapshots load from `frontend/public/catalog/`. |
+| [`catalog-advertisement.html`](./catalog-advertisement.html) | **Standalone catalog explorer** (no login). Hosted at `/catalog-advertisement.html`. |
+| [`CATALOG_AD_SHIP.md`](./CATALOG_AD_SHIP.md) | **How to ship it for ads** — canonical URL, what not to attach, offline zip pack. |
 | [`catalog-index.json`](./catalog-index.json) | Catalog metadata embedded into the explorer (from the frontend vitest). |
 | [`catalog-ad/`](./catalog-ad/) | Optional hero JPEGs (legacy ad stills) |
 | [`build_catalog_ad.py`](./build_catalog_ad.py) | Rebuilds the explorer HTML from `catalog-index.json` |
+| [`pack_catalog_ad.py`](./pack_catalog_ad.py) | Builds `dist/easy-books-catalog-explorer.zip` (HTML + snapshots, gitignored) |
 | [`build_presentation.py`](./build_presentation.py) | Regenerates slides, audio, and MP4 |
 
 ## Segments covered (voiceover)
@@ -40,7 +42,13 @@ python3 docs/marketing/build_presentation.py
 # Catalog explorer HTML (embeds catalog JSON; snapshots from frontend/public/catalog/)
 cd frontend && npm test -- src/lib/__tests__/workflowCatalog.test.ts
 python3 docs/marketing/build_catalog_ad.py
+
+# Offline USB/booth zip (not committed)
+python3 docs/marketing/pack_catalog_ad.py
 ```
+
+How ads, email, and social should point at this file: [`CATALOG_AD_SHIP.md`](./CATALOG_AD_SHIP.md).  
+Campaigns may deep-link (`?tenant=spinning`, `?kind=report`, `?q=studio`); UTM params are preserved.
 
 ## Related product docs
 

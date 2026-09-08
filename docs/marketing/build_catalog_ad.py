@@ -43,7 +43,16 @@ HTML = r"""<!DOCTYPE html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Easy-Books · Workflow Catalog explorer</title>
-<meta name="description" content="Explore every Easy-Books demo tenant, segment, workflow, form, subform, report and screen — with snapshots and GL notes. Standalone HTML." />
+<meta name="description" content="Explore every Easy-Books demo tenant, segment, workflow, form, subform, report and screen — with snapshots and GL notes. No login." />
+<meta name="robots" content="index,follow" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Easy-Books · Workflow Catalog explorer" />
+<meta property="og:description" content="Nine demo companies, every form and report — photographed and explained. No login." />
+<meta property="og:image" content="/catalog/services--dashboard.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Easy-Books · Workflow Catalog explorer" />
+<meta name="twitter:description" content="Nine demo companies, every form and report — photographed and explained. No login." />
+<meta name="twitter:image" content="/catalog/services--dashboard.jpg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
@@ -121,7 +130,7 @@ HTML = r"""<!DOCTYPE html>
 <body>
 <header class="top">
   <a class="brand" href="#explore"><span class="mark">E</span><b>Easy-Books</b></a>
-  <span class="chip">Standalone catalog explorer</span>
+  <span class="chip">Public · no login</span>
 </header>
 <main>
   <section class="wrap hero">
@@ -135,7 +144,7 @@ HTML = r"""<!DOCTYPE html>
       · e.g. <code>demo.services@easy-books.app</code>, <code>demo.manufacturing@easy-books.app</code>,
       <code>demo.hospital@easy-books.app</code>, <code>demo.spinning@easy-books.app</code>.</p>
     <div class="stats" id="stats"></div>
-    <p class="note">Snapshots live in a <code>catalog/</code> folder next to this HTML (or at <code>/catalog/</code> on a running Easy-Books server). The catalog JSON is embedded — search and filters work even if pictures are still pending.</p>
+    <p class="note">Share the <strong>page URL</strong> in ads, email, and chat — do not attach this HTML (snapshots are sibling JPEGs, ~20&nbsp;MB). Hosted path: <code>/catalog-advertisement.html</code>. Snapshots load from <code>catalog/</code> next to this file, or <code>/catalog/</code> on a running Easy-Books server. Campaigns may deep-link with <code>?tenant=spinning</code>, <code>?kind=report</code>, <code>?q=studio</code>.</p>
   </section>
 
   <div class="filters" id="explore">
@@ -159,6 +168,7 @@ HTML = r"""<!DOCTYPE html>
   <div class="wrap">
     Easy-Books · double-entry bookkeeping for SMEs. Settings → Catalog is the in-app twin of this page.
     Studio (Settings → Studio) customises invoice/bill/customer/product/vendor fields, form layout, and print HTML — those tabs are catalogued here as subforms.
+    Ship this page as a hosted link, not a file attachment.
   </div>
 </footer>
 <script id="catalog-data" type="application/json">__ENTRIES_JSON__</script>
@@ -186,6 +196,30 @@ function shotUrl(shot) {
 }
 
 const state = { kind: "all", tenant: "all", tag: null, q: "", active: null, light: false };
+
+function readParams() {
+  const p = new URLSearchParams(location.search);
+  const k = p.get("kind");
+  if (k && KINDS.includes(k)) state.kind = k;
+  const t = p.get("tenant");
+  if (t === "all" || (t && TENANT_LABEL[t])) state.tenant = t;
+  if (p.get("tag")) state.tag = p.get("tag");
+  if (p.get("q")) state.q = p.get("q");
+}
+
+function writeParams() {
+  try {
+    const p = new URLSearchParams(location.search);
+    for (const key of ["kind", "tenant", "tag", "q", "id"]) p.delete(key);
+    if (state.kind !== "all") p.set("kind", state.kind);
+    if (state.tenant !== "all") p.set("tenant", state.tenant);
+    if (state.tag) p.set("tag", state.tag);
+    if (state.q.trim()) p.set("q", state.q.trim());
+    if (state.active) p.set("id", state.active.id);
+    const qs = p.toString();
+    history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+  } catch (_) { /* file:// offline pack */ }
+}
 
 function counts(list) {
   const c = { all: list.length };
@@ -292,12 +326,14 @@ function openDrawer(id) {
     document.getElementById("lightbox").innerHTML = `<img alt="${escapeHtml(e.title)}" src="${src}" />`;
     document.getElementById("lightbox").classList.add("on");
   };
+  writeParams();
 }
 
 function closeDrawer() {
   document.getElementById("drawer").classList.remove("on");
   document.getElementById("backdrop").classList.remove("on");
   state.active = null;
+  writeParams();
 }
 
 function renderStats() {
@@ -308,22 +344,24 @@ function renderStats() {
   ].map(([k,l]) => `<div class="stat"><strong>${c[k]||0}</strong><span>${l}</span></div>`).join("");
 }
 
-document.getElementById("q").addEventListener("input", ev => { state.q = ev.target.value; renderGrid(); });
+document.getElementById("q").addEventListener("input", ev => {
+  state.q = ev.target.value; renderGrid(); writeParams();
+});
 document.getElementById("kinds").addEventListener("click", ev => {
   const b = ev.target.closest("[data-kind]"); if (!b) return;
-  state.kind = b.getAttribute("data-kind"); renderFilters(); renderGrid();
+  state.kind = b.getAttribute("data-kind"); renderFilters(); renderGrid(); writeParams();
 });
 document.getElementById("tenants").addEventListener("click", ev => {
   const b = ev.target.closest("[data-tenant]"); if (!b) return;
   const t = b.getAttribute("data-tenant");
   state.tenant = state.tenant === t ? "all" : t;
-  renderFilters(); renderGrid();
+  renderFilters(); renderGrid(); writeParams();
 });
 document.getElementById("tags").addEventListener("click", ev => {
   const b = ev.target.closest("[data-tag]"); if (!b) return;
   const t = b.getAttribute("data-tag");
   state.tag = state.tag === t ? null : t;
-  renderFilters(); renderGrid();
+  renderFilters(); renderGrid(); writeParams();
 });
 document.getElementById("backdrop").onclick = closeDrawer;
 document.getElementById("lightbox").onclick = () => document.getElementById("lightbox").classList.remove("on");
@@ -335,9 +373,13 @@ document.addEventListener("keydown", ev => {
   if (ev.key === "Escape") { closeDrawer(); document.getElementById("lightbox").classList.remove("on"); }
 });
 
+readParams();
+if (state.q) document.getElementById("q").value = state.q;
 renderStats();
 renderFilters();
 renderGrid();
+const landId = new URLSearchParams(location.search).get("id");
+if (landId) openDrawer(landId);
 </script>
 </body>
 </html>
